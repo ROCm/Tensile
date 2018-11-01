@@ -4110,7 +4110,12 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
       # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
       assert (kernel["LocalWriteUseSgpr%s"%tc])
-      kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
+      if kernel["ExpandPointerSwap"]:
+        kStr += inst("s_add_u32", "m0", sgpr("LocalWriteAddr%s"%tc), \
+                      tP["localWriteSwapByteOffset"], "m0 <- LDS write address")
+      else:
+        kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
+
 
     # sizeK % LOCAL_DEPTHU
     guardK = (mode==2)
