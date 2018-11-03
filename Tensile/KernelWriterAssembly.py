@@ -329,10 +329,11 @@ class KernelWriterAssembly(KernelWriter):
     self.db["DebugKernelMaxItems"] = 16  # Capture first N(=16) print values, ignore subsequent.  If -1, debug writing is faster but writing more than 16 values is undefined.
 
     # Chicken bit to add conservative synchronization at strategic points:
-    # 0x1 = waitcnt + barrier after vector load
-    # 0x2 = waitcnt at self.wait() for globalRead
-    # 0x4 = waitcnt at self.wait() for localWrite
-    # 0x8 = waitcnt at self.wait() for localRead
+    # 0x01 = waitcnt + barrier after vector load
+    # 0x02 = waitcnt at self.wait() for globalRead
+    # 0x04 = waitcnt at self.wait() for localWrite
+    # 0x08 = waitcnt at self.wait() for localRead
+    # 0x10 = waitcnt during writes
     self.db["ConservativeWaitCnt"] = 0x0
 
     self.db["InitLds"]     = False  # Initialize LDS at start of kernel
@@ -346,6 +347,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
     self.db["CheckValueC"] = -1 # -1 disables, 0 checks for 0 at output
+    self.db["ForceEdgeStores"] = 0 # 1=force use of edge store path for all tiles,  2=add assert in non-edge stores
 
     # print vgpr register pool checkins and checkouts
     self.db["PrintRP"] = False
@@ -1290,6 +1292,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["CheckValueC"] >=0  : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
+    if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["PrintRP"] : print ("\n***WARNING: PrintRP enabled, may generate verbose output\n")
     if kernel["CheckTensorDimAsserts"] : print ("\n***WARNING: CheckTensorDimAsserts enabled, may impact performance\n")
     if kernel["CheckDimOverflow"] : print ("\n***WARNING: CheckDimOverflow enabled, may impact performance\n")
@@ -5592,10 +5595,10 @@ class KernelWriterAssembly(KernelWriter):
       # check edge0 ###
 
       # s01 = rMT0
-      kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT0=0" ) 
+      kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT0=0" )
 
       # s23 = nwg0-1
-      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" ) 
+      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
       kStr += inst("s_cmp_lt_u32", sgpr("WorkGroup0"), sgpr(tmpS23), "wg0 < nwg0-1")
       kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck0"], \
           "wg0 < nwg0-1 so skip rMT0 = Size0 % MT0")
@@ -5609,16 +5612,18 @@ class KernelWriterAssembly(KernelWriter):
       # if rMT0 > 0 goto label_B?_E1
       if self.do["EdgeWrite"]:
         kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT0 > 0")
+        if self.db["ForceEdgeStores"]:
+          kStr += inst("s_cmp_eq_u32", sgpr(tmpS01), sgpr(tmpS01), "ForceEdgeStores!")
         kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
             "edges required so jump to E1")
 
       # check edge1 ###
 
       # s01 = rMT1
-      kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT1=0" ) 
+      kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT1=0" )
 
       # s23 = nwg1-1
-      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" ) 
+      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
       kStr += inst("s_cmp_lt_u32", sgpr("WorkGroup1"), sgpr(tmpS23), "wg1 < nwg1-1")
       kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck1"], \
           "wg1 < nwg1-1 so skip rMT1 = Size1 % MT1")
@@ -5639,7 +5644,7 @@ class KernelWriterAssembly(KernelWriter):
       for edge in edges:
         kStr += "label_%04u:%s"%(writeLabels[beta][edge], self.endLine)
 
-        edgeI = edge  # set to True to disable vector stores
+        edgeI = edge
         #edgeI = True  # set to True to disable vector stores
 
         gwvw = vectorWidths[edgeI]
@@ -6013,6 +6018,9 @@ class KernelWriterAssembly(KernelWriter):
 
       coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
       coordOffset1 = d1*strideD1 + vc1
+
+      if not edge and self.db["ForceEdgeStores"]>=2:
+        kStr += self.bomb() # should not get here
 
       kStr += self.comment1("(d1,vc1,d0,vc0)=(%u,%u,%u,%u) coordOffset1=%u coordOffset0=%u"%(d1,vc1,d0,vc0, coordOffset1, coordOffset0))
       if coordOffset0 == 0:
@@ -6521,6 +6529,9 @@ class KernelWriterAssembly(KernelWriter):
         # BufferStore doesn't need exec since it used buffer range checking when
         # possible
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
+
+      if self.db["ConservativeWaitCnt"] & 0x10:
+        kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
 
     # return registers to pool:
     lastData = -1
