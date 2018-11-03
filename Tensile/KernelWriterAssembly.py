@@ -333,8 +333,9 @@ class KernelWriterAssembly(KernelWriter):
     # 0x02 = waitcnt at self.wait() for globalRead
     # 0x04 = waitcnt at self.wait() for localWrite
     # 0x08 = waitcnt at self.wait() for localRead
-    # 0x10 = waitcnt during writes
-    self.db["ConservativeWaitCnt"] = 0x0
+    # 0x10 = waitcnt before each write batch
+    # 0x20 = waitcnt after each write batch
+    self.db["ConservativeWaitCnt"] = 0xFF
 
     self.db["InitLds"]     = False  # Initialize LDS at start of kernel
     self.printedAssertCnt  = 0
@@ -4505,7 +4506,7 @@ class KernelWriterAssembly(KernelWriter):
 
             paramTuple = tuple(paramList)
             #comment = "Reg -> L %u_%u_%u_%u"%(para, sPara, perp, sPerp)
-            comment += "#%u"%self.localWriteDoCnt
+            comment += " #%u"%self.localWriteDoCnt
             nonTemporal = 0
             highBits = False
             if kernel["ProblemType"]["DataType"].isHalf():
@@ -6013,6 +6014,10 @@ class KernelWriterAssembly(KernelWriter):
     # on the thread and tid number.  These are ELEMENT offsets into C which
     # for the top-left corner this thread will write.  These are not changed
     # across all the store loop iters.
+    if self.db["ConservativeWaitCnt"] & 0x20:
+      kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
+    if not edge and self.db["ForceEdgeStores"]>=2:
+      kStr += self.bomb() # should not get here
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = elementAddr[elementIdx]
@@ -6033,8 +6038,6 @@ class KernelWriterAssembly(KernelWriter):
       coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
       coordOffset1 = d1*strideD1 + vc1
 
-      if not edge and self.db["ForceEdgeStores"]>=2:
-        kStr += self.bomb() # should not get here
 
       kStr += self.comment1("(d1,vc1,d0,vc0)=(%u,%u,%u,%u) coordOffset1=%u coordOffset0=%u"%(d1,vc1,d0,vc0, coordOffset1, coordOffset0))
       if coordOffset0 == 0:
@@ -6544,7 +6547,7 @@ class KernelWriterAssembly(KernelWriter):
         # possible
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
 
-      if self.db["ConservativeWaitCnt"] & 0x10:
+      if self.db["ConservativeWaitCnt"] & 0x20:
         kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
 
     # return registers to pool:
