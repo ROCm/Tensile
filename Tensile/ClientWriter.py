@@ -830,7 +830,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "  typedef ProblemDims<%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
         % (firstStride, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
     # TODO - this should be initialized somewhere once?
-    h += "static const ProblemProperties props( "
+    h += "static const ProblemType problemType( "
     h += listToInitializer(problemType["IndicesFree"]) + ", "
     h += listToInitializer(problemType["IndicesSummation"]) + ", "
     h += listToInitializer(problemType["IndicesBatch"])
@@ -850,7 +850,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, problemType["TotalIndices"]):
       h += ", size%s" % indexChars[i]
     h += ");\n"
-    h += "  if (!AssertionProperties(pdims,&props).validForSolution(solution._assertionRequirements))\n"
+    h += "  if (!ProblemProperties(pdims,&problemType).validForSolution(solution._assertionRequirements))\n"
     h += "    return tensileStatusAssertFailure;  // problem dims did not meet requirements for solution\n"
     h += "\n"
 

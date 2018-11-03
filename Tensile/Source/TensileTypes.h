@@ -282,18 +282,15 @@ struct RandomDistance {
   }
 };
 
-template <class Object>
-struct ObjectHasher {
-    size_t operator()(const Object &o ) const
-    {
-      return o.hash();
-    }
-};
 
-class ProblemProperties
+// ProblemType
+// Stores the different dimensions (free, index, batch) and other problem-specific info
+// A single ProblemType may have many ProblemDims
+// Combination of a ProblemType and ProblemDim defines a Problem
+class ProblemType
 {
 public:
-  ProblemProperties(const std::vector<int> &indicesFree,
+  ProblemType(const std::vector<int> &indicesFree,
                     const std::vector<int> &indicesSummation,
                     const std::vector<int> &indicesBatch)
     : _indicesFree(indicesFree),
@@ -316,14 +313,17 @@ private:
 };
 
 
-// These are assertions used to generate the solution
+// These are properties of the problemDims and problemType which drive the 'assertions'
+//   - Solutions may be optimized so they only work for a subset of ProblemProperties -
+//   - At runtime, the ProblemProperties are computed for the given ProblemType and
+//     ProblemDims, and then checked against the Solution requirements.
 // Must be checked by the runtime before launching the solution
-struct AssertionProperties {
+struct ProblemProperties {
 
   // Constructor used in solution tables-
   // See writeSolutionAndExactTable in TensileCreateLibrary - this constructor must
   // be in-sync with the table written there.
-  AssertionProperties(unsigned summationElementMultiple,
+  ProblemProperties(unsigned summationElementMultiple,
                       unsigned free0ElementMultiple,
                       unsigned free1ElementMultiple,
                       int approxSize)
@@ -335,7 +335,7 @@ struct AssertionProperties {
 
   // Constructor used to compute assertions for a specified problem size
   template<class ProblemDimsType>
-  AssertionProperties(const ProblemDimsType &pdims, const ProblemProperties *props) {
+  ProblemProperties(const ProblemDimsType &pdims, const ProblemType *props) {
     _summationElementMultiple = 1; // problem summation element multiple
     auto sumSize = pdims.sizes(props->lastSummationIdx());
     if ((sumSize & 0x7) == 0) _summationElementMultiple=8;
@@ -375,7 +375,7 @@ struct AssertionProperties {
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
-  bool validForSolution(const AssertionProperties &solutionRequirements) const {
+  bool validForSolution(const ProblemProperties &solutionRequirements) const {
     return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
            (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
            (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&

@@ -21,7 +21,13 @@
 
 #pragma once
 
-#include <limits>
+#include <limits:
+/*******************************************************************************
+ * Functions to map from ProblemDims to the best available solution
+ *   - Provides efficient hash tables for lookup with thread-safe access
+ *   - Defines several different static lookup functions, and can be extended
+ *     for more sophisticated algorithms
+ ******************************************************************************/
 
 // Set to non-zero to debug the solution mapper
 // 0x1 = informational debug
@@ -110,8 +116,8 @@ public:
                  MasterSolutionMapper *masterSolutionMapper,
                  const SolutionInfo *solutionTable, size_t numSolutions,
                  const PtoS *embeddedExactTable, size_t numExacts,
-                 const ProblemProperties *props)
-     :  _name(name), _props(props), _numSolutions(numSolutions),
+                 const ProblemType *problemType)
+     :  _name(name), _problemType(problemType), _numSolutions(numSolutions),
         _findAlg(EuclideanDistanceAlgo), _db(DEBUG_SM)
   {
     int used=0; // how many devices are using this solution mapper:
@@ -174,7 +180,7 @@ public:
   };
 
   // Returns integer solutionIdx if exact match is found else -1
-  int findExactMatch(const AssertionProperties  &pa,
+  int findExactMatch(const ProblemProperties  &pa,
                      const ProblemKeyType &pkey) const
   {
     auto fiter = _exactMap.find(pkey);
@@ -192,7 +198,7 @@ public:
 
   // Iterates through all known exact matching and finds the 'closest' match.
   template <class DistanceFunction>
-  int findNearestMatch(const AssertionProperties &pa,
+  int findNearestMatch(const ProblemProperties &pa,
                        const ProblemKeyType &pkey,
                        DistanceFunction distanceF) const
   {
@@ -231,7 +237,7 @@ public:
       return -1; // if no solutions in the table
   };
 
-  int findNearestMatchWithAlg(const AssertionProperties &pa, const ProblemKeyType &pkey) const
+  int findNearestMatchWithAlg(const ProblemProperties &pa, const ProblemKeyType &pkey) const
   {
     if (_findAlg >= 0) {
       if (_findAlg < _numSolutions) {
@@ -264,7 +270,7 @@ public:
 
     // Assertions that we can make based on the problem dims,
     // for example summation is some int multiple or macro-tile bounds are <32bits
-    AssertionProperties pa(pdims,_props);
+    ProblemProperties pa(pdims,_problemType);
 
     std::lock_guard<std::mutex> lockGuard(_cachedMutex);
     auto fiter = _cachedLookups.find(pkey);
@@ -316,7 +322,7 @@ public:
 
 private:
   const std::string        _name;
-  const ProblemProperties *_props;
+  const ProblemType        *_problemType;
 
   SolutionRuntime *   _solutionTable;
   size_t              _numSolutions;
