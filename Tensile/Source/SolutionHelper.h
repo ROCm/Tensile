@@ -40,7 +40,14 @@ typedef std::map<KernelMapKey, cl_kernel> KernelMap;
 typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
 
+// Locks and tracker for kernel loading status
 struct SolutionLock {
+  SolutionLock() : _hipFunctions(0) {};
+
+  SolutionLock(const SolutionLock &other) {
+    _hipFunctions.store(other._hipFunctions.load());
+  };
+
   std::atomic<hipFunction_t*> _hipFunctions;
   std::mutex _initFunctionsMutex;
   std::mutex _loadModuleMutex;
@@ -72,5 +79,16 @@ void tensileGetCompiledOpenCLKernel(
 //  const char *functionName,
 //  const unsigned char *coba); // code object byte array
 #endif
+
+// solution info
+struct SolutionInfo {
+  // _functionPtr is a generic function pointer to a solution.
+  // Different Problem types can have different solution function signatures ;
+  // Use void* since these are all same type and can use same type for all w/o templates
+  void *                  _functionPtr;
+  const char *            _name;
+  AssertionProperties     _assertions;
+};
+
 
 #endif
