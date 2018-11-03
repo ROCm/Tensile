@@ -95,7 +95,7 @@ def prepAsm():
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
+def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly):
   start = time.time()
   print1("# Writing Kernels...")
@@ -281,6 +281,24 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     solutionHeaderFile.write("#include \"Tools.h\"\n")
     if globalParameters["CodeFromFiles"]:
       solutionHeaderFile.write("#include <unistd.h>\n")
+
+  # Write a solution pointer typedef for each problemType:
+  h = ""
+  for problemType in problemTypes:
+    #print "p=", problemType
+    argListAll = solutionWriter.getArgList(problemType, False, True, True, True)
+    # declare TensileSolutionPointer_ProblemType
+    h += "\n// solution pointer\n"
+    h += "typedef TensileStatus (*TensileSolutionPointer_%s)(\n" \
+        % problemType
+    for i in range(0, len(argListAll)):
+      h += "    %s %s%s" % (argListAll[i][0], argListAll[i][1], ",\n" \
+          if i < len(argListAll)-1 else ");\n\n")
+    h += "\n"
+    h += "typedef SolutionInfo<TensileSolutionPointer_%s> SolutionInfo_%s;\n\n" % (problemType,problemType)
+
+  solutionHeaderFile.write(h)
+#
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
@@ -292,7 +310,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
           "Solutions", solutionFileName+".cpp"), "w")
       solutionSourceFile.write(CHeader)
     solutionSourceFile.write( \
-        solutionWriter.getSourceFileString(solution, kernelsWithBuildErrs))
+        solutionWriter.getProblemSourceString(solution["ProblemType"], solution, kernelsWithBuildErrs))
     if not globalParameters["MergeFiles"]:
       solutionSourceFile.close()
 
@@ -340,9 +358,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
   # Tensile.cpp
   s = ""
+  s += "#include \"Solutions.h\"\n"
   s += "#include \"Tensile.h\"\n"
   s += "#include \"TensileInternal.h\"\n"
-  s += "#include \"Solutions.h\"\n"
   s += "#include \"SolutionMapper.h\"\n"
 
   ########################################
@@ -350,25 +368,18 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   for problemType in logicData:
 
     # function argument list
-    argListSizes = solutionWriter.getArgList(problemType, False, False, False)
-    argListStream = solutionWriter.getArgList(problemType, False, False, True)
-    argListData = solutionWriter.getArgList(problemType, True, True, True)
+    argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
+    argListStream = solutionWriter.getArgList(problemType, False, False, False, True)
+    argListAll  = solutionWriter.getArgList(problemType, False, True, True, True)
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"
     h += "TensileStatus tensile_%s(\n" % problemType
-    for i in range(0, len(argListData)):
+    for i in range(0, len(argListAll)):
       h += "    %s %s%s" \
-          % (argListData[i][0], argListData[i][1], \
-          ",\n" if i < len(argListData)-1 else ");\n\n")
+          % (argListAll[i][0], argListAll[i][1], \
+          ",\n" if i < len(argListAll)-1 else ");\n\n")
 
-    # declare TensileSolutionPointer_ProblemType
-    h += "\n// solution pointer\n"
-    h += "typedef TensileStatus (*TensileSolutionPointer_%s)(\n" \
-        % problemType
-    for i in range(0, len(argListData)):
-      h += "    %s %s%s" % (argListData[i][0], argListData[i][1], ",\n" \
-          if i < len(argListData)-1 else ");\n\n")
 
     numSizes = problemType["TotalIndices"];
     h += "typedef ProblemSizes<%u> ProblemSizes_%s;\n" % (numSizes,problemType)
@@ -426,7 +437,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     # Per-problem constants here:
     # These are common for all schedules and thus do not include schedule name (vega,hip,etc)
     solutionPointerType = "TensileSolutionPointer_%s" % problemType
-    s += "typedef SolutionInfo<%s> SolutionInfo_%s;\n\n" % (solutionPointerType, problemType)
     s += "static const ProblemProperties problemProperties_%s( " % problemType
     s += listToInitializer(problemType["IndicesFree"]) + ", "
     s += listToInitializer(problemType["IndicesSummation"]) + ", "
@@ -679,10 +689,10 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     # declare tensile_ProblemType
     s += "\n// main call to solution; enqueues a kernel\n"
     s += "TensileStatus tensile_%s(\n" % problemType
-    for i in range(0, len(argListData)):
+    for i in range(0, len(argListAll)):
       s += "    %s %s%s" \
-          % (argListData[i][0], argListData[i][1], \
-          ",\n" if i < len(argListData)-1 else ") {\n")
+          % (argListAll[i][0], argListAll[i][1], \
+          ",\n" if i < len(argListAll)-1 else ") {\n")
     s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointer_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
@@ -691,9 +701,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += "\n"
     s += "    if ( ptr ) {\n"
     s += "      return ptr("
-    for i in range(0, len(argListData)):
+    for i in range(0, len(argListAll)):
       s += "%s%s" \
-          % (argListData[i][1], ", " if i < len(argListData)-1 else ");\n")
+          % (argListAll[i][1], ", " if i < len(argListAll)-1 else ");\n")
     s += "    } else {\n"
     s += "      return tensileStatusFailure; // no solution found\n"
     s += "    }\n"
@@ -1050,7 +1060,8 @@ def TensileCreateLibrary():
       kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
-  writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
+  problemTypes = logicData.keys()
+  writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly)
 
   libraryStaticFiles = [

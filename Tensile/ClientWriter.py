@@ -284,6 +284,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "#include \"" + solutionName + ".h\"\n"
     h += "\n"
   else:
+    h += "#include \"Solutions.h\"\n"
     h += "#include \"Tensile.h\"\n"
 
 
@@ -628,19 +629,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   if forBenchmark:
     # Solution Ptrs
-    h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
-    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True, True)
-    for i in range(0, len(argList)):
-      h += "  %s %s%s" % (argList[i][0], argList[i][1], \
-          ",\n" if i < len(argList)-1 else ");\n\n")
-
     h += "/* solutions */\n"
     # Problem Type Indices
     h += "const unsigned int maxNumSolutions = %u;\n" % len(solutions)
     h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
     h += "\n"
 
-    h += "static const SolutionInfo<SolutionFunctionPointer> solutions[maxNumSolutions] = {\n"
+    h += "static const SolutionInfo_%s solutions[maxNumSolutions] = {\n" % (problemType)
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)

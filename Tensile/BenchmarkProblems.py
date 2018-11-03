@@ -440,8 +440,9 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
+  problemType = solutions[0]["ProblemType"]
   writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], solutions, kernels, kernelsBetaOnly, \
+      globalParameters["WorkingPath"], [problemType], solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly )
 
   ##############################################################################
