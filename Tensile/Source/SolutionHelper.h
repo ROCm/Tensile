@@ -31,6 +31,11 @@
 #include <atomic>
 
 /*******************************************************************************
+ * Helper classes for locking, tracking, and getting solutions.
+ * Works closely with SolutionMapper.h
+ ******************************************************************************/
+
+/*******************************************************************************
  * Kernel Cache
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -84,11 +89,11 @@ void tensileGetCompiledOpenCLKernel(
 //  const unsigned char *coba); // code object byte array
 #endif
 
-// solution info
+// solution info - constant compile or load-time information about the solution
 struct SolutionInfo {
   // _functionPtr is a generic function pointer to a solution.
   // Different Problem types can have different solution function signatures ;
-  // Use void* since these are all same type and can use same type for all w/o templates
+  // Use void* since so can use same type for all w/o flurry of auto-generated template types
   void *                  _functionPtr;
   const char *            _name;
 
@@ -97,7 +102,7 @@ struct SolutionInfo {
   // thus allowing faster code but the solution only works if the requirement is met.
   // The structure here captures those requirements - they will be checked before
   // launching the kernel
-  AssertionProperties     _assertionRequirements;
+  ProblemProperties     _assertionRequirements;
 };
 
 #endif

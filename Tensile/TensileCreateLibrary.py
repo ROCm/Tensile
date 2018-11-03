@@ -367,7 +367,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # function argument list
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
-    argListStream = solutionWriter.getArgList(problemType, False, False, False, True)
     argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
     argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
 
@@ -441,8 +440,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "* Per-Problem Functions for %s\n" % problemType
     s += "*******************************************************************************/\n"
 
-    s += "// Problem properties include the index assignments for free, summation, batch:\n"
-    s += "static const ProblemProperties problemProperties_%s( " % problemType
+    s += "// Problem type include the index assignments for free, summation, batch:\n"
+    s += "static const ProblemType problemType_%s( " % problemType
     s += listToInitializer(problemType["IndicesFree"]) + ", "
     s += listToInitializer(problemType["IndicesSummation"]) + ", "
     s += listToInitializer(problemType["IndicesBatch"])
@@ -627,7 +626,7 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   s += "  &masterSolutionMapper_%s, // add to this master solution mapper\n" % (problemType)
   s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
   s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
-  s += "  &problemProperties_%s);\n" % (problemType)
+  s += "  &problemType_%s);\n" % (problemType)
 
   s += "} // end anonymous namespace\n" 
   return s
@@ -643,7 +642,6 @@ def writeExactLogic(problemType, indexOrder,
                     solutionsForSchedule, exactLogic, \
                     solutionNames, ptr):
   s = ""
-  indent = "  "
   s += "  ProblemDims_%s pdims(" % problemType
   indexChars = globalParameters["IndexChars"]
   firstStride = 0 if problemType["UseInitialStrides"] else 1

@@ -235,6 +235,9 @@ validParameters = {
     # This eliminates 4 vector XOR instructions used for pointer swap
     "ExpandPointerSwap":          [False, True],
 
+    "BufferLoad":                 [ False, True ],
+    "BufferStore":                [ False, True ],
+
     # Attempt to load directly from global memory into LDS.
     # Assembly only
     # Requires BufferLoad, assembler support for lds modifier on buffer
@@ -294,7 +297,7 @@ validParameters = {
     # for sizes or alignments.  The kernel generator can use this information to produce
     # a kernel which uses those assertions to produce a faster kernel.
     #
-    # If modifying or adding Assertions also change AssertionProperties class in TensileTypes.h
+    # If modifying or adding Assertions also change ProblemProperties class in TensileTypes.h
 
     # Kernel generator will assume that the summation size is some multiple of the element size
     # and use this to optimize the kernel.
@@ -343,7 +346,7 @@ validParameters = {
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
-    # Some kernels only work for certain sizes, see AssertionProperties in TensileTypes for exact defs
+    # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
     "AssertMinApproxSize" : [0,1,2],
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
