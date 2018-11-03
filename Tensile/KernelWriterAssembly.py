@@ -345,6 +345,7 @@ class KernelWriterAssembly(KernelWriter):
     # Mismatches will assert (generate GPUVM fault)
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
+    self.db["CheckValueC"] = -1 # -1 disables, 0 checks for 0 at output
 
     # print vgpr register pool checkins and checkouts
     self.db["PrintRP"] = False
@@ -1288,6 +1289,7 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
+    if self.db["CheckValueC"] >=0  : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
     if self.db["PrintRP"] : print ("\n***WARNING: PrintRP enabled, may generate verbose output\n")
     if kernel["CheckTensorDimAsserts"] : print ("\n***WARNING: CheckTensorDimAsserts enabled, may impact performance\n")
     if kernel["CheckDimOverflow"] : print ("\n***WARNING: CheckDimOverflow enabled, may impact performance\n")
@@ -4084,7 +4086,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cmp_eq_i32", \
               sgpr("LoopCounters+%u"%loopIdx), \
               "%u"%-1, \
-              "%s"%"is this last iteration")
+              "%s"%"is this the last iteration")
         kStr += inst("s_cmov_b32", \
               sgpr("GlobalReadIncsA"), \
               0,
@@ -6174,6 +6176,9 @@ class KernelWriterAssembly(KernelWriter):
 
           elif kernel["ProblemType"]["DataType"].isSingle():
             kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
+            if self.db["CheckValueC"] >= 0:
+              kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), 0.0)
+
           elif kernel["ProblemType"]["DataType"].isDouble():
             kStr += inst("v_mul_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), sgpr("Alpha",2), vgpr("ValuC+%u"%(sumIdxV*2),2), "*= alpha")
 
