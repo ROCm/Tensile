@@ -1685,7 +1685,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Swap Offsets A/B
   ##############################################################################
-  def localReadSwapOffsets(self, kernel, tP):
+  def localReadSwapOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     kStr += "%slocalReadOffset%s = (localReadOffset%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, tP["tensorChar"], tP["tensorChar"], self.endLine)

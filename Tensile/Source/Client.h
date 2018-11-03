@@ -1093,7 +1093,7 @@ bool benchmarkAllSolutionsForSize(
         else if (callStatus == tensileStatusAssertFailure)
           std::cout << "DID_NOT_SATISFY_ASSERTS, ";
         else
-          std::cout << "INVALID_KERNEL, ";
+          std::cout << "INVALID_KERNEL, "; // launch function returned error?  
 
       }
       // device stats

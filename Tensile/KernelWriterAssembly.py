@@ -534,6 +534,9 @@ class KernelWriterAssembly(KernelWriter):
     dkp = kernel["DisableKernelPieces"]
     self.do["NullKernel"]  = dkp >= 9 or dkp == -9
 
+    self.tPA = tPA
+    self.tPB = tPB
+
     self.sgprs=collections.OrderedDict()
     self.sgprIdx = 0
 
@@ -1280,6 +1283,7 @@ class KernelWriterAssembly(KernelWriter):
     self.getLabel("PrefetchGlobalEnd")
     self.getLabel("LoopBegin%s"%(unrollChar))
     self.getLabel("LoopEnd%s"%(unrollChar))
+    self.getLabel("LoopEnd%s_oddexit"%(unrollChar))
     self.getLabel("PrefetchGlobalLastIterEnd")
     self.getLabel("TailLoopBegin%s"%(unrollChar))
     self.getLabel("TailLoopEnd%s"%(unrollChar))
@@ -3638,6 +3642,7 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelEndOddExit = self.getLabel("%sLoopEnd%s_oddexit"%("Tail" if tailLoop else "", loopChar) )
 
     if tailLoop and kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
       unrollInc = kernel["InnerUnroll"]
@@ -3669,12 +3674,19 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(endCounter), \
         "counter%s==0"%(loopChar) )
-    kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
+    kStr += inst("s_cbranch_scc1 label_%04u"%(loopLabelEnd if finalLoop else loopLabelEndOddExit), \
         "exit Loop%s"%loopChar )
 
     if finalLoop:
       kStr += inst("s_branch label_%04u"%loopLabelBegin, \
           "restart %s Loop%s"%("tailLoop" if tailLoop else "unrolled loop", loopChar ))
+      kStr += "label_%04u: // unroll loop odditer exit\n" % (loopLabelEndOddExit)
+      if not self.suppressNoLoadLoop and kernel["ExpandPointerSwap"]:
+        # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
+        # if we exit the main loop at an odd iter - need to swap LDS read pointers
+        # so the ds_reads read from the 'high' buffer of LDS
+        kStr += self.localReadSwapOffsets(kernel, False, self.tPA)
+        kStr += self.localReadSwapOffsets(kernel, False, self.tPB)
       kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
 
     # restore all threads
@@ -4526,15 +4538,17 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Local Read: Swap Offsets A/B
+  # internalPointerSwap: swap internally tracked offsets - rather than
+  #    emit specific instructions to do the pointer swap
   ##############################################################################
-  def localReadSwapOffsets(self, kernel, tP):
+  def localReadSwapOffsets(self, kernel, internalPointerSwap, tP):
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
 
-    if kernel["ExpandPointerSwap"]:
+    if internalPointerSwap:
       tP["localReadSwapByteOffset"] = 0 if tP["localReadSwapByteOffset"] else kernel["LdsOffsetA_Blk"]*tP["bpe"]
-      kStr += self.comment("local read swap offset -> %u" % tP["localReadSwapByteOffset"])
+      kStr += self.comment("local read swap internal offset -> %u" % tP["localReadSwapByteOffset"])
     else:
       kStr += inst("v_xor_b32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
