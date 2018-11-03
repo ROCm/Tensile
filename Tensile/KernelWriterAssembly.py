@@ -341,6 +341,8 @@ class KernelWriterAssembly(KernelWriter):
     self.printedAssertCnt  = 0
     self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
 
+    self.db["InitSgpr"]   = 1  # 0x1=Initialize SGPRs at kernel start
+    self.initSgprValue    = 0xFFFFFFFF  # Value to use for Sgpr Init, if enabled
 
     # Check A and B values loaded from memory to ensure they are 1
     # Requires DataInitTypeAB=1.
@@ -1170,6 +1172,8 @@ class KernelWriterAssembly(KernelWriter):
     for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
       self.defineSgpr("WorkGroup%u"%i, 1)
 
+    self.lastUserSgprPlus1=self.sgprIdx  # For initSgpr, this is one past the past user sgpr
+
     self.defineSgpr("NumWorkGroups0", 1)
     self.defineSgpr("NumWorkGroups1", 1)
 
@@ -1291,6 +1295,7 @@ class KernelWriterAssembly(KernelWriter):
     # shift vectors determined later
 
     if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
+    if self.db["InitSgpr"] : print ("\n***WARNING: InitSgpr enabled, may impact performance\n")
     if self.db["ConservativeWaitCnt"] : print ("\n***WARNING: ConservativeWaitCnt enabled, may impact performance\n")
     if self.do["KeepDirectToLdsAlloc"] : print ("\n***WARNING: KeepDirectToLdsAlloc enabled, may impact performance\n")
     if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
@@ -2034,6 +2039,10 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
+      kStr += self.comment("Init SGPRs")
+      if self.db["InitSgpr"] & 0x1:
+        for i in range(self.lastUserSgprPlus1, self.totalSgprs):
+          kStr += inst("s_mov_b32", sgpr(i), hex(self.initSgprValue), "InitSgpr")
 
       ########################################
       # load kernel args
