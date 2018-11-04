@@ -350,9 +350,10 @@ class KernelWriterAssembly(KernelWriter):
     # 0x02 = waitcnt at self.wait() for globalRead
     # 0x04 = waitcnt at self.wait() for localWrite
     # 0x08 = waitcnt at self.wait() for localRead
-    # 0x10 = waitcnt before each write batch
-    # 0x20 = waitcnt after each write batch
-    self.db["ConservativeWaitCnt"] = 0xFF
+    # 0x10 = waitcnt after summation iteration, this can catch lingering ds or vm activity from summation loop
+    # 0x20 = waitcnt before each write batch
+    # 0x40 = waitcnt after each write batch
+    self.db["ConservativeWaitCnt"] = 0x00
 
     self.db["InitLds"]     = False  # Initialize LDS at start of kernel
     self.printedAssertCnt  = 0
@@ -3758,7 +3759,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["InitVgpr"] & 0x2:
       #kStr += self.vgprPool.initTmps(self.initVgprValue)
       kStr += self.vgprPool.initTmps(self.initVgprValue,start=0, stop=100)
-    if self.db["InitVgpr"] & 0x4:
+    if 0:
       for i in range(0,16+1):
          #kStr += inst("v_mov_b32", vgpr(21), hex(self.initVgprValue), "hack tmp in pool")
          kStr += inst("v_mov_b32", vgpr(21), vgpr(21), "hack tmp in pool")
@@ -3766,6 +3767,10 @@ class KernelWriterAssembly(KernelWriter):
     # this doesn't seem to do anything - not being aggressive with lastPostLoopSgpr
     if self.db["InitSgpr"] & 0x2:
       kStr += self.sgprPool.initTmps(self.initSgprValue)
+
+    if self.db["ConservativeWaitCnt"] & 0x10:
+      kStr += "s_barrier // debug\n"
+      kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
     return kStr
 
   ##############################################################################
@@ -6074,7 +6079,7 @@ class KernelWriterAssembly(KernelWriter):
     # on the thread and tid number.  These are ELEMENT offsets into C which
     # for the top-left corner this thread will write.  These are not changed
     # across all the store loop iters.
-    if self.db["ConservativeWaitCnt"] & 0x20:
+    if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
       kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
       kStr += "s_barrier // debug\n"
@@ -6650,7 +6655,7 @@ class KernelWriterAssembly(KernelWriter):
         # possible
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
 
-      if self.db["ConservativeWaitCnt"] & 0x20:
+      if self.db["ConservativeWaitCnt"] & 0x40:
         kStr += "s_barrier // debug\n"
         kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
         kStr += "s_barrier // debug\n"
