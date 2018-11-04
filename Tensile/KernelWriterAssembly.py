@@ -3771,6 +3771,10 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+
+    if self.suppressNoLoadLoop:
+      kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
+
     return kStr
 
   ##############################################################################

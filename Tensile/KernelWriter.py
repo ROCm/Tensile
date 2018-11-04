@@ -831,7 +831,7 @@ class KernelWriter:
 
     # don't create a whole copy of the Unroll loop with loads removed - instead
     # use buffer limits to suppress global loads
-    self.suppressNoLoadLoop = 0 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"] \
+    self.suppressNoLoadLoop = 1 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"] \
             and kernel["GlobalSplitU"]==1
     kernel["ExpandPointerSwap"]= kernel["ExpandPointerSwap"] and kernel["BufferLoad"] and \
             kernel["PrefetchGlobalRead"]
