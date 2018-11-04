@@ -1208,7 +1208,7 @@ bool benchmarkProblemSizes(
 
   } // for problemIdx
 	auto timeK = totalKernelTimer.elapsed_sec();
-  std::cout <<  "\nRun kernels elapsed gpu_time:" << gpu_time_ms/1000.0 << "secs  total_time:" << timeK << " secs " << std::setprecision(2) << gpu_time_ms/timeK*(100.0/1000) << "% gpu utilization)\n";
+  std::cout <<  "\nRun kernels elapsed gpu_time:" << gpu_time_ms/1000.0 << "secs  total_time:" << timeK << " secs " << std::setprecision(2) << gpu_time_ms/timeK*(100.0/1000) << "% gpu utilization\n";
 
   // close file
   file.close();

@@ -373,7 +373,10 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
     self.db["CheckValueC"] = -1 # -1 disables, 0 checks for 0 at output
+    #self.db["CheckStoreC"] = 1024.0
+    self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
     self.db["ForceEdgeStores"] = 0 # 1=force use of edge store path for all tiles,  2=add assert in non-edge stores
+    self.db["AssertNoEdge"] = 1 # Add assert in edge store code so crashes if executed
 
     # print vgpr register pool checkins and checkouts
     self.db["PrintRP"] = False
@@ -1326,7 +1329,9 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["CheckValueC"] >=0  : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
+    if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
+    if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
     if self.db["PrintRP"] : print ("\n***WARNING: PrintRP enabled, may generate verbose output\n")
     if kernel["CheckTensorDimAsserts"] : print ("\n***WARNING: CheckTensorDimAsserts enabled, may impact performance\n")
     if kernel["CheckDimOverflow"] : print ("\n***WARNING: CheckDimOverflow enabled, may impact performance\n")
@@ -3754,8 +3759,9 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += self.vgprPool.initTmps(self.initVgprValue)
       kStr += self.vgprPool.initTmps(self.initVgprValue,start=0, stop=100)
     if self.db["InitVgpr"] & 0x4:
-      for i in range(0,24+1):
-         kStr += inst("v_mov_b32", vgpr(21), hex(self.initVgprValue), "hack tmp in pool")
+      for i in range(0,16+1):
+         #kStr += inst("v_mov_b32", vgpr(21), hex(self.initVgprValue), "hack tmp in pool")
+         kStr += inst("v_mov_b32", vgpr(21), vgpr(21), "hack tmp in pool")
 
     # this doesn't seem to do anything - not being aggressive with lastPostLoopSgpr
     if self.db["InitSgpr"] & 0x2:
@@ -6074,6 +6080,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "s_barrier // debug\n"
     if not edge and self.db["ForceEdgeStores"]>=2:
       kStr += self.bomb() # should not get here
+    if edge and self.db["AssertNoEdge"]:
+      kStr += self.bomb() # should not get here
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = elementAddr[elementIdx]
@@ -6596,6 +6604,45 @@ class KernelWriterAssembly(KernelWriter):
                       addr0, addr1, 0, ntStr)
 
           #kStr += self.bomb(5)
+      if self.db["CheckStoreC"]>=0:
+        # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
+        #kStr += inst("s_mov_b64", "exec", -1, "BOZO, should not need full mask")
+        kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
+        for elementIdx in range(0, len(batchElements)):
+          addr = elementAddr[elementIdx]
+          sumIdx = elementSumIdx[elementIdx]
+
+          bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
+          if kernel["BufferStore"]:
+            addr0 = vgpr(addr)
+            addr1 = sgpr("SrdC", 4)
+          else:
+            addr0 = vgpr(addr,2)
+            addr1 = ""
+
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx/2, \
+                        addr0, addr1, soffset=0, offset=0, extraFields="", hi16=sumIdx%2)
+            else:
+              kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
+                        addr0, addr1, soffset=0, offset=0, extraFields="", hi16=0)
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
+                      addr0, addr1, soffset=0, offset=0, extraFields="")
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx*2, \
+                      addr0, addr1, soffset=0, offset=0, extraFields="")
+        kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
+
+        # Add checks for expected values:
+        kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckStoreC"], "expected value")
+        for elementIdx in range(0, len(batchElements)):
+          sumIdx = elementSumIdx[elementIdx]
+          # Need to fix for other types:
+          assert (kernel["ProblemType"]["DataType"].isSingle())
+          kStr += self.assert_eq(vgpr(sumIdx), sgpr(tmpS01))
+
 
       if edge and (atomic or not kernel["BufferStore"]):
         # subsequent batch must start with full exec mask
