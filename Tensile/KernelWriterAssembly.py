@@ -80,8 +80,9 @@ class RegisterPool:
 
   ########################################
   # Init
-  def __init__(self, size, printRP=0):
+  def __init__(self, size, type, printRP=0):
     self.printRP=printRP
+    self.type = type
     self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
 
@@ -197,6 +198,22 @@ class RegisterPool:
         print self.state()
         print "RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
       return start
+
+  def initTmps(self, initValue, start=0, stop=-1):
+    kStr = ""
+    stop= len(self.pool) if stop== -1 or stop>len(self.pool) else stop+1
+    for i in range(start, stop):
+      #if self.type == 's':
+      #  print i, self.pool[i].status
+      if self.pool[i].status==self.statusAvailable:
+        if self.type == 's':
+          kStr += inst("s_mov_b32", sgpr(i), hex(initValue), "init tmp in pool")
+        elif self.type == 'v':
+          kStr += inst("v_mov_b32", vgpr(i), hex(initValue), "init tmp in pool")
+        else:
+          assert(0) # bad regpool type
+
+    return kStr
 
   ########################################
   # Check In
@@ -341,8 +358,14 @@ class KernelWriterAssembly(KernelWriter):
     self.printedAssertCnt  = 0
     self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
 
-    self.db["InitSgpr"]   = 1  # 0x1=Initialize SGPRs at kernel start
-    self.initSgprValue    = 0xFFFFFFFF  # Value to use for Sgpr Init, if enabled
+    # InitSgpr and InitVgpr can initialize at various points:
+    #  0x1: Init at kernel start
+    #  0x2: Init at end of summation loop (after tail too) - this is just before store loop
+    self.db["InitSgpr"]   = 0x0  # init SGPRs
+    self.initSgprValue    = 0x0  # Value to use for Sgpr Init, if enabled
+
+    self.db["InitVgpr"]   = 0x0  # init VGPRs
+    self.initVgprValue    = 0xFFFFFFFF  # Value to use for Sgpr Init, if enabled
 
     # Check A and B values loaded from memory to ensure they are 1
     # Requires DataInitTypeAB=1.
@@ -1256,7 +1279,7 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs, self.db["PrintRP"])
+    self.vgprPool = RegisterPool(self.totalVgprs, 'v', self.db["PrintRP"])
     #print self.vgprPool.state()
 
     # C regs are not used during initialization so mark them as available - 
@@ -1267,7 +1290,7 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
 
-    self.sgprPool = RegisterPool(self.totalSgprs)
+    self.sgprPool = RegisterPool(self.totalSgprs, 's')
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["globalReadInstruction"] = self.globalReadInstructionA
@@ -1296,6 +1319,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
     if self.db["InitSgpr"] : print ("\n***WARNING: InitSgpr enabled, may impact performance\n")
+    if self.db["InitVgpr"] : print ("\n***WARNING: InitVgpr enabled, may impact performance\n")
     if self.db["ConservativeWaitCnt"] : print ("\n***WARNING: ConservativeWaitCnt enabled, may impact performance\n")
     if self.do["KeepDirectToLdsAlloc"] : print ("\n***WARNING: KeepDirectToLdsAlloc enabled, may impact performance\n")
     if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
@@ -2032,17 +2056,24 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_endpgm", "Skip the whole kernel")
 
     if self.do["PreLoop"]: 
+      if self.db["InitSgpr"] & 0x1:
+        kStr += self.comment("Init SGPRs")
+        for i in range(self.lastUserSgprPlus1, self.totalSgprs):
+          kStr += inst("s_mov_b32", sgpr(i), hex(self.initSgprValue), "InitSgpr&0x1")
+        kStr += "\n"
+
+      if self.db["InitVgpr"] & 0x1:
+        kStr += self.comment("Init VGPRs")
+        for i in range(1, self.totalVgprs):
+          kStr += inst("v_mov_b32", vgpr(i), hex(self.initVgprValue), "InitVgpr&0x1")
+        kStr += "\n"
+
       # set m0
       kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
           * self.bpeAB), "LDS clamp at %u bytes" \
           %(kernel["LdsNumElements"] * self.bpeAB) )
 
       kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
-
-      kStr += self.comment("Init SGPRs")
-      if self.db["InitSgpr"] & 0x1:
-        for i in range(self.lastUserSgprPlus1, self.totalSgprs):
-          kStr += inst("s_mov_b32", sgpr(i), hex(self.initSgprValue), "InitSgpr")
 
       ########################################
       # load kernel args
@@ -3463,7 +3494,8 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr = ""
     for i in range(0, self.numVgprValuC):
-      kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "")
+      kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
+
     return kStr
 
 
@@ -3714,8 +3746,21 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
         self.lastVgprForReads - self.startVgprValuA, "endSummation")
+
     self.setStartTmpPool(self.lastPostLoopSgpr)
-    return ""
+
+    kStr = ""
+    if self.db["InitVgpr"] & 0x2:
+      #kStr += self.vgprPool.initTmps(self.initVgprValue)
+      kStr += self.vgprPool.initTmps(self.initVgprValue,start=0, stop=100)
+    if self.db["InitVgpr"] & 0x4:
+      for i in range(0,24+1):
+         kStr += inst("v_mov_b32", vgpr(21), hex(self.initVgprValue), "hack tmp in pool")
+
+    # this doesn't seem to do anything - not being aggressive with lastPostLoopSgpr
+    if self.db["InitSgpr"] & 0x2:
+      kStr += self.sgprPool.initTmps(self.initSgprValue)
+    return kStr
 
   ##############################################################################
   # MAC Iteration
@@ -6024,7 +6069,9 @@ class KernelWriterAssembly(KernelWriter):
     # for the top-left corner this thread will write.  These are not changed
     # across all the store loop iters.
     if self.db["ConservativeWaitCnt"] & 0x20:
+      kStr += "s_barrier // debug\n"
       kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
+      kStr += "s_barrier // debug\n"
     if not edge and self.db["ForceEdgeStores"]>=2:
       kStr += self.bomb() # should not get here
     for elementIdx in range(0, len(batchElements)):
@@ -6557,7 +6604,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
 
       if self.db["ConservativeWaitCnt"] & 0x20:
+        kStr += "s_barrier // debug\n"
         kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
+        kStr += "s_barrier // debug\n"
 
     # return registers to pool:
     lastData = -1
