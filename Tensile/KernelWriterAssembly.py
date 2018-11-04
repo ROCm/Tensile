@@ -368,6 +368,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["InitVgpr"]   = 0x0  # init VGPRs
     self.initVgprValue    = 0xFFFFFFFF  # Value to use for Sgpr Init, if enabled
 
+    # Debug and Check flags:
     # Check A and B values loaded from memory to ensure they are 1
     # Requires DataInitTypeAB=1.
     # Mismatches will assert (generate GPUVM fault)
@@ -376,8 +377,9 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValueC"] = -1 # -1 disables, 0 checks for 0 at output
     #self.db["CheckStoreC"] = 1024.0
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
+
     self.db["ForceEdgeStores"] = 0 # 1=force use of edge store path for all tiles,  2=add assert in non-edge stores
-    self.db["AssertNoEdge"] = 1 # Add assert in edge store code so crashes if executed
+    self.db["AssertNoEdge"] = 0 # Add assert in edge store code so crashes if executed
 
     # print vgpr register pool checkins and checkouts
     self.db["PrintRP"] = False
@@ -3619,11 +3621,11 @@ class KernelWriterAssembly(KernelWriter):
 
     # is numIter at least 1? otherwise skip to end
     # PGL needs a skip-check here if not bufferload
-    # If suppressNoLoadLoop, then we don't have a special loop for the 'last iter'
+    # If kernel["SuppresssNoLoadLoop"] we don't have a special loop for the 'last iter'
     if tailLoop:
       endCounter = 0
     elif kernel["PrefetchGlobalRead"]:
-      if self.suppressNoLoadLoop:
+      if kernel["SuppresssNoLoadLoop"]:
         endCounter =  0
       else:
         endCounter = -1
@@ -3713,7 +3715,7 @@ class KernelWriterAssembly(KernelWriter):
       # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
       # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
       # increments appropriately
-      if kernel["PrefetchGlobalRead"] and not self.suppressNoLoadLoop:
+      if kernel["PrefetchGlobalRead"] and not kernel["SuppresssNoLoadLoop"]:
         endCounter = -1
       else:
         endCounter = 0
@@ -3729,7 +3731,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_branch label_%04u"%loopLabelBegin, \
           "restart %s Loop%s"%("tailLoop" if tailLoop else "unrolled loop", loopChar ))
       kStr += "label_%04u: // unroll loop odditer exit\n" % (loopLabelEndOddExit)
-      if not self.suppressNoLoadLoop and kernel["ExpandPointerSwap"]:
+      if not kernel["SuppresssNoLoadLoop"] and kernel["ExpandPointerSwap"]:
         # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
         # if we exit the main loop at an odd iter - need to swap LDS read pointers
         # so the ds_reads read from the 'high' buffer of LDS
@@ -3749,7 +3751,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # End Summation
   ##############################################################################
-  def endSummation(self):
+  def endSummation(self, kernel):
     self.vgprPool.add(self.startVgprValuA, \
         self.lastVgprForReads - self.startVgprValuA, "endSummation")
 
@@ -3772,7 +3774,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "s_barrier // debug\n"
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
 
-    if self.suppressNoLoadLoop:
+    if kernel["SuppresssNoLoadLoop"]:
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
 
     return kStr
@@ -3802,7 +3804,7 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     if prefetch:
-      if self.suppressNoLoadLoop:
+      if kernel["SuppresssNoLoadLoop"]:
         loopChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
         lastIterEnd = self.getLabel("LoopEnd%s"%loopChar)
@@ -4166,7 +4168,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
-    if self.suppressNoLoadLoop:
+    if kernel["SuppresssNoLoadLoop"]:
       if mode==1 and tP["isA"]:
         kStr += inst("s_cmp_eq_i32", \
               sgpr("LoopCounters+%u"%loopIdx), \

@@ -559,7 +559,7 @@ class KernelWriter:
       kStr += self.closeLoop(kernel, self.unrollIdx, finalLoop)
 
     # prefetch: unrolled loop suffix - this is an copy of the unroll loop but with global loads + LDS writes removed
-    if not self.suppressNoLoadLoop and kernel["PrefetchGlobalRead"]:
+    if not kernel["SuppresssNoLoadLoop"]:
       kStr += self.comment("prefetch: last unrolled iteration")
       kStr += self.openSumAtLeastUnroll(kernel, False)
       if not kernel["PrefetchLocalRead"]:
@@ -675,7 +675,7 @@ class KernelWriter:
       kStr += self.globalReadIncrement(kernel, i, tensorParametersB)
       kStr += self.closeLoop(kernel, i, True)
 
-    kStr += self.endSummation()
+    kStr += self.endSummation(kernel)
     if self.enable["PostLoop"]:
 
       ####################################
@@ -828,14 +828,6 @@ class KernelWriter:
 
     if dkp:
       print "\nKernelWriter enable:", self.enable
-
-    # don't create a whole copy of the Unroll loop with loads removed - instead
-    # use buffer limits to suppress global loads
-    self.suppressNoLoadLoop = 1 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"] \
-            and kernel["GlobalSplitU"]==1
-    kernel["ExpandPointerSwap"]= kernel["ExpandPointerSwap"] and kernel["BufferLoad"] and \
-            kernel["PrefetchGlobalRead"]
-
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
@@ -1513,7 +1505,7 @@ class KernelWriter:
   # End Summation
   ##############################################################################
   @abc.abstractmethod
-  def endSummation(self):
+  def endSummation(self, kernel):
     return ""
 
   ##############################################################################
