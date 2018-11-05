@@ -1559,7 +1559,8 @@ class Solution:
         state["UseSgprForGRO"] = 1
 
     #Thes modes only work under certain conditions, apply them here:
-    state["SuppresssNoLoadLoop"] &= (state["BufferLoad"] and state["PrefetchGlobalRead"] and state["GlobalSplitU"]==1)
+    state["SuppresssNoLoadLoop"] &= (state["BufferLoad"] and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
+    print pvar(state, "SuppresssNoLoadLoop")
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (state["BufferLoad"] and state["PrefetchGlobalRead"])
 
