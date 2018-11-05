@@ -1402,13 +1402,14 @@ class Solution:
       reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] /= state["InnerUnroll"]
 
-    # HACK!
-    # For now, LocalDotLayout > 1 only works if the thread tile is a square and VectorWidth is equal to the 
-    # thread tile size
     ldl = state["LocalDotLayout"]
-    if ldl > 1 and (state["AssertSummationElementMultiple"] % ldl != 0):
-      reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL")
-      return
+    if ldl > 1:
+      if (state["AssertSummationElementMultiple"] % ldl != 0):
+        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL")
+        return
+      if (state["ProblemType"]["HighPrecisionAccumulate"] != True or state["InnerUnroll"] != ldl):
+        reject(state, "LocalDotLayout > 1 only supports HighPrecisionAccumulate set to true and InnerUnroll equal to LocalDotLayout")
+        return
 
     if 0:
       print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
