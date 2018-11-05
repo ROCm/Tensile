@@ -222,6 +222,10 @@ validParameters = {
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
 
+    # don't create a whole copy of the Unroll loop with loads removed - instead
+    # use buffer limits to suppress global loads and ignore unnecessary ds_reads
+    "SuppresssNoLoadLoop":         [False, True],
+
     # For PrefetchGlobalRead=1, create a second copy of the unroll loop with
     # the LDS pointer swaps expanded into inline constants for LDS read and write instructions
     # This eliminates 4 vector XOR instructions used for pointer swap
@@ -453,6 +457,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
+    {"SuppresssNoLoadLoop":       [ True ]},
     {"ExpandPointerSwap":         [ True ]},
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },

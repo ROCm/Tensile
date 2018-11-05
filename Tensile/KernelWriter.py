@@ -429,9 +429,9 @@ class KernelWriter:
               # Swap, reset, or increment the LRO:
               if kernel["PrefetchGlobalRead"]:
                 kStr += self.comment("local read swap offsets a")
-                kStr += self.localReadSwapOffsets(kernel, tensorParametersA)
+                kStr += self.localReadSwapOffsets(kernel, expand, tensorParametersA)
                 kStr += self.comment("local read swap offsets b")
-                kStr += self.localReadSwapOffsets(kernel, tensorParametersB)
+                kStr += self.localReadSwapOffsets(kernel, expand, tensorParametersB)
 
               kStr += self.comment("local read init pointers a")
               kStr += self.localReadInitPointers(kernel, tensorParametersA)
@@ -521,9 +521,9 @@ class KernelWriter:
         if self.enable["LocalRead"]:
           # swap read and write
           kStr += self.comment("local read swap offsets a")
-          kStr += self.localReadSwapOffsets(kernel, tensorParametersA)
+          kStr += self.localReadSwapOffsets(kernel, expand, tensorParametersA)
           kStr += self.comment("local read swap offsets b")
-          kStr += self.localReadSwapOffsets(kernel, tensorParametersB)
+          kStr += self.localReadSwapOffsets(kernel, expand, tensorParametersB)
           kStr += self.comment("local read init pointers a")
           kStr += self.localReadInitPointers(kernel, tensorParametersA)
           kStr += self.comment("local read init pointers b")
@@ -559,7 +559,7 @@ class KernelWriter:
       kStr += self.closeLoop(kernel, self.unrollIdx, finalLoop)
 
     # prefetch: unrolled loop suffix - this is an copy of the unroll loop but with global loads + LDS writes removed
-    if not self.suppressNoLoadLoop and kernel["PrefetchGlobalRead"]:
+    if kernel["PrefetchGlobalRead"] and not kernel["SuppresssNoLoadLoop"]:
       kStr += self.comment("prefetch: last unrolled iteration")
       kStr += self.openSumAtLeastUnroll(kernel, False)
       if not kernel["PrefetchLocalRead"]:
@@ -675,7 +675,7 @@ class KernelWriter:
       kStr += self.globalReadIncrement(kernel, i, tensorParametersB)
       kStr += self.closeLoop(kernel, i, True)
 
-    kStr += self.endSummation()
+    kStr += self.endSummation(kernel)
     if self.enable["PostLoop"]:
 
       ####################################
@@ -828,13 +828,6 @@ class KernelWriter:
 
     if dkp:
       print "\nKernelWriter enable:", self.enable
-
-    # don't create a whole copy of the Unroll loop with loads removed - instead
-    # use buffer limits to suppress global loads
-    self.suppressNoLoadLoop = 1 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"] \
-            and kernel["GlobalSplitU"]==1
-
-    kernel["ExpandPointerSwap"]= kernel["ExpandPointerSwap"] and kernel["PrefetchGlobalRead"] and self.suppressNoLoadLoop
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
@@ -1512,7 +1505,7 @@ class KernelWriter:
   # End Summation
   ##############################################################################
   @abc.abstractmethod
-  def endSummation(self):
+  def endSummation(self, kernel):
     return ""
 
   ##############################################################################
@@ -1580,7 +1573,7 @@ class KernelWriter:
   # Local Read: Swap Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadSwapOffsets(self, kernel, tP):
+  def localReadSwapOffsets(self, kernel, internalPointerSwap, tP):
     return ""
 
   ##############################################################################
