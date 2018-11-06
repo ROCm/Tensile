@@ -459,13 +459,16 @@ class KernelWriterSource(KernelWriter):
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += "#if __hcc_major__ >= 1 && __hcc_minor__ >= 3"
+        kStr += "#if __hcc_major__ == 1 && __hcc_minor__ == 3"
         kStr += self.endLine
-        kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int, bool);"""
+
+        #kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int, bool);"""
+        #kStr += self.endLine
+        #kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST), true)"
+        kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
+
         kStr += self.endLine
-        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST), true)" 
-        kStr += self.endLine
-        kStr += "#elif __hcc_major__ >= 1 && __hcc_minor__ >= 2"
+        kStr += "#elif __hcc_major__ == 1 && __hcc_minor__ == 2"
         kStr += self.endLine
         kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int);"""
         kStr += self.endLine
@@ -473,7 +476,7 @@ class KernelWriterSource(KernelWriter):
         kStr += self.endLine
         kStr += "#else"
         kStr += self.endLine
-        kStr += """std::cout << "NO dot2 available" << std::endl;"""
+        kStr += """std::cout << "No dot builtins available" << std::endl;"""
         kStr += self.endLine
         kStr += "#endif"
       else:
