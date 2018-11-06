@@ -1270,6 +1270,12 @@ class Solution:
               < state["GlobalReadVectorWidth"]:
             validDepthU = False
 
+      if validDepthU and state["LocalDotLayout"] > 1:
+        if state["GlobalLoadVectorWidthA"] < 4 or \
+           state["GlobalLoadVectorWidthB"] < 4:
+          reject(state, "GlobalLoadVectorWidth for A or B too small")
+          return
+
       if not state["ProblemType"]["TLUA"]:
         if depthU < state["GlobalLoadVectorWidthA"]:
           validDepthU = False
@@ -1404,6 +1410,8 @@ class Solution:
 
     ldl = state["LocalDotLayout"]
     if ldl > 1:
+      # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
+      state["DirectToLds"] = False
       if (state["AssertSummationElementMultiple"] % ldl != 0):
         reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL")
         return
