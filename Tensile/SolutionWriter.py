@@ -141,12 +141,6 @@ class SolutionWriter:
     if globalParameters["RuntimeLanguage"] == "HIP":
       s += "%sint deviceId;\n" % (t)
       s += "%shipGetDevice(&deviceId);\n" % (t)
-    if solution["ProblemType"]["DataType"].isInt8x4() and solution["ProblemType"]["HighPrecisionAccumulate"]:
-      if globalParameters["RuntimeLanguage"] == "HIP":
-        s += "%shipDeviceProp_t deviceProperties;\n" % (t)
-        s += "%shipGetDeviceProperties(&deviceProperties, deviceId);\n" % (t)
-        s += "%sint gcnArch = deviceProperties.gcnArch;\n" % (t)
-        s += "%sif(gcnArch != 906)return tensileStatusFailure;\n" % (t)
 
     # kernels
     s += "\n%s/* kernels */\n" % (t)
