@@ -49,9 +49,6 @@
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 #define TensileHalf _Float16
-#define TensileInt8x4 uint32_t
-#define TensileInt32 int32_t
-
 inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 {
    os << (float)(dt);
@@ -59,6 +56,9 @@ inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 }
 
 #endif // HIP
+
+#define TensileInt8x4 uint32_t
+#define TensileInt32 int32_t
 
 /*******************************************************************************
  * tensileSetup
