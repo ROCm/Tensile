@@ -4649,7 +4649,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
-    tt = tP["tt"]
     if self.inTailLoop:
       inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1)

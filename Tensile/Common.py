@@ -447,7 +447,7 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    # -1 means use same padding as the VectorWidth
+    # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
     "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
