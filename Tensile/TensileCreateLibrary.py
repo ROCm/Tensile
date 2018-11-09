@@ -286,7 +286,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   h = ""
   for problemType in problemTypes:
     #print "p=", problemType
-    argListAll = solutionWriter.getArgList(problemType, False, True, True, True)
+    argListAll = solutionWriter.getArgList(problemType, True, True, True, True)
     # declare TensileSolutionPointer_ProblemType
     h += "\n// solution pointer\n"
     h += "typedef TensileStatus (*TensileSolutionPointer_%s)(\n" \
@@ -295,7 +295,6 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
       h += "    %s %s%s" % (argListAll[i][0], argListAll[i][1], ",\n" \
           if i < len(argListAll)-1 else ");\n\n")
     h += "\n"
-    h += "typedef SolutionInfo<TensileSolutionPointer_%s> SolutionInfo_%s;\n\n" % (problemType,problemType)
 
   solutionHeaderFile.write(h)
 #
@@ -346,15 +345,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   h = ""
   h += "#pragma once\n"
   h += "#include \"TensileTypes.h\"\n"
+  h += "#include \"SolutionHelper.h\"\n"
+  h += "#include \"SolutionMapper.h\"\n"
 
   # TensileInternal.h
   ih = ""
   ih += "#include \"Tensile.h\"\n"
-  ih += "#include \"SolutionHelper.h\"\n"
-  if globalParameters["SolutionMapHash"]:
-    ih += "#include <unordered_map>\n"
-  else:
-    ih += "#include <map>\n"
 
   # Tensile.cpp
   s = ""
@@ -370,30 +366,33 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     # function argument list
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
     argListStream = solutionWriter.getArgList(problemType, False, False, False, True)
-    argListAll  = solutionWriter.getArgList(problemType, False, True, True, True)
+    argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
+    argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"
     h += "TensileStatus tensile_%s(\n" % problemType
-    for i in range(0, len(argListAll)):
+    for i in range(0, len(argListData)):
       h += "    %s %s%s" \
-          % (argListAll[i][0], argListAll[i][1], \
-          ",\n" if i < len(argListAll)-1 else ");\n\n")
+          % (argListData[i][0], argListData[i][1], \
+          ",\n" if i < len(argListData)-1 else ");\n\n")
 
 
     numSizes = problemType["TotalIndices"];
-    h += "typedef ProblemSizes<%u> ProblemSizes_%s;\n" % (numSizes,problemType)
-    if 0:
-      lastStrideC = problemType["NumIndicesC"]
-      lastStrideA = len(problemType["IndexAssignmentsA"])
-      lastStrideB = len(problemType["IndexAssignmentsB"])
-      h += "typedef ProblemParms<%u, %u, %u, %u> ProblemSizes_%s;\n" % \
-            (lastStrideA, lastStrideB, lastStrideC, numSizes, problemType)
+    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    lastStrideA = len(problemType["IndexAssignmentsA"])
+    lastStrideB = len(problemType["IndexAssignmentsB"])
+    lastStrideC = problemType["NumIndicesC"]
+    h += "typedef ProblemKey<%u> ProblemKey_%s;\n" % (numSizes,problemType)
+    h += "typedef ProblemDims<%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
+        % (firstStride, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
+    h += "typedef SolutionMapper<ProblemDims_%s, ProblemKey_%s> SolutionMapper_%s;\n" \
+            % (problemType, problemType, problemType)
 
     # declare tensileGetSolutionPointer_ProblemType
     h += "\n// get solution pointer\n"
-    h += "TensileSolutionPointer_%s tensileGetSolutionPointer_%s(\n" \
-        % (problemType, problemType)
+    h += "SolutionMapper_%s::SolutionRuntime\n" % (problemType)
+    h += "tensileGetSolutionPointer_%s(\n" % (problemType)
     for i in range(0, len(argListStream)):
       h += "    %s %s%s" \
           % (argListStream[i][0], argListStream[i][1], \
@@ -428,7 +427,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       filePrefix = "Tensile_%s" % (problemType)
       s = "#include \"TensileTypes.h\"\n"
       s = "#include \"Tensile.h\"\n"
-      s = "#include \"SolutionMapper.h\"\n"
       s += "#include \"TensileInternal.h\"\n"
       for solutionName in solutionNamesForProblemType:
         s += "#include \"%s.h\"\n" % solutionName
@@ -436,12 +434,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     ########################################
     # Per-problem constants here:
     # These are common for all schedules and thus do not include schedule name (vega,hip,etc)
-    solutionPointerType = "TensileSolutionPointer_%s" % problemType
     s += "static const ProblemProperties problemProperties_%s( " % problemType
     s += listToInitializer(problemType["IndicesFree"]) + ", "
     s += listToInitializer(problemType["IndicesSummation"]) + ", "
     s += listToInitializer(problemType["IndicesBatch"])
     s += ");\n"
+    s += "static DeviceSolutionMapper deviceSolutionMapper_%s;\n " % (problemType)
 
 
     ########################################
@@ -465,14 +463,14 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
       s += "\n\n"
       schedProbName = "%s_%s" % (scheduleName, problemType)
-      s += writeSolutionAndExactTable(schedProbName, problemType, \
+      s += writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
               solutionsForSchedule, solutionNamesForSchedule, exactLogic)
 
 
-      # function tensileGetSolutionPointerUncached_Schedule_ProblemType
+      # function tensileGetSolutionPointer_Schedule_ProblemType
       s += "\n// problem size -> solution logic\n"
-      s += "TensileSolutionPointer_%s tensileGetSolutionPointerUncached_%s(\n" \
-          % (problemType, schedProbName)
+      s += "SolutionMapper_%s::SolutionRuntime\n" % (problemType)
+      s += "tensileGetSolutionPointer_%s(\n" % (schedProbName)
       for i in range(0, len(argListSizes)):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
@@ -483,9 +481,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                       solutionNamesForSchedule, True)
       if rangeLogic != None:
         rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionsForSchedule, solutionNamesForSchedule, problemType, True)
+            solutionsForSchedule, solutionNamesForSchedule, schedProbName, problemType, True)
       else:
-        rangeLogicStr = "  return NULL; // none\n"
+        rangeLogicStr = "  return SolutionMapper_%s::SolutionRuntime();  // no solution\n" % (problemType)
       s += "  /* exact mappings */\n"
       s += exactLogicStr
       s += "\n  /* range mappings */\n"
@@ -506,7 +504,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                       solutionNamesForSchedule, False)
       if rangeLogic != None:
         rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionsForSchedule, solutionNamesForSchedule, problemType, False)
+            solutionsForSchedule, solutionNamesForSchedule, schedProbName, problemType, False)
       else:
         rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
@@ -520,20 +518,11 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "/*******************************************************************************\n * Per-ProblemType Functions\n *******************************************************************************/"
 
 
-    if globalParameters["SolutionMapHash"]:
-      ih += "using Map_%s = std::unordered_map<ProblemSizes_%s, TensileSolutionPointer_%s, ObjectHasher<ProblemSizes_%s> >;\n" \
-          % (problemType, problemType, problemType, problemType )
-    else:
-      ih += "using Map_%s = std::map<ProblemSizes_%s, TensileSolutionPointer_%s>;\n" \
-          % (problemType, problemType, problemType)
-
-    #ih += "extern Map_%s solutionMap_%s;\n" % (problemType, problemType)
-
-    # implement tensileGetSolutionPointerUncached_ProblemType
+    # implement tensileGetSolutionPointer_ProblemType
     for ptr in [True, False]:
-      returnType = "PointerUncached" if ptr else "Name"
+      returnType = "Pointer" if ptr else "Name"
       s += "\n// return solution %s\n" % returnType
-      s += ("TensileSolutionPointer_%s "%problemType) if ptr else "const char *"
+      s += ("SolutionMapper_%s::SolutionRuntime\n" % (problemType)) if ptr else "const char *"
       s += "tensileGetSolution%s_%s(\n" \
           % (returnType, problemType)
       for i in range(0, len(argListStream)):
@@ -647,60 +636,23 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += "\n}\n"
 
 
-
-    # implement tensileGetSolutionPointer_ProblemType
-    s += "\n// return solution pointer; user calls it\n"
-    s += "Map_%s solutionMap_%s%s;\n" % (problemType, problemType, "(1024)" if globalParameters["SolutionMapHash"] else "")
-    s += "TensileSolutionPointer_%s tensileGetSolutionPointer_%s(\n" \
-        % (problemType, problemType)
-    for i in range(0, len(argListStream)):
-      s += "    %s %s%s" \
-          % (argListStream[i][0], argListStream[i][1], \
-          ",\n" if i < len(argListStream)-1 else ") {\n")
-    # create key
-    s += "  ProblemSizes_%s key(" % (problemType)
-    for i in range(0,problemType["TotalIndices"]):
-      if i != 0: s += ", "
-      s += "size%s" % (globalParameters["IndexChars"][i])
-    s += ");\n"
-
-
-    # check for key in map
-    s += "  static std::mutex findKernelMutex;\n"
-    s += "  std::lock_guard<std::mutex> findKernelLock(findKernelMutex);\n"
-    s += "  Map_%s::iterator iter = solutionMap_%s.find(key);\n" \
-        % (problemType, problemType)
-    s += "  if (iter != solutionMap_%s.end()) {\n" % problemType
-    #s += 'printf("hit cache\\n");'
-    s += "    return iter->second;\n"
-    s += "  } else {\n"
-    #s += 'printf("missed cache\\n");'
-    s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointerUncached_%s(\n" \
-        % (problemType, problemType)
-    for i in range(0, len(argListStream)):
-      s += "        %s%s" \
-          % (argListStream[i][1], "," if i < len(argListStream)-1 else ");")
-      s += "\n"
-    s += "    solutionMap_%s[key] = ptr;\n" % problemType
-    s += "    return ptr;\n"
-    s += "  }\n"
-    s += "}\n"
-
     # declare tensile_ProblemType
     s += "\n// main call to solution; enqueues a kernel\n"
     s += "TensileStatus tensile_%s(\n" % problemType
-    for i in range(0, len(argListAll)):
+    for i in range(0, len(argListData)):
       s += "    %s %s%s" \
-          % (argListAll[i][0], argListAll[i][1], \
-          ",\n" if i < len(argListAll)-1 else ") {\n")
-    s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointer_%s(\n" \
-        % (problemType, problemType)
+          % (argListData[i][0], argListData[i][1], \
+          ",\n" if i < len(argListData)-1 else ") {\n")
+    s += "    auto sil = tensileGetSolutionPointer_%s(\n" % (problemType)
     for i in range(0, len(argListStream)):
       s += "        %s%s" \
           % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");")
       s += "\n"
-    s += "    if ( ptr ) {\n"
-    s += "      return ptr("
+    s += "    if ( sil.isValid() ) {\n"
+    s += "      TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (sil._info->_functionPtr);\n" \
+      % (problemType, problemType)
+    s += "      auto solutionLock = &sil._lock;\n"
+    s += "      return f("
     for i in range(0, len(argListAll)):
       s += "%s%s" \
           % (argListAll[i][1], ", " if i < len(argListAll)-1 else ");\n")
@@ -734,15 +686,15 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.close()
 
 
-def writeSolutionAndExactTable(schedProbName, problemType, \
+def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
                                solutionsForSchedule, solutionNames, exactLogic):
   s = ""
   s += "// solution table\n"
-  s += "static const SolutionInfo_%s solutionTable_%s[] = {\n" % (problemType, schedProbName)
+  s += "static const SolutionInfo solutionTable_%s[] = {\n" % (schedProbName)
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {%s, \"%s\", {%d, %d, %d} }%s // %d" % \
+    s += "  {(void*)%s, \"%s\", {%d, %d, %d} }%s // %d" % \
       (solutionName, solutionName,
         solution["AssertSummationElementMultiple"],
         solution["AssertFree0ElementMultiple"],
@@ -755,7 +707,7 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
 
   # Write the exact problems here
   s += "// table of exact problem dims and selected solutionIdx\n"
-  s += "static const std::pair<const ProblemSizes_%s, int> embeddedExactTable_%s[] = {\n" % (problemType,schedProbName)
+  s += "static const std::pair<const ProblemKey_%s, int> embeddedExactTable_%s[] = {\n" % (problemType,schedProbName)
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
     problemSize = rule[0]
@@ -774,9 +726,12 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
   s += "};\n\n"
 
   # Create a solution mapper and init with the table above:
-  s += "static SolutionMapper<ProblemSizes_%s,SolutionInfo_%s>\n" % (problemType, problemType)
-  s +=  "  solutionMapper_%s(solutionTable_%s, %u, embeddedExactTable_%s, %u, &problemProperties_%s);\n" \
-          % (schedProbName, schedProbName, len(solutionsForSchedule), schedProbName, len(exactLogic), problemType)
+  s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
+  s += "  \"%s\", {%s},\n" \
+          % (schedProbName, ', '.join('"{0}"'.format(w) for w in deviceNames))
+  s += "  &deviceSolutionMapper_%s,\n" % (problemType)
+  s += "  solutionTable_%s, %u, embeddedExactTable_%s, %u, &problemProperties_%s);\n" \
+          % (schedProbName, len(solutionsForSchedule), schedProbName, len(exactLogic), problemType)
   return s
 
 
@@ -791,20 +746,32 @@ def writeExactLogic(schedProbName, problemType, indexOrder,
                     solutionNames, ptr):
   s = ""
   indent = "  "
-  s += "  ProblemSizes_%s p(" % problemType
+  s += "  ProblemDims_%s pdims(" % problemType
+  indexChars = globalParameters["IndexChars"]
+  firstStride = 0 if problemType["UseInitialStrides"] else 1
+  lastStrideC = problemType["NumIndicesC"]
+  lastStrideA = len(problemType["IndexAssignmentsA"])
+  lastStrideB = len(problemType["IndexAssignmentsB"])
+  for i in range(firstStride,lastStrideC):
+    if i != firstStride: s += ", "
+    s += "strideC%u%s" % (i, indexChars[i])
+  for i in range(firstStride,lastStrideA):
+    s += ", strideA%u%s" % (i, \
+        indexChars[problemType["IndexAssignmentsA"][i]])
+  for i in range(firstStride,lastStrideB):
+    s += ", strideB%u%s" % (i, \
+        indexChars[problemType["IndexAssignmentsB"][i]])
   for i in range(0,len(indexOrder)):
-    if i != 0: s += ", "
-    s += "size%s" % globalParameters["IndexChars"][i]
+    s += ", size%s" % indexChars[i]
   s += ");\n"
 
-  s += "  int solutionIdx = find_algorithm_static(p, solutionMapper_%s);\n" \
+  s += "  int solutionIdx = solutionMapper_%s.findAlgorithmStatic(pdims);\n" \
          % (schedProbName)
   s +=   "  if (solutionIdx != -1) {\n"
   if ptr:
-    s += "    auto checkValue = solutionTable_%s[solutionIdx].functionPtr;\n" % (schedProbName)
+    s += "    return solutionMapper_%s.getSolution(solutionIdx);\n" % (schedProbName)
   else:
-    s += "    auto checkValue = solutionTable_%s[solutionIdx].name;\n" % (schedProbName)
-  s +=   "    return checkValue;\n"
+    s += "    return solutionMapper_%s.getSolution(solutionIdx)._info->_name;\n" % (schedProbName)
   s +=   "  }\n"
 
   return s
@@ -814,7 +781,7 @@ def writeExactLogic(schedProbName, problemType, indexOrder,
 # Write Range Logic Recursive
 ################################################################################
 def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
-    solutionsForSchedule, solutionNames, problemType, ptr):
+    solutionsForSchedule, solutionNames, schedProbName, problemType, ptr):
   indexChars = globalParameters["IndexChars"]
   indent = "  "
   indent += "  "*depth
@@ -829,7 +796,8 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
       solution = solutionsForSchedule[solutionIdx]
       solutionName = solutionNames[solutionIdx]
       if ptr:
-        returnValue = solutionName
+        returnValue = "solutionMapper_%s.getSolution(%d); // %s" \
+            % (schedProbName,solutionIdx,solutionName)
       else:
         returnValue = "\"%s\"" % solutionName
 
@@ -848,7 +816,7 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
       else:
         s += "%s{\n" % (indent)
       s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionsForSchedule, solutionNames, \
-          problemType, ptr)
+          schedProbName, problemType, ptr)
       s += "%s}\n" % (indent)
   return s
 

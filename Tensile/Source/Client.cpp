@@ -26,6 +26,8 @@
 #include <iostream>
 #include <iomanip>
 
+
+
 /*******************************************************************************
  * main
  ******************************************************************************/
@@ -33,6 +35,10 @@ int main( int argc, char *argv[] ) {
   if (sizeof(size_t) != 8) {
     std::cout << "WARNING: Executable not 64-bit." << std::endl;
   }
+
+#if Tensile_CLIENT_BENCHMARK
+  solutionLocks = new SolutionLock[maxNumSolutions];
+#endif
 
   // parse command line parameters
   parseCommandLineParameters(argc, argv);
@@ -219,7 +225,7 @@ int main( int argc, char *argv[] ) {
   std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GFlop/s " << globalFastestTime/1000.0f << " us by ("
       << globalFastestIdx << ") ";
 #if Tensile_CLIENT_BENCHMARK
-  std::cout << solutions[fastestIdx].name;
+  std::cout << solutions[fastestIdx]._name;
 #else
   std::cout << functionNames[fastestIdx];
 #endif
@@ -230,7 +236,7 @@ int main( int argc, char *argv[] ) {
     // for (unsigned int i = 0; i < numInvalidSolutions; i++) {
     for (std::set<unsigned int>::iterator i = invalidSolutions.begin(); i != invalidSolutions.end(); i++) {
       unsigned int invalidSolutionIdx = *i;
-      printf("[%2u] %s\n", invalidSolutionIdx, solutions[invalidSolutionIdx].name);
+      printf("[%2u] %s\n", invalidSolutionIdx, solutions[invalidSolutionIdx]._name);
     }
 #endif
     return EXIT_FAILURE;

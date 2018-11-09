@@ -187,9 +187,8 @@ class SolutionWriter:
     elif kernelLanguage == "Assembly":
       kernel = kernels[0]
       s += "%shipFunction_t hipFunction;\n" % (t)
-      s += "%sstatic SolutionLock sl;\n" % (t)
       # if !CodeFromFiles then pass global _coba that points to code object
-      s += "%sstatus = sl.getFunction(&hipFunction, deviceId, \"%s\", %s);;\n" \
+      s += "%sstatus = solutionLock->getFunction(&hipFunction, deviceId, \"%s\", %s);;\n" \
               % (t, kernelName, "nullptr" if globalParameters["CodeFromFiles"] else kernelName+"_coba" )
       s += "%sif (status) return status;\n" % (t)
 
@@ -781,7 +780,8 @@ class SolutionWriter:
     self.sizeList = []
     argList = []
 
-    #if includeSolutionInfo:
+    if includeSolutionInfo:
+      argList.append(("SolutionLock *", "solutionLock"))
     #  argList.append(("const char *", "kernelName2"))
     #  argList.append(("const unsigned char *", "kernelCoba"))
 

@@ -635,11 +635,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
     h += "\n"
 
-    h += "static const SolutionInfo_%s solutions[maxNumSolutions] = {\n" % (problemType)
+    h += "static const SolutionInfo solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      h += "  {%s, \"%s\", {%d, %d, %d} }" % \
+      h += "  {(void*)%s, \"%s\", {%d, %d, %d} }" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
@@ -760,6 +760,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "template<typename DataType, class SolutionInfoType>\n"
     h += "TensileStatus generatedCallToSolution(\n"
     h += "    const SolutionInfoType &solution,\n"
+    h += "    SolutionLock *solutionLock,\n"
     h += "    const unsigned int *sizes,\n"
     h += "    const unsigned int *minStrides,\n"
     h += "    const unsigned int stride_a,\n"
@@ -820,8 +821,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
+    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    lastStrideC = problemType["NumIndicesC"]
+    lastStrideA = len(problemType["IndexAssignmentsA"])
+    lastStrideB = len(problemType["IndexAssignmentsB"])
     numSizes = problemType["TotalIndices"];
-    h += "  typedef ProblemSizes<%u> ProblemSizes_%s;\n" % (numSizes, problemType)
+    h += "  typedef ProblemDims<%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
+        % (firstStride, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
     # TODO - this should be initialized somewhere once?
     h += "static const ProblemProperties props( "
     h += listToInitializer(problemType["IndicesFree"]) + ", "
@@ -829,23 +835,33 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += listToInitializer(problemType["IndicesBatch"])
     h += ");\n"
     # create problem size - TODO could move this up to the caller
-    h += "  ProblemSizes_%s problem(" % (problemType)
-    for i in range(0,problemType["TotalIndices"]):
-      if i != 0: h += ", "
-      h += "size%s" % (globalParameters["IndexChars"][i])
+    h += "  ProblemDims_%s pdims(" % problemType
+    indexChars = globalParameters["IndexChars"]
+    for i in range(firstStride,lastStrideC):
+      if i != firstStride: h += ", "
+      h += "strideC%u%s" % (i, indexChars[i])
+    for i in range(firstStride,lastStrideA):
+      h += ", strideA%u%s" % (i, \
+          indexChars[problemType["IndexAssignmentsA"][i]])
+    for i in range(firstStride,lastStrideB):
+      h += ", strideB%u%s" % (i, \
+          indexChars[problemType["IndexAssignmentsB"][i]])
+    for i in range(0, problemType["TotalIndices"]):
+      h += ", size%s" % indexChars[i]
     h += ");\n"
-    h += "  if (!AssertionProperties(problem,&props).validForSolution(solution.assertions))\n"
+    h += "  if (!AssertionProperties(pdims,&props).validForSolution(solution._assertions))\n"
     h += "    return tensileStatusAssertFailure;  // failed solution requirements\n"
     h += "\n"
 
     h += "  // call solution function\n"
-    h += "  auto f = solution.functionPtr;\n"
+    h += "  TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (solution._functionPtr);\n" \
+            % (problemType, problemType)
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  return f( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return f(solutionLock, static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
-      h += "  return f( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+      h += "  return f(solutionLock, static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (destTypeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
