@@ -278,7 +278,7 @@ template <class ProblemKeyType>
 struct RandomDistance {
   double operator() (const ProblemKeyType &p1, const ProblemKeyType &p2) const
   {
-    return double(rand();
+    return double(rand());
   }
 };
 
