@@ -1,4 +1,3 @@
-# benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
@@ -6,13 +5,13 @@ GlobalParameters:
 
 BenchmarkProblems:
 
-  - # hgemm TN
+  - # hgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: 4xi8
       DestDataType: I
       HighPrecisionAccumulate: True
-      TransposeA: True
+      TransposeA: False
       TransposeB: False
       UseBeta: True
       Batched: True
@@ -25,15 +24,15 @@ BenchmarkProblems:
         - KernelLanguage: ["Source"]
       ForkParameters:
         - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [False]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 4, 2 ]
+          - [ 2, 4 ]
           - [ 4, 8 ]
-          - [ 8, 8 ]
+          - [ 16, 8 ]
         - WorkGroup:
-          - [ 16, 16,  1 ]
           - [ 32,  4,  1 ]
+          - [  8,  8,  1 ]
         - DepthU: [8]
         - VectorWidth: [-1]
         - AssertSummationElementMultiple: [1,2]
@@ -43,9 +42,10 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [126,1,130], 0, [2], [62,1,66] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
 
-    - # BenchmarkProblemSizeGroup - Source
+
+#   - # BenchmarkProblemSizeGroup - Source
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
@@ -53,13 +53,12 @@ BenchmarkProblems:
         - KernelLanguage: ["Source"]
       ForkParameters:
         - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [False]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 8, 2 ]
-          - [ 2, 8 ]
-          - [ 16, 2 ]
-          - [ 2, 16 ]
+          - [ 4, 2 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -72,5 +71,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [126,1,130], 0, [2], [62,1,66] ]
-
+          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
