@@ -11,8 +11,8 @@ BenchmarkProblems:
       DataType: 4xi8
       DestDataType: I
       HighPrecisionAccumulate: True
-      TransposeA: True
-      TransposeB: False
+      TransposeA: False
+      TransposeB: True
       UseBeta: True
       Batched: True
 
