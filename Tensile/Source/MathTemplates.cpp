@@ -331,6 +331,8 @@ template< >
 void tensileComplexConjugate(TensileHalf &) {}
 #endif
 template< >
+void tensileComplexConjugate(unsigned int &) {}
+template< >
 void tensileComplexConjugate(float &) {}
 template< >
 void tensileComplexConjugate(double &) {}
