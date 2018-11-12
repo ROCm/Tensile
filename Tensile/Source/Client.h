@@ -203,7 +203,7 @@ template<typename DataType>
 void specializeData(
     DataType *initialData,
     unsigned int totalIndices,
-    unsigned int numIndicesC, 
+    unsigned int numIndicesC,
     unsigned int numIndicesAB,
     const unsigned int *allSizes,
     const unsigned int *indexAssignments) {
@@ -361,13 +361,13 @@ bool callLibrary(
   }
 
   if (specializeAB) {
-    if (initA) {
+    if (initA == 5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
                       userSizes, indexAssignmentsA[problemTypeIdx]);
     }
-    if (initB) {
+    if (initB == 5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
@@ -787,13 +787,13 @@ bool benchmarkAllSolutionsForSize(
   file << ", " << totalFlops;
 
   if (specializeAB) {
-    if (initA) {
+    if (initA==5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
                       sizes, indexAssignmentsA[problemTypeIdx]);
     }
-    if (initB) {
+    if (initB==5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
