@@ -1141,6 +1141,7 @@ class Solution:
         return
       supported = \
         state["ProblemType"]["DataType"].isSingle() or \
+        state["ProblemType"]["DestDataType"].isInt32() or \
         (state["KernelLanguage"] == "Assembly" and \
          (state["ProblemType"]["DataType"].isHalf() and \
           not state["ProblemType"]["HighPrecisionAccumulate"]))

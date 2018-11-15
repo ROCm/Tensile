@@ -359,6 +359,9 @@ class KernelWriterSource(KernelWriter):
     kStr += "#define DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
+    kStr += "#define DEST_DATA_TYPE %s%s" \
+        % (kernel["ProblemType"]["DestDataType"].toDevice(self.language), \
+        self.endLine)
     #vecStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     #if kernel["VectorWidth"] > 1:
     #  vecStr += str(kernel["VectorWidth"])
@@ -432,10 +435,11 @@ class KernelWriterSource(KernelWriter):
         kStr += "}%s" % (self.endLine)
         """
         kStr += self.endLine
-        kStr += "__device__ inline void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+        kStr += "template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>%s" % (self.endLine)
+        kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
             % (self.volatileStr, self.globalPtrStr, self.endLine)
-        kStr += "  std::atomic<float> *aPtr = reinterpret_cast<std::atomic<float>*>(fPtr);%s" % (self.endLine)
-        kStr += "  float oldValue, newValue;%s" % (self.endLine)
+        kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
+        kStr += "  T oldValue, newValue;%s" % (self.endLine)
         kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
         kStr += "  do {%s" % (self.endLine)
         kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
@@ -752,10 +756,10 @@ class KernelWriterSource(KernelWriter):
 
     # alpha & beta
     s += "," + self.endLine + "  " \
-        + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
+        + kernel["ProblemType"]["DestDataType"].toDevice(self.language) + " const alpha"
     if kernel["ProblemType"]["UseBeta"]:
       s += "," + self.endLine + "  " \
-          + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
+          + kernel["ProblemType"]["DestDataType"].toDevice(self.language) + " const beta"
 
     # offsets
     s += ( "," + self.endLine + "  unsigned int const offsetC,"
@@ -1398,7 +1402,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "  float rC[TT%s*TT%s];%s" \
             % (self.tileChar0, self.tileChar1, self.endLine )
     else:
-        kStr += "  DATA_TYPE rC[TT%s*TT%s];%s" \
+        kStr += "  DEST_DATA_TYPE rC[TT%s*TT%s];%s" \
             % (self.tileChar0, self.tileChar1, self.endLine )
     for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]):
         kStr += "  rC[%u] = SCALAR_ZERO;%s" % (i, self.endLine)
@@ -2084,6 +2088,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef GLOBAL_OFFSET_A%s" % (self.endLine)
       kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
       kStr += "#undef DATA_TYPE%s" % (self.endLine)
+      kStr += "#undef DEST_DATA_TYPE%s" % (self.endLine)
       #kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
@@ -2252,7 +2257,7 @@ class KernelWriterSource(KernelWriter):
     # beta
     if kernel["ProblemType"]["UseBeta"]:
       kStr += "  %s const beta)%s" \
-          % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
+          % (kernel["ProblemType"]["DestDataType"].toDevice(self.language), \
           self.endLine )
     return kStr
 
