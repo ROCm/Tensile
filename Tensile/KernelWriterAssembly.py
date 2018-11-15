@@ -4388,15 +4388,25 @@ class KernelWriterAssembly(KernelWriter):
   def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP, localWriteCnt):
     tc = tP["tensorChar"]
     ldl = kernel["LocalDotLayout"]
+    mask = ldl-1
+    #print "tc ", tc, " perp ", perp, " para ", para, " sPerp ", sPerp, " sPara ", sPara
     lscaOffset = para * kernel[tP["lsc"]]
-    lspaOffset = perp * kernel[tP["lsp"]]
+    perp_masked = perp
+    perp_rem = 0
+    if (ldl > 1):
+      if (kernel[tP["mt"]] >= kernel["SubGroup0"] * kernel["SubGroup1"] * tP["glvw"]):
+        # Since it will take multiple fetches to get a full MT, we map low bits of perp to small,
+        # horizontal shift to fill in gaps we made by spacing out the data for LDL.
+        # Other cases will be handled by low bits of uReg in lwaFirstOffset().
+        perp_masked = perp & ~mask
+        perp_rem = perp & mask
+    lspaOffset = perp_masked * kernel[tP["lsp"]]
     rem = 0
 
     # Add component offset to interleave from different regs
     # and compute mysterious "i"
     assert(sPerp==0 or sPara==0)
     if tP["tlu"]:
-      mask = log2(ldl)
       lspaOffset += sPerp & mask
       lscaOffset += sPara
       rem = (sPerp & ~mask) >> log2(ldl)
@@ -4404,7 +4414,7 @@ class KernelWriterAssembly(KernelWriter):
         #i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
         i = localWriteCnt
       else:
-        i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+        i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp_masked))
       #print "nrcv ", tP["nrcv"], " nrcvpi ", tP["nrcvpi"], " nrc ", tP["nrc"], " nrpv ", tP["nrpv"]
     else:
       lscaOffset += (sPara / ldl) * ldl
@@ -4421,7 +4431,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if tP["tlu"]:
       lspaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
-      lspaOffset += rem * ldl
+      lspaOffset += rem * ldl + perp_rem
     else:
       lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
       lscaOffset += rem
@@ -6772,6 +6782,7 @@ class KernelWriterAssembly(KernelWriter):
           "//init lds" + self.endLine)
 
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for LDS init to complete" )
+    kStr += inst("s_barrier", "init LDS exit" )
     self.vgprPool.checkIn(tmp)
     self.vgprPool.checkIn(tmpAddr)
     return kStr
