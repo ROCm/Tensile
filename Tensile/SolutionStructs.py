@@ -1270,12 +1270,6 @@ class Solution:
               < state["GlobalReadVectorWidth"]:
             validDepthU = False
 
-      if validDepthU and state["LocalDotLayout"] > 1:
-        if state["GlobalLoadVectorWidthA"] < 4 or \
-           state["GlobalLoadVectorWidthB"] < 4:
-          reject(state, "GlobalLoadVectorWidth for A or B too small")
-          return
-
       if not state["ProblemType"]["TLUA"]:
         if depthU < state["GlobalLoadVectorWidthA"]:
           validDepthU = False
