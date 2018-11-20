@@ -786,7 +786,7 @@ def assignGlobalParameters( config ):
   # Try to assemble the new explicit co syntax:
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
-  for (v) in globalParameters["SupportedISA"]:
+  for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
     globalParameters["AsmCaps"][v] = {}
     globalParameters["ArchCaps"][v] = {}
     isaVersion = "gfx" + "".join(map(str,v))
