@@ -205,16 +205,38 @@ class SolutionWriter:
     s += "%ssize_t globalWorkSize[numKernels][3];\n" % (t)
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
-    for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-      if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
-        s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
+    if not solution["PackBatchDims"] & 0x3:
+      for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+        if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
+          s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
+
+    problemType = solution["ProblemType"]
 
     # grid size [0,1]
-    s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
-        self.indexChars[solution["ProblemType"]["Index0"]])
-    s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
-        self.indexChars[solution["ProblemType"]["Index1"]])
+    cIndices = []
+    pbd = solution["PackBatchDims"]
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsA"]:
+      if idx < problemType["NumIndicesC"] and \
+          (pbd & 0x1 and idx in problemType["IndicesBatch"] or \
+            idx in problemType["IndicesFree"]):
+        cIndices.append("size%s" % self.indexChars[idx])
+    s += "%sunsigned int sizeOfC0 = " % (t)
+    s += " * ".join(cIndices)
+    s += ";\n"
+
+    cIndices = []
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsB"]:
+      if idx < problemType["NumIndicesC"] and \
+          (pbd & 0x2 and idx in problemType["IndicesBatch"] or \
+            idx in problemType["IndicesFree"]):
+        cIndices.append("size%s" % self.indexChars[idx])
+    s += "%sunsigned int sizeOfC1 = " % (t)
+    s += " * ".join(cIndices)
+    s += ";\n"
+
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
     s += "%sunsigned int macroTile1 = static_cast<unsigned int>(groupSize[1] * threadTile[1]);\n" % (t)
     s += "%sunsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n" % (t)
@@ -276,7 +298,6 @@ class SolutionWriter:
             % (t, kernelIdx, i, self.indexChars[i])
 
       # Tensor2DSizes - size excluding the batch dimension, accounts for cases where one of strides is 0
-      problemType = solution["ProblemType"]
       #print "IndexAssignmentsA=", problemType["IndexAssignmentsA"], "Batch=", problemType["IndicesBatch"]
       firstStride = 0 if problemType["UseInitialStrides"] else 1
       del i

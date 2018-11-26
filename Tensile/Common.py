@@ -68,7 +68,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
-globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
+globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?
 
 ########################################
 # less common
@@ -316,7 +316,7 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
-    # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9] - 
+    # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
     "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
 
@@ -324,6 +324,22 @@ validParameters = {
     # N>0 : launch persistent kernel with N workgroups per compute unit
     "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
 
+    # Allow workgroup to work across tensor dimensions.
+    # 0x0 = each workgroup works on a single batch
+    # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
+    #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
+    # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
+    #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    "PackBatchDims":             [0,1,2],
+
+    # Granularity allowed when packing tensor dims.
+    # Lower values are finer granularity which requires more dimension division operations on store path
+    # but supports more flexible tensor dimes.
+    # Higher values are coarser values - less dimension division operations but tensor dims must meet
+    # more stringent element multiple requirements
+    # 0x1 : Any dimension supported, compute dims after each element (not supported yet)
+    # 0x2 : VectorWidth must not span tensor dim
+    "PackGranularity": [2],
 
     # Controls desiredwidth of loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
@@ -475,6 +491,8 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
+    {"PackBatchDims":             [ 0 ] },
+    {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },
 
