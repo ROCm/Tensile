@@ -88,7 +88,12 @@ def prepAsm():
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
     assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
-    assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa $@ -c -o $f.o $f.s\n")
+    # cannot use globalParameters["CurrentISA"] because it might be (0,0,0)
+    defaultIsa = (9,0,0)
+    assemblerFile.write( \
+      "${ASM} -x assembler -target amdgcn--amdhsa %s $@ -c -o $f.o $f.s\n" % \
+      ("-mno-code-object-v3" if \
+      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] else ""))
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0777)

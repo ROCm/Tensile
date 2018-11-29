@@ -710,9 +710,9 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
 
 # Try to assemble the asmString for the specified target processor
 # Success is defined as assembler returning no error code or stderr/stdout
-def tryAssembler(isaVersion, asmString):
-  asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
-             % (globalParameters["AssemblerPath"], isaVersion)
+def tryAssembler(isaVersion, options, asmString):
+  asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
+             % (globalParameters["AssemblerPath"], isaVersion, options)
 
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
 
@@ -790,11 +790,12 @@ def assignGlobalParameters( config ):
     globalParameters["AsmCaps"][v] = {}
     globalParameters["ArchCaps"][v] = {}
     isaVersion = "gfx" + "".join(map(str,v))
-    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
-    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
-    globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-    globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
-    globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "", "")
+    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,v0")
+    globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+    globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
+    globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
+    globalParameters["AsmCaps"][v]["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
