@@ -760,7 +760,9 @@ def assignGlobalParameters( config ):
 
   # ROCm Agent Enumerator Path
   globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
-  globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+  globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH");
+  if globalParameters["AssemblerPath"] is None:
+    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc");
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
 
   # read current gfx version
