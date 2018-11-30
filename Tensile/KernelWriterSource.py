@@ -2228,7 +2228,7 @@ class KernelWriterSource(KernelWriter):
     #restrictStr = "restrict"
     #if self.language == "HIP":
     #  restrictStr = "__restrict__"
-    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     kStr += "  " + globalStr + ptrStr \
         + " *C,"
     kStr += self.endLine
