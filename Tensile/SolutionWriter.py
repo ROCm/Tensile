@@ -81,6 +81,7 @@ class SolutionWriter:
     t = ""
     # includes
 
+    problemType = solution["ProblemType"] # shortcut
 
     if not globalParameters["MergeFiles"]:
       solutionName = self.getSolutionName(solution)
@@ -107,7 +108,7 @@ class SolutionWriter:
       if globalParameters["DebugKernel"]:
         s += "%sunsigned int *debugBuffer;\n" % t
       # Tensor sizes in bytes, excluding batch dims and accounting for zero strides
-      # Do these first since they are 64-bits and want to avoid any unneeded padding:
+      # Do these first in the structure since they are 64-bits and want to avoid any unneeded padding:
       s += "%s// Size of lowest Tensor's lowest 2 dims, in bytes.  Does not include bath dim or higher (>2) order dimensions\n" % t
       s += "%suint64_t tensor2dSizeC;\n" % t
       s += "%suint64_t tensor2dSizeA;\n" % t
@@ -118,6 +119,12 @@ class SolutionWriter:
           s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
+      for idxChar in problemType["C0Indices"][:-1]:
+        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
+        s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
+      for idxChar in problemType["C1Indices"][:-1]:
+        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
+        s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
 
 
       if solution["PersistentKernel"]:
@@ -206,36 +213,27 @@ class SolutionWriter:
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
 
-    if not solution["PackBatchDims"] & 0x3:
+    if not solution["PackBatchDims"] & 0x3 and not solution["PackFreeDims"]:
       for i in range(0, solution["ProblemType"]["NumIndicesC"]):
         if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
           s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
-    problemType = solution["ProblemType"]
-
-    # grid size [0,1]
-    cIndices = []
-    pbd = solution["PackBatchDims"]
-    # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsA"]:
-      if idx < problemType["NumIndicesC"] and \
-          (pbd & 0x1 and idx in problemType["IndicesBatch"] or \
-            idx in problemType["IndicesFree"]):
-        cIndices.append("size%s" % self.indexChars[idx])
     s += "%sunsigned int sizeOfC0 = " % (t)
-    s += " * ".join(cIndices)
+    s += " * ".join(["size" + i for i in problemType["C0Indices"]])
     s += ";\n"
 
-    cIndices = []
-    # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsB"]:
-      if idx < problemType["NumIndicesC"] and \
-          (pbd & 0x2 and idx in problemType["IndicesBatch"] or \
-            idx in problemType["IndicesFree"]):
-        cIndices.append("size%s" % self.indexChars[idx])
     s += "%sunsigned int sizeOfC1 = " % (t)
-    s += " * ".join(cIndices)
+    s += " * ".join(["size" + i for i in problemType["C1Indices"]])
     s += ";\n"
+
+    for idxChar in problemType["C0Indices"][:-1]:
+      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+          % (t, idxChar, idxChar, idxChar)
+    for idxChar in problemType["C1Indices"][:-1]:
+      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+          % (t, idxChar, idxChar, idxChar)
 
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
     s += "%sunsigned int macroTile1 = static_cast<unsigned int>(groupSize[1] * threadTile[1]);\n" % (t)
@@ -632,6 +630,14 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
+          for idxChar in problemType["C0Indices"][:-1]:
+            s += "%s,magicShiftSize%s\n" % (t, idxChar)
+            s += "%s,magicNumberSize%s\n" % (t, idxChar)
+          for idxChar in problemType["C1Indices"][:-1]:
+            s += "%s,magicShiftSize%s\n" % (t, idxChar)
+            s += "%s,magicNumberSize%s\n" % (t, idxChar)
+
+
           if solution["PersistentKernel"]:
             s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
             s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)

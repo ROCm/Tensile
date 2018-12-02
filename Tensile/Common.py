@@ -324,13 +324,19 @@ validParameters = {
     # N>0 : launch persistent kernel with N workgroups per compute unit
     "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
 
-    # Allow workgroup to work across tensor dimensions.
-    # 0x0 = each workgroup works on a single batch
+    # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
+    # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
+    # 0x0 = each workgroup works on a single batch dim.
     # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
     #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
     # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
     #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
     "PackBatchDims":             [0,1,2],
+
+    # Pack free dimensions
+    # If True, allow macro-tile to span free dimensions.  Single workgroup can work across multiple free dimensions.
+    # If False, macro-tile is always Free0*Free1.  Additional free dimensions start new macro-tile boundary.
+    "PackFreeDims":              [False, True],
 
     # Granularity allowed when packing tensor dims.
     # Lower values are finer granularity which requires more dimension division operations on store path
@@ -492,6 +498,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PackBatchDims":             [ 0 ] },
+    {"PackFreeDims":              [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },

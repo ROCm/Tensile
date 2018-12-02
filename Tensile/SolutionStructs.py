@@ -298,8 +298,8 @@ class ProblemType:
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
-    if state["NumIndicesFree"] != 2:
-      printExit("Tensile can only handle 2 free indices; FreeIndices=%s."%state["IndicesFree"])
+    if len(state["IndexAssignmentsA"]) != len(state["IndexAssignmentsB"]):
+      printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -1592,7 +1592,30 @@ class Solution:
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (state["BufferLoad"] and state["PrefetchGlobalRead"])
 
-    state["AssignedDerivedParameters"] = True
+
+    # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # grid size [0,1]
+    problemType = state["ProblemType"]
+    problemType["C0Indices"] = []
+    indexChars = globalParameters["IndexChars"]
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsA"]:
+      if idx < problemType["NumIndicesC"] and \
+          (idx in problemType["IndicesBatch"] and state["PackBatchDims"] & 0x1 or \
+           idx in problemType["IndicesFree"] and state["PackFreeDims"] or \
+           idx == problemType["Index0"]):
+        problemType["C0Indices"].append("%s" % indexChars[idx])
+
+    problemType["C1Indices"] = []
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsB"]:
+      if idx < problemType["NumIndicesC"] and \
+          (idx in problemType["IndicesBatch"] and state["PackBatchDims"] & 0x2 or \
+           idx in problemType["IndicesFree"] and state["PackFreeDims"] or \
+           idx == problemType["Index1"]):
+        problemType["C1Indices"].append("%s" % indexChars[idx])
+
+    problemType["AssignedDerivedParameters"] = True
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
