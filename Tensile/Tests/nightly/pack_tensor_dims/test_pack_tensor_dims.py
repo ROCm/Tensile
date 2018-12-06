@@ -18,3 +18,6 @@ def test_simple_stridea0_pack(tmpdir):
 def test_strideb0_pack_nt(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("nightly/pack_tensor_dims/strideb0_pack_nt.yaml"), tmpdir.strpath])
 
+def test_packed_perf_nn(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("nightly/pack_tensor_dims/packed_perf_nn.yaml"), tmpdir.strpath])
+

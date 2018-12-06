@@ -119,10 +119,10 @@ class SolutionWriter:
           s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
-      for idxChar in problemType["C0Indices"][:-1]:
+      for idxChar in solution["C0Indices"][:-1]:
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
-      for idxChar in problemType["C1Indices"][:-1]:
+      for idxChar in solution["C1Indices"][:-1]:
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
 
@@ -219,18 +219,18 @@ class SolutionWriter:
           s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
     s += "%sunsigned int sizeOfC0 = " % (t)
-    s += " * ".join(["size" + i for i in problemType["C0Indices"]])
+    s += " * ".join(["size" + i for i in solution["C0Indices"]])
     s += ";\n"
 
     s += "%sunsigned int sizeOfC1 = " % (t)
-    s += " * ".join(["size" + i for i in problemType["C1Indices"]])
+    s += " * ".join(["size" + i for i in solution["C1Indices"]])
     s += ";\n"
 
-    for idxChar in problemType["C0Indices"][:-1]:
+    for idxChar in solution["C0Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
           % (t, idxChar, idxChar, idxChar)
-    for idxChar in problemType["C1Indices"][:-1]:
+    for idxChar in solution["C1Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
           % (t, idxChar, idxChar, idxChar)
@@ -630,10 +630,10 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
-          for idxChar in problemType["C0Indices"][:-1]:
+          for idxChar in solution["C0Indices"][:-1]:
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
-          for idxChar in problemType["C1Indices"][:-1]:
+          for idxChar in solution["C1Indices"][:-1]:
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
 

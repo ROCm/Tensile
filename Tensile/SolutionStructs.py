@@ -1596,7 +1596,7 @@ class Solution:
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
     # grid size [0,1]
     problemType = state["ProblemType"]
-    problemType["C0Indices"] = []
+    state["C0Indices"] = []
     indexChars = globalParameters["IndexChars"]
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsA"]:
@@ -1604,16 +1604,16 @@ class Solution:
           (idx in problemType["IndicesBatch"] and state["PackBatchDims"] & 0x1 or \
            idx in problemType["IndicesFree"] and state["PackFreeDims"] or \
            idx == problemType["Index0"]):
-        problemType["C0Indices"].append("%s" % indexChars[idx])
+        state["C0Indices"].append("%s" % indexChars[idx])
 
-    problemType["C1Indices"] = []
+    state["C1Indices"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
       if idx < problemType["NumIndicesC"] and \
           (idx in problemType["IndicesBatch"] and state["PackBatchDims"] & 0x2 or \
            idx in problemType["IndicesFree"] and state["PackFreeDims"] or \
            idx == problemType["Index1"]):
-        problemType["C1Indices"].append("%s" % indexChars[idx])
+        state["C1Indices"].append("%s" % indexChars[idx])
 
     problemType["AssignedDerivedParameters"] = True
 

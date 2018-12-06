@@ -787,10 +787,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
-    for idxChar in kernel["ProblemType"]["C0Indices"][:-1]:
+    for idxChar in kernel["C0Indices"][:-1]:
       s += ",%s  unsigned magicShiftize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
-    for idxChar in kernel["ProblemType"]["C1Indices"][:-1]:
+    for idxChar in kernel["C1Indices"][:-1]:
       s += ",%s  unsigned magicShiftize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
 
@@ -1074,18 +1074,22 @@ class KernelWriterSource(KernelWriter):
   def graOtherFreeAssignments(self, kernel):
     kStr = ""
     # packed free dims don't use 'wg' level vars for dims
-    if not kernel["PackFreeDims"]:
-      nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
-      nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
-      nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
-      for i in range(0, len(nonTileFreeIndices)):
-        index = nonTileFreeIndices[i]
-        kStr += "  unsigned int wg" + self.indexChars[index] \
-            + " = ( " + self.getGroupIdStr + "(2)"
-        for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
-          index2 = nonTileFreeIndices[j]
-          kStr += " / size" + self.indexChars[index2]
-        kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
+    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
+    nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
+    problemType = kernel["ProblemType"]
+    for i in range(0, len(nonTileFreeIndices)):
+      index = nonTileFreeIndices[i]
+      if index in problemType["IndicesFree"] and kernel["PackFreeDims"]:
+        continue
+      if index in problemType["IndicesBatch"] and kernel["PackBatchDims"]:
+        continue
+      kStr += "  unsigned int wg" + self.indexChars[index] \
+          + " = ( " + self.getGroupIdStr + "(2)"
+      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
+        index2 = nonTileFreeIndices[j]
+        kStr += " / size" + self.indexChars[index2]
+      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
     return kStr
 
   ##############################################################################

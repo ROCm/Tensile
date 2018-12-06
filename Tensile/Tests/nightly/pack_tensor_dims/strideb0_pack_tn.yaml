@@ -35,7 +35,7 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    - 
+    -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
@@ -44,7 +44,7 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [ 4, 4 ]
-          - [ 6, 8 ]  
+          - [ 6, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [  8, 8,  1 ]
