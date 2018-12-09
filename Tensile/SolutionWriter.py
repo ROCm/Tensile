@@ -463,7 +463,7 @@ class SolutionWriter:
           for i in range(0, solution["ProblemType"]["NumIndicesC"]):
             s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
 
-          s += "%s} else {\n" % (t)
+          s += "  } else if (beta != 1.0) {\n"
           t = t[:-2]
           s += "%sif( inputEvents != NULL )\n" % (t)
           s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
