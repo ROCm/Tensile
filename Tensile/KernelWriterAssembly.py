@@ -1163,6 +1163,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
+    numSgprAddressD = self.rpga # til end
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
@@ -1225,6 +1226,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdA", 4, 4)
       self.defineSgpr("SrdB", 4, 4)
     if kernel["BufferStore"]:
+      self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
     self.defineSgpr("Tensor2dSizeC", 2,2)
@@ -1237,6 +1239,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SaveExecMask", 2, 2)
 
     self.defineSgpr("GSUSumIdx", 2 if kernel["GlobalSplitU"] > 1 else 0)
+    self.defineSgpr("AddressD", numSgprAddressD)
     self.defineSgpr("AddressC", numSgprAddressC)
     self.defineSgpr("StridesC", self.numSgprStridesC)
 
@@ -2165,6 +2168,12 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
       kernArgOffset += 2*4
 
+      kStr += inst("s_load_dword", sgpr("AddressD"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr d" )
+      kernArgOffset += 1*4
+      kStr += inst("s_load_dword", sgpr("AddressD+1"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr d" )
+      kernArgOffset += 1*4
       kStr += inst("s_load_dword", sgpr("AddressC"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
       kernArgOffset += 1*4
@@ -2261,9 +2270,13 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Apply User Offsets
     kStr += self.comment("User Offsets")
+    kStr += inst("s_add_u32", sgpr("AddressD"), sgpr("OffsetC"), \
+        sgpr("AddressD"), "addrD += offsetC" )
     kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
         sgpr("AddressC"), "addrC += offsetC" )
     kStr += inst("s_mov_b32", sgpr("OffsetC"), 0, "")
+    kStr += inst("s_addc_u32", sgpr("AddressD"), sgpr("OffsetC"),\
+        sgpr("AddressD"), "addrD += offsetC carry" )
     kStr += inst("s_addc_u32", sgpr("AddressC"), sgpr("OffsetC"),\
         sgpr("AddressC"), "addrC += offsetC carry" )
     kStr += inst("s_add_u32", sgpr("AddressA"), sgpr("OffsetA"), \
@@ -5416,6 +5429,8 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
           kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
+          kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
+          kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
           kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
           kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
           kStr += "\n"
@@ -5470,6 +5485,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["BufferStore"]:
+      kStr += self.allocPostLoopSrd(kernel, "D")
       kStr += self.allocPostLoopSrd(kernel, "C")
 
     # lr0 = serial % SG0
@@ -5481,6 +5497,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       #print "----AddressC-LocalSplitU"
       #print self.vgprPool.state()
+      self.addrD = -1
       self.addrC = -1
     else:
       self.addrC = self.vgprPool.checkOut(2)
@@ -5516,6 +5533,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["BufferStore"]:
+      kStr += self.allocPostLoopSrd(kernel, "D")
       kStr += self.allocPostLoopSrd(kernel, "C")
 
     kStr += self.computeStoreStart(kernel,
@@ -5526,6 +5544,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       #print "----AddressC-nonLSU-----"
       #print self.vgprPool.state()
+      self.addrD = -1
       self.addrC = -1
     else:
       self.addrC = self.vgprPool.checkOut(2)
@@ -6484,7 +6503,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
-                   sgpr("SrdC", 4),  \
+                   sgpr("SrdD", 4),  \
                    "0 offen offset:%u glc" % (avi*bps), \
                    "attempt write avi=%u"%(avi), self.endLine )
             else:
@@ -6573,7 +6592,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
-                   sgpr("SrdC", 4), \
+                   sgpr("SrdD", 4), \
                    "0 offen offset:%u glc" % (avi*bps), \
                    "try again", self.endLine )
             else:
@@ -6726,7 +6745,7 @@ class KernelWriterAssembly(KernelWriter):
           rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
           if kernel["BufferStore"]:
             addr0 = vgpr(addr)
-            addr1 = sgpr("SrdC", 4)
+            addr1 = sgpr("SrdD", 4)
           else:
             addr0 = vgpr(addr,2)
             addr1 = ""

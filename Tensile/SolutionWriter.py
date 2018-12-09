@@ -495,6 +495,7 @@ class SolutionWriter:
         s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
         s += "%s0, // groupMemBytes\n" % (t)
         s += "%sstream,\n" % (t)
+        s += "%sdataD,\n" % (t)
         s += "%sdataC,\n" % (t)
         s += "%soffsetC,\n" % (t)
         # strides
@@ -529,6 +530,7 @@ class SolutionWriter:
           s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
+          s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
           s += "%soffsetC,\n" % (t)
           # strides
@@ -561,6 +563,7 @@ class SolutionWriter:
       if self.language == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataD ); tensileStatusCheck(status);\n" % (t, 0)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 0)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 1)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 2)
@@ -668,6 +671,7 @@ class SolutionWriter:
           s += "%sdim3(localWorkSize[0], localWorkSize[1], localWorkSize[2]),\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
+          s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
           s += "%sdataA,\n" % (t)
           s += "%sdataB,\n" % (t)
@@ -728,6 +732,7 @@ class SolutionWriter:
           s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
           s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
 
+          s += "%shipFunctionArgs.dataD = dataD;\n" % (t)
           s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
@@ -882,10 +887,12 @@ class SolutionWriter:
       typeName = problemType["DataType"].toCpp()
       destTypeName = problemType["DestDataType"].toCpp()
       if self.language == "HIP":
+        argList.append(("%s *"%destTypeName, "dataD"))
         argList.append(("%s *"%destTypeName, "dataC"))
         argList.append(("const %s *"%typeName, "dataA"))
         argList.append(("const %s *"%typeName, "dataB"))
       else:
+        argList.append(("cl_mem", "dataD"))
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))

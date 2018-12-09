@@ -498,15 +498,15 @@ class KernelWriterSource(KernelWriter):
       # GSU
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
         if kernel["ProblemType"]["UseBeta"]:
-          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
+          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
         else:
           kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
 
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
-          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
-              + "DST = 0 != (BETA) ? (ALPHA)*(REG) + (BETA)*(DST) : (ALPHA)*(REG);" + self.endLine
+          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
+              + "DST = 0 != (BETA) ? (ALPHA)*(REG) + (BETA)*(SRC) : (ALPHA)*(REG);" + self.endLine
         else:
           # dst = alpha*reg
           kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) " \
@@ -548,7 +548,7 @@ class KernelWriterSource(KernelWriter):
       if kernel["ProblemType"]["UseBeta"]:
         # dst = alpha*reg + beta*dst
         kStr += (
-          "#define TYPE_MAC_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
+          "#define TYPE_MAC_WRITE( DST, SRC, ALPHA, REG, BETA ) "+self.endLinePP +
           "  /* (1) */ " + self.endLinePP +
           "  type_mac_tmp = REG.s0; " + self.endLinePP +
           "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
@@ -557,12 +557,12 @@ class KernelWriterSource(KernelWriter):
           "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
           "  /* (2) */ " + self.endLinePP +
           "  if(BETA.s0 != 0) { " + self.endLinePP +
-          "  REG.s0 = MAC(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+          "  REG.s0 = MAC(  BETA.s0, SRC.s0, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 = MAC(  BETA.s0, SRC.s1, REG.s1 ); " + self.endLinePP +
           "  } " + self.endLinePP +
           "  if (BETA.s1 != 0) { " + self.endLinePP +
-          "  REG.s0 = MAC( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+          "  REG.s0 = MAC( -BETA.s1, SRC.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 = MAC(  BETA.s1, SRC.s0, REG.s1 ); " + self.endLinePP +
           "  } " + self.endLinePP +
           "  /* (3) */ " + self.endLinePP +
           "  DST = REG;" + self.endLine )
@@ -747,6 +747,10 @@ class KernelWriterSource(KernelWriter):
       restrictStr = "__restrict__"
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
+        + " *D,"
+    s += self.endLine
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    s += "  " + globalStr + ptrStr \
         + " *C,"
     s += self.endLine
     ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
@@ -764,8 +768,8 @@ class KernelWriterSource(KernelWriter):
           + kernel["ProblemType"]["DestDataType"].toDevice(self.language) + " const beta"
 
     # offsets
-    s += ( "," + self.endLine + "  unsigned int const offsetC,"
-        + self.endLine +
+    s += ( "," + self.endLine + 
+        "  unsigned int const offsetC," + self.endLine +
         "  unsigned int const offsetA," + self.endLine +
         "  unsigned int const offsetB" )
 
@@ -1288,6 +1292,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graApplyUserOffsets(self, kernel):
     kStr = ""
+    kStr += "  D += offsetC;%s" % self.endLine
     kStr += "  C += offsetC;%s" % self.endLine
     kStr += "  A += offsetA;%s" % self.endLine
     kStr += "  B += offsetB;%s" % self.endLine
@@ -2101,7 +2106,7 @@ class KernelWriterSource(KernelWriter):
           kStr += "  if (%s + %u*CPSV < %s) {" \
               % (globalC1ForCheck, b, size1ForCheck)
 
-        kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
+        kStr += "  TYPE_MAC_WRITE( D[ GLOBAL_C( (%s)" % self.uint64Str
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           kStr += " globalC%s" % self.indexChars[i]
           if i == kernel["ProblemType"]["Index0"] and kernel["GlobalWriteVectorWidth"]>1:
@@ -2111,6 +2116,19 @@ class KernelWriterSource(KernelWriter):
           if i < kernel["ProblemType"]["NumIndicesC"]-1:
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
+
+        if kernel["ProblemType"]["UseBeta"]:
+          kStr += ", C[ GLOBAL_C( (%s)" % self.uint64Str
+          for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+            kStr += " globalC%s" % self.indexChars[i]
+            if i == kernel["ProblemType"]["Index0"] and kernel["GlobalWriteVectorWidth"]>1:
+              kStr += " + %u" %s
+            if i == kernel["ProblemType"]["Index1"]:
+              kStr += " + %u*CPSV" %b
+            if i < kernel["ProblemType"]["NumIndicesC"]-1:
+              kStr += ", (%s)" % self.uint64Str
+          kStr += ") ]"
+
         kStr += ", alpha"
         kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b )
 
@@ -2230,7 +2248,7 @@ class KernelWriterSource(KernelWriter):
                   b, self.tileChar1, size1ForCheck)
 
             # Write the result
-            kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
+            kStr += "  TYPE_MAC_WRITE( D[ GLOBAL_C( (%s)" % self.uint64Str
             for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
               kStr += " globalC%s" % self.indexChars[i]
               if i == kernel["ProblemType"]["Index0"]:
@@ -2240,6 +2258,23 @@ class KernelWriterSource(KernelWriter):
               if i < kernel["ProblemType"]["NumIndicesC"]-1:
                 kStr += ", (%s)" % self.uint64Str
             kStr += ") ]"
+
+            if kernel["ProblemType"]["UseBeta"]:
+              kStr += ", C[ GLOBAL_C( (%s)" % self.uint64Str
+              for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+                kStr += " globalC%s" % self.indexChars[i]
+                if i == kernel["ProblemType"]["Index0"]:
+                  kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
+                      ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
+                      a, self.tileChar0)
+                if i == kernel["ProblemType"]["Index1"]:
+                  kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
+                      ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
+                      b, self.tileChar1)
+                if i < kernel["ProblemType"]["NumIndicesC"]-1:
+                  kStr += ", (%s)" % self.uint64Str
+              kStr += ") ]"
+
             kStr += ", alpha"
             #kStr += ", rC[%d+%d*(TT%s/VECTOR_WIDTH)+%d*TT%s]%s" \
             #    % (a, s1, self.tileChar0, b, self.tileChar0, \
@@ -2438,6 +2473,7 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine
       kStr += "__kernel "
     else:
+      kStr += self.endLine
       kStr += "extern \"C\"\n"
       kStr += "__global__ "
     kStr += "void %s" % ( kernelName )
@@ -2451,6 +2487,9 @@ class KernelWriterSource(KernelWriter):
     #if self.language == "HIP":
     #  restrictStr = "__restrict__"
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    kStr += "  " + globalStr + ptrStr \
+        + " *D,"
+    kStr += self.endLine
     kStr += "  " + globalStr + ptrStr \
         + " *C,"
     kStr += self.endLine
@@ -2489,7 +2528,9 @@ class KernelWriterSource(KernelWriter):
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
     kStr += "{%s" % self.endLine
-    kStr += "  C += offsetC;%s" % self.endLine
+    kStr += "  D += offsetC;%s" % self.endLine
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += "  C += offsetC;%s" % self.endLine
 
     ########################################
     # defined initial strides
@@ -2584,12 +2625,12 @@ class KernelWriterSource(KernelWriter):
         kStr += "    if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
       else:
         kStr += "    if(beta == SCALAR_ZERO) {%s" % self.endLine
-      kStr += "      C[idx] = SCALAR_ZERO;%s" % self.endLine
+      kStr += "      D[idx] = SCALAR_ZERO;%s" % self.endLine
       kStr += "    } else {%s" % self.endLine
-      kStr += "      C[idx] *= beta;%s" % self.endLine
+      kStr += "      D[idx] = C[idx]*beta;%s" % self.endLine
       kStr += "    }%s" % self.endLine
     else:
-      kStr += "    C[idx]"
+      kStr += "    D[idx]"
       kStr += " = SCALAR_ZERO;%s" % (self.endLine)
     kStr += "  }%s" % self.endLine
 

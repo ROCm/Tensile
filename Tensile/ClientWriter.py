@@ -683,6 +683,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     #h += "int deviceIdx = %u;\n" \
     #    % (globalParameters["Device"])
   h += "\n"
+  h += "void *deviceD;\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"
   h += "void *deviceB;\n"
@@ -860,12 +861,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "  TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (solution._functionPtr);\n" \
             % (problemType, problemType)
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  return f(solutionLock, static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return f(solutionLock, static_cast<cl_mem>(deviceD), static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
-      h += "  return f(solutionLock, static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
-          % (destTypeName, typeName, typeName)
+      h += "  return f(solutionLock, static_cast<%s *>(deviceD), static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+          % (destTypeName, destTypeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
@@ -1003,6 +1004,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
               h += "        static_cast<cl_mem>(deviceA),\n"
               h += "        static_cast<cl_mem>(deviceB),\n"
             else:
+              h += "        static_cast<%s *>(deviceD),\n" % destTypeName
               h += "        static_cast<%s *>(deviceC),\n" % destTypeName
               h += "        static_cast<%s *>(deviceA),\n" % typeName
               h += "        static_cast<%s *>(deviceB),\n" % typeName

@@ -410,6 +410,7 @@ bool callLibrary(
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE,
       0, sizeToCopy, initialC, 0, NULL, NULL);
 #else
+  status = hipMemset(deviceD, 0, sizeToCopy);
   status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
 #endif
   tensileStatusCheck(status);
@@ -464,7 +465,7 @@ bool callLibrary(
         sizeToCopy, deviceOnHostC, 0, NULL,
         NULL);
 #else
-    hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
+    hipMemcpy(deviceOnHostC, deviceD, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
 
     if (printTensorC & 0x2) {
@@ -883,6 +884,7 @@ bool benchmarkAllSolutionsForSize(
       status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
           sizeToCopy, initialC, 0, NULL, NULL);
 #else
+      status = hipMemset(deviceD, 0, sizeToCopy);
       status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
 #endif
       tensileStatusCheck(status);
@@ -896,7 +898,7 @@ bool benchmarkAllSolutionsForSize(
         clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
             sizeToCopy, deviceOnHostC, 0, NULL, NULL);
 #else
-        hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
+        hipMemcpy(deviceOnHostC, deviceD, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
         if (printTensorC & 0x2) {
           std::vector<unsigned int> indexAssignmentsC;
@@ -1345,6 +1347,9 @@ void initData(
   tensileStatusCheck(status);
     std::cout << ".";
 #else
+  status = hipMalloc( &deviceD, maxSizeC*bytesPerElement[dataTypeIdx] );
+  tensileStatusCheck(status);
+  std::cout << ".";
   status = hipMalloc( &deviceC, maxSizeC*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
@@ -1390,6 +1395,7 @@ void destroyData(
   clReleaseMemObject(static_cast<cl_mem>(deviceA));
   clReleaseMemObject(static_cast<cl_mem>(deviceB));
 #else
+  hipFree(deviceD);
   hipFree(deviceC);
   hipFree(deviceA);
   hipFree(deviceB);
