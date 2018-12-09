@@ -353,6 +353,7 @@ class SolutionWriter:
 
     #s += "printf(\"Launching with grid=%zu_%zu problemGrid=%u_%u mt=%u_%u\\n\", globalWorkSize[0][0], globalWorkSize[0][1], totalWorkGroups0, totalWorkGroups1, macroTile0, macroTile1);\n"
     s += "\n"
+    s += "%sint kernelsLaunched=0;\n" % (t)
 
     ########################################
     # Enqueue Beta-Only Kernel
@@ -436,32 +437,37 @@ class SolutionWriter:
 
 
       else:
-        s += "%sif( inputEvents != NULL )\n" % (t)
-        t += "  "
-        s += "%shipEventRecord(inputEvents[0], stream );\n" % (t)
-        t += "  "
         s += "%stry {\n" % (t)
+        # TODO - timing with beta kernels is somewhat pessimistic since it has this separate event only on the GSU path.
+        # Introduces 2-3us of overhead ; may want to disable PreciseKernelTime so non-GSU have same overhead.
+        # Long-term fix would be to launch the beta kernel with the hipHccModule* API and set start-event in that call
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
-        s += "%shipLaunchKernelGGL(\n" % (t)
-        t += "  "
-        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
-        s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
-        s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
-        s += "%s0, // groupMemBytes\n" % (t)
-        s += "%sstream,\n" % (t)
-        s += "%sdataC,\n" % (t)
-        s += "%soffsetC,\n" % (t)
-        # strides
-        for i in range(0,numStridesC):
-          s += "%s%s,\n" % (t, self.strideList[i])
-        # sizes
-        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
+          s += "%sif( inputEvents != NULL )\n" % (t)
+          s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+          s += "%skernelsLaunched++;\n" % (t)
+          s += "%shipLaunchKernelGGL(\n" % (t)
+          t += "  "
+          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
+          s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
+          s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
+          s += "%s0, // groupMemBytes\n" % (t)
+          s += "%sstream,\n" % (t)
+          s += "%sdataC,\n" % (t)
+          s += "%soffsetC,\n" % (t)
+          # strides
+          for i in range(0,numStridesC):
+            s += "%s%s,\n" % (t, self.strideList[i])
+          # sizes
+          for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+            s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
 
-        if solution["ProblemType"]["UseBeta"]:
           s += "%s} else {\n" % (t)
+          t = t[:-2]
+          s += "%sif( inputEvents != NULL )\n" % (t)
+          s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+          s += "%skernelsLaunched++;\n" % (t)
           s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
@@ -478,8 +484,9 @@ class SolutionWriter:
           for i in range(0, solution["ProblemType"]["NumIndicesC"]):
             s += "%ssize%s,\n" % (t, self.indexChars[i])
           s += "%sbeta);\n" % (t)
-          s += "%s}\n" % (t)
+          s += "}\n"
 
+        t = "  "
         s += "%s} catch (const std::exception& e) {\n" % (t)
         s += "#ifdef DEBUG\n"
         s += "%s  std::cerr << e.what() << std::endl;\n" % (t)
@@ -579,7 +586,7 @@ class SolutionWriter:
       ########################################
       else:
         if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
-          s += "%sif( inputEvents != NULL )\n" % (t)
+          s += "%sif( inputEvents != NULL && kernelsLaunched==0)\n" % (t)
           t += "  "
           s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
         t = t[2:]
@@ -587,6 +594,7 @@ class SolutionWriter:
         t += "  "
         # hip kernel
         if solution["KernelLanguage"] == "Source":
+          s += "%skernelsLaunched++;\n" % (t)
           s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -673,6 +681,7 @@ class SolutionWriter:
             s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
             s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
 
+          s += "%skernelsLaunched++;\n" % (t)
           s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
@@ -687,7 +696,7 @@ class SolutionWriter:
           s += "%sNULL,\n" % (t)
           s += "%s(void**)hipLaunchParams\n" % (t)
           if globalParameters["PreciseKernelTime"]:
-            s += "%s,inputEvents ? inputEvents[enqueueIdx]:nullptr\n" %(t)
+            s += "%s,(inputEvents && kernelsLaunched==1) ? inputEvents[enqueueIdx]:nullptr\n" %(t)
             s += "%s,outputEvent ? outputEvent[enqueueIdx]:nullptr\n" % (t)
 
           s += "%s);\n" % (t)

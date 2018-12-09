@@ -47,7 +47,8 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile
 globalParameters["PrintLevel"] = 1                # how much info to print. 0=none, 1=standard, 2=verbose
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
-globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.
+globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
+# timing between GSU / non-GSU kernels
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
@@ -316,7 +317,7 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
-    # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9] - 
+    # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
     "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
 
