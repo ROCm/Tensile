@@ -751,7 +751,7 @@ class KernelWriterSource(KernelWriter):
     s += self.endLine
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
-        + " *C,"
+        + " const * " + restrictStr + " C,"
     s += self.endLine
     ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
@@ -2483,15 +2483,15 @@ class KernelWriterSource(KernelWriter):
     if self.language == "HIP":
       #kStr += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
-    #restrictStr = "restrict"
-    #if self.language == "HIP":
-    #  restrictStr = "__restrict__"
+    restrictStr = "restrict"
+    if self.language == "HIP":
+      restrictStr = "__restrict__"
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     kStr += "  " + globalStr + ptrStr \
         + " *D,"
     kStr += self.endLine
     kStr += "  " + globalStr + ptrStr \
-        + " *C,"
+        + " const * " + restrictStr + " C,"
     kStr += self.endLine
 
     # offsets

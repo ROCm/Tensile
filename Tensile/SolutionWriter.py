@@ -563,7 +563,6 @@ class SolutionWriter:
       if self.language == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataD ); tensileStatusCheck(status);\n" % (t, 0)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 0)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 1)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 2)
@@ -888,11 +887,10 @@ class SolutionWriter:
       destTypeName = problemType["DestDataType"].toCpp()
       if self.language == "HIP":
         argList.append(("%s *"%destTypeName, "dataD"))
-        argList.append(("%s *"%destTypeName, "dataC"))
+        argList.append(("const %s *"%destTypeName, "dataC"))
         argList.append(("const %s *"%typeName, "dataA"))
         argList.append(("const %s *"%typeName, "dataB"))
       else:
-        argList.append(("cl_mem", "dataD"))
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))
