@@ -1145,8 +1145,8 @@ class KernelWriter:
     self.getTensorParameters(tensorParametersA, kernel, True)
     self.getTensorParameters(tensorParametersB, kernel, False)
 
-    tensorParametersA["PackBatchDims"] = kernel["PackBatchDims"] & 0x1
-    tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] & 0x2
+    tensorParametersA["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x1 else 0
+    tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
 
 
   ##############################################################################

@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution
+from SolutionStructs import Solution, isPackedIndex
 from KernelWriterSource import KernelWriterSource
 from Common import globalParameters
 
@@ -99,6 +99,7 @@ class SolutionWriter:
     t += "  "
     s += "%sTensileStatus status;\n" % (t)
 
+
     # hipFunction Struct
     if solution["KernelLanguage"] == "Assembly":
       s += "\n"
@@ -119,10 +120,10 @@ class SolutionWriter:
           s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
-      for idxChar in solution["C0Indices"][:-1]:
+      for idxChar in solution["PackedC0Indices"][:-1]:
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
-      for idxChar in solution["C1Indices"][:-1]:
+      for idxChar in solution["PackedC1Indices"][:-1]:
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
 
@@ -213,24 +214,24 @@ class SolutionWriter:
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
 
-    if not solution["PackBatchDims"] & 0x3 and not solution["PackFreeDims"]:
-      for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-        if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
-          s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
+    for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+      if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"] \
+          and not isPackedIndex(solution,i):
+        s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
     s += "%sunsigned int sizeOfC0 = " % (t)
-    s += " * ".join(["size" + i for i in solution["C0Indices"]])
+    s += " * ".join(["size" + i for i in solution["PackedC0Indices"]])
     s += ";\n"
 
     s += "%sunsigned int sizeOfC1 = " % (t)
-    s += " * ".join(["size" + i for i in solution["C1Indices"]])
+    s += " * ".join(["size" + i for i in solution["PackedC1Indices"]])
     s += ";\n"
 
-    for idxChar in solution["C0Indices"][:-1]:
+    for idxChar in solution["PackedC0Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
           % (t, idxChar, idxChar, idxChar)
-    for idxChar in solution["C1Indices"][:-1]:
+    for idxChar in solution["PackedC1Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
           % (t, idxChar, idxChar, idxChar)
@@ -630,10 +631,10 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
-          for idxChar in solution["C0Indices"][:-1]:
+          for idxChar in solution["PackedC0Indices"][:-1]:
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
-          for idxChar in solution["C1Indices"][:-1]:
+          for idxChar in solution["PackedC1Indices"][:-1]:
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
 

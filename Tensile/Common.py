@@ -335,7 +335,7 @@ validParameters = {
 
     # Pack free dimensions
     # If True, allow macro-tile to span free dimensions.  Single workgroup can work across multiple free dimensions.
-    # If False, macro-tile is always Free0*Free1.  Additional free dimensions start new macro-tile boundary.
+    # If False, macro-tile is always Free0*Free1.  Additional free dimensions are not supported.
     "PackFreeDims":              [False, True],
 
     # Granularity allowed when packing tensor dims.
@@ -498,7 +498,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PackBatchDims":             [ 0 ] },
-    {"PackFreeDims":              [ 0 ] },
+    {"PackFreeDims":              [ 1 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },

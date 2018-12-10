@@ -300,6 +300,10 @@ class ProblemType:
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
     if len(state["IndexAssignmentsA"]) != len(state["IndexAssignmentsB"]):
       printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
+    if state["NumIndicesFree"] < 2 :
+      printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
+    if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
+      printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -615,6 +619,14 @@ class ProblemSizes:
       s += "  %s" % sizeRange
     return s
 
+# kds is class Solution or class Kernel
+# If PackFreeDims=1 then all free dims are packed ; else only 1 free dim/matrix is supported
+# PackBatchDims can pack batches into A or B (has stride==0 requirements for non-packed tensor);
+# batchMask controls which bit in PackBatchDims detects batch index
+def isPackedIndex(ks, index, batchMask=0x3):
+  problemType = ks["ProblemType"]
+  return index in problemType["IndicesFree"] and ks["PackFreeDims"] or \
+         index in problemType["IndicesBatch"] and (ks["PackBatchDims"] & batchMask)
 
 ################################################################################
 # Solution
@@ -1596,24 +1608,22 @@ class Solution:
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
     # grid size [0,1]
     problemType = state["ProblemType"]
-    state["C0Indices"] = []
+    state["PackedC0Indices"] = []
     indexChars = globalParameters["IndexChars"]
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsA"]:
       if idx < problemType["NumIndicesC"] and \
-          (idx in problemType["IndicesBatch"] and state["PackBatchDims"] & 0x1 or \
-           idx in problemType["IndicesFree"] and state["PackFreeDims"] or \
+          (isPackedIndex(state, idx, 0x1) or \
            idx == problemType["Index0"]):
-        state["C0Indices"].append("%s" % indexChars[idx])
+        state["PackedC0Indices"].append("%s" % indexChars[idx])
 
-    state["C1Indices"] = []
+    state["PackedC1Indices"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
       if idx < problemType["NumIndicesC"] and \
-          (idx in problemType["IndicesBatch"] and state["PackBatchDims"] & 0x2 or \
-           idx in problemType["IndicesFree"] and state["PackFreeDims"] or \
+          (isPackedIndex(state, idx, 0x2) or \
            idx == problemType["Index1"]):
-        state["C1Indices"].append("%s" % indexChars[idx])
+        state["PackedC1Indices"].append("%s" % indexChars[idx])
 
     problemType["AssignedDerivedParameters"] = True
 

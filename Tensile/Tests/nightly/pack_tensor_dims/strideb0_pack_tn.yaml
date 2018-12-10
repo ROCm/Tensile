@@ -47,8 +47,9 @@ BenchmarkProblems:
           - [ 6, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
-          - [  8, 8,  1 ]
-          - [  16, 8,  1 ]
+          - [  8, 8, 1 ]
+          - [  8, 8, 4 ]
+          - [  16, 8, 1 ]
         - DepthU: [8]
         - GlobalReadVectorWidth: [1,4]
         - VectorWidth: [1,4]
