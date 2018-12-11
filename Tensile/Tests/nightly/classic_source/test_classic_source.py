@@ -1,11 +1,5 @@
 import Tensile.Tensile as Tensile
 
-def test_igemm_tt(tmpdir):
- Tensile.Tensile([Tensile.TensileTestPath("nightly/classic_source/igemm_hpa_hip_tt.yaml"), tmpdir.strpath])
-
-def test_igemm_nn(tmpdir):
- Tensile.Tensile([Tensile.TensileTestPath("nightly/classic_source/igemm_hpa_hip_nn.yaml"), tmpdir.strpath])
-
 def test_hgemm_nn(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("nightly/classic_source/test_hgemm_nn.yaml"), tmpdir.strpath])
 
