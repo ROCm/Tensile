@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import DataType
+from SolutionStructs import DataType, isPackedIndex
 from Common import globalParameters, printExit, printWarning, roundUp
 from KernelWriter import KernelWriter
 from math import log, ceil
@@ -1237,6 +1237,13 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
+    for idxChar in kernel["PackedC0Indices"][:-1]:
+      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
+    for idxChar in kernel["PackedC1Indices"][:-1]:
+      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
+
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
@@ -1730,7 +1737,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("UseSgprForGRO=%s" % kernel["UseSgprForGRO"])
 
 
-    kStr += self.comment3("ASM syntax bug workarounds")
+    kStr += self.comment3("Asm syntax workarounds")
     kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
         kStr += "   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
@@ -1775,6 +1782,18 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
       else:
         kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+    kStr += ".endm" + self.endLine
+
+
+    # Performs a division using 'magic number' computed on host
+    # Argument requirements:
+    #   - dstIdx must be two consecutive registers ; on exit the lower one will contain the quotient.  The upper is used as a temp.
+    #   - First parm is passed as an integer vgpr index ; remaining are vgpr or sgpr symbolic names
+    kStr += self.comment3("Magic div and mod functions")
+    kStr += ".macro V_MAGIC_DIV dstIdx, dividend, magicNumber, magicShift" + self.endLine
+    kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
+    kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+    kStr += "    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
     kStr += ".endm" + self.endLine
 
     ########################################
@@ -1888,8 +1907,11 @@ class KernelWriterAssembly(KernelWriter):
             or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
           kStr += " vgprOffset%s" % idxChars[i]
         # other c index sgpr
-        elif indices[i] < kernel["ProblemType"]["NumIndicesC"] and not justOffset32:
-          kStr += " sgprOffset%s" % idxChars[i]
+        elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+          if isPackedIndex(kernel, indices[i]):
+            kStr += " vgprOffset%s" % idxChars[i]
+          elif not justOffset32: # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
+            kStr += " sgprOffset%s" % idxChars[i]
         # other sum index
         else:
           pass # these offsets are zero
@@ -2186,6 +2208,21 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load size sum %u"%i )
         kernArgOffset += 1*4
+      for idxChar in kernel["PackedC0Indices"][:-1]:
+        kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C0)")
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("MagicNumberSize%s"%idxChar), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic number (C0)")
+        kernArgOffset += 1*4
+      for idxChar in kernel["PackedC1Indices"][:-1]:
+        kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("MagicNumberSize%s"%idxChar), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic number (C1)")
+        kernArgOffset += 1*4
+
 
 
 
@@ -2651,18 +2688,25 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graTileOffsets(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     if kernel["UseSgprForGRO"]:
-      # Let the vgprTileOffsets checkin handle tReg, don't need to do it here
-      tP["vgprTileOffsets"] = tP["gpr"]["tReg"] 
+      # Let the vgprTileOffsets checkin handle tReg later since these are same vgpr
+      tP["vgprTileOffsets"] = tP["gpr"]["tReg"]
     else:
       numTileOffsets = tP["nrt"]
       if tP["rtc"]:
         numTileOffsets *= tP["glvw"]
       tP["vgprTileOffsets"] = self.vgprPool.checkOut(numTileOffsets)
       v = tP["vgprTileOffsets"]
+      numExtraPackedOffsetsPerTile = len(tP["PackedIndices"])-1
+      if numExtraPackedOffsetsPerTile:
+        tP["vgprPackedOffsets"] = self.vgprPool.checkOut(numExtraPackedOffsetsPerTile * numTileOffsets)
+      else:
+        tP["vgprPackedOffsets"] = None
       strideIdx = tP["lsc"] if tP["tlu"] else tP["lsp"]
       stride = kernel[strideIdx]
       if tP["rtc"]:
+        assert(numExtraPackedOffsetsPerTile == 0) # not supported here
         # l=0, s=0
         kStr += inst("v_mov_b32", vgpr(v), \
             vgpr(tP["gpr"]["tReg"]), "gro%s%s_%u_s%u"%(tP["tensorChar"], tP["tileChar"], 0, 0) )
@@ -2680,12 +2724,33 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]+s), "vcc", \
                 1, vgpr(v+l*tP["glvw"]+(s-1)), \
                 "gro%s%s_%u_s%u"%(tP["tensorChar"], tP["tileChar"], l, s) )
+
       else:
         kStr += inst("v_mov_b32", vgpr(v), \
             vgpr(tP["gpr"]["tReg"]), "gro%s%s_%u"%(tP["tensorChar"], tP["tileChar"], 0) )
         for l in range(1, tP["nrt"]):
           kStr += inst("_v_add_co_u32", vgpr(v+l), "vcc", stride, \
               vgpr(v+l-1), "gro%s%s_%u += %s"%(tP["tensorChar"], tP["tileChar"], l, strideIdx) )
+        if numExtraPackedOffsetsPerTile:
+          tmpV = self.vgprPool.checkOutAligned(2,2,"packTmp")
+
+          for l in range(0, tP["nrt"]):
+            lastGroVgpr = vgpr(v+l)
+            lastGroIdx = 0
+            kStr += "\n"
+            for p in range(0, numExtraPackedOffsetsPerTile):
+              groChar = tP["PackedIndices"][p+1]
+              groIdx  = ord(groChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
+              groVgpr = vgpr(tP["vgprPackedOffsets"] + l*numExtraPackedOffsetsPerTile + p)
+              kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" \
+                  % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%tP["PackedIndices"][p]), sgpr("MagicShiftSize%s"%tP["PackedIndices"][p]))
+              kStr += inst("v_mov_b32", groVgpr, vgpr(tmpV), "extract gro%s%s_%u (%s)"%(tc,groChar,l,groVgpr))
+              kStr += inst("v_mul_lo_u32", vgpr(tmpV), groVgpr, sgpr("SizesFree+%u"%lastGroIdx), "remainder part 1")
+              kStr += inst("v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
+                  "remove extracted bits from gro%s%s_%u (%s)"%(tc, globalParameters["IndexChars"][lastGroIdx], l, lastGroVgpr))
+              lastGroVgpr = groVgpr
+              lastGroIdx = groIdx
+          self.vgprPool.checkIn(tmpV)
 
       # groOffsetInMacroTile uses same register for both of these, don't free it here:
       if tP["gpr"]["lwoT"] != tP["gpr"]["tReg"] :
@@ -2849,15 +2914,26 @@ class KernelWriterAssembly(KernelWriter):
             if graIdx==0 or not kernel["UseSgprForGRO"]:
               # emit global offset macro
               if kernel["BufferLoad"]:
-                  kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
+                kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
               else:
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
+              packedIter = 0 #iterator through ia
               for i in tP["ia"]:
                 if i < kernel["ProblemType"]["NumIndicesC"]:
                   if i == tP["tileIdx"]:
                     kStr += ", %2u" % vgprTile
-                  elif not kernel["BufferLoad"]: # just a group index
-                    kStr += ", sgprWorkGroup%u"%i
+                  else:
+                    if isPackedIndex(kernel,i, tP["PackBatchDims"]):
+                      #kStr += ", %2u" % tP["vgprPackedOffsets"]+i-1  #??
+                      numPacked = len(tP["PackedIndices"])-1
+                      kStr += ", %2u" % (tP["vgprPackedOffsets"] + \
+                                         (vgprTile-tileOffsets)*(len(tP["PackedIndices"])-1) +
+                                         packedIter)
+                      packedIter += 1
+                    else:
+                      # just a group index
+                      if not kernel["BufferLoad"]:  # buffer load adds these to SRD not the GLOBAL_OFFSET here
+                        kStr += ", sgprWorkGroup%u"%i
                 else: # summation index
                   if i == kernel["ProblemType"]["IndexUnroll"]:
                     kStr += ", %2u" % vgprUnroll
@@ -2943,10 +3019,13 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(tP["vgprTileOffsets"])
       tP["vgprTileOffsets"] = None
       # UseSgprForGRO uses same vgpr for ureg and unrollOffsets so
-      # let checkin(ureg) do the deallocating
-      # vgprTileOffsets is renamed version of treg/lwo so deallocate
-      # it here
+      # let checkin(ureg) do the checkin
+      # vgprTileOffsets is renamed version of treg/lwo so checkin here
       self.vgprPool.checkIn(unrollOffsets)
+    if tP["vgprPackedOffsets"] != None:
+      self.vgprPool.checkIn(tP["vgprPackedOffsets"])
+      tP["vgprPackedOffsets"] = None
+
     self.vgprPool.checkIn(tmp)
     #if tP["isB"]:
     #  kStr += self.bomb(0x100)

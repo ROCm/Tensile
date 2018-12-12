@@ -228,12 +228,12 @@ class SolutionWriter:
     s += ";\n"
 
     for idxChar in solution["PackedC0Indices"][:-1]:
-      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+      s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = (2^magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
     for idxChar in solution["PackedC1Indices"][:-1]:
-      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+      s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = (2^magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
 
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)

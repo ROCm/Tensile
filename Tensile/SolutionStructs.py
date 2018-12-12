@@ -280,7 +280,7 @@ class ProblemType:
         #state["NumIndicesFree"] = (i+1)
         state["IndicesFree"].append(i)
       else:
-        printExit("invalid index %u" % i)
+        printExit("invalid index %u (inC but not (inA or inB))" % i)
 
     # determine num summation
     for i in range(state["NumIndicesC"], state["TotalIndices"]):
@@ -290,11 +290,11 @@ class ProblemType:
         #state["NumIndicesSummation"] = (i+1)-state["NumIndicesC"]
         state["IndicesSummation"].append(i)
       else:
-        printExit("invalid index %u" % i)
+        printExit("invalid index %u (expected summation but not (inA and inB))" % i)
     # print index assignments
-    #print2("IndicesFree:  %s" % state["IndicesFree"])
-    #print2("IndicesBatch: %s" % state["IndicesBatch"])
-    #print2("IndicesSum:   %s" % state["IndicesSummation"])
+    print1("IndicesFree:  %s" % state["IndicesFree"])
+    print1("IndicesBatch: %s" % state["IndicesBatch"])
+    print1("IndicesSum:   %s" % state["IndicesSummation"])
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
@@ -302,8 +302,8 @@ class ProblemType:
       printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
     if state["NumIndicesFree"] < 2 :
       printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
-    if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
-      printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
+    #if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
+    #  printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -1531,25 +1531,6 @@ class Solution:
       state["GuaranteeNoPartialB"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
 
 
-    # If batch dims are packed, then need to ensure a vector load isn't split by a tensor dim
-    # (since this could result in non-contiguous addresses)
-    # Current implementation ensures that the vector load is not partial across the Free* boundary:
-    # GlobalLoadVectorWidth=1 will always meet this requirement.
-    # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
-    if state["PackBatchDims"] & 0x1 and not state["GuaranteeNoPartialA"]:
-      reject(state, "PackBatchDims & 0x1 requires GuaranteeNoPartialA")
-    if state["PackBatchDims"] & 0x2 and not state["GuaranteeNoPartialB"]:
-      reject(state, "PackBatchDims & 0x2 requires GuaranteeNoPartialB")
-
-    if state["PackBatchDims"] and state["EdgeType"] != "ShiftPtr":
-      reject(state, "PackBatchDims requires EdgeType==ShiftPtr")
-
-    if state["PackBatchDims"] & 0x1 and state["PackGranularity"]==2 \
-        and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
-          reject(state, "PackBatchDims & 0x1 requires AF0EM>VectorWidth (for stores)")
-    if state["PackBatchDims"] & 0x2 and state["PackGranularity"]==2 \
-        and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
-          reject(state, "PackBatchDims & 0x2 requires AF1EM>VectorWidth (for stores)")
 
 
     #--
@@ -1618,6 +1599,36 @@ class Solution:
           (isPackedIndex(state, idx, 0x2) or \
            idx == problemType["Index1"]):
         state["PackedC1Indices"].append("%s" % indexChars[idx])
+
+    # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
+    # (since this could result in non-contiguous addresses)
+    # Current implementation ensures that the vector load is not partial across the Free* boundary:
+    # GlobalLoadVectorWidth=1 will always meet this requirement.
+    # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
+    packedC0 = len(state["PackedC0Indices"])>1
+    packedC1 = len(state["PackedC1Indices"])>1
+    if packedC0 and not state["GuaranteeNoPartialA"]:
+      reject(state, "packedC0 requires GuaranteeNoPartialA")
+    if packedC1 and not state["GuaranteeNoPartialB"]:
+      reject(state, "packedC1 requires GuaranteeNoPartialB")
+
+    if packedC0 or packedC1:
+      if state["EdgeType"] != "ShiftPtr":
+        reject(state, "Packed dims requires EdgeType==ShiftPtr")
+      if state["KernelLanguage"] == "Assembly" and \
+        (not state["BufferLoad"] or state["UseSgprForGRO"]):
+        reject(state, "Packed dims for Assembly requires BufferLoad and UseSgprForGRO=0")
+
+    if packedC0 and state["PackGranularity"]==2 \
+        and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
+          reject(state, "packedC0 requires AF0EM>VectorWidth (for stores)")
+    if packedC1 and state["PackGranularity"]==2 \
+        and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
+          # Not sure if this is actually required??
+          reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
+
+    print("PackedC0Indices", state["PackedC0Indices"])
+    print("PackedC1Indices", state["PackedC1Indices"])
 
     problemType["AssignedDerivedParameters"] = True
 
