@@ -1078,7 +1078,6 @@ class KernelWriterSource(KernelWriter):
     nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
-    problemType = kernel["ProblemType"]
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
       if isPackedIndex(kernel, index):
@@ -1110,7 +1109,6 @@ class KernelWriterSource(KernelWriter):
   def graTileOffsets(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
-    problemType = kernel["ProblemType"]
     for l in range(0, tP["nrt"]):
       for s in range(0, 1 if tP["rc"] else tP["nrtv"]):
         firstGro = gro = "globalReadOffset%s%s_%u_%u" % (tc, tP["tileChar"], l, s)
