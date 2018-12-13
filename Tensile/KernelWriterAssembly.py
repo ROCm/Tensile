@@ -1587,12 +1587,6 @@ class KernelWriterAssembly(KernelWriter):
                 bStr = "v[%s+%u]"       % ("vgprValuB_X%u_I%u"%(m,iui), b)
                 kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
 
-                if macIdx == kernel["PerformanceSyncLocation"]:
-                    kStr += "s_barrier // extra barrier for performance%s" \
-                        % (self.endLine)
-                macIdx += 1
-
-
       # single precision
       elif kernel["ProblemType"]["DataType"].isSingle():
         for b in range(0, kernel["ThreadTile1"]):
