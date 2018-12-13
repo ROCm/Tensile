@@ -1585,13 +1585,8 @@ class KernelWriterAssembly(KernelWriter):
                 cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
                 aStr = "v[%s+%u]"       % ("vgprValuA_X%u_I%u"%(m,iui), a)
                 bStr = "v[%s+%u]"       % ("vgprValuB_X%u_I%u"%(m,iui), b)
-# this will be same as "single precision" except for the dot4 instruction replacing the v_mac_f32 instruction
-#               kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # single precision
                 kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
 
-                if macIdx == kernel["PerformanceWaitLocation"]:
-                    kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
-                        % (kernel["PerformanceWaitCount"], self.endLine)
                 if macIdx == kernel["PerformanceSyncLocation"]:
                     kStr += "s_barrier // extra barrier for performance%s" \
                         % (self.endLine)
@@ -2146,7 +2141,9 @@ class KernelWriterAssembly(KernelWriter):
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
       kernArgOffset += 1*4
       # for half precision or smaller, data is padded to fill up 32-bits
-      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle() or kernel["ProblemType"]["DataType"].isInt8x4():
+      if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isSingle() or \
+         kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += inst("s_load_dword", sgpr("Alpha"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
       elif kernel["ProblemType"]["DataType"].isDouble():
@@ -2156,7 +2153,9 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load alpha" )
       kernArgOffset += 1*max(4,self.bpeAB)
       if kernel["ProblemType"]["UseBeta"]:
-        if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle() or kernel["ProblemType"]["DataType"].isInt8x4():
+        if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isSingle() or \
+           kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += inst("s_load_dword", sgpr("Beta"), \
               sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
         elif kernel["ProblemType"]["DataType"].isDouble():
@@ -4050,9 +4049,8 @@ class KernelWriterAssembly(KernelWriter):
                   # Pack two FP16 values into a single load dword x2
                   numElementsPerLoad = 2
                 regIdx = r/2
-              elif kernel["ProblemType"]["DataType"].isInt8x4():
-                regIdx = r
-              elif kernel["ProblemType"]["DataType"].isSingle():
+              elif kernel["ProblemType"]["DataType"].isInt8x4() or \
+                   kernel["ProblemType"]["DataType"].isSingle():
                 regIdx = r
               elif kernel["ProblemType"]["DataType"].isDouble():
                 regIdx = r*2
@@ -4745,9 +4743,8 @@ class KernelWriterAssembly(KernelWriter):
             kStr += "s_waitcnt lgkmcnt(0) // CheckValue1 wait for LDS read\n"
             if kernel["ProblemType"]["DataType"].isHalf():
               kStr += self.assert_eq(destVgpr, hex(0x3c003c00)) # packed 1s
-            elif kernel["ProblemType"]["DataType"].isInt8x4():
-              kStr += self.assert_eq(destVgpr, 1.0)
-            elif kernel["ProblemType"]["DataType"].isSingle():
+            elif kernel["ProblemType"]["DataType"].isInt8x4() or \
+                 kernel["ProblemType"]["DataType"].isSingle():
               kStr += self.assert_eq(destVgpr, 1.0)
 
     #if tP["isB"]:
@@ -5044,10 +5041,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
       assert(kernel["VectorWidth"]%2 == 0)
       elementStep = 2*(useDwordX2+1)
-    elif kernel["ProblemType"]["DataType"].isInt8x4():
-      # assume this is the same as for isSingle
-      elementStep = 1*(useDwordX2+1)
-    elif kernel["ProblemType"]["DataType"].isSingle():
+    elif kernel["ProblemType"]["DataType"].isInt8x4() or \
+         kernel["ProblemType"]["DataType"].isSingle():
       elementStep = 1*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isDouble():
       if isLds:
@@ -5224,7 +5219,7 @@ class KernelWriterAssembly(KernelWriter):
             cIdx /= elementStep
             regIdx /= elementStep
             # assume v_add_i32 can be used in place of v_add_f32
-            # need to add saturation directive to v_add_i32 instruction to clamp integer arithmetic
+            # may need to add saturation directive to v_add_i32 instruction to clamp integer arithmetic
             kStr += inst("v_add_i32", vgpr("ValuC+%u"%cIdx), \
                 vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
           elif kernel["ProblemType"]["DataType"].isSingle():
@@ -6596,11 +6591,7 @@ class KernelWriterAssembly(KernelWriter):
             else:
               kStr += self.chooseGlobalStore(useBuffer, bps, sumIdx, rpv, \
                         addr0, addr1, 0, ntStr, hi16=0)
-          elif kernel["ProblemType"]["DataType"].isInt8x4():
-            # assume this is the same as for isSingle
-            kStr += self.chooseGlobalStore(useBuffer, bps, sumIdx, rpv, \
-                      addr0, addr1, 0, ntStr)
-          elif kernel["ProblemType"]["DataType"].isSingle():
+          elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
             kStr += self.chooseGlobalStore(useBuffer, bps, sumIdx, rpv, \
                       addr0, addr1, 0, ntStr)
           elif kernel["ProblemType"]["DataType"].isDouble():
@@ -6631,11 +6622,7 @@ class KernelWriterAssembly(KernelWriter):
             else:
               kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
                         addr0, addr1, soffset=0, offset=0, extraFields="", hi16=0)
-          elif kernel["ProblemType"]["DataType"].isInt8x4():
-            # assume this is the same as for isSingle
-            kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
-                      addr0, addr1, soffset=0, offset=0, extraFields="")
-          elif kernel["ProblemType"]["DataType"].isSingle():
+          elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
             kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
                       addr0, addr1, soffset=0, offset=0, extraFields="")
           elif kernel["ProblemType"]["DataType"].isDouble():
