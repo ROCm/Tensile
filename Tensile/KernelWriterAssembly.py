@@ -374,9 +374,19 @@ class KernelWriterAssembly(KernelWriter):
     # Mismatches will assert (generate GPUVM fault)
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
-    self.db["CheckValueC"] = -1 # -1 disables, 0 checks for 0 at output
-    #self.db["CheckStoreC"] = 1024.0
+
+    # Check value in C matrix.
+    # Caveats:
+    #  - Only works for single.  Checks after alpha calc
+    #  - Only works if matrix is integral multiple of macro-tile (no edges) - check is dumb so doesn't know
+    #    which work-items are outside the valid edge.
+    self.db["CheckValueC"]  = False
+    # value expected if CheckValueC is set. Use '.' for FP.
+    # For example could be 16.0 if U=8 and alpha=2
+    self.db["CheckValueCExpectedValue"] = 16.0
+
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
+    #self.db["CheckStoreC"] = 1024.0 # possible value
 
     self.db["ForceEdgeStores"] = 0 # 1=force use of edge store path for all tiles,  2=add assert in non-edge stores
     self.db["AssertNoEdge"] = 0 # Add assert in edge store code so crashes if executed
@@ -1340,7 +1350,7 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
-    if self.db["CheckValueC"] >=0  : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
+    if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
     if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
@@ -6329,8 +6339,9 @@ class KernelWriterAssembly(KernelWriter):
 
           elif kernel["ProblemType"]["DataType"].isSingle():
             kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
-            if self.db["CheckValueC"] >= 0:
-              kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), 0.0)
+            if self.db["CheckValueC"]:
+              kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
+              kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
 
           elif kernel["ProblemType"]["DataType"].isDouble():
             kStr += inst("v_mul_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), sgpr("Alpha",2), vgpr("ValuC+%u"%(sumIdxV*2),2), "*= alpha")
