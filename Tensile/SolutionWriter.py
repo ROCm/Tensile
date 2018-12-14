@@ -229,8 +229,9 @@ class SolutionWriter:
 
     for idxChar in solution["PackedC0Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = (2^magicShiftSize%s) / size%s + 1; // bozo, review\n" \
+      s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
+      s += "printf(\"magic%s=%%u\\n\", magicNumberSize%s);\n" % (idxChar,idxChar)
     for idxChar in solution["PackedC1Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = (2^magicShiftSize%s) / size%s + 1; // bozo, review\n" \
@@ -302,43 +303,41 @@ class SolutionWriter:
       del i
 
       numIdx = problemType["NumIndicesC"]
-      printMe = printedFree = 0
+      printMe = 0
       s += "%suint64_t tensor2dSizeC = %s" % \
           (t, "1" if firstStride==1 else "strideC%u%s"% (0,self.indexChars[0]))
       for idx in range(0,numIdx):
-        # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and printedFree<2:
-          printedFree += 1
+        # Multiply only by packed tensor dims
+        if idx in problemType["IndicesFree"]:
           printMe = True
         else:
           printMe = False
 
         if printMe:
-          if idx < firstStride:
-            strideIdx = problemType["IndexAssignmentsA"][idx+1]
-            s += " * std::max(size%s, strideA%u%s)" % \
+          if idx+1 < numIdx:
+            strideIdx = idx+1
+            s += " * std::max(size%s, strideC%u%s)" % \
                 (self.indexChars[idx], idx+1, self.indexChars[strideIdx])
           else:
             s += " * size%s" % (self.indexChars[idx])
       s += ";\n"
 
       numIdx = len(problemType["IndexAssignmentsA"])
-      printMe = printedStride = printedFree = printedSum = False
+      printMe = printedSum = False
       s += "%suint64_t tensor2dSizeA = %s" % (t, "1" if firstStride==1 else "strideA%u%s"% (0,self.indexChars[0]))
       for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsA"][i]
 
         # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and not printedFree:
-          printMe = printedFree = True
+        if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC0Indices"]]:
+          printMe = True
         elif idx in problemType["IndicesSummation"] and not printedSum:
           printMe = printedSum = True
         else:
           printMe = False
 
         if printMe:
-          if not printedStride:
-            printedStride = True
+          if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsA"][i+1]
             s += " * std::max(size%s, strideA%u%s)" % \
                 (self.indexChars[idx], i+1, self.indexChars[strideIdx])
@@ -347,22 +346,21 @@ class SolutionWriter:
       s += ";\n"
 
       numIdx = len(problemType["IndexAssignmentsB"])
-      printMe = printedStride = printedFree = printedSum = False
+      printMe = printedSum = False
       s += "%suint64_t tensor2dSizeB = %s" % (t, "1" if firstStride==1 else "strideB%u%s"% (0,self.indexChars[0]))
       for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsB"][i]
 
         # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and not printedFree:
-          printMe = printedFree = True
+        if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC1Indices"]]:
+          printMe = True
         elif idx in problemType["IndicesSummation"] and not printedSum:
           printMe = printedSum = True
         else:
           printMe = False
 
         if printMe:
-          if not printedStride:
-            printedStride = True
+          if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsB"][i+1]
             s += " * std::max(size%s, strideB%u%s)" % \
                 (self.indexChars[idx], i+1, self.indexChars[strideIdx])
