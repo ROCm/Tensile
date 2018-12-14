@@ -27,6 +27,7 @@ from subprocess import Popen, PIPE
 import time
 import platform
 import math
+from copy import deepcopy
 
 startTime = time.time()
 
@@ -140,6 +141,9 @@ else:
 globalParameters["SolutionMapHash"] = False
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+
+# Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
+defaultGlobalParameters = deepcopy(globalParameters)
 
 ################################################################################
 # Enumerate Valid Solution Parameters
