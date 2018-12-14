@@ -1,5 +1,4 @@
 # no GRVW assertions (added 1,2 for V20)
-
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   PrintLevel: 1
