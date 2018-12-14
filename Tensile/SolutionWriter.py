@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution
+from SolutionStructs import Solution, isPackedIndex
 from KernelWriterSource import KernelWriterSource
 from Common import globalParameters
 
@@ -81,6 +81,7 @@ class SolutionWriter:
     t = ""
     # includes
 
+    problemType = solution["ProblemType"] # shortcut
 
     if not globalParameters["MergeFiles"]:
       solutionName = self.getSolutionName(solution)
@@ -98,6 +99,7 @@ class SolutionWriter:
     t += "  "
     s += "%sTensileStatus status;\n" % (t)
 
+
     # hipFunction Struct
     if solution["KernelLanguage"] == "Assembly":
       s += "\n"
@@ -107,7 +109,7 @@ class SolutionWriter:
       if globalParameters["DebugKernel"]:
         s += "%sunsigned int *debugBuffer;\n" % t
       # Tensor sizes in bytes, excluding batch dims and accounting for zero strides
-      # Do these first since they are 64-bits and want to avoid any unneeded padding:
+      # Do these first in the structure since they are 64-bits and want to avoid any unneeded padding:
       s += "%s// Size of lowest Tensor's lowest 2 dims, in bytes.  Does not include bath dim or higher (>2) order dimensions\n" % t
       s += "%suint64_t tensor2dSizeC;\n" % t
       s += "%suint64_t tensor2dSizeA;\n" % t
@@ -118,6 +120,12 @@ class SolutionWriter:
           s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
+      for idxChar in solution["PackedC0Indices"][:-1]:
+        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
+        s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
+      for idxChar in solution["PackedC1Indices"][:-1]:
+        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
+        s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
 
 
       if solution["PersistentKernel"]:
@@ -205,16 +213,29 @@ class SolutionWriter:
     s += "%ssize_t globalWorkSize[numKernels][3];\n" % (t)
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
+
     for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-      if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
+      if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"] \
+          and not isPackedIndex(solution,i):
         s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
+    s += "%sunsigned int sizeOfC0 = " % (t)
+    s += " * ".join(["size" + i for i in solution["PackedC0Indices"]])
+    s += ";\n"
 
-    # grid size [0,1]
-    s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
-        self.indexChars[solution["ProblemType"]["Index0"]])
-    s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
-        self.indexChars[solution["ProblemType"]["Index1"]])
+    s += "%sunsigned int sizeOfC1 = " % (t)
+    s += " * ".join(["size" + i for i in solution["PackedC1Indices"]])
+    s += ";\n"
+
+    for idxChar in solution["PackedC0Indices"][:-1]:
+      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+          % (t, idxChar, idxChar, idxChar)
+    for idxChar in solution["PackedC1Indices"][:-1]:
+      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+          % (t, idxChar, idxChar, idxChar)
+
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
     s += "%sunsigned int macroTile1 = static_cast<unsigned int>(groupSize[1] * threadTile[1]);\n" % (t)
     s += "%sunsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n" % (t)
@@ -276,7 +297,6 @@ class SolutionWriter:
             % (t, kernelIdx, i, self.indexChars[i])
 
       # Tensor2DSizes - size excluding the batch dimension, accounts for cases where one of strides is 0
-      problemType = solution["ProblemType"]
       #print "IndexAssignmentsA=", problemType["IndexAssignmentsA"], "Batch=", problemType["IndicesBatch"]
       firstStride = 0 if problemType["UseInitialStrides"] else 1
       del i
@@ -619,6 +639,14 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
+          for idxChar in solution["PackedC0Indices"][:-1]:
+            s += "%s,magicShiftSize%s\n" % (t, idxChar)
+            s += "%s,magicNumberSize%s\n" % (t, idxChar)
+          for idxChar in solution["PackedC1Indices"][:-1]:
+            s += "%s,magicShiftSize%s\n" % (t, idxChar)
+            s += "%s,magicNumberSize%s\n" % (t, idxChar)
+
+
           if solution["PersistentKernel"]:
             s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
             s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)

@@ -1200,7 +1200,6 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WorkGroup1", 1)
       self.defineSgpr("WorkGroup0", 1)
 
-    assert (kernel["ProblemType"]["NumIndicesC"] <= 3) # else seems registers below would collide??
     for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
       self.defineSgpr("WorkGroup%u"%i, 1)
 
@@ -4682,7 +4681,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
-    tt = tP["tt"]
     if self.inTailLoop:
       inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1)

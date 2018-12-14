@@ -24,7 +24,7 @@ import sys
 import argparse
 
 from Common import globalParameters, print1, ensurePath, \
-    assignGlobalParameters, HR
+    assignGlobalParameters, defaultGlobalParameters, HR
 import YAMLIO
 import BenchmarkProblems
 import LibraryLogic
@@ -117,6 +117,10 @@ def Tensile(userArgs):
       help="kernels and solutions written to individual files")
   # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
+
+  print1("# Restoring default globalParameters")
+  for key in defaultGlobalParameters:
+    globalParameters[key] = defaultGlobalParameters[key]
 
   # parse arguments
   args = argParser.parse_args(userArgs)

@@ -27,6 +27,7 @@ from subprocess import Popen, PIPE
 import time
 import platform
 import math
+from copy import deepcopy
 
 startTime = time.time()
 
@@ -69,7 +70,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
-globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
+globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?
 
 ########################################
 # less common
@@ -141,6 +142,9 @@ else:
 globalParameters["SolutionMapHash"] = False
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+
+# Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
+defaultGlobalParameters = deepcopy(globalParameters)
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -325,6 +329,28 @@ validParameters = {
     # N>0 : launch persistent kernel with N workgroups per compute unit
     "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
 
+    # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
+    # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
+    # 0x0 = each workgroup works on a single batch dim.
+    # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
+    #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
+    # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
+    #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    "PackBatchDims":             [0,1,2],
+
+    # Pack free dimensions
+    # If True, allow macro-tile to span free dimensions.  Single workgroup can work across multiple free dimensions.
+    # If False, macro-tile is always Free0*Free1.  Additional free dimensions are not supported.
+    "PackFreeDims":              [False, True],
+
+    # Granularity allowed when packing tensor dims.
+    # Lower values are finer granularity which requires more dimension division operations on store path
+    # but supports more flexible tensor dimes.
+    # Higher values are coarser values - less dimension division operations but tensor dims must meet
+    # more stringent element multiple requirements
+    # 0x1 : Any dimension supported, compute dims after each element (not supported yet)
+    # 0x2 : VectorWidth must not span tensor dim
+    "PackGranularity": [2],
 
     # Controls desiredwidth of loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
@@ -476,6 +502,9 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
+    {"PackBatchDims":             [ 0 ] },
+    {"PackFreeDims":              [ 1 ] },
+    {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },
 

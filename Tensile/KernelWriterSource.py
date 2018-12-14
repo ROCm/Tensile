@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from SolutionStructs import DataType
+from SolutionStructs import DataType, isPackedIndex
 from Common import globalParameters, printExit
 from KernelWriter import KernelWriter
 
@@ -86,6 +86,7 @@ class KernelWriterSource(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = "  "
+    self.useMagicNumber = False
 
   ##############################################################################
   #
@@ -787,6 +788,13 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
+    for idxChar in kernel["PackedC0Indices"][:-1]:
+      s += ",%s  unsigned magicShiftize%s" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
+    for idxChar in kernel["PackedC1Indices"][:-1]:
+      s += ",%s  unsigned magicShiftize%s" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
+
     if kernel["PersistentKernel"]:
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups1"
@@ -1066,11 +1074,14 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graOtherFreeAssignments(self, kernel):
     kStr = ""
+    # packed free dims don't use 'wg' level vars for dims
     nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
+      if isPackedIndex(kernel, index):
+        continue
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
       for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
@@ -1097,18 +1108,58 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graTileOffsets(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     for l in range(0, tP["nrt"]):
       for s in range(0, 1 if tP["rc"] else tP["nrtv"]):
-        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u + %d*%s;%s" \
-            % (tP["tensorChar"], tP["tileChar"], l, s, \
-            tP["tensorChar"], tP["tileChar"], s, l, \
+        firstGro = gro = "globalReadOffset%s%s_%u_%u" % (tc, tP["tileChar"], l, s)
+        kStr += "  unsigned int %s = globalReadOffset%s%s + %u + %d*%s;%s" \
+            % (gro, tc, tP["tileChar"], s, l, \
             (tP["lsc"] if tP["tlu"] else tP["lsp"]), \
             self.endLine)
-      #else:
-      #  kStr += "  unsigned int globalReadOffset%s%s_%u = globalReadOffset%s%s + %d*%s;%s" \
-      #      % (tP["tensorChar"], tP["tileChar"], l, tP["tensorChar"], tP["tileChar"], l, \
-      #      (tP["lsc"] if tP["tlu"] else tP["lsp"]), \
-      #      self.endLine)
+
+        # Create additional vector address components for any packed dimensions
+        lastGro = gro
+        lastIdx = tP["idx"]
+        dimXStr = ""
+        tP["packedSizeList"] = ["size%s" % self.indexChars[lastIdx]]
+        for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
+          if idx < kernel["ProblemType"]["NumIndicesC"] \
+              and idx != tP["idx"]:  # tile index
+            gro = None
+            if isPackedIndex(kernel,idx, tP["PackBatchDims"]):
+              gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
+
+            if gro != None:
+              tP["packedSizeList"].append("size%s"%self.indexChars[idx])
+
+              if self.useMagicNumber:
+                c = self.IndexChars[lastIdx]
+                dimXStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShift%s);%s" \
+                        % (gro, lastGro, c, c, self.endLine)
+                dimXStr += "  %s = MAGIC_MOD(%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                    % (lastGro, lastGro, c, c, self.endLine)
+              else:
+                dimXStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
+                        % (gro, lastGro, self.indexChars[lastIdx], self.endLine)
+                dimXStr += "  %s %%= size%s;%s" % (lastGro, self.indexChars[lastIdx], self.endLine)
+              #dimXStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
+              lastGro = gro
+              lastIdx = idx
+
+          # Add check and then dimension extraction code, if we used any packed dims above:
+          if dimXStr != "":
+            sizeStr = " * ".join(tP["packedSizeList"])
+            if 0 and tP["isA"]:
+              kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0);%s" \
+                      % (self.endLine)
+            kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
+                % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)
+            kStr += dimXStr;
+
+    if 0 and tP["isB"]:
+      kStr += "printf(\"gro-1: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u globalReadOffsetB1J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0, globalReadOffsetB1J_0_0);%s" \
+        % (self.endLine)
+
     return kStr
 
   ##############################################################################
@@ -1181,23 +1232,39 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graFinalOffsets(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
+    problemType = kernel["ProblemType"]
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
+            # Pass parms to GLOBAL_OFFSET_ macro:
             kStr += "  %s globalReadOffset%s_%u_%u_%u_%u = GLOBAL_OFFSET_%s( " \
                 % (self.uint64Str, tP["tensorChar"], \
                 para, sPara, perp, sPerp, tP["tensorChar"])
             for i in range(0, len(tP["ia"])):
               index = tP["ia"][i]
-              if index < kernel["ProblemType"]["NumIndicesC"]:
+              if index < problemType["NumIndicesC"]:
                 if index == tP["tileIdx"]:
                   kStr += "globalReadOffset%s%s_%u_%u" \
                       % (tP["tensorChar"], tP["tileChar"], \
                       (para if tP["tlu"] else perp), \
                       (sPara if tP["tlu"] else sPerp) )
-                else: # just a group index
-                  kStr += "wg" + self.indexChars[index]
+                else:
+                  if isPackedIndex(kernel, index):
+                    # pass vector per-tensor-dim offset (rather than scalar wg)
+                    if index in problemType["IndicesBatch"] and not tP["PackBatchDims"]:
+                      # pass 0, this is is the non-packed batch dim and must be 0
+                      kStr += "0"
+                    else:
+                      kStr += "globalReadOffset%s%s_%u_%u" \
+                          % (tc, \
+                          self.indexChars[index],
+                          (para if tP["tlu"] else perp), \
+                          (sPara if tP["tlu"] else sPerp) )
+                  else:
+                    # just a non-vector group index
+                    kStr += "wg" + self.indexChars[index]
               else: # summation index
                 if index == kernel["ProblemType"]["IndexUnroll"]:
                   kStr += "globalReadOffset%s%s_%u_%u" \
@@ -1901,27 +1968,84 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine
     return kStr
 
+
+
+  ##############################################################################
+  # extractGlobalCDims: Extract the packed dims from mask(s)
+  #
+  # indexMask:
+  #   - 0x1: add index0 extraction, if index0 has packed dims
+  #   - 0x2: add index1 extraction, if index1 has packed dims
+  ##############################################################################
+  def extractGlobalCDims(self, kernel, base, indexMask):
+    kStr = ""
+    problemType = kernel["ProblemType"]
+    index0 = kernel["ProblemType"]["Index0"]
+    index1 = kernel["ProblemType"]["Index1"]
+    lastIndex = None
+    if indexMask & 0x1:
+      flattenedGlobalC = "flattenedGlobalC0"
+      lastIndex = index0
+      targetIndices = problemType["IndexAssignmentsA"]
+    if indexMask & 0x2:
+      flattenedGlobalC = "flattenedGlobalC1"
+      lastIndex = index1
+      targetIndices = problemType["IndexAssignmentsB"]
+
+    if lastIndex != None:
+      if base != "":
+        kStr += "  globalC%s = %s + %s;%s" \
+            % (self.indexChars[lastIndex], flattenedGlobalC, base, self.endLine)
+
+        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+          if i != index0 and i != index1 and i in targetIndices and isPackedIndex(kernel,i,indexMask):
+            #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
+            kStr += "  globalC%s = " % (self.indexChars[i])
+            if self.useMagicNumber:
+              c = self.indexChars[lastIndex]
+              kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" % (c, c, c, self.endLine)
+              kStr += "  globalC%s = MAGIC_MOD(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" % (c, c, c, c, self.endLine)
+            else:
+              kStr += "(globalC%s) / size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
+              kStr += "  globalC%s %%= size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
+            lastIndex = i
+            #kStr += "printf(\"post: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalCK=%%u\\n\", serial, wg0I, wg1J, globalC0I, globalCK);%s" % (self.endLine)
+
+    return kStr
+
   ##############################################################################
   # LocalSplitU: Global Write Indices
   ##############################################################################
   def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
+
+    # Add Index0
+    index0 = kernel["ProblemType"]["Index0"]
     kStr += "  unsigned int localC%s = (serial %% (MT%s/GLOBAL_WRITE_VECTOR_WIDTH))*GLOBAL_WRITE_VECTOR_WIDTH;%s" \
         % (self.tileChar0, self.tileChar0, self.endLine)
+    kStr += "  unsigned int globalC%s = (wg%s)" % (self.indexChars[index0], self.indexChars[index0])
+    kStr += "*MT%s + localC%s;%s" % (self.tileChar0, self.tileChar0, self.endLine)
+    # Save original flattened C0 before extracting batch components:
+    kStr += "  unsigned int flattenedGlobalC0 = globalC%s;%s" \
+        % (self.indexChars[index0], self.endLine)
+
+    # Add Index1
+    index1 = kernel["ProblemType"]["Index1"]
     kStr += "  unsigned int localC%s = serial / (MT%s/GLOBAL_WRITE_VECTOR_WIDTH);%s" \
         % (self.tileChar1, self.tileChar0, self.endLine)
+    kStr += "  unsigned int globalC%s = (wg%s)" % (self.indexChars[index1], self.indexChars[index1])
+    kStr += "*MT%s + localC%s;%s" % (self.tileChar1, self.tileChar1, self.endLine)
+    kStr += "  unsigned int flattenedGlobalC1 = globalC%s;%s" \
+        % (self.indexChars[index1], self.endLine)
+
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int globalC%s = (" \
-          % (self.indexChars[i])
-      kStr += "wg%s" % self.indexChars[i]
-      kStr += ")"
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += "*MT%s + localC%s" \
-            % (self.tileChar0, self.tileChar0)
-      if i == kernel["ProblemType"]["Index1"]:
-        kStr += "*MT%s + localC%s" \
-            % (self.tileChar1, self.tileChar1)
-      kStr += ";" + self.endLine
+      if i != index0 and i != index1:
+        kStr += "  unsigned int globalC%s = " \
+            % (self.indexChars[i])
+        if isPackedIndex(kernel,i):
+          kStr += "0; // define, will be set below%s" % (self.endLine)
+        else:
+          kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1929,23 +2053,54 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitUGlobalWrite(self, kernel):
     kStr = ""
+    packGranularity = kernel["PackGranularity"]
+    addTensorDimCheck0 = addTensorDimCheck1 = 0
     for b in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
+      loadOffset1 = " %u*CPSV" %b
+      if packGranularity==2:
+        addTensorDimCheck1 = 1
+        base1 = loadOffset1
+        loadOffset1 = "0"
       for s in range(0, kernel["GlobalWriteVectorWidth"]):
+        loadOffset0 = "%u" % (s)
+        if packGranularity==2:
+          addTensorDimCheck0 = 1
+          base0 = loadOffset0
+          loadOffset0 = "0"
         if kernel["EdgeType"] != "None":
-          kStr += "  if (globalC%s%s < size%s) {" \
-              % (self.tileChar0, \
+          if addTensorDimCheck0 or addTensorDimCheck1:
+            kStr += self.endLine
+          if addTensorDimCheck0:
+            kStr += "  /* new 0 offset - inc and extract tensor dims */%s" % (self.endLine)
+            kStr += self.extractGlobalCDims(kernel, base0, 0x1)
+            addTensorDimCheck0 = 0
+          if addTensorDimCheck1:
+            kStr += "  /* new 1 offset - inc and extract tensor dims */%s" % (self.endLine)
+            kStr += self.extractGlobalCDims(kernel, base1, 0x2)
+            addTensorDimCheck1 = 0
+
+          ### Bounds checks:
+          # if packed, check flattened against product of all packed sizes
+          # The flattened base never changes so add all address offsets before comparison
+          globalC0ForCheck = "flattenedGlobalC0"
+          size0ForCheck = " * ".join(self.tPA["packedSizeList"])
+          kStr += "  if (%s%s < %s) {" \
+              % (globalC0ForCheck, \
               ((" + %u" %s) if kernel["GlobalWriteVectorWidth"]>1 else ""), \
-              self.tileChar0)
-          kStr += "  if (globalC%s + %u*CPSV < size%s) {" \
-              % (self.tileChar1, b, self.tileChar1)
+              size0ForCheck)
+
+          globalC1ForCheck = "flattenedGlobalC1"
+          size1ForCheck = " * ".join(self.tPB["packedSizeList"])
+          kStr += "  if (%s + %u*CPSV < %s) {" \
+              % (globalC1ForCheck, b, size1ForCheck)
 
         kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           kStr += " globalC%s" % self.indexChars[i]
           if i == kernel["ProblemType"]["Index0"] and kernel["GlobalWriteVectorWidth"]>1:
-            kStr += " + %u" %s
+            kStr += " + %s" % (loadOffset0)
           if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + %u*CPSV" %b
+            kStr += " + %s" % (loadOffset1)
           if i < kernel["ProblemType"]["NumIndicesC"]-1:
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
@@ -1961,23 +2116,39 @@ class KernelWriterSource(KernelWriter):
         kStr += self.endLine
     return kStr
 
+
   ##############################################################################
   # Not LocalSplitU: Global Write Indices
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
+
+    # Add Index0 and Index1:
+    index0 = kernel["ProblemType"]["Index0"]
+    kStr += "  unsigned int globalC%s = " % self.indexChars[index0]
+    kStr += "(wg%s)*MT%s + (serial %% SG%s)*VECTOR_WIDTH;%s" \
+            % (self.indexChars[index0], self.tileChar0, self.tileChar0, self.endLine)
+    # Save original flattened C0 before extracting batch components:
+    kStr += "  unsigned int flattenedGlobalC0 = globalC%s;%s" \
+        % (self.indexChars[index0], self.endLine)
+
+    index1 = kernel["ProblemType"]["Index1"]
+    kStr += "  unsigned int globalC%s = " % self.indexChars[index1]
+    kStr += "(wg%s)*MT%s + (serial / SG%s)*VECTOR_WIDTH;%s" \
+            % (self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
+    # Save original flattened C0 before extracting batch components:
+    kStr += "  unsigned int flattenedGlobalC1 = globalC%s;%s" \
+        % (self.indexChars[index1], self.endLine)
+
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int globalC" + self.indexChars[i] \
-          + " = ("
-      kStr += "wg%s" % self.indexChars[i]
-      kStr += ")"
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += "*MT%s + (serial %% SG%s)*VECTOR_WIDTH" \
-            % (self.tileChar0, self.tileChar0)
-      if i == kernel["ProblemType"]["Index1"]:
-        kStr += "*MT%s + (serial / SG%s)*VECTOR_WIDTH" \
-            % (self.tileChar1, self.tileChar0)
-      kStr += ";" + self.endLine
+      if i != index0 and i != index1:
+        kStr += "  unsigned int globalC%s = " % self.indexChars[i]
+        if isPackedIndex(kernel,i):
+          kStr += "0; // define, will be set below%s" % (self.endLine)
+        else:
+          #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
+          kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
+
     return kStr
 
   ##############################################################################
@@ -1985,36 +2156,80 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     kStr = ""
+    packGranularity = kernel["PackGranularity"]
+    addTensorDimCheck0 = addTensorDimCheck1 = 0
+
     for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+        if packGranularity==2:
+          addTensorDimCheck0 = 1
+          base0 = " %u*SG%s*VECTOR_WIDTH" % (a,self.tileChar0)
         for s1 in range(0, kernel["VectorWidth"]):
+          if packGranularity==2:
+            addTensorDimCheck1 = 1
+            base1 = "%u + %u*SG%s*VECTOR_WIDTH" % (s1, b,self.tileChar1)
+            offsetS1 = ""
+          else:
+            offsetS1 = ((" + %u"%s1) if kernel["VectorWidth"]>1 else "")
           for s0 in range(0, kernel["VectorWidth"]):
+            # set default offsets, may be overridden in packed mode:
+            offsetS0 = ((" + %u"%s0) if kernel["VectorWidth"]>1 else "")
+            offset0 = "%s + %u*SG%s*VECTOR_WIDTH" \
+                      % (offsetS0, a, self.tileChar0)
+            offset1 = "%s + %u*SG%s*VECTOR_WIDTH" % (\
+                ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
+                b, self.tileChar1)
+
             if kernel["EdgeType"] == "Branch":
               kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                   % (self.tileChar0, a, self.tileChar0, self.tileChar0)
               kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                   % (self.tileChar1, b, self.tileChar1, self.tileChar1)
             elif kernel["EdgeType"] == "ShiftPtr":
-              kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (self.tileChar0, \
-                  ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
-                  a, self.tileChar0, self.tileChar0)
-              kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (self.tileChar1, \
-                  ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
-                  b, self.tileChar1, self.tileChar1)
+              if addTensorDimCheck0 or addTensorDimCheck1:
+                kStr += self.endLine
+              if addTensorDimCheck0:
+                kStr += "  /* new vw0 offset - inc and extract tensor dims */%s" % (self.endLine)
+                kStr += self.extractGlobalCDims(kernel, base0, 0x1)
+                addTensorDimCheck0 = 0
+              if addTensorDimCheck1:
+                kStr += "  /* new vw1 offset - inc and extract tensor dims */%s" % (self.endLine)
+                kStr += self.extractGlobalCDims(kernel, base1, 0x2)
+                addTensorDimCheck1 = 0
 
+              ### Bounds checks:
+              # if packed, check flattened against product of all packed sizes
+              # The flattened base never changes so add all address offsets before comparison
+              if packGranularity == 2:
+                # base contains some addressing components, so just offset here:
+                offset0 = offsetS0
+              globalC0ForCheck = "flattenedGlobalC0"
+              size0ForCheck = " * ".join(self.tPA["packedSizeList"])
+
+              # Check 0 dimension against appropriate size limit
+              kStr += "  if (%s%s + %u*SG%s*VECTOR_WIDTH < %s) {" \
+                  % (globalC0ForCheck,
+                  ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
+                  a, self.tileChar0, size0ForCheck)
+
+              if packGranularity == 2:
+                offset1 = offsetS1
+              globalC1ForCheck = "flattenedGlobalC1"
+              size1ForCheck = " * ".join(self.tPB["packedSizeList"])
+
+              kStr += "  if (%s%s + %u*SG%s*VECTOR_WIDTH < %s) {" \
+                  % (globalC1ForCheck,
+                  ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
+                  b, self.tileChar1, size1ForCheck)
+
+            # Write the result
             kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
             for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
               kStr += " globalC%s" % self.indexChars[i]
               if i == kernel["ProblemType"]["Index0"]:
-                kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                    ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
-                    a, self.tileChar0)
+                kStr += offset0
               if i == kernel["ProblemType"]["Index1"]:
-                kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                    ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
-                    b, self.tileChar1)
+                kStr += offset1
               if i < kernel["ProblemType"]["NumIndicesC"]-1:
                 kStr += ", (%s)" % self.uint64Str
             kStr += ") ]"

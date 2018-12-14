@@ -48,7 +48,6 @@ class KernelWriter:
   ##############################################################################
   def kernelBody( self, kernel, tensorParametersA, tensorParametersB ):
 
-
     ####################################
     # Begin String
     kStr = ""
@@ -122,6 +121,13 @@ class KernelWriter:
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
+        # Shift here has two purposes:
+        #  1. Ensure the loads are in-bounds to prevent fault.
+        #     BufferLoad uses the buffer limit hardware and does not require bounds checking for this case
+        #  2. Shift-left a wide vector load to ensure it is completely in-bounds.
+        #     If this occurs we need to 'unshift' the C values (see shiftVectorComponents)
+        #     BufferLoad does support this shifting, but if GuaranteeNoPartial=1 then
+        #     it can be guaranteed that no shifting is required.
         if not (kernel["BufferLoad"] and kernel["GuaranteeNoPartialA"]):
           kStr += self.comment("global read addresses: shift a")
           kStr += self.graShift(kernel, tensorParametersA)
@@ -1139,6 +1145,9 @@ class KernelWriter:
     self.getTensorParameters(tensorParametersA, kernel, True)
     self.getTensorParameters(tensorParametersB, kernel, False)
 
+    tensorParametersA["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x1 else 0
+    tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
+
 
   ##############################################################################
   # Open String
@@ -1733,8 +1742,8 @@ class KernelWriter:
   def getSourceFileString(self, kernel):
 
     fileString = ""
-    tensorParametersA = {}
-    tensorParametersB = {}
+    self.tPA = tensorParametersA = {}
+    self.tPB = tensorParametersB = {}
     self.initKernel(kernel, tensorParametersA, tensorParametersB )
     fileString += self.kernelBodyPrefix( kernel, tensorParametersA, \
         tensorParametersB )

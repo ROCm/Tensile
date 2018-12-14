@@ -298,8 +298,12 @@ class ProblemType:
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
-    if state["NumIndicesFree"] != 2:
-      printExit("Tensile can only handle 2 free indices; FreeIndices=%s."%state["IndicesFree"])
+    if len(state["IndexAssignmentsA"]) != len(state["IndexAssignmentsB"]):
+      printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
+    if state["NumIndicesFree"] < 2 :
+      printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
+    if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
+      printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -615,6 +619,14 @@ class ProblemSizes:
       s += "  %s" % sizeRange
     return s
 
+# kds is class Solution or class Kernel
+# If PackFreeDims=1 then all free dims are packed ; else only 1 free dim/matrix is supported
+# PackBatchDims can pack batches into A or B (has stride==0 requirements for non-packed tensor);
+# batchMask controls which bit in PackBatchDims detects batch index
+def isPackedIndex(ks, index, batchMask=0x3):
+  problemType = ks["ProblemType"]
+  return index in problemType["IndicesFree"] and ks["PackFreeDims"] or \
+         index in problemType["IndicesBatch"] and (ks["PackBatchDims"] & batchMask)
 
 ################################################################################
 # Solution
@@ -1090,12 +1102,15 @@ class Solution:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
 
-
     if state["MinGlobalWriteVectorWidth"] == -1:
       state["MinGlobalWriteVectorWidth"] = 2 \
         if state["ProblemType"]["DataType"].isHalf() else 1
 
-
+    if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
+      state["BufferLoad"] = False
+      state["DirectToLds"] = False
+      state["UseSgprForGRO"] = False
+      state["FractionalLoad"] = False
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
@@ -1428,11 +1443,6 @@ class Solution:
       reject(state, "LoopUnroll %u is less than 2" \
           % (state["LoopUnroll"]))
 
-    if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
-      state["BufferLoad"] = False
-      state["DirectToLds"] = False
-      state["UseSgprForGRO"] = False
-      state["FractionalLoad"] = False
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -1505,11 +1515,11 @@ class Solution:
     # computing bogus sections of the C tile will later be ignored.
     # precise checking only works when all elements of the load are in-bounds
     # since if the vload crosses boundary we ignore all components not just the
-    # ones that are OOB. See comments for groOffsetInMacroTile
+    # ones that are OOB. See comments for groOffsetInMacroTile in KernelWriterAssembly.py
+    #
     # So check for the cases where the unroll loop can
     # generate partial loads here and reject PBC solutions:
-    # For non-TLU the free dim is in perp dim so loads can't be partially OOB
-    # so those always GuaranteeNoPartial*=True
+    # For non-TLU the free dim is in perp dim - should always be TRUE?  TODO
     if state["ProblemType"]["TLUA"]:
       state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
     else:
@@ -1519,6 +1529,28 @@ class Solution:
       state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
     else:
       state["GuaranteeNoPartialB"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+
+
+    # If batch dims are packed, then need to ensure a vector load isn't split by a tensor dim
+    # (since this could result in non-contiguous addresses)
+    # Current implementation ensures that the vector load is not partial across the Free* boundary:
+    # GlobalLoadVectorWidth=1 will always meet this requirement.
+    # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
+    if state["PackBatchDims"] & 0x1 and not state["GuaranteeNoPartialA"]:
+      reject(state, "PackBatchDims & 0x1 requires GuaranteeNoPartialA")
+    if state["PackBatchDims"] & 0x2 and not state["GuaranteeNoPartialB"]:
+      reject(state, "PackBatchDims & 0x2 requires GuaranteeNoPartialB")
+
+    if state["PackBatchDims"] and state["EdgeType"] != "ShiftPtr":
+      reject(state, "PackBatchDims requires EdgeType==ShiftPtr")
+
+    if state["PackBatchDims"] & 0x1 and state["PackGranularity"]==2 \
+        and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
+          reject(state, "PackBatchDims & 0x1 requires AF0EM>VectorWidth (for stores)")
+    if state["PackBatchDims"] & 0x2 and state["PackGranularity"]==2 \
+        and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
+          reject(state, "PackBatchDims & 0x2 requires AF1EM>VectorWidth (for stores)")
+
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
@@ -1566,7 +1598,28 @@ class Solution:
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (state["BufferLoad"] and state["PrefetchGlobalRead"])
 
-    state["AssignedDerivedParameters"] = True
+
+    # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # grid size [0,1]
+    problemType = state["ProblemType"]
+    state["PackedC0Indices"] = []
+    indexChars = globalParameters["IndexChars"]
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsA"]:
+      if idx < problemType["NumIndicesC"] and \
+          (isPackedIndex(state, idx, 0x1) or \
+           idx == problemType["Index0"]):
+        state["PackedC0Indices"].append("%s" % indexChars[idx])
+
+    state["PackedC1Indices"] = []
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsB"]:
+      if idx < problemType["NumIndicesC"] and \
+          (isPackedIndex(state, idx, 0x2) or \
+           idx == problemType["Index1"]):
+        state["PackedC1Indices"].append("%s" % indexChars[idx])
+
+    problemType["AssignedDerivedParameters"] = True
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
