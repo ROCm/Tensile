@@ -1739,7 +1739,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".end_amd_kernel_code_t%s" % self.endLine
 
     kStr += self.comment3("Optimizations and Config:")
-    kStr += self.comment1("ThreadTile=%u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
+    kStr += self.comment1("ThreadTile= %u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
+    kStr += self.comment1("SubGroup= %u x %u" % (kernel["SubGroup0"], kernel["SubGroup1"]))
     kStr += self.comment1("VectorWidth=%u" % (kernel["VectorWidth"]))
     kStr += self.comment1("GlobalLoadVectorWidthA=%u, GlobalLoadVectorWidthB=%u" % (kernel["GlobalLoadVectorWidthA"], kernel["GlobalLoadVectorWidthB"]))
     kStr += self.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
@@ -5327,10 +5328,9 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
 
-  # This can be added to the SRD base or the VGPR
   def computeStoreStart(self, kernel, divisor, tid0Scale, tid1Scale):
     kStr = ""
-    # thread id 0,1
+    # tid0, tid1: element offsets from the start of macroTile in 0 and 1 direction
     # These will live for entire GlobalWrite loop - allocate before tmps
     # to avoid fragmentation
     tid0 = self.vgprPool.checkOut(1)
@@ -5348,7 +5348,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += staticMultiply(vgpr(tid1), vgpr(tid1), tid1Scale, sgpr(tmpS1))
     self.vgprPool.checkIn(tmpV0)
 
-    # Compute and save wg1*MT1
+    # Compute and save wg1*MT1 - the element offset that is top of the macro-tile in output space
     kStr += "\n"
     kStr += inst("s_mul_i32", \
         sgpr(wgMT1), \
@@ -5360,29 +5360,38 @@ class KernelWriterAssembly(KernelWriter):
       self.coutRowStart = self.vgprPool.checkOut(1, "coutRowStart")
       self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
 
-      # Overall strategy is to set the SRD to the start of the row that contains the output tile.  
+      # Overall strategy is to set the SRD to the start of the row that contains the output tile.
       # TT offsets are from this base (and include the column)
 
-      # Higher-order tensor dims are static since this kernel operates within the 2D Tensor formed by Index0 and Indexa.
+      # In non-packed mode:
+      # higher-order tensor dims are static since this kernel operates within
+      # the 2D Tensor formed by Index0 and Indexa.
       # Index0 and Index1 vary for each work-item (aka 'dynamic') so roll these into the VGPR
+
+      # In packed mode:
+      # Higher-order dimensions may be packed into coord0 / coord1 - see rowstart calculation below
 
       # Walk through addressing components (each tensor index) in C
       # For static dims add to SrdC to compute a new base.
       # For dynamic (based on TT assignment) - save in coutRowStart, which saves the TT assignment for each WI scaled by StrideC0
       # TODO - future opportunities for store vgpr and other optimization
       #  - coutRowStart and tid1 are strongly related - can we merge or remove one of these?
-      #  - remove product-of-two constants near address calc - search for TODO-const
+      # Packed follows same philosophy but may have more vector components
       indices = range(0, kernel["ProblemType"]["NumIndicesC"])
       numDim = len(indices)
       for i in range(1, numDim):
-        assert( indices[i] < kernel["ProblemType"]["NumIndicesC"])
         if i == kernel["ProblemType"]["Index0"]:
           # Used if the output is transposed?
           addToSrd = False
         elif i == kernel["ProblemType"]["Index1"]:
+          # TODO-packed : this likely needs to change for packedc1, we are using raw packed Index1 here
+          #--
           coord = sgpr(wgMT1)
           addToSrd = True
         else: # group index, this is higher-order Tensor dimension, just add to SRD base:
+          # TODO-packed - modify to ignore packed, perhaps:
+          # if not isPackedDim(kernel, i):
+          #--
           coord = sgpr("WorkGroup%u"%i)
           addToSrd = True
 
@@ -5397,8 +5406,12 @@ class KernelWriterAssembly(KernelWriter):
           kStr += "\n"
 
 
-      # Move to start of the row, assume StrideC
+      # Save the start of the row - this is just tid1 scaled by appropriate stride.
       # Do this before code below which overwries the tid1:
+      # TODO-packed
+      # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
+      #--
+      assert (len(kernel["PackedC1Indices"]) == 1) # would need to extract/scale indices from coord1
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
       kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
                   vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
@@ -5406,9 +5419,11 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "\n"
 
       #kStr += self.assert_ne(sgpr("WorkGroup1"),1)
-    # workgroup offset
 
     # Compute coord0 and coord1
+    # These are element offsets from the beginning of the tensor.
+    # These are 'flattened' meaning they span packed tensor dims.
+    # They need to be preserved so can use in comparisons against product-of-packed sizes to determine OOB cases.
     kStr += inst("s_mul_i32", \
         sgpr(tmpS0), \
         hex(kernel["MacroTile0"]), \
@@ -5441,7 +5456,6 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferStore"]:
       kStr += self.allocPostLoopSrd(kernel, "C")
-
 
     # lr0 = serial % SG0
     kStr += self.computeStoreStart(kernel, \
@@ -5714,7 +5728,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_or_b32", sgpr(tmpSgpr), sgpr("Beta+%u"%i), sgpr(tmpSgpr), "tmp |= Beta[%u] " % i)
         kStr += inst("s_cmpk_eq_u32", sgpr(tmpSgpr), hex(0), "Beta == 0")
       kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
-          "Beta not not zero; so jump to B nonzero")
+          "Beta is not zero; so jump to B nonzero")
+      kStr += "\n"
 
     for beta in betas:
       # start B1
@@ -5739,6 +5754,14 @@ class KernelWriterAssembly(KernelWriter):
           "wg0 < nwg0-1 so skip rMT0 = Size0 % MT0")
 
       # s23 = rMT0 = Size0 % MT0
+      # TODO-packed #
+      # something like:
+      # for idxChar in kernel["PackedC0Indices"]:
+      #   sizesFreeIndex = ord(idcChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
+      #   packedSize *= sgpr[SizedFree+%u"%sizesFreeIndex]
+      # May want to allocate an SGPR to save this value
+      #--
+      kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
       kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+0", \
           kernel["MacroTile0"], tmpS45, True)
       kStr += "label_%04u:%s"%(writeLabels[beta]["EdgeCheck0"], self.endLine)
@@ -5753,6 +5776,9 @@ class KernelWriterAssembly(KernelWriter):
             "edges required so jump to E1")
 
       # check edge1 ###
+      # TODO-packed - this only needs to change to handle packing into C1 index
+      # change would be similar to above - multiply by product of packed sizes in C1
+      # --
 
       # s01 = rMT1
       kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT1=0" )
@@ -6137,7 +6163,7 @@ class KernelWriterAssembly(KernelWriter):
     # calculate addr and masks
     kStr += self.comment("calc coords, apply mask, and issue loads (if necessary)")
     # On input, coord0 and coord1 are VGPRs computed in the pre-batch code, based
-    # on the thread and tid number.  These are ELEMENT offsets into C which
+    # on the thread and tid number.  These are ELEMENT offsets from start of tensor C
     # for the top-left corner this thread will write.  These are not changed
     # across all the store loop iters.
     if self.db["ConservativeWaitCnt"] & 0x10:
@@ -6169,6 +6195,19 @@ class KernelWriterAssembly(KernelWriter):
       coordOffset1 = d1*strideD1 + vc1
 
 
+      # TODO-packed
+      # Create a new vgpr to hold per-item memory offset in '0' dimension from left of tensor
+      # approx psuedocode, probably not quite right:
+      # tmp0 = coord0
+      # memOffset0 = 0
+      # Y = "I'
+      # for X in kernel["PackedC0Indices"]:
+      #   tmp1 = MAGIC_DIV ( globalX = tmp0 / sizeY) ;; extract idx from coord0 using
+      #   memOffset0 +=  (tmp1*strideX)
+      #   tmp0 %= sizeY
+      #   Y = X
+      # Then use memOffset instead of scaled coord0 below, in appropriate places:
+      # Note still need coord0 for edge comparison - so will need more vgpr here.
       kStr += self.comment1("(d1,vc1,d0,vc0)=(%u,%u,%u,%u) coordOffset1=%u coordOffset0=%u"%(d1,vc1,d0,vc0, coordOffset1, coordOffset0))
       if coordOffset0 == 0:
         # This is reset to new row:
@@ -6194,7 +6233,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if not kernel["BufferStore"] or edge:
           if coordOffset1 == 0:
-            # just use coord0 directly
+            # just use coord1 directly
             self.coordVgpr1 = coord1
             kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%self.coordVgpr1)
           elif coordOffset1 <= 64:
@@ -6234,6 +6273,11 @@ class KernelWriterAssembly(KernelWriter):
           # Set address to -1 if OOB on either dimension
           # TODO - for PreciseBoundsCheckStore we could set bounds on C to tile dim
           # and only check the x/coord0 index here, save a couple inst
+          # TODO-packed:
+          # compare against product-of-packed sizes, see other code
+          # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
+          #--
+          kStr += self.comment1("TODO-packed: compare against product of packed sizes")
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
