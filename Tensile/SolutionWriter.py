@@ -454,8 +454,6 @@ class SolutionWriter:
         #s += " float tmp[128*128];\n"
         #s += "clEnqueueReadBuffer(stream, dataC, CL_TRUE, 0, 128*128*sizeof(float), tmp, 0, NULL, NULL);\n"
         #s += "for (unsigned int i = 0; i < 128*128; i++) { printf(\"%f\\n\", tmp[i]); }\n"
-
-
       else:
         s += "%stry {\n" % (t)
         # TODO - timing with beta kernels is somewhat pessimistic since it has this separate event only on the GSU path.
@@ -464,25 +462,25 @@ class SolutionWriter:
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
-          s += "%sif( inputEvents != NULL )\n" % (t)
-          s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
-          s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipLaunchKernelGGL(\n" % (t)
-          t += "  "
-          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
-          s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
-          s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
-          s += "%s0, // groupMemBytes\n" % (t)
-          s += "%sstream,\n" % (t)
-          s += "%sdataC,\n" % (t)
-          s += "%soffsetC,\n" % (t)
-          # strides
-          for i in range(0,numStridesC):
-            s += "%s%s,\n" % (t, self.strideList[i])
-          # sizes
-          for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-            s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
-
+        s += "%sif( inputEvents != NULL )\n" % (t)
+        s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+        s += "%skernelsLaunched++;\n" % (t)
+        s += "%shipLaunchKernelGGL(\n" % (t)
+        t += "  "
+        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
+        s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
+        s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
+        s += "%s0, // groupMemBytes\n" % (t)
+        s += "%sstream,\n" % (t)
+        s += "%sdataC,\n" % (t)
+        s += "%soffsetC,\n" % (t)
+        # strides
+        for i in range(0,numStridesC):
+          s += "%s%s,\n" % (t, self.strideList[i])
+        # sizes
+        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
+        if solution["ProblemType"]["UseBeta"]:
           s += "  } else if (beta != 1.0) {\n"
           t = t[:-2]
           s += "%sif( inputEvents != NULL )\n" % (t)
