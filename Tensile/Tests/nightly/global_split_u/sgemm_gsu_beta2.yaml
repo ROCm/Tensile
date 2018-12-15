@@ -17,7 +17,7 @@ GlobalParameters:
   Device: 0
   KernelTime: True
   PinClocks: True
-  SleepPercent: 200
+  SleepPercent: 25
   DataInitTypeA : 3
   DataInitTypeB : 3
   DataInitTypeBeta : 2
@@ -55,18 +55,16 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [ False]
         - PrefetchLocalRead: [ False]
         - ThreadTile:
-          - [ 2, 2 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
-          - [ 8, 8, 1 ]
           - [ 8, 16, 1 ]
           - [ 8, 4, 4 ] # LSU case
-        - GlobalSplitU: [1,2,3,4,5,7,8,16,32,64]
+        - GlobalSplitU: [1,3,4,5,7,8,32,64]
         - WorkGroupMapping: [64]
         - DepthU: [ 16 ]
-        - VectorWidth: [1,2,4]
-        - GlobalReadVectorWidth: [1,2,4]
+        - VectorWidth: [1,4]
+        - GlobalReadVectorWidth: [1,-1]
         #- VectorAtomicWidth: [1]
         - AssertFree0ElementMultiple: [4]  # so we can test GRVW sweep
       BenchmarkForkParameters:

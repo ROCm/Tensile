@@ -1,6 +1,5 @@
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
@@ -17,9 +16,8 @@ GlobalParameters:
   Device: 0
   KernelTime: True
   PinClocks: True
-  SleepPercent: 200
+  SleepPercent: 25
   DataInitTypeBeta : 0
-  CodeFromFiles: 1
   SolutionSelectionAlg: 1
   PrintWinnersOnly: 1
 
