@@ -39,7 +39,7 @@ BenchmarkProblems:
       DestDataType: s
       TransposeA: False
       TransposeB: False
-      UseBeta: True
+      UseBeta: False
       Batched: True
 
   ########################################

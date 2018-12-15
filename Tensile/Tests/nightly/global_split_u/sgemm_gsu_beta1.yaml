@@ -39,7 +39,7 @@ BenchmarkProblems:
       DestDataType: s
       TransposeA: False
       TransposeB: False
-      UseBeta: False
+      UseBeta: True
       Batched: True
 
   ########################################
@@ -60,7 +60,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 8, 16, 1 ]
           - [ 8, 4, 4 ] # LSU case
-        - GlobalSplitU: [1,3,4,5,7,8,32,64]
+        - GlobalSplitU: [1,3,4,5,8,64]
         - WorkGroupMapping: [64]
         - DepthU: [ 16 ]
         - VectorWidth: [1,4]
@@ -73,5 +73,5 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # Use step=4 so many GRVW work OK
-          - Range: [[60,4,66], [60,4,66], [1,1,2], [64, 64, 33, 4096]]
-          - Range: [[508,4,516], [256,4,256], [2], [64, 64, 128, 1024]]
+          - Range: [[60,4,66], [60,4,66], [1,1,2], [64, 64, 33, 1024]]
+          - Range: [[508,4,516], [256,4,256], [2], [64, 64, 128, 512]]
