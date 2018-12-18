@@ -22,15 +22,14 @@
 #ifndef KERNEL_HEADER
 #define KERNEL_HEADER
 
-typedef _Float16 half2 __attribute__((ext_vector_type(2)));
-typedef _Float16 half;
-typedef _Float16 __half;
+typedef _Float16 tensile_half2 __attribute__((ext_vector_type(2)));
+typedef _Float16 tensile_half;
 
-extern "C" __device__ half2 llvm_fma_v2f16(half2, half2, half2) __asm("llvm.fma.v2f16");
+extern "C" __device__ tensile_half2 llvm_fma_v2f16(tensile_half2, tensile_half2, tensile_half2) __asm("llvm.fma.v2f16");
 
-__device__ inline half2 tensile_fmadd_half2(half2 multiplier, half2 multiplicand, half2 addend)
+__device__ inline tensile_half2 tensile_fmadd_half2(tensile_half2 multiplier, tensile_half2 multiplicand, tensile_half2 addend)
 {
-    half2 result;
+    tensile_half2 result;
     result = llvm_fma_v2f16(multiplier, multiplicand, addend);
     return result;
 };
