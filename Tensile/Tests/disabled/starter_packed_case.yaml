@@ -55,7 +55,10 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
 
         - FractionalLoad: [1]
+<<<<<<< HEAD
         - UseSgprForGRO: [0] # temporarily needed for unpack
+=======
+>>>>>>> 2d27591... Add simple starter packed case
         - PackBatchDims: [1]  # pack into A
         - AssertFree0ElementMultiple: [4]
         - AssertFree1ElementMultiple: [4]
@@ -64,4 +67,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+<<<<<<< HEAD
           - Exact: [8, 32, 4, 8 ]
+=======
+          - Exact: [32, 32, 4, 8 ]
+>>>>>>> 2d27591... Add simple starter packed case
