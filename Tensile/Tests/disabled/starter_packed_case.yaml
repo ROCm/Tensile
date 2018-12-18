@@ -15,7 +15,7 @@ GlobalParameters:
   MergeFiles: True
   DataInitTypeA: 1
   DataInitTypeB: 1
-  DataInitTypeC: 2
+  DataInitTypeC: 4
   DataInitTypeBeta: 0
   DataInitTypeAlpha: 2
   KernelTime: True
@@ -58,6 +58,7 @@ BenchmarkProblems:
 
         - FractionalLoad: [1]
         - PackBatchDims: [1]  # pack into A
+        - UseSgprForGRO: [0] # necessary for packed loads
         - AssertFree0ElementMultiple: [4]
         - AssertFree1ElementMultiple: [4]
       BenchmarkForkParameters:
