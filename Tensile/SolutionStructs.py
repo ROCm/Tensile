@@ -1627,8 +1627,8 @@ class Solution:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
 
-    print("PackedC0Indices", state["PackedC0Indices"])
-    print("PackedC1Indices", state["PackedC1Indices"])
+    #print("PackedC0Indices", state["PackedC0Indices"])
+    #print("PackedC1Indices", state["PackedC1Indices"])
 
     problemType["AssignedDerivedParameters"] = True
 

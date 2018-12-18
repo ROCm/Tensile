@@ -1212,7 +1212,8 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WorkGroup0", 1)
 
     for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
-      self.defineSgpr("WorkGroup%u"%i, 1)
+      if 0 or not isPackedIndex(kernel,i): # TODO-packed - enable this check - we don't need WG in packed cases
+        self.defineSgpr("WorkGroup%u"%i, 1)
 
     self.lastUserSgprPlus1=self.sgprIdx  # For initSgpr, this is one past the past user sgpr
 
@@ -3169,7 +3170,8 @@ class KernelWriterAssembly(KernelWriter):
       idx = indices[i]
       if idx == kernel["ProblemType"]["Index0"] \
           or idx == kernel["ProblemType"]["Index1"] \
-          or idx == kernel["ProblemType"]["IndexUnroll"]:
+          or idx == kernel["ProblemType"]["IndexUnroll"] \
+          or isPackedIndex(kernel, i):
             continue # these will be captured in GRO not the SRD
       else:
         if not wroteTileStart:
@@ -5403,7 +5405,7 @@ class KernelWriterAssembly(KernelWriter):
           addToSrd = True
         else: # group index, this is higher-order Tensor dimension, just add to SRD base:
           # TODO-packed - modify to ignore packed, perhaps:
-          # if not isPackedDim(kernel, i):
+          # if not isPackedIndex(kernel, i):
           #--
           coord = sgpr("WorkGroup%u"%i)
           addToSrd = True
