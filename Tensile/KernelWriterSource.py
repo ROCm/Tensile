@@ -86,7 +86,7 @@ class KernelWriterSource(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = "  "
-    self.useMagicNumber = False
+    self.useMagicNumber = True
 
   ##############################################################################
   #
@@ -790,11 +790,11 @@ class KernelWriterSource(KernelWriter):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
     for idxChar in kernel["PackedC0Indices"][:-1]:
-      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
     for idxChar in kernel["PackedC1Indices"][:-1]:
-      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
 
     if kernel["PersistentKernel"]:
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
@@ -1152,6 +1152,9 @@ class KernelWriterSource(KernelWriter):
             sizeStr = " * ".join(tP["packedSizeList"])
             if 0 and tP["isA"]:
               kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0);%s" \
+                      % (self.endLine)
+            if 0 and tP["isB"]:
+              kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0J_0_0);%s" \
                       % (self.endLine)
             kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
                 % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)

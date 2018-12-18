@@ -1238,11 +1238,11 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
     for idxChar in kernel["PackedC0Indices"][:-1]:
-      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
+      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
     for idxChar in kernel["PackedC1Indices"][:-1]:
-      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
+      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
 
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("StridesA", self.numSgprStridesA)
@@ -2209,18 +2209,18 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load size sum %u"%i )
         kernArgOffset += 1*4
       for idxChar in kernel["PackedC0Indices"][:-1]:
-        kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C0)")
-        kernArgOffset += 1*4
         kStr += inst("s_load_dword", sgpr("MagicNumberSize%s"%idxChar), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic number (C0)")
         kernArgOffset += 1*4
-      for idxChar in kernel["PackedC1Indices"][:-1]:
         kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C0)")
         kernArgOffset += 1*4
+      for idxChar in kernel["PackedC1Indices"][:-1]:
         kStr += inst("s_load_dword", sgpr("MagicNumberSize%s"%idxChar), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic number (C1)")
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
         kernArgOffset += 1*4
 
 
@@ -2689,6 +2689,7 @@ class KernelWriterAssembly(KernelWriter):
   def graTileOffsets(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
+    tP["vgprPackedOffsets"] = None
     if kernel["UseSgprForGRO"]:
       # Let the vgprTileOffsets checkin handle tReg later since these are same vgpr
       tP["vgprTileOffsets"] = tP["gpr"]["tReg"]
@@ -2701,8 +2702,6 @@ class KernelWriterAssembly(KernelWriter):
       numExtraPackedOffsetsPerTile = len(tP["PackedIndices"])-1
       if numExtraPackedOffsetsPerTile:
         tP["vgprPackedOffsets"] = self.vgprPool.checkOut(numExtraPackedOffsetsPerTile * numTileOffsets)
-      else:
-        tP["vgprPackedOffsets"] = None
       strideIdx = tP["lsc"] if tP["tlu"] else tP["lsp"]
       stride = kernel[strideIdx]
       if tP["rtc"]:
