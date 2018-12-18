@@ -121,11 +121,11 @@ class SolutionWriter:
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
       for idxChar in solution["PackedC0Indices"][:-1]:
-        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
+        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
       for idxChar in solution["PackedC1Indices"][:-1]:
-        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
+        s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
 
 
       if solution["PersistentKernel"]:
@@ -228,12 +228,12 @@ class SolutionWriter:
     s += ";\n"
 
     for idxChar in solution["PackedC0Indices"][:-1]:
-      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+      s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
     for idxChar in solution["PackedC1Indices"][:-1]:
-      s += "%sunsigned magicShiftSize%s = 1; // bozo\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = size%s / magicShiftSize%s; // bozo\n" \
+      s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
+      s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
 
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
@@ -302,72 +302,72 @@ class SolutionWriter:
       del i
 
       numIdx = problemType["NumIndicesC"]
-      printMe = printedFree = 0
+      printMe = 0
       s += "%suint64_t tensor2dSizeC = %s" % \
           (t, "1" if firstStride==1 else "strideC%u%s"% (0,self.indexChars[0]))
       for idx in range(0,numIdx):
-        # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and printedFree<2:
-          printedFree += 1
+        # Multiply only by packed tensor dims
+        if idx in problemType["IndicesFree"]:
           printMe = True
         else:
           printMe = False
 
         if printMe:
-          if idx < firstStride:
-            strideIdx = problemType["IndexAssignmentsA"][idx+1]
-            s += " * std::max(size%s, strideA%u%s)" % \
+          if idx+1 < numIdx:
+            strideIdx = idx+1
+            s += " * std::max(size%s, strideC%u%s)" % \
                 (self.indexChars[idx], idx+1, self.indexChars[strideIdx])
           else:
             s += " * size%s" % (self.indexChars[idx])
       s += ";\n"
 
+      s += "%suint64_t tensor2dSizeA = 1;\n" % t
       numIdx = len(problemType["IndexAssignmentsA"])
-      printMe = printedStride = printedFree = printedSum = False
-      s += "%suint64_t tensor2dSizeA = %s" % (t, "1" if firstStride==1 else "strideA%u%s"% (0,self.indexChars[0]))
+
+      printMe = printedSum = False
       for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsA"][i]
 
         # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and not printedFree:
-          printMe = printedFree = True
+        if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC0Indices"]]:
+          printMe = True
         elif idx in problemType["IndicesSummation"] and not printedSum:
           printMe = printedSum = True
         else:
           printMe = False
 
         if printMe:
-          if not printedStride:
-            printedStride = True
+          s += "%stensor2dSizeA = " % t
+          if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsA"][i+1]
-            s += " * std::max(size%s, strideA%u%s)" % \
-                (self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "std::max(tensor2dSizeA*size%s, (uint64_t)strideA%u%s);\n" \
+                % (self.indexChars[idx], i+1, self.indexChars[strideIdx])
           else:
-            s += " * size%s" % (self.indexChars[idx])
+            s += " tensor2dSizeA * size%s" % (self.indexChars[idx])
       s += ";\n"
 
+      s += "%suint64_t tensor2dSizeB = 1;\n" % t
       numIdx = len(problemType["IndexAssignmentsB"])
-      printMe = printedStride = printedFree = printedSum = False
-      s += "%suint64_t tensor2dSizeB = %s" % (t, "1" if firstStride==1 else "strideB%u%s"% (0,self.indexChars[0]))
+      printMe = printedSum = False
       for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsB"][i]
 
         # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and not printedFree:
-          printMe = printedFree = True
+        if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC1Indices"]]:
+          printMe = True
         elif idx in problemType["IndicesSummation"] and not printedSum:
           printMe = printedSum = True
         else:
           printMe = False
 
         if printMe:
-          if not printedStride:
-            printedStride = True
+          s += "%stensor2dSizeB = " % t
+          if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsB"][i+1]
-            s += " * std::max(size%s, strideB%u%s)" % \
-                (self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "std::max(tensor2dSizeB*size%s, (uint64_t)strideB%u%s);\n" \
+                % (self.indexChars[idx], i+1, self.indexChars[strideIdx])
           else:
-            s += " * size%s" % (self.indexChars[idx])
+            s += " tensor2dSizeB * size%s" % (self.indexChars[idx])
       s += ";\n"
 
 
@@ -559,6 +559,12 @@ class SolutionWriter:
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeB== %%lu\\n\", tensor2dSizeB );\n" % (t)
+        for idxChar in solution["PackedC0Indices"][:-1]:
+          s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
+              % (t, idxChar, idxChar, idxChar, idxChar)
+        for idxChar in solution["PackedC1Indices"][:-1]:
+          s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
+              % (t, idxChar, idxChar, idxChar, idxChar)
 
       ########################################
       # OpenCL Runtime
@@ -638,11 +644,11 @@ class SolutionWriter:
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
           for idxChar in solution["PackedC0Indices"][:-1]:
-            s += "%s,magicShiftSize%s\n" % (t, idxChar)
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
+            s += "%s,magicShiftSize%s\n" % (t, idxChar)
           for idxChar in solution["PackedC1Indices"][:-1]:
-            s += "%s,magicShiftSize%s\n" % (t, idxChar)
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
+            s += "%s,magicShiftSize%s\n" % (t, idxChar)
 
 
           if solution["PersistentKernel"]:
@@ -672,9 +678,14 @@ class SolutionWriter:
             s += "%smemset(debugBufferHostPtr,1,debugBufferSize);\n" % (t)
 
           # hip assembly function
+          s += "%shipFunctionArgs.tensor2dSizeC = tensor2dSizeC;\n" % (t)
+          s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
+          s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
+
           s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
+
           if solution["ProblemType"]["DataType"].isHalf():
             s += "%shipFunctionArgs.alpha[0] = alpha;\n" % (t)
             s += "%shipFunctionArgs.alpha[1] = alpha;\n" % (t)
@@ -698,14 +709,18 @@ class SolutionWriter:
             s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
                 % (t, globalParameters["IndexChars"][i], i )
 
-          s += "%shipFunctionArgs.tensor2dSizeC = tensor2dSizeC;\n" % (t)
-          s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
-          s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
-
           if solution["PersistentKernel"]:
-            # pass in the number of groups since not available in WG
+            # pass in the number of groups since not available in WG?
             s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
             s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
+
+          # Magic numbers for packed indices:
+          for idxChar in solution["PackedC0Indices"][:-1]:
+            s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
+            s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
+          for idxChar in solution["PackedC1Indices"][:-1]:
+            s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
+            s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
 
           s += "%skernelsLaunched++;\n" % (t)
           s += "%shipHccModuleLaunchKernel(\n" % (t)

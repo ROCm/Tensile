@@ -86,7 +86,7 @@ class KernelWriterSource(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = "  "
-    self.useMagicNumber = False
+    self.useMagicNumber = True
 
   ##############################################################################
   #
@@ -452,6 +452,7 @@ class KernelWriterSource(KernelWriter):
 
       kStr += "#endif%s" % self.endLine
 
+    kStr += "#define MAGIC_DIV(dividend, magicNumber, magicShift) ((uint64_t)(dividend) * magicNumber >> magicShift)%s" % self.endLine
 
     ####################################
     # MACs
@@ -789,11 +790,11 @@ class KernelWriterSource(KernelWriter):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
     for idxChar in kernel["PackedC0Indices"][:-1]:
-      s += ",%s  unsigned magicShiftize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
     for idxChar in kernel["PackedC1Indices"][:-1]:
-      s += ",%s  unsigned magicShiftize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
 
     if kernel["PersistentKernel"]:
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
@@ -1133,11 +1134,11 @@ class KernelWriterSource(KernelWriter):
               tP["packedSizeList"].append("size%s"%self.indexChars[idx])
 
               if self.useMagicNumber:
-                c = self.IndexChars[lastIdx]
-                dimXStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShift%s);%s" \
+                c = globalParameters["IndexChars"][lastIdx]
+                dimXStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
                         % (gro, lastGro, c, c, self.endLine)
-                dimXStr += "  %s = MAGIC_MOD(%s, magicNumberSize%s, magicShiftSize%s);%s" \
-                    % (lastGro, lastGro, c, c, self.endLine)
+                dimXStr += "  %s -= (%s*size%s);%s" \
+                    % (lastGro, gro, self.indexChars[lastIdx], self.endLine)
               else:
                 dimXStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
                         % (gro, lastGro, self.indexChars[lastIdx], self.endLine)
@@ -1151,6 +1152,9 @@ class KernelWriterSource(KernelWriter):
             sizeStr = " * ".join(tP["packedSizeList"])
             if 0 and tP["isA"]:
               kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0);%s" \
+                      % (self.endLine)
+            if 0 and tP["isB"]:
+              kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0J_0_0);%s" \
                       % (self.endLine)
             kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
                 % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)
@@ -2002,9 +2006,12 @@ class KernelWriterSource(KernelWriter):
             #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
             kStr += "  globalC%s = " % (self.indexChars[i])
             if self.useMagicNumber:
-              c = self.indexChars[lastIndex]
-              kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" % (c, c, c, self.endLine)
-              kStr += "  globalC%s = MAGIC_MOD(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" % (c, c, c, c, self.endLine)
+              c = globalParameters["IndexChars"][lastIndex]
+              kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                      % (self.indexChars[lastIndex], c, c, self.endLine)
+              kStr += "  globalC%s -= (globalC%s*size%s);%s" \
+                      % (self.indexChars[lastIndex], self.indexChars[i], \
+                         self.indexChars[lastIndex], self.endLine)
             else:
               kStr += "(globalC%s) / size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
               kStr += "  globalC%s %%= size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
