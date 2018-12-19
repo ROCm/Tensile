@@ -635,7 +635,10 @@ class Solution:
 
   ########################################
   def __init__(self, config):
-    self.state = {}
+    self._name = None
+    config = deepcopy(config)
+
+    self._state = {}
     # problem type
     if "ProblemType" in config:
       self["ProblemType"] = ProblemType(config["ProblemType"])
@@ -644,21 +647,22 @@ class Solution:
 
     # assign parameters with defaults
     for key in defaultSolution:
-      assignParameterWithDefault(self.state, key, config, defaultSolution)
+      assignParameterWithDefault(self._state, key, config, defaultSolution)
 
     # assign parameters without defaults
     for key in config:
-      if key != "ProblemType" and key not in self.state:
-        self.state[key] = config[key]
+      if key != "ProblemType" and key not in self._state:
+        self._state[key] = config[key]
     self["Valid"] = True
     self["AssignedProblemIndependentDerivedParameters"] = False
     self["AssignedDerivedParameters"] = False
-    Solution.assignDerivedParameters(self.state)
+    Solution.assignDerivedParameters(self._state)
+    self._name = None
 
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = deepcopy(self.state)
+    kernel = deepcopy(self._state)
     kernel.update({"Kernel": True})
     kernels = []
     kernels.append(kernel)
@@ -1642,7 +1646,7 @@ class Solution:
     # determine keys
     requiredParameters = {}
     if isinstance(objs[0], Solution):
-      keys = list(objs[0].state.keys())
+      keys = list(objs[0]._state.keys())
     else:
       keys = list(objs[0].keys())
     # only 1, rather than name being nothing, it'll be everything
@@ -1796,22 +1800,25 @@ class Solution:
 
   # make class look like dict
   def keys(self):
-    return self.state.keys()
+    return self._state.keys()
   def __len__(self):
-    return len(self.state)
+    return len(self._state)
   def __iter__(self):
-    return iter(self.state)
+    return iter(self._state)
 
   def __getitem__(self, key):
-    return self.state[key]
+    return self._state[key]
   def __setitem__(self, key, value):
-    self.state[key] = value
+    self._name = None
+    self._state[key] = value
   def __str__(self):
-    return Solution.getNameFull(self.state)
+    if self._name is None:
+      self._name = Solution.getNameFull(self._state)
+    return self._name
   def __repr__(self):
     return self.__str__()
   def getAttributes(self):
-    return self.state
+    return self._state
   def __hash__(self):
     return hash(str(self))
     #return hash(self.getAttributes())

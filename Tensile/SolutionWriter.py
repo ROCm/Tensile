@@ -775,7 +775,7 @@ class SolutionWriter:
     s += "}\n"
     s += "\n"
     s += "/* Solution Parameters\n"
-    s += Solution.getParametersIndented(solution.state, "  ")
+    s += Solution.getParametersIndented(solution.getAttributes(), "  ")
     s += "*/\n"
     s += "\n"
 
