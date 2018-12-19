@@ -1818,7 +1818,7 @@ class Solution:
   def __repr__(self):
     return self.__str__()
   def getAttributes(self):
-    return self._state
+    return deepcopy(self._state)
   def __hash__(self):
     return hash(str(self))
     #return hash(self.getAttributes())
