@@ -376,16 +376,16 @@ validParameters = {
     # In this case the start of each row of the tile is separated by an exact power-of-2
     # which causes poor dram, cache, and tlb behavior.  V20 has 16 channels each 256 bytes wide.
 
-    # StaggerTile adjusts the start
+    # StaggerU adjusts the start position in the summation (aka 'U') dimension
     # position in K dimension to avoid these conflicts.  Both A and B matrix are adjusted.
     # If >0 specifies the offset in multiples of the macro-tile "unroll" dim
     #  - Each tile in a new row will be offset from previous
-    #  - If the kernel contains more tiles in Tile dim than StaggerTile, the offset wraps back to 0
+    #  - If the kernel contains more tiles in Tile dim than StaggerU, the offset wraps back to 0
     #  - Higher values will spread traffic to more channels but provide less L2 re-use.
-    #  - StaggerTile and WorkGroupMapping interact and should be tuned together -
-    #    The WGM controls how tiles are assigned in C matrix, while StaggerTile controls where those
+    #  - StaggerU and WorkGroupMapping interact and should be tuned together -
+    #    The WGM controls how tiles are assigned in C matrix, while StaggerU controls where those
     #    tiles start reading their summation dim parms.
-    "StaggerTile":              [0,1,2,4,8,16],
+    "StaggerU":              [0,1,2,4,8,16],
 
     #kTensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
@@ -608,7 +608,7 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
-    {"StaggerTile":               [ 0 ] },
+    {"StaggerU":               [ 0 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },

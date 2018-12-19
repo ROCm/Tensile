@@ -3644,7 +3644,7 @@ class KernelWriterAssembly(KernelWriter):
   def declareStaggerParms(self, kernel):
 
     kStr=""
-    if kernel["StaggerTile"]:
+    if kernel["StaggerU"]:
       maxStaggerRow = self.getTmpSgpr(3)
       maybeNewMax = maxStaggerRow+1
       lcv = maxStaggerRow+2
@@ -3691,7 +3691,7 @@ class KernelWriterAssembly(KernelWriter):
 
     print "\n\n**warning:  don't forget edge broken for more than one load"
 
-    if kernel["StaggerTile"]:
+    if kernel["StaggerU"]:
       #kStr+= self.bomb(0x5)
       # We stole the last edge register for the tile offset - check reg assumption here:
       tileOffsets = tP["vgprTileOffsets"]
@@ -3765,7 +3765,7 @@ class KernelWriterAssembly(KernelWriter):
       #  kStr+= self.bomb(1313)
 
       self.vgprPool.checkIn(staggerTmp)
-      #-- end if kernel["StaggerTile"]
+      #-- end if kernel["StaggerU"]
 
     return kStr
 

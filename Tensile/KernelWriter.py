@@ -246,7 +246,7 @@ class KernelWriter:
       kStr += self.openLoop(kernel, i)
     kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
 
-    if kernel["StaggerTile"]:
+    if kernel["StaggerU"]:
       kStr += self.declareStaggerParms(kernel)
       kStr += self.calculateStaggerOffsetAndEdge(kernel, tensorParametersA)
       kStr += self.calculateStaggerOffsetAndEdge(kernel, tensorParametersB)
@@ -618,7 +618,7 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # tail: global read
         kStr += self.calculateLoopNumIter(kernel, -1)
-        if kernel["StaggerTile"]:
+        if kernel["StaggerU"]:
           kStr += self.comment("remove stagger offsets for tail loop")
           kStr += self.removeStagger(kernel, tensorParametersA)
           kStr += self.removeStagger(kernel, tensorParametersB)
