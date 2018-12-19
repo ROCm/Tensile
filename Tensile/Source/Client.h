@@ -490,7 +490,7 @@ bool callLibrary(
       }
 
       bool equal;
-      equal = tensileEqual<DataType>( // was AlmostEqual
+      equal = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
           deviceOnHostC[serialIdxC], referenceC[serialIdxC]);
       numChecked++;
       if (!equal) numInvalids++;
@@ -922,7 +922,7 @@ bool benchmarkAllSolutionsForSize(
           }
 
           bool equal;
-          equal = tensileEqual<DataType>( // was AlmostEqual
+          equal = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
               deviceOnHostC[serialIdxC], referenceC[serialIdxC]);
           numChecked++;
           if (!equal) numInvalids++;
