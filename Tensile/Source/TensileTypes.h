@@ -22,6 +22,10 @@
 #ifndef TENSILE_H
 #define TENSILE_H
 #include <stdio.h>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <math.h>
 
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -45,16 +49,16 @@
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 #define TensileHalf _Float16
-#define TensileInt8x4 uint32_t
-#define TensileInt32 int32_t
-
-inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)  
-{  
+inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
+{
    os << (float)(dt);
-   return os;  
+   return os;
 }
 
 #endif // HIP
+
+#define TensileInt8x4 uint32_t
+#define TensileInt32 int32_t
 
 /*******************************************************************************
  * tensileSetup
@@ -77,106 +81,311 @@ TensileStatus tensileTeardown();
     abort();\
   } }
 
-template <int NumSizes, int LastSummationIdx, int Free0Idx>
-class ProblemSizes {
+
+//class ProblemDims
+// -  stores all dimensions of the problems (sizes and strides)
+// TensileCreateLibrary.cpp will create a typedef for each specific problem, ie
+// ProblemDims_Cijk_Ailk_Bljk_SB.
+template <int FirstStride, int LastStrideC, int LastStrideA, int LastStrideB, int NumSizes>
+class ProblemDims {
 public:
   using SizeType = unsigned int;
 
   // Constructor accepts variable number of sizes:
   template<typename... Ts>
-  ProblemSizes(Ts... args) {
+  ProblemDims(Ts... args) {
     init<NumSizes>(args...);
+	};
+
+  const SizeType strideC(int idx) const {
+    return  _dims[idx];
   }
 
-  bool operator< (const ProblemSizes<NumSizes, LastSummationIdx, Free0Idx> & p) const
+  const SizeType strideA(int idx) const {
+    return  _dims[LastStrideC-FirstStride + idx];
+  }
+
+  const SizeType strideB(int idx) const {
+    return  _dims[LastStrideC-FirstStride + LastStrideA-FirstStride + idx];
+  }
+
+  const SizeType sizes(int idx=0) const {
+    return  _dims[LastStrideC-FirstStride + LastStrideA-FirstStride + LastStrideB-FirstStride + idx];
+  }
+
+  int numSizes() const { return NumSizes;};
+
+  std::ostream &print(std::ostream &os) const {
+    for (int i=0; i<NumSizes; i++) {
+      if (i != 0) {
+        os << ", ";
+      };
+      os << _dims[i];
+    };
+    return os;
+  };
+
+private:
+  template<SizeType I, typename T>
+  void init (T v) {
+    _dims[NumSizes-I] = v;
+  }
+
+  template<SizeType I, typename T, typename... Ts>
+  void init (T v, Ts... args ) {
+    _dims[NumSizes-I] = v;
+    init<I-1> (args...);
+  }
+
+private:
+  // order: Cstride, Astride, Bstrides, sizes
+  SizeType _dims[LastStrideC-FirstStride + LastStrideA-FirstStride + LastStrideB-FirstStride + NumSizes];
+};
+
+
+// Base template for ProblemKey
+// -  stores the sizes
+// -  supports hash generation and comparison for lookup
+// TensileCreateLibrary.cpp will create a typedef for each specific problem, ie
+// ProblemKey_Cijk_Ailk_Bljk_SB.
+// Some templates below use a parm called ProblemKeyType which can be any of these
+// generated types.
+template <int NumSizes>
+class ProblemKey {
+public:
+  using SizeType = unsigned int;
+
+  // Constructor accepts variable number of sizes:
+  template<typename... Ts>
+  ProblemKey(Ts... args) {
+    init<NumSizes-1>(args...);
+  }
+
+	template <int FirstStride, int LastStrideC, int LastStrideA, int LastStrideB, int NumDimSizes>
+  ProblemKey(const ProblemDims<FirstStride, LastStrideC, LastStrideA, LastStrideB, NumDimSizes> &pdims) {
+    for (int i=0; i<NumSizes; i++) {
+      _sizes[i] = pdims.sizes(i);
+    }
+	}
+
+  bool operator< (const ProblemKey<NumSizes> & p) const
   {
     for (int i=0; i<NumSizes; i++) {
-      if (p.sizes[i] < this->sizes[i])
+      if (p._sizes[i] < this->_sizes[i])
         return true;
-      else if (p.sizes[i] > this->sizes[i])
+      else if (p._sizes[i] > this->_sizes[i])
         return false;
       // if equal, continue to next index
     }
     return false; // get here if all indices are equal
   };
 
-  SizeType lastSummationSize() const { return sizes[LastSummationIdx]; };
-  SizeType free0Size() const { return sizes[Free0Idx]; };
-  SizeType free1Size() const { return sizes[1]; };
+  bool operator== (const ProblemKey<NumSizes> & p) const
+  {
+    for (int i=0; i<NumSizes; i++) {
+      if (p._sizes[i] != this->_sizes[i])
+        return false;
+    }
+    return true;
+  };
 
-private:
-  template<int I, typename T>
-  void init (T v) {
-    sizes[NumSizes-I] = v;
+  size_t hash() const {
+    size_t h=0;
+    for (int i=0; i<NumSizes; i++) {
+      h ^= _sizes[i] + 0x9b9773e99e3779b9 + (h<<6) + (h>>2);
+    }
+    return h;
   }
 
-  template<int I, typename T, typename... Ts>
-  void init (T v, Ts... args )
-  {
-    sizes[NumSizes-I] = v;
+  const SizeType sizes(int i) const { return _sizes[i];};
+  int numSizes() const { return NumSizes;};
+
+  std::ostream &print(std::ostream &os) const {
+    for (int i=0; i<NumSizes; i++) {
+      if (i != 0) {
+        os << ", ";
+      };
+      os << _sizes[i];
+    };
+    return os;
+  };
+
+
+private:
+  template<int I>
+  void init (SizeType v) {
+    _sizes[NumSizes-I-1] = v;
+  }
+
+  template<int I, typename... Ts>
+  void init (SizeType v, Ts... args ) {
+    _sizes[NumSizes-I-1] = v;
     init<I-1> (args...);
   }
 
-
 private:
   // Data members:
-  SizeType sizes[NumSizes];
+  SizeType _sizes[NumSizes];
+};
+
+//-------------
+// Distance Functions between two problem sizes - used to find nearest neighbor or closest solution
+// Assumes p1 and p2 have same number of sizes
+//-------------
+
+template <class ProblemKeyType>
+struct RatioDistance {
+  double operator() (const ProblemKeyType &p1, const ProblemKeyType &p2) const
+  {
+    double distance = 1.0;
+    for (int i=0; i<p1.numSizes(); i++) {
+      distance += ::fabs(::log(double(p1.sizes(i))/double(p2.sizes(i))));
+    }
+    return distance;
+  }
+};
+
+template <class ProblemKeyType>
+struct ManhattanDistance {
+  double operator() (const ProblemKeyType &p1, const ProblemKeyType &p2) const
+  {
+    double distance = 0;
+    for (int i=0; i<p1.numSizes(); i++) {
+      distance += ::fabs(double(p1.sizes(i)) - double(p2.sizes(i)));
+    }
+    return distance;
+  }
 };
 
 
-// These are assertions used to generate the solution
-// Must be checked by the runtime before launchin the solution
-struct AssertionProperties {
-  AssertionProperties(unsigned x_summationElementMultiple,
-                      unsigned x_free0ElementMultiple,
-                      unsigned x_free1ElementMultiple
-                      )
-    : summationElementMultiple(x_summationElementMultiple),
-      free0ElementMultiple(x_free0ElementMultiple),
-      free1ElementMultiple(x_free1ElementMultiple)
+template <class ProblemKeyType>
+struct EuclideanDistance {
+  double operator() (const ProblemKeyType &p1, const ProblemKeyType &p2) const
+  {
+    double distance = 0;
+    for (int i=0; i<p1.numSizes(); i++) {
+      if (p1.sizes(i) > p2.sizes(i))
+        distance += pow(p1.sizes(i) - p2.sizes(i), 2);
+      else
+        distance += pow(p2.sizes(i) - p1.sizes(i), 2);
+    }
+// distance = sqrt(distance);
+    return distance;
+  }
+};
+
+template <class ProblemKeyType>
+struct RandomDistance {
+  double operator() (const ProblemKeyType &p1, const ProblemKeyType &p2) const
+  {
+    return double(rand());
+  }
+};
+
+
+// ProblemType
+// Stores the different dimensions (free, index, batch) and other problem-specific info
+// A single ProblemType may have many ProblemDims
+// Combination of a ProblemType and ProblemDim defines a Problem
+class ProblemType
+{
+public:
+  ProblemType(const std::vector<int> &indicesFree,
+                    const std::vector<int> &indicesSummation,
+                    const std::vector<int> &indicesBatch)
+    : _indicesFree(indicesFree),
+      _indicesSummation(indicesSummation),
+      _indicesBatch(indicesBatch)
+  {
+  }
+
+  int lastSummationIdx() const { return _indicesSummation.back(); };
+  int free0Idx() const { return _indicesFree[0]; };
+  int free1Idx() const { return _indicesFree[1]; };
+  bool isBatchIdx(int idx) const {
+    return std::find(_indicesBatch.begin(), _indicesBatch.end(), idx) != _indicesBatch.end();
+  };
+
+private:
+  const std::vector<int> _indicesFree;
+  const std::vector<int> _indicesSummation;
+  const std::vector<int> _indicesBatch;
+};
+
+
+// These are properties of the problemDims and problemType which drive the 'assertions'
+//   - Solutions may be optimized so they only work for a subset of ProblemProperties -
+//   - At runtime, the ProblemProperties are computed for the given ProblemType and
+//     ProblemDims, and then checked against the Solution requirements.
+// Must be checked by the runtime before launching the solution
+struct ProblemProperties {
+
+  // Constructor used in solution tables-
+  // See writeSolutionAndExactTable in TensileCreateLibrary - this constructor must
+  // be in-sync with the table written there.
+  ProblemProperties(unsigned summationElementMultiple,
+                      unsigned free0ElementMultiple,
+                      unsigned free1ElementMultiple,
+                      int approxSize)
+    : _summationElementMultiple(summationElementMultiple),
+      _free0ElementMultiple(free0ElementMultiple),
+      _free1ElementMultiple(free1ElementMultiple),
+      _approxSize(approxSize)
      {}
 
-  template<class ProblemSizes>
-  AssertionProperties(const ProblemSizes &p) {
-    summationElementMultiple = 1; // problem summation element multiple
-    auto sumSize = p.lastSummationSize();
-    if ((sumSize & 0x7) == 0) summationElementMultiple=8;
-    else if ((sumSize & 0x3) == 0) summationElementMultiple=4;
-    else if ((sumSize & 0x1) == 0) summationElementMultiple=2;
+  // Constructor used to compute assertions for a specified problem size
+  template<class ProblemDimsType>
+  ProblemProperties(const ProblemDimsType &pdims, const ProblemType *props) {
+    _summationElementMultiple = 1; // problem summation element multiple
+    auto sumSize = pdims.sizes(props->lastSummationIdx());
+    if ((sumSize & 0x7) == 0) _summationElementMultiple=8;
+    else if ((sumSize & 0x3) == 0) _summationElementMultiple=4;
+    else if ((sumSize & 0x1) == 0) _summationElementMultiple=2;
 
-    auto free0Size = p.free0Size();
-    free0ElementMultiple = 1; // problem free0 element multiple
-    if ((free0Size & 0x7) == 0) free0ElementMultiple=8;
-    else if ((free0Size & 0x3) == 0) free0ElementMultiple=4;
-    else if ((free0Size & 0x1) == 0) free0ElementMultiple=2;
+    auto free0Size = pdims.sizes(props->free0Idx());
+    _free0ElementMultiple = 1; // problem free0 element multiple
+    if ((free0Size & 0x7) == 0) _free0ElementMultiple=8;
+    else if ((free0Size & 0x3) == 0) _free0ElementMultiple=4;
+    else if ((free0Size & 0x1) == 0) _free0ElementMultiple=2;
 
-    auto free1Size = p.free1Size();
-    free1ElementMultiple = 1; // problem free1 element multiple
-    if ((free1Size & 0x7) == 0) free1ElementMultiple=8;
-    else if ((free1Size & 0x3) == 0) free1ElementMultiple=4;
-    else if ((free1Size & 0x1) == 0) free1ElementMultiple=2;
+    auto free1Size = pdims.sizes(props->free1Idx());
+    _free1ElementMultiple = 1; // problem free1 element multiple
+    if ((free1Size & 0x7) == 0) _free1ElementMultiple=8;
+    else if ((free1Size & 0x3) == 0) _free1ElementMultiple=4;
+    else if ((free1Size & 0x1) == 0) _free1ElementMultiple=2;
+
+    bool allBelow1 = true;
+    bool allBelow32 = true;
+    for (int si=0; si!=pdims.numSizes(); si++) {
+      if (!props->isBatchIdx(si)) {
+        auto size = pdims.sizes(si);
+        if (size > 32)
+          allBelow32 = false;
+        if (size > 1)
+          allBelow1 = false;
+      }
+    }
+    if (allBelow1)
+      _approxSize = 1; // really small
+    else if (allBelow32)
+      _approxSize = 2; // still small
+    else
+      _approxSize = 99; // big enough
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
-  bool validForSolution(const AssertionProperties &solutionAssertions) {
-    return (this->summationElementMultiple >= solutionAssertions.summationElementMultiple) &&
-           (this->free0ElementMultiple >= solutionAssertions.free0ElementMultiple) &&
-           (this->free1ElementMultiple >= solutionAssertions.free1ElementMultiple);
+  bool validForSolution(const ProblemProperties &solutionRequirements) const {
+    return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
+           (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
+           (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
+           ((this->_approxSize) >= solutionRequirements._approxSize);
   }
 
-  unsigned summationElementMultiple;
-  unsigned free0ElementMultiple;
-  unsigned free1ElementMultiple;
-};
-
-
-// solution info
-template <typename F>
-struct SolutionInfo {
-  F                       functionPtr;
-  const char *            name;
-  AssertionProperties     assertions;
+  unsigned _summationElementMultiple;
+  unsigned _free0ElementMultiple;
+  unsigned _free1ElementMultiple;
+  int      _approxSize;
 };
 
 

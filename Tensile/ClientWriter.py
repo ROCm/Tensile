@@ -18,8 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning
-from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecks
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO
@@ -36,7 +35,7 @@ from shutil import rmtree
 def main( config ):
   libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["LibraryLogicPath"])
-  pushWorkingPath(globalParameters["LibraryClientPath"])
+  stepBaseDir = pushWorkingPath(globalParameters["LibraryClientPath"])
 
 
   ##############################################################################
@@ -104,7 +103,7 @@ def main( config ):
   problemSizes = None
   stepName = None
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions)
+      functions, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -254,7 +253,7 @@ def toCppBool(yamlBool):
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functionList):
+    functionList, stepBaseDir):
   h = ""
 
   ##############################################################################
@@ -285,6 +284,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "#include \"" + solutionName + ".h\"\n"
     h += "\n"
   else:
+    h += "#include \"Solutions.h\"\n"
     h += "#include \"Tensile.h\"\n"
 
 
@@ -629,38 +629,22 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   if forBenchmark:
     # Solution Ptrs
-    h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
-    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True, True)
-    for i in range(0, len(argList)):
-      h += "  %s %s%s" % (argList[i][0], argList[i][1], \
-          ",\n" if i < len(argList)-1 else ");\n\n")
-
-    h += "struct ClientSolutionInfo {\n"
-    h += "  SolutionFunctionPointer functionPtr;\n"
-    h += "  const char *            name;\n"
-    # These are assertions used to generate the solution
-    # Must be checked by the runtime before launchin the solution
-    h += "  int                     assertSummationElementMultiple;\n"
-    h += "  int                     assertFree0ElementMultiple;\n"
-    h += "  int                     assertFree1ElementMultiple;\n"
-    h += "};\n";
-
     h += "/* solutions */\n"
     # Problem Type Indices
     h += "const unsigned int maxNumSolutions = %u;\n" % len(solutions)
     h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
     h += "\n"
 
-    h += "static const ClientSolutionInfo solutions[maxNumSolutions] = {\n"
+    h += "static const SolutionInfo solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      # add trailing ~ for some reason to the function name
-      h += "  {%s, \"%s~\", %d, %d, %d}" % \
-        (solutionName, solutionName,
-          solution["AssertSummationElementMultiple"],
-          solution["AssertFree0ElementMultiple"],
-          solution["AssertFree1ElementMultiple"])
+      h += "  {(void*)%s, \"%s\", {%d, %d, %d, %d} }" % \
+        (solutionName, solutionName, \
+          solution["AssertSummationElementMultiple"], \
+          solution["AssertFree0ElementMultiple"], \
+          solution["AssertFree1ElementMultiple"], \
+          solution["AssertMinApproxSize"])
       if i < len(solutions)-1:
         h += ","
       h += "\n"
@@ -774,9 +758,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
-    h += "template<typename DataType>\n"
+    h += "template<typename DataType, class SolutionInfoType>\n"
     h += "TensileStatus generatedCallToSolution(\n"
-    h += "    unsigned int solutionIdx,\n"
+    h += "    const SolutionInfoType &solution,\n"
+    h += "    SolutionLock *solutionLock,\n"
     h += "    const unsigned int *sizes,\n"
     h += "    const unsigned int *minStrides,\n"
     h += "    const unsigned int stride_a,\n"
@@ -837,24 +822,47 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
-    h += writeSolutionAssertionCheckHeader(problemType)
-    h += "if (!(\n  "
-    h += writeSolutionAssertionChecks(
-           "solutions[solutionIdx].assertSummationElementMultiple",
-           "solutions[solutionIdx].assertFree0ElementMultiple",
-           "solutions[solutionIdx].assertFree1ElementMultiple",
-           "\n  ")
-    h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
+    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    lastStrideC = problemType["NumIndicesC"]
+    lastStrideA = len(problemType["IndexAssignmentsA"])
+    lastStrideB = len(problemType["IndexAssignmentsB"])
+    numSizes = problemType["TotalIndices"];
+    h += "  typedef ProblemDims<%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
+        % (firstStride, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
+    # TODO - this should be initialized somewhere once?
+    h += "static const ProblemType problemType( "
+    h += listToInitializer(problemType["IndicesFree"]) + ", "
+    h += listToInitializer(problemType["IndicesSummation"]) + ", "
+    h += listToInitializer(problemType["IndicesBatch"])
+    h += ");\n"
+    # create problem size - TODO could move this up to the caller
+    h += "  ProblemDims_%s pdims(" % problemType
+    indexChars = globalParameters["IndexChars"]
+    for i in range(firstStride,lastStrideC):
+      if i != firstStride: h += ", "
+      h += "strideC%u%s" % (i, indexChars[i])
+    for i in range(firstStride,lastStrideA):
+      h += ", strideA%u%s" % (i, \
+          indexChars[problemType["IndexAssignmentsA"][i]])
+    for i in range(firstStride,lastStrideB):
+      h += ", strideB%u%s" % (i, \
+          indexChars[problemType["IndexAssignmentsB"][i]])
+    for i in range(0, problemType["TotalIndices"]):
+      h += ", size%s" % indexChars[i]
+    h += ");\n"
+    h += "  if (!ProblemProperties(pdims,&problemType).validForSolution(solution._assertionRequirements))\n"
+    h += "    return tensileStatusAssertFailure;  // problem dims did not meet requirements for solution\n"
     h += "\n"
 
     h += "  // call solution function\n"
-    h += "  auto f = solutions[solutionIdx].functionPtr;\n"
+    h += "  TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (solution._functionPtr);\n" \
+            % (problemType, problemType)
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  return f( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return f(solutionLock, static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
-      h += "  return f( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+      h += "  return f(solutionLock, static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (destTypeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
@@ -870,7 +878,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           indexChars[problemType["IndexAssignmentsB"][i]])
     for i in range(0, problemType["TotalIndices"]):
       h += "      size%s,\n" % indexChars[i]
-    h += "      stream,\n"
+    h +=   "      stream,\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
        h += "      numEvents, event_wait_list, outputEvent ); // events\n"
     else:
@@ -933,7 +941,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           h += "    hipEvent_t *startEvent,\n"
           h += "    hipEvent_t *stopEvent ) {\n\n"
 
-        h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
+        h += "    unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
         for functionIdx in range(0, len(functionsForDataType)):
           function = functionsForDataType[functionIdx]
@@ -1009,13 +1017,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             h += "        strideB%u%s,\n" % (i, \
                 indexChars[problemType["IndexAssignmentsB"][i]])
           for i in range(0, problemType["TotalIndices"]):
-            h += "        size%s,\n" % indexChars[i]
-          h += "        stream"
+            h += "        size%s%s\n" % (indexChars[i], "," if i != problemType["TotalIndices"]-1 else "")
           if enqueue:
             if globalParameters["RuntimeLanguage"] == "OCL":
-               h += ",\n        numEvents, event_wait_list, outputEvent"
+               h += ", stream, numEvents, event_wait_list, outputEvent"
             else:
-               h += ",\n        numEvents, startEvent, stopEvent"
+               h += ", stream, numEvents, startEvent, stopEvent"
           h += ");\n"
 
         if len(functionsForDataType) > 1:
@@ -1027,8 +1034,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   if forBenchmark:
     h += "/* results file name */\n"
-    resultsFileName = os.path.join(globalParameters["WorkingPath"], \
-        "../../Data","%s.csv" % stepName)
+    resultsFileName = os.path.join(stepBaseDir, \
+        "../Data","%s.csv" % stepName)
     resultsFileName = resultsFileName.replace("\\", "\\\\")
     h += "const char *resultsFileName = \"%s\";\n" % resultsFileName
 

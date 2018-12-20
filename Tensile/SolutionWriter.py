@@ -67,7 +67,16 @@ class SolutionWriter:
   ##############################################################################
   # getSourceString
   ##############################################################################
-  def getSourceString(self, solution, kernelsWithBuildErrs):
+  def getProblemSourceString(self, problemType, solution, kernelsWithBuildErrs):
+    gsu = solution["GlobalSplitU"]
+    persistent = solution["PersistentKernel"]
+    kernelLanguage = solution["KernelLanguage"]
+    tt0 = solution["ThreadTile0"]
+    tt1 = solution["ThreadTile1"]
+    sg0 = solution["SubGroup0"]
+    sg1 = solution["SubGroup1"]
+    nt  =  solution["NumThreads"]
+
     kernels = solution.getKernels()
     kernelNames = []
     kernelBuildErr = 0
@@ -76,6 +85,7 @@ class SolutionWriter:
       if kernelName in kernelsWithBuildErrs:
         kernelBuildErr = 1
       kernelNames.append( kernelName )
+
 
     s = ""
     t = ""
@@ -89,7 +99,16 @@ class SolutionWriter:
       s += "\n"
 
     # solution function signature
+    
+# FROM MERGE
+    # problem function signature
+    #argList = self.getArgList(problemType, True, True, True, True)
+    #for i in range(0, len(argList)):
+    #  argString = "%s %s" % argList[i]
+    #  s += "%s%s%s" % (t, argString, ",\n" if i < len(argList)-1 else ")" )
+
     s += self.getSolutionSignature(solution)
+
     s += " {\n"
     if kernelBuildErr:
       s += "%s  return tensileStatusFailure; // One or more kernels had build failures (%s)\n" % (t, kernelNames)
@@ -101,7 +120,7 @@ class SolutionWriter:
 
 
     # hipFunction Struct
-    if solution["KernelLanguage"] == "Assembly":
+    if kernelLanguage == "Assembly":
       s += "\n"
       s += "%s/* module function args */\n" % (t)
       s += "%sstruct {\n" % t
@@ -114,7 +133,7 @@ class SolutionWriter:
       s += "%suint64_t tensor2dSizeC;\n" % t
       s += "%suint64_t tensor2dSizeA;\n" % t
       s += "%suint64_t tensor2dSizeB;\n" % t
-      solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
+      solutionArgs = self.getArgList(problemType, False, True, False, False)
       for arg in solutionArgs:
         if arg[0] == "TensileHalf":
           s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
@@ -128,7 +147,7 @@ class SolutionWriter:
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
 
 
-      if solution["PersistentKernel"]:
+      if persistent:
         # pass in the number of groups since not available in WG
         s += "%sunsigned int numGroupTiles0;\n" % t
         s += "%sunsigned int numGroupTiles1;\n" % t
@@ -154,7 +173,7 @@ class SolutionWriter:
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
 
-    if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
+    if kernelLanguage == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
       for kernelIdx in range(0, len(kernelNames)):
@@ -173,8 +192,8 @@ class SolutionWriter:
       s += "%s      buildOptions);\n" % (t)
       s += "%s}\n" % (t)
 
-      if solution["GlobalSplitU"] > 1:
-        for beta in solution.getKernelsBetaOnly():
+      if gsu > 1:
+        for beta in Solution.getKernelsBetaOnlyFromProblem(problemType, gsu):
           kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
           s += "%scl_kernel kernel_%s;\n" % (t, kernelName)
           s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
@@ -183,16 +202,15 @@ class SolutionWriter:
           s += "%s      stream,\n" % (t)
           s += "%s      buildOptions);\n" % (t)
 
-    elif solution["KernelLanguage"] == "Assembly":
+    elif kernelLanguage == "Assembly":
       kernel = kernels[0]
       s += "%shipFunction_t hipFunction;\n" % (t)
-      s += "%sstatic SolutionLock sl;\n" % (t)
       # if !CodeFromFiles then pass global _coba that points to code object
-      s += "%sstatus = sl.getFunction(&hipFunction, deviceId, \"%s\", %s);;\n" \
+      s += "%sstatus = solutionLock->getFunction(&hipFunction, deviceId, \"%s\", %s);;\n" \
               % (t, kernelName, "nullptr" if globalParameters["CodeFromFiles"] else kernelName+"_coba" )
       s += "%sif (status) return status;\n" % (t)
 
-    typeName = solution["ProblemType"]["DataType"].toCpp()
+    typeName = problemType["DataType"].toCpp()
 
     # num enqueues
     s += "\n%s/* num kernels */\n" % (t)
@@ -205,18 +223,16 @@ class SolutionWriter:
     s += "\n%s/* grid sizes */\n" % (t)
     s += "%sconst unsigned int workDim = 3;\n" % (t)
     s += "%sconst unsigned int threadTile[2] = { %u, %u };\n" \
-        % (t, solution["ThreadTile0"], solution["ThreadTile1"])
+        % (t, tt0, tt1)
     s += "%sconst unsigned int groupSize[2] = { %u, %u };\n" \
-        % (t, solution["SubGroup0"], solution["SubGroup1"])
+        % (t, sg0, sg1)
     s += "%ssize_t localWorkSize[3] = { %3u, 1, 1 };\n" \
-        % (t, solution["NumThreads"])
+        % (t, nt)
     s += "%ssize_t globalWorkSize[numKernels][3];\n" % (t)
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
-
-    for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-      if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"] \
-          and not isPackedIndex(solution,i):
+    for i in range(0, problemType["NumIndicesC"]):
+      if i != problemType["Index0"] and i != problemType["Index1"]:
         s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
     s += "%sunsigned int sizeOfC0 = " % (t)
@@ -236,6 +252,13 @@ class SolutionWriter:
       s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
 
+# FROM MERGE
+    # grid size [0,1]
+#    s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
+#        self.indexChars[problemType["Index0"]])
+#    s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
+#        self.indexChars[problemType["Index1"]])
+# END MERGE
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
     s += "%sunsigned int macroTile1 = static_cast<unsigned int>(groupSize[1] * threadTile[1]);\n" % (t)
     s += "%sunsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n" % (t)
@@ -257,13 +280,13 @@ class SolutionWriter:
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
 
-    if solution["GlobalSplitU"] > 1:
-      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
-    if solution["PersistentKernel"]:
+    if gsu> 1:
+      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, gsu)
+    if persistent:
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sglobalWorkSize[0][0] = deviceProperties.multiProcessorCount * %u;\n" \
-              % (t, solution["PersistentKernel"])
+              % (t, persistent)
       s += "%sglobalWorkSize[0][1] = 1;\n" % t
     else:
       s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
@@ -280,19 +303,19 @@ class SolutionWriter:
     # index sizes
     s += "\n%s/* index sizes */\n" % (t)
     s += "%sunsigned int sizes[numKernels][1][%u];\n" \
-        % (t, solution["ProblemType"]["TotalIndices"])
+        % (t, problemType["TotalIndices"])
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
       kernelName = self.kernelWriter.getKernelName(kernel)
       # free index sizes
-      for i in range(0,solution["ProblemType"]["NumIndicesFree"] \
-          + solution["ProblemType"]["NumIndicesBatch"] ):
+      for i in range(0,problemType["NumIndicesFree"] \
+          + problemType["NumIndicesBatch"] ):
         s += "%ssizes[%u][0][%u] = size%s;\n" \
             % (t, kernelIdx, i, self.indexChars[i])
       # summation index sizes
-      for i in range(solution["ProblemType"]["NumIndicesC"], \
-              solution["ProblemType"]["TotalIndices"] ):
-        lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+      for i in range(problemType["NumIndicesC"], \
+              problemType["TotalIndices"] ):
+        lastParam = i == problemType["TotalIndices"]-1
         s += "%ssizes[%u][0][%u] = size%s;\n" \
             % (t, kernelIdx, i, self.indexChars[i])
 
@@ -378,11 +401,11 @@ class SolutionWriter:
     ########################################
     # Enqueue Beta-Only Kernel
     ########################################
-    if solution["GlobalSplitU"] > 1:
+    if gsu > 1:
       kernelNamesBetaOnly = []
-      numStridesC = solution["ProblemType"]["NumIndicesC"] - \
-          (0 if solution["ProblemType"]["UseInitialStrides"] else 1)
-      for beta in solution.getKernelsBetaOnly():
+      numStridesC = problemType["NumIndicesC"] - \
+          (0 if problemType["UseInitialStrides"] else 1)
+      for beta in Solution.getKernelsBetaOnlyFromProblem(problemType, gsu):
         kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
         kernelNamesBetaOnly.append(kernelName)
       s += "%s// enqueue Beta-Only kernel\n" % (t)
@@ -391,9 +414,9 @@ class SolutionWriter:
       s += "%ssize_t localWorkSizeBetaOnly[3] = { 8, 8, 1};\n" % (t)
       s += "%ssize_t globalWorkSizeBetaOnly[3];\n" % (t)
       #s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
-      #    self.indexChars[solution["ProblemType"]["Index0"]])
+      #    self.indexChars[problemType["Index0"]])
       #s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
-      #    self.indexChars[solution["ProblemType"]["Index1"]])
+      #    self.indexChars[problemType["Index1"]])
       s += "%ssize_t totalWorkGroupsBetaOnly0 = sizeOfC0 / localWorkSizeBetaOnly[0];\n" % (t)
       s += "%ssize_t totalWorkGroupsBetaOnly1 = sizeOfC1 / localWorkSizeBetaOnly[1];\n" % (t)
       s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
@@ -402,14 +425,14 @@ class SolutionWriter:
       s += "%sglobalWorkSizeBetaOnly[0] = totalWorkGroupsBetaOnly0%s;\n" % (t, "*localWorkSizeBetaOnly[0]" if self.language == "OCL" else "")
       s += "%sglobalWorkSizeBetaOnly[1] = totalWorkGroupsBetaOnly1%s;\n" % (t, "*localWorkSizeBetaOnly[1]" if self.language == "OCL" else "")
       s += "%sglobalWorkSizeBetaOnly[2] = 1;\n" % (t)
-      for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-        if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
+      for i in range(0, problemType["NumIndicesC"]):
+        if i != problemType["Index0"] and i != problemType["Index1"]:
           s += "%sglobalWorkSizeBetaOnly[2] *= size%s;\n" % (t, self.indexChars[i])
 
-      if solution["ProblemType"]["UseBeta"]:
+      if problemType["UseBeta"]:
         s += "%sbool betaZero = beta == 0;\n" % (t)
       if self.language == "OCL":
-        if solution["ProblemType"]["UseBeta"]:
+        if problemType["UseBeta"]:
           s += "%scl_kernel kernelBetaOnly = betaZero ? kernel_%s : kernel_%s;\n" \
               % (t, kernelNamesBetaOnly[0], kernelNamesBetaOnly[1])
         else:
@@ -423,10 +446,10 @@ class SolutionWriter:
         for i in range(0,numStridesC):
           s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.strideList[i]); argIdx+=1
         # sizes
-        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+        for i in range(0, problemType["NumIndicesC"]):
           s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[i]); argIdx+=1
         # beta
-        if solution["ProblemType"]["UseBeta"]:
+        if problemType["UseBeta"]:
           s += "%sif (!betaZero) {\n" % (t)
           s += "%s  status = clSetKernelArg( kernelBetaOnly, %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, argIdx, typeName); argIdx+=1
           s += "%s}\n" % (t)
@@ -446,8 +469,8 @@ class SolutionWriter:
         s += "%s&kernelEventBetaOnly );\n" % (t)
         t = t[2:]
         s += "%stensileStatusCheck(status);\n" % (t)
-        if solution["ProblemType"]["UseBeta"]:
-          s += "%sbeta = %s;\n" % (t, solution["ProblemType"]["DataType"].zeroString(self.language, 1) )
+        if problemType["UseBeta"]:
+          s += "%sbeta = %s;\n" % (t, problemType["DataType"].zeroString(self.language, 1) )
         #s += "%sreturn tensileStatusSuccess;\n" % (t)
         s += "%sstatus = clFinish(stream);\n" % (t)
         s += "%stensileStatusCheck(status);\n" % (t)
@@ -459,7 +482,7 @@ class SolutionWriter:
         # TODO - timing with beta kernels is somewhat pessimistic since it has this separate event only on the GSU path.
         # Introduces 2-3us of overhead ; may want to disable PreciseKernelTime so non-GSU have same overhead.
         # Long-term fix would be to launch the beta kernel with the hipHccModule* API and set start-event in that call
-        if solution["ProblemType"]["UseBeta"]:
+        if problemType["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
         s += "%sif( inputEvents != NULL )\n" % (t)
@@ -478,14 +501,27 @@ class SolutionWriter:
         for i in range(0,numStridesC):
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
-        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
-        if solution["ProblemType"]["UseBeta"]:
-          s += "  } else if (beta != 1.0) {\n"
+# FROM MERGED OLD
+#        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+#          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
+#        if solution["ProblemType"]["UseBeta"]:
+#          s += "  } else if (beta != 1.0) {\n"
+#          t = t[:-2]
+#          s += "%sif( inputEvents != NULL )\n" % (t)
+#          s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+#          s += "%skernelsLaunched++;\n" % (t)
+# END OLD
+        for i in range(0, problemType["NumIndicesC"]):
+          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < problemType["NumIndicesC"]-1 else ");\n")
+
+        if problemType["UseBeta"]:
+          s += "%s} else {\n" % (t)
+# FROM MERGED OLD INSERTED
           t = t[:-2]
           s += "%sif( inputEvents != NULL )\n" % (t)
           s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
           s += "%skernelsLaunched++;\n" % (t)
+# END MERGED
           s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
@@ -499,7 +535,7 @@ class SolutionWriter:
           for i in range(0,numStridesC):
             s += "%s%s,\n" % (t, self.strideList[i])
           # sizes
-          for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+          for i in range(0, problemType["NumIndicesC"]):
             s += "%ssize%s,\n" % (t, self.indexChars[i])
           s += "%sbeta);\n" % (t)
           s += "}\n"
@@ -530,14 +566,14 @@ class SolutionWriter:
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 2)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileStatusCheck(status);\n" % (t, 3, typeName)
         s += "%s%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, \
-            "" if solution["ProblemType"]["UseBeta"] else "//", 4, typeName)
-        argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
+            "" if problemType["UseBeta"] else "//", 4, typeName)
+        argIdx = 5 if problemType["UseBeta"] else 4
         argIdx += 3 # skipping offsets here
         for stride in self.strideList:
           s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, stride)
           argIdx += 1
-        for sizeIdx in range(0, solution["ProblemType"]["TotalIndices"]):
-          if sizeIdx not in [ solution["ProblemType"]["Index0"],  solution["ProblemType"]["Index1"], solution["ProblemType"]["IndexUnroll"] ]:
+        for sizeIdx in range(0, problemType["TotalIndices"]):
+          if sizeIdx not in [ problemType["Index0"],  problemType["Index1"], problemType["IndexUnroll"] ]:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
 
@@ -554,7 +590,7 @@ class SolutionWriter:
         for stride in self.strideList:
           s += "%sprintf(\"  %s = %%u\\n\", %s);\n" % (t, stride, stride)
         # sizes
-        for i in range(0, solution["ProblemType"]["TotalIndices"]):
+        for i in range(0, problemType["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
@@ -571,7 +607,7 @@ class SolutionWriter:
       ########################################
       if self.language == "OCL":
         # set kernel args different for all enqueues
-        argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
+        argIdx = 5 if problemType["UseBeta"] else 4
         # offsets
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][0]); tensileStatusCheck(status);\n" % (t, argIdx )
         argIdx += 1
@@ -581,8 +617,8 @@ class SolutionWriter:
         argIdx += 1
         argIdx += len(self.strideList)
         # sizes
-        for sizeIdx in range(0, solution["ProblemType"]["TotalIndices"]):
-          if sizeIdx in [ solution["ProblemType"]["Index0"],  solution["ProblemType"]["Index1"], solution["ProblemType"]["IndexUnroll"] ]:
+        for sizeIdx in range(0, problemType["TotalIndices"]):
+          if sizeIdx in [ problemType["Index0"],  problemType["Index1"], problemType["IndexUnroll"] ]:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
 
@@ -595,7 +631,7 @@ class SolutionWriter:
         s += "%sNULL, // globalWorkOffset\n" % (t)
         s += "%sglobalWorkSize[kernelIdx],\n" % (t)
         s += "%slocalWorkSize,\n" % (t)
-        if False: # solution["GlobalSplitU"] > 1:
+        if False: # gsu > 1:
           s += "%s1,\n" % (t)
           s += "%s&kernelEventBetaOnly,\n" % (t)
         else:
@@ -609,16 +645,22 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
-        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
-          s += "%sif( inputEvents != NULL && kernelsLaunched==0)\n" % (t)
+        if not globalParameters["PreciseKernelTime"] or kernelLanguage == "Source":
+          s += "%sif( inputEvents != NULL )\n" % (t)
           t += "  "
           s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
         t = t[2:]
         s += "%stry {\n" % (t)
         t += "  "
         # hip kernel
+# FROM MERGED OLD
         if solution["KernelLanguage"] == "Source":
           s += "%skernelsLaunched++;\n" % (t)
+# END OLD
+        if kernelLanguage == "Source":
+# FROM OLD INSERTED
+          s += "%skernelsLaunched++;\n" % (t)
+# END MERGED
           s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -631,7 +673,7 @@ class SolutionWriter:
           s += "%sdataB,\n" % (t)
           s += "%salpha,\n" % (t)
           s += "%s%sbeta,\n" % (t, \
-              "" if solution["ProblemType"]["UseBeta"] else "//")
+              "" if problemType["UseBeta"] else "//")
           s += "%soffsets[kernelIdx][enqueueIdx][0],\n" % (t)
           s += "%soffsets[kernelIdx][enqueueIdx][1],\n" % (t)
           s += "%soffsets[kernelIdx][enqueueIdx][2],\n" % (t)
@@ -639,10 +681,11 @@ class SolutionWriter:
           for stride in self.strideList:
             s += "%s%s,\n" % (t, stride)
           # sizes
-          for i in range(0, solution["ProblemType"]["TotalIndices"]):
-            lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+          for i in range(0, problemType["TotalIndices"]):
+            lastParam = i == problemType["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
+# FROM MERGED OLD
           for idxChar in solution["PackedC0Indices"][:-1]:
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
@@ -651,7 +694,10 @@ class SolutionWriter:
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
 
 
-          if solution["PersistentKernel"]:
+#          if solution["PersistentKernel"]:
+# END OLD
+          if persistent:
+# END MERGED
             s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
             s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
           s += "%s);\n" % (t)
@@ -686,13 +732,13 @@ class SolutionWriter:
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
 
-          if solution["ProblemType"]["DataType"].isHalf():
+          if problemType["DataType"].isHalf():
             s += "%shipFunctionArgs.alpha[0] = alpha;\n" % (t)
             s += "%shipFunctionArgs.alpha[1] = alpha;\n" % (t)
           else:
             s += "%shipFunctionArgs.alpha = alpha;\n" % (t)
-          if solution["ProblemType"]["UseBeta"]:
-            if solution["ProblemType"]["DataType"].isHalf():
+          if problemType["UseBeta"]:
+            if problemType["DataType"].isHalf():
               s += "%shipFunctionArgs.beta[0] = beta;\n" % (t)
               s += "%shipFunctionArgs.beta[1] = beta;\n" % (t)
             else:
@@ -704,13 +750,17 @@ class SolutionWriter:
           for stride in self.strideList:
             s += "%shipFunctionArgs.%s = %s;\n" % (t, stride, stride)
           # sizes
-          for i in range(0, solution["ProblemType"]["TotalIndices"]):
-            lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+          for i in range(0, problemType["TotalIndices"]):
+            lastParam = i == problemType["TotalIndices"]-1
             s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
                 % (t, globalParameters["IndexChars"][i], i )
 
-          if solution["PersistentKernel"]:
-            # pass in the number of groups since not available in WG?
+          s += "%shipFunctionArgs.tensor2dSizeC = tensor2dSizeC;\n" % (t)
+          s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
+          s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
+
+          if persistent:
+            # pass in the number of groups since not available in WG
             s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
             s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
 
@@ -766,7 +816,7 @@ class SolutionWriter:
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
-        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
+        if not globalParameters["PreciseKernelTime"] or kernelLanguage == "Source":
           s += "%sif( outputEvent != NULL )\n" % (t)
           s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
         s += "  }\n"
@@ -816,10 +866,16 @@ class SolutionWriter:
 
   ########################################
   # get solution arguments
-  def getArgList(self, problemType, includeData, includeEvents, includeStream):
+  # includeData adds launch-time info including data pointers and solution index
+  def getArgList(self, problemType, includeSolutionInfo, includeData, includeEvents, includeStream):
     self.strideList = []
     self.sizeList = []
     argList = []
+
+    if includeSolutionInfo:
+      argList.append(("SolutionLock *", "solutionLock"))
+    #  argList.append(("const char *", "kernelName2"))
+    #  argList.append(("const unsigned char *", "kernelCoba"))
 
     # data ptrs
     if includeData:
@@ -881,20 +937,12 @@ class SolutionWriter:
     solutionName = self.getSolutionName(solution)
     s += "%s%s %s(\n" % (t, self.statusName, solutionName)
     t += "    "
-    argList = self.getArgList(solution["ProblemType"], True, True, True)
+    argList = self.getArgList(solution["ProblemType"], True, True, True, True)
     for i in range(0, len(argList)):
       argString = "%s %s" % argList[i]
       s += "%s%s%s" % (t, argString, ",\n" if i < len(argList)-1 else ")" )
     return s
 
-
-  ########################################
-  # get full source code
-  # called from BenchmarkProblems
-  def getSourceFileString(self, solution, kernelsWithBuildErrs):
-    fileStr = "" # CHeader
-    fileStr += self.getSourceString(solution, kernelsWithBuildErrs)
-    return fileStr
 
 
   ########################################

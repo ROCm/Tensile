@@ -66,11 +66,14 @@ globalParameters["ForceRedoLibraryLogic"] = True      # if False and library log
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
+globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?
+# FROM MERGE
+#globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
 ########################################
 # less common
@@ -139,7 +142,6 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 # might be deprecated
-globalParameters["SolutionMapHash"] = False
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
 
@@ -236,6 +238,9 @@ validParameters = {
     # This eliminates 4 vector XOR instructions used for pointer swap
     "ExpandPointerSwap":          [False, True],
 
+    "BufferLoad":                 [ False, True ],
+    "BufferStore":                [ False, True ],
+
     # Attempt to load directly from global memory into LDS.
     # Assembly only
     # Requires BufferLoad, assembler support for lds modifier on buffer
@@ -247,18 +252,40 @@ validParameters = {
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
     "DirectToLds":                [ False, True],
 
-    "BufferStore":                [ False, True],
+    # Load options:
+    # (GRO = Global Read Offset)
+    # BufferLoad=0:
+    #  = Use flat instructions with 64 bit GRO for each load
+    #    + supports sizes up to 2^64
+    #    - uses many VGPR for addressing
+    #    - uses execmask+compares for edge detection
+    #    - generates extra LDS traffic (could convert flat->global load)
+    # BufferLoad=1:
+    #  = Use buffer load instructions with 32-bit offset
+    #    + Less VGPRS (32b offset vs 64-bit) needed for addressing
+    #    + Uses hardware buffer limit for edge detection
+    #    - Limited range - the bot-right corner of macro-tile (plus padding=GRVW
+    #        for shift-pointer, if ShiftPtr is required) must be within 2^32.
+    #      ShiftPtrPad = MayShift ? GRWV*BPE : 0
+    #      For TLU=1: Unroll*StrideA1 + ShiftPtrPad <= 2^32
+    #      For TLU=0: MT*StrideA1 + ShiftPtrPad <= 2^32
+    #      These conditions should be checked using Assert - TODO
+    #  = UseSgprForGRO=1:
+    #    + Attempt to use SGPR for Global Read Offsets.
+    #    + Use one VGPR base GRO + many SGPR GRO rather than many VGPR GRO.
+    #    + Each SGPR stores an offset from base GlobalReadOffset+0.
+    #    - Requirements for UseSgprForGRO=1:
+    #      - BufferLoad=1
+    #      - Use appropriate Assert*ElementMultiple or GRVW=1 to eliminate need for ShifPtr
+    #        (UseSgprForGRO does not support ShiftPtr since ShiftPtr needs to potentially shift GRO)
+    #  = KernelWriterAssembly also supports 64-bit 2D buffer size (see use64bPbcLimit)
+    #    - Requires 4 instructions to move scalar limit and a couple SGPR
+    #    - Enabled by default.  If the overhead matters we can add asserts/YAML parm to specialize
 
-    # Use buffer loads including limit field to precisely check array bounds.
-    # Eliminate the shift logic and simplifies the bounds checking.  Enables
-    # UseSgprForGRO.
-    "BufferLoad":                 [ False, True],
 
-    # Attempt to use SGPR for Global Read Offsets.
-    # Requires BufferLoad=1
-    # This will convert VGPR into SGPR which is usually a win (in particular if the GlobalReadWidth is 1.)
+    # Converting VGPR GRO into SGPR GRO is usually a win
     # However, the mode may exhaust all available SGPR, in particular for large unroll
-    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
     "UseSgprForGRO":              [ -1, 0, 1],
     "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
 
@@ -268,33 +295,69 @@ validParameters = {
     # Currently 32-bit CAS only, eventually might support more
     "VectorAtomicWidth":          [ -1, 1, 2 ] ,
 
-    # When creating the kernel, assume that the summation size is some multiple of the element size.
+    # Assertion properties
+    # These provide information or assertions that the problem size meets certain requirements
+    # for sizes or alignments.  The kernel generator can use this information to produce
+    # a kernel which uses those assertions to produce a faster kernel.
+    #
+    # If modifying or adding Assertions also change ProblemProperties class in TensileTypes.h
+
+    # Kernel generator will assume that the summation size is some multiple of the element size
+    # and use this to optimize the kernel.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
-    # summation value meets the requirements
-    # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
+    # summation value meets the requirements.
+    # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+    #
+    # Optimizations enabled by AssertSummationElementMultiple>1:
+    #  - If >=2 for half:
+    #     - Tail loop loads can be vectorized 2X to use dword
+    #     - Enables asm kernels on V20
+    #     - Can use DirectToLds for both unroll and tail loops
+    #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
+    #
+    # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertSummationElementMultiple": [1,2,4,8],
 
-    # When creating the kernel, assume that the 'first' free index size is some
-    # multiple of the element size.
-    # "first" free index is FreeIndex[0] and usually letter "I"
-    # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
+    # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
+    # and use this to optimize the kernel.
+    # FreeIndex[0] is usually letter "I"
+    # (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
+    #
+    # Optimizations enabled by AssertFree0ElementMultiple>1:
+    # Load optimizations:
+    #  - For TLU=1 matrix, if AF1WM>=GLVW then can enable UseSgprForGRO
+    #      - Reduces registers used for address calculations
+    #      - Enables FractionalLoad for more flexibility in address calcs
+    #      - Removes address shift/unshift code
+    #    - UseSgprForGRO will only be enabled if all matrices meet assertion requirements.
+    #
+    # Store Optimizations:
+    #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
+    #   (since C matrix is always coalesced in Free0 index diretion and this assertion guarantees the index element multiple)
+    #
+    # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
-    # When creating the kernel, assume that the 'second' free index size is some
-    # multiple of the element size.
-    # "first" free index is FreeIndex[1] and usually letter "J"
-    # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
-    #"AssertFree1ElementMultiple" : [1,2,4,8],
+    # Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
+    # and use this to optimize the kernel.
+    # FreeIndex[1] is usually letter "J"
+    # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+
+    # Optimizations enabled by AssertFree1ElementMultiple>1:
+    #  - See above AssertFree0ElementMultiple "Load optimizations"
+
+    # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
-    # Generate code inside kernel to check assertions above on Tensor dimensions
+    # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
+    "AssertMinApproxSize" : [0,1,2],
+
+    # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
     # Generate code inside kernel to check several dimension overflow cases, in particular around use of 32-bit calcs
-    # 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection, 2=checks for cases that should never happen
+    # 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection,
+    # 2=checks for cases that should never happen
     "CheckDimOverflow":               [0,1,2],
 
     # For Block Mapping type:
@@ -409,7 +472,7 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    # -1 means use same padding as the VectorWidth
+    # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
     "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
@@ -493,6 +556,7 @@ defaultBenchmarkCommonParameters = [
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
+    {"AssertMinApproxSize":        [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -585,71 +649,6 @@ defaultAnalysisParameters = {
     "SolutionImportanceMin":      0.01, # = 0.01=1% total time saved by keeping this solution
     }
 
-
-# Header written once at start of solution lookup functions
-# Also written into the benchmark client
-# Assumes surrounding code has defined sizeI,sizeJ, etc vars
-def writeSolutionAssertionCheckHeader(problemType):
-  s = ""
-  indent = "  "
-  summationIdx  = problemType["IndicesSummation"][-1] # use last summation idx
-  summationChar = globalParameters["IndexChars"][summationIdx]
-
-  free0Index = problemType["IndicesFree"][0] # use lowest free index, this is coalesced dim for C
-  free0Char = globalParameters["IndexChars"][free0Index]
-
-  free1Index = problemType["IndicesFree"][1] # use lowest free index, this is coalesced dim for C
-  free1Char = globalParameters["IndexChars"][free1Index]
-
-  s += indent + "unsigned psem = 1; // problem summation element multiple\n"
-  s += indent + "if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
-  s += indent + "else if ((size%s & 0x3) == 0) psem=4;\n"%(summationChar)
-  s += indent + "else if ((size%s & 0x1) == 0) psem=2;\n"%(summationChar)
-  s += "\n"
-  s += indent + "unsigned pf0em = 1; // problem free0 element multiple\n"
-  s += indent + "if ((size%s & 0x7) == 0) pf0em=8;\n"%(free0Char)
-  s += indent + "else if ((size%s & 0x3) == 0) pf0em=4;\n"%(free0Char)
-  s += indent + "else if ((size%s & 0x1) == 0) pf0em=2;\n"%(free0Char)
-  s += "\n"
-  s += indent + "unsigned pf1em = 1; // problem free1 element multiple\n"
-  s += indent + "if ((size%s & 0x7) == 0) pf1em=8;\n"%(free1Char)
-  s += indent + "else if ((size%s & 0x3) == 0) pf1em=4;\n"%(free1Char)
-  s += indent + "else if ((size%s & 0x1) == 0) pf1em=2;\n"%(free1Char)
-  s += "\n"
-  return s
-
-
-# Generate check code for the Assert flags
-# This is used in the benchmark client and the Tensile client
-# note parms can be hard-coded ints (if checking for a specific solution)
-# or strings (if the calling function is a generic launch function)
-def writeSolutionAssertionChecks(asem, af0em, af1em, sep=" "):
-  s = ""
-  # some solutions have restrictions ("assertions") on the input dims that are used to optimize the kernel
-  # ensure here that we don't violate any of those assumptions.
-  # 'p' variables are derived from the current problem dimension, ie psem is the problem summation element multiple
-  # 'a' variables are dereved from the assertion used to compile the kernel, ie asem is the assertion summation element multiple
-  # ASEM is an assertion that the summation element is some integer multiple, range 1..8
-  if asem>1:
-    if s != "" : s += " &&%s" % sep
-    s += "(psem >= %s)" % asem
-
-  # AF0EM is an assertion that the free index element is some integer multiple, range 1..8
-  if af0em>1:
-    if s != "" : s += " &&%s" % sep
-    s += "(pf0em >= %s)" % af0em
-
-  # AF1EM is an assertion that the free index element is some integer multiple, range 1..8
-  if af1em>1:
-    if s != "" : s += " &&%s" % sep
-    s += "(pf1em >= %s)" % af1em
-  return s
-
-def writeSolutionAssertionChecksForSolution(solution):
-    return writeSolutionAssertionChecks(
-        solution["AssertSummationElementMultiple"],
-        solution["AssertFree0ElementMultiple"],
-        solution["AssertFree1ElementMultiple"])
 
 ################################################################################
 # Searching Nested Lists / Dictionaries
@@ -767,7 +766,12 @@ def tryAssembler(isaVersion, options, asmString):
 # can override them, those overridings happen here
 ################################################################################
 def assignGlobalParameters( config ):
+
   global globalParameters
+
+  print1("# Restoring default globalParameters")
+  for key in defaultGlobalParameters:
+    globalParameters[key] = defaultGlobalParameters[key]
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -814,8 +818,7 @@ def assignGlobalParameters( config ):
     if process.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
-  # Determine assembler capabilities:
-  # Try to assemble the new explicit co syntax:
+  # Determine assembler capabilities by testing short instructions sequences:
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
   for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
@@ -920,6 +923,17 @@ def versionIsCompatible(queryVersionString):
     if qStep > tStep:
       return False
   return True
+
+# convert python list to C++ initializer style syntax
+def listToInitializer(l):
+  s = "{"
+  first = 1
+  for i in l:
+    if not first: s += ","
+    s += str(i)
+    first = 0
+  s += "}"
+  return s;
 
 ################################################################################
 # Progress Bar Printing

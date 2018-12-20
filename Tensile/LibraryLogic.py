@@ -247,23 +247,30 @@ class LogicAnalyzer:
       #print "ProblemSizes", problemSizes.sizes
       self.rangeProblemSizes.update(problemSizes.sizes)
       for rangeSize in problemSizes.ranges:
-        #print "RangeSize", rangeSize
-        sizedIdx = 0
-        mappedIdx = 0
-        for i in range(0, self.numIndices):
-          if rangeSize.indexIsSized[i]:
-            index = rangeSize.indicesSized[sizedIdx]
-            sizedIdx += 1
-          else:
-            index = rangeSize.indicesSized[ \
-              rangeSize.indicesMapped[mappedIdx]]
-            mappedIdx += 1
-          currentSize = index[0]
-          currentStride = index[1]
-          while currentSize <= index[3]:
-            unifiedProblemSizes[i].add(currentSize)
-            currentSize += currentStride
-            currentStride += index[2]
+
+        if globalParameters["ExpandRanges"]: 
+          # Treat ranges as pile of exacts:
+          for rsize in rangeSize.problemSizes:
+            self.exactProblemSizes.add(tuple(rsize))
+        else:
+          # Create the ranges info in the logic file
+          #print "RangeSize", rangeSize
+          sizedIdx = 0
+          mappedIdx = 0
+          for i in range(0, self.numIndices):
+            if rangeSize.indexIsSized[i]:
+              index = rangeSize.indicesSized[sizedIdx]
+              sizedIdx += 1
+            else:
+              index = rangeSize.indicesSized[ \
+                rangeSize.indicesMapped[mappedIdx]]
+              mappedIdx += 1
+            currentSize = index[0]
+            currentStride = index[1]
+            while currentSize <= index[3]:
+              unifiedProblemSizes[i].add(currentSize)
+              currentSize += currentStride
+              currentStride += index[2]
     for i in range(0, len(unifiedProblemSizes)):
       unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
     print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
@@ -357,6 +364,7 @@ class LogicAnalyzer:
   def addFromCSV(self, dataFileName, numSolutions, solutionMap):
 
     # open file
+    print "reading datafile", dataFileName
     try:
       dataFile = open(dataFileName, "r")
     except IOError:
@@ -399,14 +407,14 @@ class LogicAnalyzer:
               winnerIdx = solutionIdx
               winnerGFlops = gflops
             solutionIdx += 1
-          assert (winnerIdx != -1)
-          if problemSize in self.exactWinners:
-            if winnerGFlops > self.exactWinners[problemSize][1]:
-              #print "update exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
+          if winnerIdx != -1:
+            if problemSize in self.exactWinners:
+              if winnerGFlops > self.exactWinners[problemSize][1]:
+                #print "update exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
+                self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
+            else:
               self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-          else:
-            self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-            #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
+              #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
 
         # Range Problem Size
         elif problemSize in self.rangeProblemSizes:
