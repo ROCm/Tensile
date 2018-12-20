@@ -457,7 +457,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "// Master solution mapper is the entry point for problem->solution mapping\n"
     s += "// There is one master solution mapper per problem type\n"
     s += "// The master solution mapper contains pointers to the solution mappers for each device\n"
-    s += "static MasterSolutionMapper masterSolutionMapper_%s;\n " % (problemType)
+    s += "static MasterSolutionMapper<ProblemDims_%s> masterSolutionMapper_%s;\n " % (problemType,problemType)
 
 
     ########################################
@@ -522,7 +522,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                     solutionNamesForSchedule, False)
     s += "  /* exact mappings */\n"
     s += exactLogicStr
-    s += "  return NULL; // none\n"
+    #s += "  return NULL; // none\n"
     s += "\n}\n"
 
     ########################################
@@ -669,13 +669,10 @@ def writeExactLogic(problemType, indexOrder,
 
   s += "  auto solutionMapper = reinterpret_cast<SolutionMapper_%s *> (masterSolutionMapper_%s.mapper());\n"  \
       % (problemType, problemType)
-  s += "  int solutionIdx = solutionMapper->findAlgorithmStatic(pdims);\n"
-  s +=   "  if (solutionIdx != -1) {\n"
   if ptr:
-    s += "    return solutionMapper->getSolution(solutionIdx);\n"
+    s += "  return solutionMapper->getSolutionWithFallback(pdims,&masterSolutionMapper_%s);\n" % problemType
   else:
-    s += "    return solutionMapper->getSolution(solutionIdx)->_info->_name;\n"
-  s +=   "  }\n"
+    s += "  return solutionMapper->getSolutionWithFallback(pdims,&masterSolutionMapper_%s)->_info->_name;\n" % problemType
 
   return s
 

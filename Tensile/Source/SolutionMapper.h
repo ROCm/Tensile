@@ -36,7 +36,7 @@
 // DEBUG_SM sets compile-time default - also can use TENSILE_DB env var with same encoding
 #define DEBUG_SM 0
 
-class SolutionMapperBase {
+class SolutionMapperRuntime {
 public:
   // Runtime information for the solution:
   //   - const pointer to the info including function pointers, name, and assertion requirements
@@ -52,11 +52,20 @@ protected:
   enum Algo {PickNoneAlgo= -1, RandomAlgo= -2, RatioDistanceAlgo= -3, EuclideanDistanceAlgo= -4, ManhattanDistanceAlgo= -5};
 };
 
+
+template <class ProblemDimsType>
+class SolutionMapperBase : public SolutionMapperRuntime {
+public:
+  
+  virtual SolutionMapperRuntime::SolutionRuntime * getSolution(ProblemDimsType &pdims) = 0;
+};
+
 //--------------------
 // Maps from deviceId to appropriate solution
 //
 // One of these per problem type.
 // TODO - move to SolutionMapper.cpp
+template <class ProblemDimsType>
 class MasterSolutionMapper
 {
 public:
@@ -69,7 +78,7 @@ public:
     }
   };
 
-  int addMapper(const std::string &mapperName, SolutionMapperBase *mapper)
+  int addMapper(const std::string &mapperName, SolutionMapperBase<ProblemDimsType> *mapper)
   {
     int matches = 0;
 
@@ -79,26 +88,42 @@ public:
       hipGetDeviceProperties(&deviceProperties, i);
       std::string deviceName(deviceProperties.name);
       //  printf("compare #%d:%s == %s\n", i, deviceName.c_str(), mapperName.c_str());
-      if ((deviceName == mapperName) ||
-          ((mapperName == "fallback" || mapperName == "Device 0000") && _mapper[i] == nullptr)) {
+      if ((deviceName == mapperName)) { 
+          //((mapperName == "fallback" || mapperName == "Device 0000") && _mapper[i] == nullptr)) {
         matches++;
         _mapper[i] = mapper;
-        //printf ("  match->%d\n", matches);
+        // printf ("  match->%d\n", matches);
+      }
+      if ((mapperName == "fallback" || mapperName == "Device 0000")) {
+        if (_fallbackMapper == nullptr) {
+	  _fallbackMapper = mapper;
+          matches++;
+        }
+        if (_mapper[i] == nullptr) {
+          _mapper[i] = mapper;
+          matches++;
+        }
       }
     }
     return matches;
   }
 
-  SolutionMapperBase *mapper()
+  SolutionMapperBase<ProblemDimsType> *mapper()
   {
     int deviceId;
     hipGetDevice(&deviceId);
     return _mapper[deviceId];
   }
 
+  SolutionMapperBase<ProblemDimsType> *fallbackMapper()
+  {
+    return _fallbackMapper;
+  }
+
 private:
   // Index is deviceId, points at the mapper to use for that device.
-  std::vector <SolutionMapperBase*> _mapper;;
+  std::vector <SolutionMapperBase<ProblemDimsType>*> _mapper;
+  SolutionMapperBase<ProblemDimsType>* _fallbackMapper;
 };
 
 // SolutionMapper:
@@ -107,18 +132,18 @@ private:
 // a 'best match' from the available solutions
 // This provides mappings for a single device type
 template <class ProblemDimsType, class ProblemKeyType>
-class SolutionMapper : public SolutionMapperBase {
+class SolutionMapper : public SolutionMapperBase<ProblemDimsType> {
   // Problem to Solution mapping:
   typedef std::pair<const ProblemKeyType, int>  PtoS;
 
 public:
   SolutionMapper(const std::string &name, const std::vector<std::string> &deviceNames,
-                 MasterSolutionMapper *masterSolutionMapper,
+                 MasterSolutionMapper<ProblemDimsType> *masterSolutionMapper,
                  const SolutionInfo *solutionTable, size_t numSolutions,
                  const PtoS *embeddedExactTable, size_t numExacts,
                  const ProblemType *problemType)
      :  _name(name), _problemType(problemType), _numSolutions(numSolutions),
-        _findAlg(EuclideanDistanceAlgo), _db(DEBUG_SM)
+        _findAlg(SolutionMapperRuntime::EuclideanDistanceAlgo), _db(DEBUG_SM)
   {
     int used=0; // how many devices are using this solution mapper:
     for (auto iter=deviceNames.begin(); iter!=deviceNames.end(); iter++) {
@@ -135,7 +160,7 @@ public:
       return;
     }
 
-    _solutionTable = new SolutionRuntime[numSolutions];
+    _solutionTable = new SolutionMapperRuntime::SolutionRuntime[numSolutions];
 
     for (size_t i=0; i<numSolutions; i++) {
       _solutionTable[i]._info = &solutionTable[i];
@@ -170,11 +195,11 @@ public:
       return "Explicitly-Selected";
     }
     switch (algo) {
-      CASE_STRING(PickNoneAlgo);
-      CASE_STRING(RandomAlgo);
-      CASE_STRING(RatioDistanceAlgo);
-      CASE_STRING(EuclideanDistanceAlgo);
-      CASE_STRING(ManhattanDistanceAlgo);
+      CASE_STRING(SolutionMapperRuntime::PickNoneAlgo);
+      CASE_STRING(SolutionMapperRuntime::RandomAlgo);
+      CASE_STRING(SolutionMapperRuntime::RatioDistanceAlgo);
+      CASE_STRING(SolutionMapperRuntime::EuclideanDistanceAlgo);
+      CASE_STRING(SolutionMapperRuntime::ManhattanDistanceAlgo);
       default: return ("Unknown Algo");
     };
   };
@@ -245,15 +270,15 @@ public:
       }
     }
     switch (_findAlg) {
-      case PickNoneAlgo: // Fall through to range logic
+      case SolutionMapperRuntime::PickNoneAlgo: // Fall through to range logic
         return -1;
-      case RandomAlgo:
+      case SolutionMapperRuntime::RandomAlgo:
         return findNearestMatch (pa, pkey, RandomDistance<decltype(pkey)>());
-      case EuclideanDistanceAlgo:
+      case SolutionMapperRuntime::EuclideanDistanceAlgo:
         return findNearestMatch (pa, pkey, EuclideanDistance<decltype(pkey)>());
-      case ManhattanDistanceAlgo:
+      case SolutionMapperRuntime::ManhattanDistanceAlgo:
         return findNearestMatch (pa, pkey, ManhattanDistance<decltype(pkey)>());
-      case RatioDistanceAlgo:
+      case SolutionMapperRuntime::RatioDistanceAlgo:
       default:
         return findNearestMatch (pa, pkey, RatioDistance<decltype(pkey)>());
         break;
@@ -300,12 +325,36 @@ public:
     }
   }
 
-  SolutionRuntime *getSolution(int solutionIdx) const {
+  SolutionMapperRuntime::SolutionRuntime *getSolutionWithFallback(ProblemDimsType &pdims, MasterSolutionMapper<ProblemDimsType> *masterSolutionMapper) {
+ 
+    SolutionMapperRuntime::SolutionRuntime *solution = nullptr;
+ 
+    solution = masterSolutionMapper->mapper()->getSolution(pdims);
+    if (solution == nullptr) {
+ 
+      solution = masterSolutionMapper->fallbackMapper()->getSolution(pdims);
+ 
+    }
+    return solution;
+  }
+ 
+  SolutionMapperRuntime::SolutionRuntime *getSolution(ProblemDimsType &pdims) {
+     
+    int solutionIdx = findAlgorithmStatic(pdims);
+    SolutionMapperRuntime::SolutionRuntime *solution = nullptr;
+    if (solutionIdx != -1) {
+      solution = getSolution(solutionIdx);
+    } 
+ 
+    return solution;
+  }
+
+  SolutionMapperRuntime::SolutionRuntime *getSolution(int solutionIdx) const {
     //printf ("getSolution for solutionIdx=%d\n", solutionIdx);
     return &_solutionTable[solutionIdx];
   };
 
-  const SolutionRuntime &cacheSolution(const ProblemDimsType &pdims, int solutionIdx) {
+  const SolutionMapperRuntime::SolutionRuntime &cacheSolution(const ProblemDimsType &pdims, int solutionIdx) {
     {
       if (solutionIdx != -1) {
         ProblemKeyType pkey(pdims);
@@ -324,7 +373,7 @@ private:
   const std::string        _name;
   const ProblemType        *_problemType;
 
-  SolutionRuntime *   _solutionTable;
+  SolutionMapperRuntime::SolutionRuntime *   _solutionTable;
   size_t              _numSolutions;
 
   // Two different structures supporting mapping from problems to solutions:
