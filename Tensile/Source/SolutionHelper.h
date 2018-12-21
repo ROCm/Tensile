@@ -31,31 +31,47 @@
 #include <atomic>
 
 /*******************************************************************************
+ * Helper classes for locking, tracking, and getting solutions.
+ * Works closely with SolutionMapper.h
+ ******************************************************************************/
+
+/*******************************************************************************
  * Kernel Cache
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
 typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
+typedef void * DeviceFunctionType;
 #else
 typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
+typedef hipFunction_t DeviceFunctionType;
+#endif
 
+// Locks and tracker for kernel loading status
 struct SolutionLock {
-  std::atomic<hipFunction_t*> _hipFunctions;
+  SolutionLock() : _deviceFunctions(nullptr)
+  {
+  };
+
+  SolutionLock(const SolutionLock &other) {
+    _deviceFunctions.store(other._deviceFunctions.load());
+  };
+
+
+  std::atomic<DeviceFunctionType*> _deviceFunctions;
   std::mutex _initFunctionsMutex;
   std::mutex _loadModuleMutex;
 
   // if codeFromExe==nullptr then load code from file using kernelName
-  hipError_t getFunction(hipFunction_t *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
+  TensileStatus getFunction(DeviceFunctionType *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
 };
-#endif
 
 #ifdef WIN32
 __declspec(thread) extern KernelMap kernelMap;
 #else
 extern thread_local KernelMap kernelMap;
 #endif
-
 
 /*******************************************************************************
  * Compile/Load Kernels
@@ -72,5 +88,21 @@ void tensileGetCompiledOpenCLKernel(
 //  const char *functionName,
 //  const unsigned char *coba); // code object byte array
 #endif
+
+// solution info - constant compile or load-time information about the solution
+struct SolutionInfo {
+  // _functionPtr is a generic function pointer to a solution.
+  // Different Problem types can have different solution function signatures ;
+  // Use void* since so can use same type for all w/o flurry of auto-generated template types
+  void *                  _functionPtr;
+  const char *            _name;
+
+  // These are requirements that the problem dims must meet in order to use this solution
+  // For example so kernels may be optimized with the assumption that the summation is even
+  // thus allowing faster code but the solution only works if the requirement is met.
+  // The structure here captures those requirements - they will be checked before
+  // launching the kernel
+  ProblemProperties     _assertionRequirements;
+};
 
 #endif

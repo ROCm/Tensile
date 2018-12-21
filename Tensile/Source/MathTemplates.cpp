@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <string.h>
 #include <sstream>
 
 
@@ -329,6 +330,8 @@ bool tensileEqual(TensileComplexDouble a, TensileComplexDouble b) {
 template< >
 void tensileComplexConjugate(TensileHalf &) {}
 #endif
+template< >
+void tensileComplexConjugate(unsigned int &) {}
 template< >
 void tensileComplexConjugate(float &) {}
 template< >

@@ -105,19 +105,19 @@ void tensileGetCompiledOpenCLKernel(
  * Get Assembly Kernels for HIP
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_HIP
-hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
+TensileStatus SolutionLock::getFunction(hipFunction_t *f, int deviceId,
                                      const std::string &kernelName,
                                      const unsigned char *codeFromExe)
 {
   hipError_t e = hipSuccess;
   *f = nullptr;
 
-  auto t = _hipFunctions.load(std::memory_order_relaxed);
+  auto t = _deviceFunctions.load(std::memory_order_relaxed);
   std::atomic_thread_fence(std::memory_order_acquire);
   if (t == nullptr) {
     std::lock_guard<std::mutex> initFunctionsLock(_initFunctionsMutex);
-    auto t = _hipFunctions.load(std::memory_order_relaxed);
-    if ( !t) {
+    auto t = _deviceFunctions.load(std::memory_order_relaxed);
+    if (t == nullptr) {
       int numDevices = -1;
       e = hipGetDeviceCount( &numDevices );
       if (e) { return e; };
@@ -127,16 +127,14 @@ hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
         t[i] = nullptr;
       }
       std::atomic_thread_fence(std::memory_order_release);
-      _hipFunctions.store(t, std::memory_order_relaxed);
+      _deviceFunctions.store(t, std::memory_order_relaxed);
     }
   }
-  // TODO - handle CodeFromFiles=0
-      //if not globalParameters["CodeFromFiles"]:
-      //  s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
-  if ( !_hipFunctions[deviceId] ) {
+
+  if ( !_deviceFunctions[deviceId] ) {
     std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
     hipModule_t module = nullptr;
-    if (!_hipFunctions[deviceId]) {
+    if (!_deviceFunctions[deviceId]) {
       if (codeFromExe == nullptr) {
         std::string pk1 = "assembly/" + kernelName + ".co";
         std::string pk2 = "../source/assembly/" + kernelName + ".co";
@@ -148,11 +146,11 @@ hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
         e = hipModuleLoadData(&module, codeFromExe);
       }
       if (e) { return e; };
-      e = hipModuleGetFunction(&_hipFunctions[deviceId], module, kernelName.c_str());
+      e = hipModuleGetFunction(&_deviceFunctions[deviceId], module, kernelName.c_str());
       if (e) { return e; };
     }
   }
-  *f = _hipFunctions[deviceId];
+  *f = _deviceFunctions[deviceId];
   return e;
 }
 

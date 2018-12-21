@@ -133,6 +133,9 @@ unsigned int globalFastestIdx = 0;
 double fastestGFlops = 0.0;
 unsigned int fastestIdx = 0;
 
+
+SolutionLock *solutionLocks;
+
 #if Tensile_RUNTIME_LANGUAGE_OCL
 /*******************************************************************************
 * Given a finished/synced OpenCL event
@@ -634,9 +637,6 @@ bool callLibrary(
   avgFanSpeed /= numSyncsPerBenchmark;
 
   float perfScaling = 1.f;
-#if Tensile_RUNTIME_LANGUAGE_HIP
-//  perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
-#endif
   double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
 
   bool newFastest = false;
@@ -888,7 +888,7 @@ bool benchmarkAllSolutionsForSize(
       tensileStatusCheck(status);
 
       // enqueue device solution
-      callStatus = generatedCallToSolution( solutionIdx , sizes, minStrides, strideA, strideB, strideC, alpha, beta );
+      callStatus = generatedCallToSolution( solutions[solutionIdx] , &solutionLocks[solutionIdx], sizes, minStrides, strideA, strideB, strideC, alpha, beta );
 
       if (callStatus == tensileStatusSuccess) {
         // copy data back to host
@@ -965,10 +965,10 @@ bool benchmarkAllSolutionsForSize(
       unsigned long long syncFanSpeed = 0;
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-        TensileStatus status = generatedCallToSolution( solutionIdx , sizes, minStrides, strideA, strideB, strideC, alpha, beta,
+        TensileStatus status = generatedCallToSolution( solutions[solutionIdx], &solutionLocks[solutionIdx], sizes, minStrides, strideA, strideB, strideC, alpha, beta,
             0, NULL, &l_outputEvent[syncIdx][enqIdx] );
 #else
-        TensileStatus status = generatedCallToSolution( solutionIdx, sizes, minStrides, strideA, strideB, strideC, alpha, beta,
+        TensileStatus status = generatedCallToSolution( solutions[solutionIdx], &solutionLocks[solutionIdx], sizes, minStrides, strideA, strideB, strideC, alpha, beta,
             numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
             &l_eventStop[syncIdx][enqIdx] );
 #endif
@@ -1060,9 +1060,6 @@ bool benchmarkAllSolutionsForSize(
     avgFanSpeed /= numSyncsPerBenchmark;
 
     float perfScaling = 1.f;
-#if Tensile_RUNTIME_LANGUAGE_HIP
-//    perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
-#endif
     double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
     //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;
     bool newFastest = false;
@@ -1078,24 +1075,28 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // print results to stdout
-    if (newFastest || numInvalids>0 || !printWinnersOnly) {
+    if (newFastest || numInvalids>0 || !printWinnersOnly || callStatus != tensileStatusSuccess) {
       std::cout << std::setw(10) << std::fixed << std::setprecision(3)
           << gflops*perfScaling << ", "
           << std::setw(10) << std::fixed << std::setprecision(3)
           << gflops << ", "
-          << solutions[solutionIdx].name << (newFastest ? "*" : " ") << ", "
+          << solutions[solutionIdx]._name << (newFastest ? "*" : " ") << ", "
           << std::setw(9) << std::fixed << std::setprecision(3)
           << timeNs * TensileTimer::reciprical_million << ", ";
-      if (numElementsToValidate) {
-        if (callStatus == tensileStatusSuccess)
+
+      if (callStatus == tensileStatusSuccess) {
+        if (numElementsToValidate) {
           std::cout << (numInvalids ? "FAILED" : "PASSED")
             << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
-        else if (callStatus == tensileStatusAssertFailure)
-          std::cout << "DID_NOT_SATISFY_ASSERTS, ";
-        else
-          std::cout << "INVALID_KERNEL, "; // launch function returned error?  
-
+        } else {
+          std::cout << "NO_CHECK, "; // did not validate any results, may work or maybe not
+        }
+      } else if (callStatus == tensileStatusAssertFailure) {
+        std::cout << "DID_NOT_SATISFY_ASSERTS, ";
+      } else {
+        std::cout << "INVALID_KERNEL, "; // launch function returned error?
       }
+
       // device stats
       std::cout << avgCoreClock << ", ";
       std::cout << avgMemClock << ", ";
@@ -1156,7 +1157,7 @@ bool benchmarkProblemSizes(
   std::cout << std::endl;
   std::cout << "Solutions: " << std::endl;
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-    std::cout << "(" << sIdx << ") " << solutions[sIdx].name << std::endl;
+    std::cout << "(" << sIdx << ") " << solutions[sIdx]._name << std::endl;
   }
   //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
@@ -1166,7 +1167,7 @@ bool benchmarkProblemSizes(
   }
   file << ", TotalFlops";
   for ( unsigned int s = 0; s < numSolutions; s++) {
-    file << ", " << solutions[s].name;
+    file << ", " << solutions[s]._name;
   }
   file << std::endl;
 
@@ -1174,7 +1175,7 @@ bool benchmarkProblemSizes(
   if (!numElementsToValidate) {
     std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-      generatedCallToSolution( sIdx, problemSizes[0], minStrides, strideA, strideB, strideC, alpha, beta );
+      generatedCallToSolution( solutions[sIdx], &solutionLocks[sIdx], problemSizes[0], minStrides, strideA, strideB, strideC, alpha, beta );
       status = clFinish(stream); tensileStatusCheck(status);
       tensileStatusCheck(status);
       std::cout << ".";
@@ -1208,7 +1209,7 @@ bool benchmarkProblemSizes(
 
   } // for problemIdx
 	auto timeK = totalKernelTimer.elapsed_sec();
-  std::cout <<  "\nRun kernels elapsed gpu_time:" << gpu_time_ms/1000.0 << "secs  total_time:" << timeK << " secs " << std::setprecision(2) << gpu_time_ms/timeK*(100.0/1000) << "% gpu utilization\n";
+  std::cout <<  "\nRun kernels elapsed gpu_time:" << gpu_time_ms/1000.0 << " secs  total_time:" << timeK << " secs " << std::setprecision(2) << gpu_time_ms/timeK*(100.0/1000) << "% gpu utilization\n";
 
   // close file
   file.close();

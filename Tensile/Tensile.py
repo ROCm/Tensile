@@ -124,7 +124,6 @@ def Tensile(userArgs):
 
   # parse arguments
   args = argParser.parse_args(userArgs)
-  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
   configPath = os.path.realpath( args.config_file)
 
   # 2nd half of splash
@@ -135,13 +134,15 @@ def Tensile(userArgs):
 
   # read config
   config = YAMLIO.readConfig( configPath )
-  ensurePath(globalParameters["WorkingPath"])
 
   # assign global parameters
   if "GlobalParameters" in config:
     assignGlobalParameters( config["GlobalParameters"] )
   else:
     assignGlobalParameters({})
+
+  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
+  ensurePath(globalParameters["WorkingPath"])
 
   # override config with command-line options
   if args.device:
