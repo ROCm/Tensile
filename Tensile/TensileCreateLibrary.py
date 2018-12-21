@@ -135,7 +135,15 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
       kernelHeaderFile.write("  typedef struct { int c0:8,c1:8,c2:8,c3:8; } C4I8;\n")
       kernelHeaderFile.write("  typedef union { int32_t i; C4I8 z; } PkInt8x4;\n")
       kernelHeaderFile.write("  PkInt8x4 va, vb; va.i = a; vb.i = b;\n")
-      kernelHeaderFile.write("  return c + (vb.z.c3*va.z.c3 + vb.z.c2*va.z.c2 + vb.z.c1*va.z.c1 + vb.z.c0*va.z.c0); }\n")
+
+      kernelHeaderFile.write("//if (__oclc_ISA_version == 906)\n")
+      kernelHeaderFile.write("//{\n")
+      kernelHeaderFile.write("//    return (float)__llvm_amdgcn_sdot4(a, b, c, true);\n")
+      kernelHeaderFile.write("//}\n")
+      kernelHeaderFile.write("//else\n")
+      kernelHeaderFile.write("//{\n")
+      kernelHeaderFile.write("      return c + (vb.z.c3*va.z.c3 + vb.z.c2*va.z.c2 + vb.z.c1*va.z.c1 + vb.z.c0*va.z.c0); }\n")
+      kernelHeaderFile.write("//}\n")
       kernelHeaderFile.write("\n\n")
     else:
       kernelHeaderFile.write("#include <string>\n")
