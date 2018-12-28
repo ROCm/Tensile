@@ -1516,7 +1516,7 @@ class KernelWriterSource(KernelWriter):
 
     # Number of elements in U accessed by the unroll loop:
     # Does not include elements accessed in tail loop
-    kStr += "  const unsigned startNumIter = numIter%s;%s" % (loopChar, self.endLine)
+    kStr += "  const unsigned origNumIter = numIter%s;%s" % (loopChar, self.endLine)
 
     if kernel["StaggerUMapping"] == 0:
       staggerInput = ("wg%s" % self.tileChar0)
@@ -1608,14 +1608,14 @@ class KernelWriterSource(KernelWriter):
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
             if kernel["StaggerU"]:
-              kStr += "  %s += ((startNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
+              kStr += "  %s += ((origNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
                       % (gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
                         (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset remove: gid=%%u.%%u.%%u, startNumIter=%%u staggerUIter=%%u %s=%%p %s=%%p %s, \
-                                %s(2),%s(1),%s(0), startNumIter, staggerUIter, %s, %s);%s" \
+                kStr += "printf(%sStaggerOffset remove: gid=%%u.%%u.%%u, origNumIter=%%u staggerUIter=%%u %s=%%p %s=%%p %s, \
+                                %s(2),%s(1),%s(0), origNumIter, staggerUIter, %s, %s);%s" \
                                % (self.quote, \
                                   tc, gr, \
                                   self.endLineQuote, \
@@ -1755,7 +1755,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Increment A/B
   ##############################################################################
-  def globalReadIncrement(self, kernel, loopIdx, tP):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     kStr = ""
     tc = tP["tensorChar"]
     loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -1790,7 +1790,7 @@ class KernelWriterSource(KernelWriter):
                                     gr,tc, \
                                     self.endLine)
 
-              kStr += "  %s%s -= (startNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
+              kStr += "  %s%s -= (origNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
                       % (self.indent, \
                          gr,  tc, loopChar,
                          self.endLine)
