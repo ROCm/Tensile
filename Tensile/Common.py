@@ -617,7 +617,7 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
-    {"StaggerU":                  [ 8 ] },
+    {"StaggerU":                  [ 0 ] },  # always enable?
     {"StaggerUMapping":           [ 4 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },

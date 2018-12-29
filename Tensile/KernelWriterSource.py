@@ -803,6 +803,7 @@ class KernelWriterSource(KernelWriter):
     for idxChar in kernel["PackedC1Indices"][:-1]:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
+    s += "," + self.endLine + "  int staggerUIter"
 
     if kernel["PersistentKernel"]:
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
@@ -1253,15 +1254,7 @@ class KernelWriterSource(KernelWriter):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
-<<<<<<< HEAD
             # Pass parms to GLOBAL_OFFSET_ macro:
-            kStr += "  %s globalReadOffset%s_%u_%u_%u_%u = GLOBAL_OFFSET_%s( " \
-                % (self.uint64Str, tP["tensorChar"], \
-                para, sPara, perp, sPerp, tP["tensorChar"])
-            for i in range(0, len(tP["ia"])):
-              index = tP["ia"][i]
-              if index < problemType["NumIndicesC"]:
-=======
             gro = "globalReadOffset%s_%u_%u_%u_%u" \
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
@@ -1269,15 +1262,8 @@ class KernelWriterSource(KernelWriter):
                 % (self.uint64Str, gro, tP["tensorChar"])
             for i in range(0, len(tP["ia"])):
               index = tP["ia"][i]
-
               if index < kernel["ProblemType"]["NumIndicesC"]:
->>>>>>> 3376afb... Add initial Stagger* impl
                 if index == tP["tileIdx"]:
-                  ti= "globalReadOffset%s%s_%u_%u" \
-                      % (tP["tensorChar"], tP["tileChar"], \
-                      (para if tP["tlu"] else perp), \
-                      (sPara if tP["tlu"] else sPerp) )
-<<<<<<< HEAD
                 else:
                   if isPackedIndex(kernel, index):
                     # pass vector per-tensor-dim offset (rather than scalar wg)
@@ -1293,11 +1279,6 @@ class KernelWriterSource(KernelWriter):
                   else:
                     # just a non-vector group index
                     kStr += "wg" + self.indexChars[index]
-=======
-                  kStr += ti
-                else: # just a group index
-                  kStr += "wg" + self.indexChars[index]
->>>>>>> 3376afb... Add initial Stagger* impl
               else: # summation index
                 if index == kernel["ProblemType"]["IndexUnroll"]:
                   kStr += "globalReadOffset%s%s_%u_%u" \
@@ -1533,17 +1514,9 @@ class KernelWriterSource(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
 
-    # Poor man's mod function
-    # ensure the max stagger tow is less than unroll dimension (else we could start outside the desired row)
-    kStr += "unsigned int staggerUIter=%s;%s" % (kernel["StaggerU"], self.endLine)
-
-    # Find the biggest stagger start we can use:
-    #  - must be smaller than user-specified StaggerU parm
-    #  - must be smaller than the number of loop iterations (can't start outside the tensor!)
-    for n in sorted(validParameters["StaggerU"], reverse=True):
-      if n>0:
-        if kernel["StaggerU"]>n:
-          kStr += "if (staggerUIter >= numIter%s) staggerUIter = %u;%s" % (loopChar, n, self.endLine)
+    # Number of elements in U accessed by the unroll loop:
+    # Does not include elements accessed in tail loop
+    kStr += "  const unsigned startNumIter = numIter%s;%s" % (loopChar, self.endLine)
 
     if kernel["StaggerUMapping"] == 0:
       staggerInput = ("wg%s" % self.tileChar0)
@@ -1554,20 +1527,18 @@ class KernelWriterSource(KernelWriter):
     elif kernel["StaggerUMapping"] == 3:
       assert(0) # TBD
     elif kernel["StaggerUMapping"] == 4:
-      staggerInput = "0xffffffff" # no
+      staggerInput = "0xffffffff" # all WG compute same stagger, this is test mode
     else:
       assert(0) # unsupported
-    kStr += "staggerUIter = %s & (staggerUIter-1);%s" % (staggerInput, self.endLine)
+    kStr += "  staggerUIter = %s & staggerUIter;%s" % (staggerInput, self.endLine)
 
-    # Number of elements in U accessed by the unroll loop:
-    # Does not include elements accessed in tail loop
-    kStr += "const unsigned startNumIter = numIter%s;%s" % (loopChar, self.endLine)
+
 
     if self.db["PrintStagger"]:
       kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) == 0)%s" % \
               (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-      kStr += "  printf(%sStaggerOffset loop init: numIter=%%u, staggerUIter=%%u%s, \
-                        numIter%s, staggerUIter);%s" \
+      kStr += "  printf(%sStaggerOffset loop init: numIter=%%u, staggerUIter=%%u, globalReadIncAL=%%lu globalReadIncBL=%%lu %s,\
+                        numIter%s, staggerUIter, globalReadIncAL, globalReadIncBL);%s" \
                       % (self.quote, self.endLineQuote, loopChar, self.endLine)
     return kStr
 
@@ -1602,13 +1573,22 @@ class KernelWriterSource(KernelWriter):
                       (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
               # typecasting to work around hcc printf bugs:
               kStr += "printf(%sStaggerOffset init: gid=%%u.%%u.%%u, ti=0x%%x  %s-%s=0x%%x%s, \
-                              %s(2),%s(1),%s(0), %s,  (unsigned)(size_t)(%s-%s),(unsigned)%s);%s" \
+                              %s(2),%s(1),%s(0), %s,  (unsigned)(size_t)(%s-%s));%s" \
                              % (self.quote,\
                                 gr, tc,
                                 self.endLineQuote,\
                                 self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,\
-                                ti,  gr,tc, \
+                                ti,  gr, tc, \
                                 self.endLine)
+
+    # if prefetching then wrap iteration needs to change since already prefetched
+    # some tiles before entering the unroll loop
+    kStr += self.endLine
+    if tP["isB"]:
+      kStr += "  staggerUIter += %u; // add PrefetchGlobalRead%s" \
+          % (kernel["PrefetchGlobalRead"], self.endLine)
+      # StaggerUIter is now the loop iteration where we should wrap the offset back to 0
+
     return kStr
 
   ##############################################################################
@@ -1628,14 +1608,14 @@ class KernelWriterSource(KernelWriter):
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
             if kernel["StaggerU"]:
-              kStr += "  %s += ((startNumIter - staggerUIter) * globalReadInc%s%s); // remove stagger offset%s" \
-                      % (gr, tc, loopChar, self.endLine)
+              kStr += "  %s += ((startNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
+                      % (gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
                         (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset remove: gid=%%u.%%u.%%u, %s=%%p %s=%%p %s, \
-                                %s(2),%s(1),%s(0), %s, %s);%s" \
+                kStr += "printf(%sStaggerOffset remove: gid=%%u.%%u.%%u, startNumIter=%%u staggerUIter=%%u %s=%%p %s=%%p %s, \
+                                %s(2),%s(1),%s(0), startNumIter, staggerUIter, %s, %s);%s" \
                                % (self.quote, \
                                   tc, gr, \
                                   self.endLineQuote, \
@@ -1798,10 +1778,11 @@ class KernelWriterSource(KernelWriter):
                       % (self.indent, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
+                # note loop counter numIterK/numIterL hard-coded, manually hack if needed
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
                         (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
                 kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
-                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), (unsigned)%s, numIterK, staggerUIter);%s" \
+                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
                                  % (self.quote, \
                                     tc, \
                                     self.endLineQuote, \
@@ -1818,7 +1799,7 @@ class KernelWriterSource(KernelWriter):
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
                         (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
                 kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
-                                %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), (unsigned)%s );%s" \
+                                %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
                                % (self.quote, \
                                   tc, \
                                   self.endLineQuote, \
@@ -1878,7 +1859,7 @@ class KernelWriterSource(KernelWriter):
                 self.endLine)
 
             #if self.db["PrintStagger"] and tP["isA"]:
-            if self.db["PrintStagger"]:
+            if 0 and self.db["PrintStagger"]:
               kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
                       (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
               kStr += "  printf(%sglobalRead: gid=%%u.%%u.%%u, %s loaded:%%.0f%s, \

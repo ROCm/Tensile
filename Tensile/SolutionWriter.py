@@ -146,6 +146,8 @@ class SolutionWriter:
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
 
+      # number of unroll loop iterations to stagger the start in "U" dim.
+      s += "%sint staggerUIter;\n" % t
 
       if persistent:
         # pass in the number of groups since not available in WG
@@ -393,6 +395,18 @@ class SolutionWriter:
             s += " tensor2dSizeB * size%s" % (self.indexChars[idx])
       s += ";\n"
 
+    unrollChar = globalParameters["IndexChars"][problemType["IndexUnroll"]]
+    s += "  int staggerUIter = %s; // how many unroll loop iters to stagger start offset\n" \
+        % (solution["StaggerU"])
+    s += "  int unrollLoopIters = size%s/%u/%u; // /DepthU/GSU\n" % (unrollChar, solution["DepthU"], gsu)
+    s += "  while (staggerUIter>1) {\n"
+    s += "    if (unrollLoopIters >= staggerUIter)\n"
+    s += "      break;\n"
+    s += "    staggerUIter /= 2; // step down to smaller stagger\n"
+    s += "  }\n"
+    s += "  if (staggerUIter>=1) staggerUIter -= 1;\n" # convert to a mask
+    #s += '  printf ("size%s=%%u StaggerU=%s unrollLoopIters=%%u, staggerUIter=%%d\\n", size%s, unrollLoopIters, staggerUIter);\n' % (unrollChar, solution["StaggerU"], unrollChar)
+
 
     #s += "printf(\"Launching with grid=%zu_%zu problemGrid=%u_%u mt=%u_%u\\n\", globalWorkSize[0][0], globalWorkSize[0][1], totalWorkGroups0, totalWorkGroups1, macroTile0, macroTile1);\n"
     s += "\n"
@@ -577,6 +591,9 @@ class SolutionWriter:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
 
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(staggerUIter), &staggerUIter ); tensileStatusCheck(status);\n" % (t, argIdx)
+        argIdx += 1
+
       s += "%sfor (unsigned int enqueueIdx = 0; enqueueIdx < numEnqueues[%u]; enqueueIdx++) {\n" % (t, kernelIdx)
       t += "  "
       # debug print kernel dimensions
@@ -685,19 +702,14 @@ class SolutionWriter:
             lastParam = i == problemType["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
-# FROM MERGED OLD
           for idxChar in solution["PackedC0Indices"][:-1]:
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
           for idxChar in solution["PackedC1Indices"][:-1]:
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
-
-
-#          if solution["PersistentKernel"]:
-# END OLD
+          s += "%s,staggerUIter\n" % (t)
           if persistent:
-# END MERGED
             s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
             s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
           s += "%s);\n" % (t)
@@ -759,6 +771,7 @@ class SolutionWriter:
           s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
           s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
 
+          s += "%shipFunctionArgs.staggerUIter = staggerUIter;\n" % (t)
           if persistent:
             # pass in the number of groups since not available in WG
             s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
