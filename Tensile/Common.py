@@ -364,11 +364,58 @@ validParameters = {
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
     # < 0 : Swaps the position of wg0 and wg1.
+
+    # Stagger the start summation position of the tiles
+    # Elements from the summation dimension are loaded at offsets rather than all starting
+    #
+    # The tile assignment C are same as with StaggerOffset=0 ; the difference is the
+    # order that the summation elements are added.
+    # GRO will wrap back to the row start start when the edge is reached.
+    #
+    # This can be effective for TLU=0 style matrices where the K dimension is a large power-of-2.
+    # In this case the start of each row of the tile is separated by an exact power-of-2
+    # which causes poor dram, cache, and tlb behavior.  V20 has 16 channels each 256 bytes wide.
+
+    # StaggerTile adjusts the start
+    # position in K dimension to avoid these conflicts.  Both A and B matrix are adjusted.
+    # If >0 specifies the offset in multiples of the macro-tile "unroll" dim
+    #  - Each tile in a new row will be offset from previous
+    #  - If the kernel contains more tiles in Tile dim than StaggerTile, the offset wraps back to 0
+    #  - Higher values will spread traffic to more channels but provide less L2 re-use.
+    #  - StaggerTile and WorkGroupMapping interact and should be tuned together -
+    #    The WGM controls how tiles are assigned in C matrix, while StaggerTile controls where those
+    #    tiles start reading their summation dim parms.
+    "StaggerTile":              [0,1,2,4,8,16],
+
+    #kTensor C always mapped with first free coord as fastest moving
+    # (Elements in this dimension are sequential in memory.
+    #
+    # For 2D nonbatched Matrix this means index order is I, then J
+    # For 2D batched Matrix this means index order is I, then J, then K.
+    #
+    # Then for 2D case:
+    #   - If drawn in row-major format, I is the width and J is the height.
+    #   - WGM determines dimensions of the box used to assign tiles from C
+    #   - WGM is the height of the box (in the J dimension)
+    #   - Given WGM, the box width (in I dim) is determined by number of CUs
+    #   - The box always moves across matrixC in the fastest-moving "I" dim, then
+    #     wraps to next J.  TODO - might be useful to change this?
+    #
+    # Examples for 2D matrix:
+    # WGM=8:  on CU64 machine this is a square box
+    # WGM=1:  Short/Fat - this will cover maximum width in I dimension of C
+    # WGM=64: Tall/Skinny - this will cover maximum width in J dimention of C
+    #
+    # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               range(1, 40+1),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
     "WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
-    "ThreadTile":                 validThreadTiles,     # ( tt0 x tt1 ) dimensions of the C tile that each thread works on, TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
+
+    #ThreadTile: ( tt0 x tt1 ) dimensions of the C tile that each thread works on,
+    # TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
+    # Generally, the VW determines the consecutive a WI will work on, then it will skip ahead SG0*VW elements to get to the next row of VGPR inputs
+    "ThreadTile":                 validThreadTiles,
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
     # If positive, each switch includes switches <= the specified switch.
@@ -462,7 +509,8 @@ validParameters = {
     # LoopUnroll=4 means there are 4 subiterations within the loop, 4 actual iterations written in the code.
     # LocalSplit=2 means the workgroup is split up into 2 subgroups, and each subgroup is doing different parts of the summation.
     # subgroup0 does k=0-3, 8-11... and subgroup1 does k=4-7, 12-15...
-    # So, each iteration through the summation loop, which has 4 actual subiterations, does 8 summation iterations, because each subgroup did 4; and when data is read from global memory the threads read 8 elements along the summation dimension.
+    # So, each iteration through the summation loop, which has 4 actual subiterations, does 8 summation iterations, because each subgroup did 4;
+    # and when data is read from global memory the threads read 8 elements along the summation dimension.
     # DepthU = LoopUnroll * LocalSplitU = 4*2 in this case
     # it made more sense for the user to directly control LocalSplitU and DepthU, then derrive afterwards LoopUnroll=DepthU/LocalSplitU
     # -1 : Only allow GLVW=1
@@ -560,6 +608,7 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
+    {"StaggerTile":               [ 0 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },

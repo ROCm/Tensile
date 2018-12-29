@@ -246,6 +246,11 @@ class KernelWriter:
       kStr += self.openLoop(kernel, i)
     kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
 
+    if kernel["StaggerTile"]:
+      kStr += self.declareStaggerParms(kernel)
+      kStr += self.calculateStaggerOffsetAndEdge(kernel, tensorParametersA)
+      kStr += self.calculateStaggerOffsetAndEdge(kernel, tensorParametersB)
+
     if self.enable["PreLoop"]:
       # init lds read pointers before each unrolled loop
       kStr += self.comment("local read addresses: init pointers a")
@@ -613,6 +618,11 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # tail: global read
         kStr += self.calculateLoopNumIter(kernel, -1)
+        if kernel["StaggerTile"]:
+          kStr += self.comment("remove stagger offsets for tail loop")
+          kStr += self.removeStagger(kernel, tensorParametersA)
+          kStr += self.removeStagger(kernel, tensorParametersB)
+
         kStr += self.comment("global read a")
         kStr += self.globalReadDo(kernel, 2, tensorParametersA)
         kStr += self.comment("global read b")
@@ -1482,6 +1492,28 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def declareLoopNumIter(self, kernel):
+    return ""
+
+  ##############################################################################
+  # Define stagger parms that will be used in calculateStaggerOffsetAndEdge
+  ##############################################################################
+  @abc.abstractmethod
+  def declareStaggerParms(self, kernel):
+    return ""
+
+
+  ##############################################################################
+  # Calculate and apply stagger offsets and edge
+  ##############################################################################
+  @abc.abstractmethod
+  def calculateStaggerOffsetAndEdge(self, kernel, loopIdx):
+    return ""
+
+  ##############################################################################
+  # Remove stagger offset (before tail loop)
+  ##############################################################################
+  @abc.abstractmethod
+  def removeStagger(self, kernel):
     return ""
 
   ##############################################################################
