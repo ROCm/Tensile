@@ -1525,8 +1525,8 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Declare stagger parms used for both A and B
   # Input is the number of loop iterations
-  # Defines staggerStart
-  # staggerStart must be power-of-2 to simplify masking implementation
+  # Defines staggerUIter
+  # staggerUIter must be power-of-2 to simplify masking implementation
   ##############################################################################
   def declareStaggerParms(self, kernel):
     kStr = ""
@@ -1535,7 +1535,7 @@ class KernelWriterSource(KernelWriter):
 
     # Poor man's mod function
     # ensure the max stagger tow is less than unroll dimension (else we could start outside the desired row)
-    kStr += "unsigned int staggerStart=%s;%s" % (kernel["StaggerU"], self.endLine)
+    kStr += "unsigned int staggerUIter=%s;%s" % (kernel["StaggerU"], self.endLine)
 
     # Find the biggest stagger start we can use:
     #  - must be smaller than user-specified StaggerU parm
@@ -1543,37 +1543,45 @@ class KernelWriterSource(KernelWriter):
     for n in sorted(validParameters["StaggerU"], reverse=True):
       if n>0:
         if kernel["StaggerU"]>n:
-          kStr += "if (staggerStart >= numIter%s) staggerStart = %u;%s" % (loopChar, n, self.endLine)
+          kStr += "if (staggerUIter >= numIter%s) staggerUIter = %u;%s" % (loopChar, n, self.endLine)
 
-    wg1 = "wg%s" % self.tileChar1
-    kStr += "staggerStart = %s & (staggerStart-1);%s" % (wg1, self.endLine)
-    wg1 = "wg%s" % self.tileChar1
+    if kernel["StaggerUMapping"] == 0:
+      staggerInput = ("wg%s" % self.tileChar0)
+    elif kernel["StaggerUMapping"] == 1:
+      staggerInput = "wg%s" % self.tileChar1
+    elif kernel["StaggerUMapping"] == 2:
+      staggerInput = "wg2"
+    elif kernel["StaggerUMapping"] == 3:
+      assert(0) # TBD
+    elif kernel["StaggerUMapping"] == 4:
+      staggerInput = "0xffffffff" # no
+    else:
+      assert(0) # unsupported
+    kStr += "staggerUIter = %s & (staggerUIter-1);%s" % (staggerInput, self.endLine)
 
     # Number of elements in U accessed by the unroll loop:
     # Does not include elements accessed in tail loop
-    kStr += "const unsigned wrapU = numIter%s * LOCAL_DEPTHU;%s" % (loopChar, self.endLine)
+    kStr += "const unsigned startNumIter = numIter%s;%s" % (loopChar, self.endLine)
 
     if self.db["PrintStagger"]:
       kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) == 0)%s" % \
               (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-      kStr += "  printf(%sStaggerOffset loop init: numIter=%%u, staggerStart=%%u, wrapU=%%u %s, \
-                        numIter%s, staggerStart, wrapU);%s" \
+      kStr += "  printf(%sStaggerOffset loop init: numIter=%%u, staggerUIter=%%u%s, \
+                        numIter%s, staggerUIter);%s" \
                       % (self.quote, self.endLineQuote, loopChar, self.endLine)
-
-    kStr += "#define STAGGER %u%s" % (kernel["DepthU"], self.endLine)
     return kStr
 
   ##############################################################################
-  # Calculate and apply stagger offsets and edge
+  # Calculate and apply stagger offsets
   #
-  # To help with cache behavior, offset the start position in the K dimension
-  # so each row is slightly offset.
-  # Also compute and save a per-work-item edge so we can easily detect when
-  # the kernel must "wrap" at the edge.
+  # To help with cache and memory parking, offset the start position in the
+  # summation dimension so each group starts at a different K
   ##############################################################################
-  def calculateStaggerOffsetAndEdge(self, kernel, tP):
+  def calculateStagger(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
+    loopIdx = self.unrollIdx
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -1581,39 +1589,25 @@ class KernelWriterSource(KernelWriter):
             gr = "globalRead%s_%u_%u_%u_%u" \
                   % (tc,   para, sPara, perp, sPerp)
 
-
             ti= "globalReadOffset%s%s_%u_%u" \
                 % (tc, tP["tileChar"], \
                 (para if tP["tlu"] else perp), \
                 (sPara if tP["tlu"] else sPerp) )
 
-            wg1 = "wg%s" % self.tileChar1
-            kStr += "  %s += (staggerStart * STAGGER); // apply stagger offset%s" \
-                    % (gr, self.endLine)
-
-            edge = "globalReadEdge%s_%u_%u_%u_%u" \
-                    % (tc, para, sPara, perp, sPerp)
-
-            idxChar = self.indexChars[ \
-                kernel["ProblemType"]["IndexAssignments%s"%tc][1]]
-            kStr += "  %s %s = (%s * stride%s%s) + wrapU; // compute row edge%s" \
-                    % (self.uint64Str, edge,
-                      ti, \
-                      tc, idxChar, \
-                      self.endLine)
-
+            kStr += "  %s += (staggerUIter * globalReadInc%s%s); // apply stagger offset%s" \
+                    % (gr, tc, loopChar, self.endLine)
 
             if self.db["PrintStagger"]:
               kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
                       (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
               # typecasting to work around hcc printf bugs:
-              kStr += "printf(%sStaggerOffset init: gid=%%u.%%u.%%u, ti=0x%%x  %s-%s=0x%%x, Edge=0x%%x%s, \
+              kStr += "printf(%sStaggerOffset init: gid=%%u.%%u.%%u, ti=0x%%x  %s-%s=0x%%x%s, \
                               %s(2),%s(1),%s(0), %s,  (unsigned)(size_t)(%s-%s),(unsigned)%s);%s" \
                              % (self.quote,\
                                 gr, tc,
                                 self.endLineQuote,\
                                 self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,\
-                                ti,  gr,tc,  edge,\
+                                ti,  gr,tc, \
                                 self.endLine)
     return kStr
 
@@ -1624,6 +1618,8 @@ class KernelWriterSource(KernelWriter):
   def removeStagger(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
+    loopIdx = self.unrollIdx
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -1631,12 +1627,9 @@ class KernelWriterSource(KernelWriter):
             gr = "globalRead%s_%u_%u_%u_%u" \
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
-            idxChar = self.indexChars[ \
-                kernel["ProblemType"]["IndexAssignments%s"%tP["tensorChar"]][1]]  # fixme, hardcoded 1
-
             if kernel["StaggerU"]:
-              kStr += "  %s += (wrapU- (staggerStart * STAGGER)); // remove stagger offset%s" \
-                      % (gr, self.endLine)
+              kStr += "  %s += ((startNumIter - staggerUIter) * globalReadInc%s%s); // remove stagger offset%s" \
+                      % (gr, tc, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
@@ -1785,60 +1778,52 @@ class KernelWriterSource(KernelWriter):
   def globalReadIncrement(self, kernel, loopIdx, tP):
     kStr = ""
     tc = tP["tensorChar"]
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
             kStr += "%sglobalRead%s_%u_%u_%u_%u = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)globalRead%s_%u_%u_%u_%u) + globalReadInc%s%s);%s" \
-                % (self.indent, tP["tensorChar"], para, sPara, perp, sPerp, \
+                % (self.indent, tc, para, sPara, perp, sPerp, \
                 self.globalPtrStr, self.globalPtrStr, tP["tensorChar"], \
                 para, sPara, perp, sPerp, \
-                tP["tensorChar"], loopChar, self.endLine)
+                tc, loopChar, self.endLine)
 
-            if kernel["StaggerU"]:
+            if kernel["StaggerU"] and loopIdx==self.unrollIdx:
               # Check to see if GRA wraps around edge:
-              idxChar = self.indexChars[ \
-                  kernel["ProblemType"]["IndexAssignments%s"%tP["tensorChar"]][1]]  # fixme, hardcoded 1
-
               gr = "globalRead%s_%u_%u_%u_%u" \
                       % (tP["tensorChar"], para, sPara, perp, sPerp)
-              edge = "globalReadEdge%s_%u_%u_%u_%u" \
-                      % (tP["tensorChar"], para, sPara, perp, sPerp)
 
-              #kStr += "%sif ((%s - %s) >= %s) {%s" \
-              #        % (self.indent, gr, tP["tensorChar"], edge, self.endLine)
-              kStr += "%sif ((numIter%s) == staggerStart) {%s" \
+              kStr += "%sif ((numIter%s) == staggerUIter) {%s" \
                       % (self.indent, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
                         (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x Edge=0x%%x wrapU=0x%%x numIter=%%u staggerStart=%%u%s,\
-                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), (unsigned)%s, wrapU, numIterK, staggerStart);%s" \
+                kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
+                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), (unsigned)%s, numIterK, staggerUIter);%s" \
                                  % (self.quote, \
                                     tc, \
                                     self.endLineQuote, \
                                     self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
-                                    gr,tc, edge,\
+                                    gr,tc, \
                                     self.endLine)
 
-              kStr += "  %s%s -= wrapU; // wrap staggered offset back to row start%s" \
+              kStr += "  %s%s -= (startNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
                       % (self.indent, \
-                         gr,
+                         gr,  tc, loopChar,
                          self.endLine)
               kStr += "%s}%s" % (self.indent, self.endLine)
               if self.db["PrintStagger"]:
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
                         (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x Edge=0x%%x%s, \
+                kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
                                 %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), (unsigned)%s );%s" \
                                % (self.quote, \
                                   tc, \
                                   self.endLineQuote, \
                                   self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
-                                  gr,tc, edge,\
+                                  gr,tc, \
                                   self.endLine)
 
           #else:
@@ -2552,8 +2537,6 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
       # zero
       kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
-      if kernel["StaggerU"]:
-        kStr += "#undef STAGGER%s" % (self.endLine )
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):

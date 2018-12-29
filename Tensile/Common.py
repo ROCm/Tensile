@@ -387,7 +387,16 @@ validParameters = {
     #    tiles start reading their summation dim parms.
     "StaggerU":              [0,1,2,4,8,16],
 
-    #kTensor C always mapped with first free coord as fastest moving
+    # How the tile assignment (wg0, wg1, wg2) controls the initial StaggerU offset:
+    # 0: Use wg0
+    # 1: Use wg1
+    # 2: Use wg2
+    # 3: Use flattened wg (wg0*WorkGroupMapping + wg1)
+    # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
+    #    to a different bank.
+    "StaggerUMapping":       [0,1,2,3,4],
+
+    # Tensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
     #
     # For 2D nonbatched Matrix this means index order is I, then J
@@ -608,7 +617,8 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
-    {"StaggerU":               [ 0 ] },
+    {"StaggerU":                  [ 8 ] },
+    {"StaggerUMapping":           [ 4 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },

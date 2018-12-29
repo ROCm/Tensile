@@ -248,8 +248,8 @@ class KernelWriter:
 
     if kernel["StaggerU"]:
       kStr += self.declareStaggerParms(kernel)
-      kStr += self.calculateStaggerOffsetAndEdge(kernel, tensorParametersA)
-      kStr += self.calculateStaggerOffsetAndEdge(kernel, tensorParametersB)
+      kStr += self.calculateStagger(kernel, tensorParametersA)
+      kStr += self.calculateStagger(kernel, tensorParametersB)
 
     if self.enable["PreLoop"]:
       # init lds read pointers before each unrolled loop
@@ -1495,7 +1495,7 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Define stagger parms that will be used in calculateStaggerOffsetAndEdge
+  # Define stagger parms that will be used in calculateStagger
   ##############################################################################
   @abc.abstractmethod
   def declareStaggerParms(self, kernel):
@@ -1506,7 +1506,7 @@ class KernelWriter:
   # Calculate and apply stagger offsets and edge
   ##############################################################################
   @abc.abstractmethod
-  def calculateStaggerOffsetAndEdge(self, kernel, loopIdx):
+  def calculateStagger(self, kernel, loopIdx):
     return ""
 
   ##############################################################################
