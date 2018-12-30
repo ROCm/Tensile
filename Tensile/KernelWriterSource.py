@@ -1264,6 +1264,10 @@ class KernelWriterSource(KernelWriter):
               index = tP["ia"][i]
               if index < kernel["ProblemType"]["NumIndicesC"]:
                 if index == tP["tileIdx"]:
+                  kStr += "globalReadOffset%s%s_%u_%u" \
+                      % (tP["tensorChar"], tP["tileChar"], \
+                      (para if tP["tlu"] else perp), \
+                      (sPara if tP["tlu"] else sPerp) )
                 else:
                   if isPackedIndex(kernel, index):
                     # pass vector per-tensor-dim offset (rather than scalar wg)

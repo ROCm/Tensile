@@ -127,9 +127,11 @@ class SolutionWriter:
       t += "  "
       if globalParameters["DebugKernel"]:
         s += "%sunsigned int *debugBuffer;\n" % t
-      # Tensor sizes in bytes, excluding batch dims and accounting for zero strides
-      # Do these first in the structure since they are 64-bits and want to avoid any unneeded padding:
-      s += "%s// Size of lowest Tensor's lowest 2 dims, in bytes.  Does not include bath dim or higher (>2) order dimensions\n" % t
+      # Tensor sizes in elements, including only packed dims,
+      # and accounting for zero or other strides < size
+      # Place these first in the structure since they are 64-bits
+      # and need to avoid any unneeded padding:
+      s += "%s// Size of Tensor's packed dims, in elements\n" % t
       s += "%suint64_t tensor2dSizeC;\n" % t
       s += "%suint64_t tensor2dSizeA;\n" % t
       s += "%suint64_t tensor2dSizeB;\n" % t
