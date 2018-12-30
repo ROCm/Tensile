@@ -3778,8 +3778,8 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
       kStr += "\n"
-      if kernel["SuppresssNoLoadLoop"] and kernel["PrefetchGlobalRead"]:
-        assert(kernel["PrefetchGlobalRead"] <= 1) # would need a multiply here
+      if kernel["SuppresssNoLoadLoop"]:
+        assert(kernel["PrefetchGlobalRead"] == 1) #if >1 would need a multiply here
         kStr += inst("s_cmp_eq_u32", sgpr("OrigLoopCounter"), 0, "completely skipped unroll loop?")
         kStr += inst("s_cselect_b32", sgpr(tmpSgpr+0), 0, sgpr("GlobalReadIncsA"), "force to 0?")
         kStr += inst("s_cselect_b32", sgpr(tmpSgpr+1), 0, sgpr("GlobalReadIncsB"), "force to 0?")
@@ -3788,10 +3788,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.setTailSrd(kernel, self.tPB, sgpr(tmpSgpr+1))
         kStr += "\n"
         #kStr += self.bomb()
-      kStr += inst("s_mov_b32", sgpr("SrdA+2"), \
-           "BufferLimit", "unlimited, each load checked below")
-      kStr += inst("s_mov_b32", sgpr("SrdB+2"), \
-           "BufferLimit", "unlimited, each load checked below")
 
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
@@ -4140,6 +4136,15 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # incLower must be constant or SGRP unsigned value
   def setTailSrd(self, kernel, tP, incLower):
+    # In SuppresssNoLoadLoop, the final loop iteration moves the SRD base forward
+    # and the ShadowLimit backwards by one extra 'click' of GlobalReadIncs[AB].
+    # Note the ShadowLimit may become negative - for example edge tiles where the
+    # increment is > tile width.
+    # The SuppresssNoLoadLoop mode also forces the SRD limit to 0 on the final iteration.
+    # The code here undoes the final click step by moving the base backwards and the
+    # limit forwards (reading from the ShadowLimit).
+    # It only works if use64bPbcLimit is enabled (since this enables use of the ShadowLimit)
+
     tc = tP["tensorChar"]
     kStr = ""
 
@@ -4147,12 +4152,21 @@ class KernelWriterAssembly(KernelWriter):
          sgpr("Srd%s+0"%(tc)), \
          sgpr("Srd%s+0"%(tc)), \
          incLower, \
-        "gra SRD += inc(lower)" )
+        "gra SRD -= inc(lower)" )
     kStr += inst("s_subb_u32 ", \
          sgpr("Srd%s+1"%(tc)), \
          sgpr("Srd%s+1"%(tc)), \
          0, \
-        "gra SRD += inc(upper)" )
+        "gra SRD -= inc(upper)" )
+
+    # using Shadow limit here which only works with 64-bit PBC:
+    assert(self.use64bPbcLimit)
+
+    kStr += inst("s_add_u32 ", \
+         sgpr("Srd%s+2"%(tc)), \
+         sgpr("SrdShadowLimit%s+0"%(tc)), \
+         incLower, \
+        "gra limit += inc" )
 
     return kStr
 
@@ -4160,7 +4174,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Increment A/B
   # loopIdx is summation idx:
   #   self.unrollIdx, or an idx from 0..NumIndicesSummation
-  # prefetchIndex is >0 (1...PrefetchGlobalRead) if this increment follows a 
+  # prefetchIndex is >0 (1...PrefetchGlobalRead) if this increment follows a
   #   global prefetch or 0 otherwise
   ##############################################################################
   def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
@@ -4170,6 +4184,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferLoad"]:
       # TODO - does this handle N-dim tensors correctly?
+      #if tP["isB"]:
+      #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
       if kernel["StaggerU"]:
         # add a wrap increment, if needed:
         incLower = self.sgprPool.checkOut(3) # bozo - remove 3
@@ -4341,7 +4357,10 @@ class KernelWriterAssembly(KernelWriter):
               offset = 0
 
               if kernel["BufferLoad"]:
-                # Use buffer limit to stay in-bounds
+                # Use buffer limit to stay in-bounds - the limit was set to edge when SRD initialized
+                # and each increment of SRD base in the unroll loop does a corresponding decrement
+                # of the srd limit - so base+limit stays constant and also points at maximum
+                # element that should be accessed.
 		if kernel["UseSgprForGRO"]:
 		  offsetVgpr = "GlobalReadOffset%s+0"%(tc)
 		  if graIdx==0:
@@ -4473,7 +4492,6 @@ class KernelWriterAssembly(KernelWriter):
     bpl = self.bpeAB * tP["glvw"] # bytes per load
     ldsOffset = 0
 
-
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
     if kernel["SuppresssNoLoadLoop"]:
       if mode==1 and tP["isA"]:
@@ -4489,7 +4507,6 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("SrdB+2"), \
               0,
               "Set limit to 0 for last iteration")
-
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
       kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
