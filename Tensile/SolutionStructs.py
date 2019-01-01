@@ -1539,9 +1539,6 @@ class Solution:
     else:
       state["GuaranteeNoPartialB"] = True
 
-
-
-
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
     if state["BufferLoad"] and state["UseSgprForGRO"] and state["EdgeType"]=="ShiftPtr":

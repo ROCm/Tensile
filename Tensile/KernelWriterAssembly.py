@@ -1274,7 +1274,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
       self.defineSgpr("DebugKernelItems", 1)
-    if kernel["StaggerU"]:
+    if self.staggerU:
       self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
       self.defineSgpr("WrapUA", 1)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
       self.defineSgpr("WrapUB", 1)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
@@ -2255,7 +2255,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
         kernArgOffset += 1*4
-      if kernel["StaggerU"]:
+      if self.staggerU:
         kStr += inst("s_load_dword", sgpr("StaggerUIter"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load StaggerUIter")
       kernArgOffset += 1*4
@@ -3653,7 +3653,7 @@ class KernelWriterAssembly(KernelWriter):
   def declareStaggerParms(self, kernel):
 
     kStr=""
-    if kernel["StaggerU"]:
+    if self.staggerU:
       # this coud be dynamic?
       if kernel["StaggerUMapping"] == 0:
         staggerInput = sgpr("WorkGroup0")
@@ -3680,7 +3680,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr=""
     tc = tP["tensorChar"]
 
-    if kernel["StaggerU"]:
+    if self.staggerU:
       assert (kernel["BufferLoad"])
       staggerTmp = self.sgprPool.checkOut(1)
 
@@ -3739,7 +3739,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def removeStagger(self, kernel, tP):
     kStr = ""
-    if kernel["StaggerU"]:
+    if self.staggerU:
       tc = tP["tensorChar"]
       tmp = self.sgprPool.checkOut(1)
       kStr += inst("s_add_i32", sgpr(tmp), sgpr("StaggerUIter"), 2+kernel["PrefetchGlobalRead"], "")
@@ -4186,7 +4186,7 @@ class KernelWriterAssembly(KernelWriter):
       # TODO - does this handle N-dim tensors correctly?
       #if tP["isB"]:
       #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
-      if kernel["StaggerU"]:
+      if self.staggerU:
         # add a wrap increment, if needed:
         incLower = self.sgprPool.checkOut(3) # bozo - remove 3
         incUpper = incLower + 1

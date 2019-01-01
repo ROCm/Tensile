@@ -1611,7 +1611,7 @@ class KernelWriterSource(KernelWriter):
             gr = "globalRead%s_%u_%u_%u_%u" \
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
-            if kernel["StaggerU"]:
+            if self.staggerU:
               kStr += "  %s += ((origNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
                       % (gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
 
@@ -1773,7 +1773,7 @@ class KernelWriterSource(KernelWriter):
                 para, sPara, perp, sPerp, \
                 tc, loopChar, self.endLine)
 
-            if kernel["StaggerU"] and loopIdx==self.unrollIdx:
+            if self.staggerU and loopIdx==self.unrollIdx:
               # Check to see if GRA wraps around edge:
               gr = "globalRead%s_%u_%u_%u_%u" \
                       % (tP["tensorChar"], para, sPara, perp, sPerp)

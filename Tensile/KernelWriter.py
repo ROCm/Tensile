@@ -246,7 +246,7 @@ class KernelWriter:
       kStr += self.openLoop(kernel, i)
     kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
 
-    if kernel["StaggerU"]:
+    if self.staggerU:
       kStr += self.declareStaggerParms(kernel)
       kStr += self.calculateStagger(kernel, tensorParametersA)
       kStr += self.calculateStagger(kernel, tensorParametersB)
@@ -619,7 +619,7 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # tail: global read
         kStr += self.calculateLoopNumIter(kernel, -1)
-        if kernel["StaggerU"]:
+        if self.staggerU:
           kStr += self.comment("remove stagger offsets for tail loop")
           kStr += self.removeStagger(kernel, tensorParametersA)
           kStr += self.removeStagger(kernel, tensorParametersB)
@@ -829,6 +829,9 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+
+    self.staggerU = kernel["StaggerU"] and kernel["BufferLoad"]
+
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
     # Can locally overrid these by changing True to False or

@@ -360,13 +360,10 @@ validParameters = {
     # 2=checks for cases that should never happen
     "CheckDimOverflow":               [0,1,2],
 
-    # For Block Mapping type:
-    # 0   : Use hardware-assigned wg number with no remapping.
-    # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
-    # < 0 : Swaps the position of wg0 and wg1.
-
-    # Stagger the start summation position of the tiles
-    # Elements from the summation dimension are loaded at offsets rather than all starting
+    # Stagger the start summation position of the tiles.
+    # Elements from the summation dimension are loaded at offsets rather than all starting at 0.
+    # StaggerU is the max 'clicks' of StaggerUStride bytes where each wg starts ; see StaggerUMapping
+    # for how the specific stagger for a given wg is determined.
     #
     # The tile assignment C are same as with StaggerOffset=0 ; the difference is the
     # order that the summation elements are added.
@@ -377,15 +374,25 @@ validParameters = {
     # which causes poor dram, cache, and tlb behavior.  V20 has 16 channels each 256 bytes wide.
 
     # StaggerU adjusts the start position in the summation (aka 'U') dimension
-    # position in K dimension to avoid these conflicts.  Both A and B matrix are adjusted.
+    # to avoid these conflicts.  Both A and B matrix start at the adjusted position.
     # If >0 specifies the offset in multiples of the macro-tile "unroll" dim
-    #  - Each tile in a new row will be offset from previous
-    #  - If the kernel contains more tiles in Tile dim than StaggerU, the offset wraps back to 0
     #  - Higher values will spread traffic to more channels but provide less L2 re-use.
     #  - StaggerU and WorkGroupMapping interact and should be tuned together -
     #    The WGM controls how tiles are assigned in C matrix, while StaggerU controls where those
     #    tiles start reading their summation dim parms.
+    #  - StaggerU requires BufferLoad==1 and is silently ignored if BufferLoad==0
     "StaggerU":              [0,1,2,4,8,16],
+
+    # Stride in bytes for each staggeru 'click'.
+    # 256 is recommended since this is the width of memory channel (on gfx803,gfx900,gf906) - so
+    # each click will start in a new memory channel and spread traffic among the 16 available channels.
+    # For example StaggerUStride=256 and StaggerU=8 will use 8 unique starting points
+    # in summation dimension, each offset by 256-bytes - provided the tensor dims are large
+    # enough to support this.
+    # StaggerUStride will be internally increased so it is an integer multiple of DepthU*BpeAB.
+    # (the implementation requires this - the unroll iteration accesses data in steps of
+    # DepthU*BPE
+    "StaggerUStride":               [16,32,64,128,256,512,1024],
 
     # How the tile assignment (wg0, wg1, wg2) controls the initial StaggerU offset:
     # 0: Use wg0
@@ -393,9 +400,13 @@ validParameters = {
     # 2: Use wg2
     # 3: Use flattened wg (wg0*WorkGroupMapping + wg1)
     # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
-    #    to a different bank.
+    #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
 
+    # For Block Mapping type:
+    # 0   : Use hardware-assigned wg number with no remapping.
+    # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
+    # < 0 : Swaps the position of wg0 and wg1.
     # Tensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
     #
@@ -617,7 +628,8 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
-    {"StaggerU":                  [ 0 ] },  # always enable?
+    {"StaggerU":                  [ 0 ] },
+    {"StaggerUStride":            [ 256 ] },
     {"StaggerUMapping":           [ 4 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
