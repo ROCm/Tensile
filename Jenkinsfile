@@ -316,19 +316,19 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
 //    currentBuild.result = 'UNSTABLE'
 //  }
 //},
-parallel rocm19_ubuntu:
+parallel rocm20_ubuntu:
 {
-  node( 'docker && rocm19 && gfx900')
+  node( 'docker && rocm20 && gfx900')
   {
     def hcc_docker_args = new docker_data(
-        from_image:'rocm/dev-ubuntu-16.04:1.9.0',
+        from_image:'rocm/dev-ubuntu-16.04:2.0',
         build_docker_file:'dockerfile-build-rocm-terminal',
         install_docker_file:'dockerfile-install-ubuntu',
         docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
         docker_build_args:' --pull' )
 
     def hcc_compiler_args = new compiler_data(
-        compiler_name:'hcc-rocm19-ubuntu',
+        compiler_name:'hcc-rocm20-ubuntu',
         build_config:'Release',
         compiler_path:'/opt/rocm/bin/hcc' )
 
