@@ -381,7 +381,7 @@ validParameters = {
     #    The WGM controls how tiles are assigned in C matrix, while StaggerU controls where those
     #    tiles start reading their summation dim parms.
     #  - StaggerU requires BufferLoad==1 and is silently ignored if BufferLoad==0
-    "StaggerU":              [0,1,2,4,8,16],
+    "StaggerU":              [0,2,4,8,16,32,64],
 
     # Stride in bytes for each staggeru 'click'.
     # 256 is recommended since this is the width of memory channel (on gfx803,gfx900,gf906) - so
@@ -398,7 +398,7 @@ validParameters = {
     # 0: Use wg0
     # 1: Use wg1
     # 2: Use wg2
-    # 3: Use flattened wg (wg0*WorkGroupMapping + wg1)
+    # 3: Use wgSerial, wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
     # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
     #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
@@ -423,9 +423,10 @@ validParameters = {
     #
     # Examples for 2D matrix:
     # WGM=8:  on CU64 machine this is a square box
-    # WGM=1:  Short/Fat - this will cover maximum width in I dimension of C
-    # WGM=64: Tall/Skinny - this will cover maximum width in J dimention of C
+    # WGM=1:  Short/Fat - this will cover maximum width in I dimension of C.  This matches hardware assigned mapping.
+    # WGM=64: Tall/Skinny - this will cover maximum width in J dimention of C.
     #
+    # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)

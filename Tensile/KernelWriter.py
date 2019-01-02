@@ -830,7 +830,7 @@ class KernelWriter:
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
 
-    self.staggerU = kernel["StaggerU"] and kernel["BufferLoad"]
+    self.staggerU = kernel["StaggerU"] and kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"]
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]

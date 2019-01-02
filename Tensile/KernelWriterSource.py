@@ -1032,6 +1032,9 @@ class KernelWriterSource(KernelWriter):
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
 
+    #kStr += "if (serial==0) printf(\"WG:%%u_%%u progWG:%%u_%%u \\n\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" \
+    #      % (wg0, wg1)+ self.endLine
+
     if kernel["PersistentKernel"]:
       kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
         % (wg1, wg1, wg0, wg0, self.endLine)
@@ -1529,14 +1532,18 @@ class KernelWriterSource(KernelWriter):
     elif kernel["StaggerUMapping"] == 2:
       staggerInput = "wg2"
     elif kernel["StaggerUMapping"] == 3:
-      assert(0) # TBD
+      staggerInput = "wgSerial"
     elif kernel["StaggerUMapping"] == 4:
       staggerInput = "0xffffffff" # all WG compute same stagger, this is test mode
     else:
       assert(0) # unsupported
     kStr += "  staggerUIter = %s & staggerUIter;%s" % (staggerInput, self.endLine)
 
-
+    bpeAB = int(4*kernel["ProblemType"]["DataType"].numRegisters())
+    kStr += "  staggerUIter <<= %u; // shift so each stagger has %u-byte stride%s" \
+            % (kernel["_staggerStrideShift"], \
+              (1<<kernel["_staggerStrideShift"])*kernel["DepthU"]*bpeAB, self.endLine)
+    kStr += "if (serial==0) printf(\"WG:%u_%u progWG:%u_%u staggerUIter=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIter);"  + self.endLine
 
     if self.db["PrintStagger"]:
       kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) == 0)%s" % \

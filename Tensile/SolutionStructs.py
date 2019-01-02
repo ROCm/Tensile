@@ -23,7 +23,7 @@
 import sys,traceback
 from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
-from math import ceil, log
+import math
 
 ################################################################################
 # Data Type
@@ -184,7 +184,7 @@ def pvar(state, field):
   return field + "=" + str(state[field])
 
 def roundupRatio(dividend, divisor):
-  return int(ceil(float(dividend) / float(divisor)))
+  return int(math.ceil(float(dividend) / float(divisor)))
 
 ################################################################################
 # ProblemType
@@ -860,9 +860,9 @@ class Solution:
     if state["ProblemType"]["TLU%s"%tc]:
       state["LSC%s"%tc] = state["MacroTile%s"%tc] \
           / state["NumLoadsCoalesced%s"%tc]
-      state["LSP%s"%tc] = int(ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
+      state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
-      state["LSC%s"%tc] = int(ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
+      state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
           / state["NumLoadsPerpendicular%s"%tc]
 
@@ -1393,7 +1393,7 @@ class Solution:
         + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + ldsNumElementsAlignedB
-      offsetBlk = int(2**(ceil(log(offsetBlk, 2))))
+      offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] \
@@ -1647,6 +1647,17 @@ class Solution:
 
     #print("PackedC0Indices", state["PackedC0Indices"])
     #print("PackedC1Indices", state["PackedC1Indices"])
+
+    # Set up stagger shift:
+    bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
+    # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
+    try:
+        staggerStrideShift = (int)(math.ceil(math.log(state["StaggerUStride"] / \
+                (state["DepthU"] * bpeAB), 2)))
+    except ValueError:
+        staggerStrideShift = 0
+    print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
+    state["_staggerStrideShift"] = staggerStrideShift
 
     problemType["AssignedDerivedParameters"] = True
 

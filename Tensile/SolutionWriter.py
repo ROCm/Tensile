@@ -22,7 +22,6 @@
 from SolutionStructs import Solution, isPackedIndex
 from KernelWriterSource import KernelWriterSource
 from Common import globalParameters
-import math
 
 ################################################################################
 # SolutionWriter
@@ -400,22 +399,14 @@ class SolutionWriter:
 
     unrollChar = globalParameters["IndexChars"][problemType["IndexUnroll"]]
 
-    bpe = int(4*solution["ProblemType"]["DataType"].numRegisters())
-    # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
-    staggerStrideShift = (int)(math.ceil(math.log(solution["StaggerUStride"] / solution["DepthU"] / bpe, 2)))
-    #print "staggerStrideShift=", staggerStrideShift, "depthu=", solution["DepthU"]
-
-    s += "  int staggerUIter = %s; // how many unroll loop iters to stagger start offset\n" \
-        % (solution["StaggerU"]*(1<<staggerStrideShift))
+    s += "  int staggerUIter = %s; // how many stride-sized clicks to stagger start offset\n" \
+        % (solution["StaggerU"])
     s += "  int unrollLoopIters = size%s/%u/%u; // /DepthU/GSU\n" % (unrollChar, solution["DepthU"], gsu)
-    s += "  bool usefulStaggerU = false;\n"
-    s += "  while (staggerUIter>%u) {\n" % (1<<staggerStrideShift)
-    s += "    if (unrollLoopIters >= staggerUIter) {\n"
-    s += "      usefulStaggerU = true;\n"
+    s += "  while (staggerUIter>1) {\n"
+    s += "    if (unrollLoopIters >= (staggerUIter*%u)) {\n" % (1<<solution["_staggerStrideShift"])
     s += "      break;}\n"
     s += "    staggerUIter /= 2; // step down to smaller stagger\n"
     s += "  }\n"
-    s += "  if (!usefulStaggerU) staggerUIter = 0;\n" # disable if loop too small to stagger
     s += "  if (staggerUIter>=1) staggerUIter -= 1;\n" # convert to a mask
     #s += '  printf ("size%s=%%u StaggerU=%s unrollLoopIters=%%u, staggerUIter=%%d\\n", size%s, unrollLoopIters, staggerUIter);\n' % (unrollChar, solution["StaggerU"], unrollChar)
 

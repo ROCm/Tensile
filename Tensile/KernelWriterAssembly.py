@@ -3670,6 +3670,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_and_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
                     staggerInput, \
                     "Compute actual stagger start for this kernel")
+      kStr += inst("s_lshl_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
+                kernel["_staggerStrideShift"], "shift by StaggerUStride")
     return kStr
 
   ##############################################################################
