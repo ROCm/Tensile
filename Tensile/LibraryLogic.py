@@ -106,8 +106,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1("# Solutions Used:")
   for i in range(0, len(logicAnalyzer.solutions)):
     s = logicAnalyzer.solutions[i]
-    s.state["SolutionIndex"] = i
-    s.state["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
+    s["SolutionIndex"] = i
+    s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
     print1("(%2u) %s : %s" % (i, \
         Solution.getNameMin(s, solutionMinNaming), \
         Solution.getNameFull(s)))  # this is the right name

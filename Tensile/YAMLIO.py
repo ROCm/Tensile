@@ -50,7 +50,7 @@ def writeSolutions( filename, problemSizes, solutions ):
   solutionStates = []
   for hardcoded in solutions:
     for solution in hardcoded:
-      solutionState = solution.state
+      solutionState = solution.getAttributes()
       solutionState["ProblemType"] = solutionState["ProblemType"].state
       solutionState["ProblemType"]["DataType"] = \
           solutionState["ProblemType"]["DataType"].value
@@ -140,7 +140,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   # solutions
   solutionList = []
   for solution in solutions:
-    solutionState = solution.state
+    solutionState = solution.getAttributes()
     solutionState["ProblemType"] = solutionState["ProblemType"].state
     solutionState["ProblemType"]["DataType"] = \
         solutionState["ProblemType"]["DataType"].value
