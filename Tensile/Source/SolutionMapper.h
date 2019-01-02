@@ -189,7 +189,7 @@ public:
   }
 
 #define CASE_STRING(X)  case X: return(#X)
-  const char *algoString(int algo) o
+  const char *algoString(int algo) 
   {
     if (algo >= 0) {
       return "Explicitly-Selected";
