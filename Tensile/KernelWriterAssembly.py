@@ -3095,8 +3095,8 @@ class KernelWriterAssembly(KernelWriter):
   def computeSrd(self, kernel, tP, tc, indices, bpe):
     kStr = ""
 
-    stmp = self.getTmpSgpr(6+2) # bozo, remove +1
-    tileStart = stmp+4
+    stmp = self.getTmpSgpr(2+2)
+    tileStart = stmp+2
     wroteTileStart = False
 
     #---
@@ -3121,7 +3121,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), kernel["DepthU"], sgpr("GSUSumIdx"), "gsuOffset = DepthU*bpe*GSUSumIdx")
         if kernel["CheckDimOverflow"] >=2:
           kStr += self.assert_eq(sgpr(stmp+1),0)
-        if tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
+        if tP["tlu"]: # non-transpose case, tile is in perp dim and should be scaled by Stride
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
                     sgpr("Strides%s+%u"%(tc,startStride)), "tlu=1, scaled unroll-offset by stride")
 
@@ -3166,12 +3166,10 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
       kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
-
     else:
       # put limit directly into SRD:
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
       kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
-
 
     # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
     numDim = len(indices)
@@ -3191,7 +3189,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
           kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
 
-
     # Add the tile start to the SRD
     if wroteTileStart:
       kStr += inst("s_lshl_b64", sgpr(tileStart,2), sgpr(tileStart,2), log2(bpe), "tileStart *= BPE")
@@ -3208,8 +3205,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
     #if tP["isB"]:
-    #  kStr += self.assert_ne(sgpr("WorkGroup2"), 0)
-
+   #   kStr += self.assert_ne(sgpr("WorkGroup1"), 0xA)
 
     if kernel["CheckDimOverflow"]>=2:
       # double-check to make sure the SRD limit is inside the allowed tensor:
@@ -3231,10 +3227,11 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.assert_ge_u32(sgpr(stmp+0), 0) # diff greater than zero
       if 0 and tP["isB"]:
         t = self.vgprPool.checkOut(1)
-        kStr += inst("s_add_u32", sgpr(stmp+6), sgpr("WorkGroup1"), sgpr("WorkGroup2"), "bozo, debug")
+        kStr += inst("s_add_u32", sgpr(stmp+0), sgpr("WorkGroup1"), sgpr("WorkGroup2"), "bozo, debug")
         kStr += inst("v_mov_b32", vgpr(t), 0x54, "")
-        kStr += self.assert_ne(sgpr(stmp+6), vgpr(t) )
+        kStr += self.assert_ne(sgpr(stmp+0), vgpr(t) )
         self.vgprPool.checkIn(t)
+
 
     return kStr
 
@@ -6949,7 +6946,6 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
         # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
-        #kStr += inst("s_mov_b64", "exec", -1, "BOZO, should not need full mask")
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
         for elementIdx in range(0, len(batchElements)):
           addr = elementAddr[elementIdx]
