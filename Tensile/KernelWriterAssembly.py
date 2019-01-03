@@ -3749,17 +3749,8 @@ class KernelWriterAssembly(KernelWriter):
                     sgpr("GlobalReadIncs%s"%tc), \
                     "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
-      kStr += inst("s_add_u32 ", \
-           sgpr("Srd%s+0"%(tc)), \
-           sgpr("Srd%s+0"%(tc)), \
-           sgpr(tmp), \
-          "gra SRD += inc(lower)" )
-      kStr += inst("s_addc_u32 ", \
-           sgpr("Srd%s+1"%(tc)), \
-           sgpr("Srd%s+1"%(tc)), \
-           0, \
-          "gra SRD += inc(upper)" )
-      #kStr += self.bomb()
+
+      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0)
 
     return kStr
 
@@ -3781,6 +3772,9 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = self.getTmpSgpr(4)
       kStr += "\n"
       if kernel["SuppresssNoLoadLoop"]:
+        # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
+        # (and also moved back the srd shadow limit) and slammed Limit to 0, so need to 'undo'
+        # those increments - see setTailSrd
         assert(kernel["PrefetchGlobalRead"] == 1) #if >1 would need a multiply here
         kStr += inst("s_cmp_eq_u32", sgpr("OrigLoopCounter"), 0, "completely skipped unroll loop?")
         kStr += inst("s_cselect_b32", sgpr(tmpSgpr+0), 0, sgpr("GlobalReadIncsA"), "force to 0?")
@@ -4149,6 +4143,7 @@ class KernelWriterAssembly(KernelWriter):
 
     tc = tP["tensorChar"]
     kStr = ""
+    incUpper = 0
 
     kStr += inst("s_sub_u32 ", \
          sgpr("Srd%s+0"%(tc)), \
@@ -4158,17 +4153,24 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_subb_u32 ", \
          sgpr("Srd%s+1"%(tc)), \
          sgpr("Srd%s+1"%(tc)), \
-         0, \
+         incUpper, \
         "gra SRD -= inc(upper)" )
 
     # using Shadow limit here which only works with 64-bit PBC:
     assert(self.use64bPbcLimit)
 
-    kStr += inst("s_add_u32 ", \
-         sgpr("Srd%s+2"%(tc)), \
-         sgpr("SrdShadowLimit%s+0"%(tc)), \
+    kStr += inst("s_add_u32", \
+        sgpr("SrdShadowLimit%s+0"%tc), \
+        sgpr("SrdShadowLimit%s+0"%tc), \
          incLower, \
-        "gra limit += inc" )
+          "limit -= inc)")
+    kStr += inst("s_addc_u32", \
+        sgpr("SrdShadowLimit%s+1"%tc), \
+        sgpr("SrdShadowLimit%s+1"%tc), \
+         incUpper, \
+          "limit -= inc)" )
+    kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+    kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
 
     return kStr
 
@@ -4190,7 +4192,7 @@ class KernelWriterAssembly(KernelWriter):
       #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
       if self.staggerU:
         # add a wrap increment, if needed:
-        incLower = self.sgprPool.checkOut(3) # bozo - remove 3
+        incLower = self.sgprPool.checkOut(3)
         incUpper = incLower + 1
         tmpS =    incLower + 2
         if prefetchIndex:
@@ -4199,14 +4201,17 @@ class KernelWriterAssembly(KernelWriter):
         else:
           kStr += inst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
                     sgpr("StaggerUIter"), "Is this the wrapIter?")
-        #kStr += self.assert_scc_is_0(sgpr(tmpS), 0)
+        #kStr += self.assert_scc_is_1() # break at the wrap iteration
         kStr += inst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s"%tc), sgpr("GlobalReadIncs%s"%tc), \
                     "incLower <- ?")
         kStr += inst("s_and_b32", sgpr(incUpper), sgpr(incLower), 0x80000000, "test")
         kStr += inst("s_subb_u32", sgpr(incUpper), 0, 0, "-1 or 0")
-        #kStr += inst("s_cselect_b32", sgpr(incUpper), -1, 0, \
-        #            "incUpper <- sign-ext")
         kStr += self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True)
+        if 0 and tP["isB"] and prefetchIndex==0:
+          tv = self.vgprPool.checkOut(1, "hack")
+          kStr += inst("v_mov_b32", vgpr(tv), sgpr("LoopCounters"), "")
+          kStr += self.assert_ne(vgpr(tv), sgpr("StaggerUIter")) # break at the wrap iteration
+          self.vgprPool.checkIn(tv)
       else:
         kStr += self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s"%tc), 0)
     else:
