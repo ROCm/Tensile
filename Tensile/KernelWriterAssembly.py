@@ -6394,8 +6394,6 @@ class KernelWriterAssembly(KernelWriter):
             # below assume we use v_mul_lo_u32. Could also use v_mul_i32_i24.
 #           kStr += inst("v_mul_i32_i24", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
             kStr += inst("v_mul_lo_u32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
-            if self.db["CheckValueC"] >= 0:
-              kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), 0.0)
 
           elif kernel["ProblemType"]["DataType"].isSingle():
             kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
