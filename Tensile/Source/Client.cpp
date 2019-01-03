@@ -50,11 +50,16 @@ int main( int argc, char *argv[] ) {
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
-  std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops (raw), SolName, KernelMs, "
+  if (dataTypeEnum == enum_TensileInt8x4) {
+    std::cout << "Tensile Client Columns: GDLOPS (clock-normalized), GDLOPS (raw), SolName, KernelMs, ";
+  }
+  else {
+    std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops (raw), SolName, KernelMs, ";
+  }
 #if Tensile_CLIENT_LIBRARY
-    << "ApiUs, "
+  std::cout << "ApiUs, ";
 #endif
-    << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total" << std::endl;
+  std::cout << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total" << std::endl;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
@@ -222,8 +227,14 @@ int main( int argc, char *argv[] ) {
 
   // cleanup
   destroyControls();
-  std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GFlop/s " << globalFastestTime/1000.0f << " us by ("
-      << globalFastestIdx << ") ";
+  if (dataTypeEnum == enum_TensileInt8x4) {
+    std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GDLOP/s " << globalFastestTime/1000.0f << " us by ("
+    << globalFastestIdx << ") ";
+  }
+  else {
+    std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GFlop/s " << globalFastestTime/1000.0f << " us by ("
+    << globalFastestIdx << ") ";
+  }
 #if Tensile_CLIENT_BENCHMARK
   std::cout << solutions[fastestIdx]._name;
 #else
