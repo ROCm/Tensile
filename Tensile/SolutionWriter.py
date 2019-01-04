@@ -563,13 +563,14 @@ class SolutionWriter:
       if self.language == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 0)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 1)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 2)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileStatusCheck(status);\n" % (t, 3, typeName)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataD ); tensileStatusCheck(status);\n" % (t, 0)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 1)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 2)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 3)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileStatusCheck(status);\n" % (t, 4, typeName)
         s += "%s%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, \
-            "" if problemType["UseBeta"] else "//", 4, typeName)
-        argIdx = 5 if problemType["UseBeta"] else 4
+            "" if problemType["UseBeta"] else "//", 5, typeName)
+        argIdx = 6 if problemType["UseBeta"] else 5
         argIdx += 3 # skipping offsets here
         for stride in self.strideList:
           s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, stride)
@@ -609,7 +610,7 @@ class SolutionWriter:
       ########################################
       if self.language == "OCL":
         # set kernel args different for all enqueues
-        argIdx = 5 if problemType["UseBeta"] else 4
+        argIdx = 6 if problemType["UseBeta"] else 5
         # offsets
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][0]); tensileStatusCheck(status);\n" % (t, argIdx )
         argIdx += 1
@@ -891,6 +892,7 @@ class SolutionWriter:
         argList.append(("const %s *"%typeName, "dataA"))
         argList.append(("const %s *"%typeName, "dataB"))
       else:
+        argList.append(("cl_mem", "dataD"))
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))
