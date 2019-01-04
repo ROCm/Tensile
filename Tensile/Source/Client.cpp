@@ -51,7 +51,7 @@ int main( int argc, char *argv[] ) {
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
   if (dataTypeEnum == enum_TensileInt8x4) {
-    std::cout << "Tensile Client Columns: GDLOPS (clock-normalized), GDLOPS (raw), SolName, KernelMs, ";
+    std::cout << "Tensile Client Columns: GOps (clock-normalized), GOps (raw), SolName, KernelMs, ";
   }
   else {
     std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops (raw), SolName, KernelMs, ";
@@ -228,7 +228,7 @@ int main( int argc, char *argv[] ) {
   // cleanup
   destroyControls();
   if (dataTypeEnum == enum_TensileInt8x4) {
-    std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GDLOP/s " << globalFastestTime/1000.0f << " us by ("
+    std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GOP/s " << globalFastestTime/1000.0f << " us by ("
     << globalFastestIdx << ") ";
   }
   else {
