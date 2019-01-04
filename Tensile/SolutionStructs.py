@@ -1656,7 +1656,7 @@ class Solution:
                 (state["DepthU"] * bpeAB), 2)))
     except ValueError:
         staggerStrideShift = 0
-    print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
+    #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
 
     problemType["AssignedDerivedParameters"] = True

@@ -138,6 +138,7 @@ class RegisterPool:
     return self.checkOutAligned(size, 1, tag, preventOverflow)
   def checkOutAligned(self, size, alignment, tag="", preventOverflow=False):
     assert(size > 0)
+    assert(self.type != 's') # use getTmpSgpr instead of checkout
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -521,6 +522,7 @@ class KernelWriterAssembly(KernelWriter):
     pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
     if self.startSgprTmpPool+num+pad > self.totalSgprs:
       self.totalSgprs = self.startSgprTmpPool + num + pad
+      #print "startSgprTmpPool=", self.startSgprTmpPool
       #print "warning: growing SGPR pool to ", self.totalSgprs
 
     return self.startSgprTmpPool + pad
@@ -1262,6 +1264,19 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
     self.defineSgpr("AddressB", numSgprAddressB)
+    if globalParameters["DebugKernel"]:
+      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
+      self.defineSgpr("DebugKernelItems", 1)
+
+
+    #------------------------
+    # Registers defined below this point are not available in the post-loop
+    # Post-loop is after tail loop exits, ie the store code.
+    # (we reclaim them to use as temps, typically for execmasks)
+    # Mostly impacts flat kernels and GSU edge since these need SGPR
+    # for conditionals
+    self.lastPostLoopSgpr = self.sgprIdx
+
     if kernel["FractionalLoad"]:
       if kernel["fractionalPerpOverhangA"]:
         self.defineSgpr("PerpOverhangVccA", 2, 2)
@@ -1269,28 +1284,16 @@ class KernelWriterAssembly(KernelWriter):
         self.defineSgpr("PerpOverhangVccB", 2, 2)
     if self.use64bPbcLimit:
       # If need more SGPR could overlap this with the Tensor2dSize regs
-      self.defineSgpr("SrdShadowLimitA", 2, 2)
-      self.defineSgpr("SrdShadowLimitB", 2, 2)
-    if globalParameters["DebugKernel"]:
-      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
-      self.defineSgpr("DebugKernelItems", 1)
+      self.defineSgpr("ShadowLimitA", 2, 2)
+      self.defineSgpr("ShadowLimitB", 2, 2)
     if self.staggerU:
       self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
       self.defineSgpr("WrapUA", 1)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
       self.defineSgpr("WrapUB", 1)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
 
-
-    #------------------------
-    # Registers defined below this point are not available in the post-loop
-    # (we reclaim them to use as temps, typically for execmasks)
-    # Mostly impacts flat kernels and GSU edge since these need SGPR
-    # for conditionals
-    self.lastPostLoopSgpr = self.sgprIdx
-
     self.defineSgpr("OffsetC", numSgprOffsetC)
     self.defineSgpr("OffsetA", numSgprOffsetA)
     self.defineSgpr("OffsetB", numSgprOffsetB)
-
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -1322,7 +1325,7 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
 
-    self.sgprPool = RegisterPool(self.totalSgprs, 's')
+    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0)
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["globalReadInstruction"] = self.globalReadInstructionA
@@ -1703,7 +1706,7 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = True
     if self.overflowedResources:
       totalVgprs = 1
-    #totalSgprs = self.sgprPool.size()
+    assert(self.totalSgprs >= self.sgprPool.size())
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
         % (totalVgprs, self.endLine)
     kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
@@ -3143,8 +3146,8 @@ class KernelWriterAssembly(KernelWriter):
 
     startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
     if self.use64bPbcLimit:
-      limitTmp0 = "SrdShadowLimit%s+0"%tc
-      limitTmp1 = "SrdShadowLimit%s+1"%tc
+      limitTmp0 = "ShadowLimit%s+0"%tc
+      limitTmp1 = "ShadowLimit%s+1"%tc
     else:
       limitTmp0 = stmp+0
       limitTmp1 = stmp+1
@@ -3158,14 +3161,14 @@ class KernelWriterAssembly(KernelWriter):
       # and when we get within 32-bit we start to step down the SRD
       # if the limit is <32bits, set it accurately here:
       # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
-      kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), \
+      kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
           hex(log2(tP["bpe"])), "Set limit to use bytes")
       if prePad:
-        kStr += inst("s_add_u32",  sgpr("SrdShadowLimit%s+0"%tc), sgpr("SrdShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
-        kStr += inst("s_addc_u32", sgpr("SrdShadowLimit%s+1"%tc), sgpr("SrdShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
+        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
 
-      kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
+      kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
     else:
       # put limit directly into SRD:
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
@@ -3218,8 +3221,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_sub_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Srd%s+0"%tc), "sub SRD base")
       kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("Srd%s+1"%tc), "sub SRD base")
       if self.use64bPbcLimit:
-        kStr += inst("s_sub_u32", sgpr(stmp+0), sgpr(stmp+0), sgpr("SrdShadowLimit%s+0"%tc), "sub buffer size")
-        kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("SrdShadowLimit%s+1"%tc), "sub buffer size")
+        kStr += inst("s_sub_u32", sgpr(stmp+0), sgpr(stmp+0), sgpr("ShadowLimit%s+0"%tc), "sub buffer size")
+        kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("ShadowLimit%s+1"%tc), "sub buffer size")
       else:
         kStr += inst("s_sub_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Srd%s+2"%tc), "sub buffer limit")
 
@@ -3681,7 +3684,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.staggerU:
       assert (kernel["BufferLoad"])
-      staggerTmp = self.sgprPool.checkOut(1)
+      staggerTmp = self.getTmpSgpr(1)
 
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s"% (tc))
@@ -3740,7 +3743,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if self.staggerU:
       tc = tP["tensorChar"]
-      tmp = self.sgprPool.checkOut(1)
+      tmp = self.getTmpSgpr(1)
       kStr += inst("s_add_i32", sgpr(tmp), sgpr("StaggerUIter"), 2+kernel["PrefetchGlobalRead"], "")
       kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp), 
                     sgpr("GlobalReadIncs%s"%tc), \
@@ -4103,18 +4106,18 @@ class KernelWriterAssembly(KernelWriter):
     # so less buffers to the edge:
     if self.use64bPbcLimit:
       kStr += inst("s_sub_u32", \
-          sgpr("SrdShadowLimit%s+0"%tc), \
-          sgpr("SrdShadowLimit%s+0"%tc), \
+          sgpr("ShadowLimit%s+0"%tc), \
+          sgpr("ShadowLimit%s+0"%tc), \
            incLower, \
             "limit -= inc)")
       kStr += inst("s_subb_u32", \
-          sgpr("SrdShadowLimit%s+1"%tc), \
-          sgpr("SrdShadowLimit%s+1"%tc), \
+          sgpr("ShadowLimit%s+1"%tc), \
+          sgpr("ShadowLimit%s+1"%tc), \
            incUpper, \
             "limit -= inc)" )
       if checkShadowLimitCopy:
-        kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-        kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+        kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+        kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
     else:
       kStr += inst("s_sub_u32", \
            sgpr("Srd%s+2"%(tc)), \
@@ -4157,17 +4160,17 @@ class KernelWriterAssembly(KernelWriter):
     assert(self.use64bPbcLimit)
 
     kStr += inst("s_add_u32", \
-        sgpr("SrdShadowLimit%s+0"%tc), \
-        sgpr("SrdShadowLimit%s+0"%tc), \
+        sgpr("ShadowLimit%s+0"%tc), \
+        sgpr("ShadowLimit%s+0"%tc), \
          incLower, \
           "limit -= inc)")
     kStr += inst("s_addc_u32", \
-        sgpr("SrdShadowLimit%s+1"%tc), \
-        sgpr("SrdShadowLimit%s+1"%tc), \
+        sgpr("ShadowLimit%s+1"%tc), \
+        sgpr("ShadowLimit%s+1"%tc), \
          incUpper, \
           "limit -= inc)" )
-    kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-    kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+    kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+    kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
 
     return kStr
 
@@ -4189,7 +4192,7 @@ class KernelWriterAssembly(KernelWriter):
       #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
       if self.staggerU:
         # add a wrap increment, if needed:
-        incLower = self.sgprPool.checkOut(3)
+        incLower = self.getTmpSgpr(3)
         incUpper = incLower + 1
         tmpS =    incLower + 2
         if prefetchIndex:
