@@ -24,6 +24,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - InnerUnroll: [2]
       ForkParameters:
+        #- LocalDotLayout: [1, 2]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
@@ -52,6 +53,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - InnerUnroll: [2]
       ForkParameters:
+        #- LocalDotLayout: [1, 2]
         - KernelLanguage: ["Assembly"]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [True]
