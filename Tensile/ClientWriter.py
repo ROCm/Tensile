@@ -420,8 +420,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += ", %u" % dataType.numBytes()
   h += " };\n"
   # flops per mac
-  h += "const unsigned int numFlopsPerMac[numDataTypes] = { %u" \
-      % (2 if dataTypes[0].isReal() else 8)
+  if dataTypes[0].isInt8x4():
+    h += "const unsigned int numFlopsPerMac[numDataTypes] = { %u" % (8 if dataTypes[0].isReal() else 32)
+  else:
+    h += "const unsigned int numFlopsPerMac[numDataTypes] = { %u" % (2 if dataTypes[0].isReal() else 8)
   for dataTypeIdx in range(1, numDataTypes):
     dataType = dataTypes[dataTypeIdx]
     h += ", %u" % (2 if dataType.isReal() else 8)
