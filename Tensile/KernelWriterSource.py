@@ -803,7 +803,7 @@ class KernelWriterSource(KernelWriter):
     for idxChar in kernel["PackedC1Indices"][:-1]:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
-    s += "," + self.endLine + "  int staggerUIter"
+    s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
     if kernel["PersistentKernel"]:
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
@@ -1537,13 +1537,15 @@ class KernelWriterSource(KernelWriter):
       staggerInput = "0xffffffff" # all WG compute same stagger, this is test mode
     else:
       assert(0) # unsupported
-    kStr += "  staggerUIter = %s & staggerUIter;%s" % (staggerInput, self.endLine)
+    #kStr += "if (serial==0) printf(\"xWG:%u_%u progWG:%u_%u staggerUIterParm=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIterParm);"  + self.endLine
+    kStr += "  unsigned staggerUIter = (%s & staggerUIterParm);%s" % (staggerInput, self.endLine)
 
     bpeAB = int(4*kernel["ProblemType"]["DataType"].numRegisters())
-    kStr += "  staggerUIter <<= %u; // shift so each stagger has %u-byte stride%s" \
+    kStr += "  staggerUIter = (staggerUIter << %u); // shift so each stagger has %u-byte stride%s" \
             % (kernel["_staggerStrideShift"], \
               (1<<kernel["_staggerStrideShift"])*kernel["DepthU"]*bpeAB, self.endLine)
-    kStr += "if (serial==0) printf(\"WG:%u_%u progWG:%u_%u staggerUIter=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIter);"  + self.endLine
+    #kStr += "if (serial==0) printf(\"WG:%u_%u progWG:%u_%u staggerUIter=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIter);"  + self.endLine
+    #kStr += "  staggerUIter = 0;\n"
 
     if self.db["PrintStagger"]:
       kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) == 0)%s" % \

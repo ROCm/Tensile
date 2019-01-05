@@ -399,7 +399,7 @@ class SolutionWriter:
 
     unrollChar = globalParameters["IndexChars"][problemType["IndexUnroll"]]
 
-    s += "  int staggerUIter = %s; // how many stride-sized clicks to stagger start offset\n" \
+    s += "  unsigned int staggerUIter = %s; // how many stride-sized clicks to stagger start offset\n" \
         % (solution["StaggerU"])
     s += "  int unrollLoopIters = size%s/%u/%u; // /DepthU/GSU\n" % (unrollChar, solution["DepthU"], gsu)
     s += "  while (staggerUIter>1) {\n"
