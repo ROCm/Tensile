@@ -1532,12 +1532,12 @@ class Solution:
     if state["ProblemType"]["TLUA"]:
       state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
     else:
-      state["GuaranteeNoPartialA"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+      state["GuaranteeNoPartialA"] = True
 
     if state["ProblemType"]["TLUB"]:
       state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
     else:
-      state["GuaranteeNoPartialB"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+      state["GuaranteeNoPartialB"] = True
 
 
 
