@@ -1658,6 +1658,8 @@ class Solution:
         staggerStrideShift = 0
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
+    if state["StaggerU"] == 0:
+      state["StaggerUMapping"] = 0
 
     problemType["AssignedDerivedParameters"] = True
 

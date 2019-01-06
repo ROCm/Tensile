@@ -629,9 +629,9 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
-    {"StaggerU":                  [ 0 ] },
-    {"StaggerUStride":            [ 256 ] },
-    {"StaggerUMapping":           [ 4 ] },
+    {"StaggerU":                  [ 32 ] },   # recommend [0,32]
+    {"StaggerUStride":            [ 256 ] },  # recommend 256 for V10,V20
+    {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
