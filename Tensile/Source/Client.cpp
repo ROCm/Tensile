@@ -207,7 +207,7 @@ int main( int argc, char *argv[] ) {
 
 
 //TODO: define Tensile_DATA_TYPE_TENSILEINT
-#ifdef Tensile_DATA_TYPE_TENSILEINT
+//#ifdef Tensile_DATA_TYPE_TENSILEINT
   case enum_TensileInt8x4: {
     TensileInt32 *initialD_TI;
     TensileInt32 *initialC_TI;
@@ -234,7 +234,7 @@ int main( int argc, char *argv[] ) {
         deviceOnHostD_TI, deviceOnHostC_TI);
     }
     break;
-#endif
+//#endif
 
 
   default:
