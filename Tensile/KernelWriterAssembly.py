@@ -1167,9 +1167,6 @@ class KernelWriterAssembly(KernelWriter):
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
-    numSgprOffsetC = 1
-    numSgprOffsetA = 1
-    numSgprOffsetB = 1
     numSgprAlpha = max(1,int(tPA["bpe"]/4))
     numSgprBeta  = max(1,int(self.bpeCexternal/4)) if kernel["ProblemType"]["UseBeta"] else 0
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
@@ -1284,11 +1281,6 @@ class KernelWriterAssembly(KernelWriter):
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
     self.lastPostLoopSgpr = self.sgprIdx
-
-    self.defineSgpr("OffsetC", numSgprOffsetC)
-    self.defineSgpr("OffsetA", numSgprOffsetA)
-    self.defineSgpr("OffsetB", numSgprOffsetB)
-
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2216,15 +2208,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_load_dword", sgpr("Beta+1"), \
               sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load beta" )
         kernArgOffset += 1*max(4,self.bpeCexternal)
-      kStr += inst("s_load_dword", sgpr("OffsetC"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("OffsetA"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset a" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("OffsetB"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset b" )
-      kernArgOffset += 1*4
       for i in range(0, self.numSgprStridesC):
         kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
@@ -2266,31 +2249,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".if 0\n"
 
     #kStr += self.bomb()
-
-    ########################################
-    # Apply User Offsets
-    kStr += self.comment("User Offsets")
-    kStr += inst("s_add_u32", sgpr("AddressD"), sgpr("OffsetC"), \
-        sgpr("AddressD"), "addrD += offsetC" )
-    kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
-        sgpr("AddressC"), "addrC += offsetC" )
-    kStr += inst("s_mov_b32", sgpr("OffsetC"), 0, "")
-    kStr += inst("s_addc_u32", sgpr("AddressD"), sgpr("OffsetC"),\
-        sgpr("AddressD"), "addrD += offsetC carry" )
-    kStr += inst("s_addc_u32", sgpr("AddressC"), sgpr("OffsetC"),\
-        sgpr("AddressC"), "addrC += offsetC carry" )
-    kStr += inst("s_add_u32", sgpr("AddressA"), sgpr("OffsetA"), \
-        sgpr("AddressA"), "addrA += offsetA" )
-    kStr += inst("s_mov_b32", sgpr("OffsetA"), 0, "")
-    kStr += inst("s_addc_u32", sgpr("AddressA"), sgpr("OffsetA"),\
-        sgpr("AddressA"), "addrA += offsetA carry" )
-    kStr += inst("s_add_u32", sgpr("AddressB"), sgpr("OffsetB"), \
-        sgpr("AddressB"), "addrB += offsetB" )
-    kStr += inst("s_mov_b32", sgpr("OffsetB"), 0, "")
-    kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
-        sgpr("AddressB"), "addrB += offsetB carry" )
-    # now sgpr OffsetC,A,B are freed up for arithmetic
-    #self.setStartTmpPool(self.sgprs["OffsetC"])
 
     ########################################
     # NumWorkGroups

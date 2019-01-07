@@ -873,7 +873,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
-    h += "      0, 0, 0, // offsets\n"
     for i in range(firstStride,lastStrideC):
       h += "      strideC%u%s,\n" % (i, indexChars[i])
     for i in range(firstStride,lastStrideA):
@@ -1015,7 +1014,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             h += "        alpha,\n"
             if problemType["UseBeta"]:
               h += "        beta,\n"
-            h += "        0, 0, 0, // offsets\n"
           for i in range(firstStride,lastStrideC):
             h += "        strideC%u%s,\n" % (i, indexChars[i])
           for i in range(firstStride,lastStrideA):

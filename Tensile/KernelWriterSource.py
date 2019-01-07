@@ -767,12 +767,6 @@ class KernelWriterSource(KernelWriter):
       s += "," + self.endLine + "  " \
           + kernel["ProblemType"]["DestDataType"].toDevice(self.language) + " const beta"
 
-    # offsets
-    s += ( "," + self.endLine + 
-        "  unsigned int const offsetC," + self.endLine +
-        "  unsigned int const offsetA," + self.endLine +
-        "  unsigned int const offsetB" )
-
     # strides
     firstStride = 1
     if kernel["ProblemType"]["UseInitialStrides"]:
@@ -1285,17 +1279,6 @@ class KernelWriterSource(KernelWriter):
               if i < len(tP["ia"])-1:
                 kStr += ", "
             kStr += " );%s" % self.endLine
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Apply User Offsets
-  ##############################################################################
-  def graApplyUserOffsets(self, kernel):
-    kStr = ""
-    kStr += "  D += offsetC;%s" % self.endLine
-    kStr += "  C += offsetC;%s" % self.endLine
-    kStr += "  A += offsetA;%s" % self.endLine
-    kStr += "  B += offsetB;%s" % self.endLine
     return kStr
 
   ##############################################################################
@@ -2494,9 +2477,6 @@ class KernelWriterSource(KernelWriter):
         + " const * " + restrictStr + " C,"
     kStr += self.endLine
 
-    # offsets
-    kStr += "  unsigned int const offsetC,%s" % (self.endLine)
-
     # strides
     firstStride = 1
     if kernel["ProblemType"]["UseInitialStrides"]:
@@ -2528,9 +2508,6 @@ class KernelWriterSource(KernelWriter):
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
     kStr += "{%s" % self.endLine
-    kStr += "  D += offsetC;%s" % self.endLine
-    if kernel["ProblemType"]["UseBeta"]:
-      kStr += "  C += offsetC;%s" % self.endLine
 
     ########################################
     # defined initial strides
