@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import DataType, isPackedIndex
-from Common import globalParameters, printExit, printWarning, roundUp, validParameters
+from Common import globalParameters, printExit, printWarning, roundUp
 from KernelWriter import KernelWriter
 from math import log, ceil
 import collections
@@ -2961,7 +2961,6 @@ class KernelWriterAssembly(KernelWriter):
                   else:
                     if isPackedIndex(kernel,i, tP["PackBatchDims"]):
                       #kStr += ", %2u" % tP["vgprPackedOffsets"]+i-1  #??
-                      numPacked = len(tP["PackedIndices"])-1
                       kStr += ", %2u" % (tP["vgprPackedOffsets"] + \
                                          (vgprTile-tileOffsets)*(len(tP["PackedIndices"])-1) +
                                          packedIter)

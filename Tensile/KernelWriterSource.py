@@ -21,7 +21,7 @@
 
 
 from SolutionStructs import DataType, isPackedIndex
-from Common import globalParameters, printExit, validParameters
+from Common import globalParameters, printExit
 from KernelWriter import KernelWriter
 
 ################################################################################
@@ -1315,7 +1315,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graAddresses(self, kernel, tP):
     kStr = ""
-    tc = tP["tensorChar"]
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
