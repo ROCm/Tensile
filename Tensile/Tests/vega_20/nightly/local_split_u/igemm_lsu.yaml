@@ -52,7 +52,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: ["Assembly"]
       ForkParameters:
         - VectorStore: [0,1]
         - PrefetchGlobalRead: [ False]
