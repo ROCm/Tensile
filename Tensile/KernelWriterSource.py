@@ -2247,13 +2247,9 @@ class KernelWriterSource(KernelWriter):
               for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
                 kStr += " globalC%s" % self.indexChars[i]
                 if i == kernel["ProblemType"]["Index0"]:
-                  kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                      ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
-                      a, self.tileChar0)
+                  kStr += offset0
                 if i == kernel["ProblemType"]["Index1"]:
-                  kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                      ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
-                      b, self.tileChar1)
+                  kStr += offset1
                 if i < kernel["ProblemType"]["NumIndicesC"]-1:
                   kStr += ", (%s)" % self.uint64Str
               kStr += ") ]"
