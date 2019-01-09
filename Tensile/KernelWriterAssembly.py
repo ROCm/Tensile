@@ -4465,7 +4465,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
-    kStr = ""
+    imod = Instruction.Module()
     tc = tP["tensorChar"]
     graIdx = 0
     g2lIdx = 0
@@ -4476,38 +4476,38 @@ class KernelWriterAssembly(KernelWriter):
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
     if kernel["SuppresssNoLoadLoop"]:
       if mode==1 and tP["isA"]:
-        kStr += inst("s_cmp_eq_i32", \
+        imod.instStr("s_cmp_eq_i32", \
               sgpr("LoopCounters+%u"%loopIdx), \
               "%u"%-1, \
               "%s"%"is this the last iteration")
-        kStr += inst("s_cmov_b32", \
+        imod.instStr("s_cmov_b32", \
               sgpr("SrdA+2"), \
               0,
               "Set limit to 0 for last iteration")
-        kStr += inst("s_cmov_b32", \
+        imod.instStr("s_cmov_b32", \
               sgpr("SrdB+2"), \
               0,
               "Set limit to 0 for last iteration")
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
-      kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
-      kStr += self.syncThreads(kernel)
+      imod.instStr.comment1("before DirectToLds load, ensure prior ds_reads have finished")
+      imod.instStr.syncThreads(kernel)
 
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
       # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
       assert (kernel["LocalWriteUseSgpr%s"%tc])
       if kernel["ExpandPointerSwap"]:
-        kStr += inst("s_add_u32", "m0", sgpr("LocalWriteAddr%s"%tc), \
+        imod.instStr("s_add_u32", "m0", sgpr("LocalWriteAddr%s"%tc), \
                       tP["localWriteSwapByteOffset"], "m0 <- LDS write address")
       else:
-        kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
+        imod.instStr("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
 
 
     # sizeK % LOCAL_DEPTHU
     guardK = (mode==2)
     if guardK:
-      kStr += self.globalReadGuardK(kernel, tP)
-      return kStr
+      imod.append(self.globalReadGuardK(kernel, tP))
+      return str(imod)
 
     # else not-guardK below:
 
@@ -4553,7 +4553,7 @@ class KernelWriterAssembly(KernelWriter):
                 #print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
 
                 if directToLdsLoads != 0:
-                  kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
+                  imod.instStr("s_add_u32", "m0", "m0", ldsInc, \
                       "Move LDS write address to next line" )
                 directToLdsLoads+=1
                 ldsOffset += ldsInc
@@ -4561,42 +4561,38 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 destVgpr="G2L%s+%u"%(tc, g2lIdx)
 
-              kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
+              imod.append( self.chooseGlobalLoad(kernel["BufferLoad"], \
                         bpl, destVgpr=destVgpr, \
                         addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                         soffset=soffset, offset=0, \
                         extraFields=extraFields, \
                         hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
-                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)).toStr()
+                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)).toStr())
             else: # not buffer load
               # load one element from address
-              kStr += self.chooseGlobalLoad(False, \
+              imod.append( self.chooseGlobalLoad(False, \
                         bpl, \
                         destVgpr="G2L%s+%u"%(tc, g2lIdx), \
                         addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                         soffset=0, offset=0, \
                         extraFields=extraFields, \
                         hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
-                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp )).toStr()
-
-            #kStr += "s_waitcnt vmcnt(0)\n"
-            #kStr += self.bomb()
-            #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))
+                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp )).toStr())
 
     if self.db["ConservativeWaitCnt"] & 0x1:
-        kStr += "s_barrier // debug\n"
-        kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
-        kStr += "s_barrier // debug\n"
+        imod.instStr( "s_barrier", "debug")
+        imod.instStr( "s_waitcnt", "lgkmcnt(0) & vmcnt(0)")
+        imod.instStr( "s_barrier", "debug")
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
 
     # TODO - can remove one of these m0 restores if A and B both TLU
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
-      kStr += inst("s_mov_b32", "m0", \
+      imod.instStr("s_mov_b32", "m0", \
           hex(kernel["LdsNumElements"] * tP["bpe"]), \
           "Restore LDS clamp at %u bytes"%(kernel["LdsNumElements"] * tP["bpe"]))
 
-    return kStr
+    return str(imod)
 
   ##############################################################################
   # Local Write: Swap Offsets A/B
@@ -6168,14 +6164,13 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # chooseGlobalLoad :
-  # create the store instruction for requested vector width and other parms
+  # create the load instruction for requested vector width and other parms
+  # return an Inst class
   #
   # bpl = bytes per load op
   ##############################################################################
   def chooseGlobalLoad(self, useBuffer, bpl, destVgpr, \
                        addr0, addr1, soffset, offset, extraFields, hi16=0, comment="load C"):
-
-    imod = Instruction.Module()
 
   # rpv = regs per vector
     rpv = bpl/4.0
@@ -6185,42 +6180,37 @@ class KernelWriterAssembly(KernelWriter):
       if extraFields != "":
         tailFields += ", %s"% extraFields
       if bpl==2 and hi16:
-        imod.append( Inst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, soffset, tailFields, comment))
+        return Inst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
+                  addr1, soffset, tailFields, comment)
       elif bpl==2 and not hi16:
-        imod.append( Inst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, soffset, tailFields, comment))
+        return Inst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
+                  addr1, soffset, tailFields, comment)
       elif bpl==4:
-        imod.append( Inst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment))
+        return Inst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment)
       elif bpl==8:
-        imod.append( Inst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment))
+        return Inst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment)
       elif bpl==16:
-        imod.append( Inst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment))
+        return Inst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment)
       else:
         assert ("chooseGlobalLoad: bad bpl")
 
     else:
       if bpl==2 and hi16:
-        imod.append( Inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, comment ))
+        return Inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
       elif bpl==2 and not hi16:
-        imod.append( Inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment ))
+        return Inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
       elif bpl==4:
-        imod.append( Inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, comment ))
+        return Inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       elif bpl==8:
-        imod.append( Inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, comment ))
+        return Inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       elif bpl==16:
-        imod.append( Inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment ))
+        return Inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       else:
         assert ("chooseGlobalLoad: bad bpl")
 
-    return imod
-
-
-  ##############################################################################
-  # chooseGlobalStore
   # create the store instruction for requested vector width and other parms
   #
   # rpv = regs per vector

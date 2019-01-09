@@ -7,7 +7,6 @@ class Module:
   def __str__(self):
     return "\n".join([str(x) for x in self.instList])
 
-
   def toStr(self):
     return str(self)
 
@@ -45,4 +44,7 @@ class Inst:
 
   def __str__(self):
     return self.text + '\n'
+
+  def toStr(self):
+    return str(self)
 
