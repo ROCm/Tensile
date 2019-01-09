@@ -25,6 +25,8 @@ from KernelWriter import KernelWriter
 from math import log, ceil
 import collections
 import traceback
+import Instruction
+from Instruction import Inst
 
 ################################################################################
 # Memory Instruction
@@ -4154,7 +4156,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     if not self.do["GlobalInc"]: return ""
-    kStr = ""
+    imod = Instruction.Module()
     tc = tP["tensorChar"]
 
     if kernel["BufferLoad"]:
@@ -4167,24 +4169,25 @@ class KernelWriterAssembly(KernelWriter):
         incUpper = incLower + 1
         tmpS =    incLower + 2
         if prefetchIndex:
-          kStr += inst("s_sub_u32", sgpr(tmpS), sgpr("LoopCounters+%u"%self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
-          kStr += inst("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
+          imod.instStr("s_sub_u32", sgpr(tmpS), sgpr("LoopCounters+%u"%self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
+          imod.instStr("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
         else:
-          kStr += inst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
+          imod.instStr("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
                     sgpr("StaggerUIter"), "Is this the wrapIter?")
         #kStr += self.assert_scc_is_1() # break at the wrap iteration
-        kStr += inst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s"%tc), sgpr("GlobalReadIncs%s"%tc), \
+        imod.instStr("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s"%tc), sgpr("GlobalReadIncs%s"%tc), \
                     "incLower <- ?")
-        kStr += inst("s_and_b32", sgpr(incUpper), sgpr(incLower), 0x80000000, "test")
-        kStr += inst("s_subb_u32", sgpr(incUpper), 0, 0, "-1 or 0")
-        kStr += self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True)
+        imod.instStr("s_and_b32", sgpr(incUpper), sgpr(incLower), 0x80000000, "test")
+        imod.instStr("s_subb_u32", sgpr(incUpper), 0, 0, "-1 or 0")
+        imod.append(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
         if 0 and tP["isB"] and prefetchIndex==0:
           tv = self.vgprPool.checkOut(1, "hack")
-          kStr += inst("v_mov_b32", vgpr(tv), sgpr("LoopCounters"), "")
-          kStr += self.assert_ne(vgpr(tv), sgpr("StaggerUIter")) # break at the wrap iteration
+          imod.instStr( "v_mov_b32", vgpr(tv), sgpr("LoopCounters"), "")
+          imod.append( self.assert_ne(vgpr(tv), sgpr("StaggerUIter"))) # break at the wrap iteration
           self.vgprPool.checkIn(tv)
       else:
-        kStr += self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s"%tc), 0)
+        imod.append( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s"%tc), 0))
+      return imod
     else:
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
