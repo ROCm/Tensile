@@ -4413,7 +4413,7 @@ class KernelWriterAssembly(KernelWriter):
                           soffset=soffset, offset=offset, \
                           extraFields=extraFields, \
                           hi16=hi16, \
-                          comment=comment)
+                          comment=comment).toStr()
 
               else: # Not buffer load, ie 'flat' load
                 # mask if current address if in bounds
@@ -4429,7 +4429,7 @@ class KernelWriterAssembly(KernelWriter):
                           soffset=0, offset=0, \
                           extraFields=extraFields, \
                           hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
-                          comment="load one flat value")
+                          comment="load one flat value").toStr()
 
                 # restore full exec mask
                 kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
@@ -4595,7 +4595,7 @@ class KernelWriterAssembly(KernelWriter):
                         soffset=soffset, offset=0, \
                         extraFields=extraFields, \
                         hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
-                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
+                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)).toStr()
             else: # not buffer load
               # load one element from address
               kStr += self.chooseGlobalLoad(False, \
@@ -4605,7 +4605,7 @@ class KernelWriterAssembly(KernelWriter):
                         soffset=0, offset=0, \
                         extraFields=extraFields, \
                         hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
-                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ))
+                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp )).toStr()
 
             #kStr += "s_waitcnt vmcnt(0)\n"
             #kStr += self.bomb()
@@ -6177,7 +6177,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def chooseGlobalLoad(self, useBuffer, bpl, destVgpr, \
                        addr0, addr1, soffset, offset, extraFields, hi16=0, comment="load C"):
-    kStr = ""
+
+    imod = Instruction.Module()
 
   # rpv = regs per vector
     rpv = bpl/4.0
@@ -6187,37 +6188,38 @@ class KernelWriterAssembly(KernelWriter):
       if extraFields != "":
         tailFields += ", %s"% extraFields
       if bpl==2 and hi16:
-        kStr += inst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, soffset, tailFields, comment)
+        imod.append( Inst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
+                  addr1, soffset, tailFields, comment))
       elif bpl==2 and not hi16:
-        kStr += inst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, soffset, tailFields, comment)
+        imod.append( Inst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
+                  addr1, soffset, tailFields, comment))
       elif bpl==4:
-        kStr += inst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment)
+        imod.append( Inst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment))
       elif bpl==8:
-        kStr += inst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment)
+        imod.append( Inst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment))
       elif bpl==16:
-        kStr += inst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment)
-      else:
-        assert ("chooseGlobalLoad: bad bpl")
-    else:
-      if bpl==2 and hi16:
-        kStr += inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
-      elif bpl==2 and not hi16:
-        kStr += inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
-      elif bpl==4:
-        kStr += inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, comment )
-      elif bpl==8:
-        kStr += inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, comment )
-      elif bpl==16:
-        kStr += inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment )
+        imod.append( Inst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment))
       else:
         assert ("chooseGlobalLoad: bad bpl")
 
-    return kStr
+    else:
+      if bpl==2 and hi16:
+        imod.append( Inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, comment ))
+      elif bpl==2 and not hi16:
+        imod.append( Inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment ))
+      elif bpl==4:
+        imod.append( Inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, comment ))
+      elif bpl==8:
+        imod.append( Inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, comment ))
+      elif bpl==16:
+        imod.append( Inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment ))
+      else:
+        assert ("chooseGlobalLoad: bad bpl")
+
+    return imod
 
 
   ##############################################################################
@@ -6551,7 +6553,7 @@ class KernelWriterAssembly(KernelWriter):
             addr1 = ""
           kStr += self.chooseGlobalLoad(useBuffer, bpm, dataV+1, \
                     addr0, addr1, soffset=0, offset=avi*bpm, extraFields="",
-                    comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW))
+                    comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
       elif beta:
         bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
         useBuffer = kernel["BufferStore"]
@@ -6565,13 +6567,13 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields, hi16=sumIdx%2,
-                    comment="load C for beta calc")
+                    comment="load C for beta calc").toStr()
         elif kernel["ProblemType"]["DataType"].isInt8x4() or \
              kernel["ProblemType"]["DataType"].isSingle() or \
              kernel["ProblemType"]["DataType"].isDouble():
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields,
-                    comment="load C for beta calc")
+                    comment="load C for beta calc").toStr()
 
       # restore full exec mask for calculating addr of next element
       if not kernel["BufferStore"] and edge and (beta or atomic):
@@ -6967,16 +6969,16 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["ProblemType"]["DataType"].isHalf():
             if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
               kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx/2, \
-                        addr0, addr1, soffset=0, offset=0, extraFields="", hi16=sumIdx%2)
+                        addr0, addr1, soffset=0, offset=0, extraFields="", hi16=sumIdx%2).toStr()
             else:
               kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
-                        addr0, addr1, soffset=0, offset=0, extraFields="", hi16=0)
+                        addr0, addr1, soffset=0, offset=0, extraFields="", hi16=0).toStr()
           elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
             kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx, \
-                      addr0, addr1, soffset=0, offset=0, extraFields="")
+                      addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
           elif kernel["ProblemType"]["DataType"].isDouble():
             kStr += self.chooseGlobalLoad(useBuffer, bps, sumIdx*2, \
-                      addr0, addr1, soffset=0, offset=0, extraFields="")
+                      addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
 
         # Add checks for expected values:
