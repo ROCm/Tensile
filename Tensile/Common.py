@@ -241,6 +241,12 @@ validParameters = {
     # This eliminates 4 vector XOR instructions used for pointer swap
     "ExpandPointerSwap":          [False, True],
 
+    # Schedule global reads into LocalRead iterations
+    # Can reduce pressure on local read instruction dispatch queue
+    # 0=perform global reads at start of instruction loop
+    # 1=schedule the global read instruction bundles
+    "ScheduleGlobalRead":         [0, 1],
+
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
@@ -621,6 +627,9 @@ defaultBenchmarkCommonParameters = [
     {"LocalRead2B":               [ True ] },
     {"SuppresssNoLoadLoop":       [ True ]},
     {"ExpandPointerSwap":         [ True ]},
+
+    {"ScheduleGlobalRead":        [ 1 ] },
+
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },

@@ -27,6 +27,8 @@ import shutil
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
+import Instruction
+from Instruction import Inst,LoadInst
 
 ################################################################################
 # Kernel Writer
@@ -42,6 +44,47 @@ class KernelWriter:
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
 
+  ##############################################################################
+  # Global Read Schedule
+  # Choose which iterations to schedule the loads into:
+  ##############################################################################
+  def makeGlobalReadSchedule(self, kernel):
+    # schedule of work for each local_read iteration:
+    self.globalReadSchedule = [ [] for i in range (kernel["LoopUnroll"]-1) ]
+    readCnt = self.globalReadA.middle.count() + self.globalReadB.middle.count()
+    # reads and incs are scheduled in iters range(0...endIter)
+    endIter = readCnt + 2 # 2 for incA and incB
+
+    if endIter > kernel["LoopUnroll"]-1:
+      # Front-load some of the buffer loads if we don't have enough loop iters:
+      # could use a different/smarter algorithm to space out the loads?
+      firstStep = endIter-(kernel["LoopUnroll"]-1) + 1
+      endIter = kernel["LoopUnroll"]-1
+    else:
+      firstStep = 1
+
+    self.globalReadHeader = [self.globalReadA.header, self.globalReadB.header]
+
+    # Add all loads from middle as individual schedulable items
+    itemsToSched =  self.globalReadA.middle.items() + \
+                    self.globalReadB.middle.items()
+    itemsToSched.append(self.globalReadIncA)
+    itemsToSched.append(self.globalReadIncB)
+
+    self.globalReadSchedule[0] = itemsToSched[:firstStep]
+    itemsToSched = itemsToSched[firstStep:]
+    step = 1
+    for u in range(1, endIter, step):
+      try:
+        self.globalReadSchedule[u] = itemsToSched[:step]
+        itemsToSched = itemsToSched[step:]
+      except IndexError:
+        break # no code left to schedule
+
+    assert not itemsToSched # should have scheduled everthing already
+
+    self.globalReadSchedule[endIter-1].append(self.globalReadA.footer)
+    self.globalReadSchedule[endIter-1].append(self.globalReadB.footer)
 
 
   ##############################################################################
@@ -267,9 +310,9 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # global read
         kl.append(self.comment("global read a"))
-        kl.append(self.globalReadDo(kernel, 0, tensorParametersA))
+        kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
         kl.append(self.comment("global read b"))
-        kl.append(self.globalReadDo(kernel, 0, tensorParametersB))
+        kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
       if self.enable["GlobalReadInc"]:
         # increment global
         kl.append(self.comment("global read inc a"))
@@ -318,6 +361,12 @@ class KernelWriter:
 
     expand = kernel["ExpandPointerSwap"]
     loopCopies = 2 if expand else 1
+    if self.canSchedule:
+      scheduleGlobalRead = kernel["ScheduleGlobalRead"] \
+          and kernel["PrefetchGlobalRead"] \
+          and kernel["BufferLoad"] # flat updates lgmt counts = hard to move
+    else:
+      scheduleGlobalRead = 0
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
@@ -327,18 +376,34 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # unrolled loop: global read A, B
         kl.append(self.comment("global read a"))
-        kl.append(self.globalReadDo(kernel, 1, tensorParametersA))
+        self.globalReadA = self.globalReadDo(kernel, 1, tensorParametersA)
+        if scheduleGlobalRead:
+            print "GRA="
+            self.globalReadA.prettyPrint()
+            print "cnt=", self.globalReadA.middle.count()
+        if not scheduleGlobalRead:
+          kl.append(str(self.globalReadA))
         kl.append(self.comment("global read b"))
-        kl.append(self.globalReadDo(kernel, 1, tensorParametersB))
+        self.globalReadB = self.globalReadDo(kernel, 1, tensorParametersB)
+        if not scheduleGlobalRead:
+          kl.append(str(self.globalReadB))
 
+      #import pdb; pdb.set_trace()
       if self.enable["GlobalReadInc"]:
         # unrolled loop: increment global read addresses
-        kl.append(self.comment("global read inc a"))
-        kl.append(self.globalReadIncrement(kernel, self.unrollIdx, \
-            tensorParametersA, 0))
-        kl.append(self.comment("global read inc b"))
-        kl.append(self.globalReadIncrement(kernel, self.unrollIdx, \
-            tensorParametersB, 0))
+        self.globalReadIncA = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, 0)
+        self.globalReadIncB = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, 0)
+      else:
+        self.globalReadIncA = ""
+        self.globalReadIncB = ""
+
+      if scheduleGlobalRead:
+        self.makeGlobalReadSchedule(kernel)
+        for m in self.globalReadHeader:
+          kl.append(str(m))
+      else:
+        kl.append(str(self.globalReadIncA))
+        kl.append(str(self.globalReadIncB))
 
       if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
@@ -400,6 +465,13 @@ class KernelWriter:
           extraComment = " (swap local pointers iteration)"
         kl.append(self.comment("iter %u%s"%(u,extraComment)))
         plrIdx = (u+pf) % (kernel["PrefetchLocalRead"]+1)
+
+        if scheduleGlobalRead:
+          # schedule work for this iteration:
+          schedIter = self.globalReadSchedule[u]
+          if schedIter:
+            for codeModule in schedIter:
+              kl.append(str(codeModule))
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             kl.append(self.comment("local read a"))
@@ -623,9 +695,9 @@ class KernelWriter:
           kl.append(self.removeStagger(kernel, tensorParametersB))
 
         kl.append(self.comment("global read a"))
-        kl.append(self.globalReadDo(kernel, 2, tensorParametersA))
+        kl.append(str(self.globalReadDo(kernel, 2, tensorParametersA)))
         kl.append(self.comment("global read b"))
-        kl.append(self.globalReadDo(kernel, 2, tensorParametersB))
+        kl.append(str(self.globalReadDo(kernel, 2, tensorParametersB)))
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "2wait for global read"))
       if self.enable["Sync"]:
@@ -830,6 +902,9 @@ class KernelWriter:
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
 
     self.staggerU = kernel["StaggerU"] and (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
+
+    # Only assembly supports scheduling
+    self.canSchedule = kernel["KernelLanguage"] == "Assembly"
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
