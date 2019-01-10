@@ -489,7 +489,7 @@ class SolutionWriter:
         s += "%sdataD,\n" % (t)
         s += "%sdataC,\n" % (t)
         # strides
-        for i in range(0,numStridesC):
+        for i in range(0,numStridesC*2):
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
 # FROM MERGED OLD
@@ -879,6 +879,9 @@ class SolutionWriter:
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
+    # d strides
+    for i in range(firstStride,lastStrideC):
+      self.strideList.append("strideD%u%s" % (i, self.indexChars[i]))
     # c strides
     for i in range(firstStride,lastStrideC):
       self.strideList.append("strideC%u%s" % (i, self.indexChars[i]))

@@ -1169,10 +1169,12 @@ class KernelWriterAssembly(KernelWriter):
     numSgprAddressB = self.rpga # til read offsets
     numSgprAlpha = max(1,int(tPA["bpe"]/4))
     numSgprBeta  = max(1,int(self.bpeCexternal/4)) if kernel["ProblemType"]["UseBeta"] else 0
+    self.numSgprStridesD = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     self.numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
     if not kernel["ProblemType"]["UseInitialStrides"]:
+      self.numSgprStridesD -= 1
       self.numSgprStridesC -= 1
       self.numSgprStridesA -= 1
       self.numSgprStridesB -= 1
@@ -1238,6 +1240,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("GSUSumIdx", 2 if kernel["GlobalSplitU"] > 1 else 0)
     self.defineSgpr("AddressD", numSgprAddressD)
     self.defineSgpr("AddressC", numSgprAddressC)
+    self.defineSgpr("StridesD", self.numSgprStridesD)
     self.defineSgpr("StridesC", self.numSgprStridesC)
 
     # doubles need to be aligned to even
@@ -1673,12 +1676,12 @@ class KernelWriterAssembly(KernelWriter):
     kernArgReg += max(1,int(self.bpeAB/4)) # alpha
     if kernel["ProblemType"]["UseBeta"]:
       kernArgReg += max(1,int(self.bpeCexternal/4)) # beta
-    kernArgReg += 3 # offsets
+    kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
     kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsB"]) # strides
     if not kernel["ProblemType"]["UseInitialStrides"]:
-      kernArgReg -= 3 # strides
+      kernArgReg -= 4 # strides
     kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
     kernArgReg += kernel["ProblemType"]["NumIndicesC"]
     if globalParameters["DebugKernel"]:
@@ -2208,6 +2211,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_load_dword", sgpr("Beta+1"), \
               sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load beta" )
         kernArgOffset += 1*max(4,self.bpeCexternal)
+      for i in range(0, self.numSgprStridesD):
+        kStr += inst("s_load_dword", sgpr("StridesD+%u"%i), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride d %u"%i )
+        kernArgOffset += 1*4
       for i in range(0, self.numSgprStridesC):
         kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
@@ -5383,12 +5390,19 @@ class KernelWriterAssembly(KernelWriter):
 
         if addToSrd:
           # These are constant across all workitems, just add to the SRD:
-          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesC+%u"%(i-1)), "Scale %s by Stride"%coord)
+          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesD+%u"%(i-1)), "Scale %s by Stride"%coord)
           #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
           kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
           kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
           kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
+          kStr += "\n"
+
+          # These are constant across all workitems, just add to the SRD:
+          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesC+%u"%(i-1)), "Scale %s by Stride"%coord)
+          #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
+          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
+
           kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
           kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
           kStr += "\n"
@@ -5402,7 +5416,7 @@ class KernelWriterAssembly(KernelWriter):
       assert (len(kernel["PackedC1Indices"]) == 1) # would need to extract/scale indices from coord1
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
       kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
-                  vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
+                  vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
                   "rowStart vgpr")
       kStr += "\n"
 
@@ -6245,9 +6259,9 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "rowPtr <- rowStart (first row)")
           elif coordOffset1 == self.lastCoordOffset1 + 1:
             kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
-                      sgpr("StridesC+0"), "rowPtr <- move to start of new row")
+                      sgpr("StridesD+0"), "rowPtr <- move to start of new row")
           else:
-            kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesC+0"), coordOffset1, \
+            kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesD+0"), coordOffset1, \
                 "scale StrideC *= coordOffset1(%u)"%coordOffset1)
             kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowStart), \
                       sgpr(tmpS01), "rowPtr <- inc for non-0 (tt1+vc1))")
