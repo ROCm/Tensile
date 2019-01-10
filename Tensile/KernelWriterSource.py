@@ -2615,7 +2615,7 @@ class KernelWriterSource(KernelWriter):
         kStr += ", "
     kStr += ");%s" % (self.endLine)
     #kStr += "printf(\\\"%%09llu\\\\n\\\", idx);%s" % (self.endLine)
-    kStr += "  if (globalD%s < size%s && globalD%s < size%s) {%s" \
+    kStr += "  if (globalC%s < size%s && globalC%s < size%s) {%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar1, self.tileChar1, \
         self.endLine )
 
