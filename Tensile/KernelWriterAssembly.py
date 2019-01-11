@@ -4778,7 +4778,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalWrite"]: return ""
 
     self.localWriteDoCnt += 1
-    kStr = ""
+    imod = Instruction.Module()
     tc = tP["tensorChar"]
     if not kernel["DirectToLds%s"%tc]:
       instruction = tP["localWriteInstruction"]
@@ -4820,8 +4820,8 @@ class KernelWriterAssembly(KernelWriter):
 
             validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
             #print "%s: overhang=%u element validWI=%u" % (tc, overhang, validWI)
-            kStr += self.comment1("LastPerp.  overhang=%u, mask WI>%u" % (overhang, validWI))
-            kStr += inst("v_cndmask_b32", \
+            imod.append(self.comment1("LastPerp.  overhang=%u, mask WI>%u" % (overhang, validWI)))
+            imod.instStr("v_cndmask_b32", \
                         vgpr(tmpLocalWriteAddr), \
                         1.0, \
                         vgpr("LocalWriteAddr%s"%tc), \
@@ -4856,7 +4856,6 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
                     blockWidth))
-            #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
             for oIdx in range(0, numOffsets):
               paramList.append(offset)
 
@@ -4872,28 +4871,22 @@ class KernelWriterAssembly(KernelWriter):
                 highBits = True
               if tP["glvw"]==1 and instructionCnt%2==1:
                 highBits = True
-            kStr += tP["localWriteInstruction"].toString(paramTuple, comment, \
-                nonTemporal, highBits)
+            imod.append(tP["localWriteInstruction"].toString(paramTuple, comment, \
+                nonTemporal, highBits))
 
             loopCnt+=1
-        #kStr += "s_endpgm\n"
 
       if tmpLocalWriteAddr != -1:
         self.vgprPool.checkIn(tmpLocalWriteAddr)
 
-    #kStr += self.assert_lt(vgpr("Serial"), 64)
-    if 0:
-      kStr += inst("s_barrier", "temp debug wait to check sync issue" )
-
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
     if 0 and tP["isB"]:
     #if 0 and self.localWriteDoCnt >= 0:
-      kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
-      kStr += inst("s_barrier", "dump LDS" )
-      kStr += self.bomb()
-      #kStr += self.assert_ne(sgpr("LoopCounters+0"), -2) # stop on a specific loop iteration
+      imod.append( "s_waitcnt lgkmcnt(0) & vmcnt(0)\n")
+      imod.instStr("s_barrier", "dump LDS" )
+      imod.append(self.bomb())
 
-    return kStr
+    return imod
 
   ##############################################################################
   # Local Read: Swap Offsets A/B
