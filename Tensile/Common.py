@@ -633,7 +633,7 @@ defaultBenchmarkCommonParameters = [
     {"ExpandPointerSwap":         [ True ]},
 
     {"ScheduleGlobalRead":        [ 1 ] },
-    {"ScheduleLocalWrite":        [ 1 ] },
+    {"ScheduleLocalWrite":        [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
