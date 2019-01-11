@@ -4468,6 +4468,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
     tc = tP["tensorChar"]
     imod = Instruction.StructuredModule("globalReadDo%s_%u"%(tc,mode))
+    imod.append(self.comment("global read %s")%tc)
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth # load width in elements?
@@ -4985,7 +4986,7 @@ class KernelWriterAssembly(KernelWriter):
 
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
-    kStr = ""
+    imod = Instruction.Module()
     self.localReadDoCnt += 1
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
@@ -5009,17 +5010,17 @@ class KernelWriterAssembly(KernelWriter):
         paramTuple = tuple(paramList)
         comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
             %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
-        kStr += instruction.toString(paramTuple, comment)
+        imod.append(instruction.toString(paramTuple, comment))
         valuIdx += blockWidth
 
         # TODO - handle vector-load
         if self.db["CheckValue1%s"%tc]:
-            kStr += "s_waitcnt lgkmcnt(0) // CheckValue1 wait for LDS read\n"
+            imod.instStr("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
             if kernel["ProblemType"]["DataType"].isHalf():
-              kStr += self.assert_eq(destVgpr, hex(0x3c003c00)) # packed 1s
+              imod.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
             elif kernel["ProblemType"]["DataType"].isInt8x4() or \
                  kernel["ProblemType"]["DataType"].isSingle():
-              kStr += self.assert_eq(destVgpr, 1.0)
+              imod.append(self.assert_eq(destVgpr, 1.0))
 
     #if tP["isB"]:
     #  kStr += self.dumpLds(kernel, 0, 16)
@@ -5034,9 +5035,9 @@ class KernelWriterAssembly(KernelWriter):
     if 0 and tP["isA"] and self.localReadDoCnt==3:
       # skip over tmp used above, so it doesn't get trashed
       tmpVgpr = self.vgprPool.checkOut(3)
-      kStr += self.bomb(self.localReadDoCnt + 10, tmpVgpr+1)
+      imod.append(self.bomb(self.localReadDoCnt + 10, tmpVgpr+1))
       self.vgprPool.checkIn(tmpVgpr)
-    return kStr
+    return imod
 
   ##############################################################################
   # Shift Vector Components d0,1
