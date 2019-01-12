@@ -1,3 +1,5 @@
+# Global to print module names around strings
+printModuleNames = 0
 
 """
 Base class for Modules, Instructions, etc
@@ -27,7 +29,13 @@ class Module(Item):
     self.itemList = []
 
   def __str__(self):
-    return "".join([str(x) for x in self.itemList])
+    s = ""
+    if printModuleNames:
+      s += "// %s { \n" % self.name
+    s += "".join([str(x) for x in self.itemList])
+    if printModuleNames:
+      s += "// } %s\n" % self.name
+    return s
 
   """
   Add specified item to the list of items in the module.
@@ -38,7 +46,7 @@ class Module(Item):
   Returns item to facilitate one-line create/add patterns
   """
   def addCode(self, item):
-    #assert (isinstance(item, Item))
+    #assert (isinstance(item, Item)) # for debug
     if isinstance(item,Item):
       self.itemList.append(item)
     elif isinstance(item,str):
@@ -47,13 +55,19 @@ class Module(Item):
       assert 0, "unknown item type (%s) for Module.addCode. item=%s"%(type(item), item)
     return item
 
-
+  """
+  Convenience function to format arg as a comment and add TextBlock item
+  This comment is a single line /* MYCOMMENT  */
+  """
+  def addComment0(self, comment):
+    self.addCode(TextBlock("/* %s */\n"%comment))
 
   """
   Convenience function to format arg as a comment and add TextBlock item
+  This comment is a blank line followed by /* MYCOMMENT  */
   """
-  def addComment(self, comment):
-    self.addCode(TextBlock("// %s\n"%comment))
+  def addComment1(self, comment):
+    self.addCode(TextBlock("\n/* %s */\n"%comment))
 
   """
   Convenience function to construct a single Inst and add to items
@@ -85,8 +99,6 @@ class Module(Item):
   def countType(self,ttype):
     count=0
     for i in self.itemList:
-      if isinstance(i, ttype):
-        count += 1
       if isinstance(i, Module):
         count += i.countType(ttype)
       else:

@@ -55,6 +55,22 @@ class MemoryInstruction:
       instStr += " slc"
     line = "%-50s // %s%s" % (instStr, comment, self.endLine)
     return line
+
+  # Like toString, but don't add a comment or newline
+  # Designed to feed into Code.Inst constructors, somewhat
+  def toCodeInst(self, params, nonTemporal=0, highBits=0):
+    name = self.name
+    if highBits:
+      name += "_d16_hi"
+    instStr = "%s %s" % (name, (self.formatting % params) )
+    if nonTemporal%2==1:
+      instStr += " glc"
+    if nonTemporal/2==1:
+      instStr += " slc"
+    line = "%-50s" % (instStr)
+    return line
+
+
   def __str__(self):
     return self.name
 
@@ -4158,7 +4174,7 @@ class KernelWriterAssembly(KernelWriter):
     imod = Code.Module()
     tc = tP["tensorChar"]
 
-    imod.addComment("global read inc %s"%tc)
+    imod.addComment1("global read inc %s"%tc)
 
     if kernel["BufferLoad"]:
       # TODO - does this handle N-dim tensors correctly?
@@ -4467,7 +4483,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
     tc = tP["tensorChar"]
     imod = Code.StructuredModule("globalReadDo%s_%u"%(tc,mode))
-    imod.addComment("global read %s"%tc)
+    #imod.header.addComment("global read header %s"%tc)
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth # load width in elements?
@@ -4809,7 +4825,7 @@ class KernelWriterAssembly(KernelWriter):
       instructionCnt = -1
       for perp in range(0, tP["nrp"]):
         instructionCnt += 1
-        localWriteCode = imod.addCode(Code.Module("LocalWritee%u"%instructionCnt))
+        localWriteCode = imod.addCode(Code.Module("LocalWrite%u perp=%d"%(instructionCnt,perp)))
         lwa = "LocalWriteAddr%s"%tc  # default
         if kernel["FractionalLoad"] and perp==tP["nrp"]-1:
           overhang = kernel["fractionalPerpOverhang%s"%tc]
@@ -4828,6 +4844,8 @@ class KernelWriterAssembly(KernelWriter):
                         "Mask load so out-of-gr-tile bounds returns 0. Note 1.0f=0x3f80000 which is large non-neg int")
             lwa = tmpLocalWriteAddr
         for para in range(0, tP["nrc"]):
+          if para>=1:
+            localWriteCode = imod.addCode(Code.Module("LocalWrite%u perp=%d para=%d"%(instructionCnt,perp,para)))
           for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
 
             sPerp = 0
@@ -4871,8 +4889,8 @@ class KernelWriterAssembly(KernelWriter):
               if tP["glvw"]==1 and instructionCnt%2==1:
                 highBits = True
             localWriteCode.addCode(Code.LocalWriteInst( \
-                tP["localWriteInstruction"].toString(paramTuple, comment, \
-                nonTemporal, highBits),""))
+                tP["localWriteInstruction"].toCodeInst(paramTuple, \
+                nonTemporal, highBits),comment))
 
             loopCnt+=1
 
@@ -5010,7 +5028,7 @@ class KernelWriterAssembly(KernelWriter):
         paramTuple = tuple(paramList)
         comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
             %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
-        localReadCode.addCode(Code.LocalReadInst(instruction.toString(paramTuple, comment), ""))
+        localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple), comment))
         valuIdx += blockWidth
 
         # TODO - handle vector-load
