@@ -1593,7 +1593,7 @@ class Solution:
     #These modes only work under certain conditions, apply them here:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
     #  - And Suppress does not work if GSU>1 for some reason
-    state["SuppresssNoLoadLoop"] &= (state["BufferLoad"] and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
+    state["SuppressNoLoadLoop"] &= (state["BufferLoad"] and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (state["BufferLoad"] and state["PrefetchGlobalRead"])
 

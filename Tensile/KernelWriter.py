@@ -813,7 +813,7 @@ class KernelWriter:
       kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop))
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
-    if kernel["PrefetchGlobalRead"] and not kernel["SuppresssNoLoadLoop"]:
+    if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
       kl.append(self.comment("prefetch: last unrolled iteration"))
       kl.append(self.openSumAtLeastUnroll(kernel, False))
       if not kernel["PrefetchLocalRead"]:
