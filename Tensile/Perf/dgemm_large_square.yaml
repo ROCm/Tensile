@@ -6,10 +6,10 @@ GlobalParameters:
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
-  EnqueuesPerSync: 1
+  EnqueuesPerSync: 30
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 0
+  NumElementsToValidate: 1000
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -18,7 +18,7 @@ GlobalParameters:
   Device: 0
   KernelTime: True
   PinClocks: True
-  SleepPercent: 200
+  SleepPercent: 000
   DataInitTypeBeta : 0
   PrintSolutionRejectionReason: 1
 
@@ -41,18 +41,16 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - UseSgprForGRO: [1]
-        - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - ExpandPointerSwap: [False, True]
-        - AggressivePerfMode: [0,1,2]
+        - PrefetchLocalRead: [True,False]
+        - SuppressNoLoadLoop: [0] # suppress=0 puts less code in core loop
         - ThreadTile:
-          #- [ 6, 4 ]
-          #- [ 4, 6 ]
+          - [ 6, 4 ]
+          - [ 6, 6 ]
           - [ 4, 4 ]
         - WorkGroup:
           #- [ 16, 32, 1 ]
-          #- [ 32, 16, 1 ]
+          - [ 32, 16, 1 ]
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
         - DepthU: [ 8 ]
@@ -65,7 +63,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # A couple classic large matrix problems:
+          # A few classic large matrix problems:
+          - Range: [ [4608], [4608], [1], [4608] ] # 48x48 tiles so exactly 30 tiles/CU on 64-CU device
           - Range: [ [5760], [5760], [1], [5760] ]
           - Range: [ [7744], [7744], [1], [7744] ]
 
