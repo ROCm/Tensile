@@ -3783,7 +3783,7 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
       kStr += "\n"
-      if kernel["SuppresssNoLoadLoop"]:
+      if kernel["SuppressNoLoadLoop"]:
         # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
         # (and also moved back the srd shadow limit) and slammed Limit to 0, so need to 'undo'
         # those increments - see setTailSrd
@@ -3891,11 +3891,11 @@ class KernelWriterAssembly(KernelWriter):
 
     # is numIter at least 1? otherwise skip to end
     # PGL needs a skip-check here if not bufferload
-    # If kernel["SuppresssNoLoadLoop"] we don't have a special loop for the 'last iter'
+    # If kernel["SuppressNoLoadLoop"] we don't have a special loop for the 'last iter'
     if tailLoop:
       endCounter = 0
     elif kernel["PrefetchGlobalRead"]:
-      if kernel["SuppresssNoLoadLoop"]:
+      if kernel["SuppressNoLoadLoop"]:
         endCounter =  0
       else:
         endCounter = -1
@@ -3985,7 +3985,7 @@ class KernelWriterAssembly(KernelWriter):
       # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
       # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
       # increments appropriately
-      if kernel["PrefetchGlobalRead"] and not kernel["SuppresssNoLoadLoop"]:
+      if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
         endCounter = -1
       else:
         endCounter = 0
@@ -4054,7 +4054,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "s_barrier // debug\n"
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
 
-    if kernel["SuppresssNoLoadLoop"]:
+    if kernel["SuppressNoLoadLoop"]:
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
 
     return kStr
@@ -4084,7 +4084,7 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     if prefetch:
-      if kernel["SuppresssNoLoadLoop"]:
+      if kernel["SuppressNoLoadLoop"]:
         loopChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
         lastIterEnd = self.getLabel("LoopEnd%s"%loopChar)
@@ -4154,11 +4154,11 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # incLower must be constant or SGRP unsigned value
   def setTailSrd(self, kernel, tP, incLower):
-    # In SuppresssNoLoadLoop, the final loop iteration moves the SRD base forward
+    # In SuppressNoLoadLoop, the final loop iteration moves the SRD base forward
     # and the ShadowLimit backwards by one extra 'click' of GlobalReadIncs[AB].
     # Note the ShadowLimit may become negative - for example edge tiles where the
     # increment is > tile width.
-    # The SuppresssNoLoadLoop mode also forces the SRD limit to 0 on the final iteration.
+    # The SuppressNoLoadLoop mode also forces the SRD limit to 0 on the final iteration.
     # The code here undoes the final click step by moving the base backwards and the
     # limit forwards (reading from the ShadowLimit).
     # It only works if use64bPbcLimit is enabled (since this enables use of the ShadowLimit)
@@ -4525,7 +4525,7 @@ class KernelWriterAssembly(KernelWriter):
     ldsOffset = 0
 
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
-    if kernel["SuppresssNoLoadLoop"]:
+    if kernel["SuppressNoLoadLoop"]:
       if mode==1 and tP["isA"]:
         imod.header.addInst("s_cmp_eq_i32", \
               sgpr("LoopCounters+%u"%loopIdx), \
