@@ -4022,19 +4022,29 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(endCounter), \
         "counter%s==0"%(loopChar) )
-    kStr += inst("s_cbranch_scc1 label_%04u"%(loopLabelEnd if finalLoop else loopLabelEndOddExit), \
-        "exit Loop%s"%loopChar )
 
-    if finalLoop:
-      kStr += inst("s_branch label_%04u"%loopLabelBegin, \
-          "restart %s Loop%s"%("tailLoop" if tailLoop else "unrolled loop", loopChar ))
-      kStr += "label_%04u: // unroll loop odditer exit\n" % (loopLabelEndOddExit)
-      if not kernel["SuppresssNoLoadLoop"] and kernel["ExpandPointerSwap"]:
-        # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
-        # if we exit the main loop at an odd iter - need to swap LDS read pointers
-        # so the ds_reads read from the 'high' buffer of LDS
-        kStr += self.localReadSwapOffsets(kernel, False, self.tPA)
-        kStr += self.localReadSwapOffsets(kernel, False, self.tPB)
+    if not finalLoop:
+      # just an exit check, else fall through to the next loop copy
+      kStr += inst("s_cbranch_scc1 label_%04u"%(loopLabelEndOddExit), "exit Loop%s"%loopChar )
+    else: #finalLoop:
+      kStr += inst("s_cbranch_scc0 label_%04u"%loopLabelBegin, \
+          "restart Loop%s"%(loopChar ))
+
+      if not tailLoop:
+        oddIterCode = Code.Module()
+        if not kernel["SuppressNoLoadLoop"] and kernel["ExpandPointerSwap"]:
+          # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
+          # if we exit the main loop at an odd iter - need to swap LDS read pointers
+          # so the ds_reads read from the 'high' buffer of LDS
+          oddIterCode.addText(self.localReadSwapOffsets(kernel, False, self.tPA))
+          oddIterCode.addText(self.localReadSwapOffsets(kernel, False, self.tPB))
+
+        if oddIterCode.count():
+          kStr += inst("s_branch label_%04u"%loopLabelEnd, \
+              "restart unrolled Loop%s"%(loopChar ))
+        kStr += "label_%04u: // unroll loop odditer exit\n" % (loopLabelEndOddExit)
+        kStr += str(oddIterCode)
+
       kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
 
     # restore all threads
