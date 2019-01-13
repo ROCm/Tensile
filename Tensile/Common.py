@@ -297,7 +297,12 @@ validParameters = {
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
     "UseSgprForGRO":              [ -1, 0, 1],
-    "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
+
+    # Some work-items in the group may not participate in the final buffer load.
+    # Allows more flexibility in choosing DepthU.
+    # 1= allocate extra addressing vpgr for edge cases
+    # 2= use temp vgpr inside unroll loop, may save 1 VPR if both A and B have a fractional edge but costs v_alu
+    "FractionalLoad":             [ 0, 1, 2] ,
 
     # Attempt to vectorize atomics
     # 1,2,4 : Number of elements to vectorize
