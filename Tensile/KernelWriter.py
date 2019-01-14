@@ -230,10 +230,12 @@ class KernelWriter:
 
     # Default schedule is other, local reads, then local writes:
     if self.scheduleIterAlg==0:
-      # first the global reads:
+      # simple schedule, just add the modules in-order
       iterCode.addCode(globalReadCode)
       iterCode.addCode(localReadCode)
       iterCode.addCode(localWriteCode)
+      iterCode.addCode(pointerCode)
+      iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 1:
       #import pdb
       #pdb.set_trace()
@@ -258,12 +260,17 @@ class KernelWriter:
       # add rest of the reads here
       for item in readItems:
         iterCode.addCode(item)
+
+      # tack on the pointer and mac code:
+      iterCode.addCode(pointerCode)
+      iterCode.addCode(macIterCode)
+    elif self.scheduleIterAlg == 2:
+      # faux-fuss:
+      macsPerIter = 4
+      localReadsPerIter = 1
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
-    # for now tack these onto the end, could be mixed in above
-    iterCode.addCode(pointerCode)
-    iterCode.addCode(macIterCode)
 
     return iterCode
 
