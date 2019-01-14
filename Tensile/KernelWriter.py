@@ -135,7 +135,7 @@ class KernelWriter:
         # do we need a module here? That would prevent these from being scheduled
         imod = self.perIterLocalWriteCode[localWriteEndIter].addCode(Code.Module())
         if self.enable["Wait"]:
-          imod.addText(
+          imod.addCode(
               self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, \
               "1wait for global read"))
         imod.addComment1("local write A")
@@ -197,10 +197,11 @@ class KernelWriter:
             readsToWait = readsToWait - 1
             # TODO - gfx9 supports higher max VMCNT
             if 1:
-              imod.addCode(self.vmwait(kernel, min(15, readsToWait)))
+              imod.addCode(Code.WaitCnt(-1, min(15, readsToWait), \
+                  "wait before writing data"))
             else:
               print "warning - scheduleLocalWrite adding conservative vmcnt(0)"
-              imod.addCode(self.vmwait(kernel,0))
+              imod.addCode(Code.Waitcnt(-1, 0, "conservative waitcnt"))
           imod.addCode(item)
           self.perIterLocalWriteCode[u].addCode(imod)
         itemsToSched = itemsToSched[itemPerIter:]
@@ -719,9 +720,10 @@ class KernelWriter:
         if self.enable["Wait"]:
           if self.scheduleLocalWrite:
             # TODO - fixme, this kills the overlap
-            pointerCode.addCode(Code.Inst("s_waitcnt lgkmcnt(0)", "wait for local writes (perhaps conservatively)"))
+            pointerCode.addCode(Code.WaitCnt(0, -1, \
+                "wait for local writes (perhaps conservatively)"))
           else:
-            pointerCode.addText(self.wait(kernel, tensorParametersA, tensorParametersB, \
+            pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, \
                 waitGlobalRead, waitLocalWrite, waitLocalRead, "wait for prior local read"))
 
         if self.enable["MAC"]:
@@ -801,9 +803,10 @@ class KernelWriter:
         if self.enable["Wait"]:
           if self.scheduleLocalWrite or self.scheduleIterAlg:
             # bozo - could perhaps make this more optimal
-            pointerCode.addCode(Code.Inst("s_waitcnt lgkmcnt(0)", "wait for locals (perhaps conservatively)"))
+            pointerCode.addCode(Code.WaitCnt(0, -1, \
+                    "wait for local writes (perhaps conservatively)"))
           else:
-            pointerCode.addText(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, \
+            pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, \
                 "6wait for local read"))
       elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["LocalRead"]:
@@ -813,10 +816,10 @@ class KernelWriter:
           pointerCode.addText(self.comment("local read init pointers b"))
           pointerCode.addText(self.localReadInitPointers(kernel, tensorParametersB))
         if self.enable["Wait"]:
-          pointerCode.addText(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "1wait for local read"))
+          pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "1wait for local read"))
       elif not kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          pointerCode.addText(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "2wait for local read"))
+          pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "2wait for local read"))
       else:
         assert(0) # unknown PGR/PLR pattern
       # no wait needed here b/c we already waited for ds_write
