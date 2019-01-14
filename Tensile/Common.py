@@ -929,6 +929,11 @@ def assignGlobalParameters( config ):
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
     globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
     globalParameters["AsmCaps"][v]["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
+    if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
+      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 63
+    elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
+      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 15
+
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
