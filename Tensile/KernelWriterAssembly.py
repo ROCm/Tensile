@@ -7159,6 +7159,8 @@ class KernelWriterAssembly(KernelWriter):
         return imod
 
     lgkmcnt = min(lgkmcnt, 15)
+    if lgkmcnt >= 0 and vmcnt >= 0:
+      vmcnt = -1 # preserve prior behavior of removing vmcnt here?
     maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
     vmcnt = min(vmcnt, maxVmcnt)
 
