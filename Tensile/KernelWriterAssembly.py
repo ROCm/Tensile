@@ -138,6 +138,7 @@ class RegisterPool:
     return self.checkOutAligned(size, 1, tag, preventOverflow)
   def checkOutAligned(self, size, alignment, tag="", preventOverflow=False):
     assert(size > 0)
+    assert(self.type != 's') # use getTmpSgpr instead of checkout
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -521,6 +522,7 @@ class KernelWriterAssembly(KernelWriter):
     pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
     if self.startSgprTmpPool+num+pad > self.totalSgprs:
       self.totalSgprs = self.startSgprTmpPool + num + pad
+      #print "startSgprTmpPool=", self.startSgprTmpPool
       #print "warning: growing SGPR pool to ", self.totalSgprs
 
     return self.startSgprTmpPool + pad
@@ -606,7 +608,7 @@ class KernelWriterAssembly(KernelWriter):
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
 
-    # if >0, shift the start of the SRD left by specified #elements
+    # if >0, shift the start of the SRD left by specified #elements (not bytes)
     # Gives pointer shift some room to move left, even into the previous macro-tile
     # This slightly reduces the range of the GRO since they have to include the offset
     # Pointer shift still cannot be used with very small matrices < GRVW
@@ -1257,19 +1259,11 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
 
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
+    self.defineSgpr("OrigLoopCounter", 1)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
     self.defineSgpr("AddressB", numSgprAddressB)
-    if kernel["FractionalLoad"]:
-      if kernel["fractionalPerpOverhangA"]:
-        self.defineSgpr("PerpOverhangVccA", 2, 2)
-      if kernel["fractionalPerpOverhangB"]:
-        self.defineSgpr("PerpOverhangVccB", 2, 2)
-    if self.use64bPbcLimit:
-      # If need more SGPR could overlap this with the Tensor2dSize regs
-      self.defineSgpr("SrdShadowLimitA", 2, 2)
-      self.defineSgpr("SrdShadowLimitB", 2, 2)
     if globalParameters["DebugKernel"]:
       self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
       self.defineSgpr("DebugKernelItems", 1)
@@ -1277,15 +1271,29 @@ class KernelWriterAssembly(KernelWriter):
 
     #------------------------
     # Registers defined below this point are not available in the post-loop
+    # Post-loop is after tail loop exits, ie the store code.
     # (we reclaim them to use as temps, typically for execmasks)
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
     self.lastPostLoopSgpr = self.sgprIdx
 
+    if kernel["FractionalLoad"]:
+      if kernel["fractionalPerpOverhangA"]:
+        self.defineSgpr("PerpOverhangVccA", 2, 2)
+      if kernel["fractionalPerpOverhangB"]:
+        self.defineSgpr("PerpOverhangVccB", 2, 2)
+    if self.use64bPbcLimit:
+      # If need more SGPR could overlap this with the Tensor2dSize regs
+      self.defineSgpr("ShadowLimitA", 2, 2)
+      self.defineSgpr("ShadowLimitB", 2, 2)
+    if self.staggerU:
+      self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
+      self.defineSgpr("WrapUA", 1)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
+      self.defineSgpr("WrapUB", 1)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
+
     self.defineSgpr("OffsetC", numSgprOffsetC)
     self.defineSgpr("OffsetA", numSgprOffsetA)
     self.defineSgpr("OffsetB", numSgprOffsetB)
-
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -1317,7 +1325,7 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
 
-    self.sgprPool = RegisterPool(self.totalSgprs, 's')
+    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0)
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["globalReadInstruction"] = self.globalReadInstructionA
@@ -1698,7 +1706,7 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = True
     if self.overflowedResources:
       totalVgprs = 1
-    #totalSgprs = self.sgprPool.size()
+    assert(self.totalSgprs >= self.sgprPool.size())
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
         % (totalVgprs, self.endLine)
     kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
@@ -2250,6 +2258,10 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
         kernArgOffset += 1*4
+      if self.staggerU:
+        kStr += inst("s_load_dword", sgpr("StaggerUIter"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load StaggerUIter")
+      kernArgOffset += 1*4
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % kernArgOffset )
@@ -2949,7 +2961,6 @@ class KernelWriterAssembly(KernelWriter):
                   else:
                     if isPackedIndex(kernel,i, tP["PackBatchDims"]):
                       #kStr += ", %2u" % tP["vgprPackedOffsets"]+i-1  #??
-                      numPacked = len(tP["PackedIndices"])-1
                       kStr += ", %2u" % (tP["vgprPackedOffsets"] + \
                                          (vgprTile-tileOffsets)*(len(tP["PackedIndices"])-1) +
                                          packedIter)
@@ -3086,8 +3097,8 @@ class KernelWriterAssembly(KernelWriter):
   def computeSrd(self, kernel, tP, tc, indices, bpe):
     kStr = ""
 
-    stmp = self.getTmpSgpr(6+2) # bozo, remove +1
-    tileStart = stmp+4
+    stmp = self.getTmpSgpr(2+2)
+    tileStart = stmp+2
     wroteTileStart = False
 
     #---
@@ -3112,7 +3123,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), kernel["DepthU"], sgpr("GSUSumIdx"), "gsuOffset = DepthU*bpe*GSUSumIdx")
         if kernel["CheckDimOverflow"] >=2:
           kStr += self.assert_eq(sgpr(stmp+1),0)
-        if tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
+        if tP["tlu"]: # non-transpose case, tile is in perp dim and should be scaled by Stride
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
                     sgpr("Strides%s+%u"%(tc,startStride)), "tlu=1, scaled unroll-offset by stride")
 
@@ -3134,8 +3145,8 @@ class KernelWriterAssembly(KernelWriter):
 
     startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
     if self.use64bPbcLimit:
-      limitTmp0 = "SrdShadowLimit%s+0"%tc
-      limitTmp1 = "SrdShadowLimit%s+1"%tc
+      limitTmp0 = "ShadowLimit%s+0"%tc
+      limitTmp1 = "ShadowLimit%s+1"%tc
     else:
       limitTmp0 = stmp+0
       limitTmp1 = stmp+1
@@ -3149,20 +3160,18 @@ class KernelWriterAssembly(KernelWriter):
       # and when we get within 32-bit we start to step down the SRD
       # if the limit is <32bits, set it accurately here:
       # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
-      kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), \
+      kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
           hex(log2(tP["bpe"])), "Set limit to use bytes")
       if prePad:
-        kStr += inst("s_add_u32",  sgpr("SrdShadowLimit%s+0"%tc), sgpr("SrdShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
-        kStr += inst("s_addc_u32", sgpr("SrdShadowLimit%s+1"%tc), sgpr("SrdShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
+        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
 
-      kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
-
+      kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
     else:
       # put limit directly into SRD:
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
       kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
-
 
     # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
     numDim = len(indices)
@@ -3182,7 +3191,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
           kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
 
-
     # Add the tile start to the SRD
     if wroteTileStart:
       kStr += inst("s_lshl_b64", sgpr(tileStart,2), sgpr(tileStart,2), log2(bpe), "tileStart *= BPE")
@@ -3199,8 +3207,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
     #if tP["isB"]:
-    #  kStr += self.assert_ne(sgpr("WorkGroup2"), 0)
-
+   #   kStr += self.assert_ne(sgpr("WorkGroup1"), 0xA)
 
     if kernel["CheckDimOverflow"]>=2:
       # double-check to make sure the SRD limit is inside the allowed tensor:
@@ -3213,8 +3220,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_sub_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Srd%s+0"%tc), "sub SRD base")
       kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("Srd%s+1"%tc), "sub SRD base")
       if self.use64bPbcLimit:
-        kStr += inst("s_sub_u32", sgpr(stmp+0), sgpr(stmp+0), sgpr("SrdShadowLimit%s+0"%tc), "sub buffer size")
-        kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("SrdShadowLimit%s+1"%tc), "sub buffer size")
+        kStr += inst("s_sub_u32", sgpr(stmp+0), sgpr(stmp+0), sgpr("ShadowLimit%s+0"%tc), "sub buffer size")
+        kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("ShadowLimit%s+1"%tc), "sub buffer size")
       else:
         kStr += inst("s_sub_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Srd%s+2"%tc), "sub buffer limit")
 
@@ -3222,10 +3229,11 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.assert_ge_u32(sgpr(stmp+0), 0) # diff greater than zero
       if 0 and tP["isB"]:
         t = self.vgprPool.checkOut(1)
-        kStr += inst("s_add_u32", sgpr(stmp+6), sgpr("WorkGroup1"), sgpr("WorkGroup2"), "bozo, debug")
+        kStr += inst("s_add_u32", sgpr(stmp+0), sgpr("WorkGroup1"), sgpr("WorkGroup2"), "bozo, debug")
         kStr += inst("v_mov_b32", vgpr(t), 0x54, "")
-        kStr += self.assert_ne(sgpr(stmp+6), vgpr(t) )
+        kStr += self.assert_ne(sgpr(stmp+0), vgpr(t) )
         self.vgprPool.checkIn(t)
+
 
     return kStr
 
@@ -3638,6 +3646,114 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
+  # Calculate and apply stagger offsets and edge
+  # Output: Sets sgpr(StaggerRowMask)
+  ##############################################################################
+  def declareStaggerParms(self, kernel):
+
+    kStr=""
+    if self.staggerU:
+      # this coud be dynamic?
+      if kernel["StaggerUMapping"] == 0:
+        staggerInput = sgpr("WorkGroup0")
+      elif kernel["StaggerUMapping"] == 1:
+        staggerInput = sgpr("WorkGroup1")
+      elif kernel["StaggerUMapping"] == 2:
+        staggerInput = sgpr("WorkGroup2")
+      elif kernel["StaggerUMapping"] == 3:
+        # TODO: add some adds
+        assert(0)
+      elif kernel["StaggerUMapping"] == 4:
+        staggerInput = -1
+
+      kStr += inst("s_and_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
+                    staggerInput, \
+                    "Compute actual stagger start for this kernel")
+      kStr += inst("s_lshl_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
+                kernel["_staggerStrideShift"], "shift by StaggerUStride")
+    return kStr
+
+  ##############################################################################
+  # Calculate and apply stagger offsets and edge
+  ##############################################################################
+  def calculateStagger(self, kernel, tP):
+
+    kStr=""
+    tc = tP["tensorChar"]
+
+    if self.staggerU:
+      assert (kernel["BufferLoad"])
+      staggerTmp = self.getTmpSgpr(1)
+
+      #---
+      kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s"% (tc))
+
+      kStr += inst("s_mul_i32", \
+        sgpr(staggerTmp),\
+        sgpr("StaggerUIter"),\
+        sgpr("GlobalReadIncs%s"%tc), \
+        " stagger byte offset")
+
+      # Amount of bytes to add to get back to start.
+      # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
+      # Note LoopCounters is negative
+      kStr += inst("s_mul_i32", sgpr("WrapU%s"%tc), sgpr("LoopCounters+%u"%self.unrollIdx), \
+                    sgpr("GlobalReadIncs%s"%tc), \
+                    "Number of bytes accessed by the unroll loop")
+      kStr += inst("s_add_u32", sgpr("WrapU%s"%tc),  sgpr("GlobalReadIncs%s"%tc), \
+                sgpr("WrapU%s"%tc), "Negative, and remove one iteration")
+
+      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
+
+      if tP["isB"]:
+        # Convert passed in S' to S for easy loop comparison.  S=(PGR-1)-S'
+        kStr += inst("s_sub_i32", sgpr("StaggerUIter"), (-kernel["PrefetchGlobalRead"]-1), sgpr("StaggerUIter"), \
+                  "Subtract (PGR-1); StaggerUIter now contains target iteration to wrap")
+    return kStr
+
+  ##############################################################################
+  # Remove stagger offset (before tail loop)
+  # |          |           |   |
+  # |-- S'*I --|
+  # |---------- W' --------|-I-|
+  #           ^ current SRD pos
+  # ^unrollLoopStart           ^tailLoopStart   (in summation0 dimension)
+
+  #
+  # S = sgprStaggerUIter = (-PGR-1)-S'
+  # W = sgprWrapU
+  # PGR = kernel["PrefetchGlobalRead"]
+  #
+  # S' = StaggUIter that is passed into the kernel = PGR-1-S
+  # S'*I is also the global read offset (from unrollLoopStart) at unroll loop exit ?
+  # I = GlobalReadIncs
+  # W' = -W
+
+  # Need to move it to tailLoopStart
+
+  # To compute position where tail loop should start:
+  #  = W' - S'*I + I
+  #  = -W - (-PGR-1-S)*I) + I
+  #  = -W + (PGR+1+S)*I + I
+  #  = -W + (S+2+PGR)*I
+  #  = (S+2+PGR)*I - W
+  ##############################################################################
+  def removeStagger(self, kernel, tP):
+    kStr = ""
+    if self.staggerU:
+      tc = tP["tensorChar"]
+      tmp = self.getTmpSgpr(1)
+      kStr += inst("s_add_i32", sgpr(tmp), sgpr("StaggerUIter"), 2+kernel["PrefetchGlobalRead"], "")
+      kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp), 
+                    sgpr("GlobalReadIncs%s"%tc), \
+                    "start offset S in bytes")
+      kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
+
+      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0)
+
+    return kStr
+
+  ##############################################################################
   # Calculate Loop Num Iter
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx):
@@ -3652,11 +3768,27 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Tail Loop
     if tailLoop:
+      tmpSgpr = self.getTmpSgpr(4)
+      kStr += "\n"
+      if kernel["SuppresssNoLoadLoop"]:
+        # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
+        # (and also moved back the srd shadow limit) and slammed Limit to 0, so need to 'undo'
+        # those increments - see setTailSrd
+        assert(kernel["PrefetchGlobalRead"] == 1) #if >1 would need a multiply here
+        kStr += inst("s_cmp_eq_u32", sgpr("OrigLoopCounter"), 0, "completely skipped unroll loop?")
+        kStr += inst("s_cselect_b32", sgpr(tmpSgpr+0), 0, sgpr("GlobalReadIncsA"), "force to 0?")
+        kStr += inst("s_cselect_b32", sgpr(tmpSgpr+1), 0, sgpr("GlobalReadIncsB"), "force to 0?")
+        kStr += self.setTailSrd(kernel, self.tPA, sgpr(tmpSgpr+0))
+        kStr += "\n"
+        kStr += self.setTailSrd(kernel, self.tPB, sgpr(tmpSgpr+1))
+        kStr += "\n"
+        #kStr += self.bomb()
+
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-      tmpSgpr = self.getTmpSgpr(4)
       # size % DepthU
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, "LoopCounters+%u"%loopIdx, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, True)
+
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
@@ -3681,8 +3813,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc1 label_%04u"\
           % tailLoopLabelEnd, \
           "skip to end of tail loop b/c numIter==0")
-
-
 
     ########################################
     # Unrolled Loop
@@ -3712,12 +3842,16 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", sgpr("LoopCounters+%u"%loopIdx), hex(1), sgpr("LoopCounters+%u"%loopIdx), "numIterMyWg++" )
         kStr += "label_%04u:%s" % (afterInc, self.endLine)
 
+      kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
+                sgpr("LoopCounters+%u"%loopIdx), \
+                "copy loop counter")
     ########################################
     # Multi-dimensional summation
     else:
       printExit("no assembly support for 2+ dimensional summation")
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
+
 
     # counter = -counter
     kStr += inst("s_sub_u32", \
@@ -3951,11 +4085,10 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   ##############################################################################
-  def incrementSrd(self, kernel, tP, incLower, incUpper):
-
+  # incLower must be constant or SGRP unsigned value
+  def incrementSrd(self, kernel, tP, incLower, incUpper, checkShadowLimitCopy=True):
     tc = tP["tensorChar"]
     kStr = ""
-
 
     kStr += inst("s_add_u32 ", \
          sgpr("Srd%s+0"%(tc)), \
@@ -3972,17 +4105,18 @@ class KernelWriterAssembly(KernelWriter):
     # so less buffers to the edge:
     if self.use64bPbcLimit:
       kStr += inst("s_sub_u32", \
-          sgpr("SrdShadowLimit%s+0"%tc), \
-          sgpr("SrdShadowLimit%s+0"%tc), \
+          sgpr("ShadowLimit%s+0"%tc), \
+          sgpr("ShadowLimit%s+0"%tc), \
            incLower, \
             "limit -= inc)")
       kStr += inst("s_subb_u32", \
-          sgpr("SrdShadowLimit%s+1"%tc), \
-          sgpr("SrdShadowLimit%s+1"%tc), \
+          sgpr("ShadowLimit%s+1"%tc), \
+          sgpr("ShadowLimit%s+1"%tc), \
            incUpper, \
             "limit -= inc)" )
-      kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-      kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+      if checkShadowLimitCopy:
+        kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+        kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
     else:
       kStr += inst("s_sub_u32", \
            sgpr("Srd%s+2"%(tc)), \
@@ -3994,20 +4128,91 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
+  ##############################################################################
+  # incLower must be constant or SGRP unsigned value
+  def setTailSrd(self, kernel, tP, incLower):
+    # In SuppresssNoLoadLoop, the final loop iteration moves the SRD base forward
+    # and the ShadowLimit backwards by one extra 'click' of GlobalReadIncs[AB].
+    # Note the ShadowLimit may become negative - for example edge tiles where the
+    # increment is > tile width.
+    # The SuppresssNoLoadLoop mode also forces the SRD limit to 0 on the final iteration.
+    # The code here undoes the final click step by moving the base backwards and the
+    # limit forwards (reading from the ShadowLimit).
+    # It only works if use64bPbcLimit is enabled (since this enables use of the ShadowLimit)
+
+    tc = tP["tensorChar"]
+    kStr = ""
+    incUpper = 0
+
+    kStr += inst("s_sub_u32 ", \
+         sgpr("Srd%s+0"%(tc)), \
+         sgpr("Srd%s+0"%(tc)), \
+         incLower, \
+        "gra SRD -= inc(lower)" )
+    kStr += inst("s_subb_u32 ", \
+         sgpr("Srd%s+1"%(tc)), \
+         sgpr("Srd%s+1"%(tc)), \
+         incUpper, \
+        "gra SRD -= inc(upper)" )
+
+    # using Shadow limit here which only works with 64-bit PBC:
+    assert(self.use64bPbcLimit)
+
+    kStr += inst("s_add_u32", \
+        sgpr("ShadowLimit%s+0"%tc), \
+        sgpr("ShadowLimit%s+0"%tc), \
+         incLower, \
+          "limit -= inc)")
+    kStr += inst("s_addc_u32", \
+        sgpr("ShadowLimit%s+1"%tc), \
+        sgpr("ShadowLimit%s+1"%tc), \
+         incUpper, \
+          "limit -= inc)" )
+    kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+    kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+
+    return kStr
+
+  ##############################################################################
   # Global Read: Increment A/B
   # loopIdx is summation idx:
-  #    self.unrollIdx, or an idx from 0..NumIndicesSummation
-  # TODO - need to separate prefetches from inside the loop
+  #   self.unrollIdx, or an idx from 0..NumIndicesSummation
+  # prefetchIndex is >0 (1...PrefetchGlobalRead) if this increment follows a
+  #   global prefetch or 0 otherwise
   ##############################################################################
-  def globalReadIncrement(self, kernel, loopIdx, tP):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     if not self.do["GlobalInc"]: return ""
     kStr = ""
     tc = tP["tensorChar"]
 
     if kernel["BufferLoad"]:
       # TODO - does this handle N-dim tensors correctly?
-      return self.incrementSrd(kernel, tP, \
-              sgpr("GlobalReadIncs%s+0"%tc), 0)
+      #if tP["isB"]:
+      #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
+      if self.staggerU:
+        # add a wrap increment, if needed:
+        incLower = self.getTmpSgpr(3)
+        incUpper = incLower + 1
+        tmpS =    incLower + 2
+        if prefetchIndex:
+          kStr += inst("s_sub_u32", sgpr(tmpS), sgpr("LoopCounters+%u"%self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
+          kStr += inst("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
+        else:
+          kStr += inst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
+                    sgpr("StaggerUIter"), "Is this the wrapIter?")
+        #kStr += self.assert_scc_is_1() # break at the wrap iteration
+        kStr += inst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s"%tc), sgpr("GlobalReadIncs%s"%tc), \
+                    "incLower <- ?")
+        kStr += inst("s_and_b32", sgpr(incUpper), sgpr(incLower), 0x80000000, "test")
+        kStr += inst("s_subb_u32", sgpr(incUpper), 0, 0, "-1 or 0")
+        kStr += self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True)
+        if 0 and tP["isB"] and prefetchIndex==0:
+          tv = self.vgprPool.checkOut(1, "hack")
+          kStr += inst("v_mov_b32", vgpr(tv), sgpr("LoopCounters"), "")
+          kStr += self.assert_ne(vgpr(tv), sgpr("StaggerUIter")) # break at the wrap iteration
+          self.vgprPool.checkIn(tv)
+      else:
+        kStr += self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s"%tc), 0)
     else:
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -4158,7 +4363,10 @@ class KernelWriterAssembly(KernelWriter):
               offset = 0
 
               if kernel["BufferLoad"]:
-                # Use buffer limit to stay in-bounds
+                # Use buffer limit to stay in-bounds - the limit was set to edge when SRD initialized
+                # and each increment of SRD base in the unroll loop does a corresponding decrement
+                # of the srd limit - so base+limit stays constant and also points at maximum
+                # element that should be accessed.
 		if kernel["UseSgprForGRO"]:
 		  offsetVgpr = "GlobalReadOffset%s+0"%(tc)
 		  if graIdx==0:
@@ -4290,7 +4498,6 @@ class KernelWriterAssembly(KernelWriter):
     bpl = self.bpeAB * tP["glvw"] # bytes per load
     ldsOffset = 0
 
-
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
     if kernel["SuppresssNoLoadLoop"]:
       if mode==1 and tP["isA"]:
@@ -4299,22 +4506,13 @@ class KernelWriterAssembly(KernelWriter):
               "%u"%-1, \
               "%s"%"is this the last iteration")
         kStr += inst("s_cmov_b32", \
-              sgpr("GlobalReadIncsA"), \
-              0,
-              "Set inc to 0 for last iteration")
-        kStr += inst("s_cmov_b32", \
               sgpr("SrdA+2"), \
               0,
               "Set limit to 0 for last iteration")
         kStr += inst("s_cmov_b32", \
-              sgpr("GlobalReadIncsB"), \
-              0,
-              "Set inc to 0 for last iteration")
-        kStr += inst("s_cmov_b32", \
               sgpr("SrdB+2"), \
               0,
               "Set limit to 0 for last iteration")
-
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
       kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
@@ -6750,7 +6948,6 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
         # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
-        #kStr += inst("s_mov_b64", "exec", -1, "BOZO, should not need full mask")
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
         for elementIdx in range(0, len(batchElements)):
           addr = elementAddr[elementIdx]
