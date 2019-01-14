@@ -82,14 +82,15 @@ class Module(Item):
     self.addCode(TextBlock(text))
 
   def prettyPrint(self,indent=""):
-    print "%s%s:"% (indent,self.name)
+    print "%sModule %s:"% (indent,self.name)
     for i in self.itemList:
       if isinstance(i, Module):
         i.prettyPrint(indent+"  ")
       elif isinstance(i, str):
-        print indent, 'str:', str(i),
+        print indent, '"', str(i).strip('\n'), '"'
       else: # Inst
-        print indent,"[",str(i),"]"
+          print indent, "%s: [ %s ]" % \
+              (i.__class__.__name__, str(i).strip('\n'))
 
   """
   Count number of items with specified type in this Module
@@ -116,10 +117,24 @@ class Module(Item):
 
   """
   Return list of items in the Module
-  Items may be other Modules, strings, or Inst
+  Items may be other Modules, TexBlock, or Inst
   """
   def items(self):
     return self.itemList
+
+  """
+  Return flattened list of items in the Module
+  Items in sub-modules will be flattened into single list
+  Items may be TexBlock or Inst
+  """
+  def flatitems(self):
+    flatitems = []
+    for i in self.itemList:
+      if isinstance(i, Module):
+        flatitems += i.flatitems()
+      else:
+        flatitems.append(i)
+    return flatitems
 
 
 class StructuredModule(Module):
