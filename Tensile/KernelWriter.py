@@ -44,13 +44,18 @@ class KernelWriter:
     self.overflowedResources = 0
 
   ##############################################################################
-  # Schedule work into interations
-  # Choose which iterations to schedule buffer loads and ds_writes
+  # makeSchedule:  Schedule work into interations.
+
+  # Tensile uses a two-level scheduler.  This the first-level, which
+  # schedules global reads, global incs, and local writes into iteration.  
+  # Then makeSubIterSchedule schedules the instructions within the iteration.
+  #
   # Inputs:
   #   localWriteEndIter: loop iteration where last writes should be inserted
   #      If scheduleLocalWrite=0, all writes will be be placed in this iteration.
   #      If scheduleLocalWrite=1, the scheduler will work backwards from this
   #      iteration.
+  #
   # Outputs:
   #   self.unrollLoopHeaderCode:
   #      - Code module that should be added into the unroll loop header
@@ -59,7 +64,7 @@ class KernelWriter:
   #      - List indexed by unroll iteration.
   #        Each entry in the list is a code module that should be added into that iteration.
   #        May be None, indicating no extra code for that iteration
-
+  #
   # This routine is responsible for setting the schedule including determining
   # that all necessary dependency are met.  The driver code in kernelBody
   # blindly follows the plan set in unrollLoopHeaderCode and perIterCode
@@ -213,6 +218,8 @@ class KernelWriter:
       # should never run out of items to schedule
       assert not itemsToSched # should have scheduled everthing already
 
+
+  ##############################################################################
   # Schedule work into the each unroll loop iteration
   # localReadCode is the local reads for this loop iteration
   #  (returned by doLocalRead). The instructions in localReadCode
@@ -232,10 +239,13 @@ class KernelWriter:
   #   - may be multiple instructions (ConservativeWaitCnt)
   #   - typically is a single Code.WaitCnt.  This routine will
   #     modify the lgkmcnt to account for any scheduling decisions.
+  #     If this is not desired, add the waitCnt to pointerCode and
+  #     set waitCode to an empty module
   # macIterCode contains the mac iters.  May be a macro call.
   #
   # returns: a Module with the combined, optimally scheduled
   #  localReadCode + otherCode
+  ##############################################################################
   def makeSubIterSchedule(self, kernel, localReadCode, globalReadCode, \
         localWriteCode, pointerCode, waitCode, macIterCode):
 
@@ -280,11 +290,37 @@ class KernelWriter:
       iterCode.addCode(waitCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
-      # faux-fuss:
+      # fuss goes here:
       macsPerIter = 4
       localReadsPerIter = 1
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
+
+
+    if isinstance(waitCode, Code.WaitCnt):
+      # Set the waitCount, based on the new iter schedule
+      lgkmcnt = 0 # most conservative
+      for item in iterCode.items():
+        localReads  = item.countType(Code.LocalReadInst)
+        localWrites = item.countType(Code.LocalWriteInst)
+        if kernel["PrefetchLocalRead"]:
+          # here the reads are prefetches so can skip them in the waitcnt
+          lgkmcnt += localReads
+          assert kernel["PrefetchGlobalRead"]
+          # and the writes are targetting another section of LDS and are
+          # synchronized through a different waitnct than this one
+          # (which is always just before the macs)
+          lgkmcnt += localWrites
+        else:
+          # here we need to wait for all preceding reads before the macs
+          # so only opportunity for optimization is if the writes are at the end
+          if localReads:
+            lgkmcnt = 0 # reset to wait for all reads
+          else:
+            lgkmcnt = localWrites  # this only survives if writes are at the end
+
+      waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
+      waitCode.lgkmcnt = lgkmcnt
 
 
     return iterCode
@@ -541,7 +577,7 @@ class KernelWriter:
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0wait for local write"))
+          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
         for iui in range(0,kernel["InnerUnroll"]):
@@ -621,7 +657,7 @@ class KernelWriter:
           kl.append(self.comment("local write b"))
           kl.append(self.localWriteDo(kernel, tensorParametersB))
         if self.enable["Wait"]:
-          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2wait for local write"))
+          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
           # debug Local state
@@ -730,14 +766,9 @@ class KernelWriter:
           waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
 
         if self.enable["Wait"]:
-          if self.scheduleLocalWrite:
-            # TODO - fixme, this kills the overlap
-            waitCode = Code.WaitCnt(0, -1, \
-                "wait for local writes (perhaps conservatively)")
-          else:
-            waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
-                waitGlobalRead, waitLocalWrite, waitLocalRead, \
-                "wait for prior local read")
+          waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
+              waitGlobalRead, waitLocalWrite, waitLocalRead, \
+              "wait for prior local read")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
@@ -815,13 +846,8 @@ class KernelWriter:
           pointerCode.addText(self.comment("local read init pointers b"))
           pointerCode.addText(self.localReadInitPointers(kernel, tensorParametersB))
         if self.enable["Wait"]:
-          if self.scheduleLocalWrite or self.scheduleIterAlg:
-            # bozo - could perhaps make this more optimal
-            waitCode = Code.WaitCnt(0, -1, \
-                        "wait for local writes (perhaps conservatively)")
-          else:
-            waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, \
-                "6wait for local read")
+          waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, \
+              "6wait for local read")
       elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["LocalRead"]:
           # local read init ptrs
@@ -1128,14 +1154,14 @@ class KernelWriter:
     if self.canSchedule:
       self.scheduleGlobalRead = kernel["ScheduleGlobalRead"] \
           and kernel["PrefetchGlobalRead"] \
-          and kernel["BufferLoad"] # flat updates lgmt counts = hard to schedule flat loads
+          and kernel["BufferLoad"] # flat updates lgkmcnt counts = hard to schedule flat loads
     else:
       self.scheduleGlobalRead = 0
 
     if self.canSchedule:
       self.scheduleLocalWrite = kernel["ScheduleLocalWrite"] \
           and kernel["PrefetchGlobalRead"] \
-          and kernel["BufferLoad"]  # flat updates lgmt counts = hard to schedule writes and loads?
+          and kernel["BufferLoad"]  # flat updates lgkmcnt counts = hard to schedule writes and loads?
     else:
       self.scheduleLocalWrite = 0
 
