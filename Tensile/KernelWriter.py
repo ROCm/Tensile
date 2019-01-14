@@ -23,6 +23,7 @@ from SolutionStructs import Solution
 from Common import globalParameters, CHeader
 import abc
 import os
+import shutil
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
@@ -1796,13 +1797,26 @@ class KernelWriter:
       asmPath = os.path.join(globalParameters["WorkingPath"], "assembly")
       # write assembly file to assembly directory
       kernelName = self.getKernelName(kernel)
+      kernelFileName = "%s.s" % kernelName
+      kernelFileName_txt = "%s.s.txt" % kernelName
       fileBase = path.join(asmPath, kernelName )
       assemblyFileName = "%s.s" % fileBase
+      SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
+      REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
+      REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
       codeObjectFileName = "%s.co" % fileBase
-      assemblyFile = open(assemblyFileName, "w")
-      assemblyFile.write(fileString)
-      assemblyFile.close()
-      #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
+
+      if os.path.isfile(REPLACEMENT_KERNEL_PATH):
+        shutil.copyfile(REPLACEMENT_KERNEL_PATH, assemblyFileName)
+        if globalParameters["PrintLevel"] >= 1:
+          print "replacement_assemblyFilename %s" % assemblyFileName
+      else:
+        if globalParameters["PrintLevel"] >= 1:
+          print "write_assemblyFilename %s" % assemblyFileName
+        assemblyFile = open(assemblyFileName, "w")
+        assemblyFile.write(fileString)
+        assemblyFile.close()
+        #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
 
       if not globalParameters["CodeFromFiles"]:
         # bytearray script
