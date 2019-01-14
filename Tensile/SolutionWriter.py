@@ -523,7 +523,7 @@ class SolutionWriter:
           s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
           # strides
-          for i in range(0,numStridesC):
+          for i in range(0,numStridesC*2):
             s += "%s%s,\n" % (t, self.strideList[i])
           # sizes
           for i in range(0, problemType["NumIndicesC"]):

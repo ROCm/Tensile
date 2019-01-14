@@ -2369,13 +2369,17 @@ class KernelWriterSource(KernelWriter):
       # initial strides
       firstStride = 0
       if kernel["ProblemType"]["UseInitialStrides"]:
+        lastStrideD = 0
         lastStrideC = 0
         lastStrideA = 0
         lastStrideB = 0
       else:
+        lastStrideD = 1
         lastStrideC = 1
         lastStrideA = 1
         lastStrideB = 1
+      for i in range(firstStride, lastStrideD):
+        kStr += "#undef strideD" + self.indexChars[i] + self.endLine
       for i in range(firstStride, lastStrideC):
         kStr += "#undef strideC" + self.indexChars[i] + self.endLine
       for i in range(firstStride, lastStrideA):

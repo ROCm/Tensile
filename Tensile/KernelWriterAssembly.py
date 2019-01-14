@@ -5350,6 +5350,8 @@ class KernelWriterAssembly(KernelWriter):
         "<- wg1*MT1")
 
     if kernel["BufferStore"]:
+      self.cinRowStart  = self.vgprPool.checkOut(1, "cinRowStart")
+      self.cinRowPtr    = self.vgprPool.checkOut(1, "cinRowPtr")  # running pointer to start of batch
       self.coutRowStart = self.vgprPool.checkOut(1, "coutRowStart")
       self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
 
@@ -5417,6 +5419,9 @@ class KernelWriterAssembly(KernelWriter):
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
       kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
                   vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
+                  "rowStart vgpr")
+      kStr += inst("v_mul_lo_u32", vgpr(self.cinRowStart),
+                  vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
                   "rowStart vgpr")
       kStr += "\n"
 
@@ -5493,6 +5498,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
     kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), hex(0x80000000), "")
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in SRD")
+    kStr += "\n"
     return kStr
 
 
@@ -5537,6 +5543,8 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(self.coord1)
 
     if kernel["BufferStore"]:
+      self.vgprPool.checkIn(self.cinRowStart)
+      self.vgprPool.checkIn(self.cinRowPtr)
       self.vgprPool.checkIn(self.coutRowStart)
       self.vgprPool.checkIn(self.coutRowPtr)
     if not kernel["BufferStore"]:
@@ -6023,32 +6031,32 @@ class KernelWriterAssembly(KernelWriter):
     if useBuffer:
       if bps==2 and hi16:
         kStr += inst("buffer_store_short_d16_hi", vgpr(srcVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==2 and not hi16:
         kStr += inst("buffer_store_short", vgpr(srcVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==4:
         kStr += inst("buffer_store_dword", vgpr(srcVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==8:
         kStr += inst("buffer_store_dwordx2", vgpr(srcVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==16:
         kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
       else:
         assert ("bad bps")
     else:
       if bps==2 and hi16:
-        kStr += inst("flat_store_short_d16_hi", addr0, vgpr(srcVgpr*2), extraFields, "store C" )
+        kStr += inst("flat_store_short_d16_hi", addr0, vgpr(srcVgpr*2), extraFields, "store D" )
       elif bps==2 and not hi16:
-        kStr += inst("flat_store_short", addr0, vgpr(srcVgpr, rpv*2), extraFields, "store C" )
+        kStr += inst("flat_store_short", addr0, vgpr(srcVgpr, rpv*2), extraFields, "store D" )
       elif bps==4:
-        kStr += inst("flat_store_dword", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
+        kStr += inst("flat_store_dword", addr0, vgpr(srcVgpr, rpv), extraFields, "store D" )
       elif bps==8:
-        kStr += inst("flat_store_dwordx2", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
+        kStr += inst("flat_store_dwordx2", addr0, vgpr(srcVgpr, rpv), extraFields, "store D" )
       elif bps==16:
-        kStr += inst("flat_store_dwordx4", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
+        kStr += inst("flat_store_dwordx4", addr0, vgpr(srcVgpr, rpv), extraFields, "store D" )
       else:
          assert ("bad bps")
 
@@ -6256,13 +6264,20 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["BufferStore"]:
           # TODO-packed - do these need a different stride accounting for packed dims?
           if coordOffset1 == 0:
+            kStr += inst("v_mov_b32", vgpr(self.cinRowPtr), vgpr(self.cinRowStart), "rowPtr <- rowStart (first row)")
             kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "rowPtr <- rowStart (first row)")
           elif coordOffset1 == self.lastCoordOffset1 + 1:
+            kStr += inst("_v_add_co_u32", vgpr(self.cinRowPtr), "vcc", vgpr(self.cinRowPtr), \
+                      sgpr("StridesC+0"), "rowPtr <- move to start of new row")
             kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
                       sgpr("StridesD+0"), "rowPtr <- move to start of new row")
           else:
-            kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesD+0"), coordOffset1, \
+            kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesC+0"), coordOffset1, \
                 "scale StrideC *= coordOffset1(%u)"%coordOffset1)
+            kStr += inst("_v_add_co_u32", vgpr(self.cinRowPtr), "vcc", vgpr(self.cinRowStart), \
+                      sgpr(tmpS01), "rowPtr <- inc for non-0 (tt1+vc1))")
+            kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesD+0"), coordOffset1, \
+                "scale StrideD *= coordOffset1(%u)"%coordOffset1)
             kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowStart), \
                       sgpr(tmpS01), "rowPtr <- inc for non-0 (tt1+vc1))")
 
@@ -6271,7 +6286,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["BufferStore"]:
         kStr += inst("_v_add_lshl_u32", \
             vgpr(addr), \
-            vgpr(self.coutRowPtr), \
+            vgpr(self.cinRowPtr), \
             vgpr(coordVgpr0), \
             hex(log2(self.bpeCexternal)), \
             "accumulate d0 lower and *= bpe into addr")
@@ -6287,13 +6302,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.comment1("TODO-packed: compare against product of packed sizes")
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
-          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
-          kStr += inst("v_cndmask_b32", \
-                       vgpr(addr), \
-                        -1,
-                       vgpr(addr), \
-                       sgpr(mask,2), \
-                        "clip if OOB. offset")
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1")
+          kStr += inst("v_cndmask_b32", vgpr(addr), -1, vgpr(addr), sgpr(mask,2), "clip if OOB. offset")
       else:
         # flat: in-bounds exec mask
         if edge:
@@ -6362,6 +6372,18 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields,
                     comment="load C for beta calc")
+
+      # reset address to D
+      if kernel["BufferStore"]:
+        kStr += inst("_v_add_lshl_u32", \
+            vgpr(addr), \
+            vgpr(self.coutRowPtr), \
+            vgpr(coordVgpr0), \
+            hex(log2(self.bpeCexternal)), \
+            "accumulate d0 lower and *= bpe into addr")
+
+        if edge:
+          kStr += inst("v_cndmask_b32", vgpr(addr), -1, vgpr(addr), sgpr(mask,2), "clip if OOB. offset")
 
       # restore full exec mask for calculating addr of next element
       if not kernel["BufferStore"] and edge and (beta or atomic):
