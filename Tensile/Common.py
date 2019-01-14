@@ -248,6 +248,12 @@ validParameters = {
     # Can reduce pressure on local read instruction dispatch queue
     "ScheduleLocalWrite":         [0, 1],
 
+
+    # Scheduling algorithm to use for each iteration:
+    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
+    # followed by local writes, followed by MACs
+    "ScheduleIterAlg":              [0, 1],
+
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
@@ -636,6 +642,7 @@ defaultBenchmarkCommonParameters = [
 
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
+    {"ScheduleIterAlg":           [ 1 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
