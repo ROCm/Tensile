@@ -5043,7 +5043,7 @@ class KernelWriterAssembly(KernelWriter):
 
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
-    imod = Code.Module()
+    imod = Code.Module("LocalReadDo%s"%tc)
     self.localReadDoCnt += 1
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
@@ -5057,7 +5057,7 @@ class KernelWriterAssembly(KernelWriter):
     #print "numReadsPerVector", numReadsPerVector
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
-        localReadCode = imod.addCode (Code.Module("LocalRead Valu%u"%valuIdx))
+        localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
         paramList = []
         destVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
         paramList.append(destVgpr)

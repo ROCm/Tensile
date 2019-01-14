@@ -71,7 +71,8 @@ class KernelWriter:
 
     self.unrollLoopHeaderCode = Code.Module()
     # schedule of work for each local_read iteration:
-    self.perIterCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
+    self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
+    self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
 
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
@@ -108,13 +109,13 @@ class KernelWriter:
         print "makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter
 
       for item in itemsToSched[:firstStep]:
-        self.perIterCode[0].addCode(item)
+        self.perIterGlobalReadCode[0].addCode(item)
       itemsToSched = itemsToSched[firstStep:]
       for u in range(1, endIter):
         itemPerIter = 1
         try:
           for item in itemsToSched[:itemPerIter]:
-            self.perIterCode[u].addCode(item)
+            self.perIterGlobalReadCode[u].addCode(item)
             lastLoadIter = u
           itemsToSched = itemsToSched[itemPerIter:]
         except IndexError:
@@ -122,8 +123,8 @@ class KernelWriter:
 
       assert not itemsToSched # should have scheduled everthing already
 
-      self.perIterCode[endIter-1].addCode(self.globalReadACode.footer)
-      self.perIterCode[endIter-1].addCode(self.globalReadBCode.footer)
+      self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
+      self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
 
 
     # Now schedule the writes:
@@ -133,7 +134,7 @@ class KernelWriter:
       #   so don't add to schedule, these will be added separately and before the first iter
       if kernel["PrefetchGlobalRead"]:
         # do we need a module here? That would prevent these from being scheduled
-        imod = self.perIterCode[localWriteEndIter].addCode(Code.Module())
+        imod = self.perIterLocalWriteCode[localWriteEndIter].addCode(Code.Module())
         if self.enable["Wait"]:
           imod.addText(
               self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, \
@@ -202,7 +203,7 @@ class KernelWriter:
               print "warning - scheduleLocalWrite adding conservative vmcnt(0)"
               imod.addCode(self.vmwait(kernel,0))
           imod.addCode(item)
-          self.perIterCode[u].addCode(imod)
+          self.perIterLocalWriteCode[u].addCode(imod)
         itemsToSched = itemsToSched[itemPerIter:]
 
       # should never run out of items to schedule
@@ -213,34 +214,52 @@ class KernelWriter:
   #  (returned by doLocalRead). The instructions in localReadCode
   #  will retain their relative order, but may be interleaved
   #  with instructions from otherCode.
-  # otherCode is the 'other' (buffer loads, ds writes, scalars)
-  #  to schedule in with the ds reads.  The instructons in otherCode
+
+  # globalReadCode is the 'other' buffer loads and addr increments
+  # localWriteCode is the 'other' local writes
+  #  to schedule in with the ds reads.  The instructons
   #  will retain their relative order, but may be interleaved
   #  with instructions from localReadCode.
   #
   # returns: a Module with the combined, optimally scheduled
   #  localReadCode + otherCode
+  def makeSubIterSchedule(self, kernel, localReadCode, globalReadCode, localWriteCode):
 
-  def makeSubIterSchedule(self, kernel, localReadCode, otherCode):
     iterCode = Code.Module()
 
     # Default schedule is other, local reads, then local writes:
-    if 1:
-      # first any non-local-writes:
-      schedLast = []
-      for item in otherCode.items():
-        if not item.countType(Code.LocalWriteInst):
-          iterCode.addCode(item)
-        else:
-          schedLast.append(item)
-
-      # then the reads:
-      for item in localReadCode.items():
+    if self.scheduleIterAlg==0:
+      # first the global reads:
+      iterCode.addCode(globalReadCode)
+      iterCode.addCode(localReadCode)
+      iterCode.addCode(localWriteCode)
+    elif self.scheduleIterAlg == 1:
+      #import pdb
+      #pdb.set_trace()
+      # simple algorithm - do half the reads first:
+      readsToSchedule = localReadCode.countType(Code.LocalReadInst) / 2
+      #localReadCode.prettyPrint()
+      readItems = localReadCode.flatitems()
+      while readItems:
+        item = readItems.pop(0)
+        #print "readsToSchedule=", readsToSchedule, "item=", item
         iterCode.addCode(item)
+        readsThisItem = item.countType(Code.LocalReadInst)
+        if readsThisItem:
+          assert readsThisItem==1, "Scheduler assumes 1 read per item"
+          readsToSchedule = readsToSchedule - 1
+          if readsToSchedule == 0:
+            break
 
-      # then whatever is left in other-code (local writes)
-      for item in schedLast:
+      iterCode.addCode(globalReadCode)
+      iterCode.addCode(localWriteCode)
+
+      # add rest of the reads here
+      for item in readItems:
         iterCode.addCode(item)
+    else:
+      assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
+
 
     return iterCode
 
@@ -637,23 +656,13 @@ class KernelWriter:
               localReads.addText(self.comment("local read increment b"))
               localReads.addText(self.localReadInc(kernel, iui, tensorParametersB))
 
-        oldSched = 0
-        if not oldSched:
-          subIterCode = self.makeSubIterSchedule(kernel, localReads, self.perIterCode[u])
-          kl.append(subIterCode) # add scheduled "other", local reads, local writes
-        else:
-          kl.append(self.perIterCode[u]) # Add in scheduled code
-          kl.append(localReads) 
+        subIterCode = self.makeSubIterSchedule(kernel, localReads, \
+                          self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u])
+        kl.append(subIterCode) # add scheduled "other", local reads, local writes
 
         if isResetLroIter: # ResetLroIter
           if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
             if self.enable["LocalWrite"]:
-              if oldSched:
-                if self.enable["Wait"]:
-                  kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "4wait for global read"))
-                kl.append(self.localWriteACode) # remove me, this should come from scheduler
-                kl.append(self.localWriteBCode) # remove me, this should come from scheduler
-
               # local write for next iter, used to have local writes here
               kl.append(self.comment("local write swap offsets a"))
               kl.append(self.localWriteSwapOffsets(kernel, tensorParametersA))
@@ -741,7 +750,9 @@ class KernelWriter:
               localReads.addText(self.comment("local read inc b"))
               localReads.addText(self.localReadInc(kernel, iui, tensorParametersB))
 
-      subIterCode = self.makeSubIterSchedule(kernel, localReads, self.perIterCode[unrollIter])
+      subIterCode = self.makeSubIterSchedule(kernel, localReads,
+                            self.perIterGlobalReadCode[unrollIter],
+                            self.perIterLocalWriteCode[unrollIter])
       kl.append(subIterCode)
 
       if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
@@ -1074,7 +1085,7 @@ class KernelWriter:
     self.staggerU = kernel["StaggerU"] and (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
 
     # Only assembly supports scheduling
-    self.canSchedule = kernel["KernelLanguage"] == "Assembly"
+    self.canSchedule = (kernel["KernelLanguage"] == "Assembly")
 
     if self.canSchedule:
       self.scheduleGlobalRead = kernel["ScheduleGlobalRead"] \
@@ -1089,6 +1100,12 @@ class KernelWriter:
           and kernel["BufferLoad"]  # flat updates lgmt counts = hard to schedule writes and loads?
     else:
       self.scheduleLocalWrite = 0
+
+    if self.canSchedule:
+      self.scheduleIterAlg = kernel["ScheduleIterAlg"]
+    else:
+      self.scheduleIterAlg = 0
+
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
