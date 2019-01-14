@@ -221,11 +221,20 @@ class KernelWriter:
   #  to schedule in with the ds reads.  The instructons
   #  will retain their relative order, but may be interleaved
   #  with instructions from localReadCode.
+
+  # pointerCode contains local pointer changes (if needed)
+  # waitCode contains s_waitcnt before macs.
+  #   - Cannot be "" or None
+  #   - may be empty Module if not waiting is desired (perhaps for debug)
+  #   - may be multiple instructions (ConservativeWaitCnt)
+  #   - typically is a single Code.WaitCnt.  This routine will
+  #     modify the lgkmcnt to account for any scheduling decisions.
+  # macIterCode contains the mac iters.  May be a macro call.
   #
   # returns: a Module with the combined, optimally scheduled
   #  localReadCode + otherCode
   def makeSubIterSchedule(self, kernel, localReadCode, globalReadCode, \
-        localWriteCode, pointerCode, macIterCode):
+        localWriteCode, pointerCode, waitCode, macIterCode):
 
     iterCode = Code.Module()
 
@@ -236,6 +245,7 @@ class KernelWriter:
       iterCode.addCode(localReadCode)
       iterCode.addCode(localWriteCode)
       iterCode.addCode(pointerCode)
+      iterCode.addCode(waitCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 1:
       #import pdb
@@ -264,6 +274,7 @@ class KernelWriter:
 
       # tack on the pointer and mac code:
       iterCode.addCode(pointerCode)
+      iterCode.addCode(waitCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
       # faux-fuss:
@@ -669,6 +680,7 @@ class KernelWriter:
               localReads.addText(self.localReadInc(kernel, iui, tensorParametersB))
 
         pointerCode = Code.Module()
+        waitCode = Code.Module()  # may be overwritten (not added to) below
         macIterCode = Code.Module()
         if isResetLroIter: # ResetLroIter
           if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
@@ -717,11 +729,12 @@ class KernelWriter:
         if self.enable["Wait"]:
           if self.scheduleLocalWrite:
             # TODO - fixme, this kills the overlap
-            pointerCode.addCode(Code.WaitCnt(0, -1, \
-                "wait for local writes (perhaps conservatively)"))
+            waitCode = Code.WaitCnt(0, -1, \
+                "wait for local writes (perhaps conservatively)")
           else:
-            pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, \
-                waitGlobalRead, waitLocalWrite, waitLocalRead, "wait for prior local read"))
+            waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
+                waitGlobalRead, waitLocalWrite, waitLocalRead, \
+                "wait for prior local read")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
@@ -729,7 +742,7 @@ class KernelWriter:
 
         subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                           self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
-                          pointerCode, macIterCode)
+                          pointerCode, waitCode, macIterCode)
         kl.append(subIterCode) # add scheduled "other", local reads, local writes
 
       kl.append(self.closeString(kernel))
@@ -767,6 +780,7 @@ class KernelWriter:
               localReads.addText(self.localReadInc(kernel, iui, tensorParametersB))
 
       pointerCode = Code.Module()
+      waitCode = Code.Module()  # may be overwritten (not added to) below
       macIterCode = Code.Module()
 
       if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
@@ -800,11 +814,11 @@ class KernelWriter:
         if self.enable["Wait"]:
           if self.scheduleLocalWrite or self.scheduleIterAlg:
             # bozo - could perhaps make this more optimal
-            pointerCode.addCode(Code.WaitCnt(0, -1, \
-                    "wait for local writes (perhaps conservatively)"))
+            waitCode = Code.WaitCnt(0, -1, \
+                        "wait for local writes (perhaps conservatively)")
           else:
-            pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, \
-                "6wait for local read"))
+            waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, \
+                "6wait for local read")
       elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["LocalRead"]:
           # local read init ptrs
@@ -813,10 +827,10 @@ class KernelWriter:
           pointerCode.addText(self.comment("local read init pointers b"))
           pointerCode.addText(self.localReadInitPointers(kernel, tensorParametersB))
         if self.enable["Wait"]:
-          pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "1wait for local read"))
+          waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "1wait for local read")
       elif not kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          pointerCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "2wait for local read"))
+          waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "2wait for local read")
       else:
         assert(0) # unknown PGR/PLR pattern
       # no wait needed here b/c we already waited for ds_write
@@ -828,7 +842,7 @@ class KernelWriter:
       subIterCode = self.makeSubIterSchedule(kernel, localReads,
                             self.perIterGlobalReadCode[unrollIter],
                             self.perIterLocalWriteCode[unrollIter],
-                            pointerCode, macIterCode)
+                            pointerCode, waitCode, macIterCode)
       kl.append(subIterCode)
 
       # close unrolled loop
