@@ -799,7 +799,7 @@ class KernelWriter:
           pointerCode.addText(self.comment("local read init pointers b"))
           pointerCode.addText(self.localReadInitPointers(kernel, tensorParametersB))
         if self.enable["Wait"]:
-          if self.scheduleLocalWrite:
+          if self.scheduleLocalWrite or self.scheduleIterAlg:
             # bozo - could perhaps make this more optimal
             pointerCode.addCode(Code.Inst("s_waitcnt lgkmcnt(0)", "wait for locals (perhaps conservatively)"))
           else:
