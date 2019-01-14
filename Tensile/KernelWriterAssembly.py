@@ -7170,7 +7170,8 @@ class KernelWriterAssembly(KernelWriter):
         return imod
 
     lgkmcnt = min(lgkmcnt, 15)
-    vmcnt = min(vmcnt, 15) # TODO, gfx906 can support more
+    maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+    vmcnt = min(vmcnt, maxVmcnt)
 
     waitcnt = Code.WaitCnt(lgkmcnt,vmcnt,comment)
     return waitcnt

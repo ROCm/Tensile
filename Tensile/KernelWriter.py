@@ -69,6 +69,9 @@ class KernelWriter:
     # 0x2=print GR and LW code blocks, 0x1= print info messages
     schedDb = 0
 
+    currentIsa = globalParameters["CurrentISA"]
+    maxVmcnt = globalParameters["AsmCaps"][currentIsa]["MaxVmcnt"]
+
     self.unrollLoopHeaderCode = Code.Module()
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
@@ -198,8 +201,8 @@ class KernelWriter:
             readsToWait = readsToWait - 1
             # TODO - gfx9 supports higher max VMCNT
             if 1:
-              imod.addCode(Code.WaitCnt(-1, min(15, readsToWait), \
-                  "wait before writing data"))
+              imod.addCode(Code.WaitCnt(-1, min(maxVmcnt, readsToWait), \
+                  "wait for global read before writing to local"))
             else:
               print "warning - scheduleLocalWrite adding conservative vmcnt(0)"
               imod.addCode(Code.Waitcnt(-1, 0, "conservative waitcnt"))
