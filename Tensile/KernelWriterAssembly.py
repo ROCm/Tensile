@@ -7117,12 +7117,6 @@ class KernelWriterAssembly(KernelWriter):
   def closeString(self, kernel):
     return ""
 
-  def vmwait(self, kernel, count):
-    imod = Code.Module()
-    imod.addInst("s_waitcnt vmcnt(%u)"%count, "vmwait for global read")
-    return imod
-
-
   ##############################################################################
   # WaitCnt- DONE
   # 3 components can contribute to the waitcnt:
@@ -7170,25 +7164,16 @@ class KernelWriterAssembly(KernelWriter):
     if (self.db["ConservativeWaitCnt"] & 0x2) and skipGlobalRead != -1 or \
        (self.db["ConservativeWaitCnt"] & 0x4) and skipLocalWrite != -1 or \
        (self.db["ConservativeWaitCnt"] & 0x8) and skipLocalRead  != -1:
-        dbKStr = ""
-        dbKStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "debug %s"%comment )
-        dbKStr += inst("s_barrier", "debug" )
-        return dbKStr
+        imod = Code.Module("ConservativeWaitCnt")
+        imod.addInst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "debug %s"%comment )
+        imod.addInst("s_barrier", "debug" )
+        return imod
 
     lgkmcnt = min(lgkmcnt, 15)
-    vmcnt = min(vmcnt, 15)
+    vmcnt = min(vmcnt, 15) # TODO, gfx906 can support more
 
-    kStr = ""
-    kStr += "s_waitcnt "
-    if lgkmcnt >= 0:
-      kStr += "lgkmcnt(%u)"%lgkmcnt
-    #if lgkmcnt >= 0 and vmcnt >= 0:
-    #  kStr += " & "
-    elif vmcnt >= 0:
-      kStr += "vmcnt(%u)"%vmcnt
-    kStr += " // %s" % comment
-    kStr += self.endLine
-    return kStr
+    waitcnt = Code.WaitCnt(lgkmcnt,vmcnt,comment)
+    return waitcnt
 
   ##############################################################################
   # SyncThreads

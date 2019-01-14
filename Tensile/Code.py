@@ -175,10 +175,42 @@ class Inst(Item):
     for i in range(0, len(params)-2):
       formatting += ", %s"
     instStr = formatting % (params)
-    self.text = "%-50s // %s\n" % (instStr, comment)
+    self.text = self.formatWithComment(instStr, comment)
+
+  def formatWithComment(self, instStr, comment):
+    return "%-50s // %s\n" % (instStr, comment)
 
   def __str__(self):
     return self.text
+
+# Construct a waitcnt from specified lgkmcnt and vmcnt:
+# lgkmcnt, vmcnt:
+#   if -1 then will not be added to the wait term.
+#
+# If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
+# an instruction with a comment is returned.
+class WaitCnt (Inst):
+
+  def __init__(self,lgkmcnt=-1,vmcnt=-1,comment=""):
+    self.lgkmcnt = lgkmcnt
+    self.vmcnt   = vmcnt
+    self.comment = comment
+
+  def __str__(self):
+    waitStr = ""
+    if self.lgkmcnt != -1 or self.vmcnt != -1:
+      waitStr = "s_waitcnt"
+      if self.lgkmcnt != -1:
+        waitStr += " lgkmcnt(%u)" % self.lgkmcnt
+      if self.vmcnt != -1:
+        if self.lgkmcnt != -1:
+          waitStr += " &"
+        waitStr += " vmcnt(%u)" % self.vmcnt
+    else:
+      waitStr = "// disabled s_waitcnt"
+
+    return self.formatWithComment(waitStr, self.comment)
+
 
 
 # uniq type that can be used in Module.countType
