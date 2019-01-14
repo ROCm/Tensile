@@ -4064,19 +4064,18 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def macIter(self, kernel, bufferIdx, iuiCount):
     if not self.do["MAC"]: return ""
-    kStr = ""
+    imod = Code.Module("macIter_X%u_I%u"%(bufferIdx, iuiCount))
 
     if kernel["ProblemType"]["DataType"].isHalf():
-      kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
+      imod.addInst(".align32 8, 0xbf800001", "align v_pk_fma")   # Align v_pk_fma instructions used in MAC_ blocks
 
     if kernel["InnerUnroll"] > 1 and iuiCount==1:
-      # This it tail-loop case where we just want one IUI, 
-      kStr += "MAC_%ux%u_X%u_OneIUI" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx)
+      # This it tail-loop case where we just want one IUI,
+      imod.addText("MAC_%ux%u_X%u_OneIUI" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx))
     else:
-      kStr += "MAC_%ux%u_X%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx)
+      imod.addText("MAC_%ux%u_X%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx))
 
-    kStr += self.endLine
-    return kStr
+    return imod
 
   ##############################################################################
   # At Least 1 Unroll
@@ -4205,9 +4204,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     if not self.do["GlobalInc"]: return ""
-    imod = Code.Module()
     tc = tP["tensorChar"]
 
+    imod = Code.Module("globalReadIncrement%s"%tc)
     imod.addComment1("global read inc %s"%tc)
 
     if kernel["BufferLoad"]:
