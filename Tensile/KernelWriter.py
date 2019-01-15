@@ -317,6 +317,7 @@ class KernelWriter:
           else:
             lgkmcnt = localWrites  # this only survives if writes are at the end
 
+      lgkmcnt = min(lgkmcnt, 15)
       waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
