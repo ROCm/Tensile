@@ -44,11 +44,11 @@ int main( int argc, char *argv[] ) {
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
-  std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops (raw), SolName, KernelMs, "
+  std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops (raw), SolName, KernelMs, ";
 #if Tensile_CLIENT_LIBRARY
-    << "ApiUs, "
+  std::cout << "ApiUs, ";
 #endif
-    << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total" << std::endl;
+  std::cout << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total, TimeStamp" << std::endl;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {

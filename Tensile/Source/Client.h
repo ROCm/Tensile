@@ -30,6 +30,8 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <ctime>
+#include <sys/time.h>
 #include <unistd.h>
 #include <set>
 #include <assert.h>
@@ -1103,6 +1105,21 @@ bool benchmarkAllSolutionsForSize(
       std::cout << avgFanSpeed << ", ";
 
       std::cout << solutionIdx << "/" << numSolutions << ", ";
+
+      struct timeval tmnow;
+      struct tm *tm;
+      gettimeofday(&tmnow, NULL); // microsecond resolution
+      tm = localtime(&tmnow.tv_sec);
+      char prev_fill = std::cout.fill('0');
+      std::cout << (tm->tm_year + 1900) << "-"
+        << std::setw(2) << (tm->tm_mon + 1) << "-"
+        << std::setw(2) << tm->tm_mday << " "
+        << std::setw(2) << tm->tm_hour << ":"
+        << std::setw(2) << tm->tm_min << ":"
+        << std::setw(2) << tm->tm_sec << "."
+        << std::setw(6) << static_cast<int>(tmnow.tv_usec) << ", ";
+      (void) std::cout.fill(prev_fill);
+
       std::cout << std::endl;
     }
 
