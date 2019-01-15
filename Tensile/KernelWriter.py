@@ -1768,10 +1768,6 @@ class KernelWriter:
         assemblyFile = open(assemblyFileName, "w")
         assemblyFile.write(fileString)
         assemblyFile.close()
-
-      assemblyFile = open(assemblyFileName, "w")
-      assemblyFile.write(fileString)
-      assemblyFile.close()
       #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
 
       if not globalParameters["CodeFromFiles"]:
