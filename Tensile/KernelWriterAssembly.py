@@ -1335,6 +1335,10 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WrapUA", 2)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
       self.defineSgpr("WrapUB", 2)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
 
+    if kernel["PersistentKernel"]:
+      self.defineSgpr("ProblemNumGroupTiles0", 1) # Number of tiles in the problem (dim0)
+      self.defineSgpr("ProblemNumGroupTiles1", 1) # Number of tiles in the problem (dim1)
+
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
 
@@ -2308,7 +2312,14 @@ class KernelWriterAssembly(KernelWriter):
       if self.staggerU:
         kStr += inst("s_load_dword", sgpr("StaggerUIter"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load StaggerUIter")
-      kernArgOffset += 1*4
+        kernArgOffset += 1*4
+      if kernel["PersistentKernel"]:
+        kStr += inst("s_load_dword", sgpr("ProblemNumGroupTiles0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("ProblemNumGroupTiles1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
+        kernArgOffset += 1*4
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % kernArgOffset )

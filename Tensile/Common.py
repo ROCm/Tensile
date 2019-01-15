@@ -482,7 +482,7 @@ validParameters = {
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
-    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
+    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel. [0,2,4] recommended tuning values
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.

@@ -804,8 +804,8 @@ class KernelWriterSource(KernelWriter):
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
     if kernel["PersistentKernel"]:
-      s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
-      s += "," + self.endLine + "  unsigned int problemNumWorkGroups1"
+      s += "," + self.endLine + "  unsigned int problemNumGroupTiles0"
+      s += "," + self.endLine + "  unsigned int problemNumGroupTiles1"
     s += " )"
     return s
 
@@ -941,13 +941,13 @@ class KernelWriterSource(KernelWriter):
     if kernel["PersistentKernel"]:
       kStr += "  %s wgPersistent = %s(0);%s" \
         % (self.uint64Str, self.getGroupIdStr, self.endLine)
-      kStr += "  unsigned int n%s = problemNumWorkGroups%u;%s" \
+      kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
           % ( wg0, n0 , self.endLine)
-      kStr += "  unsigned int n%s = problemNumWorkGroups%u;%s" \
+      kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
           % ( wg1, n1 , self.endLine)
-      kStr += "  unsigned int %s  = wgPersistent %% problemNumWorkGroups%u;%s" \
+      kStr += "  unsigned int %s  = wgPersistent %% problemNumGroupTiles%u;%s" \
           % ( wg0, n0, self.endLine)
-      kStr += "  unsigned int %s  = wgPersistent / problemNumWorkGroups%u;%s" \
+      kStr += "  unsigned int %s  = wgPersistent / problemNumGroupTiles%u;%s" \
           % ( wg1, n0, self.endLine)
 
       if kernel["GlobalSplitU"] > 1:
@@ -1036,7 +1036,7 @@ class KernelWriterSource(KernelWriter):
     if kernel["PersistentKernel"]:
       kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
         % (wg1, wg1, wg0, wg0, self.endLine)
-      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  probNumWG=%%u_%%u\\n%s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s, problemNumWorkGroups0, problemNumWorkGroups1);" % (self.endLinePP, wg0, wg1)+ self.endLine
+      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  probNumWG=%%u_%%u\\n%s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s, problemNumGroupTiles0, problemNumGroupTiles1);" % (self.endLinePP, wg0, wg1)+ self.endLine
     return kStr
 
 
@@ -2489,9 +2489,9 @@ class KernelWriterSource(KernelWriter):
 
       kStr += "  wgPersistent += %s(0);%s" \
         % (self.getNumGroupsStr, self.endLine)
-      kStr += "  %s  = wgPersistent %% problemNumWorkGroups%u;%s" \
+      kStr += "  %s  = wgPersistent %% problemNumGroupTiles%u;%s" \
           % ( wg0, n0, self.endLine)
-      kStr += "  %s  = wgPersistent / problemNumWorkGroups%u;%s" \
+      kStr += "  %s  = wgPersistent / problemNumGroupTiles%u;%s" \
           % ( wg1, n0, self.endLine)
       kStr += "} // End Persistent Loop" + self.endLine
 

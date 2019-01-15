@@ -152,9 +152,9 @@ class SolutionWriter:
       s += "%sint staggerUIter;\n" % t
 
       if persistent:
-        # pass in the number of groups since not available in WG
-        s += "%sunsigned int numGroupTiles0;\n" % t
-        s += "%sunsigned int numGroupTiles1;\n" % t
+        # pass in the number of tiles in problem since not available in WG
+        s += "%sunsigned int problemNumGroupTiles0;\n" % t
+        s += "%sunsigned int problemNumGroupTiles1;\n" % t
 
       s += "%sunsigned int pad;\n" % t # FIXME can this be removed?
       t = t[2:]
@@ -600,6 +600,9 @@ class SolutionWriter:
         # sizes
         for i in range(0, problemType["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
+        if persistent:
+          s += "%sprintf(\"  problemNumGroupTiles0== %%u\\n\", totalWorkGroups0 );\n" % (t)
+          s += "%sprintf(\"  problemNumGroupTiles1== %%u\\n\", totalWorkGroups1 );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeB== %%lu\\n\", tensor2dSizeB );\n" % (t)
@@ -753,9 +756,9 @@ class SolutionWriter:
 
           s += "%shipFunctionArgs.staggerUIter = staggerUIter;\n" % (t)
           if persistent:
-            # pass in the number of groups since not available in WG
-            s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
-            s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
+            # pass in the number of tiles in problem since not available in WG
+            s += "%shipFunctionArgs.problemNumGroupTiles0 = totalWorkGroups0;\n" % (t)
+            s += "%shipFunctionArgs.problemNumGroupTiles1 = totalWorkGroups1;\n" % (t)
 
           # Magic numbers for packed indices:
           for idxChar in solution["PackedC0Indices"][:-1]:
