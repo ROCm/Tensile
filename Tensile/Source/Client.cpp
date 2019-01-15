@@ -59,7 +59,7 @@ int main( int argc, char *argv[] ) {
 #if Tensile_CLIENT_LIBRARY
   std::cout << "ApiUs, ";
 #endif
-  std::cout << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total" << std::endl;
+  std::cout << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total, TimeStamp" << std::endl;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {

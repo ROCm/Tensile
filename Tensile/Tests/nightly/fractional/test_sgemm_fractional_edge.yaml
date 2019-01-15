@@ -45,7 +45,7 @@ BenchmarkProblems:
 
       ForkParameters:
         - FractionalLoad: [1]
-        - PrefetchGlobalRead: [0]
+        - PrefetchGlobalRead: [0,1]
         - PrefetchLocalRead: [1]
         - ThreadTile:
           - [ 3, 3 ]

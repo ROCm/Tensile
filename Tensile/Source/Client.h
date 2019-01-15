@@ -30,6 +30,8 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <ctime>
+#include <sys/time.h>
 #include <unistd.h>
 #include <set>
 #include <assert.h>
@@ -209,7 +211,7 @@ template<typename DataType>
 void specializeData(
     DataType *initialData,
     unsigned int totalIndices,
-    unsigned int numIndicesC, 
+    unsigned int numIndicesC,
     unsigned int numIndicesAB,
     const unsigned int *allSizes,
     const unsigned int *indexAssignments) {
@@ -369,13 +371,13 @@ bool callLibrary(
   }
 
   if (specializeAB) {
-    if (initA) {
+    if (initA == 5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
                       userSizes, indexAssignmentsA[problemTypeIdx]);
     }
-    if (initB) {
+    if (initB == 5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
@@ -530,11 +532,12 @@ bool callLibrary(
       }
 
       bool equalC, equalD;
-      equalD = tensileEqual<DataType>( // was AlmostEqual
+      equalD = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
           deviceOnHostD[serialIdxC], referenceC[serialIdxC]);
-      equalC = tensileEqual<DataType>( // was AlmostEqual
+      equalC = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
           deviceOnHostC[serialIdxC], cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
       numChecked++;
+
       if (!equalC || !equalD) numInvalids++;
 
       if (!equalC || !equalD || printValids) {
@@ -834,13 +837,13 @@ bool benchmarkAllSolutionsForSize(
   file << ", " << totalFlops;
 
   if (specializeAB) {
-    if (initA) {
+    if (initA==5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
                       sizes, indexAssignmentsA[problemTypeIdx]);
     }
-    if (initB) {
+    if (initB==5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
                       numIndicesAB[problemTypeIdx],
@@ -999,11 +1002,12 @@ bool benchmarkAllSolutionsForSize(
           }
 
           bool equalC, equalD;
-          equalD = tensileEqual<DataType>( // was AlmostEqual
+          equalD = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
               deviceOnHostD[serialIdxC], referenceC[serialIdxC]);
-          equalC = tensileEqual<DataType>( // was AlmostEqual
+          equalC = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
               deviceOnHostC[serialIdxC], cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
           numChecked++;
+          
           if (!equalC || !equalD) numInvalids++;
 
           if (!equalC || !equalD || printValids) {
@@ -1186,6 +1190,21 @@ bool benchmarkAllSolutionsForSize(
       std::cout << avgFanSpeed << ", ";
 
       std::cout << solutionIdx << "/" << numSolutions << ", ";
+
+      struct timeval tmnow;
+      struct tm *tm;
+      gettimeofday(&tmnow, NULL); // microsecond resolution
+      tm = localtime(&tmnow.tv_sec);
+      char prev_fill = std::cout.fill('0');
+      std::cout << (tm->tm_year + 1900) << "-"
+        << std::setw(2) << (tm->tm_mon + 1) << "-"
+        << std::setw(2) << tm->tm_mday << " "
+        << std::setw(2) << tm->tm_hour << ":"
+        << std::setw(2) << tm->tm_min << ":"
+        << std::setw(2) << tm->tm_sec << "."
+        << std::setw(6) << static_cast<int>(tmnow.tv_usec) << ", ";
+      (void) std::cout.fill(prev_fill);
+
       std::cout << std::endl;
     }
 
