@@ -1165,12 +1165,10 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
+    numSgprAddressD = self.rpga # til end
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
-    numSgprOffsetC = 1
-    numSgprOffsetA = 1
-    numSgprOffsetB = 1
     numSgprAlpha = max(1,int(tPA["bpe"]/4))
     numSgprBeta  = max(1,int(self.bpeCexternal/4)) if kernel["ProblemType"]["UseBeta"] else 0
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
@@ -1227,6 +1225,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdA", 4, 4)
       self.defineSgpr("SrdB", 4, 4)
     if kernel["BufferStore"]:
+      self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
     self.defineSgpr("Tensor2dSizeC", 2,2)
@@ -1239,6 +1238,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SaveExecMask", 2, 2)
 
     self.defineSgpr("GSUSumIdx", 2 if kernel["GlobalSplitU"] > 1 else 0)
+    self.defineSgpr("AddressD", numSgprAddressD)
     self.defineSgpr("AddressC", numSgprAddressC)
     self.defineSgpr("StridesC", self.numSgprStridesC)
 
@@ -1290,10 +1290,6 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
       self.defineSgpr("WrapUA", 1)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
       self.defineSgpr("WrapUB", 1)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
-
-    self.defineSgpr("OffsetC", numSgprOffsetC)
-    self.defineSgpr("OffsetA", numSgprOffsetA)
-    self.defineSgpr("OffsetB", numSgprOffsetB)
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2173,6 +2169,12 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
       kernArgOffset += 2*4
 
+      kStr += inst("s_load_dword", sgpr("AddressD"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr d" )
+      kernArgOffset += 1*4
+      kStr += inst("s_load_dword", sgpr("AddressD+1"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr d" )
+      kernArgOffset += 1*4
       kStr += inst("s_load_dword", sgpr("AddressC"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
       kernArgOffset += 1*4
@@ -2215,15 +2217,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_load_dword", sgpr("Beta+1"), \
               sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load beta" )
         kernArgOffset += 1*max(4,self.bpeCexternal)
-      kStr += inst("s_load_dword", sgpr("OffsetC"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("OffsetA"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset a" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("OffsetB"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset b" )
-      kernArgOffset += 1*4
       for i in range(0, self.numSgprStridesC):
         kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
@@ -2269,27 +2262,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".if 0\n"
 
     #kStr += self.bomb()
-
-    ########################################
-    # Apply User Offsets
-    kStr += self.comment("User Offsets")
-    kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
-        sgpr("AddressC"), "addrC += offsetC" )
-    kStr += inst("s_mov_b32", sgpr("OffsetC"), 0, "")
-    kStr += inst("s_addc_u32", sgpr("AddressC"), sgpr("OffsetC"),\
-        sgpr("AddressC"), "addrC += offsetC carry" )
-    kStr += inst("s_add_u32", sgpr("AddressA"), sgpr("OffsetA"), \
-        sgpr("AddressA"), "addrA += offsetA" )
-    kStr += inst("s_mov_b32", sgpr("OffsetA"), 0, "")
-    kStr += inst("s_addc_u32", sgpr("AddressA"), sgpr("OffsetA"),\
-        sgpr("AddressA"), "addrA += offsetA carry" )
-    kStr += inst("s_add_u32", sgpr("AddressB"), sgpr("OffsetB"), \
-        sgpr("AddressB"), "addrB += offsetB" )
-    kStr += inst("s_mov_b32", sgpr("OffsetB"), 0, "")
-    kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
-        sgpr("AddressB"), "addrB += offsetB carry" )
-    # now sgpr OffsetC,A,B are freed up for arithmetic
-    #self.setStartTmpPool(self.sgprs["OffsetC"])
 
     ########################################
     # NumWorkGroups
@@ -5614,6 +5586,8 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
           kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
+          kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
+          kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
           kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
           kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
           kStr += "\n"
@@ -5668,6 +5642,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["BufferStore"]:
+      kStr += self.allocPostLoopSrd(kernel, "D")
       kStr += self.allocPostLoopSrd(kernel, "C")
 
     # lr0 = serial % SG0
@@ -5679,6 +5654,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       #print "----AddressC-LocalSplitU"
       #print self.vgprPool.state()
+      self.addrD = -1
       self.addrC = -1
     else:
       self.addrC = self.vgprPool.checkOut(2)
@@ -5714,6 +5690,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["BufferStore"]:
+      kStr += self.allocPostLoopSrd(kernel, "D")
       kStr += self.allocPostLoopSrd(kernel, "C")
 
     kStr += self.computeStoreStart(kernel,
@@ -5724,6 +5701,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       #print "----AddressC-nonLSU-----"
       #print self.vgprPool.state()
+      self.addrD = -1
       self.addrC = -1
     else:
       self.addrC = self.vgprPool.checkOut(2)
@@ -6682,7 +6660,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
-                   sgpr("SrdC", 4),  \
+                   sgpr("SrdD", 4),  \
                    "0 offen offset:%u glc" % (avi*bps), \
                    "attempt write avi=%u"%(avi), self.endLine )
             else:
@@ -6771,7 +6749,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
-                   sgpr("SrdC", 4), \
+                   sgpr("SrdD", 4), \
                    "0 offen offset:%u glc" % (avi*bps), \
                    "try again", self.endLine )
             else:
@@ -6924,7 +6902,7 @@ class KernelWriterAssembly(KernelWriter):
           rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
           if kernel["BufferStore"]:
             addr0 = vgpr(addr)
-            addr1 = sgpr("SrdC", 4)
+            addr1 = sgpr("SrdD", 4)
           else:
             addr0 = vgpr(addr,2)
             addr1 = ""

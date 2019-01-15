@@ -147,10 +147,6 @@ class KernelWriter:
       kStr += self.comment("global read addresses: final offsets b")
       kStr += self.graFinalOffsets(kernel, tensorParametersB)
 
-      # user offsets
-      kStr += self.comment("global read addresses: apply user offsets")
-      kStr += self.graApplyUserOffsets(kernel)
-
       # addresses
       kStr += self.comment("global read addresses: addresses a")
       kStr += self.graAddresses(kernel, tensorParametersA)
@@ -1406,13 +1402,6 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def graFinalOffsets(self, kernel, tP):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Apply User Offsets
-  ##############################################################################
-  @abc.abstractmethod
-  def graApplyUserOffsets(self, kernel):
     return ""
 
   ##############################################################################

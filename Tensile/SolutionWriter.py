@@ -296,14 +296,6 @@ class SolutionWriter:
       s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
       s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
 
-    # offsets
-    s += "\n%s/* offsets */\n" % (t)
-    s += "%sunsigned int offsets[numKernels][1][3];\n" % (t)
-    for kernelIdx in range(0, len(kernels)):
-      s += "%soffsets[%u][0][0] = offsetC; // tensorC\n" % (t, kernelIdx)
-      s += "%soffsets[%u][0][1] = offsetA; // tensorA\n" % (t, kernelIdx)
-      s += "%soffsets[%u][0][2] = offsetB; // tensorB\n" % (t, kernelIdx)
-
     # index sizes
     s += "\n%s/* index sizes */\n" % (t)
     s += "%sunsigned int sizes[numKernels][1][%u];\n" \
@@ -458,7 +450,6 @@ class SolutionWriter:
               % (t, kernelNamesBetaOnly[0])
         argIdx = 0
         s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, argIdx); argIdx+=1
-        s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &offsetC ); tensileStatusCheck(status);\n" % (t, argIdx); argIdx+=1
         # strides
         for i in range(0,numStridesC):
           s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.strideList[i]); argIdx+=1
@@ -512,8 +503,8 @@ class SolutionWriter:
         s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
         s += "%s0, // groupMemBytes\n" % (t)
         s += "%sstream,\n" % (t)
+        s += "%sdataD,\n" % (t)
         s += "%sdataC,\n" % (t)
-        s += "%soffsetC,\n" % (t)
         # strides
         for i in range(0,numStridesC):
           s += "%s%s,\n" % (t, self.strideList[i])
@@ -546,8 +537,8 @@ class SolutionWriter:
           s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
+          s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
-          s += "%soffsetC,\n" % (t)
           # strides
           for i in range(0,numStridesC):
             s += "%s%s,\n" % (t, self.strideList[i])
@@ -578,14 +569,14 @@ class SolutionWriter:
       if self.language == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 0)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 1)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 2)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileStatusCheck(status);\n" % (t, 3, typeName)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataD ); tensileStatusCheck(status);\n" % (t, 0)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 1)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 2)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 3)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileStatusCheck(status);\n" % (t, 4, typeName)
         s += "%s%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, \
-            "" if problemType["UseBeta"] else "//", 4, typeName)
-        argIdx = 5 if problemType["UseBeta"] else 4
-        argIdx += 3 # skipping offsets here
+            "" if problemType["UseBeta"] else "//", 5, typeName)
+        argIdx = 6 if problemType["UseBeta"] else 5
         for stride in self.strideList:
           s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, stride)
           argIdx += 1
@@ -603,9 +594,6 @@ class SolutionWriter:
       if globalParameters["LibraryPrintDebug"]:
         s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
         # debug print kernel arguments
-        # offsets
-        for i in range(0, 3):
-          s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
         # strides
         for stride in self.strideList:
           s += "%sprintf(\"  %s = %%u\\n\", %s);\n" % (t, stride, stride)
@@ -627,14 +615,7 @@ class SolutionWriter:
       ########################################
       if self.language == "OCL":
         # set kernel args different for all enqueues
-        argIdx = 5 if problemType["UseBeta"] else 4
-        # offsets
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][0]); tensileStatusCheck(status);\n" % (t, argIdx )
-        argIdx += 1
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][1]); tensileStatusCheck(status);\n" % (t, argIdx )
-        argIdx += 1
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][2]); tensileStatusCheck(status);\n" % (t, argIdx )
-        argIdx += 1
+        argIdx = 6 if problemType["UseBeta"] else 5
         argIdx += len(self.strideList)
         # sizes
         for sizeIdx in range(0, problemType["TotalIndices"]):
@@ -688,15 +669,13 @@ class SolutionWriter:
           s += "%sdim3(localWorkSize[0], localWorkSize[1], localWorkSize[2]),\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
+          s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
           s += "%sdataA,\n" % (t)
           s += "%sdataB,\n" % (t)
           s += "%salpha,\n" % (t)
           s += "%s%sbeta,\n" % (t, \
               "" if problemType["UseBeta"] else "//")
-          s += "%soffsets[kernelIdx][enqueueIdx][0],\n" % (t)
-          s += "%soffsets[kernelIdx][enqueueIdx][1],\n" % (t)
-          s += "%soffsets[kernelIdx][enqueueIdx][2],\n" % (t)
           # strides
           for stride in self.strideList:
             s += "%s%s,\n" % (t, stride)
@@ -743,6 +722,7 @@ class SolutionWriter:
           s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
           s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
 
+          s += "%shipFunctionArgs.dataD = dataD;\n" % (t)
           s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
@@ -758,9 +738,6 @@ class SolutionWriter:
               s += "%shipFunctionArgs.beta[1] = beta;\n" % (t)
             else:
               s += "%shipFunctionArgs.beta = beta;\n" % (t)
-          s += "%shipFunctionArgs.offsetC = offsets[kernelIdx][enqueueIdx][0];\n" % (t)
-          s += "%shipFunctionArgs.offsetA = offsets[kernelIdx][enqueueIdx][1];\n" % (t)
-          s += "%shipFunctionArgs.offsetB = offsets[kernelIdx][enqueueIdx][2];\n" % (t)
           # strides
           for stride in self.strideList:
             s += "%shipFunctionArgs.%s = %s;\n" % (t, stride, stride)
@@ -898,19 +875,18 @@ class SolutionWriter:
       typeName = problemType["DataType"].toCpp()
       destTypeName = problemType["DestDataType"].toCpp()
       if self.language == "HIP":
-        argList.append(("%s *"%destTypeName, "dataC"))
+        argList.append(("%s *"%destTypeName, "dataD"))
+        argList.append(("const %s *"%destTypeName, "dataC"))
         argList.append(("const %s *"%typeName, "dataA"))
         argList.append(("const %s *"%typeName, "dataB"))
       else:
+        argList.append(("cl_mem", "dataD"))
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))
       argList.append((destTypeName, "alpha"))
       if problemType["UseBeta"]:
         argList.append((destTypeName, "beta"))
-      argList.append(("unsigned int", "offsetC"))
-      argList.append(("unsigned int", "offsetA"))
-      argList.append(("unsigned int", "offsetB"))
 
     # initial strides ?
     firstStride = 1
