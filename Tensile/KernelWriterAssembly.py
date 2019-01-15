@@ -1338,6 +1338,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernel"]:
       self.defineSgpr("ProblemNumGroupTiles0", 1) # Number of tiles in the problem (dim0)
       self.defineSgpr("ProblemNumGroupTiles1", 1) # Number of tiles in the problem (dim1)
+      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2318,6 +2319,9 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
         kernArgOffset += 1*4
         kStr += inst("s_load_dword", sgpr("ProblemNumGroupTiles1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("MagicNumberProblemNumGroupTiles0"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
         kernArgOffset += 1*4
 
