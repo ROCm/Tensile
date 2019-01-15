@@ -41,9 +41,13 @@ class KernelWriterSource(KernelWriter):
       # everything escaped extra b/c string
       self.endLine = "\\n\"\n\""
       self.endLinePP = "\\\\" + self.endLine
+      self.quote = "\\\""
+      self.endLineQuote = "\\\\n\\\""
     else:
       self.endLine = "\n"
       self.endLinePP =  "\\" + self.endLine
+      self.quote = "\""
+      self.endLineQuote = "\\n\""
 
     if self.language == "OCL":
       self.getGroupIdStr = "get_group_id"
@@ -87,6 +91,8 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
     self.useMagicNumber = True
+    self.db={}
+    self.db["PrintStagger"] = 0
 
   ##############################################################################
   #
@@ -132,6 +138,8 @@ class KernelWriterSource(KernelWriter):
         self.vectorComponents = ["p[0]", "p[1]"]
       else:
         self.vectorComponents = ["p[0]", "p[1]"]
+
+    kStr += self.endLine
 
     ####################################
     # kernel preprocessor definitions
@@ -793,6 +801,7 @@ class KernelWriterSource(KernelWriter):
     for idxChar in kernel["PackedC1Indices"][:-1]:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
+    s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
     if kernel["PersistentKernel"]:
       s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
@@ -839,6 +848,9 @@ class KernelWriterSource(KernelWriter):
          "DataType"].zeroString(self.language, 1), \
          self.endLine )
 
+    # TODO - use a different value for OOB data
+    #        Currently use zero since Tensile already has handy functions to create zero in different types
+    kStr += "#define SCALAR_OOB_DATA SCALAR_ZERO%s" % self.endLine
 
     # registers for valuAB
     kStr += "  DATA_TYPE rA[TT%s%s];%s" \
@@ -1017,6 +1029,9 @@ class KernelWriterSource(KernelWriter):
             % (wg0, wg1, self.endLine)
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
+
+    #kStr += "if (serial==0) printf(\"WG:%%u_%%u progWG:%%u_%%u \\n\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" \
+    #      % (wg0, wg1)+ self.endLine
 
     if kernel["PersistentKernel"]:
       kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
@@ -1241,12 +1256,14 @@ class KernelWriterSource(KernelWriter):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
             # Pass parms to GLOBAL_OFFSET_ macro:
-            kStr += "  %s globalReadOffset%s_%u_%u_%u_%u = GLOBAL_OFFSET_%s( " \
-                % (self.uint64Str, tP["tensorChar"], \
-                para, sPara, perp, sPerp, tP["tensorChar"])
+            gro = "globalReadOffset%s_%u_%u_%u_%u" \
+                  % (tP["tensorChar"], para, sPara, perp, sPerp)
+
+            kStr += "  %s %s = GLOBAL_OFFSET_%s( " \
+                % (self.uint64Str, gro, tP["tensorChar"])
             for i in range(0, len(tP["ia"])):
               index = tP["ia"][i]
-              if index < problemType["NumIndicesC"]:
+              if index < kernel["ProblemType"]["NumIndicesC"]:
                 if index == tP["tileIdx"]:
                   kStr += "globalReadOffset%s%s_%u_%u" \
                       % (tP["tensorChar"], tP["tileChar"], \
@@ -1479,6 +1496,136 @@ class KernelWriterSource(KernelWriter):
           % (self.indent, loopChar, self.endLine)
     return kStr
 
+
+  ##############################################################################
+  # Declare stagger parms used for both A and B
+  # Input is the number of loop iterations
+  # Defines staggerUIter
+  # staggerUIter must be power-of-2 to simplify masking implementation
+  ##############################################################################
+  def declareStaggerParms(self, kernel):
+    kStr = ""
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+
+    # Number of elements in U accessed by the unroll loop:
+    # Does not include elements accessed in tail loop
+    kStr += "  const unsigned origNumIter = numIter%s;%s" % (loopChar, self.endLine)
+
+    if kernel["StaggerUMapping"] == 0:
+      staggerInput = ("wg%s" % self.tileChar0)
+    elif kernel["StaggerUMapping"] == 1:
+      staggerInput = "wg%s" % self.tileChar1
+    elif kernel["StaggerUMapping"] == 2:
+      staggerInput = "wg2"
+    elif kernel["StaggerUMapping"] == 3:
+      staggerInput = "wgSerial"
+    elif kernel["StaggerUMapping"] == 4:
+      staggerInput = "0xffffffff" # all WG compute same stagger, this is test mode
+    else:
+      assert(0) # unsupported
+    #kStr += "if (serial==0) printf(\"xWG:%u_%u progWG:%u_%u staggerUIterParm=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIterParm);"  + self.endLine
+    kStr += "  unsigned staggerUIter = (%s & staggerUIterParm);%s" % (staggerInput, self.endLine)
+
+    bpeAB = int(4*kernel["ProblemType"]["DataType"].numRegisters())
+    kStr += "  staggerUIter = (staggerUIter << %u); // shift so each stagger has %u-byte stride%s" \
+            % (kernel["_staggerStrideShift"], \
+              (1<<kernel["_staggerStrideShift"])*kernel["DepthU"]*bpeAB, self.endLine)
+    #kStr += "if (serial==0) printf(\"WG:%u_%u progWG:%u_%u staggerUIter=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIter);"  + self.endLine
+    #kStr += "  staggerUIter = 0;\n"
+
+    if self.db["PrintStagger"]:
+      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) == 0)%s" % \
+              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "  printf(%sStaggerOffset loop init: numIter=%%u, staggerUIter=%%u, globalReadIncAL=%%lu globalReadIncBL=%%lu %s,\
+                        numIter%s, staggerUIter, globalReadIncAL, globalReadIncBL);%s" \
+                      % (self.quote, self.endLineQuote, loopChar, self.endLine)
+    return kStr
+
+  ##############################################################################
+  # Calculate and apply stagger offsets
+  #
+  # To help with cache and memory parking, offset the start position in the
+  # summation dimension so each group starts at a different K
+  ##############################################################################
+  def calculateStagger(self, kernel, tP):
+    kStr = ""
+    tc = tP["tensorChar"]
+    loopIdx = self.unrollIdx
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    for perp in range(0, tP["nrp"]):
+      for sPerp in range(0, tP["nrpv"]):
+        for para in range(0, tP["nrc"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
+            gr = "globalRead%s_%u_%u_%u_%u" \
+                  % (tc,   para, sPara, perp, sPerp)
+
+            ti= "globalReadOffset%s%s_%u_%u" \
+                % (tc, tP["tileChar"], \
+                (para if tP["tlu"] else perp), \
+                (sPara if tP["tlu"] else sPerp) )
+
+            kStr += "  %s += (staggerUIter * globalReadInc%s%s); // apply stagger offset%s" \
+                    % (gr, tc, loopChar, self.endLine)
+
+            if self.db["PrintStagger"]:
+              kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
+                      (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+              # typecasting to work around hcc printf bugs:
+              kStr += "printf(%sStaggerOffset init: gid=%%u.%%u.%%u, ti=0x%%x  %s-%s=0x%%x%s, \
+                              %s(2),%s(1),%s(0), %s,  (unsigned)(size_t)(%s-%s));%s" \
+                             % (self.quote,\
+                                gr, tc,
+                                self.endLineQuote,\
+                                self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,\
+                                ti,  gr, tc, \
+                                self.endLine)
+
+    # if prefetching then wrap iteration needs to change since already prefetched
+    # some tiles before entering the unroll loop
+    kStr += self.endLine
+    if tP["isB"]:
+      kStr += "  staggerUIter += %u; // add PrefetchGlobalRead%s" \
+          % (kernel["PrefetchGlobalRead"], self.endLine)
+      # StaggerUIter is now the loop iteration where we should wrap the offset back to 0
+
+    return kStr
+
+  ##############################################################################
+  # Remove the stagger offset for the kernel
+  # (used in tail loop)
+  ##############################################################################
+  def removeStagger(self, kernel, tP):
+    kStr = ""
+    tc = tP["tensorChar"]
+    loopIdx = self.unrollIdx
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    for perp in range(0, tP["nrp"]):
+      for sPerp in range(0, tP["nrpv"]):
+        for para in range(0, tP["nrc"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
+            gr = "globalRead%s_%u_%u_%u_%u" \
+                  % (tP["tensorChar"], para, sPara, perp, sPerp)
+
+            if self.staggerU:
+              kStr += "  %s += ((origNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
+                      % (gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
+
+              if self.db["PrintStagger"]:
+                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
+                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+                kStr += "printf(%sStaggerOffset remove: gid=%%u.%%u.%%u, origNumIter=%%u staggerUIter=%%u %s=%%p %s=%%p %s, \
+                                %s(2),%s(1),%s(0), origNumIter, staggerUIter, %s, %s);%s" \
+                               % (self.quote, \
+                                  tc, gr, \
+                                  self.endLineQuote, \
+                                  self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,
+                                  tc, gr, \
+                                  self.endLine)
+
+    return kStr
+
+
   ##############################################################################
   # Calculate Loop Num Iterations
   ##############################################################################
@@ -1491,6 +1638,7 @@ class KernelWriterSource(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if tailLoop:
+      kStr += self.endLine + "  /* Compute tail loop num iter */" + self.endLine
       kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       if kernel["GlobalSplitU"] > 1:
@@ -1501,6 +1649,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "%s}%s" % (self.indent, self.endLine)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
+      kStr += self.endLine + "  /* Compute unroll loop num iter */" + self.endLine
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
       if loopIdx == self.unrollIdx:
@@ -1606,19 +1755,58 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Increment A/B
   ##############################################################################
-  def globalReadIncrement(self, kernel, loopIdx, tP):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    tc = tP["tensorChar"]
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
             kStr += "%sglobalRead%s_%u_%u_%u_%u = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)globalRead%s_%u_%u_%u_%u) + globalReadInc%s%s);%s" \
-                % (self.indent, tP["tensorChar"], para, sPara, perp, sPerp, \
+                % (self.indent, tc, para, sPara, perp, sPerp, \
                 self.globalPtrStr, self.globalPtrStr, tP["tensorChar"], \
                 para, sPara, perp, sPerp, \
-                tP["tensorChar"], loopChar, self.endLine)
+                tc, loopChar, self.endLine)
+
+            if self.staggerU and loopIdx==self.unrollIdx:
+              # Check to see if GRA wraps around edge:
+              gr = "globalRead%s_%u_%u_%u_%u" \
+                      % (tP["tensorChar"], para, sPara, perp, sPerp)
+
+              kStr += "%sif ((numIter%s) == staggerUIter) {%s" \
+                      % (self.indent, loopChar, self.endLine)
+
+              if self.db["PrintStagger"]:
+                # note loop counter numIterK/numIterL hard-coded, manually hack if needed
+                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
+                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+                kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
+                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
+                                 % (self.quote, \
+                                    tc, \
+                                    self.endLineQuote, \
+                                    self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                                    gr,tc, \
+                                    self.endLine)
+
+              kStr += "  %s%s -= (origNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
+                      % (self.indent, \
+                         gr,  tc, loopChar,
+                         self.endLine)
+              kStr += "%s}%s" % (self.indent, self.endLine)
+              if self.db["PrintStagger"]:
+                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
+                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+                kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
+                                %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
+                               % (self.quote, \
+                                  tc, \
+                                  self.endLineQuote, \
+                                  self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                                  gr,tc, \
+                                  self.endLine)
+
           #else:
           #  kStr += "%sglobalRead%s_%u_%u%s += globalReadInc%s%s%s;%s" \
           #      % (self.indent, tP["tensorChar"], para, perp, \
@@ -1634,6 +1822,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):
     kStr = ""
+    tc = tP["tensorChar"]
 
     guardK = (mode==2)
 
@@ -1644,9 +1833,10 @@ class KernelWriterSource(KernelWriter):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, tP["nrcv"]):
-            kStr += "%s%s_%u_%u_%u_%u = " % (self.indent, \
-                tP["tensorChar"].lower(), \
+            dest ="%s_%u_%u_%u_%u" \
+                % (tP["tensorChar"].lower(), \
                 para, sPara, perp, sPerp )
+            kStr += "%s%s = " % (self.indent, dest)
             # guard around K
             if guardK:
               kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
@@ -1663,10 +1853,23 @@ class KernelWriterSource(KernelWriter):
               kStr += "( !inBounds%s_%u )" % ( \
                   (tP["tensorChar"], para if tP["tlu"] else perp) )
             if kernel["EdgeType"] == "Branch" or guardK:
-              kStr += " ? SCALAR_ZERO : "
+              kStr += " ? SCALAR_OOB_DATA : "
             kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
                 % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \
                 self.endLine)
+
+            #if self.db["PrintStagger"] and tP["isA"]:
+            if 0 and self.db["PrintStagger"]:
+              kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
+                      (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+              kStr += "  printf(%sglobalRead: gid=%%u.%%u.%%u, %s loaded:%%.0f%s, \
+                                %s(2),%s(1),%s(0), %s );%s" \
+                             % (self.quote,\
+                                tc,
+                                self.endLineQuote, \
+                                self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,\
+                                dest, \
+                                self.endLine)
     return kStr
 
   ##############################################################################

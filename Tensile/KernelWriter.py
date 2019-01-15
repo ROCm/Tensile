@@ -23,6 +23,7 @@ from SolutionStructs import Solution
 from Common import globalParameters, CHeader
 import abc
 import os
+import shutil
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
@@ -242,6 +243,11 @@ class KernelWriter:
       kStr += self.openLoop(kernel, i)
     kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
 
+    if self.staggerU:
+      kStr += self.declareStaggerParms(kernel)
+      kStr += self.calculateStagger(kernel, tensorParametersA)
+      kStr += self.calculateStagger(kernel, tensorParametersB)
+
     if self.enable["PreLoop"]:
       # init lds read pointers before each unrolled loop
       kStr += self.comment("local read addresses: init pointers a")
@@ -253,6 +259,7 @@ class KernelWriter:
     # prefetch: unrolled loop prefix
     ####################################
     if kernel["PrefetchGlobalRead"]:
+      pfi = 1
       kStr += self.comment("prefetch: global -> local")
       kStr += self.openSumAtLeastUnroll(kernel, True)
       if self.enable["GlobalRead"]:
@@ -265,10 +272,10 @@ class KernelWriter:
         # increment global
         kStr += self.comment("global read inc a")
         kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
-            tensorParametersA)
+            tensorParametersA, pfi)
         kStr += self.comment("global read inc b")
         kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
-            tensorParametersB)
+            tensorParametersB, pfi)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "3wait for global read")
       if self.enable["LocalWrite"]:
@@ -325,10 +332,10 @@ class KernelWriter:
         # unrolled loop: increment global read addresses
         kStr += self.comment("global read inc a")
         kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
-            tensorParametersA)
+            tensorParametersA, 0)
         kStr += self.comment("global read inc b")
         kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
-            tensorParametersB)
+            tensorParametersB, 0)
 
       if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
@@ -609,6 +616,11 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # tail: global read
         kStr += self.calculateLoopNumIter(kernel, -1)
+        if self.staggerU:
+          kStr += self.comment("remove stagger offsets for tail loop")
+          kStr += self.removeStagger(kernel, tensorParametersA)
+          kStr += self.removeStagger(kernel, tensorParametersB)
+
         kStr += self.comment("global read a")
         kStr += self.globalReadDo(kernel, 2, tensorParametersA)
         kStr += self.comment("global read b")
@@ -672,9 +684,9 @@ class KernelWriter:
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
       kStr += self.comment("global read inc a")
-      kStr += self.globalReadIncrement(kernel, i, tensorParametersA)
+      kStr += self.globalReadIncrement(kernel, i, tensorParametersA, 0)
       kStr += self.comment("global read inc b")
-      kStr += self.globalReadIncrement(kernel, i, tensorParametersB)
+      kStr += self.globalReadIncrement(kernel, i, tensorParametersB, 0)
       kStr += self.closeLoop(kernel, i, True)
 
     kStr += self.endSummation(kernel)
@@ -814,6 +826,9 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+
+    self.staggerU = kernel["StaggerU"] and kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"]
+
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
     # Can locally overrid these by changing True to False or
@@ -1474,6 +1489,28 @@ class KernelWriter:
     return ""
 
   ##############################################################################
+  # Define stagger parms that will be used in calculateStagger
+  ##############################################################################
+  @abc.abstractmethod
+  def declareStaggerParms(self, kernel):
+    return ""
+
+
+  ##############################################################################
+  # Calculate and apply stagger offsets and edge
+  ##############################################################################
+  @abc.abstractmethod
+  def calculateStagger(self, kernel, loopIdx):
+    return ""
+
+  ##############################################################################
+  # Remove stagger offset (before tail loop)
+  ##############################################################################
+  @abc.abstractmethod
+  def removeStagger(self, kernel):
+    return ""
+
+  ##############################################################################
   # Calculate Loop Num Iter
   ##############################################################################
   @abc.abstractmethod
@@ -1530,7 +1567,7 @@ class KernelWriter:
   # Global Read: Increment A/B
   ##############################################################################
   @abc.abstractmethod
-  def globalReadIncrement(self, kernel, loopIdx, tP):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     return ""
 
   ##############################################################################
@@ -1749,13 +1786,26 @@ class KernelWriter:
       asmPath = os.path.join(globalParameters["WorkingPath"], "assembly")
       # write assembly file to assembly directory
       kernelName = self.getKernelName(kernel)
+      kernelFileName = "%s.s" % kernelName
+      kernelFileName_txt = "%s.s.txt" % kernelName
       fileBase = path.join(asmPath, kernelName )
       assemblyFileName = "%s.s" % fileBase
+      SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
+      REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
+      REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
       codeObjectFileName = "%s.co" % fileBase
-      assemblyFile = open(assemblyFileName, "w")
-      assemblyFile.write(fileString)
-      assemblyFile.close()
-      #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
+
+      if os.path.isfile(REPLACEMENT_KERNEL_PATH):
+        shutil.copyfile(REPLACEMENT_KERNEL_PATH, assemblyFileName)
+        if globalParameters["PrintLevel"] >= 1:
+          print "replacement_assemblyFilename %s" % assemblyFileName
+      else:
+        if globalParameters["PrintLevel"] >= 1:
+          print "write_assemblyFilename %s" % assemblyFileName
+        assemblyFile = open(assemblyFileName, "w")
+        assemblyFile.write(fileString)
+        assemblyFile.close()
+        #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
 
       if not globalParameters["CodeFromFiles"]:
         # bytearray script
