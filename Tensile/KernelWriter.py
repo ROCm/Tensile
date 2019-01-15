@@ -305,7 +305,6 @@ class KernelWriter:
         if kernel["PrefetchLocalRead"]:
           # here the reads are prefetches so can skip them in the waitcnt
           lgkmcnt += localReads
-          assert kernel["PrefetchGlobalRead"]
           # and the writes are targetting another section of LDS and are
           # synchronized through a different waitnct than this one
           # (which is always just before the macs)
