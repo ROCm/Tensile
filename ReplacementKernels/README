@@ -1,0 +1,20 @@
+This directory is for replacement assembly kernels.
+
+If Tensile is generating a kernel Cijk_Ailk_Bjlk_DB_MT096x128x08_K1.s, and you want to edit
+the file Cijk_Ailk_Bjlk_DB_MT096x128x08_K1.s by hand and have Tensile use the kernel from
+the edited file then:
+
+- Add a .txt to the filename, for example Cijk_Ailk_Bjlk_DB_MT096x128x08_K1.s.txt
+- Add Cijk_Ailk_Bjlk_DB_MT096x128x08_K1.s.txt to this directory
+
+If you set PrintLevel >= 1 in Common.py the following diagnostic print lines will be output:
+- replacement_assemblyFilename : when the replacement file is used
+- write_assemblyFilename : when the Tensile generated file is used
+
+Note that the file name may be different in the Tensile procedure 1_BenchmarkProblems and 
+3_LibraryLogic, so if you want the file to be replaced in both procedures, you will need to add
+it with both filenames, for example, you may need to add both the files below, where the two 
+files have the same contents:
+
+Cijk_Ailk_Bjlk_DB_MT096x128x08_K1.s.txt
+Cijk_Ailk_Bjlk_DB_MT096x128x08_AF0EM01_AF1EM01_ASEM01_FL1_K1_NLCA01_TT06_04_USFGRO0_WG16_32_01.s.txt
