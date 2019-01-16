@@ -153,6 +153,7 @@ class SolutionWriter:
         s += "%sunsigned int problemNumGroupTiles0;\n" % t
         s += "%sunsigned int problemNumGroupTiles1;\n" % t
         s += "%sunsigned int magicNumberProblemNumGroupTiles0;\n" % t
+        s += "%sunsigned int gridNumWorkGroups0;\n" % t
 
       s += "%sunsigned int pad;\n" % t # FIXME can this be removed?
       t = t[2:]
@@ -673,9 +674,9 @@ class SolutionWriter:
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
           s += "%s,staggerUIter\n" % (t)
           if persistent:
-            s += "%s,problemNumGroupTiles0%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
-            s += "%s,problemNumGroupTiles1%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
-            s += "%s,magicNumberProblemNumGroupTiles0\n" # magic number to use when dividing by problemNumGroupTiles0
+            s += "%s,problemNumGroupTiles0\n" % (t)
+            s += "%s,problemNumGroupTiles1\n" % (t)
+            s += "%s,magicNumberProblemNumGroupTiles0\n" % (t) # magic number to use when dividing by problemNumGroupTiles0
           s += "%s);\n" % (t)
 
         # assembly kernel
@@ -736,9 +737,11 @@ class SolutionWriter:
           s += "%shipFunctionArgs.staggerUIter = staggerUIter;\n" % (t)
           if persistent:
             # pass in the number of tiles in problem since not available in WG
+            s += "\n"
             s += "%shipFunctionArgs.problemNumGroupTiles0 = problemNumGroupTiles0;\n" % (t)
             s += "%shipFunctionArgs.problemNumGroupTiles1 = problemNumGroupTiles0;\n" % (t)
             s += "%shipFunctionArgs.magicNumberProblemNumGroupTiles0 = magicNumberProblemNumGroupTiles0;\n" % (t)
+            s += "%shipFunctionArgs.gridNumWorkGroups0 = globalWorkSize[kernelIdx][0];\n" % (t) #
 
           # Magic numbers for packed indices:
           for idxChar in solution["PackedC0Indices"][:-1]:

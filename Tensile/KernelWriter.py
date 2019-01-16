@@ -186,12 +186,13 @@ class KernelWriter:
         # Number of write blocks should match number of reads.
         # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
         # So number of moules should match:
-        if not kernel["DirectToLdsA"]:
-          assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
-              len(self.localWriteACode.items())
-        if not kernel["DirectToLdsB"]:
-          assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
-              len(self.localWriteBCode.items())
+        if 1:
+            if not kernel["DirectToLdsA"]:
+              assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
+                  len(self.localWriteACode.items())
+            if not kernel["DirectToLdsB"]:
+              assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
+                  len(self.localWriteBCode.items())
       for u in range(startIter, localWriteEndIter+1):
         if u==(localWriteEndIter):
           itemPerIter = len(itemsToSched) # schedule all remaining activity

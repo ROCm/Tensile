@@ -480,14 +480,21 @@ class KernelWriterAssembly(KernelWriter):
 
   ########################################
   # Get Label
-  def getLabel(self, name):
+  def getLabelNum(self, name):
     if name not in self.labels:
       self.labels[name] = len(self.labels)
     return self.labels[name]
 
+  # labelDef is a comment string if this is a label definition
+  def getLabelName(self,name,labelDef=None):
+    t = "label_%04u" % (self.getLabelNum(name))
+    if labelDef:
+      t += ": // %s\n"%labelDef
+    return t
+
   def getUniqLabel(self):
     name = "uniq_label_" + str(len(self.labels))
-    return self.getLabel(name)
+    return self.getLabelNum(name)
 
   ##############################################################################
   # Find Memory Instruction For Width and Stride
@@ -1331,6 +1338,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("ShadowLimitA", 2, 2)
       self.defineSgpr("ShadowLimitB", 2, 2)
     if self.staggerU:
+      self.defineSgpr("OrigStaggerUIter", 1)  # Original stagger register.  Only needed for Persistent
       self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
       self.defineSgpr("WrapUA", 2)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
       self.defineSgpr("WrapUB", 2)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
@@ -1339,6 +1347,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("ProblemNumGroupTiles0", 1) # Number of tiles in the problem (dim0)
       self.defineSgpr("ProblemNumGroupTiles1", 1) # Number of tiles in the problem (dim1)
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
+      self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -1351,6 +1360,10 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["UseSgprForGRO"]:
       self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
       self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
+
+    # TODO-persistent - likely recompute some of the registers above.
+    if kernel["PersistentKernel"]:
+      self.lastPostLoopSgpr = self.sgprIdx
 
     self.totalSgprs = self.sgprIdx
     self.setStartTmpPool(self.totalSgprs)
@@ -1387,14 +1400,15 @@ class KernelWriterAssembly(KernelWriter):
     unrollChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
     self.labels = {}
-    #self.getLabel("PrefetchGlobalBegin")
-    self.getLabel("PrefetchGlobalEnd")
-    self.getLabel("LoopBegin%s"%(unrollChar))
-    self.getLabel("LoopEnd%s"%(unrollChar))
-    self.getLabel("LoopEnd%s_oddexit"%(unrollChar))
-    self.getLabel("PrefetchGlobalLastIterEnd")
-    self.getLabel("TailLoopBegin%s"%(unrollChar))
-    self.getLabel("TailLoopEnd%s"%(unrollChar))
+    #self.getLabelNum("PrefetchGlobalBegin")
+    self.getLabelNum("PrefetchGlobalEnd")
+    self.getLabelNum("LoopBegin%s"%(unrollChar))
+    self.getLabelNum("LoopEnd%s"%(unrollChar))
+    self.getLabelNum("LoopEnd%s_oddexit"%(unrollChar))
+    self.getLabelNum("PrefetchGlobalLastIterEnd")
+    self.getLabelNum("TailLoopBegin%s"%(unrollChar))
+    self.getLabelNum("TailLoopEnd%s"%(unrollChar))
+    self.getLabelNum("KernelEnd%s"%(unrollChar))
     # shift vectors determined later
 
     if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
@@ -2311,8 +2325,8 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
         kernArgOffset += 1*4
       if self.staggerU:
-        kStr += inst("s_load_dword", sgpr("StaggerUIter"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load StaggerUIter")
+        kStr += inst("s_load_dword", sgpr("OrigStaggerUIter"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load OrigStaggerUIter")
         kernArgOffset += 1*4
       if kernel["PersistentKernel"]:
         kStr += inst("s_load_dword", sgpr("ProblemNumGroupTiles0"), \
@@ -2323,6 +2337,9 @@ class KernelWriterAssembly(KernelWriter):
         kernArgOffset += 1*4
         kStr += inst("s_load_dword", sgpr("MagicNumberProblemNumGroupTiles0"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("GridNumWorkGroups0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load grid NumWorkGroup0 as a parm - can't calculate from size")
         kernArgOffset += 1*4
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
@@ -2431,6 +2448,12 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graWorkGroup(self, kernel):
     kStr = ""
+
+    if kernel["PersistentKernel"]:
+      # TODO-persistent: write initial wg0/wg1 based on wgPersistent SGPR
+      kStr += inst("s_mov_b32", sgpr("MagicNumberProblemNumGroupTiles0"), 0x10, \
+          "Persistent-hack loop count")
+      kStr += self.getLabelName("PersistentLoopStart","persistent loop start")
 
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
@@ -2609,6 +2632,14 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr(tmpVgpr))
       self.vgprPool.checkIn(tmpVgpr)
       #kStr += "s_endpgm\n"
+
+    if kernel["PersistentKernel"]:
+      kStr += inst("s_sub_u32", sgpr("MagicNumberProblemNumGroupTiles0"), \
+            sgpr("MagicNumberProblemNumGroupTiles0"), \
+            1, "Persistent-hack loop count")
+      kStr += inst("s_cmp_eq_u32", sgpr("MagicNumberProblemNumGroupTiles0"), \
+          0,  "Done?")
+      kStr += inst("s_cbranch_scc1", self.getLabelName("KernelEnd"), "exit persistent")
 
     return kStr
 
@@ -3720,9 +3751,9 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["StaggerUMapping"] == 4:
         staggerInput = -1
 
-      kStr += inst("s_and_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
+      kStr += inst("s_and_b32", sgpr("StaggerUIter"), sgpr("OrigStaggerUIter"), \
                     staggerInput, \
-                    "Compute actual stagger start for this kernel")
+                    "Compute actual stagger start for this tile")
       kStr += inst("s_lshl_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
                 kernel["_staggerStrideShift"], "shift by StaggerUStride")
     return kStr
@@ -3858,13 +3889,13 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["GlobalSplitU"] > 1:
         kStr += inst("s_cmp_eq_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
             "gsuSumIdx == numIterPerWgRemainder" )
-        afterZero = self.getLabel("AfterNumIterZero")
+        afterZero = self.getLabelNum("AfterNumIterZero")
         kStr += inst("s_cbranch_scc1", "label_%04u"%afterZero, "skip" )
         kStr += inst("s_mov_b32", sgpr("LoopCounters+%u"%loopIdx), hex(0), "numIter=0" )
         kStr += "label_%04u:%s" % (afterZero, self.endLine)
 
       # if tail numIter == 0 skip altogether
-      tailLoopLabelEnd = self.getLabel("TailLoopEnd%s"%(loopChar) )
+      tailLoopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
           hex(0), "numIter%s == 0"%loopChar )
       kStr += inst("s_cbranch_scc1 label_%04u"\
@@ -3894,7 +3925,7 @@ class KernelWriterAssembly(KernelWriter):
         # if gsuSumIdx < numIterPerWgRemainder
         kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
             "gsuSumIdx < numIterPerWgRemainder" )
-        afterInc = self.getLabel("AfterNumIterInc")
+        afterInc = self.getLabelNum("AfterNumIterInc")
         kStr += inst("s_cbranch_scc0", "label_%04u"%afterInc, "skip" )
         kStr += inst("s_add_u32", sgpr("LoopCounters+%u"%loopIdx), hex(1), sgpr("LoopCounters+%u"%loopIdx), "numIterMyWg++" )
         kStr += "label_%04u:%s" % (afterInc, self.endLine)
@@ -3930,8 +3961,8 @@ class KernelWriterAssembly(KernelWriter):
       self.inTailLoop = True
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
-    loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
 
     # is numIter at least 1? otherwise skip to end
     # PGL needs a skip-check here if not bufferload
@@ -4004,9 +4035,9 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = self.unrollIdx
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
-    loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
-    loopLabelEndOddExit = self.getLabel("%sLoopEnd%s_oddexit"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelEndOddExit = self.getLabelNum("%sLoopEnd%s_oddexit"%("Tail" if tailLoop else "", loopChar) )
 
     if tailLoop and kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
       unrollInc = kernel["InnerUnroll"]
@@ -4130,9 +4161,9 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["SuppressNoLoadLoop"]:
         loopChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
-        lastIterEnd = self.getLabel("LoopEnd%s"%loopChar)
+        lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
       else:
-        lastIterEnd = self.getLabel("PrefetchGlobalLastIterEnd")
+        lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
 
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
@@ -4144,7 +4175,7 @@ class KernelWriterAssembly(KernelWriter):
   def closeSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     if not prefetch:
-      label = self.getLabel("PrefetchGlobalLastIterEnd")
+      label = self.getLabelNum("PrefetchGlobalLastIterEnd")
       kStr += "label_%04u:%s" % (label, self.endLine)
     return kStr
 
@@ -4557,10 +4588,10 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Do It A/B
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):
-    if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
     tc = tP["tensorChar"]
     imod = Code.StructuredModule("globalReadDo%s_%u"%(tc,mode))
-    #imod.header.addComment("global read header %s"%tc)
+    if not self.do["GlobalRead%s"%tP["tensorChar"]]: return imod
+
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth # load width in elements?
@@ -5154,11 +5185,11 @@ class KernelWriterAssembly(KernelWriter):
     sviLabels = []
     for i in range(0, vw):
       r = (i+1) % vw
-      label = self.getLabel("ShiftVectorComponents%u_R%u"%(tP["idx"], r) )
+      label = self.getLabelNum("ShiftVectorComponents%u_R%u"%(tP["idx"], r) )
       svrLabels.append(label)
       tmpLabels = []
       for v in range(0, numVectors):
-        label = self.getLabel("ShiftVectorComponents%u_R%u_V%u"%(tP["idx"], r, v) )
+        label = self.getLabelNum("ShiftVectorComponents%u_R%u_V%u"%(tP["idx"], r, v) )
         tmpLabels.append(label)
       sviLabels.append(tmpLabels)
 
@@ -6034,12 +6065,12 @@ class KernelWriterAssembly(KernelWriter):
     for beta in betas:
       writeLabels[beta] = {}
       for edge in edges:
-        writeLabels[beta]["EdgeCheck0"] = self.getLabel("GW_B%u_E%u_EdgeCheck0" % ( 1 if beta else 0, 1 if edge else 0) )
-        writeLabels[beta]["EdgeCheck1"] = self.getLabel("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
-        writeLabels[beta][edge] = self.getLabel("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta]["EdgeCheck0"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck0" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta]["EdgeCheck1"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta][edge] = self.getLabelNum("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
       if not beta:
-        betaLabel = self.getLabel("GW_Beta")
-    endLabel = self.getLabel("GW_End")
+        betaLabel = self.getLabelNum("GW_Beta")
+    endLabel = self.getLabelNum("GW_End")
 
     # Layout
     """
@@ -6100,7 +6131,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # branch B1 or B0
     if kernel["ProblemType"]["UseBeta"]:
-      betaLabel = self.getLabel("GW_Beta")
+      betaLabel = self.getLabelNum("GW_Beta")
       if self.bpeCinternal <= self.bpr: # 1 register to check for Beta==0
         kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
       else: # multiple registers to check for Beta==0
@@ -6355,6 +6386,7 @@ class KernelWriterAssembly(KernelWriter):
               numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
               elementSgprs, numSgprsPerElement, tmpSgpr)
 
+        # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
 
     # End label
@@ -6897,9 +6929,9 @@ class KernelWriterAssembly(KernelWriter):
       vc0 = element[3]
       labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
         % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
-      label = self.getLabel(labelString)
+      label = self.getLabelNum(labelString)
       labelString += "EarlyExit"
-      labelAfterAtomicLoop = self.getLabel(labelString)
+      labelAfterAtomicLoop = self.getLabelNum(labelString)
 
       ########################################
       # wait for batched load
@@ -7281,7 +7313,14 @@ class KernelWriterAssembly(KernelWriter):
   # Function End
   ##############################################################################
   def functionEnd(self, kernel):
-    return inst("s_endpgm", "End Kernel")
+    imod = Code.Module()
+    if kernel["PersistentKernel"]:
+      imod.addInst("s_branch", self.getLabelName("PersistentLoopStart"), \
+          "persistent loop back")
+
+    imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
+    imod.addInst("s_endpgm", "Kernel End")
+    return imod
 
   ##############################################################################
   # Function Suffix
