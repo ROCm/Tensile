@@ -150,6 +150,22 @@ class StructuredModule(Module):
 
 
 """
+Label that can be the target of a jump.
+"""
+class Label (Item):
+  def __init__(self, labelNum, comment):
+    self.labelNum = labelNum
+    self.comment = comment
+
+  def __str__(self):
+    t = "label_%04u:" % (self.labelNum)
+    if self.comment:
+      t += "  /// %s" % self.comment
+    t += "\n"
+    return t
+
+
+"""
 An unstructured block of text that can contain comments and instructions
 """
 class TextBlock(Item):
@@ -159,6 +175,7 @@ class TextBlock(Item):
 
   def __str__(self):
     return self.text
+
 
 """
 Inst is a single instruction and is base class for other instructions.
@@ -190,7 +207,6 @@ class Inst(Item):
 # If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
 # an instruction with a comment is returned.
 class WaitCnt (Inst):
-
   def __init__(self,lgkmcnt=-1,vmcnt=-1,comment=""):
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
@@ -210,7 +226,6 @@ class WaitCnt (Inst):
       waitStr = "// disabled s_waitcnt"
 
     return self.formatWithComment(waitStr, self.comment)
-
 
 
 # uniq type that can be used in Module.countType
