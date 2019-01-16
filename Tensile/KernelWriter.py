@@ -153,8 +153,17 @@ class KernelWriter:
         imod.addCode(self.localWriteBCode)
     else:
       # create a plan:
-      writesToSched = self.localWriteACode.countType(Code.LocalWriteInst) + \
-                   self.localWriteBCode.countType(Code.LocalWriteInst)
+      itemsToSched = self.localWriteACode.items() + self.localWriteBCode.items()
+      if 1:
+        # This counts the number of modules which contain a ds_write
+        # Scheduler below keeps all writes in the same module in same iteration
+        # so this is better match to what it is trying to do
+        writesToSched = sum(1 for item in itemsToSched if item.countType(Code.LocalWriteInst))
+      else:
+        # count the number of writes, this doesn't match how they are
+        # scheduled so pushes writes up too far
+        writesToSched = self.localWriteACode.countType(Code.LocalWriteInst) + \
+                     self.localWriteBCode.countType(Code.LocalWriteInst)
       startIter = kernel["LoopUnroll"] - writesToSched
       startIter = localWriteEndIter - writesToSched + 1
       # - can't move a write past the load it depends on
@@ -172,7 +181,6 @@ class KernelWriter:
         print "makeSchedule-lw: writesToSched=", writesToSched, "lastLoadIter=", lastLoadIter, \
               "startIter=", startIter, "localWriteEndIter=", localWriteEndIter
 
-      itemsToSched = self.localWriteACode.items() + self.localWriteBCode.items()
       readsToWait = len(self.localWriteACode.items()) + len(self.localWriteBCode.items())
       if self.scheduleGlobalRead:
         # Number of write blocks should match number of reads.
