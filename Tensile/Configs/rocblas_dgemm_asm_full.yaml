@@ -98,7 +98,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [True,False]
+        - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - VectorWidth: [-1]
       ForkParameters:
