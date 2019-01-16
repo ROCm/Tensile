@@ -946,10 +946,8 @@ class KernelWriterSource(KernelWriter):
           % ( wg0, n0 , self.endLine)
       kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
           % ( wg1, n1 , self.endLine)
-      kStr += "  unsigned int %s  = wgPersistent %% problemNumGroupTiles%u;%s" \
-          % ( wg0, n0, self.endLine)
-      kStr += "  unsigned int %s  = wgPersistent / problemNumGroupTiles%u;%s" \
-          % ( wg1, n0, self.endLine)
+      kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
+      kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
 
       if kernel["GlobalSplitU"] > 1:
         kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
@@ -957,7 +955,11 @@ class KernelWriterSource(KernelWriter):
       # TODO - should the loop include the GSU calc?
 
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
-      kStr += "while (1) {%s" % (self.endLine)
+      kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
+      kStr += "  %s  = wgPersistent %% problemNumGroupTiles%u;%s" \
+          % ( wg0, n0, self.endLine)
+      kStr += "  %s  = wgPersistent / problemNumGroupTiles%u;%s" \
+          % ( wg1, n0, self.endLine)
     else:
       # optionally transpose work-group grid
       kStr += "  unsigned int %s = %s(%u);%s" \
@@ -2492,10 +2494,6 @@ class KernelWriterSource(KernelWriter):
 
       kStr += "  wgPersistent += %s(0);%s" \
         % (self.getNumGroupsStr, self.endLine)
-      kStr += "  %s  = wgPersistent %% problemNumGroupTiles%u;%s" \
-          % ( wg0, n0, self.endLine)
-      kStr += "  %s  = wgPersistent / problemNumGroupTiles%u;%s" \
-          % ( wg1, n0, self.endLine)
       kStr += "} // End Persistent Loop" + self.endLine
 
 
