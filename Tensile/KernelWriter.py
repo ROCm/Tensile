@@ -1800,7 +1800,7 @@ class KernelWriter:
         if globalParameters["PrintLevel"] >= 1:
           print "replacement_assemblyFilename %s" % assemblyFileName
       else:
-        if globalParameters["PrintLevel"] >= 1:
+        if globalParameters["PrintLevel"] >= 2:
           print "write_assemblyFilename %s" % assemblyFileName
         assemblyFile = open(assemblyFileName, "w")
         assemblyFile.write(fileString)
