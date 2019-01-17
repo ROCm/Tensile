@@ -706,7 +706,9 @@ def main( config ):
         (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
         totalTestFails += benchmarkErrors
-        print "totalTestFails=", totalTestFails
+        print "clientExit=%u %s for %s" %\
+                (totalTestFails, "(ERROR)" if totalTestFails else "(PASS)", \
+                globalParameters["ConfigPath"])
 
         # Copy Data
         resultsFileBase = resultsFileBaseFinal
