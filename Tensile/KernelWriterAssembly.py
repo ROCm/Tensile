@@ -5657,6 +5657,15 @@ class KernelWriterAssembly(KernelWriter):
       self.addrD = -1
       self.addrC = -1
     else:
+      self.addrD = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrD+0), \
+          sgpr("AddressD+0"), \
+          "sgpr -> vgpr")
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrD+1), \
+          sgpr("AddressD+1"), \
+          "sgpr -> vgpr")
       self.addrC = self.vgprPool.checkOut(2)
       kStr += inst("v_mov_b32", \
           vgpr(self.addrC+0), \
@@ -5704,6 +5713,15 @@ class KernelWriterAssembly(KernelWriter):
       self.addrD = -1
       self.addrC = -1
     else:
+      self.addrD = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrD+0), \
+          sgpr("AddressD+0"), \
+          "sgpr -> vgpr")
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrD+1), \
+          sgpr("AddressD+1"), \
+          "sgpr -> vgpr")
       self.addrC = self.vgprPool.checkOut(2)
       kStr += inst("v_mov_b32", \
           vgpr(self.addrC+0), \
@@ -5725,6 +5743,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(self.coutRowStart)
       self.vgprPool.checkIn(self.coutRowPtr)
     if not kernel["BufferStore"]:
+      self.vgprPool.checkIn(self.addrD)
       self.vgprPool.checkIn(self.addrC)
 
     if self.betaVgpr != None:
@@ -6132,7 +6151,7 @@ class KernelWriterAssembly(KernelWriter):
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, gwvw, atomicW, \
-              elementsThisBatch, self.coord0, self.coord1, self.addrC, \
+              elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
               numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
               elementSgprs, numSgprsPerElement, tmpSgpr)
 
@@ -6276,7 +6295,7 @@ class KernelWriterAssembly(KernelWriter):
   # numVgprsPerDataPerVI : Uses bpeCinternal
   ##############################################################################
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, gwvw, atomicW, \
-      batchElements, coord0, coord1, addrC,  \
+      batchElements, coord0, coord1, addrD, addrC,  \
       numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
       batchElementSgprs, numSgprsPerElement, tmpSgpr):
     kStr = ""
@@ -6501,7 +6520,12 @@ class KernelWriterAssembly(KernelWriter):
             kStr += ", sgprWorkGroup%u"%i
         kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
 
-      if not kernel["BufferStore"]:
+        # store a copy of the offset in 2 of the tmpVgpr for D
+        if beta:
+          kStr += inst("v_mov_b32", vgpr(tmpVgpr+2), vgpr(addr+0), "temp store offset 0")
+          kStr += inst("v_mov_b32", vgpr(tmpVgpr+3), vgpr(addr+1), "temp store offset 1")
+
+      if not kernel["BufferStore"] and beta:
         kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
             vgpr(addr+0), "addr = C + index*bytes (lo)" )
         kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
@@ -6547,6 +6571,15 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields,
                     comment="load C for beta calc")
+
+      # Set write address to D
+      if not kernel["BufferStore"]:
+        offsetSrc = (tmpVgpr+2) if beta else addr
+
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrD+0), \
+            vgpr(offsetSrc+0), "addr = D + index*bytes (lo)" )
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrD+1), \
+            vgpr(offsetSrc+1), "vcc", "addr = D + index*bytes (hi)")
 
       # restore full exec mask for calculating addr of next element
       if not kernel["BufferStore"] and edge and (beta or atomic):
