@@ -671,7 +671,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
-    {"PersistentKernel":          [ 0 ] },
+    {"PersistentKernel":          [ 4 ] },
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackGranularity":           [ 2 ] },

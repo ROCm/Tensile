@@ -2170,12 +2170,12 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.defineMACMacro(kernel, 1) # define OneIter case
 
     # if overflowed vgpr pool, comment out the whole kernel body and let it fail gracefully
-    if self.vgprPool.size() > self.maxVgprs or self.sgprPool.size() > self.maxSgprs:
+    if self.vgprPool.size() > self.maxVgprs or self.totalSgprs > self.maxSgprs:
       self.overflowedResources = True
     if self.overflowedResources:
       print ""
       printWarning("%s invalid: too many vgprs(%u) or sgprs(%u)" \
-          % (self.kernelName, self.vgprPool.size(), self.sgprPool.size()) )
+          % (self.kernelName, self.vgprPool.size(), self.totalSgprs))
       kStr += "s_endpgm // too many vgprs\n"
       kStr += ".if 0\n"
 
@@ -2505,7 +2505,7 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr = self.vgprPool.checkOut(2)
         quotient = self.vgprPool.checkOut(1)
         tmpSgpr = self.getTmpSgpr(1)
-        kStr += "// nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
+        kStr += "// GSU-WGMapRR :nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
             % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
         kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
@@ -2542,6 +2542,8 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(quotient)
         self.vgprPool.checkIn(remainder)
       else:
+        kStr += "// GSU-not-WGMapRR :nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
+            % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
         if False:
           quotient = self.vgprPool.checkOut(1)
           remainder = self.vgprPool.checkOut(1)
@@ -2674,8 +2676,9 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += "s_endpgm\n"
 
     if kernel["PersistentKernel"]:
+      # TODO - For GlobalSplitU, perhaps need to do this before the GSU workgroup assignment?  Or NumWorkGroups0
+      # needs to be devided by the GSU split factor?
       kStr += "\n"
-
       kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup0"), sgpr("NumWorkGroups0"), "Persistent check: WG0 OOB?")
       kStr += inst("s_cbranch_scc1", self.getLabelName("KernelEnd"), "exit persistent")
       kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup1"), sgpr("NumWorkGroups1"), "Persistent check: WG1 OOB?")
@@ -7370,8 +7373,9 @@ class KernelWriterAssembly(KernelWriter):
   def functionSuffix(self, kernel):
     kStr = ""
     if self.vgprPool.size() > self.maxVgprs or \
-       self.sgprPool.size() > self.maxSgprs:
+        self.sgprPool.size() > self.totalSgprs:
       self.overflowedResources = True
+
     if self.overflowedResources:
       kStr += ".endif // too many gprs\n"
 

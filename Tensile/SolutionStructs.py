@@ -1656,6 +1656,10 @@ class Solution:
     if state["StaggerU"] == 0:
       state["StaggerUMapping"] = 0
 
+    # avoid bug somehow related to GlobalSplitU + Persistent
+    if state["PersistentKernel"] and state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1:
+      state["PersistentKernel"] = 0
+
     problemType["AssignedDerivedParameters"] = True
 
   ########################################
