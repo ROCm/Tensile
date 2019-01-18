@@ -186,7 +186,7 @@ class KernelWriter:
         # Number of write blocks should match number of reads.
         # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
         # So number of moules should match:
-        if 1:
+        if 0:
             if not kernel["DirectToLdsA"]:
               assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
                   len(self.localWriteACode.items())
@@ -622,23 +622,23 @@ class KernelWriter:
         self.globalReadACode = self.globalReadDo(kernel, 1, tensorParametersA)
         self.globalReadBCode = self.globalReadDo(kernel, 1, tensorParametersB)
       else:
-        self.globalReadACode = Code.Item() # empty
-        self.globalReadBCode = Code.Item() # empty
+        self.globalReadACode = Code.StructuredModule() # empty
+        self.globalReadBCode = Code.StructuredModule() # empty
 
       if self.enable["GlobalReadInc"]:
         # unrolled loop: increment global read addresses
         self.globalReadIncACode = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, 0)
         self.globalReadIncBCode = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, 0)
       else:
-        self.globalReadIncACode = Code.Item()
-        self.globalReadIncBCode = Code.Item()
+        self.globalReadIncACode = Code.Module()
+        self.globalReadIncBCode = Code.Module()
 
       if self.enable["LocalWrite"]:
         self.localWriteACode = self.localWriteDo(kernel, tensorParametersA)
         self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB)
       else:
-        self.localWriteACode = ""
-        self.localWriteBCode = ""
+        self.localWriteACode = Code.Module()
+        self.localWriteBCode = Code.Module()
 
       # which iteration to perform the local writes
       # if scheduleLocalWrite=0, all local writes performed in this iteration
