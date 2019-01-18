@@ -1759,6 +1759,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    kStr += self.comment("global read inc %s"%tc)
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -1825,6 +1826,7 @@ class KernelWriterSource(KernelWriter):
     tc = tP["tensorChar"]
 
     guardK = (mode==2)
+    kStr += self.comment("global read %s")%tc
 
     #for perp in range(0, tP["nrp"]):
     #  for para in range(0, tP["nrc"]):

@@ -134,6 +134,7 @@ def Tensile(userArgs):
 
   # read config
   config = YAMLIO.readConfig( configPath )
+  globalParameters["ConfigPath"] = configPath
 
   # assign global parameters
   if "GlobalParameters" in config:
