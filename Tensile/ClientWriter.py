@@ -204,9 +204,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp += " --device-idx %u" % globalParameters["Device"]
     clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
     clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
+    clp += " --init-d %u" % globalParameters["DataInitTypeD"]
     clp += " --init-c %u" % globalParameters["DataInitTypeC"]
     clp += " --init-a %u" % globalParameters["DataInitTypeA"]
     clp += " --init-b %u" % globalParameters["DataInitTypeB"]
+    clp += " --c-equal-d %u" % globalParameters["CEqualD"]
     clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
     clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
     clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
@@ -305,6 +307,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "const unsigned printTensorA=%x;\n" % int(globalParameters["PrintTensorA"])
   h += "const unsigned printTensorB=%x;\n" % int(globalParameters["PrintTensorB"])
   h += "const unsigned printTensorC=%x;\n" % int(globalParameters["PrintTensorC"])
+  h += "const unsigned printTensorD=%x;\n" % int(globalParameters["PrintTensorD"])
 
   h += "const bool printWinnersOnly=%s;\n" % toCppBool(globalParameters["PrintWinnersOnly"])
   h += "\n";
@@ -683,6 +686,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     #h += "int deviceIdx = %u;\n" \
     #    % (globalParameters["Device"])
   h += "\n"
+  h += "void *deviceD;\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"
   h += "void *deviceB;\n"
@@ -770,8 +774,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    const unsigned int stride_b,\n"
     h += "    const unsigned int stride_c,\n"
     h += "    DataType alpha,\n"
-    h += "    DataType beta, \n"
-    h += "    unsigned int numEvents = 0, \n"
+    h += "    DataType beta,\n"
+    h += "    unsigned int numEvents = 0,\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
       h += "    cl_event *event_wait_list = NULL,\n"
       h += "    cl_event *outputEvent = NULL ) {\n"
@@ -860,16 +864,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "  TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (solution._functionPtr);\n" \
             % (problemType, problemType)
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  return f(solutionLock, static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return f(solutionLock, static_cast<cl_mem>(deviceD), static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
-      h += "  return f(solutionLock, static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
-          % (destTypeName, typeName, typeName)
+      h += "  return f(solutionLock, static_cast<%s *>(deviceD), static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+          % (destTypeName, destTypeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
-    h += "      0, 0, 0, // offsets\n"
     for i in range(firstStride,lastStrideC):
       h += "      strideC%u%s,\n" % (i, indexChars[i])
     for i in range(firstStride,lastStrideA):
@@ -901,11 +904,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "    unsigned int *sizes,\n"
       h += "    unsigned int *minStrides,\n"
       h += "    DestDataType alpha,\n"
-      h += "    DestDataType beta, \n"
-      h += "    unsigned int strideA, \n"
-      h += "    unsigned int strideB, \n"
-      h += "    unsigned int strideC, \n"
-      h += "    unsigned int numEvents = 0, \n"
+      h += "    DestDataType beta,\n"
+      h += "    unsigned int strideA,\n"
+      h += "    unsigned int strideB,\n"
+      h += "    unsigned int strideC,\n"
+      h += "    unsigned int numEvents = 0,\n"
 
       if globalParameters["RuntimeLanguage"] == "OCL":
         h += "    cl_event *event_wait_list = NULL,\n"
@@ -999,17 +1002,18 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           h += "    return %s_%s(\n" % (functionName, problemType)
           if enqueue:
             if globalParameters["RuntimeLanguage"] == "OCL":
+              h += "        static_cast<cl_mem>(deviceD),\n"
               h += "        static_cast<cl_mem>(deviceC),\n"
               h += "        static_cast<cl_mem>(deviceA),\n"
               h += "        static_cast<cl_mem>(deviceB),\n"
             else:
+              h += "        static_cast<%s *>(deviceD),\n" % destTypeName
               h += "        static_cast<%s *>(deviceC),\n" % destTypeName
               h += "        static_cast<%s *>(deviceA),\n" % typeName
               h += "        static_cast<%s *>(deviceB),\n" % typeName
             h += "        alpha,\n"
             if problemType["UseBeta"]:
               h += "        beta,\n"
-            h += "        0, 0, 0, // offsets\n"
           for i in range(firstStride,lastStrideC):
             h += "        strideC%u%s,\n" % (i, indexChars[i])
           for i in range(firstStride,lastStrideA):

@@ -3,7 +3,7 @@ DEEPBENCH_CONV_1x1=$P/nn/deepbench_conv_1x1_batchN.yml $P/nn/deepbench_conv_1x1_
 RESNET=$P/nn/resnet_batch64_B.yml
 
 # Override SCHED as vega10, vega20
-SCHED=vega10
+SCHED=vega20
 
 # commonly-used headers and footers:
 HEADER=boiler/header.yml

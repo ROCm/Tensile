@@ -89,8 +89,10 @@ globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeA"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u.  -1 uses value from DataInitTypeAB
 globalParameters["DataInitTypeB"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u.  -1 uses value from DataInitTypeAB
 globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN
+globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
+globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
@@ -101,6 +103,7 @@ globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue
 globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = 0          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
+globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
@@ -231,12 +234,28 @@ validParameters = {
 
     # don't create a whole copy of the Unroll loop with loads removed - instead
     # use buffer limits to suppress global loads and ignore unnecessary ds_reads
-    "SuppresssNoLoadLoop":         [False, True],
+    "SuppressNoLoadLoop":         [False, True],
 
     # For PrefetchGlobalRead=1, create a second copy of the unroll loop with
     # the LDS pointer swaps expanded into inline constants for LDS read and write instructions
     # This eliminates 4 vector XOR instructions used for pointer swap
     "ExpandPointerSwap":          [False, True],
+
+    # Schedule global reads and global read incrementsinto LocalRead iterations
+    # Can reduce pressure on local read instruction dispatch queue
+    # 0=perform global reads at start of instruction loop
+    # 1=schedule into the local read instruction iterations
+    "ScheduleGlobalRead":         [0, 1],
+
+    # Schedule local writes into LocalRead iterations.
+    # Can reduce pressure on local read instruction dispatch queue
+    "ScheduleLocalWrite":         [0, 1],
+
+
+    # Scheduling algorithm to use for each iteration:
+    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
+    # followed by local writes, followed by MACs
+    "ScheduleIterAlg":              [0, 1],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -287,7 +306,12 @@ validParameters = {
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
     "UseSgprForGRO":              [ -1, 0, 1],
-    "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
+
+    # Some work-items in the group may not participate in the final buffer load.
+    # Allows more flexibility in choosing DepthU.
+    # 1= allocate extra addressing vpgr for edge cases
+    # 2= use temp vgpr inside unroll loop, may save 1 VPR if both A and B have a fractional edge but costs v_alu
+    "FractionalLoad":             [ 0, 1, 2] ,
 
     # Attempt to vectorize atomics
     # 1,2,4 : Number of elements to vectorize
@@ -616,8 +640,13 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"SuppresssNoLoadLoop":       [ True ]},
+    {"SuppressNoLoadLoop":       [ True ]},
     {"ExpandPointerSwap":         [ True ]},
+
+    {"ScheduleGlobalRead":        [ 1 ] },
+    {"ScheduleLocalWrite":        [ 1 ] },
+    {"ScheduleIterAlg":           [ 1 ] },
+
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },
@@ -629,7 +658,7 @@ defaultBenchmarkCommonParameters = [
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
-    {"StaggerU":                  [ 32 ] },   # recommend [0,32]
+    {"StaggerU":                  [ 0 ] },   # recommend [0,32]
     {"StaggerUStride":            [ 256 ] },  # recommend 256 for V10,V20
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
     {"GlobalSplitU":              [ 1 ] },
@@ -903,6 +932,11 @@ def assignGlobalParameters( config ):
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
     globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
     globalParameters["AsmCaps"][v]["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
+    if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
+      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 63
+    elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
+      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 15
+
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
