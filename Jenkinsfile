@@ -347,39 +347,46 @@ parallel rocm20_ubuntu_gfx900:
 
     build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
   }
-}
+},
 
-parallel rocm20_ubuntu_gfx901:
+rocm20_ubuntu_gfx906:
 {
-  node( 'docker && rocm20 && gfx901')
-  {
-    def hcc_docker_args = new docker_data(
-        from_image:'rocm/dev-ubuntu-16.04:2.0',
-        build_docker_file:'dockerfile-build-rocm-terminal',
-        install_docker_file:'dockerfile-install-ubuntu',
-        docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
-        docker_build_args:' --pull' )
+    try
+    {
+        node( 'docker && rocm20 && gfx906')
+        {
+            def hcc_docker_args = new docker_data(
+                from_image:'rocm/dev-ubuntu-16.04:2.0',
+                build_docker_file:'dockerfile-build-rocm-terminal',
+                install_docker_file:'dockerfile-install-ubuntu',
+                docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
+                docker_build_args:' --pull' )
 
-    def hcc_compiler_args = new compiler_data(
-        compiler_name:'hcc-rocm20-ubuntu',
-        build_config:'Release',
-        compiler_path:'/opt/rocm/bin/hcc' )
+            def hcc_compiler_args = new compiler_data(
+                compiler_name:'hcc-rocm20-ubuntu',
+                build_config:'Release',
+                compiler_path:'/opt/rocm/bin/hcc' )
 
-    def tensile_paths = new project_paths(
-        project_name:'tensile',
-        src_prefix:'src',
-        build_prefix:'src' )
+            def tensile_paths = new project_paths(
+                project_name:'tensile',
+                src_prefix:'src',
+                build_prefix:'src' )
 
-    def print_version_closure = {
-      sh  """
-          set -x
-          /opt/rocm/bin/rocm_agent_enumerator -t ALL
-          /opt/rocm/bin/hcc --version
-        """
+            def print_version_closure = {
+              sh  """
+                  set -x
+                  /opt/rocm/bin/rocm_agent_enumerator -t ALL
+                  /opt/rocm/bin/hcc --version
+                """
+        }
+
+        build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
+        }
     }
-
-    build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
-  }
+    catch( err )
+    {
+      currentBuild.result = 'UNSTABLE'
+    }
 }
 
 """
