@@ -486,10 +486,13 @@ class KernelWriterAssembly(KernelWriter):
     return self.labels[name]
 
   # labelDef is a comment string if this is a label definition
-  def getLabelName(self,name,labelDef=None):
+  def getLabelDef(self,name,labelComment=""):
+    t = "label_%04u: // %s %s\n" % (self.getLabelNum(name), name, labelComment)
+    return t
+
+  # define a label and return undecorated label_%4u - suitable for using as jump target
+  def getLabelTarget(self,name,labelDef=None):
     t = "label_%04u" % (self.getLabelNum(name))
-    if labelDef:
-      t += ": // %s\n"%labelDef
     return t
 
   def getUniqLabel(self):
@@ -2483,7 +2486,7 @@ class KernelWriterAssembly(KernelWriter):
       #    "Persistent-hack loop count")
 
       kStr += "\n"
-      kStr += self.getLabelName("PersistentLoopStart","persistent loop start")
+      kStr += self.getLabelDef("PersistentLoopStart")
       kStr += self.comment1("compute SerialWorkGroupIter / problemNumGroupTiles0 (aka numWorkGroups0)")
       kStr += self.sMagicDiv(kernel, stmp, sgpr("SerialWorkGroupIter"), sgpr("MagicNumberProblemNumGroupTiles0"), 31)
       kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp), "wg1 = SerialWorkGroupIter / problemNumGroupTiles0")
@@ -2680,9 +2683,9 @@ class KernelWriterAssembly(KernelWriter):
       # needs to be devided by the GSU split factor?
       kStr += "\n"
       kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup0"), sgpr("NumWorkGroups0"), "Persistent check: WG0 OOB?")
-      kStr += inst("s_cbranch_scc1", self.getLabelName("KernelEnd"), "exit persistent")
+      kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
       kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup1"), sgpr("NumWorkGroups1"), "Persistent check: WG1 OOB?")
-      kStr += inst("s_cbranch_scc1", self.getLabelName("KernelEnd"), "exit persistent")
+      kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
 
     return kStr
 
@@ -3760,8 +3763,23 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB")
 
     kStr = ""
+    kStr += self.getLabelDef("InitCStart")
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
+
+    #if kernel["PrefetchGlobalRead"]:
+      # May need to jump to tail after initialization.
+    kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+        hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+    if kernel["SuppressNoLoadLoop"]:
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+      lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
+    else:
+      lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
+    kStr += inst("s_cbranch_scc1 label_%04u"\
+          % lastIterEnd, \
+          "after InitC, skip to end of prefetch last iter b/c numIter==0")
 
     return kStr
 
@@ -4211,8 +4229,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       kStr += inst("s_cbranch_scc1 label_%04u"\
-          % lastIterEnd, \
-          "skip to end of prefetch last iter b/c numIter==0")
+          % self.getLabelNum("InitCStart"), \
+          "skip to InitCStart iter b/c numIter==0")
     return kStr
 
   def closeSumAtLeastUnroll(self, kernel, prefetch):
@@ -7361,7 +7379,7 @@ class KernelWriterAssembly(KernelWriter):
       imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
           sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
           "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
-      imod.addInst("s_branch", self.getLabelName("PersistentLoopStart"), \
+      imod.addInst("s_branch", self.getLabelTarget("PersistentLoopStart"), \
           "persistent loop back")
     imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")

@@ -525,8 +525,6 @@ class KernelWriter:
     kl.append(self.comment("declare loop num iterations"))
     kl.append(self.declareLoopNumIter(kernel))
 
-    kl.append(self.initC(kernel))
-
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
       kl.append(self.comment("summation loop %u"%i))
@@ -565,6 +563,9 @@ class KernelWriter:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.comment("global read inc b"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
+
+      kl.append(self.initC(kernel)) # initC while waiting for global reads
+
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
       if self.enable["LocalWrite"]:
@@ -600,6 +601,8 @@ class KernelWriter:
               kl.append(self.comment("local read inc b"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersB))
       kl.append(self.closeSumAtLeastUnroll(kernel, True))
+    else:
+      kl.append(self.initC(kernel)) # initC while waiting for global reads
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))

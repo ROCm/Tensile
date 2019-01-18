@@ -853,6 +853,14 @@ class KernelWriterSource(KernelWriter):
     #        Currently use zero since Tensile already has handy functions to create zero in different types
     kStr += "#define SCALAR_OOB_DATA SCALAR_ZERO%s" % self.endLine
 
+    kStr += "  /* registers for MAC's */" + self.endLine
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+        kStr += "  float rC[TT%s*TT%s];%s" \
+            % (self.tileChar0, self.tileChar1, self.endLine )
+    else:
+        kStr += "  DEST_DATA_TYPE rC[TT%s*TT%s];%s" \
+            % (self.tileChar0, self.tileChar1, self.endLine )
+
     # registers for valuAB
     kStr += "  DATA_TYPE rA[TT%s%s];%s" \
         % (self.tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
@@ -1478,13 +1486,6 @@ class KernelWriterSource(KernelWriter):
 
     # registers for valu C
     kStr += self.endLine
-    kStr += "  /* registers for MAC's */" + self.endLine
-    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
-        kStr += "  float rC[TT%s*TT%s];%s" \
-            % (self.tileChar0, self.tileChar1, self.endLine )
-    else:
-        kStr += "  DEST_DATA_TYPE rC[TT%s*TT%s];%s" \
-            % (self.tileChar0, self.tileChar1, self.endLine )
     for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]):
         kStr += "  rC[%u] = SCALAR_ZERO;%s" % (i, self.endLine)
 
