@@ -918,7 +918,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "    hipEvent_t *stopEvent = NULL );\n\n"
 
 
-#need to get DestDataType in here
       for dataType in dataTypes:
         typeName = dataType.toCpp()
         destDataType = destDataTypes[dataType]
@@ -928,8 +927,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           for scheduleName in schedulesForProblemType[problemType]:
             functionsForDataType.append([scheduleName, problemType])
         h += "template<>\n"
-        h += "inline %s generatedCallTo_%s<%s>(\n" \
-            % (returnName, functionName, typeName)
+        h += "inline %s generatedCallTo_%s<%s,%s>(\n" \
+            % (returnName, functionName, typeName, destTypeName)
         h += "    unsigned int *sizes,\n"
         h += "    unsigned int *minStrides,\n"
         h += "    %s alpha,\n" % destTypeName
