@@ -5843,8 +5843,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # Full tile loop:
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-        for vc1 in range(0, kernel["VectorWidth"]):
+      for vc1 in range(0, kernel["VectorWidth"]):
+        for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
             element = (tt1, tt0, vc1, vc0)
             elements[False].append(element)
@@ -5856,8 +5856,8 @@ class KernelWriterAssembly(KernelWriter):
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-        for vc1 in range(0, kernel["VectorWidth"]):
+      for vc1 in range(0, kernel["VectorWidth"]):
+        for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for vc0 in range(0, kernel["VectorWidth"], edgeVw):
             element = (tt1, tt0, vc1, vc0)
             elements[True].append(element)
@@ -5879,8 +5879,8 @@ class KernelWriterAssembly(KernelWriter):
     elements = [[] for y in range(2)] # 2D array for Full, Edge
     # Full tile loop:
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
-      for tt0 in range(0, 1):
-        for vc1 in range(0, 1):
+      for vc1 in range(0, 1):
+        for tt0 in range(0, 1):
           for vc0 in range(0, kernel["GlobalWriteVectorWidth"], fullVw): # note step by fullVw
             element = (tt1, tt0, vc1, vc0)
             elements[False].append(element)
@@ -5892,8 +5892,8 @@ class KernelWriterAssembly(KernelWriter):
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["GlobalWriteVectorWidth"]%edgeVw == 0)
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
-      for tt0 in range(0, 1):
-        for vc1 in range(0, 1):
+      for vc1 in range(0, 1):
+        for tt0 in range(0, 1):
           for vc0 in range(0, kernel["GlobalWriteVectorWidth"], edgeVw):
             element = (tt1, tt0, vc1, vc0)
             elements[True].append(element)
