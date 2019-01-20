@@ -624,6 +624,10 @@ class KernelWriterAssembly(KernelWriter):
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
+    # For Beta:
+    # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
+    # appropriate vmwnts into the stores so they issue as loads become available
+    self.interleaveStoreVmcnt = 1 and kernel["BufferStore"]
 
     # if >0, shift the start of the SRD left by specified #elements (not bytes)
     # Gives pointer shift some room to move left, even into the previous macro-tile
@@ -6383,6 +6387,8 @@ class KernelWriterAssembly(KernelWriter):
     elementSumIdx = []
     lastData = None
     for elementIdx in range(0, len(batchElements)):
+      loadsIssued = 0
+      storesIssued = 0
       # gpr assignments for element
       addr = self.vgprPool.checkOut(numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
       elementAddr.append(addr)
@@ -6616,6 +6622,7 @@ class KernelWriterAssembly(KernelWriter):
           addr0 = vgpr(addr,2)
           addr1 = ""
         extraFields = ""
+        loadsIssued += 1
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields, hi16=sumIdx%2,
@@ -6712,8 +6719,7 @@ class KernelWriterAssembly(KernelWriter):
       ########################################
       # wait for batched load
       # TODO - we are always atomic here?
-      assert(beta or atomic) # bozo, remove this assert
-      kStr += inst("s_waitcnt", "vmcnt(0)", "wait C" )
+      kStr += inst("s_waitcnt", "vmcnt(0)", "wait C (atomic)" )
 
       ########################################
       # first attempt write
@@ -6893,8 +6899,8 @@ class KernelWriterAssembly(KernelWriter):
 
       ########################################
       # wait for batched load
-      if beta: # FIXME can this be moved to below or do flat instructions return out of order
-        kStr += inst("s_waitcnt", "vmcnt(0)", "wait C" )
+      if beta and not self.interleaveStoreVmcnt:
+        kStr += inst("s_waitcnt", "vmcnt(0)", "wait C")
 
       kStr += self.comment("apply mask, calc new C and issue write")
       for elementIdx in range(0, len(batchElements)):
@@ -6907,9 +6913,6 @@ class KernelWriterAssembly(KernelWriter):
         vc0 = element[3]
         sumIdx = elementSumIdx[elementIdx]
 
-        #if beta: # FIXME kept above since flat instruction may return out of order
-        #  kStr += inst("s_waitcnt", "vmcnt(%u)"%(len(batchElements)-1), "wait C")
-
         # apply in-bounds exec mask
         if edge and not kernel["BufferStore"]:
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
@@ -6919,6 +6922,11 @@ class KernelWriterAssembly(KernelWriter):
           # at least two stores so does some combining across VI -
           # for example assuming we can have two elements and can use pk_mul
           # here:
+          if beta and self.interleaveStoreVmcnt:
+            vmcnt = loadsIssued + elementIdx - storesIssued - 1
+            #print "wmvcnt=", vmcnt
+            kStr += "\n"
+            kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved)")
           for vi in range(0, gwvw):
             dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
             sumIdxV = elementSumIdx[elementIdx] + vi
@@ -6996,7 +7004,7 @@ class KernelWriterAssembly(KernelWriter):
             addr1 = ""
 
           useBuffer = kernel["BufferStore"]
-
+          storesIssued += 1
           if kernel["ProblemType"]["DataType"].isHalf():
             if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
               kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx/2, rpv, \
