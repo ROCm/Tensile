@@ -1310,8 +1310,8 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("ShadowLimitB", 2, 2)
     if self.staggerU:
       self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
-      self.defineSgpr("WrapUA", 1)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
-      self.defineSgpr("WrapUB", 1)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
+      self.defineSgpr("WrapUA", 2)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
+      self.defineSgpr("WrapUB", 2)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -3710,11 +3710,14 @@ class KernelWriterAssembly(KernelWriter):
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
       # Note LoopCounters is negative
-      kStr += inst("s_mul_i32", sgpr("WrapU%s"%tc), sgpr("LoopCounters+%u"%self.unrollIdx), \
-                    sgpr("GlobalReadIncs%s"%tc), \
+      kStr += self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
+                    sgpr("LoopCounters+%u"%self.unrollIdx), sgpr("GlobalReadIncs%s"%tc), \
                     "Number of bytes accessed by the unroll loop")
-      kStr += inst("s_add_u32", sgpr("WrapU%s"%tc),  sgpr("GlobalReadIncs%s"%tc), \
-                sgpr("WrapU%s"%tc), "Negative, and remove one iteration")
+
+      kStr += inst("s_add_u32", sgpr("WrapU%s+0"%tc),  sgpr("GlobalReadIncs%s"%tc), \
+                sgpr("WrapU%s+0"%tc), "Negative, and remove one iteration")
+      kStr += inst("s_addc_u32", sgpr("WrapU%s+1"%tc),  0, \
+                sgpr("WrapU%s+1"%tc), "Negative, and remove one iteration")
 
       kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
 
@@ -4225,10 +4228,10 @@ class KernelWriterAssembly(KernelWriter):
           imod.addInst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
                     sgpr("StaggerUIter"), "Is this the wrapIter?")
         #kStr += self.assert_scc_is_1() # break at the wrap iteration
-        imod.addInst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s"%tc), sgpr("GlobalReadIncs%s"%tc), \
+        imod.addInst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s+0"%tc), sgpr("GlobalReadIncs%s"%tc), \
                     "incLower <- ?")
-        imod.addInst("s_and_b32", sgpr(incUpper), sgpr(incLower), 0x80000000, "test")
-        imod.addInst("s_subb_u32", sgpr(incUpper), 0, 0, "-1 or 0")
+        imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0,
+                    "incUpper <- ?")
         imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
         if 0 and tP["isB"] and prefetchIndex==0:
           tv = self.vgprPool.checkOut(1, "hack")
@@ -7285,6 +7288,34 @@ class KernelWriterAssembly(KernelWriter):
       vtmp1 = vtmp0+1
       kStr += inst("v_mov_b32", vgpr(vtmp0), src0, comment)
       kStr += inst("v_mul_hi_u32", vgpr(vtmp1), vgpr(vtmp0), src1, comment)
+      kStr += inst("v_readfirstlane_b32", dst1, vgpr(vtmp1), comment)
+      kStr += inst("v_mul_lo_u32", vgpr(vtmp1), vgpr(vtmp0), src1, comment)
+      kStr += inst("v_readfirstlane_b32", dst0, vgpr(vtmp1), comment)
+      self.vgprPool.checkIn(vtmp0)
+    return kStr
+
+
+  # Perform 32-bit scalar mul and save u64 result in two SGPR
+  # src0 and src1 are 32-bit unsigned ints in scalar sgpr or small int constants (<64?))
+  # return retuns in dst0:dest (lower 32-bit in dst0, high 64-bit in dst1))
+  def s_mul_i64_i32 (self, dst0, dst1,  src0, src1, comment):
+    kStr = ""
+    assert(dst1 != src0) # no worky since dst1 overwritten by first mul operations
+    assert(dst1 != src1) # no worky since dst1 overwritten by first mul operations
+    # the else path below has less restrictions but prefer consistency
+    if globalParameters["AsmCaps"][self.version]["HasSMulHi"]:
+      kStr += inst("s_mul_hi_i32", dst1, src0, src1, comment)
+      kStr += inst("s_mul_i32", dst0, src0, src1, comment)
+    else:
+      if type(src1) != 'str' or not src1.startswith("s"):
+        # Swap operands, need a scalar sgpr in src1 (not a constant)
+        t = src0
+        src0 = src1
+        src1 = t
+      vtmp0 = self.vgprPool.checkOut(2)
+      vtmp1 = vtmp0+1
+      kStr += inst("v_mov_b32", vgpr(vtmp0), src0, comment)
+      kStr += inst("v_mul_hi_i32", vgpr(vtmp1), vgpr(vtmp0), src1, comment)
       kStr += inst("v_readfirstlane_b32", dst1, vgpr(vtmp1), comment)
       kStr += inst("v_mul_lo_u32", vgpr(vtmp1), vgpr(vtmp0), src1, comment)
       kStr += inst("v_readfirstlane_b32", dst0, vgpr(vtmp1), comment)
