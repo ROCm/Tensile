@@ -299,8 +299,7 @@ class KernelWriter:
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
       # fuss goes here:
-      macsPerIter = 4
-      localReadsPerIter = 1
+      pass
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
@@ -2136,7 +2135,6 @@ class KernelWriter:
       asmPath = os.path.join(globalParameters["WorkingPath"], "assembly")
       # write assembly file to assembly directory
       kernelName = self.getKernelName(kernel)
-      kernelFileName = "%s.s" % kernelName
       kernelFileName_txt = "%s.s.txt" % kernelName
       fileBase = path.join(asmPath, kernelName )
       assemblyFileName = "%s.s" % fileBase
