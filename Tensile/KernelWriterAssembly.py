@@ -2201,8 +2201,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def getKernArg(self, parmName, writeSgpr=1):
     kStr = ""
-    kStr += inst("s_load_dword", sgpr(parmName), \
-        sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+    if writeSgpr:
+      kStr += inst("s_load_dword", sgpr(parmName), \
+          sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
     self.kernArgOffset += 1*4
     return kStr
 
