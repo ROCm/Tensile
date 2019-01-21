@@ -2192,6 +2192,20 @@ class KernelWriterAssembly(KernelWriter):
   def functionSignaturePrefix(self, kernel): return ""
   def functionSignatureSuffix(self, kernel): return ""
   def functionBegin(self, kernel): return ""
+
+  ##############################################################################
+  # getKernArg
+  # Write an argument to specified SGPR and move the kernArgOffset
+  # if writeSgpr==0, just move the kernArgOffset - this is used to skip
+  # unused parms
+  ##############################################################################
+  def getKernArg(self, parmName, writeSgpr=1):
+    kStr = ""
+    kStr += inst("s_load_dword", sgpr(parmName), \
+        sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+    self.kernArgOffset += 1*4
+    return kStr
+
   def allocateResources(self, kernel):
     kStr = ""
     if self.do["NullKernel"]:
@@ -2220,133 +2234,71 @@ class KernelWriterAssembly(KernelWriter):
       ########################################
       # load kernel args
       kStr += self.comment("Load Kernel Args")
-      kernArgOffset = 0
+      self.kernArgOffset = 0
       if globalParameters["DebugKernel"]:
-        kStr += inst("s_load_dword", sgpr("AddressDbg"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
-        kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("AddressDbg+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug + 1" )
-        kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeC+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeC+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
-      kernArgOffset += 2*4
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeA+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeA+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
-      kernArgOffset += 2*4
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeB+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeB+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
-      kernArgOffset += 2*4
+        kStr += self.getKernArg("AddressDbg")
+        kStr += self.getKernArg("AddressDbg+1")
 
-      kStr += inst("s_load_dword", sgpr("AddressD"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr d" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressD+1"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr d" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressC"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressC+1"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressA"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressA+1"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressB"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
-      kernArgOffset += 1*4
-      kStr += inst("s_load_dword", sgpr("AddressB+1"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
-      kernArgOffset += 1*4
+      kStr += self.getKernArg("Tensor2dSizeC+0")
+      kStr += self.getKernArg("Tensor2dSizeC+1")
+      kStr += self.getKernArg("Tensor2dSizeA+0")
+      kStr += self.getKernArg("Tensor2dSizeA+1")
+      kStr += self.getKernArg("Tensor2dSizeB+0")
+      kStr += self.getKernArg("Tensor2dSizeB+1")
+
+      kStr += self.getKernArg("AddressD")
+      kStr += self.getKernArg("AddressD+1")
+      kStr += self.getKernArg("AddressC")
+      kStr += self.getKernArg("AddressC+1")
+      kStr += self.getKernArg("AddressA")
+      kStr += self.getKernArg("AddressA+1")
+      kStr += self.getKernArg("AddressB")
+      kStr += self.getKernArg("AddressB+1")
+
       # for half precision or smaller, data is padded to fill up 32-bits
       if kernel["ProblemType"]["DataType"].isHalf() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += inst("s_load_dword", sgpr("Alpha"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
+        kStr += self.getKernArg("Alpha")
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += inst("s_load_dword", sgpr("Alpha+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load alpha" )
-        kStr += inst("s_load_dword", sgpr("Alpha+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load alpha" )
-      kernArgOffset += 1*max(4,self.bpeAB)
+        kStr += self.getKernArg("Alpha+0")
+        kStr += self.getKernArg("Alpha+1")
+
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += inst("s_load_dword", sgpr("Beta"), \
-              sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
+              sgpr("KernArgAddress",2), hex(self.kernArgOffset), "load beta" )
+          kStr += self.getKernArg("Beta+0")
         elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += inst("s_load_dword", sgpr("Beta+0"), \
-              sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load beta" )
-          kStr += inst("s_load_dword", sgpr("Beta+1"), \
-              sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load beta" )
-        kernArgOffset += 1*max(4,self.bpeCexternal)
+          kStr += self.getKernArg("Beta+0")
+          kStr += self.getKernArg("Beta+1")
       for i in range(0, self.numSgprStridesC):
-        kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
-        kernArgOffset += 1*4
+        kStr += self.getKernArg("StridesC+%u"%i)
       for i in range(0, self.numSgprStridesA):
-        kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride a %u"%i )
-        kernArgOffset += 1*4
+        kStr += self.getKernArg("StridesA+%u"%i)
       for i in range(0, self.numSgprStridesB):
-        kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride b %u"%i )
-        kernArgOffset += 1*4
+        kStr += self.getKernArg("StridesB+%u"%i)
       for i in range(0, self.numSgprSizesFree):
-        kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
-        kernArgOffset += 1*4
+        kStr += self.getKernArg("SizesFree+%u"%i)
       for i in range(0, self.numSgprSizesSum):
-        kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load size sum %u"%i )
-        kernArgOffset += 1*4
+        kStr += self.getKernArg("SizesSum+%u"%i)
       for idxChar in kernel["PackedC0Indices"][:-1]:
-        kStr += inst("s_load_dword", sgpr("MagicNumberSize%s"%idxChar), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic number (C0)")
-        kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C0)")
-        kernArgOffset += 1*4
+        kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
+        kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
       for idxChar in kernel["PackedC1Indices"][:-1]:
-        kStr += inst("s_load_dword", sgpr("MagicNumberSize%s"%idxChar), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic number (C1)")
-        kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("MagicShiftSize%s"%idxChar), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load magic shift (C1)")
-        kernArgOffset += 1*4
-      if self.staggerU:
-        kStr += inst("s_load_dword", sgpr("OrigStaggerUIter"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load OrigStaggerUIter")
-      kernArgOffset += 1*4 # stagger always passed
+        kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
+        kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
+      kStr += self.getKernArg("OrigStaggerUIter", self.staggerU)
 
-      if kernel["PersistentKernel"]:
-        kStr += inst("s_load_dword", sgpr("NumWorkGroups0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "NumWorkGroups0 <- problemNumGroupTiles0")
-        kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("NumWorkGroups1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "NumWorkGroups1 <- problemNumGroupTiles1")
-        kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("MagicNumberProblemNumGroupTiles0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
-        kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("GridNumWorkGroups0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load grid NumWorkGroup0 as a parm - can't calculate from size")
-        kernArgOffset += 1*4
+      kStr += self.getKernArg("NumWorkGroups0", kernel["PersistentKernel"])
+      kStr += self.getKernArg("NumWorkGroups1", kernel["PersistentKernel"])
+      kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
+      kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
-          "wait for %u bytes of kern args" % kernArgOffset )
+          "wait for %u bytes of kern args" % self.kernArgOffset )
     else:
       kStr += ".if 0\n"
 
