@@ -6896,10 +6896,12 @@ class KernelWriterAssembly(KernelWriter):
     # Not Atomic
     ########################################
     else:
+      # edge has v_cndmask so loads or stores may not issue, hard to track vmcnt:
+      interleaveStoreVmcnt = self.interleaveStoreVmcnt and not edge
 
       ########################################
       # wait for batched load
-      if beta and not self.interleaveStoreVmcnt:
+      if beta and not interleaveStoreVmcnt:
         kStr += inst("s_waitcnt", "vmcnt(0)", "wait C")
 
       kStr += self.comment("apply mask, calc new C and issue write")
@@ -6922,7 +6924,7 @@ class KernelWriterAssembly(KernelWriter):
           # at least two stores so does some combining across VI -
           # for example assuming we can have two elements and can use pk_mul
           # here:
-          if beta and self.interleaveStoreVmcnt:
+          if beta and interleaveStoreVmcnt:
             vmcnt = loadsIssued + elementIdx - storesIssued - 1
             #print "wmvcnt=", vmcnt
             kStr += "\n"
