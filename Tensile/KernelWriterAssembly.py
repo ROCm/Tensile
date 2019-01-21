@@ -4315,13 +4315,13 @@ class KernelWriterAssembly(KernelWriter):
       if sizeIdxIsSum:
         sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
       kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-		  sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-		  sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-		  "64b tensor%s size in elements"%tc)
+                  sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+                  sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+                  "64b tensor%s size in elements"%tc)
       kStr += inst("s_lshl_b64", \
-	sgpr(maxAddrSgpr,2), \
-	sgpr(maxAddrSgpr,2), \
-	hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+        sgpr(maxAddrSgpr,2), \
+        sgpr(maxAddrSgpr,2), \
+        hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
 
       kStr += inst("s_add_u32", \
           sgpr(maxAddrSgpr+0), \
@@ -4394,15 +4394,15 @@ class KernelWriterAssembly(KernelWriter):
                 # and each increment of SRD base in the unroll loop does a corresponding decrement
                 # of the srd limit - so base+limit stays constant and also points at maximum
                 # element that should be accessed.
-		if kernel["UseSgprForGRO"]:
-		  offsetVgpr = "GlobalReadOffset%s+0"%(tc)
-		  if graIdx==0:
-		    soffset = "0"
-		  else:
-		    soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
-		else:
-		  offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
-		  soffset = "0"
+                if kernel["UseSgprForGRO"]:
+                  offsetVgpr = "GlobalReadOffset%s+0"%(tc)
+                  if graIdx==0:
+                    soffset = "0"
+                  else:
+                    soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+                else:
+                  offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
+                  soffset = "0"
 
                 if kernel["DirectToLds%s"%tc]:
                   if directToLdsLoads != 0:
@@ -4416,7 +4416,7 @@ class KernelWriterAssembly(KernelWriter):
                 else:
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
-		offset = r * tP["bpe"]
+                offset = r * tP["bpe"]
                 hi16 = 0
                 if kernel["ProblemType"]["DataType"].isHalf():
                   if numElementsPerLoad==2:
@@ -4476,11 +4476,11 @@ class KernelWriterAssembly(KernelWriter):
             # end R loop
             # increment offset by 1 element
             if kernel["BufferLoad"] and not kernel["UseSgprForGRO"]:
-	      kStr += inst("_v_add_co_u32", \
-		  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-		  "vcc", \
-		  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-		    numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
+              kStr += inst("_v_add_co_u32", \
+                  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+                  "vcc", \
+                  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+                    numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
@@ -4493,10 +4493,10 @@ class KernelWriterAssembly(KernelWriter):
       # have to do this after all the component loads since they all use 0
       # This factors into address for the next tail-loop iteration
       kStr += inst("_v_add_co_u32", \
-	  vgpr("GlobalReadOffset%s+0"%(tc)), \
-	  "vcc", \
-	  vgpr("GlobalReadOffset%s+0"%(tc)), \
-	  tP["bpe"], "graOffset += bpe")
+          vgpr("GlobalReadOffset%s+0"%(tc)), \
+          "vcc", \
+          vgpr("GlobalReadOffset%s+0"%(tc)), \
+          tP["bpe"], "graOffset += bpe")
 
     # TODO - can remove one of these m0 restores if A and B both TLU
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -6949,7 +6949,7 @@ class KernelWriterAssembly(KernelWriter):
                   "finalSum = sum*alpha + C*beta")
 
             elif kernel["ProblemType"]["DataType"].isInt8x4():
-              # assume we will need to replace v_mac_f32 with v_add_u32 and s_mul_lo_i32, could also use 
+              # assume we will need to replace v_mac_f32 with v_add_u32 and s_mul_lo_i32, could also use
               # v_mad_i32_i24
 #             kStr += inst("v_mad_i32_i24", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), vgpr("ValuC+%u"%sumIdxV), \
 #                 "finalSum = sum*alpha + C*beta")
@@ -6957,7 +6957,7 @@ class KernelWriterAssembly(KernelWriter):
                   "C = C*beta")
               kStr += inst("v_add_u32", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), vgpr("ValuC+%u"%sumIdxV), \
                   "finalSum = sum*alpha + C*beta")
-              kStr += " " 
+              kStr += " "
 
             elif kernel["ProblemType"]["DataType"].isDouble():
               # dataV+0 = new c = old c*beta
