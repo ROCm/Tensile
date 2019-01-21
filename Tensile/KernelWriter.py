@@ -2145,7 +2145,7 @@ class KernelWriter:
       REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
       codeObjectFileName = "%s.co" % fileBase
 
-      if os.path.isfile(REPLACEMENT_KERNEL_PATH):
+      if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
         shutil.copyfile(REPLACEMENT_KERNEL_PATH, assemblyFileName)
         if globalParameters["PrintLevel"] >= 1:
           print "replacement_assemblyFilename %s" % assemblyFileName
