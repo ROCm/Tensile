@@ -803,10 +803,10 @@ class KernelWriterSource(KernelWriter):
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
-    if kernel["PersistentKernel"]:
-      s += "," + self.endLine + "  unsigned int problemNumGroupTiles0"
-      s += "," + self.endLine + "  unsigned int problemNumGroupTiles1"
-      s += "," + self.endLine + "  unsigned int magicNumberProblemNumGroupTiles0"
+    # kernel["PersistentKernel"]:
+    s += "," + self.endLine + "  unsigned int problemNumGroupTiles0"
+    s += "," + self.endLine + "  unsigned int problemNumGroupTiles1"
+    s += "," + self.endLine + "  unsigned int magicNumberProblemNumGroupTiles0"
     s += " )"
     return s
 
