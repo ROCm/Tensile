@@ -1484,7 +1484,7 @@ class KernelWriterSource(KernelWriter):
   def initC(self, kernel):
     kStr = ""
 
-    # registers for valu C
+    # init rC, in pf this is called twice
     kStr += self.endLine
     for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]):
         kStr += "  rC[%u] = SCALAR_ZERO;%s" % (i, self.endLine)
@@ -1752,10 +1752,17 @@ class KernelWriterSource(KernelWriter):
           % (self.indent, self.unrollChar, self.endLine)
     self.indent += "  "
     return kStr
+
   def closeSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     self.indent = self.indent[2:]
-    kStr += "%s}%s" % (self.indent, self.endLine)
+    kStr += "%s} // end %s%s" % \
+        (self.indent, "PrefetchGlobalRead" if prefetch else "unroll", self.endLine)
+    if prefetch:
+      kStr += "%selse { // still need to initC even if skipped prefetch%s" % (self.indent, self.endLine)
+      kStr += self.initC(kernel)
+      kStr += "%s}%s" % (self.indent, self.endLine)
+
     return kStr
 
   ##############################################################################
