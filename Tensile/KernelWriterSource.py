@@ -1776,6 +1776,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    kStr += self.comment("global read inc %s"%tc)
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -1842,6 +1843,7 @@ class KernelWriterSource(KernelWriter):
     tc = tP["tensorChar"]
 
     guardK = (mode==2)
+    kStr += self.comment("global read %s")%tc
 
     #for perp in range(0, tP["nrp"]):
     #  for para in range(0, tP["nrc"]):
@@ -2325,9 +2327,9 @@ class KernelWriterSource(KernelWriter):
           for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
             kStr += " globalC%s" % self.indexChars[i]
             if i == kernel["ProblemType"]["Index0"] and kernel["GlobalWriteVectorWidth"]>1:
-              kStr += " + %u" %s
+              kStr += " + %s" % (loadOffset0)
             if i == kernel["ProblemType"]["Index1"]:
-              kStr += " + %u*CPSV" %b
+              kStr += " + %s" % (loadOffset1)
             if i < kernel["ProblemType"]["NumIndicesC"]-1:
               kStr += ", (%s)" % self.uint64Str
           kStr += ") ]"

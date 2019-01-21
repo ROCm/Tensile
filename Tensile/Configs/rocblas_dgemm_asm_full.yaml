@@ -105,11 +105,14 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 4, 4 ]
           - [ 6, 4 ]
+          - [ 8, 4 ]
           - [ 4, 6 ]
         - WorkGroup:
           - [ 16,  8,  1 ]
           - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
+          - [ 32, 16,  1 ]
+          - [ 16, 32,  1 ]
         - DepthU: [ 2, 4, 8, 12 ]
         - AssertSummationElementMultiple: [2]
         - AssertFree0ElementMultiple: [2]
@@ -283,15 +286,19 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - PrefetchLocalRead: [True]
       ForkParameters:
         - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True,False]
         - ThreadTile:
           - [ 4, 4 ]
+          - [ 6, 4 ]
+          - [ 6, 6 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
+          - [ 32, 16,  1 ]
         - WorkGroupMapping: [8]
         - GlobalSplitU: [1]
+        - FractionalLoad: [1]
         - DepthU: [ 8 ]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -340,22 +347,26 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - VectorWidth: [-1]
       ForkParameters:
+        - PrefetchLocalRead: [True,False]
         - ThreadTile:
           - [ 4, 4 ]
           - [ 6, 4 ]
           - [ 4, 6 ]
+          - [ 6, 6 ]
         - WorkGroup:
           - [ 16,  8,  1 ]
           - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
+          - [ 16, 32,  1 ]
+          - [ 32, 16,  1 ]
         - DepthU: [ 2, 4, 8, 12 ]
         - AssertSummationElementMultiple: [2]
         - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [2]
+        - FractionalLoad: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
