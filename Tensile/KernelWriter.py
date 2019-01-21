@@ -47,7 +47,7 @@ class KernelWriter:
   # makeSchedule:  Schedule work into interations.
 
   # Tensile uses a two-level scheduler.  This the first-level, which
-  # schedules global reads, global incs, and local writes into iteration.  
+  # schedules global reads, global incs, and local writes into iteration.
   # Then makeSubIterSchedule schedules the instructions within the iteration.
   #
   # Inputs:
