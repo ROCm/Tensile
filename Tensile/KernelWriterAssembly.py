@@ -1344,10 +1344,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WrapUB", 2)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
 
     if kernel["PersistentKernel"]:
-      self.defineSgpr("ProblemNumGroupTiles0", 1) # Number of tiles in the problem (dim0)
-      self.defineSgpr("ProblemNumGroupTiles1", 1) # Number of tiles in the problem (dim1)
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
+      self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2327,13 +2326,14 @@ class KernelWriterAssembly(KernelWriter):
       if self.staggerU:
         kStr += inst("s_load_dword", sgpr("OrigStaggerUIter"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load OrigStaggerUIter")
-        kernArgOffset += 1*4
+      kernArgOffset += 1*4 # stagger always passed
+
       if kernel["PersistentKernel"]:
-        kStr += inst("s_load_dword", sgpr("ProblemNumGroupTiles0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
+        kStr += inst("s_load_dword", sgpr("NumWorkGroups0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "NumWorkGroups0 <- problemNumGroupTiles0")
         kernArgOffset += 1*4
-        kStr += inst("s_load_dword", sgpr("ProblemNumGroupTiles1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
+        kStr += inst("s_load_dword", sgpr("NumWorkGroups1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "NumWorkGroups1 <- problemNumGroupTiles1")
         kernArgOffset += 1*4
         kStr += inst("s_load_dword", sgpr("MagicNumberProblemNumGroupTiles0"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load parm")
@@ -2369,23 +2369,44 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(nwg0), "")
     self.vgprPool.checkIn(nwg0)
 
-    # nwg1
-    size1 = self.vgprPool.checkOut(1)
-    tmpVgpr = self.vgprPool.checkOut(2)
-    nwg1 = self.vgprPool.checkOut(1)
-    tmpSgpr = self.getTmpSgpr(1)
-    kStr += "// size1 = (size%s + MT%s - 1) / MT%s;%s" \
-        % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-    kStr += inst("v_mov_b32", vgpr(size1), sgpr("SizesFree+1"), "")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
-    kStr += inst("_v_add_co_u32", vgpr(size1), "vcc", sgpr(tmpSgpr), vgpr(size1), \
-        "%s = size1+MT1-1"%vgpr(size1))
-    kStr += vectorStaticDivide(nwg1, size1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
-    self.vgprPool.checkIn(size1)
-    self.vgprPool.checkIn(tmpVgpr)
-    kStr += inst("v_readfirstlane_b32", sgpr("NumWorkGroups1"), \
-        vgpr(nwg1), "")
-    self.vgprPool.checkIn(nwg1)
+    if not kernel["PersistentKernel"]:
+      ########################################
+      # NumWorkGroups
+      # nwg0
+      size0 = self.vgprPool.checkOut(1)
+      tmpVgpr = self.vgprPool.checkOut(2)
+      nwg0 = self.vgprPool.checkOut(1)
+      tmpSgpr = self.getTmpSgpr(1)
+      kStr += "// size0 = (size%s + MT%s - 1) / MT%s;%s" \
+          % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
+      kStr += inst("v_mov_b32", vgpr(size0), sgpr("SizesFree+0"), "")
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "")
+      kStr += inst("_v_add_co_u32", vgpr(size0), "vcc", sgpr(tmpSgpr), vgpr(size0), \
+          "%s = size0+MT0-1"%vgpr(size0))
+      kStr += vectorStaticDivide(nwg0, size0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
+      self.vgprPool.checkIn(size0)
+      self.vgprPool.checkIn(tmpVgpr)
+      kStr += inst("v_readfirstlane_b32", sgpr("NumWorkGroups0"), \
+          vgpr(nwg0), "")
+      self.vgprPool.checkIn(nwg0)
+
+      # nwg1
+      size1 = self.vgprPool.checkOut(1)
+      tmpVgpr = self.vgprPool.checkOut(2)
+      nwg1 = self.vgprPool.checkOut(1)
+      tmpSgpr = self.getTmpSgpr(1)
+      kStr += "// size1 = (size%s + MT%s - 1) / MT%s;%s" \
+          % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
+      kStr += inst("v_mov_b32", vgpr(size1), sgpr("SizesFree+1"), "")
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
+      kStr += inst("_v_add_co_u32", vgpr(size1), "vcc", sgpr(tmpSgpr), vgpr(size1), \
+          "%s = size1+MT1-1"%vgpr(size1))
+      kStr += vectorStaticDivide(nwg1, size1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
+      self.vgprPool.checkIn(size1)
+      self.vgprPool.checkIn(tmpVgpr)
+      kStr += inst("v_readfirstlane_b32", sgpr("NumWorkGroups1"), \
+          vgpr(nwg1), "")
+      self.vgprPool.checkIn(nwg1)
 
 
     ########################################
@@ -2442,6 +2463,11 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+  def sMagicDiv(self, kernel, stmp, dividend, magicNumber, magicShift):
+    kStr = ""
+    kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), dividend, magicNumber, "s_magic mul")
+    kStr += inst("s_lshr_b64", sgpr(stmp,2), sgpr(stmp,2), magicShift, "sMagicDiv")
+    return kStr
 
   ##############################################################################
   # Global Read Addresses: WorkGroup
@@ -2450,11 +2476,25 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      # TODO-persistent: write initial wg0/wg1 based on wgPersistent SGPR
-      kStr += inst("s_mov_b32", sgpr("MagicNumberProblemNumGroupTiles0"), 0x10, \
-          "Persistent-hack loop count")
-      kStr += self.getLabelName("PersistentLoopStart","persistent loop start")
+      # TODO-persistent: write initial wg0/wg1 based on SerialWorkGroupIter SGPR
+      stmp = self.getTmpSgpr(2)
+      kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
+      #kStr += inst("s_mov_b32", sgpr("MagicNumberProblemNumGroupTiles0"), 0x10, \
+      #    "Persistent-hack loop count")
 
+      kStr += "\n"
+      kStr += self.getLabelName("PersistentLoopStart","persistent loop start")
+      kStr += self.comment1("compute SerialWorkGroupIter / problemNumGroupTiles0 (aka numWorkGroups0)")
+      kStr += self.sMagicDiv(kernel, stmp, sgpr("SerialWorkGroupIter"), sgpr("MagicNumberProblemNumGroupTiles0"), 31)
+      kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp), "wg1 = SerialWorkGroupIter / problemNumGroupTiles0")
+      kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
+      kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "wg0 = SerialWorkGroupIter % problemNumGroupTiles0")
+
+      #kStr += self.assert_ne(sgpr("SerialWorkGroupIter"), 2)
+      kStr += "\n"
+
+
+    kStr += self.comment1("graWorkGroup mapping")
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
         # gsuSumIdx = wg1 / nwg1
@@ -2634,11 +2674,11 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += "s_endpgm\n"
 
     if kernel["PersistentKernel"]:
-      kStr += inst("s_sub_u32", sgpr("MagicNumberProblemNumGroupTiles0"), \
-            sgpr("MagicNumberProblemNumGroupTiles0"), \
-            1, "Persistent-hack loop count")
-      kStr += inst("s_cmp_eq_u32", sgpr("MagicNumberProblemNumGroupTiles0"), \
-          0,  "Done?")
+      kStr += "\n"
+
+      kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup0"), sgpr("NumWorkGroups0"), "Persistent check: WG0 OOB?")
+      kStr += inst("s_cbranch_scc1", self.getLabelName("KernelEnd"), "exit persistent")
+      kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup1"), sgpr("NumWorkGroups1"), "Persistent check: WG1 OOB?")
       kStr += inst("s_cbranch_scc1", self.getLabelName("KernelEnd"), "exit persistent")
 
     return kStr
@@ -7176,7 +7216,7 @@ class KernelWriterAssembly(KernelWriter):
                   "finalSum = sum*alpha + C*beta")
 
             elif kernel["ProblemType"]["DataType"].isInt8x4():
-              # assume we will need to replace v_mac_f32 with v_add_u32 and s_mul_lo_i32, could also use
+              # assume we will need to replace v_mac_f32 with v_add_u32 and s_mul_lo_i32
               # v_mad_i32_i24
 #             kStr += inst("v_mad_i32_i24", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), vgpr("ValuC+%u"%sumIdxV), \
 #                 "finalSum = sum*alpha + C*beta")
@@ -7315,9 +7355,11 @@ class KernelWriterAssembly(KernelWriter):
   def functionEnd(self, kernel):
     imod = Code.Module()
     if kernel["PersistentKernel"]:
+      imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
+          sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
+          "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
       imod.addInst("s_branch", self.getLabelName("PersistentLoopStart"), \
           "persistent loop back")
-
     imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")
     return imod
