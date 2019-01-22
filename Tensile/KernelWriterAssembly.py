@@ -6073,13 +6073,9 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Sgprs
-    numSgprsPerElement = 2
-    maxElementsPerBatch = 4 if not beta else 8 # bozo, review this and increase
-    numSgprsForPostLoop = 2+6+ maxElementsPerBatch*numSgprsPerElement
-    globalWriteSgprs = self.getTmpSgpr(numSgprsForPostLoop)
-    tmpSgpr = globalWriteSgprs
-    globalWriteSgprs += 6
-    elementSgprs = globalWriteSgprs
+
+    # allocate tmps for the store header (before the batch implementations)
+    tmpSgpr = self.getTmpSgpr(6)
 
     # branch B1 or B0
     if kernel["ProblemType"]["UseBeta"]:
@@ -6178,8 +6174,12 @@ class KernelWriterAssembly(KernelWriter):
         # Calculate Vgprs for Write Batching
         ########################################
 
-        numElementSgprs = self.totalSgprs - elementSgprs
-        numElementsPerBatchLimitedBySgprs = numElementSgprs / numSgprsPerElement
+        # TODO - could tune these for store mode (BufferStore, edge, etc):
+        #import pdb
+        #pdb.set_trace()
+        fixedSgprsPerBatch = 6 # What are these used for?
+        numSgprsPerElement = 2
+        numElementsPerBatchLimitedBySgprs = (self.maxSgprs - self.startSgprTmpPool - fixedSgprsPerBatch) / numSgprsPerElement
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
         # 2 for coord0,1 of thread - already checked out
@@ -6231,23 +6231,23 @@ class KernelWriterAssembly(KernelWriter):
         # TODO : the vgprSerial is needed for-ever and if we grow here will split the
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
         minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
-        needed = minElements*numVgprsPerElement
-        shrinkDb = 0
+        minNeeded = minElements*numVgprsPerElement
+        shrinkDb = 1
         if shrinkDb:
-          print "numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "needed=", needed
+          print "numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded
         subBatches = 1
-        if numVgprAvailable < needed:
+        if numVgprAvailable < minNeeded:
           gwvwOrig = gwvw
           currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size())
           futureOccupancy = self.getOccupancy(kernel, \
-              self.vgprPool.size() - numVgprAvailable + needed)
+              self.vgprPool.size() - numVgprAvailable + minNeeded)
           # This doesn't actually work - we have already created the batches above with specific gwvw
           # Would need to loop again inside each batch to call globalWriteBatch for each subBatch
 
           while self.minimizeWriteRegGrowth and gwvw > kernel["MinGlobalWriteVectorWidth"]:
-            needed = minElements*numVgprsPerElement
+            minNeeded = minElements*numVgprsPerElement
             futureOccupancy = self.getOccupancy(kernel, \
-                self.vgprPool.size() - numVgprAvailable + needed)
+                self.vgprPool.size() - numVgprAvailable + minNeeded)
             if futureOccupancy < currentOccupancy:
               if shrinkDb:
                 print "shrink-gwvw-before: gwvw=%u  numVgprsPerElement=%u %s" % (gwvw, numVgprsPerElement, self.kernelName)
@@ -6291,10 +6291,9 @@ class KernelWriterAssembly(KernelWriter):
 
         #print "NumVgprAvailable", numVgprAvailable
         if numVgprsPerElement:
-          numElementsPerBatch = min(numVgprAvailable / numVgprsPerElement, \
-                                    maxElementsPerBatch)
+          numElementsPerBatch = numVgprAvailable / numVgprsPerElement
         else:
-          numElementsPerBatch = maxElementsPerBatch
+          numElementsPerBatch = len(elements[edgeI]) # max, do 'em all
 
         #print "NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
@@ -6313,6 +6312,9 @@ class KernelWriterAssembly(KernelWriter):
         #  numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
         numBatches = max(1, (len(elements[edgeI])+numElementsPerBatch-1) / numElementsPerBatch)
         #print "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch, "numVgprsPerElement", numVgprsPerElement
+
+        tmpSgpr = self.getTmpSgpr(fixedSgprsPerBatch+numSgprsPerElement*numElementsPerBatch)
+        elementSgprs = tmpSgpr + fixedSgprsPerBatch
 
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
@@ -6634,7 +6636,8 @@ class KernelWriterAssembly(KernelWriter):
 
       if newCoord1:
         self.cbState.coordVgpr1 = coord1 # vgpr holding current coord1
-        kStr += self.comment1("  new coordOffset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
+        if dbAddr:
+          kStr += self.comment1("  new coordOffset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
         #print ("d1=",d1, "vc1=", vc1, "coord1=", coordOffset1, self.cbState.lastCoordOffset1)
         # New row, reset
         globalOffset = 0
