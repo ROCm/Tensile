@@ -3720,20 +3720,20 @@ class KernelWriterAssembly(KernelWriter):
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
 
-    #if kernel["PrefetchGlobalRead"]:
-      # May need to jump to tail after initialization.
-    kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
-        hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
-    if kernel["SuppressNoLoadLoop"]:
-      loopChar = self.indexChars[ \
-          kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
-      lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
-    else:
-      lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
-    kStr += inst("s_cbranch_scc1 label_%04u"\
-          % lastIterEnd, \
-          "after InitC, skip to end of prefetch last iter b/c numIter==0")
-
+    if kernel["PrefetchGlobalRead"]:
+      #if kernel["PrefetchGlobalRead"]:
+        # May need to jump to tail after initialization.
+      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+          hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+      if kernel["SuppressNoLoadLoop"]:
+        loopChar = self.indexChars[ \
+            kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+        lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
+      else:
+        lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
+      kStr += inst("s_cbranch_scc1 label_%04u"\
+            % lastIterEnd, \
+            "after InitC, skip to end of prefetch last iter b/c numIter==0")
     return kStr
 
 
