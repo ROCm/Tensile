@@ -94,12 +94,12 @@ class RegisterPool:
       self.status = status
       self.tag = tag
 
-
   ########################################
   # Init
-  def __init__(self, size, type, printRP=0):
+  def __init__(self, size, type, reservedAtEnd, printRP=0):
     self.printRP=printRP
     self.type = type
+    self.reservedAtEnd = reservedAtEnd
     self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
 
@@ -215,6 +215,9 @@ class RegisterPool:
       if self.printRP:
         print self.state()
         print "RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
+        if 0:
+          import pdb
+          pdb.set_trace()
       return start
 
   def initTmps(self, initValue, start=0, stop=-1):
@@ -253,7 +256,7 @@ class RegisterPool:
   ########################################
   # Size
   def size(self):
-    return len(self.pool)
+    return len(self.pool) + self.reservedAtEnd
 
 
   ########################################
@@ -1176,11 +1179,6 @@ class KernelWriterAssembly(KernelWriter):
     self.lastVgprForReads = vgprIdx
     #-----------
 
-
-    # vgprSerial is used for the entire code so allocate just after the Values
-    self.startVgprSerial = vgprIdx
-    vgprIdx += 1
-
     self.startVgprAddressDbg = vgprIdx
     vgprIdx += numVgprAddressDbg
 
@@ -1352,7 +1350,7 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs, 'v', self.db["PrintRP"])
+    self.vgprPool = RegisterPool(self.totalVgprs, 'v', reservedAtEnd=1, printRP=self.db["PrintRP"])
     #print self.vgprPool.state()
 
     # C regs are not used during initialization so mark them as available - 
@@ -1363,7 +1361,7 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
 
-    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0)
+    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0, 0)
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["globalReadInstruction"] = self.globalReadInstructionA
@@ -1702,6 +1700,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Function Signature
+  # called after rest of code
   ##############################################################################
   def functionSignature(self, kernel ):
     kStr = ""
@@ -1909,13 +1908,16 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("vgprGlobalReadIncsB", \
           self.startVgprGlobalReadIncsB)
 
-    kStr += self.macroRegister("vgprSerial", self.startVgprSerial)
+    # Serial is always the last register in the pool so the store
+    # code doesn't have to deal with fragmentation
+    startSerial = self.vgprPool.size()-1
+    kStr += self.macroRegister("vgprSerial", startSerial)
 
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressDbg", \
           self.startVgprAddressDbg)
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
-    kStr += self.comment1("max VGPR=%u"%self.vgprPool.size())
+    kStr += self.comment1("Num VGPR=%u"%self.vgprPool.size())
 
 
     ########################################
@@ -6232,7 +6234,7 @@ class KernelWriterAssembly(KernelWriter):
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
         minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
         minNeeded = minElements*numVgprsPerElement
-        shrinkDb = 1
+        shrinkDb = 0
         if shrinkDb:
           print "numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded
         subBatches = 1
