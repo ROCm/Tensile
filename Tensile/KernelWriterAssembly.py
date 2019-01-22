@@ -554,6 +554,10 @@ class KernelWriterAssembly(KernelWriter):
     pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
     if self.startSgprTmpPool+num+pad > self.totalSgprs:
       self.totalSgprs = self.startSgprTmpPool + num + pad
+      if 0:
+        print "grow sgpr to ", self.totalSgprs, "start=", self.startSgprTmpPool
+        import pdb
+        pdb.set_trace()
       #print "startSgprTmpPool=", self.startSgprTmpPool
       #print "warning: growing SGPR pool to ", self.totalSgprs
 
@@ -6172,6 +6176,8 @@ class KernelWriterAssembly(KernelWriter):
 
         gwvw = vectorWidths[edgeI]
 
+        #print "globalWriteElements: edge=", edge, "beta=", beta, "atomic=", atomic
+
         ########################################
         # Calculate Vgprs for Write Batching
         ########################################
@@ -6181,7 +6187,7 @@ class KernelWriterAssembly(KernelWriter):
         #pdb.set_trace()
         fixedSgprsPerBatch = 6 # What are these used for?
         numSgprsPerElement = 2
-        numElementsPerBatchLimitedBySgprs = (self.maxSgprs - self.startSgprTmpPool - fixedSgprsPerBatch) / numSgprsPerElement
+        numElementsPerBatchLimitedBySgprs = (self.maxSgprs - self.startSgprTmpPool - fixedSgprsPerBatch - 1) / numSgprsPerElement
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
         # 2 for coord0,1 of thread - already checked out
@@ -6225,6 +6231,8 @@ class KernelWriterAssembly(KernelWriter):
         halfDataRegPerVI = True if gwvw*numVgprsPerDataPerVI < 1.0 else False
 
         #print self.vgprPool.state()
+        # Use VGPR up to next occupancy threshold:
+        #numVgprAvailable = self.getMaxRegsForOccupancy(self.vgprPool.available())
         numVgprAvailable = self.vgprPool.available()
 
         # Grow the register pool if needed - we need enough regs for at least one element
@@ -6302,10 +6310,11 @@ class KernelWriterAssembly(KernelWriter):
           numElementsPerBatch = numElementsPerBatchLimitedBySgprs
 
         if kernel["ProblemType"]["DataType"].isHalf():
-          # only do an even number of halves
-          # Use VGPR up to next occupancy threshold:
-          numElementsPerBatch = int(numElementsPerBatch/2)*2
-          assert(numElementsPerBatch > 0)
+          # only do an even number of halves - since these share hi/lo pieces of some registers?
+          if numElementsPerBatch > 1:
+            numElementsPerBatch = int(numElementsPerBatch/2)*2
+
+        assert numElementsPerBatch > 0, "numElementsPerBatch=0 for %s"%self.kernelName
 
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
