@@ -690,7 +690,7 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
-    {"ReplacementKernel":         [ True ] },
+    {"ReplacementKernel":         [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
