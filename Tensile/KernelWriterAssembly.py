@@ -5929,11 +5929,11 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # CrossBatchState
+  # StoreState
   # tracks state that is preserved across globalWriteBatch calls:
   # init is called before globalWriteBatch
   ##############################################################################
-  class CrossBatchState:
+  class StoreState:
     def __init__(self, parent, optStoreAddrVgpr):
       self.parent = parent
 
@@ -6206,11 +6206,11 @@ class KernelWriterAssembly(KernelWriter):
         #  - as we move to a new row, increment the appropriate SRDs
         optStoreAddrVgpr = 1 and self.reduceStoreAddrVgpr and not edge and not atomic
 
-        self.cbState = self.CrossBatchState(self, optStoreAddrVgpr)
+        self.ss = self.StoreState(self, optStoreAddrVgpr)
 
         numVgprsPerAddr = self.rpgo if kernel["BufferStore"] else self.rpga
         if optStoreAddrVgpr:
-          # use one vgpr (allocated in cbState.addrVgpr) for all addressing
+          # use one vgpr (allocated in ss.addrVgpr) for all addressing
           # - need 0 additional vgpr per element.
           numVgprsPerAddr = 0
         numVgprsPerDataPerVI = 0
@@ -6517,7 +6517,7 @@ class KernelWriterAssembly(KernelWriter):
       # gpr assignments for element
       if optStoreAddrVgpr:
         # optStoreAddrVgpr uses same address vgpr for all
-        elementAddr.append(self.AddrCalc(self, self.cbState.addrVgpr))
+        elementAddr.append(self.AddrCalc(self, self.ss.addrVgpr))
       else:
         addr = self.vgprPool.checkOut(numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
         elementAddr.append(self.AddrCalc(self, addr))
@@ -6641,15 +6641,15 @@ class KernelWriterAssembly(KernelWriter):
               "coord0 += d0*sg0*VW + vc0")
           coordVgpr0 = tmpVgpr+0
 
-      elementAddr[elementIdx].rowInc = coordOffset1 - self.cbState.lastCoordOffset1
+      elementAddr[elementIdx].rowInc = coordOffset1 - self.ss.lastCoordOffset1
       assert elementAddr[elementIdx].rowInc >= 0, "element address row inc can't go backwards"
-      newCoord1 = (self.cbState.firstBatch and elementIdx==0) or (coordOffset1 != self.cbState.lastCoordOffset1)
+      newCoord1 = (self.ss.firstBatch and elementIdx==0) or (coordOffset1 != self.ss.lastCoordOffset1)
 
       if newCoord1:
-        self.cbState.coordVgpr1 = coord1 # vgpr holding current coord1
+        self.ss.coordVgpr1 = coord1 # vgpr holding current coord1
         if dbAddr:
           kStr += self.comment1("  new coordOffset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
-        #print ("d1=",d1, "vc1=", vc1, "coord1=", coordOffset1, self.cbState.lastCoordOffset1)
+        #print ("d1=",d1, "vc1=", vc1, "coord1=", coordOffset1, self.ss.lastCoordOffset1)
         # New row, reset
         globalOffset = 0
 
@@ -6657,25 +6657,25 @@ class KernelWriterAssembly(KernelWriter):
         if not kernel["BufferStore"] or edge:
           if coordOffset1 == 0:
             # just use coord1 directly
-            self.cbState.coordVgpr1 = coord1
+            self.ss.coordVgpr1 = coord1
             if dbAddr:
-              kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%self.cbState.coordVgpr1)
+              kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%self.ss.coordVgpr1)
           elif coordOffset1 <= 64:
             # coordOffset1 fits in instruction:
             kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), coordOffset1, \
                 "coord1 += d1*sg1*VW + vc1")
-            self.cbState.coordVgpr1 = tmpVgpr+1
+            self.ss.coordVgpr1 = tmpVgpr+1
           else:
             kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset1, "coordOffset1 d1=%u vc1=%u"%(d0, vc0))
             kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), sgpr(tmpS01), \
                 "coord1 += d1*sg1*VW + vc1")
-            self.cbState.coordVgpr1 = tmpVgpr+1
+            self.ss.coordVgpr1 = tmpVgpr+1
 
         if kernel["BufferStore"]:
           # TODO-packed - do these need a different stride accounting for packed dims?
           if coordOffset1 == 0:
             kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "rowPtr <- rowStart (first row)")
-          elif coordOffset1 == self.cbState.lastCoordOffset1 + 1:
+          elif coordOffset1 == self.ss.lastCoordOffset1 + 1:
             kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
                       sgpr("StridesC+0"), "rowPtr <- move to start of new row")
           else:
@@ -6684,12 +6684,12 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowStart), \
                       sgpr(tmpS01), "rowPtr <- inc for non-0 (tt1+vc1))")
 
-      self.cbState.lastCoordOffset1 = coordOffset1
+      self.ss.lastCoordOffset1 = coordOffset1
       elementAddr[elementIdx].globalOffset = globalOffset # save for later loads and stores
       # end for elementIdx
 
       if kernel["BufferStore"]:
-        if optStoreAddrVgpr and self.cbState.firstBatch and elementIdx == 0:
+        if optStoreAddrVgpr and self.ss.firstBatch and elementIdx == 0:
           kStr += inst("_v_add_lshl_u32", \
               vgpr(addr), \
               vgpr(self.coutRowStart), \
@@ -6715,7 +6715,7 @@ class KernelWriterAssembly(KernelWriter):
           #--
           kStr += self.comment1("TODO-packed: compare against product of packed sizes")
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.cbState.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.ss.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
           kStr += inst("v_cndmask_b32", \
                        vgpr(addr), \
@@ -6727,7 +6727,7 @@ class KernelWriterAssembly(KernelWriter):
         # flat: in-bounds exec mask
         if edge:
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.cbState.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.ss.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
           if (beta or atomic):
@@ -6740,7 +6740,7 @@ class KernelWriterAssembly(KernelWriter):
           if i == kernel["ProblemType"]["Index0"]:
             kStr += ", %s" % (coordVgpr0)
           elif i == kernel["ProblemType"]["Index1"]:
-            kStr += ", %s" % (self.cbState.coordVgpr1)
+            kStr += ", %s" % (self.ss.coordVgpr1)
           else: # just a group index
             kStr += ", sgprWorkGroup%u"%i
         kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
@@ -7258,7 +7258,7 @@ class KernelWriterAssembly(KernelWriter):
           self.vgprPool.checkIn(data,"writeBatch data ei:%d"%elementIdx)
         lastData = data
 
-    self.cbState.firstBatch = False
+    self.ss.firstBatch = False
 
     return kStr
 
