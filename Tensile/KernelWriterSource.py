@@ -2495,11 +2495,6 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      wg0 = "wg%s" % self.tileChar0
-      wg1 = "wg%s" % self.tileChar1
-      nwgg = kernel["WorkGroupMapping"] > 0
-      n0 = 0 if nwgg else 1
-
       kStr += "  serialWgIter += %s(0);%s" \
         % (self.getNumGroupsStr, self.endLine)
       kStr += "} // End Persistent Loop" + self.endLine

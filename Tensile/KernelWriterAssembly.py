@@ -4172,13 +4172,6 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     if prefetch:
-      if kernel["SuppressNoLoadLoop"]:
-        loopChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
-        lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
-      else:
-        lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
-
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       kStr += inst("s_cbranch_scc1 label_%04u"\
@@ -6569,7 +6562,6 @@ class KernelWriterAssembly(KernelWriter):
     elementMask = []
     elementSumIdx = []
     lastData = None
-    lastd1 = lastv1 = None
     addr = None
 
     for elementIdx in range(0, len(batchElements)):
