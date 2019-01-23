@@ -286,6 +286,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - ReplacementKernel: [True]
       ForkParameters:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True,False]
@@ -349,6 +350,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchGlobalRead: [True]
         - VectorWidth: [-1]
+        - ReplacementKernel: [True]
       ForkParameters:
         - PrefetchLocalRead: [True,False]
         - ThreadTile:

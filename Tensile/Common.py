@@ -610,6 +610,9 @@ validParameters = {
     "KernelLanguage":             [ "Assembly", "Source" ],
     "ISA":                        validISA,       # arch for assembly kernels
 
+    # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
+    "ReplacementKernel":          [False, True],
+
     }
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
@@ -687,6 +690,7 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
+    {"ReplacementKernel":         [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
