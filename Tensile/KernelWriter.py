@@ -186,12 +186,13 @@ class KernelWriter:
         # Number of write blocks should match number of reads.
         # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
         # So number of moules should match:
-        if not kernel["DirectToLdsA"]:
-          assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
-              len(self.localWriteACode.items())
-        if not kernel["DirectToLdsB"]:
-          assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
-              len(self.localWriteBCode.items())
+        if 0:
+            if not kernel["DirectToLdsA"]:
+              assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
+                  len(self.localWriteACode.items())
+            if not kernel["DirectToLdsB"]:
+              assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
+                  len(self.localWriteBCode.items())
       for u in range(startIter, localWriteEndIter+1):
         if u==(localWriteEndIter):
           itemPerIter = len(itemsToSched) # schedule all remaining activity
@@ -524,8 +525,6 @@ class KernelWriter:
     kl.append(self.comment("declare loop num iterations"))
     kl.append(self.declareLoopNumIter(kernel))
 
-    kl.append(self.initC(kernel))
-
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
       kl.append(self.comment("summation loop %u"%i))
@@ -564,6 +563,9 @@ class KernelWriter:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.comment("global read inc b"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
+
+      kl.append(self.initC(kernel)) # initC while waiting for global reads
+
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
       if self.enable["LocalWrite"]:
@@ -599,6 +601,8 @@ class KernelWriter:
               kl.append(self.comment("local read inc b"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersB))
       kl.append(self.closeSumAtLeastUnroll(kernel, True))
+    else:
+      kl.append(self.initC(kernel)) # initC while waiting for global reads
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
@@ -618,23 +622,23 @@ class KernelWriter:
         self.globalReadACode = self.globalReadDo(kernel, 1, tensorParametersA)
         self.globalReadBCode = self.globalReadDo(kernel, 1, tensorParametersB)
       else:
-        self.globalReadACode = Code.Item() # empty
-        self.globalReadBCode = Code.Item() # empty
+        self.globalReadACode = Code.StructuredModule() # empty
+        self.globalReadBCode = Code.StructuredModule() # empty
 
       if self.enable["GlobalReadInc"]:
         # unrolled loop: increment global read addresses
         self.globalReadIncACode = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, 0)
         self.globalReadIncBCode = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, 0)
       else:
-        self.globalReadIncACode = Code.Item()
-        self.globalReadIncBCode = Code.Item()
+        self.globalReadIncACode = Code.Module()
+        self.globalReadIncBCode = Code.Module()
 
       if self.enable["LocalWrite"]:
         self.localWriteACode = self.localWriteDo(kernel, tensorParametersA)
         self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB)
       else:
-        self.localWriteACode = ""
-        self.localWriteBCode = ""
+        self.localWriteACode = Code.Module()
+        self.localWriteBCode = Code.Module()
 
       # which iteration to perform the local writes
       # if scheduleLocalWrite=0, all local writes performed in this iteration
@@ -2143,7 +2147,7 @@ class KernelWriter:
       REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
       codeObjectFileName = "%s.co" % fileBase
 
-      if os.path.isfile(REPLACEMENT_KERNEL_PATH):
+      if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
         shutil.copyfile(REPLACEMENT_KERNEL_PATH, assemblyFileName)
         if globalParameters["PrintLevel"] >= 1:
           print "replacement_assemblyFilename %s" % assemblyFileName

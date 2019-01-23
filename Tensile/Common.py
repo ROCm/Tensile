@@ -482,6 +482,11 @@ validParameters = {
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
+    #       - Recommended min is enough WG to use all resources on the CU
+    #       - Higher values result in shorter-running WG which are less 'persistent'
+    #         this increases the switch time between work-groups but results in
+    #         more opportunities to schedule other WG or recover if a wg runs long
+    #         or all compute units were not available before the launch.
     "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
@@ -610,6 +615,9 @@ validParameters = {
     "KernelLanguage":             [ "Assembly", "Source" ],
     "ISA":                        validISA,       # arch for assembly kernels
 
+    # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
+    "ReplacementKernel":          [False, True],
+
     }
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
@@ -687,6 +695,7 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
+    {"ReplacementKernel":         [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
