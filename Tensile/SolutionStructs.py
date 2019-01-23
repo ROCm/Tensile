@@ -941,7 +941,7 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minGrvw = 1
+    minGrvw = 2 if state["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -1100,11 +1100,11 @@ class Solution:
        # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
        if state["VectorWidth"] < 2:
          reject(state, "VectorWidth must be >= 2 for half")
-       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] and \
-           (state["AssertSummationElementMultiple"] % 2 != 0 or \
-            state["AssertFree0ElementMultiple"] % 2 != 0):
-         # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
-         reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+         if (state["AssertSummationElementMultiple"] % 2 != 0 or \
+             state["AssertFree0ElementMultiple"] % 2 != 0):
+           # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
+            reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
@@ -1256,6 +1256,10 @@ class Solution:
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
           validDepthU = False
 
+      if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isHalf():
+        if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+          if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
+            reject(state, "HalfEcc requires GLVWA > 1")
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
