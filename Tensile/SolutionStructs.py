@@ -1366,11 +1366,6 @@ class Solution:
       reject(state, "Source KernelLanguage only supports LdsPadA == LdsPadB")
       return
 
-    if state["KernelLanguage"] == "Assembly" and state["PersistentKernel"]:
-      reject(state, "Persistent only works on Source path")
-      state["Valid"] = False
-      return
-
     if state["LdsPadA"] == -1:
       state["LdsPadA"] = 0 if state["ProblemType"]["TLUA"] else state["VectorWidth"]
       assert(state["LdsPadA"] >= 0)
@@ -1660,6 +1655,10 @@ class Solution:
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
       state["StaggerUMapping"] = 0
+
+    # avoid bug somehow related to GlobalSplitU + Persistent
+    if state["PersistentKernel"] and state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1:
+      state["PersistentKernel"] = 0
 
     problemType["AssignedDerivedParameters"] = True
 
