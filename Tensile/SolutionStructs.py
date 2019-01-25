@@ -941,7 +941,7 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minGrvw = 2 if state["HasEccHalf"] else 1
+    minGrvw = 2 if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -987,7 +987,8 @@ class Solution:
       # end-- while loop
 
     if bestVw == -1:
-      print "reject fractional - no acceptable tile dim? GlobalReadVectorWidth", state["GlobalReadVectorWidth"]
+      #print "reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
+      # state["GlobalReadVectorWidth"]
       return False  # could not find a solution, perhaps only possible for half ?
 
     state["GlobalLoadVectorWidth%s"%tc] = bestVw
@@ -1256,7 +1257,7 @@ class Solution:
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
           validDepthU = False
 
-      if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isHalf():
+      if validDepthU and state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isHalf():
         if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
             reject(state, "HalfEcc requires GLVWA > 1")
@@ -1299,13 +1300,14 @@ class Solution:
               < state["GlobalReadVectorWidth"]:
             validDepthU = False
 
-      if not state["ProblemType"]["TLUA"]:
-        if depthU < state["GlobalLoadVectorWidthA"]:
-          validDepthU = False
+      if validDepthU:
+        if not state["ProblemType"]["TLUA"]:
+          if depthU < state["GlobalLoadVectorWidthA"]:
+            validDepthU = False
 
-      if not state["ProblemType"]["TLUB"]:
-        if depthU < state["GlobalLoadVectorWidthB"]:
-          validDepthU = False
+        if not state["ProblemType"]["TLUB"]:
+          if depthU < state["GlobalLoadVectorWidthB"]:
+            validDepthU = False
 
       # this depthU is valid, done unless user wants to double (for TN)
       if validDepthU:
