@@ -365,13 +365,33 @@ class KernelWriter:
 
     if self.enable["PreLoop"]:
       ####################################
+      # Local Read Addresses
+      ####################################
+      kl.append(self.comment3("Local Read Addresses"))
+
+      # tile assignments
+      kl.append(self.comment("local read addresses: tile assignments a"))
+      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: tile assignments b"))
+      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
+
+
+      # final offsets
+      kl.append(self.comment("local read addresses: final offsets a"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: final offsets b"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
+
+      # declare addresses
+      kl.append(self.comment("local read addresses: declare addresses a"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: declare addresses b"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
+
+      ####################################
       # Global Read Addresses
       ####################################
       kl.append(self.comment3("Global Read Addresses"))
-
-      # subgroup assignments
-      kl.append(self.comment("global read addresses: subgroup"))
-      kl.append(self.graSubgroup(kernel))
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
@@ -493,30 +513,6 @@ class KernelWriter:
       kl.append(self.comment("local write addresses: init pointers b"))
       kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
 
-      ####################################
-      # Local Read Addresses
-      ####################################
-      kl.append(self.comment3("Local Read Addresses"))
-
-      # tile assignments
-      kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
-
-
-      # final offsets
-      kl.append(self.comment("local read addresses: final offsets a"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: final offsets b"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
-
-      # declare addresses
-      kl.append(self.comment("local read addresses: declare addresses a"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: declare addresses b"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
-
     ###########################################################################
     # summations loops: open
     ###########################################################################
@@ -562,16 +558,10 @@ class KernelWriter:
       kl.append(self.comment("prefetch: global -> local"))
       kl.append(self.openSumAtLeastUnroll(kernel, True))
       if self.enable["GlobalRead"]:
-        # global read
-        kl.append(self.comment("global read a"))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
-        kl.append(self.comment("global read b"))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
       if self.enable["GlobalReadInc"]:
-        # increment global
-        kl.append(self.comment("global read inc a"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
-        kl.append(self.comment("global read inc b"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
       if shadowInitC:
@@ -1585,13 +1575,6 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def graWorkGroup(self, kernel):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Subgroup
-  ##############################################################################
-  @abc.abstractmethod
-  def graSubgroup(self, kernel):
     return ""
 
   ##############################################################################

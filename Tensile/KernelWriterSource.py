@@ -834,6 +834,11 @@ class KernelWriterSource(KernelWriter):
   def allocateResources(self, kernel):
     kStr = ""
 
+    kStr += "  unsigned int serial = %s(0);%s" \
+        % (self.getLocalIdStr, self.endLine)
+    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
+        % (self.tileChar0, self.tileChar1, self.endLine)
+
     ####################################
     # zero
     if kernel["ProblemType"]["DataType"].isHalf() \
@@ -921,17 +926,6 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
 
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Subgroup
-  ##############################################################################
-  def graSubgroup(self, kernel):
-    kStr = ""
-    kStr += "  unsigned int serial = %s(0);%s" \
-        % (self.getLocalIdStr, self.endLine)
-    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine)
     return kStr
 
   ##############################################################################

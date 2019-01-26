@@ -1145,13 +1145,6 @@ class KernelWriterAssembly(KernelWriter):
     #----------------------------------
 
 
-    self.startVgprLocalReadAddressesA = vgprIdx
-    vgprIdx += numVgprLocalReadAddressesA
-    if self.combineLocalAddresses:
-      self.startVgprLocalReadAddressesB = self.startVgprLocalReadAddressesA
-    else:
-      self.startVgprLocalReadAddressesB = vgprIdx
-      vgprIdx += numVgprLocalReadAddressesB
     if not kernel["LocalWriteUseSgprA"]:
       if self.combineLocalAddresses:
         self.startVgprLocalWriteAddressesA = self.startVgprLocalReadAddressesA
@@ -1192,6 +1185,14 @@ class KernelWriterAssembly(KernelWriter):
     # endSummation - registers that should be preserved after lastVgprForReads
     self.lastVgprForReads = vgprIdx
     #-----------
+
+    self.startVgprLocalReadAddressesA = vgprIdx
+    vgprIdx += numVgprLocalReadAddressesA
+    if self.combineLocalAddresses:
+      self.startVgprLocalReadAddressesB = self.startVgprLocalReadAddressesA
+    else:
+      self.startVgprLocalReadAddressesB = vgprIdx
+      vgprIdx += numVgprLocalReadAddressesB
 
     self.startVgprAddressDbg = vgprIdx
     vgprIdx += numVgprAddressDbg
@@ -1901,10 +1902,6 @@ class KernelWriterAssembly(KernelWriter):
         ri += self.numVgprValuBPerBlock
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
-    kStr += self.macroRegister("vgprLocalReadAddrA", \
-        self.startVgprLocalReadAddressesA)
-    kStr += self.macroRegister("vgprLocalReadAddrB", \
-        self.startVgprLocalReadAddressesB)
     if not kernel["LocalWriteUseSgprA"]:
       kStr += self.macroRegister("vgprLocalWriteAddrA", \
           self.startVgprLocalWriteAddressesA)
@@ -1932,6 +1929,10 @@ class KernelWriterAssembly(KernelWriter):
           self.startVgprGlobalReadIncsA)
       kStr += self.macroRegister("vgprGlobalReadIncsB", \
           self.startVgprGlobalReadIncsB)
+    kStr += self.macroRegister("vgprLocalReadAddrA", \
+        self.startVgprLocalReadAddressesA)
+    kStr += self.macroRegister("vgprLocalReadAddrB", \
+        self.startVgprLocalReadAddressesB)
 
     # Serial is always the last register in the pool so the store
     # code doesn't have to deal with fragmentation
@@ -2440,6 +2441,8 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += "\n"
       kStr += self.getLabelDef("PersistentLoopStart")
+      kStr += self.localReadResetOffsets(kernel, self.tPA)
+      kStr += self.localReadResetOffsets(kernel, self.tPB)
       kStr += self.comment1("compute SerialWorkGroupIter / problemNumGroupTiles0 (aka numWorkGroups0)")
       kStr += self.sMagicDiv(kernel, stmp, sgpr("SerialWorkGroupIter"), sgpr("MagicNumberProblemNumGroupTiles0"), 31)
       kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp), "wg1 = SerialWorkGroupIter / problemNumGroupTiles0")
@@ -2641,13 +2644,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
 
     return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Subgroup
-  ##############################################################################
-  def graSubgroup(self, kernel):
-    return self.comment1("  not needed until local read addresses")
-
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
