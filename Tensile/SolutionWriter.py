@@ -275,6 +275,12 @@ class SolutionWriter:
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
 
+    # persistent:
+    s += "%sunsigned int problemNumGroupTiles0 = totalWorkGroups%u;\n" % (t, 0 if kernel["WorkGroupMapping"] >= 0 else 1)
+    s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups%u;\n" % (t, 1 if kernel["WorkGroupMapping"] >= 0 else 0)
+    s += "%sconst unsigned magicShift = 31; // bozo, review\n" % (t)
+    s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<magicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
+
     if gsu> 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, gsu)
     if persistent:
@@ -394,11 +400,6 @@ class SolutionWriter:
     s += "  if (staggerUIter>=1) staggerUIter -= 1;\n" # convert to a mask
     #s += '  printf ("size%s=%%u StaggerU=%s unrollLoopIters=%%u, staggerUIter=%%d\\n", size%s, unrollLoopIters, staggerUIter);\n' % (unrollChar, solution["StaggerU"], unrollChar)
 
-    # persistent:
-    s += "%sunsigned int problemNumGroupTiles0 = totalWorkGroups%u;\n" % (t, 0 if kernel["WorkGroupMapping"] >= 0 else 1)
-    s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups%u;\n" % (t, 1 if kernel["WorkGroupMapping"] >= 0 else 0)
-    s += "%sconst unsigned magicShift = 31; // bozo, review\n" % (t)
-    s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<magicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
 
 
     #s += "printf(\"Launching with grid=%zu_%zu problemGrid=%u_%u mt=%u_%u\\n\", globalWorkSize[0][0], globalWorkSize[0][1], totalWorkGroups0, totalWorkGroups1, macroTile0, macroTile1);\n"

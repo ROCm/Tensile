@@ -951,11 +951,6 @@ class KernelWriterSource(KernelWriter):
       kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
       kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
 
-      if kernel["GlobalSplitU"] > 1:
-        kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
-
-      # TODO - should the loop include the GSU calc?
-
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
       kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
       kStr += "  %s  = serialWgIter %% problemNumGroupTiles%u;%s" \
