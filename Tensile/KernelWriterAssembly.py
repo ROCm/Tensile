@@ -2294,8 +2294,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
       kStr += self.getKernArg("OrigStaggerUIter", self.staggerU)
 
-      kStr += self.getKernArg("NumWorkGroups0", kernel["PersistentKernel"])
-      kStr += self.getKernArg("NumWorkGroups1", kernel["PersistentKernel"])
+      kStr += self.getKernArg("NumWorkGroups0")
+      kStr += self.getKernArg("NumWorkGroups1")
       kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
       kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
 
@@ -2306,64 +2306,8 @@ class KernelWriterAssembly(KernelWriter):
 
     #kStr += self.bomb()
 
-    ########################################
-    # NumWorkGroups
-    # nwg0
-    size0 = self.vgprPool.checkOut(1)
-    tmpVgpr = self.vgprPool.checkOut(2)
-    nwg0 = self.vgprPool.checkOut(1)
-    tmpSgpr = self.getTmpSgpr(1)
-    kStr += "// size0 = (size%s + MT%s - 1) / MT%s;%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
-    kStr += inst("v_mov_b32", vgpr(size0), sgpr("SizesFree+0"), "")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "")
-    kStr += inst("_v_add_co_u32", vgpr(size0), "vcc", sgpr(tmpSgpr), vgpr(size0), \
-        "%s = size0+MT0-1"%vgpr(size0))
-    kStr += vectorStaticDivide(nwg0, size0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
-    self.vgprPool.checkIn(size0)
-    self.vgprPool.checkIn(tmpVgpr)
-    kStr += inst("v_readfirstlane_b32", sgpr("NumWorkGroups0"), \
-        vgpr(nwg0), "")
-    self.vgprPool.checkIn(nwg0)
 
-    if not kernel["PersistentKernel"]:
-      ########################################
-      # NumWorkGroups
-      # nwg0
-      size0 = self.vgprPool.checkOut(1)
-      tmpVgpr = self.vgprPool.checkOut(2)
-      nwg0 = self.vgprPool.checkOut(1)
-      tmpSgpr = self.getTmpSgpr(1)
-      kStr += "// size0 = (size%s + MT%s - 1) / MT%s;%s" \
-          % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
-      kStr += inst("v_mov_b32", vgpr(size0), sgpr("SizesFree+0"), "")
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "")
-      kStr += inst("_v_add_co_u32", vgpr(size0), "vcc", sgpr(tmpSgpr), vgpr(size0), \
-          "%s = size0+MT0-1"%vgpr(size0))
-      kStr += vectorStaticDivide(nwg0, size0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
-      self.vgprPool.checkIn(size0)
-      self.vgprPool.checkIn(tmpVgpr)
-      kStr += inst("v_readfirstlane_b32", sgpr("NumWorkGroups0"), \
-          vgpr(nwg0), "")
-      self.vgprPool.checkIn(nwg0)
 
-      # nwg1
-      size1 = self.vgprPool.checkOut(1)
-      tmpVgpr = self.vgprPool.checkOut(2)
-      nwg1 = self.vgprPool.checkOut(1)
-      tmpSgpr = self.getTmpSgpr(1)
-      kStr += "// size1 = (size%s + MT%s - 1) / MT%s;%s" \
-          % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-      kStr += inst("v_mov_b32", vgpr(size1), sgpr("SizesFree+1"), "")
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
-      kStr += inst("_v_add_co_u32", vgpr(size1), "vcc", sgpr(tmpSgpr), vgpr(size1), \
-          "%s = size1+MT1-1"%vgpr(size1))
-      kStr += vectorStaticDivide(nwg1, size1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
-      self.vgprPool.checkIn(size1)
-      self.vgprPool.checkIn(tmpVgpr)
-      kStr += inst("v_readfirstlane_b32", sgpr("NumWorkGroups1"), \
-          vgpr(nwg1), "")
-      self.vgprPool.checkIn(nwg1)
 
 
     ########################################
@@ -2371,7 +2315,8 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.comment("Debug Buffer")
 
-      # nwg0 FIXME use nwg0 from above
+      # nwg0 FIXME use NumWorkGroups0
+      #kStr += self.assert_eq(vgpr(nwg0), sgpr("NumWorkGroups0")) # "bozo, remove me")
       nwg0 = self.vgprPool.checkOut(1)
       tmpVgpr = self.vgprPool.checkOut(2)
       tmpSgpr = self.getTmpSgpr(1)
@@ -2433,12 +2378,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      # TODO-persistent: write initial wg0/wg1 based on SerialWorkGroupIter SGPR
       stmp = self.getTmpSgpr(2)
       kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
-      #kStr += inst("s_mov_b32", sgpr("MagicNumberProblemNumGroupTiles0"), 0x10, \
-      #    "Persistent-hack loop count")
-
       kStr += "\n"
       kStr += self.getLabelDef("PersistentLoopStart")
       #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
@@ -2506,16 +2447,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         kStr += "// GSU-not-WGMapRR :nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
             % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-        if False:
-          quotient = self.vgprPool.checkOut(1)
-          remainder = self.vgprPool.checkOut(1)
-          dividend = "Serial"
-          tmpVgpr = self.vgprPool.checkOut(3)
-          tmpSgpr = self.getTmpSgpr(1)
-          divisor = 3
-          kStr += vectorStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpVgpr, tmpSgpr, True )
-          kStr += "s_endpgm\n"
-
 
         # gsuSumIdx = wg1 % GSU
         # wg1       = wg1 / GSU
@@ -2546,35 +2477,19 @@ class KernelWriterAssembly(KernelWriter):
       # nwg0
       nwg0 = self.vgprPool.checkOut(1)
       tmpSgpr = self.getTmpSgpr(2)
-      kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
-          % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
-      kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("SizesFree+0"), "")
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "")
-      kStr += inst("_v_add_co_u32", vgpr(nwg0), "vcc", sgpr(tmpSgpr), vgpr(nwg0), \
-          "%s = size0+MT0-1"%vgpr(nwg0))
-      kStr += vectorStaticDivide(nwg0, nwg0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
+
+      kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("NumWorkGroups0"), "copy to vgpr for div")
       #kStr += dump(vgpr(nwg0))
 
       # nwg1
       nwg1 = self.vgprPool.checkOut(1)
-      kStr += "// nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
-          % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-      kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
-      kStr += inst("_v_add_co_u32", vgpr(nwg1), "vcc", sgpr(tmpSgpr), vgpr(nwg1), \
-          "%s = size1+MT1-1"%vgpr(nwg1))
-      kStr += vectorStaticDivide(nwg1, nwg1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
-      #kStr += dump(vgpr(nwg1))
+      kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("NumWorkGroups1"), "copy to vgpr for div")
 
       # blockId and serial within block
       blockId = self.vgprPool.checkOut(1)
       wgSerial = self.vgprPool.checkOut(1)
       wg1 = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(wg1), sgpr("WorkGroup1"), "wg1")
-
-      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup0"), "wg0")
-      #kStr += dump(vgpr(tmpVgpr))
-      #kStr += dump(vgpr(wg1))
 
       kStr += vectorStaticDivideAndRemainder(blockId, wgSerial, wg1, \
           abs(kernel["WorkGroupMapping"]), tmpVgpr, tmpSgpr)
@@ -7919,8 +7834,7 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), "")
     kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
-    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), hex(shift), vgpr(tmpVgpr,2), "")
     kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "vectorStaticDiv: quotient")
     if doRemainder:
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
