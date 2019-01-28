@@ -5322,14 +5322,12 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(tmpSrcVgpr), vgpr(dstVgpr), "dst = tmpSrc | dst")
                     self.vgprPool.checkIn(tmpSrcVgpr)
 
-
               else: # f16 d1
                 if tt%2==0:
                   kStr += inst("v_mov_b32", vgpr(dstVgpr), \
                       vgpr(srcVgpr), comment)
                 else:
                   pass # above shift moves two f16
-
 
             # f32 or larger
             else:
@@ -5608,7 +5606,6 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("WorkGroup1"), \
         "<- wg1*MT1")
 
-
     # Overall strategy is to set the SRD to the start of the row that contains the output tile.
     # TT offsets are from this base (and include the column)
 
@@ -5658,7 +5655,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "\n"
 
     return kStr
-
 
   ##############################################################################
   # computeStoreVgprs

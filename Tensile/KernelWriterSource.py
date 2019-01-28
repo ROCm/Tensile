@@ -940,7 +940,6 @@ class KernelWriterSource(KernelWriter):
     n0 = 0 if nwgg else 1
     n1 = 1 if nwgg else 0
 
-
     if kernel["PersistentKernel"]:
       kStr += "  %s serialWgIter = %s(0);%s" \
         % (self.uint64Str, self.getGroupIdStr, self.endLine)
