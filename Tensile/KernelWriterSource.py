@@ -1468,6 +1468,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # openShadowInit
+  ##############################################################################
+  def openShadowInit(self, kernel):
+    return ""
+
+  ##############################################################################
   # Initialize C
   ##############################################################################
   def initC(self, kernel):
@@ -2214,6 +2220,12 @@ class KernelWriterSource(KernelWriter):
             #kStr += "printf(\"post: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalCK=%%u\\n\", serial, wg0I, wg1J, globalC0I, globalCK);%s" % (self.endLine)
 
     return kStr
+
+  ##############################################################################
+  # globalWriteWorkGroupInit:
+  ##############################################################################
+  def globalWriteWorkGroupInit(self, kernel):
+    return ""
 
   ##############################################################################
   # LocalSplitU: Global Write Indices

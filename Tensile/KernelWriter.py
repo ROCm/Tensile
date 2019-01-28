@@ -526,9 +526,9 @@ class KernelWriter:
     # If we have multiple summation indicies (unrollIdx>0),
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
-    shadowInitC = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+    shadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
 
-    if not shadowInitC:
+    if not shadowInit:
       kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
@@ -564,7 +564,9 @@ class KernelWriter:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
-      if shadowInitC:
+      if shadowInit:
+        kl.append(self.openShadowInit(kernel))
+        kl.append(self.globalWriteWorkGroupInit(kernel))
         kl.append(self.initC(kernel)) # initC while waiting for global reads
 
       if self.enable["Wait"]:
@@ -1019,6 +1021,8 @@ class KernelWriter:
 
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
+      if not shadowInit:
+        kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
       # Shift Vector Components
@@ -1862,6 +1866,15 @@ class KernelWriter:
   def calculateLoopNumIter(self, kernel, loopIdx):
     return ""
 
+
+  ##############################################################################
+  # openShadowInit:
+  # Top of shadow init code
+  ##############################################################################
+  @abc.abstractmethod
+  def openShadowInit(self, kernel):
+    return ""
+
   ##############################################################################
   # Initialize C
   ##############################################################################
@@ -2020,6 +2033,14 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def localSplitUReduction(self, kernel):
+    return ""
+
+  ##############################################################################
+  # globalWriteWorkGroupInit:
+  # Perform work-group granularity init
+  ##############################################################################
+  @abc.abstractmethod
+  def globalWriteWorkGroupInit(self, kernel):
     return ""
 
   ##############################################################################

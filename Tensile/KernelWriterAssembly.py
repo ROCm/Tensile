@@ -3616,6 +3616,14 @@ class KernelWriterAssembly(KernelWriter):
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           " += LdsOffset%s (lower)"%tP["tensorChar"])
 
+  ##############################################################################
+  # openShadowInit
+  ##############################################################################
+  def openShadowInit(self, kernel):
+    kStr = ""
+    kStr += self.getLabelDef("ShadowInitStart")
+    return kStr
+
 
   ##############################################################################
   # Initialize C
@@ -3627,7 +3635,6 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB")
 
     kStr = ""
-    kStr += self.getLabelDef("InitCStart")
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
 
@@ -4106,8 +4113,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       kStr += inst("s_cbranch_scc1 label_%04u"\
-          % self.getLabelNum("InitCStart"), \
-          "skip to InitCStart iter b/c numIter==0")
+          % self.getLabelNum("ShadowInitStart"), \
+          "skip to ShadowInitStart iter b/c numIter==0")
     return kStr
 
   def closeSumAtLeastUnroll(self, kernel, prefetch):
