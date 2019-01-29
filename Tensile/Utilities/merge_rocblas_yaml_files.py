@@ -214,6 +214,10 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
   idx = 0
   idxMapping = newSolutionOffset
 
+  mergedSolutionList = []
+  for solution in solutionList:
+    mergedSolutionList.append(solution)
+
   # construct the mappings from the old exact kernal configurations
   # to their definitions in the merged files
   for solution in solutionListExact:
@@ -223,21 +227,16 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
       # gets mapped to the pre-existing configuration
       idxOrg = solutionList.index(solution)
       replicationMapping[idx] = idxOrg
+
     else:
       filterdSolutionExactList.append(solution)
       # if the solution does not exist in the origional configurations
       # it gets mapped to the new offset
       replicationMapping[idx] = idxMapping
+      mergedSolutionList.append(solution)
       idxMapping += 1
 
     idx += 1
-
-  mergedSolutionList = []
-  for solution in solutionList:
-    mergedSolutionList.append(solution)
-  
-  for solution in solutionListExact:
-    mergedSolutionList.append(solution)
 
   exactLogic = origionalLibraryLogic.exactLogic
   exactLogicExact = exactLibraryLogic.exactLogic
@@ -257,15 +256,15 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
     
     filteredExactLogicExact.append(exact)
 
-
-  sizeList, _ = zip(*exactLogicExact)
+  #sizeList, _ = zip(*exactLogicExact)
+  sizeList, _ = zip(*filteredExactLogicExact)
 
   mergedExactLogic = []
   for logicMapping in exactLogic:
     if logicMapping[0] not in sizeList:
       mergedExactLogic.append(logicMapping)
 
-  for logicMapping in exactLogicExact:
+  for logicMapping in filteredExactLogicExact:
     mergedExactLogic.append(logicMapping)
 
   mergedLibraryLogic.versionString = origionalLibraryLogic.versionString
