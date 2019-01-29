@@ -1080,6 +1080,59 @@ class Solution:
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
 
+    # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # grid size [0,1]
+    problemType = state["ProblemType"]
+    state["PackedC0Indices"] = []
+    indexChars = globalParameters["IndexChars"]
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsA"]:
+      if idx < problemType["NumIndicesC"] and \
+          (isPackedIndex(state, idx, 0x1) or \
+           idx == problemType["Index0"]):
+        state["PackedC0Indices"].append("%s" % indexChars[idx])
+
+    state["PackedC1Indices"] = []
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignmentsB"]:
+      if idx < problemType["NumIndicesC"] and \
+          (isPackedIndex(state, idx, 0x2) or \
+           idx == problemType["Index1"]):
+        state["PackedC1Indices"].append("%s" % indexChars[idx])
+
+    # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
+    # (since this could result in non-contiguous addresses)
+    # Current implementation ensures that the vector load is not partial across the Free* boundary:
+    # GlobalLoadVectorWidth=1 will always meet this requirement.
+    # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
+    packedC0 = len(state["PackedC0Indices"])>1
+    packedC1 = len(state["PackedC1Indices"])>1
+
+    bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
+
+    #These modes only work under certain conditions, apply them here:
+    #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
+    #  - And Suppress does not work if GSU>1 for some reason
+    state["SuppressNoLoadLoop"] &= (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
+    # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
+    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"])
+
+    #print("PackedC0Indices", state["PackedC0Indices"])
+    #print("PackedC1Indices", state["PackedC1Indices"])
+
+    # Set up stagger shift:
+    bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
+    # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
+    try:
+        staggerStrideShift = (int)(math.ceil(math.log(state["StaggerUStride"] / \
+                (state["DepthU"] * bpeAB), 2)))
+    except ValueError:
+        staggerStrideShift = 0
+    #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
+    state["_staggerStrideShift"] = staggerStrideShift
+    if state["StaggerU"] == 0:
+      state["StaggerUMapping"] = 0
+
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
       state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
@@ -1591,41 +1644,7 @@ class Solution:
       else:
         state["UseSgprForGRO"] = 1
 
-    #These modes only work under certain conditions, apply them here:
-    #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
-    #  - And Suppress does not work if GSU>1 for some reason
-    state["SuppressNoLoadLoop"] &= (state["BufferLoad"] and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
-    # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-    state["ExpandPointerSwap"]  &= (state["BufferLoad"] and state["PrefetchGlobalRead"])
 
-
-    # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
-    # grid size [0,1]
-    problemType = state["ProblemType"]
-    state["PackedC0Indices"] = []
-    indexChars = globalParameters["IndexChars"]
-    # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsA"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x1) or \
-           idx == problemType["Index0"]):
-        state["PackedC0Indices"].append("%s" % indexChars[idx])
-
-    state["PackedC1Indices"] = []
-    # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsB"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x2) or \
-           idx == problemType["Index1"]):
-        state["PackedC1Indices"].append("%s" % indexChars[idx])
-
-    # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
-    # (since this could result in non-contiguous addresses)
-    # Current implementation ensures that the vector load is not partial across the Free* boundary:
-    # GlobalLoadVectorWidth=1 will always meet this requirement.
-    # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
-    packedC0 = len(state["PackedC0Indices"])>1
-    packedC1 = len(state["PackedC1Indices"])>1
     if packedC0 and not state["GuaranteeNoPartialA"]:
       reject(state, "packedC0 requires GuaranteeNoPartialA")
     if packedC1 and not state["GuaranteeNoPartialB"]:
@@ -1646,21 +1665,6 @@ class Solution:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
 
-    #print("PackedC0Indices", state["PackedC0Indices"])
-    #print("PackedC1Indices", state["PackedC1Indices"])
-
-    # Set up stagger shift:
-    bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
-    # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
-    try:
-        staggerStrideShift = (int)(math.ceil(math.log(state["StaggerUStride"] / \
-                (state["DepthU"] * bpeAB), 2)))
-    except ValueError:
-        staggerStrideShift = 0
-    #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
-    state["_staggerStrideShift"] = staggerStrideShift
-    if state["StaggerU"] == 0:
-      state["StaggerUMapping"] = 0
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     if state["PersistentKernel"] and state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1:
