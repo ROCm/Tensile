@@ -132,6 +132,28 @@ template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size
 
 
 /*******************************************************************************
+* Trig Templates
+******************************************************************************/
+#ifdef Tensile_ENABLE_HALF
+template<> TensileHalf tensileGetTrig<TensileHalf>(int i) { return static_cast<TensileHalf>(sin(i)); }
+#endif
+template<> float tensileGetTrig<float>(int i) { return static_cast<float>(sin(i)); }
+template<> double tensileGetTrig<double>(int i) { return static_cast<double>(sin(i)); }
+template<> TensileComplexFloat tensileGetTrig<TensileComplexFloat>(int i) {
+  TensileComplexFloat r;
+  TENSILEREAL(r) = tensileGetTrig<float>(i);
+  TENSILECOMP(r) = tensileGetTrig<float>(static_cast<float>(i) + 0.5);
+  return r;
+}
+template<> TensileComplexDouble tensileGetTrig<TensileComplexDouble>(int i) {
+  TensileComplexDouble r;
+  TENSILEREAL(r) = tensileGetTrig<double>(i);
+  TENSILECOMP(r) = tensileGetTrig<double>(static_cast<double>(i) + 0.5);
+  return r;
+}
+
+
+/*******************************************************************************
  * NaN Templates
  ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF

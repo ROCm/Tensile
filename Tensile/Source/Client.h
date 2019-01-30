@@ -1360,6 +1360,18 @@ void initInput(
   } else if (dataInitType == 5) {
     // Will initialize later for each matrix dim:
     specializeAB = true;
+  } else if (dataInitType == 6) {
+    for (size_t i = 0; i < maxSize; i++) {
+      auto v = tensileGetTrig<DataType>(i);   // initialize with sin to get value between -1 and 1. 
+      if (initOp == Abs) {
+        v = std::fabs(double(v));
+      } else if (initOp == AltSign) {
+        DataType s = (i&0x1) ? -1:1;
+        v = s*std::fabs(double(v));
+      }
+      (*initial)[i] = v;
+    }
+    std::cout << ".";
   } else {
     std::cout << "FATAL ERROR: Bad " << tag << " = " << dataInitType << "\n";
     exit(0);
