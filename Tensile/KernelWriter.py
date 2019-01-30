@@ -1871,6 +1871,7 @@ class KernelWriter:
 
   ##############################################################################
   # Open Loop
+  # loopIdx<0 : tail loop
   ##############################################################################
   @abc.abstractmethod
   def openLoop(self, kernel, loopIdx):

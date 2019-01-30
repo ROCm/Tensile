@@ -2441,8 +2441,11 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += "\n"
       kStr += self.getLabelDef("PersistentLoopStart")
-      kStr += self.localReadResetOffsets(kernel, self.tPA)
-      kStr += self.localReadResetOffsets(kernel, self.tPB)
+      #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
+      # Always reset pointers since tail loop iterates through LRA
+      if kernel["PrefetchGlobalRead"]:
+        kStr += self.localReadResetOffsets(kernel, self.tPA)
+        kStr += self.localReadResetOffsets(kernel, self.tPB)
       kStr += self.comment1("compute SerialWorkGroupIter / problemNumGroupTiles0 (aka numWorkGroups0)")
       kStr += self.sMagicDiv(kernel, stmp, sgpr("SerialWorkGroupIter"), sgpr("MagicNumberProblemNumGroupTiles0"), 31)
       kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp), "wg1 = SerialWorkGroupIter / problemNumGroupTiles0")
@@ -3994,6 +3997,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "don't enter Loop%s"%loopChar )
 
+    if tailLoop:
+      kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), 0, \
+          "repurpose to count each localRead increment")
+
     # LSU not all threads will do summation
     if tailLoop and kernel["LocalSplitU"] > 1:
       tmpSgpr = self.getTmpSgpr(2)
@@ -4059,6 +4066,12 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(unrollInc), \
         "inc counter%s"%(loopChar) )
+    if tailLoop:
+      kStr += inst("s_add_u32", \
+        sgpr("OrigLoopCounter"), \
+        sgpr("OrigLoopCounter"), \
+        hex(unrollInc),
+        "inc counter%s"%(loopChar) )
 
     if tailLoop:
       endCounter = 0
@@ -4087,7 +4100,17 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 label_%04u"%loopLabelBegin, \
           "restart Loop%s"%(loopChar ))
 
-      if not tailLoop:
+      if tailLoop:
+        if kernel["PersistentKernel"]:
+          # recover the 'damage' done to LRO:
+          stmp = self.getTmpSgpr(1)
+          for tP in [self.tPA, self.tPB]:
+            tc = tP["tensorChar"]
+            inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
+            kStr += inst("s_mov_b32", sgpr(stmp), inc, "tailloop lds offset")
+            kStr += inst("s_mul_i32", sgpr(stmp), sgpr("OrigLoopCounter"), sgpr(stmp), "scale by mul")
+            kStr += inst("v_sub_u32", vgpr("LocalReadAddr%s"%tc), vgpr("LocalReadAddr%s"%tc), sgpr(stmp), "remove lro damage")
+      else : # not tailLoop:
         oddIterCode = Code.Module()
         if not kernel["SuppressNoLoadLoop"] and kernel["ExpandPointerSwap"]:
           # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
