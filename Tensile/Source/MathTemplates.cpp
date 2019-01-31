@@ -132,6 +132,39 @@ template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size
 
 
 /*******************************************************************************
+* Trig Templates
+******************************************************************************/
+#ifdef Tensile_ENABLE_HALF
+template<> TensileHalf tensileGetTrig<TensileHalf>(int i) { return static_cast<TensileHalf>(sin(i)); }
+#endif
+template<> uint32_t tensileGetTrig<uint32_t>(int i) { 
+   int8_t t0 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t1 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t2 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t3 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t1x4[4] = {t0, t1, t2, t3};
+   uint32_t tmp; 
+   memcpy(&tmp, t1x4, sizeof(uint32_t));
+   return tmp; 
+}
+template<> int32_t tensileGetTrig<int32_t>(int i) { return static_cast<int32_t>((rand()%7) - 3); }
+template<> float tensileGetTrig<float>(int i) { return static_cast<float>(sin(i)); }
+template<> double tensileGetTrig<double>(int i) { return static_cast<double>(sin(i)); }
+template<> TensileComplexFloat tensileGetTrig<TensileComplexFloat>(int i) {
+  TensileComplexFloat r;
+  TENSILEREAL(r) = tensileGetTrig<float>(i);
+  TENSILECOMP(r) = tensileGetTrig<float>(static_cast<float>(i) + 0.5);
+  return r;
+}
+template<> TensileComplexDouble tensileGetTrig<TensileComplexDouble>(int i) {
+  TensileComplexDouble r;
+  TENSILEREAL(r) = tensileGetTrig<double>(i);
+  TENSILECOMP(r) = tensileGetTrig<double>(static_cast<double>(i) + 0.5);
+  return r;
+}
+
+
+/*******************************************************************************
  * NaN Templates
  ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF
