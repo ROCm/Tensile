@@ -2177,9 +2177,9 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = True
     if self.overflowedResources:
       print ""
-      printWarning("%s invalid: too many vgprs(%u) or sgprs(%u)" \
+      printWarning("%s overflowed resources, possibly too many vgprs(%u) or sgprs(%u)" \
           % (self.kernelName, self.vgprPool.size(), self.totalSgprs))
-      kStr += "s_endpgm // too many vgprs\n"
+      kStr += "s_endpgm // overflowed resources\n"
       kStr += ".if 0\n"
 
 
@@ -6241,6 +6241,11 @@ class KernelWriterAssembly(KernelWriter):
         fixedSgprsPerBatch = 6 # What are these used for?
         numSgprsPerElement = 2
         numElementsPerBatchLimitedBySgprs = (self.maxSgprs - self.startSgprTmpPool - fixedSgprsPerBatch - 1) / numSgprsPerElement
+        if numElementsPerBatchLimitedBySgprs<=0:
+          self.overflowedResources = 1
+          numElementsPerBatchLimitedBySgprs = 1 # dummy value
+          #assert numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
+
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
         # 2 for coord0,1 of thread - already checked out
