@@ -68,6 +68,9 @@ def processKernelSourceChunk(kernels,
 
     if pipe != None:
       pipe.send(results)
+    else:
+      return results
+
 
 
 # create and prepare the assembly directory  - called ONCE per output dir:
@@ -96,6 +99,39 @@ def prepAsm():
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0777)
+
+################################################################################
+# processResults
+# input: results is list with (err, src, header, kernelName)
+# Log errors and write appropriate info to kernelSourceFile and kernelHeaderFile
+################################################################################
+def processResults(results, kernelsWithBuildErrs, \
+      kernelSourceFile, kernelHeaderFile):
+
+  for (err,src,header,kernelName) in results:
+    if err:
+      kernelsWithBuildErrs[kernelName] = err
+      #print "*** warning: invalid kernel#%s"%kernelName
+
+    # write kernel.cpp
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".cpp"), "w")
+      kernelSourceFile.write(CHeader)
+
+    kernelSourceFile.write(src)
+
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
+      # write kernel.h
+      kernelHeaderFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".h"), "w")
+      kernelHeaderFile.write(CHeader)
+
+    kernelHeaderFile.write(header)
+
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
@@ -189,52 +225,34 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
         sys.stderr.write("  # launched process %s for kernels %d..%d\n" %(t, kiStart, kiStop-1))
 
     else: # non-threaded version
-      processKernelSourceChunk(kernels, kernelWriterSource, kernelWriterAssembly, \
+      results = processKernelSourceChunk(kernels, kernelWriterSource, kernelWriterAssembly, \
                                kiStart, kiStop, None)
+      if globalParameters["ShowProgressBar"]:
+        progressBar.increment(kiStop-kiStart)
+      processResults(results, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
+
     kiStart += workPerCpu
     cpu += 1
   sys.stderr.write("# Waiting for kernel compilation processes...\n")
 
   someError = 0
-  for (t,kiStart,kiStop,parentConn) in threads:
-    try:
-      results = parentConn.recv()
-    except EOFError as pipeErr:
-      print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
+  if cpus:
+    for (t,kiStart,kiStop,parentConn) in threads:
+      try:
+        results = parentConn.recv()
+      except EOFError as pipeErr:
+        print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
 
-    t.join()
-    e = t.exitcode
-    if e != 0 :
-      print  "*** warning: process", t, "returned",t,e
-      someError = 1
-      results = []
+      t.join()
+      e = t.exitcode
+      if e != 0 :
+        print  "*** warning: process", t, "returned",t,e
+        someError = 1
+        results = []
 
-    if globalParameters["ShowProgressBar"]:
-      progressBar.increment(kiStop-kiStart)
-    for (err,src,header,kernelName) in results:
-      if err:
-        kernelsWithBuildErrs[kernelName] = err
-        #print "*** warning: invalid kernel#%s"%kernelName
-
-      # write kernel.cpp
-      if not globalParameters["MergeFiles"]:
-        kernelSourceFile = open(os.path.join(outputPath, \
-            "Kernels", kernelName+".cpp"), "w")
-        kernelSourceFile.write(CHeader)
-
-      kernelSourceFile.write(src)
-
-      if not globalParameters["MergeFiles"]:
-        kernelSourceFile.close()
-        # write kernel.h
-        kernelHeaderFile = open(os.path.join(outputPath, \
-            "Kernels", kernelName+".h"), "w")
-        kernelHeaderFile.write(CHeader)
-
-      kernelHeaderFile.write(header)
-
-      if not globalParameters["MergeFiles"]:
-        kernelHeaderFile.close()
+      if globalParameters["ShowProgressBar"]:
+        progressBar.increment(kiStop-kiStart)
+      processResults(results, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if someError:
     print "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
