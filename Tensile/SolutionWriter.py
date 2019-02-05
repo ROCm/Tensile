@@ -285,8 +285,8 @@ class SolutionWriter:
               % (t, persistent, persistent)
       s += "%sglobalWorkSize[0][1] = 1;\n" % t
     else:
-      s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
-      s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
+      s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] >= 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
+      s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] >= 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
 
     # index sizes
     s += "\n%s/* index sizes */\n" % (t)
