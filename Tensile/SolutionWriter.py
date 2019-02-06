@@ -586,9 +586,8 @@ class SolutionWriter:
         # sizes
         for i in range(0, problemType["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
-        if persistent:
-          s += "%sprintf(\"  problemNumGroupTiles0== %%u\\n\", problemNumGroupTiles0 );\n" % (t)
-          s += "%sprintf(\"  problemNumGroupTiles1== %%u\\n\", problemNumGroupTiles1 );\n" % (t)
+        s += "%sprintf(\"  problemNumGroupTiles0== %%u\\n\", problemNumGroupTiles0 );\n" % (t)
+        s += "%sprintf(\"  problemNumGroupTiles1== %%u\\n\", problemNumGroupTiles1 );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeB== %%lu\\n\", tensor2dSizeB );\n" % (t)
