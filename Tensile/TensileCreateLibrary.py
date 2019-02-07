@@ -105,7 +105,7 @@ def prepAsm():
 # input: results is list with (err, src, header, kernelName)
 # Log errors and write appropriate info to kernelSourceFile and kernelHeaderFile
 ################################################################################
-def processResults(results, kernelsWithBuildErrs, \
+def processResults(results, outputPath, kernelsWithBuildErrs, \
       kernelSourceFile, kernelHeaderFile):
 
   for (err,src,header,kernelName) in results:
@@ -229,7 +229,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
                                kiStart, kiStop, None)
       if globalParameters["ShowProgressBar"]:
         progressBar.increment(kiStop-kiStart)
-      processResults(results, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
+      processResults(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
     kiStart += workPerCpu
     cpu += 1
@@ -252,7 +252,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
       if globalParameters["ShowProgressBar"]:
         progressBar.increment(kiStop-kiStart)
-      processResults(results, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
+      processResults(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if someError:
     print "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
