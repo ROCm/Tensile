@@ -185,6 +185,7 @@ class RegisterPool:
       self.checkOutSize[found] = size
       if self.printRP:
         print "RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
+        #print self.state()
       return found
     # need overflow
     else:
@@ -269,22 +270,22 @@ class RegisterPool:
     return numAvailable
 
   ########################################
-  # Size of largest consecutive block
-  def availableBlock(self):
-    maxAvailable = 0
-    numAvailable = 0
+  # Size of registers of at least specified blockSize
+  def availableBlock(self, blockSize):
+    if blockSize ==0:
+      blockSize = 1
+    blocksAvail = 0
+    consecAvailable = 0
     for s in self.pool:
       if s.status == self.statusAvailable:
-        numAvailable += 1
+        consecAvailable += 1
       else:
-        if numAvailable > maxAvailable:
-          maxAvailable = numAvailable
-        numAvailable = 0
-    if numAvailable > maxAvailable:
-      maxAvailable = numAvailable
+        blocksAvail += consecAvailable / blockSize
+        consecAvailable = 0
+    blocksAvail += consecAvailable / blockSize
     #print self.state()
     #print "available()=", self.available(), "availableBlock()=",maxAvailable
-    return maxAvailable
+    return blocksAvail * blockSize
 
   ########################################
   def checkFinalState(self):
@@ -313,7 +314,7 @@ class RegisterPool:
         stateStr += pvs + "\n"
     for i in range(0, len(self.pool)):
       if self.pool[i].status == self.statusUnAvailable:
-        stateStr += "." # 'removed'
+        stateStr += "." # 'removed', this indicates a fixed assignment from "remove", ie a non-tmp allocation 
       elif self.pool[i].status == self.statusAvailable:
         stateStr += "|" # Can be allocated
       elif self.pool[i].status == self.statusInUse:
@@ -6263,7 +6264,7 @@ class KernelWriterAssembly(KernelWriter):
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
         #numVgprAvailable = self.getMaxRegsForOccupancy(self.vgprPool.available())
-        numVgprAvailable = self.vgprPool.available()
+        numVgprAvailable = self.vgprPool.availableBlock(numVgprsPerElement)
 
         # Grow the register pool if needed - we need enough regs for at least one element
         # Unfortunate since this means the write logic is setting the VGPR requirement
@@ -6335,9 +6336,11 @@ class KernelWriterAssembly(KernelWriter):
         else:
           numElementsPerBatch = len(elements[edgeI]) # max, do 'em all
 
-        #print "NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
+        if shrinkDb:
+          print "NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = numElementsPerBatchLimitedBySgprs
+
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves - since these share hi/lo pieces of some registers?
