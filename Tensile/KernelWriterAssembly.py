@@ -1766,10 +1766,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # register allocation
     totalVgprs = self.vgprPool.size()
-    if self.vgprPool.size() > self.maxVgprs:
-      self.overflowedResources = True
-    if self.overflowedResources:
-      totalVgprs = 1
     assert(self.totalSgprs >= self.sgprPool.size())
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
         % (totalVgprs, self.endLine)
@@ -2174,9 +2170,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["InnerUnroll"] > 1:
       kStr += self.defineMACMacro(kernel, 1) # define OneIter case
 
-    # if overflowed vgpr pool, comment out the whole kernel body and let it fail gracefully
-    if self.vgprPool.size() > self.maxVgprs or self.totalSgprs > self.maxSgprs:
-      self.overflowedResources = True
     if self.overflowedResources:
       print ""
       printWarning("%s overflowed resources, possibly too many vgprs(%u) or sgprs(%u)" \
@@ -7315,8 +7308,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def functionSuffix(self, kernel):
     kStr = ""
-    if self.vgprPool.size() > self.maxVgprs or \
-        self.sgprPool.size() > self.totalSgprs:
+    if self.vgprPool.size() > self.maxVgprs or self.totalSgprs > self.maxSgprs:
       self.overflowedResources = True
 
     if self.overflowedResources:
