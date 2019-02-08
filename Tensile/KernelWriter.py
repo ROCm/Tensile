@@ -525,6 +525,16 @@ class KernelWriter:
     kl.append(self.comment("declare loop num iterations"))
     kl.append(self.declareLoopNumIter(kernel))
 
+    # perform initC in the shadow of the prefetch
+    # Prefetch occurs at start of unroll loop
+    # If we have multiple summation indicies (unrollIdx>0),
+    # we can't init in shadow of this prefetch
+    # since that would initC inside the other summation loops
+    shadowInitC = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+
+    if not shadowInitC:
+      kl.append(self.initC(kernel))
+
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
       kl.append(self.comment("summation loop %u"%i))
@@ -564,7 +574,8 @@ class KernelWriter:
         kl.append(self.comment("global read inc b"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
-      kl.append(self.initC(kernel)) # initC while waiting for global reads
+      if shadowInitC:
+        kl.append(self.initC(kernel)) # initC while waiting for global reads
 
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
@@ -601,8 +612,6 @@ class KernelWriter:
               kl.append(self.comment("local read inc b"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersB))
       kl.append(self.closeSumAtLeastUnroll(kernel, True))
-    else:
-      kl.append(self.initC(kernel)) # initC while waiting for global reads
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
