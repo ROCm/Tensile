@@ -1206,12 +1206,6 @@ class KernelWriterAssembly(KernelWriter):
     #  minVgprTmp += 2
     #vgprIdx += minVgprTmp
     #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
-    vgprPerCU = 65536
-    vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
-    numWorkGroupsPerCU = vgprPerThreadPerOccupancy / vgprIdx
-    if numWorkGroupsPerCU < 1:
-      self.overflowedResources = True
-      numWorkGroupsPerCU  = 1 # dummy value
 
     self.totalVgprs = vgprIdx
 
@@ -7311,8 +7305,14 @@ class KernelWriterAssembly(KernelWriter):
     if self.vgprPool.size() > self.maxVgprs or self.totalSgprs > self.maxSgprs:
       self.overflowedResources = True
 
+    vgprPerCU = 65536
+    vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
+    numWorkGroupsPerCU = vgprPerThreadPerOccupancy / self.vgprPool.size()
+    if numWorkGroupsPerCU < 1:
+      self.overflowedResources = True
+
     if self.overflowedResources:
-      kStr += ".endif // too many gprs\n"
+      kStr += ".endif // overflowed resources \n"
 
     self.vgprPool.checkFinalState()
     return kStr
