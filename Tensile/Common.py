@@ -254,11 +254,14 @@ validParameters = {
     # Can reduce pressure on local read instruction dispatch queue
     "ScheduleLocalWrite":         [0, 1],
 
-
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
     # followed by local writes, followed by MACs
     "ScheduleIterAlg":              [0, 1],
+
+    # LDD Support
+    # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
+    "LdcEqualsLdd":               [False, True],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -657,6 +660,8 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
+
+    {"LdcEqualsLdd":              [ True ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
