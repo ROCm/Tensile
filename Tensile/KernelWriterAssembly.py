@@ -1346,6 +1346,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
+      self.defineSgpr("MagicNumberWGMRemainder", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2286,6 +2287,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getKernArg("NumWorkGroups%u" % (1 if (kernel["WorkGroupMapping"]>=0) else 0))
       kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
       kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
+      kStr += self.getKernArg("MagicNumberWGMRemainder", kernel["PersistentKernel"])
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % self.kernArgOffset )
@@ -2350,11 +2352,17 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-  def sMagicDiv(self, kernel, stmp, dividend, magicNumber, magicShift):
+
+  ##############################################################################
+  # Perform a magic division (mul by magic number and shift)
+  # result returned in sgpr(dest,2)
+  ##############################################################################
+  def sMagicDiv(self, kernel, dest, dividend, magicNumber, magicShift):
     kStr = ""
-    kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), dividend, magicNumber, "s_magic mul")
-    kStr += inst("s_lshr_b64", sgpr(stmp,2), sgpr(stmp,2), magicShift, "sMagicDiv")
+    kStr += self.s_mul_u64_u32(sgpr(dest), sgpr(dest+1), dividend, magicNumber, "s_magic mul")
+    kStr += inst("s_lshr_b64", sgpr(dest,2), sgpr(dest,2), magicShift, "sMagicDiv")
     return kStr
+
 
   ##############################################################################
   # Global Read Addresses: WorkGroup
