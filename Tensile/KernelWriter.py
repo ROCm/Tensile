@@ -365,33 +365,13 @@ class KernelWriter:
 
     if self.enable["PreLoop"]:
       ####################################
-      # Local Read Addresses
-      ####################################
-      kl.append(self.comment3("Local Read Addresses"))
-
-      # tile assignments
-      kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
-
-
-      # final offsets
-      kl.append(self.comment("local read addresses: final offsets a"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: final offsets b"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
-
-      # declare addresses
-      kl.append(self.comment("local read addresses: declare addresses a"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: declare addresses b"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
-
-      ####################################
       # Global Read Addresses
       ####################################
       kl.append(self.comment3("Global Read Addresses"))
+
+      # subgroup assignments
+      kl.append(self.comment("global read addresses: subgroup"))
+      kl.append(self.graSubgroup(kernel))
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
@@ -513,6 +493,30 @@ class KernelWriter:
       kl.append(self.comment("local write addresses: init pointers b"))
       kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
 
+      ####################################
+      # Local Read Addresses
+      ####################################
+      kl.append(self.comment3("Local Read Addresses"))
+
+      # tile assignments
+      kl.append(self.comment("local read addresses: tile assignments a"))
+      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: tile assignments b"))
+      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
+
+
+      # final offsets
+      kl.append(self.comment("local read addresses: final offsets a"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: final offsets b"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
+
+      # declare addresses
+      kl.append(self.comment("local read addresses: declare addresses a"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: declare addresses b"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
+
     ###########################################################################
     # summations loops: open
     ###########################################################################
@@ -526,9 +530,9 @@ class KernelWriter:
     # If we have multiple summation indicies (unrollIdx>0),
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
-    shadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+    shadowInitC = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
 
-    if not shadowInit:
+    if not shadowInitC:
       kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
@@ -558,15 +562,19 @@ class KernelWriter:
       kl.append(self.comment("prefetch: global -> local"))
       kl.append(self.openSumAtLeastUnroll(kernel, True))
       if self.enable["GlobalRead"]:
+        # global read
+        kl.append(self.comment("global read a"))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
+        kl.append(self.comment("global read b"))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
       if self.enable["GlobalReadInc"]:
+        # increment global
+        kl.append(self.comment("global read inc a"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
+        kl.append(self.comment("global read inc b"))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
-      if shadowInit:
-        kl.append(self.openShadowInit(kernel))
-        kl.append(self.globalWriteWorkGroupInit(kernel))
+      if shadowInitC:
         kl.append(self.initC(kernel)) # initC while waiting for global reads
 
       if self.enable["Wait"]:
@@ -1021,8 +1029,6 @@ class KernelWriter:
 
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
-      if not shadowInit:
-        kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
       # Shift Vector Components
@@ -1582,6 +1588,13 @@ class KernelWriter:
     return ""
 
   ##############################################################################
+  # Global Read Addresses: Subgroup
+  ##############################################################################
+  @abc.abstractmethod
+  def graSubgroup(self, kernel):
+    return ""
+
+  ##############################################################################
   # Get Params For Tensor A/B
   ##############################################################################
   def getTensorParameters(self, tP, kernel, tA):
@@ -1866,15 +1879,6 @@ class KernelWriter:
   def calculateLoopNumIter(self, kernel, loopIdx):
     return ""
 
-
-  ##############################################################################
-  # openShadowInit:
-  # Top of shadow init code
-  ##############################################################################
-  @abc.abstractmethod
-  def openShadowInit(self, kernel):
-    return ""
-
   ##############################################################################
   # Initialize C
   ##############################################################################
@@ -1884,7 +1888,6 @@ class KernelWriter:
 
   ##############################################################################
   # Open Loop
-  # loopIdx<0 : tail loop
   ##############################################################################
   @abc.abstractmethod
   def openLoop(self, kernel, loopIdx):
@@ -2033,14 +2036,6 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def localSplitUReduction(self, kernel):
-    return ""
-
-  ##############################################################################
-  # globalWriteWorkGroupInit:
-  # Perform work-group granularity init
-  ##############################################################################
-  @abc.abstractmethod
-  def globalWriteWorkGroupInit(self, kernel):
     return ""
 
   ##############################################################################
