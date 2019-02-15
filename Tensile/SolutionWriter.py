@@ -153,6 +153,7 @@ class SolutionWriter:
       s += "%sunsigned int problemNumGroupTiles1;\n" % t
       s += "%sunsigned int magicNumberProblemNumGroupTiles0;\n" % t
       s += "%sunsigned int gridNumWorkGroups0;\n" % t
+      s += "%sunsigned int numFullBlocks;\n" % t
       s += "%sunsigned int wgmRemainder1;\n" % t
       s += "%sunsigned int magicNumberWgmRemainder1;\n" % t
 
@@ -282,11 +283,12 @@ class SolutionWriter:
     s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups%u;\n" % (t, 1 if kernel["WorkGroupMapping"] >= 0 else 0)
     s += "%sconst unsigned smallNumMagicShift = 31; // bozo, review\n" % (t)
     s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<smallNumMagicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
+    s += "%sunsigned numFullBlocks =  problemNumGroupTiles1 / %u; // divide by WorkGroupMapping\n" % (t, abs(kernel["WorkGroupMapping"]))
     s += "%sunsigned wgmRemainder1 =  %u ? (problemNumGroupTiles1 %% %u) : 0;\n" % \
             (t, abs(kernel["WorkGroupMapping"]), abs(kernel["WorkGroupMapping"]))
     s += "%sif (wgmRemainder1 == 0) wgmRemainder1 = %u;\n" % (t, abs(kernel["WorkGroupMapping"]))
     s += "%sunsigned magicNumberWgmRemainder1 = ((1L<<smallNumMagicShift) / wgmRemainder1 + 1);\n"  % (t)
-    s += '  printf ("wgmRemainder1=%u \\n", wgmRemainder1);'
+    #s += '  printf ("wgmRemainder1=%u \\n", wgmRemainder1);'
 
     if gsu> 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, gsu)
@@ -751,6 +753,7 @@ class SolutionWriter:
           s += "%shipFunctionArgs.problemNumGroupTiles1 = problemNumGroupTiles1;\n" % (t)
           s += "%shipFunctionArgs.magicNumberProblemNumGroupTiles0 = magicNumberProblemNumGroupTiles0;\n" % (t)
           s += "%shipFunctionArgs.gridNumWorkGroups0 = globalWorkSize[kernelIdx][0];\n" % (t) #
+          s += "%shipFunctionArgs.numFullBlocks = numFullBlocks;\n" % (t)
           s += "%shipFunctionArgs.wgmRemainder1 = wgmRemainder1;\n" % (t)
           s += "%shipFunctionArgs.magicNumberWgmRemainder1 = magicNumberWgmRemainder1;\n" % (t)
 

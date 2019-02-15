@@ -1346,6 +1346,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
+    self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
@@ -2288,6 +2289,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getKernArg("NumWorkGroups%u" % (1 if (kernel["WorkGroupMapping"]>=0) else 0))
       kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
       kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
+      kStr += self.getKernArg("NumFullBlocks")
       kStr += self.getKernArg("WgmRemainder1")
       kStr += self.getKernArg("MagicNumberWgmRemainder1")
 
@@ -2537,18 +2539,26 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+2), vgpr(blockId), "tmpS <- blockId")
 
       smallNumMagicShift = 31
+      assert(self.sgprs["WorkGroup0"] & 0x1 == 0) # must be even
+      assert(self.sgprs["WorkGroup0"]+1 == self.sgprs["WorkGroup1"] ) # must be consecutive (for magic div below)
+
       kStr += inst("s_mov_b32", sgpr(newtmpSgpr+1), hex((1L<<smallNumMagicShift) / absWgm + 1), \
           "magic number for WGM==%u"%absWgm)
       kStr += inst("s_cmp_ge_u32", sgpr(newtmpSgpr+2), sgpr(newtmpSgpr+3), "blockId >= numFullBlocks ?")
       kStr += inst("s_cmov_b32", sgpr(newtmpSgpr+1), sgpr("MagicNumberWgmRemainder1"),  "")
       kStr += inst("s_cselect_b32", sgpr(newtmpSgpr+5), sgpr("WgmRemainder1"), absWgm,  "")
       kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(wgSerial), "mov wgSerial to SGPR")
-      kStr += self.sMagicDiv(kernel, dest=newtmpSgpr+2, dividend=sgpr(newtmpSgpr+0), \
-          magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
-      kStr += inst("s_mul_i32", sgpr(newtmpSgpr+3), sgpr(newtmpSgpr+2), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
-      kStr += inst("s_sub_u32", sgpr(newtmpSgpr+3), sgpr(newtmpSgpr+0), sgpr(newtmpSgpr+3), "WorkGroup1=remainder")
-      #kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
-      #kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "wg0 = SerialWorkGroupIter % problemNumGroupTiles0")
+
+      if 1:
+        kStr += self.sMagicDiv(kernel, dest=newtmpSgpr+2, dividend=sgpr(newtmpSgpr+0), \
+            magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
+        kStr += inst("s_mul_i32", sgpr(newtmpSgpr+3), sgpr(newtmpSgpr+2), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
+        kStr += inst("s_sub_u32", sgpr(newtmpSgpr+3), sgpr(newtmpSgpr+0), sgpr(newtmpSgpr+3), "WorkGroup1=remainder")
+      else:
+        kStr += self.sMagicDiv(kernel, dest=sgpr("WorkGroup0"), dividend=sgpr(newtmpSgpr+0), \
+            magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
+        kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
+        kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+0), sgpr("WorkGroup1"), "WorkGroup1=remainder")
 
 
       # dynamic divide and remainder
@@ -2558,6 +2568,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "DYNAMIC_VECTOR_DIVIDE %s %s %s %s %s %s %s%s" % ( wg0, wg1, wgSerial, blockWidth, tmpVgpr, tmpVgpr+1, tmpSgpr, self.endLine )
       #kStr += self.bomb()
 
+      # TODO - remove me:
       kStr += self.assert_eq(sgpr(newtmpSgpr+2), vgpr(wg0))  # host-div
       kStr += self.assert_eq(sgpr(newtmpSgpr+3), vgpr(wg1))  # host-div
 
