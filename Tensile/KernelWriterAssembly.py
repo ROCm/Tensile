@@ -2530,22 +2530,14 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
         kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+0), sgpr("WorkGroup1"), "WorkGroup1=remainder")
 
-
       kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
           abs(kernel["WorkGroupMapping"]), "blockId * WGM")
 
-      if 0:
-        kStr += inst("_v_add_co_u32", vgpr(wg1), "vcc", vgpr(wg1), \
-            vgpr(blockId), "wg1 += blockId * WGM")
-        kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup0"), vgpr(wg0), "")
-        kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup1"), vgpr(wg1), "")
-      else:
-        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(newtmpSgpr+2), "")
-        kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(blockId), "")
-        kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), \
-            sgpr(newtmpSgpr+0), "wg1 += blockId * WGM")
-        #kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), "")
-
+      kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(newtmpSgpr+2), "")
+      kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(blockId), "")
+      kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), \
+          sgpr(newtmpSgpr+0), "wg1 += blockId * WGM")
+      #kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), "")
 
       # checkin scratch registers
       self.vgprPool.checkIn(wg1)
