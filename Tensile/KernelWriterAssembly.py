@@ -2568,20 +2568,23 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "DYNAMIC_VECTOR_DIVIDE %s %s %s %s %s %s %s%s" % ( wg0, wg1, wgSerial, blockWidth, tmpVgpr, tmpVgpr+1, tmpSgpr, self.endLine )
       #kStr += self.bomb()
 
-      # TODO - remove me:
       kStr += self.assert_eq(sgpr(newtmpSgpr+2), vgpr(wg0))  # host-div
       kStr += self.assert_eq(sgpr(newtmpSgpr+3), vgpr(wg1))  # host-div
 
       kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
           abs(kernel["WorkGroupMapping"]), "blockId * WGM")
-      kStr += inst("_v_add_co_u32", vgpr(wg1), "vcc", vgpr(wg1), \
-          vgpr(blockId), "wg1 += blockId * WGM")
 
-
-
-      # move wg0,1 in vgprs into sgprs
-      kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup0"), vgpr(wg0), "")
-      kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup1"), vgpr(wg1), "")
+      if 0:
+        kStr += inst("_v_add_co_u32", vgpr(wg1), "vcc", vgpr(wg1), \
+            vgpr(blockId), "wg1 += blockId * WGM")
+        kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup0"), vgpr(wg0), "")
+        kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup1"), vgpr(wg1), "")
+      else:
+        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(newtmpSgpr+2), "")
+        kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(blockId), "")
+        kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), \
+            sgpr(newtmpSgpr+0), "wg1 += blockId * WGM")
+        #kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), "")
 
 
 
