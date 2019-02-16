@@ -2486,36 +2486,20 @@ class KernelWriterAssembly(KernelWriter):
 
       tmpVgpr = self.vgprPool.checkOut(2)
       tmpSgpr = self.getTmpSgpr(7) # change back to 2
+      blockId2  = tmpSgpr+0
+      wgSerial2 = tmpSgpr+1
       newtmpSgpr = tmpSgpr+2
 
-      # blockId and serial within block
-      blockId = self.vgprPool.checkOut(1)
-      wgSerial = self.vgprPool.checkOut(1)
-      wg1 = self.vgprPool.checkOut(1)
-      kStr += inst("v_mov_b32", vgpr(wg1), sgpr("WorkGroup1"), "wg1")
-
-      kStr += vectorStaticDivideAndRemainder(blockId, wgSerial, wg1, \
-          absWgm, tmpVgpr, tmpSgpr)
-      kStr += inst("v_mul_lo_u32", vgpr(wgSerial), vgpr(wgSerial), \
-          sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
-      kStr += inst("_v_add_co_u32", vgpr(wgSerial), "vcc", sgpr("WorkGroup0"), vgpr(wgSerial), \
-          "wgSerial = wg0 + (wg1 % WGM)*nwg0")
-      #kStr += "s_endpgm\n"
-      #return kStr
       kStr += inst("s_mov_b32", sgpr(newtmpSgpr+1), hex(magicNumberWgm), \
           "magic number for WGM==%u"%absWgm)
-      if 1:
-        blockId2  = tmpSgpr+0
-        wgSerial2 = tmpSgpr+1
-        kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
-            magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
-        kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), kernel["WorkGroupMapping"], "quotient * non-magic divisor")
-        kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr("WorkGroup1"), sgpr(wgSerial2), "WorkGroup1=remainder")
-        kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
-        kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
+      # blockId and serial within block
 
-        #kStr += self.assert_eq(sgpr(blockId2),  vgpr(blockId))
-        #kStr += self.assert_eq(sgpr(wgSerial2), vgpr(wgSerial))
+      kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
+          magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), kernel["WorkGroupMapping"], "quotient * non-magic divisor")
+      kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr("WorkGroup1"), sgpr(wgSerial2), "WorkGroup1=remainder")
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
+      kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
 
       kStr += inst("s_cmp_ge_u32", sgpr(blockId2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
       kStr += inst("s_cmov_b32", sgpr(newtmpSgpr+1), sgpr("MagicNumberWgmRemainder1"),  "")
@@ -2534,11 +2518,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr("WorkGroup1"), \
           sgpr(blockId2), "wg1 += blockId * WGM")
       #kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), "")
-
-      # checkin scratch registers
-      self.vgprPool.checkIn(wg1)
-      self.vgprPool.checkIn(wgSerial)
-      self.vgprPool.checkIn(blockId)
 
       #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup0"), "")
       #kStr += dump(vgpr(tmpVgpr))
