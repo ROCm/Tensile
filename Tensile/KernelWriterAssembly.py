@@ -2483,12 +2483,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       tmpVgpr = self.vgprPool.checkOut(2)
       # nwg0
-      nwg0 = self.vgprPool.checkOut(1)
       tmpSgpr = self.getTmpSgpr(7) # change back to 2
       newtmpSgpr = tmpSgpr+2
-
-      kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("NumWorkGroups0"), "copy to vgpr for div")
-      #kStr += dump(vgpr(nwg0))
 
       # blockId and serial within block
       blockId = self.vgprPool.checkOut(1)
@@ -2499,8 +2495,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticDivideAndRemainder(blockId, wgSerial, wg1, \
           absWgm, tmpVgpr, tmpSgpr)
       kStr += inst("v_mul_lo_u32", vgpr(wgSerial), vgpr(wgSerial), \
-          vgpr(nwg0), "(wg1 % WGM)*nwg0")
-      self.vgprPool.checkIn(nwg0)
+          sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
       kStr += inst("_v_add_co_u32", vgpr(wgSerial), "vcc", sgpr("WorkGroup0"), vgpr(wgSerial), \
           "wgSerial = wg0 + (wg1 % WGM)*nwg0")
       #kStr += "s_endpgm\n"
