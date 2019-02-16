@@ -2528,14 +2528,10 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(111), "")
       #kStr += dump(vgpr(tmpVgpr))
       kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(blockId), vgpr(numFullBlocks), "blockId < numFullBlocks" )
-      kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+3), vgpr(numFullBlocks), "tmpS <- numFullBlocks, host-div") 
       self.vgprPool.checkIn(numFullBlocks)
 
 
-      blockWidth = self.vgprPool.checkOut(1)
-      kStr += inst("v_cndmask_b32", vgpr(blockWidth), vgpr(blockRemainder), hex(absWgm), sgpr(tmpSgpr,2), "blockWidth = (blockId < numFullBlocks) ? WGM : remainder" )
       self.vgprPool.checkIn(blockRemainder)
-      #kStr += dump(vgpr(blockWidth))
 
       kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+2), vgpr(blockId), "tmpS <- blockId")
 
@@ -2545,7 +2541,7 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_mov_b32", sgpr(newtmpSgpr+1), hex((1L<<smallNumMagicShift) / absWgm + 1), \
           "magic number for WGM==%u"%absWgm)
-      kStr += inst("s_cmp_ge_u32", sgpr(newtmpSgpr+2), sgpr(newtmpSgpr+3), "blockId >= numFullBlocks ?")
+      kStr += inst("s_cmp_ge_u32", sgpr(newtmpSgpr+2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
       kStr += inst("s_cmov_b32", sgpr(newtmpSgpr+1), sgpr("MagicNumberWgmRemainder1"),  "")
       kStr += inst("s_cselect_b32", sgpr(newtmpSgpr+5), sgpr("WgmRemainder1"), absWgm,  "")
       kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(wgSerial), "mov wgSerial to SGPR")
@@ -2580,7 +2576,6 @@ class KernelWriterAssembly(KernelWriter):
 
       # checkin scratch registers
       self.vgprPool.checkIn(wg1)
-      self.vgprPool.checkIn(blockWidth)
       self.vgprPool.checkIn(wgSerial)
       self.vgprPool.checkIn(blockId)
 
