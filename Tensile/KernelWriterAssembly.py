@@ -2561,16 +2561,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+0), sgpr("WorkGroup1"), "WorkGroup1=remainder")
 
 
-      # dynamic divide and remainder
-      # wg0 = wgSerialInBlock / myBlockWidth
-      # wg1 = wgSerialInBlock % myBlockWidth + blockId*WGM
-      wg0 = self.vgprPool.checkOut(1)
-      kStr += "DYNAMIC_VECTOR_DIVIDE %s %s %s %s %s %s %s%s" % ( wg0, wg1, wgSerial, blockWidth, tmpVgpr, tmpVgpr+1, tmpSgpr, self.endLine )
-      #kStr += self.bomb()
-
-      kStr += self.assert_eq(sgpr(newtmpSgpr+2), vgpr(wg0))  # host-div
-      kStr += self.assert_eq(sgpr(newtmpSgpr+3), vgpr(wg1))  # host-div
-
       kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
           abs(kernel["WorkGroupMapping"]), "blockId * WGM")
 
@@ -2587,10 +2577,7 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), "")
 
 
-
-
       # checkin scratch registers
-      self.vgprPool.checkIn(wg0)
       self.vgprPool.checkIn(wg1)
       self.vgprPool.checkIn(blockWidth)
       self.vgprPool.checkIn(wgSerial)
