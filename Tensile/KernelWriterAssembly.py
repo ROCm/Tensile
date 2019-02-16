@@ -2516,6 +2516,7 @@ class KernelWriterAssembly(KernelWriter):
       blockRemainder = self.vgprPool.checkOut(1)
       kStr += vectorStaticDivideAndRemainder(numFullBlocks, blockRemainder, \
           nwg1, absWgm, tmpVgpr, tmpSgpr)
+      kStr += self.assert_eq(sgpr("NumFullBlocks"), vgpr(numFullBlocks))
       self.vgprPool.checkIn(nwg1)
 
       #kStr += dump(vgpr(blockId))
