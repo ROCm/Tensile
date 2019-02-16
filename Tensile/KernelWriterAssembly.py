@@ -2505,8 +2505,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(newtmpSgpr+1), hex(magicNumberWgm), \
           "magic number for WGM==%u"%absWgm)
       if 1:
-        blockId2  = newtmpSgpr+2
-        wgSerial2 = newtmpSgpr+3
+        blockId2  = tmpSgpr+0
+        wgSerial2 = tmpSgpr+1
         kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
             magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
         kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), kernel["WorkGroupMapping"], "quotient * non-magic divisor")
@@ -2514,42 +2514,27 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
         kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
 
-        kStr += self.assert_eq(sgpr(blockId2),  vgpr(blockId))
-        kStr += self.assert_eq(sgpr(wgSerial2), vgpr(wgSerial))
+        #kStr += self.assert_eq(sgpr(blockId2),  vgpr(blockId))
+        #kStr += self.assert_eq(sgpr(wgSerial2), vgpr(wgSerial))
 
-      kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+2), vgpr(blockId), "tmpS <- blockId")
-
-      kStr += inst("s_cmp_ge_u32", sgpr(newtmpSgpr+2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
+      kStr += inst("s_cmp_ge_u32", sgpr(blockId2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
       kStr += inst("s_cmov_b32", sgpr(newtmpSgpr+1), sgpr("MagicNumberWgmRemainder1"),  "")
       kStr += inst("s_cselect_b32", sgpr(newtmpSgpr+5), sgpr("WgmRemainder1"), absWgm,  "")
       kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(wgSerial), "mov wgSerial to SGPR")
 
-      if 0:
-        kStr += self.sMagicDiv(kernel, dest=newtmpSgpr+2, dividend=sgpr(newtmpSgpr+0), \
-            magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
-        kStr += inst("s_mul_i32", sgpr(newtmpSgpr+3), sgpr(newtmpSgpr+2), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
-        kStr += inst("s_sub_u32", sgpr(newtmpSgpr+3), sgpr(newtmpSgpr+0), sgpr(newtmpSgpr+3), "WorkGroup1=remainder")
-        kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
-            abs(kernel["WorkGroupMapping"]), "blockId * WGM")
+      assert(self.sgprs["WorkGroup0"] & 0x1 == 0) # must be even
+      assert(self.sgprs["WorkGroup0"]+1 == self.sgprs["WorkGroup1"] ) # must be consecutive (for magic div below)
+      kStr += self.sMagicDiv(kernel, dest=self.sgprs["WorkGroup0"], dividend=sgpr(newtmpSgpr+0), \
+          magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
+      kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
+      kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+0), sgpr("WorkGroup1"), "WorkGroup1=remainder")
 
-        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(newtmpSgpr+2), "")
-        kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(blockId), "")
-        kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), \
-            sgpr(newtmpSgpr+0), "wg1 += blockId * WGM")
-      else:
-        assert(self.sgprs["WorkGroup0"] & 0x1 == 0) # must be even
-        assert(self.sgprs["WorkGroup0"]+1 == self.sgprs["WorkGroup1"] ) # must be consecutive (for magic div below)
-        kStr += self.sMagicDiv(kernel, dest=self.sgprs["WorkGroup0"], dividend=sgpr(newtmpSgpr+0), \
-            magicNumber=sgpr(newtmpSgpr+1), magicShift=smallNumMagicShift)
-        kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(newtmpSgpr+5), "quotient * non-magic divisor")
-        kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+0), sgpr("WorkGroup1"), "WorkGroup1=remainder")
+      kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
+          abs(kernel["WorkGroupMapping"]), "blockId * WGM")
 
-        kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
-            abs(kernel["WorkGroupMapping"]), "blockId * WGM")
-
-        kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(blockId), "")
-        kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr("WorkGroup1"), \
-            sgpr(newtmpSgpr+0), "wg1 += blockId * WGM")
+      kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+0), vgpr(blockId), "")
+      kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr("WorkGroup1"), \
+          sgpr(newtmpSgpr+0), "wg1 += blockId * WGM")
       #kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(newtmpSgpr+3), "")
 
       # checkin scratch registers
