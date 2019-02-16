@@ -2490,10 +2490,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("NumWorkGroups0"), "copy to vgpr for div")
       #kStr += dump(vgpr(nwg0))
 
-      # nwg1
-      nwg1 = self.vgprPool.checkOut(1)
-      kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("NumWorkGroups1"), "copy to vgpr for div")
-
       # blockId and serial within block
       blockId = self.vgprPool.checkOut(1)
       wgSerial = self.vgprPool.checkOut(1)
@@ -2509,29 +2505,6 @@ class KernelWriterAssembly(KernelWriter):
           "wgSerial = wg0 + (wg1 % WGM)*nwg0")
       #kStr += "s_endpgm\n"
       #return kStr
-
-      # num full blocks
-      numFullBlocks = self.vgprPool.checkOut(1)
-      kStr += "// numFullBlocks = (nwg1) / WGM%s" % (self.endLine)
-      blockRemainder = self.vgprPool.checkOut(1)
-      kStr += vectorStaticDivideAndRemainder(numFullBlocks, blockRemainder, \
-          nwg1, absWgm, tmpVgpr, tmpSgpr)
-      kStr += self.assert_eq(sgpr("NumFullBlocks"), vgpr(numFullBlocks))
-      self.vgprPool.checkIn(nwg1)
-
-      #kStr += dump(vgpr(blockId))
-      #kStr += dump(vgpr(numFullBlocks))
-      #kStr += dump(vgpr(blockRemainder))
-      # lastBlockWidth = blockRemainder
-
-      # my block's width
-      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(111), "")
-      #kStr += dump(vgpr(tmpVgpr))
-      kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(blockId), vgpr(numFullBlocks), "blockId < numFullBlocks" )
-      self.vgprPool.checkIn(numFullBlocks)
-
-
-      self.vgprPool.checkIn(blockRemainder)
 
       kStr += inst("v_readfirstlane_b32", sgpr(newtmpSgpr+2), vgpr(blockId), "tmpS <- blockId")
 
