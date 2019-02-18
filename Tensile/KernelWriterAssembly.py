@@ -1254,7 +1254,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("KernArgAddress", self.rpga)
     assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
 
-    if kernel["WorkGroupMapping"]>0 :
+    if kernel["WorkGroupMapping"]>=0 :
       self.defineSgpr("WorkGroup0", 1)
       self.defineSgpr("WorkGroup1", 1)
     else:
@@ -2507,17 +2507,26 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmov_b32", sgpr(wgmDivisorMagicNumber), sgpr("MagicNumberWgmRemainder1"),  "")
       kStr += inst("s_cselect_b32", sgpr(wgmDivisor), sgpr("WgmRemainder1"), absWgm,  "")
 
-      assert(self.sgprs["WorkGroup0"] & 0x1 == 0) # must be even
-      assert(self.sgprs["WorkGroup0"]+1 == self.sgprs["WorkGroup1"] ) # must be consecutive (for magic div below)
-      kStr += self.sMagicDiv(kernel, dest=self.sgprs["WorkGroup0"], dividend=sgpr(wgSerial2), \
+      if kernel["WorkGroupMapping"]>=0 :
+        firstWg = "WorkGroup0"
+        secondWg = "WorkGroup1"
+      else:
+        firstWg = "WorkGroup1"
+        secondWg = "WorkGroup0"
+
+      assert(self.sgprs[firstWg] & 0x1 == 0) # must be even and ...
+      assert(self.sgprs[firstWg]+1 == self.sgprs[secondWg] ) # must be consecutive (for magic div below)
+      kStr += self.sMagicDiv(kernel, dest=self.sgprs[firstWg], dividend=sgpr(wgSerial2), \
           magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
+      if kernel["WorkGroupMapping"]<0 :
+        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(firstWg), "")
       kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(wgmDivisor), "quotient * non-magic divisor")
       kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(wgSerial2), sgpr("WorkGroup1"), "WorkGroup1=remainder")
 
       kStr += inst("s_mul_i32", sgpr(blockId2), sgpr(blockId2), \
           abs(kernel["WorkGroupMapping"]), "blockId * WGM")
 
-      kStr += inst("s_add_u32", sgpr("WorkGroup1"), sgpr("WorkGroup1"), \
+      kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
           sgpr(blockId2), "wg1 += blockId * WGM")
 
 
