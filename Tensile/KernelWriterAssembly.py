@@ -2497,7 +2497,7 @@ class KernelWriterAssembly(KernelWriter):
       # note this overwrites blockId2+1
       kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
           magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
-      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), kernel["WorkGroupMapping"], "quotient * non-magic divisor")
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), absWgm, "quotient * non-magic divisor")
       kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr("WorkGroup1"), sgpr(wgSerial2), "WorkGroup1=remainder")
       kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
       kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
