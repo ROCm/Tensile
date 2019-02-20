@@ -1,0 +1,4 @@
+[style]
+based_on_style: pep8
+use_tabs: false
+column_limit: 50
