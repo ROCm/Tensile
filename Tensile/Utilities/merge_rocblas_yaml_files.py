@@ -224,6 +224,14 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
   solutionList = origionalLibraryLogic.solutionStates
   solutionListExact = exactLibraryLogic.solutionStates
 
+  indexKey = "SolutionIndex"
+  # zero out solution indexes
+  for solution in solutionList:
+    solution[indexKey] = 0
+  
+  for solution in solutionListExact:
+    solution[indexKey] = 0
+
   newSolutionOffset = len(solutionList)
 
   filterdSolutionExactList = []
@@ -282,6 +290,13 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
 
   for logicMapping in filteredExactLogicExact:
     mergedExactLogic.append(logicMapping)
+
+  # re index solutions
+  index = 0
+  for solution in mergedSolutionList:
+    solution[indexKey] = index
+    index += 1
+
 
   mergedLibraryLogic.versionString = origionalLibraryLogic.versionString
   mergedLibraryLogic.scheduleName = origionalLibraryLogic.scheduleName
