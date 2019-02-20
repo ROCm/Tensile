@@ -38,93 +38,73 @@
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
-template< typename T> T tensileGetZero();
-
+template <typename T> T tensileGetZero();
 
 /*******************************************************************************
  * One Templates
  ******************************************************************************/
-template< typename T> T tensileGetOne();
-
+template <typename T> T tensileGetOne();
 
 /*******************************************************************************
  * Random Templates
  ******************************************************************************/
-template< typename T> T tensileGetRandom();
-
+template <typename T> T tensileGetRandom();
 
 /*******************************************************************************
  * Trig Templates
  ******************************************************************************/
-template< typename T> T tensileGetTrig(int i);
-
+template <typename T> T tensileGetTrig(int i);
 
 /*******************************************************************************
  * NaN Templates
  ******************************************************************************/
-template< typename T> T tensileGetNaN();
-
+template <typename T> T tensileGetNaN();
 
 /*******************************************************************************
  * Integer Templates
  ******************************************************************************/
-template< typename T> T tensileGetTypeForInt( size_t s );
-
+template <typename T> T tensileGetTypeForInt(size_t s);
 
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
-template< typename Type >
-Type tensileMultiply( Type a, Type b );
-
+template <typename Type> Type tensileMultiply(Type a, Type b);
 
 /*******************************************************************************
  * Add Templates
  ******************************************************************************/
-template< typename Type >
-Type tensileAdd( Type a, Type b );
-
+template <typename Type> Type tensileAdd(Type a, Type b);
 
 /*******************************************************************************
 * Floating-Point Equals
 ******************************************************************************/
-template<typename T>
-bool tensileAlmostEqual( T a, T b);
-
+template <typename T> bool tensileAlmostEqual(T a, T b);
 
 /*******************************************************************************
 * Floating-Point Equals
 ******************************************************************************/
-template<typename T>
-bool tensileEqual( T a, T b);
-
+template <typename T> bool tensileEqual(T a, T b);
 
 /*******************************************************************************
 * Complex Conjugate
 ******************************************************************************/
-template<typename T>
-void tensileComplexConjugate(T&);
-
+template <typename T> void tensileComplexConjugate(T &);
 
 /*******************************************************************************
 * sizeOf
 ******************************************************************************/
-template<typename Type>
-size_t tensileSizeOfType();
-
+template <typename Type> size_t tensileSizeOfType();
 
 /*******************************************************************************
 * ToString
 ******************************************************************************/
-template<typename Type>
-std::string tensileToString(Type);
-
+template <typename Type> std::string tensileToString(Type);
 
 /*******************************************************************************
 * Floating-Point Equals Zero
 ******************************************************************************/
-template<typename T>
-bool tensileIsZero( T a) { return tensileAlmostEqual( a, tensileGetZero<T>());}
+template <typename T> bool tensileIsZero(T a) {
+  return tensileAlmostEqual(a, tensileGetZero<T>());
+}
 
 #endif
-

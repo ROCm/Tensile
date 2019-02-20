@@ -20,18 +20,16 @@
 *******************************************************************************/
 #include "Client.h"
 #include "DeviceStats.h"
-#include <string>
-#include <cstring>
 #include <cstdio>
-#include <iostream>
+#include <cstring>
 #include <iomanip>
-
-
+#include <iostream>
+#include <string>
 
 /*******************************************************************************
  * main
  ******************************************************************************/
-int main( int argc, char *argv[] ) {
+int main(int argc, char *argv[]) {
   if (sizeof(size_t) != 8) {
     std::cout << "WARNING: Executable not 64-bit." << std::endl;
   }
@@ -51,16 +49,19 @@ int main( int argc, char *argv[] ) {
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
   if (dataTypeEnum == enum_TensileInt8x4) {
-    std::cout << "Tensile Client Columns: GOps (clock-normalized), GOps (raw), SolName, KernelMs, ";
-  }
-  else {
-    std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops (raw), SolName, KernelMs, ";
+    std::cout << "Tensile Client Columns: GOps (clock-normalized), GOps (raw), "
+                 "SolName, KernelMs, ";
+  } else {
+    std::cout << "Tensile Client Columns: GFlops (clock-normalized), GFlops "
+                 "(raw), SolName, KernelMs, ";
   }
 #if Tensile_CLIENT_LIBRARY
   std::cout << "ApiUs, ";
 #endif
-  std::cout << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total, TimeStamp" << std::endl;
-  switch(dataTypeEnum) {
+  std::cout
+      << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total, TimeStamp"
+      << std::endl;
+  switch (dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
     float *initialD_float;
@@ -72,24 +73,26 @@ int main( int argc, char *argv[] ) {
     float *referenceC_float;
     float *deviceOnHostD_float;
     float *deviceOnHostC_float;
-    initData(&initialD_float, &initialC_float, &initialA_float, &initialB_float, &alpha_float,
-        &beta_float, &referenceC_float, &deviceOnHostD_float, &deviceOnHostC_float);
+    initData(&initialD_float, &initialC_float, &initialA_float, &initialB_float,
+             &alpha_float, &beta_float, &referenceC_float, &deviceOnHostD_float,
+             &deviceOnHostC_float);
 
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_float, initialC_float, initialA_float,
-          initialB_float, alpha_float, beta_float, referenceC_float,
-          deviceOnHostD_float, deviceOnHostC_float);
+      invalids = benchmarkProblemSizes(
+          initialD_float, initialC_float, initialA_float, initialB_float,
+          alpha_float, beta_float, referenceC_float, deviceOnHostD_float,
+          deviceOnHostC_float);
 #else
-      invalids = callLibrary(initialD_float, initialC_float, initialA_float, initialB_float,
-          alpha_float, beta_float, strideA, strideB, strideC, referenceC_float, 
-          deviceOnHostD_float, deviceOnHostC_float);
+      invalids = callLibrary(initialD_float, initialC_float, initialA_float,
+                             initialB_float, alpha_float, beta_float, strideA,
+                             strideB, strideC, referenceC_float,
+                             deviceOnHostD_float, deviceOnHostC_float);
 #endif
     }
     destroyData(initialD_float, initialC_float, initialA_float, initialB_float,
-        referenceC_float, deviceOnHostD_float, deviceOnHostC_float);
-    }
-    break;
+                referenceC_float, deviceOnHostD_float, deviceOnHostC_float);
+  } break;
 #endif
 #ifdef Tensile_DATA_TYPE_DOUBLE
   case enum_double: {
@@ -102,23 +105,26 @@ int main( int argc, char *argv[] ) {
     double *referenceC_double;
     double *deviceOnHostD_double;
     double *deviceOnHostC_double;
-    initData(&initialD_double, &initialC_double, &initialA_double, &initialB_double,
-        &alpha_double, &beta_double, &referenceC_double, &deviceOnHostD_double, &deviceOnHostC_double);
+    initData(&initialD_double, &initialC_double, &initialA_double,
+             &initialB_double, &alpha_double, &beta_double, &referenceC_double,
+             &deviceOnHostD_double, &deviceOnHostC_double);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_double, initialC_double, initialA_double,
-          initialB_double, alpha_double, beta_double, referenceC_double,
-          deviceOnHostD_double, deviceOnHostC_double);
+      invalids = benchmarkProblemSizes(
+          initialD_double, initialC_double, initialA_double, initialB_double,
+          alpha_double, beta_double, referenceC_double, deviceOnHostD_double,
+          deviceOnHostC_double);
 #else
-      invalids = callLibrary(initialD_double, initialC_double, initialA_double, initialB_double,
-          alpha_double, beta_double, strideA, strideB, strideC, referenceC_double,
-          deviceOnHostD_double, deviceOnHostC_double);
+      invalids = callLibrary(initialD_double, initialC_double, initialA_double,
+                             initialB_double, alpha_double, beta_double,
+                             strideA, strideB, strideC, referenceC_double,
+                             deviceOnHostD_double, deviceOnHostC_double);
 #endif
     }
-    destroyData(initialD_double, initialC_double, initialA_double, initialB_double,
-        referenceC_double, deviceOnHostD_double, deviceOnHostC_double);
-    }
-    break;
+    destroyData(initialD_double, initialC_double, initialA_double,
+                initialB_double, referenceC_double, deviceOnHostD_double,
+                deviceOnHostC_double);
+  } break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXFLOAT
   case enum_TensileComplexFloat: {
@@ -131,22 +137,24 @@ int main( int argc, char *argv[] ) {
     TensileComplexFloat *referenceC_TCF;
     TensileComplexFloat *deviceOnHostD_TCF;
     TensileComplexFloat *deviceOnHostC_TCF;
-    initData(&initialD_TCF, &initialC_TCF, &initialA_TCF, &initialB_TCF, &alpha_TCF,
-        &beta_TCF, &referenceC_TCF, &deviceOnHostD_TCF, &deviceOnHostC_TCF);
+    initData(&initialD_TCF, &initialC_TCF, &initialA_TCF, &initialB_TCF,
+             &alpha_TCF, &beta_TCF, &referenceC_TCF, &deviceOnHostD_TCF,
+             &deviceOnHostC_TCF);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
+      invalids = benchmarkProblemSizes(
+          initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
+          beta_TCF, referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
 #else
-      invalids = callLibrary(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, strideA, strideB, strideC, referenceC_TCF,
-          deviceOnHostD_TCF, deviceOnHostC_TCF);
+      invalids =
+          callLibrary(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
+                      alpha_TCF, beta_TCF, strideA, strideB, strideC,
+                      referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
 #endif
     }
-    destroyData(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
-        deviceOnHostD_TCF, deviceOnHostC_TCF);
-    }
-    break;
+    destroyData(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
+                referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
+  } break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXDOUBLE
   case enum_TensileComplexDouble: {
@@ -159,22 +167,24 @@ int main( int argc, char *argv[] ) {
     TensileComplexDouble *referenceC_TCD;
     TensileComplexDouble *deviceOnHostD_TCD;
     TensileComplexDouble *deviceOnHostC_TCD;
-    initData(&initialD_TCD, &initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
-        &beta_TCD, &referenceC_TCD, &deviceOnHostD_TCD, &deviceOnHostC_TCD);
+    initData(&initialD_TCD, &initialC_TCD, &initialA_TCD, &initialB_TCD,
+             &alpha_TCD, &beta_TCD, &referenceC_TCD, &deviceOnHostD_TCD,
+             &deviceOnHostC_TCD);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
+      invalids = benchmarkProblemSizes(
+          initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
+          beta_TCD, referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
 #else
-      invalids = callLibrary(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, strideA, strideB, strideC, referenceC_TCD,
-          deviceOnHostD_TCD, deviceOnHostC_TCD);
+      invalids =
+          callLibrary(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
+                      alpha_TCD, beta_TCD, strideA, strideB, strideC,
+                      referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
 #endif
     }
-    destroyData(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
-        deviceOnHostD_TCD, deviceOnHostC_TCD);
-    }
-    break;
+    destroyData(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
+                referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
+  } break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILEHALF
   case enum_TensileHalf: {
@@ -188,26 +198,25 @@ int main( int argc, char *argv[] ) {
     TensileHalf *deviceOnHostD_TH;
     TensileHalf *deviceOnHostC_TH;
     initData(&initialD_TH, &initialC_TH, &initialA_TH, &initialB_TH, &alpha_TH,
-        &beta_TH, &referenceC_TH, &deviceOnHostD_TH, &deviceOnHostC_TH);
+             &beta_TH, &referenceC_TH, &deviceOnHostD_TH, &deviceOnHostC_TH);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
+      invalids = benchmarkProblemSizes(
+          initialD_TH, initialC_TH, initialA_TH, initialB_TH, alpha_TH, beta_TH,
+          referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
 #else
       invalids = callLibrary(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, strideA, strideB, strideC, referenceC_TH,
-          deviceOnHostD_TH, deviceOnHostC_TH);
+                             alpha_TH, beta_TH, strideA, strideB, strideC,
+                             referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
 #endif
     }
-    destroyData(initialD_TH, initialC_TH, initialA_TH, initialB_TH, referenceC_TH,
-        deviceOnHostD_TH, deviceOnHostC_TH);
-    }
-    break;
+    destroyData(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
+                referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
+  } break;
 #endif
 
-
-//TODO: define Tensile_DATA_TYPE_TENSILEINT
-//#ifdef Tensile_DATA_TYPE_TENSILEINT
+  // TODO: define Tensile_DATA_TYPE_TENSILEINT
+  //#ifdef Tensile_DATA_TYPE_TENSILEINT
   case enum_TensileInt8x4: {
     TensileInt32 *initialD_TI;
     TensileInt32 *initialC_TI;
@@ -219,39 +228,40 @@ int main( int argc, char *argv[] ) {
     TensileInt32 *deviceOnHostD_TI;
     TensileInt32 *deviceOnHostC_TI;
     initData(&initialD_TI, &initialC_TI, &initialA_TI, &initialB_TI, &alpha_TI,
-        &beta_TI, &referenceC_TI, &deviceOnHostD_TI, &deviceOnHostC_TI);
+             &beta_TI, &referenceC_TI, &deviceOnHostD_TI, &deviceOnHostC_TI);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
-          alpha_TI, beta_TI, referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
+      invalids = benchmarkProblemSizes(
+          initialD_TI, initialC_TI, initialA_TI, initialB_TI, alpha_TI, beta_TI,
+          referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
 #else
       invalids = callLibrary(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
-          alpha_TI, beta_TI, strideA, strideB, strideC, referenceC_TI,
-          deviceOnHostD_TI, deviceOnHostC_TI);
+                             alpha_TI, beta_TI, strideA, strideB, strideC,
+                             referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
 #endif
     }
-    destroyData(initialD_TI, initialC_TI, initialA_TI, initialB_TI, referenceC_TI,
-        deviceOnHostD_TI, deviceOnHostC_TI);
-    }
-    break;
-//#endif
-
+    destroyData(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
+                referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
+  } break;
+  //#endif
 
   default:
     break;
     // nothing
-
   }
 
   // cleanup
   destroyControls();
   if (dataTypeEnum == enum_TensileInt8x4) {
-    std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GOP/s " << globalFastestTime/1000.0f << " us by ("
-    << globalFastestIdx << ") ";
-  }
-  else {
-    std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GFlop/s " << globalFastestTime/1000.0f << " us by ("
-    << globalFastestIdx << ") ";
+    std::cout << std::endl
+              << "Fastest: " << globalFastestGFlops << " GOP/s "
+              << globalFastestTime / 1000.0f << " us by (" << globalFastestIdx
+              << ") ";
+  } else {
+    std::cout << std::endl
+              << "Fastest: " << globalFastestGFlops << " GFlop/s "
+              << globalFastestTime / 1000.0f << " us by (" << globalFastestIdx
+              << ") ";
   }
 #if Tensile_CLIENT_BENCHMARK
   std::cout << solutions[fastestIdx]._name;
@@ -261,11 +271,14 @@ int main( int argc, char *argv[] ) {
   std::cout << std::endl;
   if (invalids) {
 #if Tensile_CLIENT_BENCHMARK
-    printf("\nInvalid Solutions: %u/%u\n", static_cast<unsigned int>(invalidSolutions.size()), numSolutions);
+    printf("\nInvalid Solutions: %u/%u\n",
+           static_cast<unsigned int>(invalidSolutions.size()), numSolutions);
     // for (unsigned int i = 0; i < numInvalidSolutions; i++) {
-    for (std::set<unsigned int>::iterator i = invalidSolutions.begin(); i != invalidSolutions.end(); i++) {
+    for (std::set<unsigned int>::iterator i = invalidSolutions.begin();
+         i != invalidSolutions.end(); i++) {
       unsigned int invalidSolutionIdx = *i;
-      printf("[%2u] %s\n", invalidSolutionIdx, solutions[invalidSolutionIdx]._name);
+      printf("[%2u] %s\n", invalidSolutionIdx,
+             solutions[invalidSolutionIdx]._name);
     }
 #endif
     return EXIT_FAILURE;
@@ -273,8 +286,6 @@ int main( int argc, char *argv[] ) {
     return EXIT_SUCCESS;
   }
 } // main
-
-
 
 /*******************************************************************************
  * init controls
@@ -286,7 +297,7 @@ void initControls() {
   status = clGetPlatformIDs(0, NULL, &numPlatforms);
   if (platformIdx >= numPlatforms) {
     std::cout << "Platform " << platformIdx << "/" << numPlatforms << " invalid"
-        << std::endl;
+              << std::endl;
     exit(1);
   }
   tensileStatusCheck(status);
@@ -297,30 +308,30 @@ void initControls() {
   status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
   if (deviceIdx >= numDevices) {
     std::cout << "Device " << deviceIdx << "/" << numDevices << " invalid"
-        << std::endl;
+              << std::endl;
     exit(1);
   }
   tensileStatusCheck(status);
   cl_device_id *devices = new cl_device_id[numDevices];
-  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices,
-      NULL);
+  status =
+      clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
   tensileStatusCheck(status);
   device = devices[deviceIdx];
   size_t nameLength;
-  status = clGetDeviceInfo( device, CL_DEVICE_NAME, 0, NULL, &nameLength );
+  status = clGetDeviceInfo(device, CL_DEVICE_NAME, 0, NULL, &nameLength);
   tensileStatusCheck(status);
-  char *deviceName = new char[nameLength+1];
-  status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
+  char *deviceName = new char[nameLength + 1];
+  status = clGetDeviceInfo(device, CL_DEVICE_NAME, nameLength, deviceName, 0);
   tensileStatusCheck(status);
   std::cout << "Device: \"" << deviceName << "\"" << std::endl;
   context = clCreateContext(NULL, 1, &device, NULL, NULL, &status);
   tensileStatusCheck(status);
 
   if (useGPUTimer) {
-      stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE,
-          &status);
+    stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE,
+                                  &status);
   } else {
-      stream = clCreateCommandQueue(context, device, 0x0, &status);
+    stream = clCreateCommandQueue(context, device, 0x0, &status);
   }
   tensileStatusCheck(status);
 
@@ -328,57 +339,76 @@ void initControls() {
   delete[] platforms;
 #elif Tensile_RUNTIME_LANGUAGE_HIP
   int numDevices;
-  status = hipGetDeviceCount( &numDevices );
+  status = hipGetDeviceCount(&numDevices);
   if (deviceIdx >= static_cast<unsigned int>(numDevices)) {
     std::cout << "Device " << deviceIdx << "/" << numDevices << " invalid"
-        << std::endl;
+              << std::endl;
     exit(1);
   }
   tensileStatusCheck(status);
-  status = hipSetDevice( deviceIdx );
+  status = hipSetDevice(deviceIdx);
   tensileStatusCheck(status);
-  status = hipStreamCreate( &stream );
+  status = hipStreamCreate(&stream);
   tensileStatusCheck(status);
 
   hipDeviceProp_t deviceProperties;
-  status = hipGetDeviceProperties( &deviceProperties, deviceIdx );
+  status = hipGetDeviceProperties(&deviceProperties, deviceIdx);
   tensileStatusCheck(status);
   expectedClockRate = deviceProperties.clockRate / 1000;
-  size_t bandwidth = (size_t) deviceProperties.memoryClockRate * deviceProperties.memoryBusWidth * 2 / (8 * 1000 * 1000);
-  size_t compute = (size_t) deviceProperties.clockRate * deviceProperties.multiProcessorCount * 2 * 64 / (1000 * 1000);
-  std::cout << "################################################################################" << std::endl;
-  std::cout << "# Device[" << deviceIdx << "]: " << deviceProperties.name << " (gfx" << deviceProperties.gcnArch << ")" << std::endl;
-  std::cout << "# Compute:   " << compute << " GFlop/s (" << deviceProperties.multiProcessorCount << " CUs @ " << deviceProperties.clockRate/1000 << " MHz)" << std::endl;
-  std::cout << "# Bandwidth: " << bandwidth << " GB/s (" << deviceProperties.memoryBusWidth << "-bit @ " << deviceProperties.memoryClockRate/1000 << " MHz)" << std::endl;
-  std::cout << "################################################################################" << std::endl;
+  size_t bandwidth = (size_t)deviceProperties.memoryClockRate *
+                     deviceProperties.memoryBusWidth * 2 / (8 * 1000 * 1000);
+  size_t compute = (size_t)deviceProperties.clockRate *
+                   deviceProperties.multiProcessorCount * 2 * 64 /
+                   (1000 * 1000);
+  std::cout << "###############################################################"
+               "#################"
+            << std::endl;
+  std::cout << "# Device[" << deviceIdx << "]: " << deviceProperties.name
+            << " (gfx" << deviceProperties.gcnArch << ")" << std::endl;
+  std::cout << "# Compute:   " << compute << " GFlop/s ("
+            << deviceProperties.multiProcessorCount << " CUs @ "
+            << deviceProperties.clockRate / 1000 << " MHz)" << std::endl;
+  std::cout << "# Bandwidth: " << bandwidth << " GB/s ("
+            << deviceProperties.memoryBusWidth << "-bit @ "
+            << deviceProperties.memoryClockRate / 1000 << " MHz)" << std::endl;
+  std::cout << "###############################################################"
+               "#################"
+            << std::endl;
   /*
-  std::cout << "# TotalGlobalMem: " << deviceProperties.totalGlobalMem << std::endl;
-  std::cout << "# SharedMemPerBlock: " << deviceProperties.sharedMemPerBlock << std::endl;
+  std::cout << "# TotalGlobalMem: " << deviceProperties.totalGlobalMem <<
+  std::endl;
+  std::cout << "# SharedMemPerBlock: " << deviceProperties.sharedMemPerBlock <<
+  std::endl;
   std::cout << "# RegsPerBlock: " << deviceProperties.regsPerBlock << std::endl;
   std::cout << "# WarpSize: " << deviceProperties.warpSize << std::endl;
-  std::cout << "# MaxThreadsPerBlock: " << deviceProperties.maxThreadsPerBlock << std::endl;
-  std::cout << "# TotalConstMem: " << deviceProperties.totalConstMem << std::endl;
+  std::cout << "# MaxThreadsPerBlock: " << deviceProperties.maxThreadsPerBlock
+  << std::endl;
+  std::cout << "# TotalConstMem: " << deviceProperties.totalConstMem <<
+  std::endl;
   std::cout << "# Major: " << deviceProperties.major << std::endl;
   std::cout << "# Minor: " << deviceProperties.minor << std::endl;
   std::cout << "# L2CacheSize: " << deviceProperties.l2CacheSize << std::endl;
-  std::cout << "# MaxThreadsPerMultiProcessor: " << deviceProperties.maxThreadsPerMultiProcessor << std::endl;
+  std::cout << "# MaxThreadsPerMultiProcessor: " <<
+  deviceProperties.maxThreadsPerMultiProcessor << std::endl;
   std::cout << "# ComputeMode: " << deviceProperties.computeMode << std::endl;
-  std::cout << "# ClockInstructionRate: " << deviceProperties.clockInstructionRate << std::endl;
+  std::cout << "# ClockInstructionRate: " <<
+  deviceProperties.clockInstructionRate << std::endl;
   std::cout << "# PCIDomainID: " << deviceProperties.pciDomainID << std::endl;
   std::cout << "# PCIBusID: " << deviceProperties.pciBusID << std::endl;
   std::cout << "# PCIDeviceID: " << deviceProperties.pciDeviceID << std::endl;
-  std::cout << "# MaxSharedMemoryPerMultiProcessor: " << deviceProperties.maxSharedMemoryPerMultiProcessor << std::endl;
-  std::cout << "# IsMultiGpuBoard: " << deviceProperties.isMultiGpuBoard << std::endl;
-  std::cout << "# CanMapHostMemory: " << deviceProperties.canMapHostMemory << std::endl;
+  std::cout << "# MaxSharedMemoryPerMultiProcessor: " <<
+  deviceProperties.maxSharedMemoryPerMultiProcessor << std::endl;
+  std::cout << "# IsMultiGpuBoard: " << deviceProperties.isMultiGpuBoard <<
+  std::endl;
+  std::cout << "# CanMapHostMemory: " << deviceProperties.canMapHostMemory <<
+  std::endl;
   std::cout << "# GCNArch: " << deviceProperties.gcnArch << std::endl;
   */
 
   // prepare to report device stats
   tensileInitDeviceStats();
 #endif
-
 }
-
 
 /*******************************************************************************
  * destroy controls
