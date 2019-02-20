@@ -102,6 +102,24 @@ namespace llvm
 
         namespace sn = Tensile::Serialization;
 
+        template<>
+        struct ScalarTraits<size_t> {
+          static void output(const size_t &value, void * ctx, raw_ostream & stream)
+          {
+              uint64_t tmp = value;
+              ScalarTraits<uint64_t>::output(tmp, ctx, stream);
+          }
+
+          static StringRef input(StringRef str, void * ctx, size_t & value)
+          {
+              uint64_t tmp;
+              auto rv = ScalarTraits<uint64_t>::input(str, ctx, tmp);
+              value = tmp;
+              return rv;
+          }
+
+          static bool mustQuote(StringRef) { return false; }
+        };
 
         template <>
         struct MappingTraits<Tensile::GEMMSolution>

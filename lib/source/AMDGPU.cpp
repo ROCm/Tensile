@@ -67,5 +67,7 @@ namespace Tensile
         std::ostringstream rv;
 
         rv << deviceName << "(" << computeUnitCount << "-CU " << processor << ")";
+
+        return rv.str();
     }
 }

@@ -28,11 +28,62 @@
 
 #include <Tensile/Tensile.hpp>
 #include <Tensile/GEMMLibrary.hpp>
+#include <Tensile/AMDGPU.hpp>
 
 using namespace Tensile;
 
-TEST(GEMMLibraryLoadingTest, Single)
+TEST(GEMMLibraryLoadingTest, Simple)
 {
     auto library = LoadLibraryFile<GEMMProblem, GEMMSolution>("test/sample_library.yaml");
+
+    ASSERT_NE(library, nullptr);
+}
+
+TEST(GEMMLibraryLoadingTest, MultipleKernels)
+{
+    auto library = LoadLibraryFile<GEMMProblem, GEMMSolution>("configs/TensileKernels.yaml");
+    ASSERT_NE(library, nullptr);
+
+    AMDGPU hardware;
+
+    {
+        GEMMProblem p = GEMMProblem::FromBLAS(false, false, 4, 4, 4, 4, 4, 4, true, false, 2);
+
+        auto solution = library->findBestSolution(p, hardware);
+
+        ASSERT_NE(solution, nullptr);
+        EXPECT_EQ(solution->name(), "Cijk_Ailk_Bljk_SB_MT128x128x08_K1");
+
+    }
+
+    {
+        GEMMProblem p = GEMMProblem::FromBLAS(false,  true, 4, 4, 4, 4, 4, 4, true, false, 2);
+
+        auto solution = library->findBestSolution(p, hardware);
+
+        ASSERT_NE(solution, nullptr);
+        EXPECT_EQ(solution->name(), "Cijk_Ailk_Bjlk_SB_MT128x128x08_K1");
+
+    }
+
+    {
+        GEMMProblem p = GEMMProblem::FromBLAS( true, false, 4, 4, 4, 4, 4, 4, true, false, 2);
+
+        auto solution = library->findBestSolution(p, hardware);
+
+        ASSERT_NE(solution, nullptr);
+        EXPECT_EQ(solution->name(), "Cijk_Alik_Bljk_SB_MT128x128x08_K1");
+
+    }
+
+    {
+        GEMMProblem p = GEMMProblem::FromBLAS( true,  true, 4, 4, 4, 4, 4, 4, true, false, 2);
+
+        auto solution = library->findBestSolution(p, hardware);
+
+        ASSERT_NE(solution, nullptr);
+        EXPECT_EQ(solution->name(), "Cijk_Alik_Bjlk_SB_MT128x128x08_K1");
+
+    }
 }
 

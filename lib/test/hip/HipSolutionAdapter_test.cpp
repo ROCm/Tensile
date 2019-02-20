@@ -259,7 +259,7 @@ INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, GEMMTest,
                           GEMMProblem::FromBLAS( true, false,  234,  123,  634,  768,  768,  249, true, false, 12),
                           GEMMProblem::FromBLAS( true,  true,  234,  123,  634,  768,  768,  249, true, false, 12),
                           GEMMProblem::FromBLAS(false, false,    4,    4,    6,    4,    6,    4, true, false,  2),
-                          GEMMProblem::FromBLAS(false,  true,    4,    4,    6,    4,    4,    4, true, false,  1),
+                          GEMMProblem::FromBLAS(false,  true,    4,    4,    6,    4,    4,    4, true, false,  2),
                           GEMMProblem::FromBLAS( true, false,    4,    4,    6,    6,    6,    4, true, false,  2),
                           GEMMProblem::FromBLAS( true,  true,    4,    4,    6,    6,    4,    4, true, false,  2)
                           ));

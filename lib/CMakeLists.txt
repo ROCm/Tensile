@@ -6,7 +6,7 @@ find_package(HIP CONFIG PATHS /opt/rocm/hip)
 #message(${HIP_HIPCC_EXECUTABLE})
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
-find_package(LLVM)
+find_package(LLVM REQUIRED CONFIG)
 
 #set(HIP_FOUND 1)
 
@@ -31,9 +31,10 @@ add_library (Tensile STATIC ${tensile_sources})
 
 target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
 
+add_subdirectory(configs)
+
 if(HIP_FOUND)
     add_subdirectory(source/hip)
-    add_subdirectory(configs)
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} TensileHip )
 endif()
 
