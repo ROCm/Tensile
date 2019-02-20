@@ -28,6 +28,8 @@ namespace Tensile
     template <typename T>
     struct vector2
     {
+        vector2() = default;
+        vector2(T _x, T _y) : x(_x), y(_y) {}
         enum { count = 2 };
 
         T x;
@@ -49,6 +51,9 @@ namespace Tensile
     template <typename T>
     struct vector3
     {
+        vector3() = default;
+        vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
+
         enum { count = 3 };
 
         T x;
@@ -71,6 +76,9 @@ namespace Tensile
     template <typename T>
     struct vector4
     {
+        vector4() = default;
+        vector4(T _x, T _y, T _z, T _w) : x(_x), y(_y), z(_z), w(_w) {}
+
         enum { count = 4 };
 
         T x;

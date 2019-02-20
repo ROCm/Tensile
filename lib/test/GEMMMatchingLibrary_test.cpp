@@ -24,23 +24,16 @@
  *
  *******************************************************************************/
 
-#pragma once
+#include <gtest/gtest.h>
 
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/AMDGPU.hpp>
+#include <Tensile/AMDGPUPredicates.hpp>
+#include <Tensile/GEMMLibrary.hpp>
 
-namespace Tensile
+using namespace Tensile;
+
+TEST(GEMMMatchingLibraryTest, Simple)
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem, GEMMSolution>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
 
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
 }
 

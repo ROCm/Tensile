@@ -26,6 +26,9 @@
 
 #include <gtest/gtest.h>
 
+#include <Tensile/SolutionLibrary.hpp>
+
+#include <Tensile/hip/HipHardware.hpp>
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
@@ -62,6 +65,7 @@ struct GEMMTest: public ::testing::TestWithParam<GEMMProblem>
 
 	void SetUp() override
 	{
+        HIP_CHECK_EXC(hipSetDevice(0));
         GEMMProblem problem = GetParam();
 
         a_h.resize(problem.a.totalAllocatedElements());
@@ -73,6 +77,11 @@ struct GEMMTest: public ::testing::TestWithParam<GEMMProblem>
         InitTensor(b_h.data(), problem.b, RandomAlternatingInt<float>());
         InitTensor(c_h.data(), problem.c, RandomInt<float>());
         InitTensor(d_h.data(), problem.d, RandomInt<float>());
+
+        //InitTensor(a_h.data(), problem.a, Iota<float>());
+        //InitTensor(b_h.data(), problem.b, Iota<float>());
+        //InitTensor(c_h.data(), problem.c, RandomInt<float>());
+        //InitTensor(d_h.data(), problem.d, RandomInt<float>());
 
         d_ref_h = c_h;
 
@@ -99,7 +108,8 @@ struct GEMMTest: public ::testing::TestWithParam<GEMMProblem>
         else
             inputs.beta = 0;
 
-        hardware = std::make_shared<AMDGPU>();
+        hardware = hip::GetCurrentDevice();
+        ASSERT_NE(hardware, nullptr);
 
         rocblas_handle roc = nullptr;
         ASSERT_RB(rocblas_create_handle(&roc));
@@ -110,7 +120,10 @@ struct GEMMTest: public ::testing::TestWithParam<GEMMProblem>
             size_t b_offset = problem.b.index(0,0,i);
             size_t d_offset = problem.d.index(0,0,i);
 
-            ASSERT_RB(rocblas_sgemm(roc, rocblas_operation_none, rocblas_operation_none,
+            auto transA = problem.a.dimensionOrder() == std::vector<size_t>{0,1,2} ? rocblas_operation_none : rocblas_operation_transpose;
+            auto transB = problem.b.dimensionOrder() == std::vector<size_t>{0,1,2} ? rocblas_operation_none : rocblas_operation_transpose;
+
+            ASSERT_RB(rocblas_sgemm(roc, transA, transB,
                                     problem.blas_m(), problem.blas_n(), problem.blas_k(),
                                     &inputs.alpha, a_d + a_offset, problem.a.storedStride(1),
                                     b_d + b_offset, problem.b.storedStride(1),
@@ -130,12 +143,20 @@ struct GEMMTest: public ::testing::TestWithParam<GEMMProblem>
         hipFree(c_d);
         hipFree(d_d);
         hipFree(d_ref_d);
+
+        hipDeviceReset();
     }
 };
 
 TEST_P(GEMMTest, Simple)
 {
     GEMMProblem problem = GetParam();
+
+    if(problem.a.dimensionOrder() != std::vector<size_t>{0,1,2})
+        return;
+    if(problem.b.dimensionOrder() != std::vector<size_t>{0,1,2})
+        return;
+
     GEMMSolution solution;
 
     solution.kernelName = "Cijk_Ailk_Bljk_SB_MT128x128x08_K1";
@@ -146,9 +167,60 @@ TEST_P(GEMMTest, Simple)
 
     std::vector<KernelInvocation> result = solution.solve(problem, inputs, *hardware);
 
-    hip::SolutionAdapter adapter;
+    hip::SolutionAdapter adapter(false);
     adapter.loadCodeObjectFile(
-            "test/code_object/1_BenchmarkProblems/Cijk_Ailk_Bljk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bljk_SB_MT128x128x08_K1.co");
+            "test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bljk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bljk_SB_MT128x128x08_K1.co");
+
+    adapter.launchKernels(result);
+
+    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d.totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+    //std::cout << "A:";
+    //WriteTensor(std::cout, a_h.data(), problem.a);
+
+    //std::cout << "B:";
+    //WriteTensor(std::cout, b_h.data(), problem.b);
+
+    //std::cout << "C Input:";
+    //WriteTensor(std::cout, c_h.data(), problem.c);
+
+    //std::cout << "C Reference:";
+    //WriteTensor(std::cout, d_ref_h.data(), problem.d);
+
+    //std::cout << "C Result:";
+    //WriteTensor(std::cout, d_h.data(), problem.c);
+
+    for(int i = 0; i < d_ref_h.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]);
+    }
+}
+
+TEST_P(GEMMTest, Library)
+{
+    GEMMProblem problem = GetParam();
+    auto library = LoadLibraryFile<GEMMProblem, GEMMSolution>("configs/TensileKernels.yaml");
+
+    ASSERT_NE(library, nullptr);
+
+    auto solution = library->findBestSolution(problem, *hardware);
+
+    ASSERT_NE(solution, nullptr);
+
+    //GEMMSolution solution;
+
+    //solution.kernelName = "Cijk_Ailk_Bljk_SB_MT128x128x08_K1";
+
+    //solution.workGroupSize = Tensile::dim3{256,1,1};
+    //solution.macroTile = Tensile::dim3{128,128,1};
+    //solution.debugKernel = false;
+
+    std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+    hip::SolutionAdapter adapter(false);
+    adapter.loadCodeObjectFile(
+            //"test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bljk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bljk_SB_MT128x128x08_K1.co");
+            "configs/TensileKernels.co");
 
     adapter.launchKernels(result);
 
@@ -176,8 +248,20 @@ TEST_P(GEMMTest, Simple)
 }
 
 INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, GEMMTest,
-        ::testing::Values(GEMMProblem::FromBLAS(false, false,  234,  123,  634,  245,  768,  249, true, false, 12),
+        ::testing::Values(
                           //GEMMProblem::FromBLAS(false, false, 5760, 5760, 5760, 5760, 5760, 5760, true, false,  4),
-                          GEMMProblem::FromBLAS(false, false,    4,    4,    6,    4,    6,    4, true, false,  2)));
+                          //GEMMProblem::FromBLAS(false,  true, 5760, 5760, 5760, 5760, 5760, 5760, true, false,  4),
+                          //GEMMProblem::FromBLAS( true, false, 5760, 5760, 5760, 5760, 5760, 5760, true, false,  4),
+                          //GEMMProblem::FromBLAS( true,  true, 5760, 5760, 5760, 5760, 5760, 5760, true, false,  4),
+
+                          GEMMProblem::FromBLAS(false, false,  234,  123,  634,  245,  768,  249, true, false, 12),
+                          GEMMProblem::FromBLAS(false,  true,  234,  123,  634,  245,  768,  249, true, false, 12),
+                          GEMMProblem::FromBLAS( true, false,  234,  123,  634,  768,  768,  249, true, false, 12),
+                          GEMMProblem::FromBLAS( true,  true,  234,  123,  634,  768,  768,  249, true, false, 12),
+                          GEMMProblem::FromBLAS(false, false,    4,    4,    6,    4,    6,    4, true, false,  2),
+                          GEMMProblem::FromBLAS(false,  true,    4,    4,    6,    4,    4,    4, true, false,  1),
+                          GEMMProblem::FromBLAS( true, false,    4,    4,    6,    6,    6,    4, true, false,  2),
+                          GEMMProblem::FromBLAS( true,  true,    4,    4,    6,    6,    4,    4, true, false,  2)
+                          ));
 
 

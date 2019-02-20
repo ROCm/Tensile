@@ -27,8 +27,6 @@
 #include <unordered_map>
 #include <vector>
 
-using namespace std::string_literals;
-
 namespace Tensile
 {
 
@@ -100,26 +98,26 @@ namespace Tensile
         auto it = m_argRecords.find(name);
         if(it == m_argRecords.end())
         {
-            throw std::runtime_error("Attempt to bind unknown argument "s + name);
+            throw std::runtime_error("Attempt to bind unknown argument " + name);
         }
 
         auto & record = it->second;
 
         if(std::get<ArgBound>(record))
         {
-            throw std::runtime_error("Attempt to bind already bound argument "s + name);
+            throw std::runtime_error("Attempt to bind already bound argument " + name);
         }
 
         if(sizeof(T) != std::get<ArgSize>(record))
         {
-            throw std::runtime_error("Size mismatch in binding argument "s + name);
+            throw std::runtime_error("Size mismatch in binding argument " + name);
         }
 
         size_t offset = std::get<ArgOffset>(record);
 
         if(offset % alignof(T) != 0)
         {
-            throw std::runtime_error("Alignment error in argument "s + name + ": type mismatch?");
+            throw std::runtime_error("Alignment error in argument " + name + ": type mismatch?");
         }
 
         writeValue(offset, value);

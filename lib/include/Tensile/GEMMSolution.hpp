@@ -207,8 +207,11 @@ namespace Tensile
         std::string kernelName;
 
         dim3 workGroupSize;
+        dim3 threadTile;
         dim3 macroTile;
-        bool debugKernel;
+        bool debugKernel = false;
+
+        int index;
 
         int32_t staggerUIter(GEMMProblem const& problem,
                              GEMMInputs  const& inputs,

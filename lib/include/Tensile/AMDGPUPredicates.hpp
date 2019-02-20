@@ -33,41 +33,44 @@
 
 namespace Tensile
 {
-    namespace AMDGPUPredicates
+    namespace Predicates
     {
-        using namespace Tensile::Predicates;
-
-        struct ProcessorEqual: public Predicate<AMDGPU>
+        namespace GPU
         {
-            AMDGPU::Processor value;
-
-            ProcessorEqual() = default;
-            ProcessorEqual(AMDGPU::Processor p) : value(p) {}
-
-            static std::string Key() { return "ProcessorEqual"; }
-            virtual std::string key() const { return Key(); }
-
-            virtual bool operator()(AMDGPU const& gpu) const
+            struct ProcessorEqual: public Predicate<AMDGPU>
             {
-                return gpu.processor == value;
-            }
-        };
+                enum { HasValue = true };
+                AMDGPU::Processor value;
 
-        struct RunsKernelTargeting: public Predicate<AMDGPU>
-        {
-            AMDGPU::Processor value;
+                ProcessorEqual() = default;
+                ProcessorEqual(AMDGPU::Processor p) : value(p) {}
 
-            RunsKernelTargeting() = default;
-            RunsKernelTargeting(AMDGPU::Processor p) : value(p) {}
+                static std::string Key() { return "Processor"; }
+                virtual std::string key() const { return Key(); }
 
-            static std::string Key() { return "ProcessorEqual"; }
-            virtual std::string key() const { return Key(); }
+                virtual bool operator()(AMDGPU const& gpu) const
+                {
+                    return gpu.processor == value;
+                }
+            };
 
-            virtual bool operator()(AMDGPU const& gpu) const
+            struct RunsKernelTargeting: public Predicate<AMDGPU>
             {
-                return gpu.runsKernelTargeting(value);
-            }
-        };
+                enum { HasValue = true };
+                AMDGPU::Processor value;
+
+                RunsKernelTargeting() = default;
+                RunsKernelTargeting(AMDGPU::Processor p) : value(p) {}
+
+                static std::string Key() { return "TargetProcessor"; }
+                virtual std::string key() const { return Key(); }
+
+                virtual bool operator()(AMDGPU const& gpu) const
+                {
+                    return gpu.runsKernelTargeting(value);
+                }
+            };
+        }
     }
 }
 

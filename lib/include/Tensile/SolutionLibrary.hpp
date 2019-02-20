@@ -29,6 +29,8 @@
 #include <vector>
 #include <set>
 
+#include <Tensile/Tensile.hpp>
+
 namespace Tensile
 {
     template <typename MySolution>
@@ -49,11 +51,16 @@ namespace Tensile
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const = 0;
+
+        virtual std::string key() const = 0;
     };
 
     template <typename MyProblem, typename MySolution>
     struct SingleSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
+        static std::string Key() { return "Single"; }
+        std::string key() const override { return Key(); }
+
         std::shared_ptr<MySolution> solution;
 
         SingleSolutionLibrary() = default;
@@ -82,5 +89,33 @@ namespace Tensile
         }
     };
 
+    template <typename MySolution>
+    using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
+
+    template <typename MyProblem, typename MySolution>
+    struct MasterSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
+    {
+        static std::string Key() { return "Master"; }
+        std::string key() const override { return Key(); }
+
+        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
+        SolutionMap<MySolution> solutions;
+
+        MasterSolutionLibrary() = default;
+
+        virtual std::shared_ptr<MySolution>
+            findBestSolution(MyProblem const& problem,
+                             Hardware  const& hardware) const override
+        {
+            return library->findBestSolution(problem, hardware);
+        }
+
+        virtual SolutionSet<MySolution>
+            findAllSolutions(MyProblem const& problem,
+                             Hardware  const& hardware) const override
+        {
+            return library->findAllSolutions(problem, hardware);
+        }
+    };
 }
 

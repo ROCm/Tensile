@@ -2,24 +2,16 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(Tensile)
+find_package(HIP CONFIG PATHS /opt/rocm/hip)
+#message(${HIP_HIPCC_EXECUTABLE})
+#set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
-#find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
+find_package(LLVM)
 
-set(HIP_FOUND 1)
-if(HIP_FOUND)
-    add_definitions(-D__HIP_PLATFORM_HCC__)
-    set(HIP_INCLUDE_DIRS /opt/rocm/hip/include)
-    set(HIP_LIBRARIES /opt/rocm/hip/lib/libhip_hcc.so)
-    #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
-endif()
+#set(HIP_FOUND 1)
 
-set(CMAKE_CXX_STANDARD 14)
-
-if(HIP_FOUND)
-    set(tensile_sources ${tensile_sources}
-        source/hip/HipSolutionAdapter.cpp
-        source/hip/HipHardware.cpp)
-endif()
+#set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror" )
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
@@ -28,15 +20,21 @@ set(tensile_sources  ${tensile_sources}
     source/KernelArguments.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
+    source/Tensile.cpp
+    source/llvm/YAML.cpp
+    source/llvm/Loading.cpp
     )
+
+include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include" ${LLVM_INCLUDE_DIRS})
 
 add_library (Tensile STATIC ${tensile_sources})
 
-target_include_directories (Tensile PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
 
 if(HIP_FOUND)
-    target_include_directories( Tensile SYSTEM PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
-    target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} )
+    add_subdirectory(source/hip)
+    add_subdirectory(configs)
+    target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} TensileHip )
 endif()
 
 add_subdirectory(test)

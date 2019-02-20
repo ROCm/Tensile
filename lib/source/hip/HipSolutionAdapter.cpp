@@ -26,7 +26,7 @@
 
 #include <hip/hip_runtime.h>
 
-#if 1
+#if 0
 hipError_t hipHccModuleLaunchKernel(hipFunction_t f, uint32_t globalWorkSizeX,
                                     uint32_t globalWorkSizeY, uint32_t globalWorkSizeZ,
                                     uint32_t localWorkSizeX, uint32_t localWorkSizeY,
@@ -43,6 +43,11 @@ namespace Tensile
 {
     namespace hip
     {
+        SolutionAdapter::SolutionAdapter(bool debug)
+            : m_debug(debug)
+        {
+        }
+
         SolutionAdapter::~SolutionAdapter()
         {
             if(m_module)
@@ -68,6 +73,13 @@ namespace Tensile
 
         void SolutionAdapter::launchKernel(KernelInvocation const& kernel)
         {
+            if(m_debug)
+            {
+                std::cout << "Kernel " << kernel.solution->name() << std::endl;
+                std::cout << " l" << kernel.workGroupSize << " x g" << kernel.numWorkGroups << " = " << kernel.numWorkItems << std::endl;
+                std::cout << kernel.args;
+            }
+
             hipFunction_t function = getKernel(kernel.solution->name());
 
             void * kernelArgs = const_cast<void *>(kernel.args.data());

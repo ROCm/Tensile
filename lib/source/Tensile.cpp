@@ -24,56 +24,21 @@
  *
  *******************************************************************************/
 
-#pragma once
-
 #include <Tensile/Tensile.hpp>
+#include <Tensile/GEMMProblem.hpp>
+#include <Tensile/GEMMSolution.hpp>
+
+#include <Tensile/llvm/Loading.hpp>
 
 namespace Tensile
 {
-    struct AMDGPU: public Hardware
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename)
     {
-        static std::string Key() { return "AMDGPU"; }
-        virtual std::string key() const { return Key(); }
-
-        enum class Processor: int
-        {
-            gfx803 = 803,
-            gfx900 = 900,
-            gfx906 = 906
-        };
-
-        AMDGPU() = default;
-        AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
-
-        Processor   processor = Processor::gfx900;
-        int         computeUnitCount = 0;
-        std::string deviceName;
-
-        virtual bool runsKernelTargeting(Processor p) const;
-        virtual std::string description() const;
-    };
-
-    inline bool operator<(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) < static_cast<int>(r);
+        return LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
     }
 
-    inline bool operator>(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) > static_cast<int>(r);
-    }
-
-    inline bool operator<=(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) <= static_cast<int>(r);
-    }
-
-    inline bool operator>=(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) >= static_cast<int>(r);
-    }
-
-    std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
+    template
+    std::shared_ptr<SolutionLibrary<GEMMProblem, GEMMSolution>>
+    LoadLibraryFile<GEMMProblem, GEMMSolution>(std::string const& filename);
 }
-
-

@@ -26,54 +26,15 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
-
 namespace Tensile
 {
-    struct AMDGPU: public Hardware
-    {
-        static std::string Key() { return "AMDGPU"; }
-        virtual std::string key() const { return Key(); }
+    template <typename MyProblem, typename MySolution>
+    struct SolutionLibrary;
 
-        enum class Processor: int
-        {
-            gfx803 = 803,
-            gfx900 = 900,
-            gfx906 = 906
-        };
+    template <typename MyProblem, typename MySolution>
+    struct SingleSolutionLibrary;
 
-        AMDGPU() = default;
-        AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
-
-        Processor   processor = Processor::gfx900;
-        int         computeUnitCount = 0;
-        std::string deviceName;
-
-        virtual bool runsKernelTargeting(Processor p) const;
-        virtual std::string description() const;
-    };
-
-    inline bool operator<(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) < static_cast<int>(r);
-    }
-
-    inline bool operator>(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) > static_cast<int>(r);
-    }
-
-    inline bool operator<=(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) <= static_cast<int>(r);
-    }
-
-    inline bool operator>=(AMDGPU::Processor l, AMDGPU::Processor r)
-    {
-        return static_cast<int>(l) >= static_cast<int>(r);
-    }
-
-    std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
+    template <typename MyProblem, typename MySolution>
+    struct MasterSolutionLibrary;
 }
-
 

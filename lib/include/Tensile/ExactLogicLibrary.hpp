@@ -31,11 +31,15 @@
 
 namespace Tensile
 {
+    template <typename MyProblem, typename MySolution>
+    using LibraryEntry = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
+    template <typename MyProblem, typename MySolution, typename MyPredicate>
+    using LibraryRow = std::pair<MyPredicate, LibraryEntry<MyProblem, MySolution>>;
+
     template <typename MyProblem, typename MySolution, typename MyPredicate>
     struct ExactLogicLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
-        using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Row = std::pair<MyPredicate, Element>;
+        using Row = LibraryRow<MyProblem, MySolution, MyPredicate>;
         std::vector<Row> rows;
 
         ExactLogicLibrary() = default;

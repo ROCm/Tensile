@@ -52,8 +52,27 @@ namespace Tensile
         }
     };
 
+    template <typename T>
+    struct Iota
+    {
+        int value = 0;
+        int inc = 1;
+
+        Iota() = default;
+        Iota(int initial) : value(initial) {}
+        Iota(int initial, int increment) : value(initial), inc(increment) {}
+
+        template <typename... Args>
+        T operator()(Args &&...)
+        {
+            T rv = value;
+            value += inc;
+            return rv;
+        }
+    };
+
     template <typename T, typename Generator>
-    void InitTensor(T * data, TensorDescriptor const& desc, Generator g)
+    void InitTensorNoTranspose(T * data, TensorDescriptor const& desc, Generator g)
     {
         if(desc.dimensions() != 3)
             throw std::runtime_error("Fix this function to work with dimensions != 3");
@@ -74,6 +93,41 @@ namespace Tensile
                     data[baseIdx + index3[0]] = g(index3);
             }
         }
+    }
+
+    template <typename T, typename Generator>
+    void InitTensorGeneric(T * data, TensorDescriptor const& desc, Generator g)
+    {
+        if(desc.dimensions() != 3)
+            throw std::runtime_error("Fix this function to work with dimensions != 3");
+
+        std::vector<size_t> index3{0,0,0};
+
+        const size_t d0 = desc.dimensionOrder()[0];
+        const size_t d1 = desc.dimensionOrder()[1];
+        const size_t d2 = desc.dimensionOrder()[2];
+
+        for(index3[d2] = 0; index3[d2] < desc.logicalCounts()[d2]; index3[d2]++)
+        {
+            for(index3[d1] = 0; index3[d1] < desc.logicalCounts()[d1]; index3[d1]++)
+            {
+                index3[d0] = 0;
+                size_t baseIdx = desc.index(index3);
+
+                size_t i0 = 0;
+                for(; i0 < desc.logicalCounts()[d0]; i0++)
+                    data[baseIdx + i0] = g(index3);
+            }
+        }
+    }
+
+    template <typename T, typename Generator>
+    void InitTensor(T * data, TensorDescriptor const& desc, Generator g)
+    {
+        if(desc.dimensionOrder() == std::vector<size_t>{0,1,2})
+            InitTensorNoTranspose(data, desc, g);
+        else
+            InitTensorGeneric(data, desc, g);
     }
 
 }

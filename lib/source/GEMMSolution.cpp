@@ -54,6 +54,8 @@ namespace Tensile
     {
         KernelInvocation rv;
 
+        rv.args = KernelArguments(true);
+
         rv.solution = this;
 
         rv.workGroupSize = workGroupSize;

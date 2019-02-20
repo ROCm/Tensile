@@ -8,7 +8,7 @@
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
+ * Copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all
@@ -26,21 +26,28 @@
 
 #pragma once
 
-#include <Tensile/GEMMProblem.hpp>
+#include <functional>
+
 #include <Tensile/GEMMSolution.hpp>
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/Serialization/Base.hpp>
 
 namespace Tensile
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem, GEMMSolution>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
-
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
+    namespace Serialization
+    {
+        template <typename IO>
+        struct MappingTraits<GEMMSolution, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO & io, GEMMSolution & s)
+            {
+                iot::mapRequired(io, "name",       s.kernelName);
+                iot::mapRequired(io, "workGroup",  s.workGroupSize);
+                iot::mapRequired(io, "threadTile", s.threadTile);
+                iot::mapRequired(io, "macroTile",  s.macroTile);
+                iot::mapRequired(io, "index",      s.index);
+            }
+        };
+    }
 }
 

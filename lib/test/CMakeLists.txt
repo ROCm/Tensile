@@ -4,43 +4,44 @@ set(INSTALL_GTEST OFF)
 
 add_subdirectory(googletest)
 
+if(HIP_FOUND)
+set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
+endif()
+
 set(tensile_test_source
     test.cpp)
 
 set(test_sources
     test.cpp
-    GEMMLibrary_test.cpp
+    GEMMLibraryLoading_test.cpp
     GEMMProblem_test.cpp
+    GEMMSelectionLibrary_test.cpp
     GEMMSolution_test.cpp
     KernelArguments_test.cpp
     TensorDescriptor_test.cpp
+    llvm/LLVMYAML_test.cpp
 )
 
+#add_library(TensileCommonTests STATIC ${test_sources})
+
+#target_include_directories (tests PUBLIC "/opt/rocm/rocblas/include" ".")
+
+include_directories("." ${GTEST_SOURCE_DIR}/include)
+
+
+add_executable(TensileTests ${test_sources})
+
+target_link_libraries(TensileTests gtest Tensile)
+
+file(COPY sample_library.yaml DESTINATION .)
+
 if(HIP_FOUND)
-set(test_sources
-    ${test_sources}
-	hip/HipSolutionAdapter_test.cpp
-)
+    add_subdirectory(hip)
+
+    target_link_libraries(TensileTests TensileHipTests rocblas)
+    # ${HIP_LIBRARIES}
 endif()
 
-add_executable(tests ${test_sources})
-
-target_include_directories (tests PUBLIC "/opt/rocm/rocblas/include" ".")
-
-target_link_libraries(tests gtest Tensile
-                      /opt/rocm/rocblas/lib/librocblas.so)
-if(HIP_FOUND)
-    target_link_libraries(tests ${HIP_LIBRARIES} ${HSA_LIBRARIES})
-
-    set(tensile ../../../Tensile/Tensile.py) 
-    set(test_yaml hip/rocblas_sgemm_asm_single_kernel.yaml)
-    file(COPY ${test_yaml} DESTINATION hip)
-    add_custom_target(code_object
-                      COMMAND python ${tensile} ${test_yaml} code_object
-                      DEPENDS ${test_yaml}
-    )
-    #add_dependencies(tests code_object)
-endif()
 
 
 

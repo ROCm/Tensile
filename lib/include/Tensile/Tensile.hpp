@@ -31,9 +31,11 @@
 #include <string>
 #include <vector>
 
-#include "Tensile_fwd.hpp"
-#include "KernelArguments.hpp"
-#include "geom.hpp"
+#include <Tensile/Tensile_fwd.hpp>
+#include <Tensile/SolutionLibrary_fwd.hpp>
+
+#include <Tensile/KernelArguments.hpp>
+#include <Tensile/geom.hpp>
 
 namespace Tensile
 {
@@ -91,5 +93,7 @@ namespace Tensile
         virtual std::string name() const = 0;
     };
 
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename);
 }
 

@@ -26,6 +26,10 @@
 
 #pragma once
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 namespace Tensile
 {
     namespace Predicates
@@ -43,6 +47,7 @@ namespace Tensile
         class True: public Predicate<Object>
         {
         public:
+            enum { HasValue = false };
             static std::string Key() { return "True"; }
             virtual std::string key() const { return Key(); } 
 
@@ -56,6 +61,7 @@ namespace Tensile
         class False: public Predicate<Object>
         {
         public:
+            enum { HasValue = false };
             static std::string Key() { return "False"; }
             virtual std::string key() const { return Key(); } 
 
@@ -69,6 +75,7 @@ namespace Tensile
         class And: public Predicate<Object>
         {
         public:
+            enum { HasValue = true };
             std::vector<std::shared_ptr<Predicate<Object>>> value;
 
             And() = default;
@@ -89,6 +96,7 @@ namespace Tensile
         class Or: public Predicate<Object>
         {
         public:
+            enum { HasValue = true };
             std::vector<std::shared_ptr<Predicate<Object>>> value;
 
             Or() = default;
@@ -109,6 +117,7 @@ namespace Tensile
         class Not: public Predicate<Object>
         {
         public:
+            enum { HasValue = true };
             std::shared_ptr<Predicate<Object>> value;
             Not() = default;
             Not(std::shared_ptr<Predicate<Object>> init) : value(init) { }
@@ -123,17 +132,18 @@ namespace Tensile
         };
 
         template <typename Object, typename Subclass>
-        class SubclassPredicate: public Predicate<Object>
+        class IsSubclass: public Predicate<Object>
         {
         public:
+            enum { HasValue = true };
             static_assert(std::is_base_of<Object, Subclass>::value, "Subclass must be derived from Object.");
 
             std::shared_ptr<Predicate<Subclass>> value;
 
-            SubclassPredicate() = default;
-            SubclassPredicate(std::shared_ptr<Predicate<Subclass>> init) : value(init) { }
+            IsSubclass() = default;
+            IsSubclass(std::shared_ptr<Predicate<Subclass>> init) : value(init) { }
 
-            static std::string Key() { return "Subclass"; }
+            static std::string Key() { return Subclass::Key(); }
             virtual std::string key() const { return Key(); }
 
             virtual bool operator()(Object const& obj) const

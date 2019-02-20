@@ -26,21 +26,11 @@
 
 #pragma once
 
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <functional>
 
-namespace Tensile
-{
-    using GEMMLibrary = SolutionLibrary<GEMMProblem, GEMMSolution>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
-
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
-}
+#include <Tensile/Serialization/Base.hpp>
+#include <Tensile/Serialization/ExactLogicLibrary.hpp>
+#include <Tensile/Serialization/GEMMSolution.hpp>
+#include <Tensile/Serialization/Predicates.hpp>
+#include <Tensile/Serialization/SolutionLibrary.hpp>
 

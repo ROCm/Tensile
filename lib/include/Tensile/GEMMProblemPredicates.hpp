@@ -41,6 +41,7 @@ namespace Tensile
 
             struct ADimensionOrder: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 std::vector<size_t> value;
 
                 ADimensionOrder() = default;
@@ -65,6 +66,7 @@ namespace Tensile
 
             struct BDimensionOrder: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 std::vector<size_t> value;
 
                 BDimensionOrder() = default;
@@ -88,6 +90,7 @@ namespace Tensile
 
             struct CDimensionOrder: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 std::vector<size_t> value;
 
                 CDimensionOrder() = default;
@@ -111,6 +114,7 @@ namespace Tensile
 
             struct DDimensionOrder: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 std::vector<size_t> value;
 
                 DDimensionOrder() = default;
@@ -134,6 +138,7 @@ namespace Tensile
 
             struct IDivisible: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 size_t value;
 
                 IDivisible() = default;
@@ -150,6 +155,7 @@ namespace Tensile
 
             struct JDivisible: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 size_t value;
 
                 JDivisible() = default;
@@ -166,6 +172,7 @@ namespace Tensile
 
             struct KDivisible: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 size_t value;
 
                 KDivisible() = default;
@@ -182,6 +189,7 @@ namespace Tensile
 
             struct LDivisible: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 size_t value;
 
                 LDivisible() = default;
@@ -198,6 +206,7 @@ namespace Tensile
 
             struct CDStridesEqual: public Predicate<GEMMProblem>
             {
+                enum { HasValue = false };
                 static std::string Key() { return "CDStridesEqual"; }
                 virtual std::string key() const { return Key(); }
 
@@ -209,6 +218,7 @@ namespace Tensile
 
             struct LDCEqualsLDD: public Predicate<GEMMProblem>
             {
+                enum { HasValue = false };
                 static std::string Key() { return "LDCEqualsLDD"; }
                 virtual std::string key() const { return Key(); }
 
@@ -220,6 +230,7 @@ namespace Tensile
 
             struct UseBeta: public Predicate<GEMMProblem>
             {
+                enum { HasValue = true };
                 bool value;
 
                 UseBeta() = default;

@@ -37,6 +37,7 @@ namespace Tensile
         {
         public:
             SolutionAdapter() = default;
+            SolutionAdapter(bool debug);
             ~SolutionAdapter();
 
             void loadCodeObjectFile(std::string const& path);
@@ -49,6 +50,7 @@ namespace Tensile
 
             hipModule_t m_module = nullptr;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
+            bool m_debug = false;
         };
     }
 }

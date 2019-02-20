@@ -31,10 +31,11 @@
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/GEMMLibrary.hpp>
 #include <Tensile/GEMMProblemPredicates.hpp>
+#include <Tensile/llvm/YAML.hpp>
 
 using namespace Tensile;
 
-TEST(GEMMLibraryTest, Single)
+TEST(GEMMSelectionLibraryTest, Single)
 {
     std::shared_ptr<Hardware> hardware = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
 
@@ -47,7 +48,7 @@ TEST(GEMMLibraryTest, Single)
     EXPECT_EQ(lib.findBestSolution(*problem, *hardware), lib.solution);
 }
 
-TEST(GEMMLibraryTest, GPUSelection)
+TEST(GEMMSelectionLibraryTest, GPUSelection)
 {
     std::shared_ptr<Hardware> v10 = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
     std::shared_ptr<Hardware> v20 = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 60, "AMD Radeon Vega 7");
@@ -58,9 +59,9 @@ TEST(GEMMLibraryTest, GPUSelection)
     std::shared_ptr<GEMMLibrary> v20Lib = std::make_shared<SingleGEMMLibrary>(v20Solution);
     auto genericLib = std::make_shared<SingleGEMMLibrary>(genericSolution);
 
-    auto isV20 = std::make_shared<AMDGPUPredicates::ProcessorEqual>(AMDGPU::Processor::gfx906);
-    std::shared_ptr<Predicates::Predicate<Hardware>> isAMDGPUV20 = 
-        std::make_shared<Predicates::SubclassPredicate<Hardware, AMDGPU>>(isV20);
+    auto isV20 = std::make_shared<Predicates::GPU::ProcessorEqual>(AMDGPU::Processor::gfx906);
+    std::shared_ptr<Predicates::Predicate<Hardware>> isAMDGPUV20 =
+        std::make_shared<Predicates::IsSubclass<Hardware, AMDGPU>>(isV20);
     HardwarePredicate hardwareIsAMDGPUV20(isAMDGPUV20);
 
     GEMMHardwareSelectionLibrary::Row v20Row(hardwareIsAMDGPUV20, v20Lib);
@@ -78,7 +79,7 @@ TEST(GEMMLibraryTest, GPUSelection)
     EXPECT_EQ(lib.findBestSolution(*problem, *v10), genericSolution);
 }
 
-TEST(GEMMLibraryTest, TransposeSelection)
+TEST(GEMMSelectionLibraryTest, TransposeSelection)
 {
     using namespace Predicates;
     using namespace Predicates::GEMM;
@@ -87,6 +88,13 @@ TEST(GEMMLibraryTest, TransposeSelection)
     auto NTSolution = std::make_shared<GEMMSolution>();
     auto TNSolution = std::make_shared<GEMMSolution>();
     auto TTSolution = std::make_shared<GEMMSolution>();
+
+    NNSolution->index = 0;
+    NTSolution->index = 1;
+    TNSolution->index = 2;
+    TTSolution->index = 3;
+
+    SolutionMap<GEMMSolution> map({{0, NNSolution}, {1, NTSolution}, {2, TNSolution}, {3, TTSolution}});
 
     std::shared_ptr<GEMMLibrary> NNLibrary = std::make_shared<SingleGEMMLibrary>(NNSolution);
     std::shared_ptr<GEMMLibrary> NTLibrary = std::make_shared<SingleGEMMLibrary>(NTSolution);
@@ -135,7 +143,7 @@ TEST(GEMMLibraryTest, TransposeSelection)
         std::make_pair(IsTT, TTLibrary)
     };
 
-    GEMMProblemSelectionLibrary lib(rows);
+    auto lib = std::make_shared<GEMMProblemSelectionLibrary>(rows);
 
     AMDGPU gpu;
 
@@ -150,11 +158,18 @@ TEST(GEMMLibraryTest, TransposeSelection)
     auto WeirdProblemD = GEMMProblem::FromBLAS( true,  true, 4,4,4, 4,4,4, false, false, 1);
     WeirdProblemD.d.transpose(0,1);
 
-    EXPECT_EQ(lib.findBestSolution(NNProblem, gpu), NNSolution);
-    EXPECT_EQ(lib.findBestSolution(NTProblem, gpu), NTSolution);
-    EXPECT_EQ(lib.findBestSolution(TNProblem, gpu), TNSolution);
-    EXPECT_EQ(lib.findBestSolution(TTProblem, gpu), TTSolution);
+    EXPECT_EQ(lib->findBestSolution(NNProblem, gpu), NNSolution);
+    EXPECT_EQ(lib->findBestSolution(NTProblem, gpu), NTSolution);
+    EXPECT_EQ(lib->findBestSolution(TNProblem, gpu), TNSolution);
+    EXPECT_EQ(lib->findBestSolution(TTProblem, gpu), TTSolution);
 
-    EXPECT_EQ(lib.findBestSolution(WeirdProblemC, gpu), nullptr);
-    EXPECT_EQ(lib.findBestSolution(WeirdProblemD, gpu), nullptr);
+    EXPECT_EQ(lib->findBestSolution(WeirdProblemC, gpu), nullptr);
+    EXPECT_EQ(lib->findBestSolution(WeirdProblemD, gpu), nullptr);
+
+    MasterGEMMLibrary mlib;
+    mlib.solutions = map;
+    mlib.library = lib;
+    llvm::yaml::Output yout(llvm::outs());
+    yout << mlib;
 }
+
