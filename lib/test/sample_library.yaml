@@ -1,0 +1,54 @@
+---
+solutions:       
+  - name:            ''
+    workGroup:       [ 0, 0, 0 ]
+    threadTile:      [ 0, 0, 0 ]
+    macroTile:       [ 0, 0, 0 ]
+    index:           0
+  - name:            ''
+    workGroup:       [ 0, 0, 0 ]
+    threadTile:      [ 0, 0, 0 ]
+    macroTile:       [ 0, 0, 0 ]
+    index:           1
+  - name:            ''
+    workGroup:       [ 0, 0, 0 ]
+    threadTile:      [ 0, 0, 0 ]
+    macroTile:       [ 0, 0, 0 ]
+    index:           2
+  - name:            ''
+    workGroup:       [ 0, 0, 0 ]
+    threadTile:      [ 0, 0, 0 ]
+    macroTile:       [ 0, 0, 0 ]
+    index:           3
+library:         
+  type:            Problem
+  rows:            
+    - predicate:       { type: And, value: [ { type: ADimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: BDimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: CDimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: DDimensionOrder, value: [ 0, 1, 2 ] } ] }
+      library:         
+        type:            Single
+        index:           0
+    - predicate:       { type: And, value: [ { type: ADimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: BDimensionOrder, value: [ 1, 0, 2 ] }, 
+                                             { type: CDimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: DDimensionOrder, value: [ 0, 1, 2 ] } ] }
+      library:         
+        type:            Single
+        index:           1
+    - predicate:       { type: And, value: [ { type: ADimensionOrder, value: [ 1, 0, 2 ] }, 
+                                             { type: BDimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: CDimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: DDimensionOrder, value: [ 0, 1, 2 ] } ] }
+      library:         
+        type:            Single
+        index:           2
+    - predicate:       { type: And, value: [ { type: ADimensionOrder, value: [ 1, 0, 2 ] },
+                                             { type: BDimensionOrder, value: [ 1, 0, 2 ] }, 
+                                             { type: CDimensionOrder, value: [ 0, 1, 2 ] }, 
+                                             { type: DDimensionOrder, value: [ 0, 1, 2 ] } ] }
+      library:         
+        type:            Single
+        index:           3
+...
