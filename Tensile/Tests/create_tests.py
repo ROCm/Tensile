@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python 
 
 # Create a test_py script for all *.yaml files in specified directory
 # usage: create_tests.py TEST_DIR
@@ -9,18 +9,17 @@
 
 import glob, sys, os
 
-targetDir = sys.argv[1] if sys.argv > 1 else "."
-targetFile = "%s/test_%s.py" % (targetDir, os.path.basename(targetDir))
+targetDir  = sys.argv[1] if sys.argv > 1 else "."
+targetFile = "%s/test_%s.py"%(targetDir,os.path.basename(targetDir))
 print "info: writing test script to %s" % targetFile
-outfile = open(targetFile, "w")
+outfile = open(targetFile, "w" )
 outfile.write("import Tensile.Tensile as Tensile\n\n")
-for f in glob.glob("%s/*aml" % targetDir):
+for f in glob.glob("%s/*aml"%targetDir):
     baseName = os.path.basename(f)
     testName = os.path.splitext(baseName)[0]
     if not testName.startswith("test_"):
-        testName = "test_" + testName
+        testName = "test_" + testName 
 
-    outfile.write("def %s(tmpdir):\n" % (testName))
-    outfile.write(
-        ' Tensile.Tensile([Tensile.TensileTestPath("%s"), tmpdir.strpath])\n\n'
-        % (f))
+    outfile.write ("def %s(tmpdir):\n" % (testName))
+    outfile.write (' Tensile.Tensile([Tensile.TensileTestPath("%s"), tmpdir.strpath])\n\n' % (f))
+

@@ -1,3 +1,6 @@
+
+
+
 import os
 import sys
 import argparse
@@ -10,223 +13,220 @@ HR = "##########################################################################
 # Print Debug
 ################################################################################
 
-
 def printWarning(message):
-    print "Tensile::WARNING: %s" % message
-    sys.stdout.flush()
-
+  print "Tensile::WARNING: %s" % message
+  sys.stdout.flush()
 
 def printExit(message):
-    print "Tensile::FATAL: %s" % message
-    sys.stdout.flush()
-    sys.exit(-1)
-
+  print "Tensile::FATAL: %s" % message
+  sys.stdout.flush()
+  sys.exit(-1)
 
 try:
-    import yaml
+  import yaml
 except ImportError:
-    printExit(
-        "You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions."
-    )
+  printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
+
+def ensurePath( path ):
+  if not os.path.exists(path):
+    os.makedirs(path)
+  return path
 
 
-def ensurePath(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-    return path
 
 
 ################################################################################
 # Library Logic Container
 ################################################################################
 class LibraryLogic:
-    def __init__(self, filename=None):
 
-        if filename is not None:
-            print("# Reading Library Logic: " + filename)
-            try:
-                stream = open(filename, "r")
-            except IOError:
-                printExit("Cannot open file: %s" % filename)
-            data = yaml.load(stream, yaml.SafeLoader)
+  def __init__(self,filename=None):
 
-            self.__set_versionString(data[0]["MinimumRequiredVersion"])
-            self.__set_scheduleName(data[1])
-            self.__set_architectureName(data[2])
-            self.__set_deviceNames(data[3])
-            self.__set_problemType(data[4])
-            self.__set_solutionStates(data[5])
-            self.__set_indexOrder(data[6])
-            self.__set_exactLogic(data[7])
-            self.__set_rangeLogic(data[8])
+    if filename is not None:
+      print ("# Reading Library Logic: " + filename)
+      try:
+        stream = open(filename, "r")
+      except IOError:
+        printExit("Cannot open file: %s" % filename )
+      data = yaml.load(stream, yaml.SafeLoader)
 
-            stream.close()
+      self.__set_versionString(data[0]["MinimumRequiredVersion"])
+      self.__set_scheduleName(data[1])
+      self.__set_architectureName(data[2])
+      self.__set_deviceNames(data[3])
+      self.__set_problemType(data[4])
+      self.__set_solutionStates(data[5])
+      self.__set_indexOrder(data[6])
+      self.__set_exactLogic(data[7])
+      self.__set_rangeLogic(data[8])
+    
+      stream.close()
 
-        else:
-            self.__set_versionString(None)
-            self.__set_scheduleName(None)
-            self.__set_architectureName(None)
-            self.__set_deviceNames(None)
-            self.__set_problemType(None)
-            self.__set_solutionStates(None)
-            self.__set_indexOrder(None)
-            self.__set_exactLogic(None)
-            self.__set_rangeLogic(None)
+    else:
+      self.__set_versionString(None)
+      self.__set_scheduleName(None)
+      self.__set_architectureName(None)
+      self.__set_deviceNames(None)
+      self.__set_problemType(None)
+      self.__set_solutionStates(None)
+      self.__set_indexOrder(None)
+      self.__set_exactLogic(None)
+      self.__set_rangeLogic(None)
 
-    #versionString
-    def __get_versionString(self):
-        return self.__versionString
+  #versionString
+  def __get_versionString(self):
+    return self.__versionString
 
-    def __set_versionString(self, value):
-        self.__versionString = value
+  def __set_versionString(self,value):
+    self.__versionString = value
 
-    versionString = property(__get_versionString, __set_versionString)
+  versionString = property(__get_versionString,__set_versionString)
 
-    #scheduleName
-    def __get_scheduleName(self):
-        return self.__scheduleName
+  #scheduleName
+  def __get_scheduleName(self):
+    return self.__scheduleName
 
-    def __set_scheduleName(self, value):
-        self.__scheduleName = value
+  def __set_scheduleName(self, value):
+    self.__scheduleName = value
 
-    scheduleName = property(__get_scheduleName, __set_scheduleName)
+  scheduleName = property(__get_scheduleName,__set_scheduleName)
 
-    #architectureName
-    def __get_architectureName(self):
-        return self.__architectureName
+  #architectureName
+  def __get_architectureName(self):
+    return self.__architectureName
 
-    def __set_architectureName(self, value):
-        self.__architectureName = value
+  def __set_architectureName(self,value):
+    self.__architectureName = value
 
-    architectureName = property(__get_architectureName, __set_architectureName)
+  architectureName = property(__get_architectureName,__set_architectureName)
 
-    #deviceNames
-    def __get_deviceNames(self):
-        return self.__deviceNames
+  #deviceNames
+  def __get_deviceNames(self):
+    return self.__deviceNames
 
-    def __set_deviceNames(self, value):
-        self.__deviceNames = value
+  def __set_deviceNames(self,value):
+    self.__deviceNames = value
 
-    deviceNames = property(__get_deviceNames, __set_deviceNames)
+  deviceNames = property(__get_deviceNames,__set_deviceNames)
 
-    #problemTypeState
-    def __get_problemType(self):
-        return self.__problemType
+  
+  #problemTypeState
+  def __get_problemType(self):
+    return self.__problemType
 
-    def __set_problemType(self, value):
-        self.__problemType = value
+  def __set_problemType(self,value):
+    self.__problemType = value
 
-    problemType = property(__get_problemType, __set_problemType)
+  problemType = property(__get_problemType,__set_problemType)
 
-    #solutionStates
-    def __get_solutionStates(self):
-        return self.__solutionStates
+  #solutionStates
+  def __get_solutionStates(self):
+    return self.__solutionStates
 
-    def __set_solutionStates(self, value):
-        self.__solutionStates = value
+  def __set_solutionStates(self,value):
+    self.__solutionStates = value
 
-    solutionStates = property(__get_solutionStates, __set_solutionStates)
+  solutionStates = property(__get_solutionStates,__set_solutionStates)
 
-    #indexOrder
-    def __get_indexOrder(self):
-        return self.__indexOrder
+  #indexOrder
+  def __get_indexOrder(self):
+    return self.__indexOrder
 
-    def __set_indexOrder(self, value):
-        self.__indexOrder = value
+  def __set_indexOrder(self,value):
+    self.__indexOrder = value
+  
+  indexOrder = property(__get_indexOrder,__set_indexOrder)
 
-    indexOrder = property(__get_indexOrder, __set_indexOrder)
 
-    #exactLogic
-    def __get_exactLogic(self):
-        return self.__exactLogic
+  #exactLogic
+  def __get_exactLogic(self):
+    return self.__exactLogic
 
-    def __set_exactLogic(self, value):
-        self.__exactLogic = value
+  def __set_exactLogic(self,value):
+    self.__exactLogic = value
 
-    exactLogic = property(__get_exactLogic, __set_exactLogic)
+  exactLogic = property(__get_exactLogic,__set_exactLogic)
 
-    #rangeLogic
-    def __get_rangeLogic(self):
-        return self.__rangeLogic
+  #rangeLogic
+  def __get_rangeLogic(self):
+    return self.__rangeLogic
 
-    def __set_rangeLogic(self, value):
-        self.__rangeLogic = value
+  def __set_rangeLogic(self,value):
+    self.__rangeLogic = value
 
-    rangeLogic = property(__get_rangeLogic, __set_rangeLogic)
+  rangeLogic = property(__get_rangeLogic,__set_rangeLogic)
 
-    def writeLibraryLogic(self, filename):
+  def writeLibraryLogic(self,filename):
+  
+    data = []
 
-        data = []
+    if self.versionString is not None:
+      data.append({"MinimumRequiredVersion":self.versionString})
+    
+    if self.scheduleName is not None:
+      data.append(self.scheduleName)     
+    
+    if self.architectureName is not None:
+       data.append(self.architectureName)
+    
+    if self.deviceNames is not None:
+      data.append(self.deviceNames)
 
-        if self.versionString is not None:
-            data.append({"MinimumRequiredVersion": self.versionString})
+    if self.problemType is not None:
+      data.append(self.problemType)
 
-        if self.scheduleName is not None:
-            data.append(self.scheduleName)
+    if self.solutionStates is not None:
+      data.append(self.solutionStates)
+    
+    if self.indexOrder is not None:
+      data.append(self.indexOrder)
+    
+    if self.exactLogic is not None:
+      data.append(self.exactLogic)
+    
+    if self.rangeLogic is not None:
+      data.append(self.rangeLogic)
 
-        if self.architectureName is not None:
-            data.append(self.architectureName)
-
-        if self.deviceNames is not None:
-            data.append(self.deviceNames)
-
-        if self.problemType is not None:
-            data.append(self.problemType)
-
-        if self.solutionStates is not None:
-            data.append(self.solutionStates)
-
-        if self.indexOrder is not None:
-            data.append(self.indexOrder)
-
-        if self.exactLogic is not None:
-            data.append(self.exactLogic)
-
-        if self.rangeLogic is not None:
-            data.append(self.rangeLogic)
-
-        if not data:
-            printExit("No data to output")
-        else:
-            try:
-                stream = open(filename, "w")
-                yaml.safe_dump(data, stream)
-                stream.close()
-            except IOError:
-                printExit("Cannot open file: %s" % filename)
+    if not data:
+      printExit("No data to output")
+    else:
+      try:
+        stream = open(filename, "w")
+        yaml.safe_dump(data, stream)
+        stream.close()
+      except IOError:
+        printExit("Cannot open file: %s" % filename)
 
 
 def makeCSVFileName(filePath):
 
-    _, fullFileName = os.path.split(filePath)
-    fileName, _ = os.path.splitext(fullFileName)
+  _, fullFileName = os.path.split(filePath)
+  fileName, _ = os.path.splitext(fullFileName)
 
-    outputFileName = fileName + "-sizes.csv"
+  outputFileName =  fileName + "-sizes.csv"
 
-    return outputFileName
-
+  return outputFileName
 
 def makeAugmentedFileName(filePath, tagExtension):
-    _, fullFileName = os.path.split(filePath)
-    fileName, _ = os.path.splitext(fullFileName)
+  _, fullFileName = os.path.split(filePath)
+  fileName, _ = os.path.splitext(fullFileName)
 
-    outputFileName = fileName + tagExtension
+  outputFileName =  fileName + tagExtension
 
-    return outputFileName
-
+  return outputFileName
 
 def ExtractSizes(inputFilePath, outputFilePath):
 
-    libraryLogic = LibraryLogic(inputFilePath)
-    exactLogic = libraryLogic.exactLogic
-    exactSizes = [esize[0] for esize in exactLogic]
+  libraryLogic = LibraryLogic(inputFilePath)
+  exactLogic = libraryLogic.exactLogic
+  exactSizes = [esize[0] for esize in exactLogic]
 
-    #with open(outputFilePath, "wb") as f:
-    #  writer = csv.writer(f)
-    #  writer.writerows(exactSizes)
+  #with open(outputFilePath, "wb") as f:
+  #  writer = csv.writer(f)
+  #  writer.writerows(exactSizes)
+  
 
-    return exactSizes
-
+  return exactSizes
 
 #def sizeToBenchArgs(size):
 #  m = size[0]
@@ -245,145 +245,139 @@ def ExtractSizes(inputFilePath, outputFilePath):
 
 def getMapping(label, mapper):
 
-    mapped = ""
-    if label in mapper:
-        mapped = mapper[label]
+  mapped = ""
+  if label in mapper:
+    mapped = mapper[label]
 
-    return mapped
+  return mapped
 
 
 def getRunParametersFromName(ligicSignature):
 
-    fields = ligicSignature.split('_')
-    nFields = len(fields)
+  fields = ligicSignature.split('_')
+  nFields = len(fields)
 
-    matrixLabelA = fields[nFields - 3]
-    matrixLabelB = fields[nFields - 2]
-    typeLabel = fields[nFields - 1]
+  matrixLabelA = fields[nFields-3]
+  matrixLabelB = fields[nFields-2]
+  typeLabel = fields[nFields-1] 
 
-    transposeMapperA = {"Ailk": "N", "Alik": "T"}
-    transposeMapperB = {"Bjlk": "T", "Bljk": "N"}
-    functionMapper = {
-        "HB": "gemm",
-        "SB": "gemm",
-        "DB": "gemm",
-        "HBH": "gemm_ex"
-    }
-    typeNameMapper = {"HB": "h", "SB": "s", "DB": "d", "HBH": "h"}
+  transposeMapperA = {"Ailk":"N", "Alik":"T"}
+  transposeMapperB = {"Bjlk":"T", "Bljk":"N"}
+  functionMapper = {"HB":"gemm","SB":"gemm","DB":"gemm","HBH":"gemm_ex"}
+  typeNameMapper = {"HB":"h","SB":"s","DB":"d","HBH":"h"}
 
-    transposeA = getMapping(matrixLabelA, transposeMapperA)
-    transposeB = getMapping(matrixLabelB, transposeMapperB)
-    functionName = getMapping(typeLabel, functionMapper)
-    typeName = getMapping(typeLabel, typeNameMapper)
+  transposeA = getMapping(matrixLabelA, transposeMapperA)
+  transposeB = getMapping(matrixLabelB, transposeMapperB)
+  functionName = getMapping(typeLabel, functionMapper)
+  typeName = getMapping(typeLabel,typeNameMapper)
 
-    runParameters = [transposeA, transposeB, functionName, typeLabel, typeName]
 
-    return runParameters
+  runParameters = [transposeA,transposeB,functionName,typeLabel,typeName]
+
+  return runParameters
 
 
 def makeLine(runParams, size):
 
-    m = size[0]
-    n = size[1]
-    k = size[2]
-    l = size[3]
+  m = size[0]
+  n = size[1]
+  k = size[2]
+  l = size[3]
 
-    alpha = 1
-    beta = 0
+  alpha = 1
+  beta = 0
 
-    transposeA = runParams[0]
-    transposeB = runParams[1]
-    functionName = runParams[2]
-    label = runParams[3]
-    typeName = runParams[4]
+  transposeA = runParams[0]
+  transposeB = runParams[1]
+  functionName = runParams[2]
+  label = runParams[3]
+  typeName = runParams[4]
 
-    line = "./rocblas-bench -f %s -r %s --transposeA %s --transposeB %s" % (
-        functionName, typeName, transposeA, transposeB)
-    line += " -m %u -n %u -k %u --alpha %u --lda %u --ldb %u --beta %u --ldc %u" % (
-        m, n, l, alpha, m, k, beta, m)
+  line = "./rocblas-bench -f %s -r %s --transposeA %s --transposeB %s" % (functionName,typeName,transposeA,transposeB)
+  line += " -m %u -n %u -k %u --alpha %u --lda %u --ldb %u --beta %u --ldc %u" % (m,n,l,alpha,m,k,beta,m)
+  
+  if label == "HBH":
+    line += " --a_type h --b_type h --c_type h --d_type h --compute_type s"
 
-    if label == "HBH":
-        line += " --a_type h --b_type h --c_type h --d_type h --compute_type s"
+  line += " \n"
 
-    line += " \n"
-
-    return line
-
+  return line
 
 def writeBenchmarkScript(scriptFilePath, exactSizes, runParams):
 
-    f = open(scriptFilePath, "wb")
-    f.writelines(["#!/bin/sh\n", "\n", "\n"])
+  f = open(scriptFilePath, "wb")
+  f.writelines(["#!/bin/sh\n","\n","\n"])
 
-    lines = []
-    for size in exactSizes:
-        line = makeLine(runParams, size)
-        lines.append(line)
+  lines = []
+  for size in exactSizes:
+    line = makeLine(runParams, size)
+    lines.append(line)
 
-    f.writelines(lines)
+  f.writelines(lines)
 
-    f.close()
-
+  f.close()
 
 def RunMergeTensileLogicFiles():
 
-    print ""
-    print HR
-    print "# Extract sizes"
-    print HR
-    print ""
+  print ""
+  print HR
+  print "# Extract sizes"
+  print HR
+  print ""
+  
+  ##############################################################################
+  # Parse Command Line Arguments
+  ##############################################################################
+  
+  argParser = argparse.ArgumentParser()
+  argParser.add_argument("ExactLogicPath", help="Path to the exact LibraryLogic.yaml input files.")
+  argParser.add_argument("OutputPath", help="Where to write library files?")
+  #argParser.add_argument("-b", dest="BenchmarkScript", help="write benchmark test script")
+  argParser.add_argument("-b", dest="doBenchmarkScript", action="store_true", help="write benchmark test script")
 
-    ##############################################################################
-    # Parse Command Line Arguments
-    ##############################################################################
+  args = argParser.parse_args()
 
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument(
-        "ExactLogicPath",
-        help="Path to the exact LibraryLogic.yaml input files.")
-    argParser.add_argument("OutputPath", help="Where to write library files?")
-    #argParser.add_argument("-b", dest="BenchmarkScript", help="write benchmark test script")
-    argParser.add_argument(
-        "-b",
-        dest="doBenchmarkScript",
-        action="store_true",
-        help="write benchmark test script")
+  exactLogicPath = args.ExactLogicPath
+  outputPath = args.OutputPath
+  #doBenchmarkScript = args.doBenchmarkScript
+  
 
-    args = argParser.parse_args()
+  ensurePath(outputPath)
+  if not os.path.exists(exactLogicPath):
+    printExit("LogicPath %s doesn't exist" % exactLogicPath)
 
-    exactLogicPath = args.ExactLogicPath
-    outputPath = args.OutputPath
-    #doBenchmarkScript = args.doBenchmarkScript
+  exactLogicFiles = [os.path.join(exactLogicPath, f) for f in os.listdir(exactLogicPath) \
+      if (os.path.isfile(os.path.join(exactLogicPath, f)) \
+      and os.path.splitext(f)[1]==".yaml")]
 
-    ensurePath(outputPath)
-    if not os.path.exists(exactLogicPath):
-        printExit("LogicPath %s doesn't exist" % exactLogicPath)
+  #print exactLogicFiles
 
-    exactLogicFiles = [os.path.join(exactLogicPath, f) for f in os.listdir(exactLogicPath) \
-        if (os.path.isfile(os.path.join(exactLogicPath, f)) \
-        and os.path.splitext(f)[1]==".yaml")]
+  for f in exactLogicFiles:
 
-    #print exactLogicFiles
+    print "processing " + f
+    fullFilePath = os.path.join(exactLogicPath, f)
+    
+    name = makeAugmentedFileName(fullFilePath,"")    
+    runParameters = getRunParametersFromName(name)
 
-    for f in exactLogicFiles:
+    #print runParameters
 
-        print "processing " + f
-        fullFilePath = os.path.join(exactLogicPath, f)
 
-        name = makeAugmentedFileName(fullFilePath, "")
-        runParameters = getRunParametersFromName(name)
+    outputFileName = makeCSVFileName(fullFilePath)
+    outputFile = os.path.join(outputPath, outputFileName)
+    sizes = ExtractSizes(fullFilePath, outputFile)
+    
+ 
+    #print sizes
+    benchmarkFileName = makeAugmentedFileName(fullFilePath, "-benchmark.sh")
+    benchmarkScriptName = os.path.join(outputPath, benchmarkFileName)
+    writeBenchmarkScript(benchmarkScriptName, sizes, runParameters)
 
-        #print runParameters
+    
 
-        outputFileName = makeCSVFileName(fullFilePath)
-        outputFile = os.path.join(outputPath, outputFileName)
-        sizes = ExtractSizes(fullFilePath, outputFile)
 
-        #print sizes
-        benchmarkFileName = makeAugmentedFileName(fullFilePath,
-                                                  "-benchmark.sh")
-        benchmarkScriptName = os.path.join(outputPath, benchmarkFileName)
-        writeBenchmarkScript(benchmarkScriptName, sizes, runParameters)
+
+
 
 
 ################################################################################

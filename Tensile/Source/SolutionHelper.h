@@ -23,12 +23,12 @@
 #define SOLUTION_HELPER_H
 
 #include "TensileTypes.h"
-#include <atomic>
 #include <map>
-#include <mutex>
+#include <unordered_map>
 #include <string>
 #include <tuple>
-#include <unordered_map>
+#include <mutex>
+#include <atomic>
 
 /*******************************************************************************
  * Helper classes for locking, tracking, and getting solutions.
@@ -41,7 +41,7 @@
 #if Tensile_RUNTIME_LANGUAGE_OCL
 typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
-typedef void *DeviceFunctionType;
+typedef void * DeviceFunctionType;
 #else
 typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
@@ -50,20 +50,21 @@ typedef hipFunction_t DeviceFunctionType;
 
 // Locks and tracker for kernel loading status
 struct SolutionLock {
-  SolutionLock() : _deviceFunctions(nullptr){};
+  SolutionLock() : _deviceFunctions(nullptr)
+  {
+  };
 
   SolutionLock(const SolutionLock &other) {
     _deviceFunctions.store(other._deviceFunctions.load());
   };
 
-  std::atomic<DeviceFunctionType *> _deviceFunctions;
+
+  std::atomic<DeviceFunctionType*> _deviceFunctions;
   std::mutex _initFunctionsMutex;
   std::mutex _loadModuleMutex;
 
   // if codeFromExe==nullptr then load code from file using kernelName
-  TensileStatus getFunction(DeviceFunctionType *f, int deviceId,
-                            const std::string &kernelName,
-                            const unsigned char *codeFromExe);
+  TensileStatus getFunction(DeviceFunctionType *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
 };
 
 #ifdef WIN32
@@ -76,11 +77,13 @@ extern thread_local KernelMap kernelMap;
  * Compile/Load Kernels
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
-void tensileGetCompiledOpenCLKernel(cl_kernel *kernel, const char *kernelSource,
-                                    cl_command_queue queue,
-                                    const char *sourceBuildOptions);
+void tensileGetCompiledOpenCLKernel(
+  cl_kernel *kernel,
+  const char *kernelSource,
+  cl_command_queue queue,
+  const char *sourceBuildOptions);
 #else
-// void tensileGetHipFunctionFromCodeObjectByteArray(
+//void tensileGetHipFunctionFromCodeObjectByteArray(
 //  hipFunction_t *function,
 //  const char *functionName,
 //  const unsigned char *coba); // code object byte array
@@ -90,21 +93,16 @@ void tensileGetCompiledOpenCLKernel(cl_kernel *kernel, const char *kernelSource,
 struct SolutionInfo {
   // _functionPtr is a generic function pointer to a solution.
   // Different Problem types can have different solution function signatures ;
-  // Use void* since so can use same type for all w/o flurry of auto-generated
-  // template types
-  void *_functionPtr;
-  const char *_name;
+  // Use void* since so can use same type for all w/o flurry of auto-generated template types
+  void *                  _functionPtr;
+  const char *            _name;
 
-  // These are requirements that the problem dims must meet in order to use this
-  // solution
-  // For example so kernels may be optimized with the assumption that the
-  // summation is even
-  // thus allowing faster code but the solution only works if the requirement is
-  // met.
-  // The structure here captures those requirements - they will be checked
-  // before
+  // These are requirements that the problem dims must meet in order to use this solution
+  // For example so kernels may be optimized with the assumption that the summation is even
+  // thus allowing faster code but the solution only works if the requirement is met.
+  // The structure here captures those requirements - they will be checked before
   // launching the kernel
-  ProblemProperties _assertionRequirements;
+  ProblemProperties     _assertionRequirements;
 };
 
 #endif

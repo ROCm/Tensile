@@ -51,15 +51,17 @@ public:
 private:
 #ifdef WIN32
   LARGE_INTEGER startTime;
-  LARGE_INTEGER frequency;
+  LARGE_INTEGER frequency; 
 #else
-  const clockid_t clock_type = CLOCK_MONOTONIC;
-  // const clockid_t clock_type = CLOCK_MONOTONIC_RAW;
+    const clockid_t clock_type = CLOCK_MONOTONIC;
+    //const clockid_t clock_type = CLOCK_MONOTONIC_RAW;
   timespec startTime;
 #endif
 };
 
-#define tensileMin(a, b) (((a) < (b)) ? (a) : (b))
-#define tensileMax(a, b) (((a) > (b)) ? (a) : (b))
+
+#define tensileMin(a,b) (((a) < (b)) ? (a) : (b))
+#define tensileMax(a,b) (((a) > (b)) ? (a) : (b))
 
 #endif
+
