@@ -79,6 +79,8 @@ namespace Tensile
         auto bStrides = problem.b.strides();
         auto cStrides = problem.c.strides();
 
+        rv.sharedMemBytes = 0;
+
         rv.args.append<uint64_t>("tensor2dSizeC", problem.c.totalAllocatedElements());
         rv.args.append<uint64_t>("tensor2dSizeA", problem.a.totalAllocatedElements());
         rv.args.append<uint64_t>("tensor2dSizeB", problem.b.totalAllocatedElements());

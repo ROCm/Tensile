@@ -97,7 +97,7 @@ namespace Tensile
                         function,
                         kernel.numWorkItems.x, kernel.numWorkItems.y, kernel.numWorkItems.z,
                         kernel.workGroupSize.x, kernel.workGroupSize.y, kernel.workGroupSize.z,
-                        0, // sharedMem
+                        kernel.sharedMemBytes, // sharedMem
                         0, // stream
                         nullptr,
                         (void **)&hipLaunchParams,

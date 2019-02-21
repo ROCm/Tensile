@@ -62,6 +62,7 @@ namespace Tensile
         dim3 workGroupSize;
         dim3 numWorkGroups;
         dim3 numWorkItems;
+        size_t sharedMemBytes = 0;
 
         KernelArguments args;
     };
