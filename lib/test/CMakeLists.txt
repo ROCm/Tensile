@@ -1,7 +1,5 @@
 
-#find_package( GTest REQUIRED )
 set(INSTALL_GTEST OFF)
-
 add_subdirectory(googletest)
 
 if(HIP_FOUND)
