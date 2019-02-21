@@ -102,15 +102,19 @@ namespace llvm
 
         namespace sn = Tensile::Serialization;
 
+        LLVM_YAML_STRONG_TYPEDEF(size_t, FooType);
+
+        using mysize_t = std::conditional<std::is_same<size_t, uint64_t>::value, FooType, size_t>::type;
+
         template<>
-        struct ScalarTraits<size_t> {
-          static void output(const size_t &value, void * ctx, raw_ostream & stream)
+        struct ScalarTraits<mysize_t> {
+          static void output(const mysize_t &value, void * ctx, raw_ostream & stream)
           {
               uint64_t tmp = value;
               ScalarTraits<uint64_t>::output(tmp, ctx, stream);
           }
 
-          static StringRef input(StringRef str, void * ctx, size_t & value)
+          static StringRef input(StringRef str, void * ctx, mysize_t & value)
           {
               uint64_t tmp;
               auto rv = ScalarTraits<uint64_t>::input(str, ctx, tmp);
