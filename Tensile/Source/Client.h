@@ -19,22 +19,22 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#include "TensileTypes.h"
-#include "Tools.h"
-#include "ReferenceCPU.h"
-#include "MathTemplates.h"
 #include "ClientParameters.h"
 #include "DeviceStats.h"
+#include "MathTemplates.h"
+#include "ReferenceCPU.h"
+#include "TensileTypes.h"
 #include "TensorUtils.h"
-#include <iostream>
-#include <iomanip>
-#include <fstream>
+#include "Tools.h"
+#include <assert.h>
 #include <cstring>
 #include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <set>
 #include <sys/time.h>
 #include <unistd.h>
-#include <set>
-#include <assert.h>
 
 TensileTimer timer;
 TensileTimer apiTimer;
@@ -49,7 +49,8 @@ unsigned int initB;
 unsigned int initC;
 unsigned int initD;
 unsigned int initAB;
-unsigned int specializeAB; // True if the init mode requires different values for each matrix dim
+unsigned int specializeAB; // True if the init mode requires different values
+                           // for each matrix dim
 unsigned int cEqualD;
 unsigned int platformIdx;
 unsigned int printValids;
@@ -136,33 +137,36 @@ void initControls();
 void destroyControls();
 
 double globalFastestGFlops = 0.0;
-double globalFastestTime  = 0.0;
+double globalFastestTime = 0.0;
 unsigned int globalFastestIdx = 0;
 double fastestGFlops = 0.0;
 unsigned int fastestIdx = 0;
-
 
 SolutionLock *solutionLocks;
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
 /*******************************************************************************
 * Given a finished/synced OpenCL event
-* return performance in nano-seconds of time executing the kernel associated with the event
+* return performance in nano-seconds of time executing the kernel associated
+*with the event
 ******************************************************************************/
-cl_ulong getEventDeltaTime(cl_event event)
-{
+cl_ulong getEventDeltaTime(cl_event event) {
   cl_ulong start, end = 0;
   cl_int cl_error = CL_SUCCESS;
 
-  if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL) != CL_SUCCESS)
-  {
-    std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+  if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START,
+                                           sizeof(cl_ulong), &start,
+                                           NULL) != CL_SUCCESS) {
+    std::cout << "::clGetEventProfilingInfo error code: " << cl_error
+              << std::endl;
     start = 0;
   }
 
-  if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL) != CL_SUCCESS)
-  {
-    std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+  if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END,
+                                           sizeof(cl_ulong), &end,
+                                           NULL) != CL_SUCCESS) {
+    std::cout << "::clGetEventProfilingInfo error code: " << cl_error
+              << std::endl;
     end = 0;
   }
   return (end - start);
@@ -170,67 +174,65 @@ cl_ulong getEventDeltaTime(cl_event event)
 #else
 /*******************************************************************************
 * Given a finished/synced OpenCL event
-* return performance in nano-seconds of time executing the kernel associated with the event
+* return performance in nano-seconds of time executing the kernel associated
+*with the event
 ******************************************************************************/
-float getEventDeltaTime(hipEvent_t start, hipEvent_t stop)
-{
-    float result = 0.0f;
-    hipEventElapsedTime( &result, start, stop );
-    return result;
+float getEventDeltaTime(hipEvent_t start, hipEvent_t stop) {
+  float result = 0.0f;
+  hipEventElapsedTime(&result, start, stop);
+  return result;
 }
 
 #endif
 
-
-template<typename DataType>
-void copyData(
-    DataType *initialA,
-    DataType *initialB) {
+template <typename DataType>
+void copyData(DataType *initialA, DataType *initialB) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceA), CL_TRUE,
-      0, maxSizeA*bytesPerElement[dataTypeIdx], initialA, 0, NULL, NULL);
+                                0, maxSizeA * bytesPerElement[dataTypeIdx],
+                                initialA, 0, NULL, NULL);
   tensileStatusCheck(status);
-    std::cout << ".";
+  std::cout << ".";
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceB), CL_TRUE,
-      0, maxSizeB*bytesPerElement[dataTypeIdx], initialB, 0, NULL, NULL);
+                                0, maxSizeB * bytesPerElement[dataTypeIdx],
+                                initialB, 0, NULL, NULL);
   tensileStatusCheck(status);
-    std::cout << ".";
+  std::cout << ".";
 #else
-  status = hipMemcpy(deviceA, initialA, maxSizeA*bytesPerElement[dataTypeIdx],
-      hipMemcpyHostToDevice);
-  status = hipMemcpy(deviceB, initialB, maxSizeB*bytesPerElement[dataTypeIdx],
-      hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceA, initialA, maxSizeA * bytesPerElement[dataTypeIdx],
+                     hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceB, initialB, maxSizeB * bytesPerElement[dataTypeIdx],
+                     hipMemcpyHostToDevice);
 #endif
 }
 
 // Specialize the AB data for the problem size.
-// This is used with the SerialInK data init type - each matrix needs different data.
-// Since this takes extra time, it is recommended to use this data init mode only
+// This is used with the SerialInK data init type - each matrix needs different
+// data.
+// Since this takes extra time, it is recommended to use this data init mode
+// only
 // for debug
-template<typename DataType>
-void specializeData(
-    DataType *initialData,
-    unsigned int totalIndices,
-    unsigned int numIndicesC,
-    unsigned int numIndicesAB,
-    const unsigned int *allSizes,
-    const unsigned int *indexAssignments) {
+template <typename DataType>
+void specializeData(DataType *initialData, unsigned int totalIndices,
+                    unsigned int numIndicesC, unsigned int numIndicesAB,
+                    const unsigned int *allSizes,
+                    const unsigned int *indexAssignments) {
 
   assert(totalIndices != 0);
 
   const unsigned int numIndicesSummation = totalIndices - numIndicesC;
 
-  const unsigned int db = 0; // 0x1=header, 0x2=offset/value on each store, 0x4=loop debug
-  TensorDims td("specialize_matrix", numIndicesAB, numIndicesC, allSizes, indexAssignments);
+  const unsigned int db =
+      0; // 0x1=header, 0x2=offset/value on each store, 0x4=loop debug
+  TensorDims td("specialize_matrix", numIndicesAB, numIndicesC, allSizes,
+                indexAssignments);
 
   if (db & 0x1) {
     td.print();
   }
 
-
-
   // Bucketize the sizes for the free and bound (summation) indices:
-  //std::vector<unsigned int> freeIndexSizes(numIndicesC, 0);
+  // std::vector<unsigned int> freeIndexSizes(numIndicesC, 0);
   std::vector<unsigned int> freeIndexSizes;
   std::vector<unsigned int> boundIndexSizes;
   for (size_t i = 0; i < numIndicesAB; i++) {
@@ -243,13 +245,12 @@ void specializeData(
   const unsigned numIndicesFree = freeIndexSizes.size();
   assert(boundIndexSizes.size() == numIndicesSummation);
 
-
   // Counter for free-coord, these change in the free index loop
   std::vector<unsigned int> freeCoord(numIndicesFree, 0);
 
   // Counters to track coordinate, these change in the bound index loop
-  std::vector<unsigned int> boundCoord( numIndicesSummation, 0);
-  std::vector<unsigned int> coords( numIndicesAB, 0 );
+  std::vector<unsigned int> boundCoord(numIndicesSummation, 0);
+  std::vector<unsigned int> coords(numIndicesAB, 0);
 
   DataType val = 0; // running initializer value
   bool moreIndicesC = true;
@@ -261,10 +262,9 @@ void specializeData(
 
     while (true) { // iterate over entire bound index range
 
-
-      // convert free/bound coord into tensorA,B 
-      unsigned int f=0;
-      unsigned int b=0;
+      // convert free/bound coord into tensorA,B
+      unsigned int f = 0;
+      unsigned int b = 0;
       for (unsigned int i = 0; i < numIndicesAB; i++) {
         if (indexAssignments[i] < numIndicesC) {
           coords[i] = freeCoord[f++];
@@ -275,20 +275,20 @@ void specializeData(
 
       size_t serialIdx = 0;
       for (unsigned int i = 0; i < numIndicesAB; i++) {
-        serialIdx += coords[i]*td.memoryStrides[i];
+        serialIdx += coords[i] * td.memoryStrides[i];
       }
 
       if (db & 0x2) {
         std::cout << "[" << serialIdx << "] = " << val << "\n";
       }
-      initialData[serialIdx] = val++;  // actually initialize the element
+      initialData[serialIdx] = val++; // actually initialize the element
 
       // increment bound coord
-      boundCoord[numIndicesSummation-1]++;
-      for ( size_t bi = numIndicesSummation - 1; bi > 0 ; bi--) {
-        if ( boundCoord[bi] >= boundIndexSizes[bi]) {
+      boundCoord[numIndicesSummation - 1]++;
+      for (size_t bi = numIndicesSummation - 1; bi > 0; bi--) {
+        if (boundCoord[bi] >= boundIndexSizes[bi]) {
           boundCoord[bi] = 0;
-          boundCoord[bi-1]++;
+          boundCoord[bi - 1]++;
         }
       }
 
@@ -299,28 +299,31 @@ void specializeData(
         break; // bound index range exit criteria
       }
     } // bound range
-    
+
     // increment free coord
     // skip = 1, validate everything
     freeCoord[0]++;
     // bump free counters to next level:
-    for (size_t f = 0; f < numIndicesFree-1; f++) {
+    for (size_t f = 0; f < numIndicesFree - 1; f++) {
       if (db & 0x4) {
-        std::cout << "wrapcheck" << f << ":" << freeCoord[f] << " >= ? " << freeIndexSizes[f] << "\n";
+        std::cout << "wrapcheck" << f << ":" << freeCoord[f] << " >= ? "
+                  << freeIndexSizes[f] << "\n";
       }
       if (freeCoord[f] >= freeIndexSizes[f]) {
         if (db & 0x4) {
-          std::cout << "wrapdo" << f << ":" << freeCoord[f] << " >= ? " << freeIndexSizes[f] << "\n";
+          std::cout << "wrapdo" << f << ":" << freeCoord[f] << " >= ? "
+                    << freeIndexSizes[f] << "\n";
         }
 
         freeCoord[f] = 0;
-        freeCoord[f+1]++;
+        freeCoord[f + 1]++;
       }
     }
 
     // When last free coord hits the max, exit the loop:
     if (db & 0x4) {
-      std::cout << "done?" << freeCoord[numIndicesFree-1] << " >= ? " << freeIndexSizes[numIndicesFree-1] << "\n";
+      std::cout << "done?" << freeCoord[numIndicesFree - 1] << " >= ? "
+                << freeIndexSizes[numIndicesFree - 1] << "\n";
     }
     if (freeCoord.back() >= freeIndexSizes.back()) {
       moreIndicesC = false;
@@ -334,24 +337,16 @@ void specializeData(
  * return true if errors/invalids
  ******************************************************************************/
 #if Tensile_CLIENT_LIBRARY
-template<typename DataType, typename DestDataType>
-bool callLibrary(
-    DestDataType *initialD,
-    DestDataType *initialC,
-    DataType *initialA,
-    DataType *initialB,
-    DestDataType alpha,
-    DestDataType beta,
-    unsigned int strideA,
-    unsigned int strideB,
-    unsigned int strideC,
-    DestDataType *referenceC,
-    DestDataType *deviceOnHostD,
-    DestDataType *deviceOnHostC)
-{
+template <typename DataType, typename DestDataType>
+bool callLibrary(DestDataType *initialD, DestDataType *initialC,
+                 DataType *initialA, DataType *initialB, DestDataType alpha,
+                 DestDataType beta, unsigned int strideA, unsigned int strideB,
+                 unsigned int strideC, DestDataType *referenceC,
+                 DestDataType *deviceOnHostD, DestDataType *deviceOnHostC) {
   size_t totalFlops = numFlopsPerMac[dataTypeIdx];
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-    totalFlops *= userSizes[i]; }
+    totalFlops *= userSizes[i];
+  }
 
   // Compute stridesC for validation
   // strideC accounts for memory strides (ie ldc)
@@ -366,57 +361,53 @@ bool callLibrary(
   elementStridesC[0] = 1;
   stridesC[0] = 1;
   for (unsigned int i = 1; i < numIndicesC[problemTypeIdx]; i++) {
-    elementStridesC[i] = elementStridesC[i-1] * userSizes[i-1];
-    stridesC[i] = stridesC[i-1] * strides[i-1];
+    elementStridesC[i] = elementStridesC[i - 1] * userSizes[i - 1];
+    stridesC[i] = stridesC[i - 1] * strides[i - 1];
   }
 
   if (specializeAB) {
     if (initA == 5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
-                      numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
-                      userSizes, indexAssignmentsA[problemTypeIdx]);
+                     numIndicesC[problemTypeIdx], numIndicesAB[problemTypeIdx],
+                     userSizes, indexAssignmentsA[problemTypeIdx]);
     }
     if (initB == 5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
-                      numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
-                      userSizes, indexAssignmentsB[problemTypeIdx]);
+                     numIndicesC[problemTypeIdx], numIndicesAB[problemTypeIdx],
+                     userSizes, indexAssignmentsB[problemTypeIdx]);
     }
-    copyData<DataType> (initialA, initialB);
+    copyData<DataType>(initialA, initialB);
   }
 
   if (printTensorA) {
     printTensor("A", initialA, numIndicesAB[problemTypeIdx],
-                  numIndicesC[problemTypeIdx],
-                  userSizes,
-                  indexAssignmentsA[problemTypeIdx]);
+                numIndicesC[problemTypeIdx], userSizes,
+                indexAssignmentsA[problemTypeIdx]);
   }
   if (printTensorB) {
     printTensor("B", initialB, numIndicesAB[problemTypeIdx],
-                  numIndicesC[problemTypeIdx],
-                  userSizes, 
-                  indexAssignmentsB[problemTypeIdx]);
+                numIndicesC[problemTypeIdx], userSizes,
+                indexAssignmentsB[problemTypeIdx]);
   }
 
   if (printTensorC & 0x1) {
     std::vector<unsigned int> indexAssignmentsC;
-    for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
       indexAssignmentsC.push_back(i);
     }
     printTensor("C_in", initialC, numIndicesC[problemTypeIdx],
-                  numIndicesC[problemTypeIdx], userSizes,
-                  indexAssignmentsC.data());
+                numIndicesC[problemTypeIdx], userSizes,
+                indexAssignmentsC.data());
   }
 
   if (printTensorD & 0x1) {
     std::vector<unsigned int> indexAssignmentsC;
-    for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
       indexAssignmentsC.push_back(i);
     }
     printTensor("D_in", initialD, numIndicesC[problemTypeIdx],
-                  numIndicesC[problemTypeIdx], userSizes,
-                  indexAssignmentsC.data());
+                numIndicesC[problemTypeIdx], userSizes,
+                indexAssignmentsC.data());
   }
 
   size_t currentElementSizeC = 1;
@@ -425,18 +416,18 @@ bool callLibrary(
     currentElementSizeC *= userSizes[i];
     currentMemorySizeC *= strides[i];
   }
-  size_t sizeToCopy = currentMemorySizeC*bytesPerElement[dataTypeIdx];
+  size_t sizeToCopy = currentMemorySizeC * bytesPerElement[dataTypeIdx];
 #if Tensile_RUNTIME_LANGUAGE_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE,
-      0, sizeToCopy, initialC, 0, NULL, NULL);
+                                0, sizeToCopy, initialC, 0, NULL, NULL);
   tensileStatusCheck(status);
-  if(!cEqualD)
+  if (!cEqualD)
     status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE,
-        0, sizeToCopy, initialD, 0, NULL, NULL);
+                                  0, sizeToCopy, initialD, 0, NULL, NULL);
 #else
   status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
   tensileStatusCheck(status);
-  if(!cEqualD)
+  if (!cEqualD)
     status = hipMemcpy(deviceD, initialD, sizeToCopy, hipMemcpyHostToDevice);
 #endif
   tensileStatusCheck(status);
@@ -458,7 +449,7 @@ bool callLibrary(
         while (true) { // break statement at end
           bool prime = true;
           for (unsigned int i = 2; i < validationStride; i++) {
-            if ( validationStride % i == 0) {
+            if (validationStride % i == 0) {
               prime = false;
               break;
             }
@@ -475,24 +466,24 @@ bool callLibrary(
     }
 
     // call reference function
-    TensileStatus referenceStatus = generatedCallToReferenceCPU(userSizes, minStrides, referenceC,
-        initialA, initialB, strideA, strideB, strideC,
-        alpha, beta, useHighPrecisionAccumulate);
+    TensileStatus referenceStatus = generatedCallToReferenceCPU(
+        userSizes, minStrides, referenceC, initialA, initialB, strideA, strideB,
+        strideC, alpha, beta, useHighPrecisionAccumulate);
 
     // call device function
-    TensileStatus tensileCallStatus = generatedCallTo_tensile<DataType, DestDataType>(userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
+    TensileStatus tensileCallStatus =
+        generatedCallTo_tensile<DataType, DestDataType>(
+            userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
     if (tensileCallStatus != tensileStatusSuccess) {
       solutionIsValid = false;
     }
 
-    // copy data back to host
+// copy data back to host
 #if Tensile_RUNTIME_LANGUAGE_OCL
     clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-        sizeToCopy, deviceOnHostC, 0, NULL,
-        NULL);
+                        sizeToCopy, deviceOnHostC, 0, NULL, NULL);
     clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE, 0,
-        sizeToCopy, deviceOnHostD, 0, NULL,
-        NULL);
+                        sizeToCopy, deviceOnHostD, 0, NULL, NULL);
 #else
     hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
     hipMemcpy(deviceOnHostD, deviceD, sizeToCopy, hipMemcpyDeviceToHost);
@@ -500,7 +491,7 @@ bool callLibrary(
 
     if (printTensorC & 0x2) {
       std::vector<unsigned int> indexAssignmentsC;
-      for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+      for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
         indexAssignmentsC.push_back(i);
       }
       printTensor("C_result", deviceOnHostC, numIndicesC[problemTypeIdx],
@@ -510,7 +501,7 @@ bool callLibrary(
 
     if (printTensorD & 0x2) {
       std::vector<unsigned int> indexAssignmentsC;
-      for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+      for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
         indexAssignmentsC.push_back(i);
       }
       printTensor("D_result", deviceOnHostD, numIndicesC[problemTypeIdx],
@@ -521,12 +512,12 @@ bool callLibrary(
     // compare
     bool firstPrint = true;
     unsigned int printIdx = 0;
-    for (size_t e = 0; e < currentElementSizeC; e+= validationStride) {
+    for (size_t e = 0; e < currentElementSizeC; e += validationStride) {
 
       // Compute the actual serialIdxX accouting for strides:
       size_t serialIdxC = 0;
       size_t r = e;
-      for (int j = numIndicesC[problemTypeIdx]-1; j >=0; j--) {
+      for (int j = numIndicesC[problemTypeIdx] - 1; j >= 0; j--) {
         serialIdxC += r / elementStridesC[j] * stridesC[j];
         r = r % elementStridesC[j];
       }
@@ -535,10 +526,12 @@ bool callLibrary(
       equalD = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
           deviceOnHostD[serialIdxC], referenceC[serialIdxC]);
       equalC = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
-          deviceOnHostC[serialIdxC], cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
+          deviceOnHostC[serialIdxC],
+          cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
       numChecked++;
 
-      if (!equalC || !equalD) numInvalids++;
+      if (!equalC || !equalD)
+        numInvalids++;
 
       if (!equalC || !equalD || printValids) {
         if (printIdx < printMax) {
@@ -546,15 +539,16 @@ bool callLibrary(
             std::cout << "Index:  Device | Reference" << std::endl;
             firstPrint = false;
           }
-          std::cout << "[" << (numChecked-1) << "] " 
-            << " e=" << e
-            << " serialIdxC=" << serialIdxC << ": "
-            << tensileToString(deviceOnHostD[serialIdxC])
-            << (equalD ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
-            << " , "
-            << tensileToString(deviceOnHostC[serialIdxC])
-            << (equalC ? "==" : "!=") << tensileToString(cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC])
-            << std::endl;
+          std::cout << "[" << (numChecked - 1) << "] "
+                    << " e=" << e << " serialIdxC=" << serialIdxC << ": "
+                    << tensileToString(deviceOnHostD[serialIdxC])
+                    << (equalD ? "==" : "!=")
+                    << tensileToString(referenceC[serialIdxC]) << " , "
+                    << tensileToString(deviceOnHostC[serialIdxC])
+                    << (equalC ? "==" : "!=")
+                    << tensileToString(cEqualD ? referenceC[serialIdxC]
+                                               : initialC[serialIdxC])
+                    << std::endl;
           printIdx++;
         }
       }
@@ -594,17 +588,20 @@ bool callLibrary(
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-      generatedCallTo_tensile(userSizes, minStrides, alpha, beta, strideA, strideB, strideC, 0, NULL,
-          &l_outputEvent[syncIdx][enqIdx]);
+      generatedCallTo_tensile(userSizes, minStrides, alpha, beta, strideA,
+                              strideB, strideC, 0, NULL,
+                              &l_outputEvent[syncIdx][enqIdx]);
 #else
-      generatedCallTo_tensile<DataType, DestDataType>(userSizes, minStrides, alpha, beta, strideA, strideB, strideC, numEnqueuesPerSync,
-          &l_eventStart[syncIdx][enqIdx], &l_eventStop[syncIdx][enqIdx]);
+      generatedCallTo_tensile<DataType, DestDataType>(
+          userSizes, minStrides, alpha, beta, strideA, strideB, strideC,
+          numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
+          &l_eventStop[syncIdx][enqIdx]);
 #endif
     }
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
 
-    // sync
+// sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
     status = clFinish(stream);
 #else
@@ -614,13 +611,14 @@ bool callLibrary(
       int currentMemClock = tensileGetDeviceMemClock(0);
       float currentTemp = tensileGetDeviceTemp(0);
       int currentFanSpeed = tensileGetDeviceFanSpeed(0);
-      //std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
+      // std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
       syncCoreClock += currentCoreClock;
       syncMemClock += currentMemClock;
       syncTemp += currentTemp;
       syncFanSpeed += currentFanSpeed;
       numDeviceStatsQueries++;
-    } while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync-1]) != hipSuccess);
+    } while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync - 1]) !=
+             hipSuccess);
     syncCoreClock /= numDeviceStatsQueries;
     syncMemClock /= numDeviceStatsQueries;
     syncTemp /= numDeviceStatsQueries;
@@ -641,7 +639,7 @@ bool callLibrary(
     // Loop through the event array and collect kernel performance data
     // Release events when done with them
     cl_ulong kernel_time_sum = 0;
-    for (auto& event_array : l_outputEvent) {
+    for (auto &event_array : l_outputEvent) {
       for (auto event : event_array) {
         // getEventDeltaTime returns unsigned long in nano-seconds on opencl
         kernel_time_sum += getEventDeltaTime(event);
@@ -661,7 +659,7 @@ bool callLibrary(
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
         // getEventDeltaTime returns unsigned long in milli-seconds on hip
         kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
-            l_eventStop[syncIdx][enqIdx]);
+                                             l_eventStop[syncIdx][enqIdx]);
         ::hipEventDestroy(l_eventStart[syncIdx][enqIdx]);
         ::hipEventDestroy(l_eventStop[syncIdx][enqIdx]);
       }
@@ -673,7 +671,7 @@ bool callLibrary(
   }
 #endif
   if (sleepPercent) {
-    unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
+    unsigned int sleepMicroSeconds = (timeNs * 10 * sleepPercent) / 1e6;
     usleep(sleepMicroSeconds);
   }
 
@@ -699,31 +697,29 @@ bool callLibrary(
     }
   }
 
-  const char * solutionName = generatedCallTo_tensileGetSolutionName<DataType, DestDataType>(
-      userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
+  const char *solutionName =
+      generatedCallTo_tensileGetSolutionName<DataType, DestDataType>(
+          userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
 
   std::cout << std::setw(10) << std::fixed << std::setprecision(3)
-      << gflops*perfScaling << ", "
-      << std::setw(10) << std::fixed << std::setprecision(3)
-      << gflops << ", "
-      << solutionName << (newFastest ? "*" : " ") << ", "
-      << std::setw(10) << std::fixed << std::setprecision(4)
-      << timeNs * TensileTimer::reciprical_million << ", "
-      << std::setw(7) << std::fixed << std::setprecision(3)
-      << apiTimeUs << ", ";
+            << gflops * perfScaling << ", " << std::setw(10) << std::fixed
+            << std::setprecision(3) << gflops << ", " << solutionName
+            << (newFastest ? "*" : " ") << ", " << std::setw(10) << std::fixed
+            << std::setprecision(4) << timeNs * TensileTimer::reciprical_million
+            << ", " << std::setw(7) << std::fixed << std::setprecision(3)
+            << apiTimeUs << ", ";
   if (numElementsToValidate) {
-    std::cout << (numInvalids ? "FAILED" : "PASSED")
-      << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
+    std::cout << (numInvalids ? "FAILED" : "PASSED") << ": "
+              << (numChecked - numInvalids) << "/" << numChecked << ", ";
   }
   // device stats
   std::cout << avgCoreClock << ", ";
   std::cout << avgMemClock << ", ";
   std::cout << avgTemp << ", ";
   std::cout << avgFanSpeed << ", ";
-  
+
   std::cout << functionIdx << "/" << numFunctions;
   std::cout << std::endl;
-
 
 #if 0
   if (numElementsToValidate) {
@@ -785,20 +781,16 @@ bool callLibrary(
  * - writes one index in solutionPerf[problemIdx]
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
-template<typename DataType, typename DestDataType>
-bool benchmarkAllSolutionsForSize(
-    unsigned int problemIdx,
-    //unsigned int *sizes,
-    DestDataType *initialD,
-    DestDataType *initialC,
-    DataType *initialA,
-    DataType *initialB,
-    DestDataType alpha,
-    DestDataType beta,
-    DestDataType *referenceC,
-    DestDataType *deviceOnHostD,
-    DestDataType *deviceOnHostC,
-    double *problem_gpu_time_ms) {
+template <typename DataType, typename DestDataType>
+bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
+                                  // unsigned int *sizes,
+                                  DestDataType *initialD,
+                                  DestDataType *initialC, DataType *initialA,
+                                  DataType *initialB, DestDataType alpha,
+                                  DestDataType beta, DestDataType *referenceC,
+                                  DestDataType *deviceOnHostD,
+                                  DestDataType *deviceOnHostC,
+                                  double *problem_gpu_time_ms) {
   const unsigned int *sizes = problemSizes[problemIdx];
 
   // Compute stridesC for validation
@@ -814,8 +806,8 @@ bool benchmarkAllSolutionsForSize(
   elementStridesC[0] = 1;
   stridesC[0] = 1;
   for (unsigned int i = 1; i < numIndicesC[problemTypeIdx]; i++) {
-    elementStridesC[i] = elementStridesC[i-1] * sizes[i-1];
-    stridesC[i] = stridesC[i-1] * strides[i-1];
+    elementStridesC[i] = elementStridesC[i - 1] * sizes[i - 1];
+    stridesC[i] = stridesC[i - 1] * strides[i - 1];
   }
 
   bool returnInvalids = false;
@@ -825,7 +817,7 @@ bool benchmarkAllSolutionsForSize(
     currentElementSizeC *= sizes[i];
     currentMemorySizeC *= strides[i];
   }
-  size_t sizeToCopy = currentMemorySizeC*bytesPerElement[dataTypeIdx];
+  size_t sizeToCopy = currentMemorySizeC * bytesPerElement[dataTypeIdx];
 
   file << problemIdx << ", " << sizes[0];
   for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
@@ -833,23 +825,22 @@ bool benchmarkAllSolutionsForSize(
   }
   size_t totalFlops = numFlopsPerMac[dataTypeIdx];
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-    totalFlops *= sizes[i]; }
+    totalFlops *= sizes[i];
+  }
   file << ", " << totalFlops;
 
   if (specializeAB) {
-    if (initA==5) {
+    if (initA == 5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
-                      numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
-                      sizes, indexAssignmentsA[problemTypeIdx]);
+                     numIndicesC[problemTypeIdx], numIndicesAB[problemTypeIdx],
+                     sizes, indexAssignmentsA[problemTypeIdx]);
     }
-    if (initB==5) {
+    if (initB == 5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
-                      numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
-                      sizes, indexAssignmentsB[problemTypeIdx]);
+                     numIndicesC[problemTypeIdx], numIndicesAB[problemTypeIdx],
+                     sizes, indexAssignmentsB[problemTypeIdx]);
     }
-    copyData<DataType> (initialA, initialB);
+    copyData<DataType>(initialA, initialB);
   }
 
   if (printTensorA) {
@@ -859,26 +850,24 @@ bool benchmarkAllSolutionsForSize(
   }
   if (printTensorB) {
     printTensor("B", initialB, numIndicesAB[problemTypeIdx],
-                numIndicesC[problemTypeIdx], sizes, 
+                numIndicesC[problemTypeIdx], sizes,
                 indexAssignmentsB[problemTypeIdx]);
   }
   if (printTensorC & 0x1) {
     std::vector<unsigned int> indexAssignmentsC;
-    for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
       indexAssignmentsC.push_back(i);
     }
     printTensor("C_in", initialC, numIndicesC[problemTypeIdx],
-                numIndicesC[problemTypeIdx], sizes,
-                indexAssignmentsC.data());
+                numIndicesC[problemTypeIdx], sizes, indexAssignmentsC.data());
   }
   if (printTensorD & 0x1) {
     std::vector<unsigned int> indexAssignmentsC;
-    for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
       indexAssignmentsC.push_back(i);
     }
     printTensor("D_in", initialD, numIndicesC[problemTypeIdx],
-                numIndicesC[problemTypeIdx], sizes,
-                indexAssignmentsC.data());
+                numIndicesC[problemTypeIdx], sizes, indexAssignmentsC.data());
   }
 
   // pre-compute referenceCPU if validating
@@ -893,7 +882,7 @@ bool benchmarkAllSolutionsForSize(
         while (true) { // break statement at end
           bool prime = true;
           for (unsigned int i = 2; i < validationStride; i++) {
-            if ( validationStride % i == 0) {
+            if (validationStride % i == 0) {
               prime = false;
               break;
             }
@@ -908,29 +897,27 @@ bool benchmarkAllSolutionsForSize(
         validationStride = 0;
       }
     }
-    generatedCallToReferenceCPU( sizes, minStrides, referenceC, initialA, initialB, strideA, strideB, strideC,
-        alpha, beta, useHighPrecisionAccumulate);
-
+    generatedCallToReferenceCPU(sizes, minStrides, referenceC, initialA,
+                                initialB, strideA, strideB, strideC, alpha,
+                                beta, useHighPrecisionAccumulate);
   }
 #if Tensile_RUNTIME_LANGUAGE_OCL
-    cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
+  cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
 #else
-    hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
-    hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
-    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
-      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        hipEventCreateWithFlags( &l_eventStart[syncIdx][enqIdx],
-            hipEventDefault );
-        hipEventCreateWithFlags( &l_eventStop[syncIdx][enqIdx],
-            hipEventDefault );
-      }
+  hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
+  hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
+  for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+    for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+      hipEventCreateWithFlags(&l_eventStart[syncIdx][enqIdx], hipEventDefault);
+      hipEventCreateWithFlags(&l_eventStop[syncIdx][enqIdx], hipEventDefault);
     }
+  }
 #endif
-
 
   fastestGFlops = 0;
   *problem_gpu_time_ms = 0;
-  for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
+  for (unsigned int solutionIdx = solutionStartIdx;
+       solutionIdx < solutionStartIdx + numSolutions; solutionIdx++) {
     bool solutionIsValid = true;
 
     // validate solution
@@ -938,39 +925,44 @@ bool benchmarkAllSolutionsForSize(
     size_t numChecked = 0;
     TensileStatus callStatus = tensileStatusSuccess;
     if (numElementsToValidate) {
-      // copy data in language
+// copy data in language
 #if Tensile_RUNTIME_LANGUAGE_OCL
-      status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-          sizeToCopy, initialC, 0, NULL, NULL);
+      status =
+          clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
+                               sizeToCopy, initialC, 0, NULL, NULL);
       tensileStatusCheck(status);
-      if(!cEqualD)
-        status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE, 0,
-            sizeToCopy, initialD, 0, NULL, NULL);
+      if (!cEqualD)
+        status =
+            clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE,
+                                 0, sizeToCopy, initialD, 0, NULL, NULL);
 #else
       status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
       tensileStatusCheck(status);
-      if(!cEqualD)
-        status = hipMemcpy(deviceD, initialD, sizeToCopy, hipMemcpyHostToDevice);
+      if (!cEqualD)
+        status =
+            hipMemcpy(deviceD, initialD, sizeToCopy, hipMemcpyHostToDevice);
 #endif
       tensileStatusCheck(status);
 
       // enqueue device solution
-      callStatus = generatedCallToSolution( solutions[solutionIdx] , &solutionLocks[solutionIdx], sizes, minStrides, strideA, strideB, strideC, alpha, beta );
+      callStatus = generatedCallToSolution(
+          solutions[solutionIdx], &solutionLocks[solutionIdx], sizes,
+          minStrides, strideA, strideB, strideC, alpha, beta);
 
       if (callStatus == tensileStatusSuccess) {
-        // copy data back to host
+// copy data back to host
 #if Tensile_RUNTIME_LANGUAGE_OCL
         clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-            sizeToCopy, deviceOnHostC, 0, NULL, NULL);
+                            sizeToCopy, deviceOnHostC, 0, NULL, NULL);
         clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE, 0,
-            sizeToCopy, deviceOnHostD, 0, NULL, NULL);
+                            sizeToCopy, deviceOnHostD, 0, NULL, NULL);
 #else
         hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
         hipMemcpy(deviceOnHostD, deviceD, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
         if (printTensorC & 0x2) {
           std::vector<unsigned int> indexAssignmentsC;
-          for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+          for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
             indexAssignmentsC.push_back(i);
           }
           printTensor("C_out", deviceOnHostC, numIndicesC[problemTypeIdx],
@@ -979,7 +971,7 @@ bool benchmarkAllSolutionsForSize(
         }
         if (printTensorD & 0x2) {
           std::vector<unsigned int> indexAssignmentsC;
-          for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+          for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
             indexAssignmentsC.push_back(i);
           }
           printTensor("D_out", deviceOnHostD, numIndicesC[problemTypeIdx],
@@ -991,24 +983,28 @@ bool benchmarkAllSolutionsForSize(
         //
         bool firstPrint = true;
         unsigned int printIdx = 0;
-        for (size_t e = 0; e < currentElementSizeC; e+= validationStride) {
+        for (size_t e = 0; e < currentElementSizeC; e += validationStride) {
 
           // Compute the actual serialIdxX accouting for strides:
           size_t serialIdxC = 0;
           size_t r = e;
-          for (int j = numIndicesC[problemTypeIdx]-1; j >=0; j--) {
+          for (int j = numIndicesC[problemTypeIdx] - 1; j >= 0; j--) {
             serialIdxC += r / elementStridesC[j] * stridesC[j];
             r = r % elementStridesC[j];
           }
 
           bool equalC, equalD;
-          equalD = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
-              deviceOnHostD[serialIdxC], referenceC[serialIdxC]);
-          equalC = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
-              deviceOnHostC[serialIdxC], cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
+          equalD =
+              tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
+                  deviceOnHostD[serialIdxC], referenceC[serialIdxC]);
+          equalC =
+              tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
+                  deviceOnHostC[serialIdxC],
+                  cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
           numChecked++;
-          
-          if (!equalC || !equalD) numInvalids++;
+
+          if (!equalC || !equalD)
+            numInvalids++;
 
           if (!equalC || !equalD || printValids) {
             if (printIdx < printMax) {
@@ -1016,15 +1012,16 @@ bool benchmarkAllSolutionsForSize(
                 std::cout << "Index:  Device | Reference" << std::endl;
                 firstPrint = false;
               }
-              std::cout << "[" << (numChecked-1) << "] " 
-                << " e=" << e
-                << " serialIdxC=" << serialIdxC << ": "
-                << tensileToString(deviceOnHostD[serialIdxC])
-                << (equalD ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
-                << " , "
-                << tensileToString(deviceOnHostC[serialIdxC])
-                << (equalC ? "==" : "!=") << tensileToString(cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC])
-                << std::endl;
+              std::cout << "[" << (numChecked - 1) << "] "
+                        << " e=" << e << " serialIdxC=" << serialIdxC << ": "
+                        << tensileToString(deviceOnHostD[serialIdxC])
+                        << (equalD ? "==" : "!=")
+                        << tensileToString(referenceC[serialIdxC]) << " , "
+                        << tensileToString(deviceOnHostC[serialIdxC])
+                        << (equalC ? "==" : "!=")
+                        << tensileToString(cEqualD ? referenceC[serialIdxC]
+                                                   : initialC[serialIdxC])
+                        << std::endl;
               printIdx++;
             }
           }
@@ -1034,12 +1031,11 @@ bool benchmarkAllSolutionsForSize(
           solutionIsValid = false;
         }
       } // if callStatus == success
-    } // if numElementsToValidate > 0
-
+    }   // if numElementsToValidate > 0
 
     // time solution
     timer.start();
-      // device stats
+    // device stats
     unsigned long long avgCoreClock = 0;
     unsigned long long avgMemClock = 0;
     double avgTemp = 0;
@@ -1051,19 +1047,22 @@ bool benchmarkAllSolutionsForSize(
       unsigned long long syncFanSpeed = 0;
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-        TensileStatus status = generatedCallToSolution( solutions[solutionIdx], &solutionLocks[solutionIdx], sizes, minStrides, strideA, strideB, strideC, alpha, beta,
-            0, NULL, &l_outputEvent[syncIdx][enqIdx] );
+        TensileStatus status = generatedCallToSolution(
+            solutions[solutionIdx], &solutionLocks[solutionIdx], sizes,
+            minStrides, strideA, strideB, strideC, alpha, beta, 0, NULL,
+            &l_outputEvent[syncIdx][enqIdx]);
 #else
-        TensileStatus status = generatedCallToSolution( solutions[solutionIdx], &solutionLocks[solutionIdx], sizes, minStrides, strideA, strideB, strideC, alpha, beta,
+        TensileStatus status = generatedCallToSolution(
+            solutions[solutionIdx], &solutionLocks[solutionIdx], sizes,
+            minStrides, strideA, strideB, strideC, alpha, beta,
             numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
-            &l_eventStop[syncIdx][enqIdx] );
+            &l_eventStop[syncIdx][enqIdx]);
 #endif
         if (status != tensileStatusSuccess) {
           solutionIsValid = false;
         }
-
       }
-      // sync
+// sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
       status = clFinish(stream);
 #else
@@ -1073,13 +1072,14 @@ bool benchmarkAllSolutionsForSize(
         int currentMemClock = tensileGetDeviceMemClock(0);
         float currentTemp = tensileGetDeviceTemp(0);
         int currentFanSpeed = tensileGetDeviceFanSpeed(0);
-        //std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
+        // std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
         syncCoreClock += currentCoreClock;
         syncMemClock += currentMemClock;
         syncTemp += currentTemp;
         syncFanSpeed += currentFanSpeed;
         numDeviceStatsQueries++;
-      } while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync-1]) != hipSuccess);
+      } while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync - 1]) !=
+               hipSuccess);
       syncCoreClock /= numDeviceStatsQueries;
       syncMemClock /= numDeviceStatsQueries;
       syncTemp /= numDeviceStatsQueries;
@@ -1096,10 +1096,11 @@ bool benchmarkAllSolutionsForSize(
     double timeNs = 0.0;
 #if Tensile_RUNTIME_LANGUAGE_OCL
     if (useGPUTimer) {
-      // Loop through the multi-dimensional event array and collect kernel performance data
+      // Loop through the multi-dimensional event array and collect kernel
+      // performance data
       // Release events when done with them
       cl_ulong kernel_time_sum = 0;
-      for (auto& event_array : l_outputEvent) {
+      for (auto &event_array : l_outputEvent) {
         for (auto event : event_array) {
           // getEventDeltaTime returns unsigned long in nano-seconds on opencl
           kernel_time_sum += getEventDeltaTime(event);
@@ -1114,29 +1115,30 @@ bool benchmarkAllSolutionsForSize(
       // Loop through the event array and collect kernel performance data
       // Release events when done with them
       float kernel_time_sum = 0;
-      for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
+      for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark;
+           syncIdx++) {
         for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
           // getEventDeltaTime returns unsigned long in milli-seconds on hip
           float kernel_time = getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
-              l_eventStop[syncIdx][enqIdx] );
-          //std::cout << "kernelTime: " << kernel_time << std::endl;
+                                                l_eventStop[syncIdx][enqIdx]);
+          // std::cout << "kernelTime: " << kernel_time << std::endl;
           kernel_time_sum += kernel_time;
         }
       }
-      timeNs = static_cast<double>(kernel_time_sum)
-        * TensileTimer::million;  // convert to nano-seconds
+      timeNs = static_cast<double>(kernel_time_sum) *
+               TensileTimer::million; // convert to nano-seconds
     } else {
       timeNs = timer.elapsed_ns();
     }
 
 #endif
     if (sleepPercent) {
-      unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
+      unsigned int sleepMicroSeconds = (timeNs * 10 * sleepPercent) / 1e6;
       usleep(sleepMicroSeconds);
     }
 
-    *problem_gpu_time_ms += timeNs/1e6;
-    //printf ("problem: %6.2f ms+ %6.2fns\n", *problem_gpu_time_ms, timeNs);
+    *problem_gpu_time_ms += timeNs / 1e6;
+    // printf ("problem: %6.2f ms+ %6.2fns\n", *problem_gpu_time_ms, timeNs);
 
     timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
     // device status
@@ -1147,7 +1149,8 @@ bool benchmarkAllSolutionsForSize(
 
     float perfScaling = 1.f;
     double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
-    //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;
+    // std::cout << gflops << " gflops = " << totalFlops << " flops / " <<
+    // timeNs << " ns" << std::endl;
     bool newFastest = false;
     if (gflops > fastestGFlops) {
       fastestGFlops = gflops;
@@ -1161,21 +1164,22 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // print results to stdout
-    if (newFastest || numInvalids>0 || !printWinnersOnly || callStatus != tensileStatusSuccess) {
+    if (newFastest || numInvalids > 0 || !printWinnersOnly ||
+        callStatus != tensileStatusSuccess) {
       std::cout << std::setw(10) << std::fixed << std::setprecision(3)
-          << gflops*perfScaling << ", "
-          << std::setw(10) << std::fixed << std::setprecision(3)
-          << gflops << ", "
-          << solutions[solutionIdx]._name << (newFastest ? "*" : " ") << ", "
-          << std::setw(9) << std::fixed << std::setprecision(3)
-          << timeNs * TensileTimer::reciprical_million << ", ";
+                << gflops * perfScaling << ", " << std::setw(10) << std::fixed
+                << std::setprecision(3) << gflops << ", "
+                << solutions[solutionIdx]._name << (newFastest ? "*" : " ")
+                << ", " << std::setw(9) << std::fixed << std::setprecision(3)
+                << timeNs * TensileTimer::reciprical_million << ", ";
 
       if (callStatus == tensileStatusSuccess) {
         if (numElementsToValidate) {
-          std::cout << (numInvalids ? "FAILED" : "PASSED")
-            << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
+          std::cout << (numInvalids ? "FAILED" : "PASSED") << ": "
+                    << (numChecked - numInvalids) << "/" << numChecked << ", ";
         } else {
-          std::cout << "NO_CHECK, "; // did not validate any results, may work or maybe not
+          std::cout << "NO_CHECK, "; // did not validate any results, may work
+                                     // or maybe not
         }
       } else if (callStatus == tensileStatusAssertFailure) {
         std::cout << "DID_NOT_SATISFY_ASSERTS, ";
@@ -1196,14 +1200,12 @@ bool benchmarkAllSolutionsForSize(
       gettimeofday(&tmnow, NULL); // microsecond resolution
       tm = localtime(&tmnow.tv_sec);
       char prev_fill = std::cout.fill('0');
-      std::cout << (tm->tm_year + 1900) << "-"
-        << std::setw(2) << (tm->tm_mon + 1) << "-"
-        << std::setw(2) << tm->tm_mday << " "
-        << std::setw(2) << tm->tm_hour << ":"
-        << std::setw(2) << tm->tm_min << ":"
-        << std::setw(2) << tm->tm_sec << "."
-        << std::setw(6) << static_cast<int>(tmnow.tv_usec) << ", ";
-      (void) std::cout.fill(prev_fill);
+      std::cout << (tm->tm_year + 1900) << "-" << std::setw(2)
+                << (tm->tm_mon + 1) << "-" << std::setw(2) << tm->tm_mday << " "
+                << std::setw(2) << tm->tm_hour << ":" << std::setw(2)
+                << tm->tm_min << ":" << std::setw(2) << tm->tm_sec << "."
+                << std::setw(6) << static_cast<int>(tmnow.tv_usec) << ", ";
+      (void)std::cout.fill(prev_fill);
 
       std::cout << std::endl;
     }
@@ -1214,21 +1216,21 @@ bool benchmarkAllSolutionsForSize(
       invalidSolutions.insert(solutionIdx);
     }
     file << ", " << gflops;
-    solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
+    solutionPerf[problemIdx][solutionIdx] = static_cast<float>(gflops);
   } // solution loop
 
   if (useGPUTimer) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-    for (auto& event_array : l_outputEvent) {
+    for (auto &event_array : l_outputEvent) {
       for (auto event : event_array) {
         ::clReleaseEvent(event);
       }
     }
 #else
-    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
+    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
-        ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
+        ::hipEventDestroy(l_eventStart[syncIdx][enqIdx]);
+        ::hipEventDestroy(l_eventStop[syncIdx][enqIdx]);
       }
     }
 #endif
@@ -1243,17 +1245,13 @@ bool benchmarkAllSolutionsForSize(
  * Benchmark Problem Sizes
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
-template<typename DataType, typename DestDataType>
-bool benchmarkProblemSizes(
-    DestDataType *initialD,
-    DestDataType *initialC,
-    DataType *initialA,
-    DataType *initialB,
-    DestDataType alpha,
-    DestDataType beta,
-    DestDataType *referenceC,
-    DestDataType *deviceOnHostD,
-    DestDataType *deviceOnHostC) {
+template <typename DataType, typename DestDataType>
+bool benchmarkProblemSizes(DestDataType *initialD, DestDataType *initialC,
+                           DataType *initialA, DataType *initialB,
+                           DestDataType alpha, DestDataType beta,
+                           DestDataType *referenceC,
+                           DestDataType *deviceOnHostD,
+                           DestDataType *deviceOnHostC) {
   bool returnInvalids = false;
 
   // write benchmark data column headers
@@ -1262,14 +1260,14 @@ bool benchmarkProblemSizes(
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
     std::cout << "(" << sIdx << ") " << solutions[sIdx]._name << std::endl;
   }
-  //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
+  // std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
   file << "GFlops";
-  for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+  for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     file << ", Size" << indexChars[i];
   }
   file << ", TotalFlops";
-  for ( unsigned int s = 0; s < numSolutions; s++) {
+  for (unsigned int s = 0; s < numSolutions; s++) {
     file << ", " << solutions[s]._name;
   }
   file << std::endl;
@@ -1278,8 +1276,11 @@ bool benchmarkProblemSizes(
   if (!numElementsToValidate) {
     std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-      generatedCallToSolution( solutions[sIdx], &solutionLocks[sIdx], problemSizes[0], minStrides, strideA, strideB, strideC, alpha, beta );
-      status = clFinish(stream); tensileStatusCheck(status);
+      generatedCallToSolution(solutions[sIdx], &solutionLocks[sIdx],
+                              problemSizes[0], minStrides, strideA, strideB,
+                              strideC, alpha, beta);
+      status = clFinish(stream);
+      tensileStatusCheck(status);
       tensileStatusCheck(status);
       std::cout << ".";
     }
@@ -1288,14 +1289,15 @@ bool benchmarkProblemSizes(
 #endif // opencl
   std::cout << std::endl;
 
-	TensileTimer totalKernelTimer;
+  TensileTimer totalKernelTimer;
   totalKernelTimer.start();
   // iterate over all problem sizes
   double gpu_time_ms = 0;
-  for (unsigned int problemIdx = 0; problemIdx < numProblems; problemIdx++ ) {
+  for (unsigned int problemIdx = 0; problemIdx < numProblems; problemIdx++) {
 
     // print size
-    std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << problemSizes[problemIdx][0];
+    std::cout << "Problem[" << problemIdx << "/" << numProblems
+              << "]: " << problemSizes[problemIdx][0];
     for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
       std::cout << ", " << problemSizes[problemIdx][i];
     }
@@ -1303,16 +1305,20 @@ bool benchmarkProblemSizes(
 
     // benchmark all solutions for this problem size
     double problem_gpu_time_ms;
-    bool invalids = benchmarkAllSolutionsForSize( problemIdx, initialD, initialC,
-        initialA, initialB, alpha, beta, referenceC, deviceOnHostD, deviceOnHostC,
-        &problem_gpu_time_ms);
-    if (invalids) returnInvalids = true;
+    bool invalids = benchmarkAllSolutionsForSize(
+        problemIdx, initialD, initialC, initialA, initialB, alpha, beta,
+        referenceC, deviceOnHostD, deviceOnHostC, &problem_gpu_time_ms);
+    if (invalids)
+      returnInvalids = true;
     gpu_time_ms += problem_gpu_time_ms;
-    //printf ("gpu_time: %6.2f ms+ %6.2fns\n", gpu_time_ms, problem_gpu_time_ms);
+    // printf ("gpu_time: %6.2f ms+ %6.2fns\n", gpu_time_ms,
+    // problem_gpu_time_ms);
 
   } // for problemIdx
-	auto timeK = totalKernelTimer.elapsed_sec();
-  std::cout <<  "\nRun kernels elapsed gpu_time:" << gpu_time_ms/1000.0 << " secs  total_time:" << timeK << " secs " << std::setprecision(2) << gpu_time_ms/timeK*(100.0/1000) << "% gpu utilization\n";
+  auto timeK = totalKernelTimer.elapsed_sec();
+  std::cout << "\nRun kernels elapsed gpu_time:" << gpu_time_ms / 1000.0
+            << " secs  total_time:" << timeK << " secs " << std::setprecision(2)
+            << gpu_time_ms / timeK * (100.0 / 1000) << "% gpu utilization\n";
 
   // close file
   file.close();
@@ -1320,26 +1326,24 @@ bool benchmarkProblemSizes(
 } // benchmarkProblemSizes
 #endif // benchmark
 
-enum InitOp {None, Abs, AltSign};
-template<typename DataType>
-void initInput(
-    const std::string &tag,
-    unsigned dataInitType,
-    DataType **initial,
-    size_t     maxSize,
-    InitOp     initOp)
-{
+enum InitOp { None, Abs, AltSign };
+template <typename DataType>
+void initInput(const std::string &tag, unsigned dataInitType,
+               DataType **initial, size_t maxSize, InitOp initOp) {
   if (dataInitType == 0) {
     for (size_t i = 0; i < maxSize; i++) {
-      (*initial)[i] = tensileGetZero<DataType>(); }
+      (*initial)[i] = tensileGetZero<DataType>();
+    }
     std::cout << ".";
   } else if (dataInitType == 1) {
     for (size_t i = 0; i < maxSize; i++) {
-      (*initial)[i] = tensileGetOne<DataType>(); }
+      (*initial)[i] = tensileGetOne<DataType>();
+    }
     std::cout << ".";
   } else if (dataInitType == 2) {
     for (size_t i = 0; i < maxSize; i++) {
-      (*initial)[i] = tensileGetTypeForInt<DataType>(i); }
+      (*initial)[i] = tensileGetTypeForInt<DataType>(i);
+    }
     std::cout << ".";
   } else if (dataInitType == 3) {
     for (size_t i = 0; i < maxSize; i++) {
@@ -1347,27 +1351,29 @@ void initInput(
       if (initOp == Abs) {
         v = std::fabs(double(v));
       } else if (initOp == AltSign) {
-        DataType s = (i&0x1) ? -1:1;
-        v = s*std::fabs(double(v));
+        DataType s = (i & 0x1) ? -1 : 1;
+        v = s * std::fabs(double(v));
       }
       (*initial)[i] = v;
     }
     std::cout << ".";
   } else if (dataInitType == 4) {
     for (size_t i = 0; i < maxSize; i++) {
-      (*initial)[i] = tensileGetNaN<DataType>(); }
+      (*initial)[i] = tensileGetNaN<DataType>();
+    }
     std::cout << ".";
   } else if (dataInitType == 5) {
     // Will initialize later for each matrix dim:
     specializeAB = true;
   } else if (dataInitType == 6) {
     for (size_t i = 0; i < maxSize; i++) {
-      auto v = tensileGetTrig<DataType>(i);   // initialize with sin to get value between -1 and 1. 
+      auto v = tensileGetTrig<DataType>(
+          i); // initialize with sin to get value between -1 and 1.
       if (initOp == Abs) {
         v = std::fabs(double(v));
       } else if (initOp == AltSign) {
-        DataType s = (i&0x1) ? -1:1;
-        v = s*std::fabs(double(v));
+        DataType s = (i & 0x1) ? -1 : 1;
+        v = s * std::fabs(double(v));
       }
       (*initial)[i] = v;
     }
@@ -1378,22 +1384,15 @@ void initInput(
   }
 }
 
-
 /*******************************************************************************
  * initialize data
  ******************************************************************************/
-template<typename DataType, typename DestDataType>
-void initData(
-    DestDataType **initialD,
-    DestDataType **initialC,
-    DataType **initialA,
-    DataType **initialB,
-    DestDataType *alpha,
-    DestDataType *beta,
-    DestDataType **referenceC,
-    DestDataType **deviceOnHostD,
-    DestDataType **deviceOnHostC) {
-  //int seed = time(NULL);
+template <typename DataType, typename DestDataType>
+void initData(DestDataType **initialD, DestDataType **initialC,
+              DataType **initialA, DataType **initialB, DestDataType *alpha,
+              DestDataType *beta, DestDataType **referenceC,
+              DestDataType **deviceOnHostD, DestDataType **deviceOnHostC) {
+  // int seed = time(NULL);
   int seed = 0x1000;
   srand(seed);
 
@@ -1427,9 +1426,9 @@ void initData(
     *beta = tensileGetZero<DestDataType>();
   }
 
-  std::cout << "Initializing "
-    << (bytesPerElement[dataTypeIdx]*(maxSizeC+maxSizeA+maxSizeB)/1000000)
-    << " MBytes";
+  std::cout << "Initializing " << (bytesPerElement[dataTypeIdx] *
+                                   (maxSizeC + maxSizeA + maxSizeB) / 1000000)
+            << " MBytes";
   std::cout << ".";
 
   // initial and reference buffers
@@ -1441,7 +1440,7 @@ void initData(
   std::cout << ".";
   *initialC = new DestDataType[maxSizeC];
   std::cout << ".";
-  if(cEqualD)
+  if (cEqualD)
     *initialD = *initialC;
   else
     *initialD = new DestDataType[maxSizeC];
@@ -1455,48 +1454,50 @@ void initData(
   initInput("DataInitTypeA", initA, initialA, maxSizeA, Abs);
   initInput("DataInitTypeB", initB, initialB, maxSizeB, AltSign);
   initInput("DataInitTypeC", initC, initialC, maxSizeC, None);
-  if(!cEqualD)
+  if (!cEqualD)
     initInput("DataInitTypeD", initD, initialD, maxSizeC, None);
 
-  // create device buffers and copy data
+// create device buffers and copy data
 #if Tensile_RUNTIME_LANGUAGE_OCL
-  deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE,
-      maxSizeC*bytesPerElement[dataTypeIdx], NULL, &status);
+  deviceC =
+      clCreateBuffer(context, CL_MEM_READ_WRITE,
+                     maxSizeC * bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
-    std::cout << ".";
-  if(cEqualD)
+  std::cout << ".";
+  if (cEqualD)
     deviceD = deviceC;
-  else
-  {
-    deviceD = clCreateBuffer(context, CL_MEM_READ_WRITE,
-        maxSizeC*bytesPerElement[dataTypeIdx], NULL, &status);
+  else {
+    deviceD =
+        clCreateBuffer(context, CL_MEM_READ_WRITE,
+                       maxSizeC * bytesPerElement[dataTypeIdx], NULL, &status);
     tensileStatusCheck(status);
   }
-    std::cout << ".";
-  deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY,
-      maxSizeA*bytesPerElement[dataTypeIdx], NULL, &status);
+  std::cout << ".";
+  deviceA =
+      clCreateBuffer(context, CL_MEM_READ_ONLY,
+                     maxSizeA * bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
-    std::cout << ".";
-  deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY,
-      maxSizeB*bytesPerElement[dataTypeIdx], NULL, &status);
+  std::cout << ".";
+  deviceB =
+      clCreateBuffer(context, CL_MEM_READ_ONLY,
+                     maxSizeB * bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
-    std::cout << ".";
+  std::cout << ".";
 #else
-  status = hipMalloc( &deviceC, maxSizeC*bytesPerElement[dataTypeIdx] );
+  status = hipMalloc(&deviceC, maxSizeC * bytesPerElement[dataTypeIdx]);
   tensileStatusCheck(status);
   std::cout << ".";
-  if(cEqualD)
+  if (cEqualD)
     deviceD = deviceC;
-  else
-  {
-    status = hipMalloc( &deviceD, maxSizeC*bytesPerElement[dataTypeIdx] );
+  else {
+    status = hipMalloc(&deviceD, maxSizeC * bytesPerElement[dataTypeIdx]);
     tensileStatusCheck(status);
   }
   std::cout << ".";
-  status = hipMalloc( &deviceA, maxSizeA*bytesPerElement[dataTypeIdx] );
+  status = hipMalloc(&deviceA, maxSizeA * bytesPerElement[dataTypeIdx]);
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMalloc( &deviceB, maxSizeB*bytesPerElement[dataTypeIdx] );
+  status = hipMalloc(&deviceB, maxSizeB * bytesPerElement[dataTypeIdx]);
   tensileStatusCheck(status);
   std::cout << ".";
 #endif
@@ -1509,25 +1510,17 @@ void initData(
   std::cout << std::endl;
 }
 
-
-
-
-
 /*******************************************************************************
  * destroy data
  ******************************************************************************/
-template<typename DataType, typename DestDataType>
-void destroyData(
-    DestDataType *initialD,
-    DestDataType *initialC,
-    DataType *initialA,
-    DataType *initialB,
-    DestDataType *referenceC,
-    DestDataType *deviceOnHostD,
-    DestDataType *deviceOnHostC) {
+template <typename DataType, typename DestDataType>
+void destroyData(DestDataType *initialD, DestDataType *initialC,
+                 DataType *initialA, DataType *initialB,
+                 DestDataType *referenceC, DestDataType *deviceOnHostD,
+                 DestDataType *deviceOnHostC) {
 
   delete[] initialC;
-  if(!cEqualD)
+  if (!cEqualD)
     delete[] initialD;
   delete[] initialA;
   delete[] initialB;
@@ -1537,62 +1530,78 @@ void destroyData(
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
   clReleaseMemObject(static_cast<cl_mem>(deviceC));
-  if(!cEqualD)
+  if (!cEqualD)
     clReleaseMemObject(static_cast<cl_mem>(deviceD));
   clReleaseMemObject(static_cast<cl_mem>(deviceA));
   clReleaseMemObject(static_cast<cl_mem>(deviceB));
 #else
   hipFree(deviceC);
-  if(!cEqualD)
+  if (!cEqualD)
     hipFree(deviceD);
   hipFree(deviceA);
   hipFree(deviceB);
 #endif
-
 }
-
 
 void printClientUsage(std::string executableName) {
   std::cout << "Usage: " << executableName << std::endl;
-  std::cout << "  " << keyDeviceIdx << " [" << defaultDeviceIdx << "]" << std::endl;  
-  std::cout << "  " << keyInitC << " [" << defaultInitC << "]" << std::endl;  
-  std::cout << "  " << keyInitA << " [" << defaultInitA << "]" << std::endl;  
-  std::cout << "  " << keyInitB << " [" << defaultInitB << "]" << std::endl;  
-  std::cout << "  " << keyInitAlpha << " [" << defaultInitAlpha << "]" << std::endl;  
-  std::cout << "  " << keyInitBeta << " [" << defaultInitBeta << "]" << std::endl;  
+  std::cout << "  " << keyDeviceIdx << " [" << defaultDeviceIdx << "]"
+            << std::endl;
+  std::cout << "  " << keyInitC << " [" << defaultInitC << "]" << std::endl;
+  std::cout << "  " << keyInitA << " [" << defaultInitA << "]" << std::endl;
+  std::cout << "  " << keyInitB << " [" << defaultInitB << "]" << std::endl;
+  std::cout << "  " << keyInitAlpha << " [" << defaultInitAlpha << "]"
+            << std::endl;
+  std::cout << "  " << keyInitBeta << " [" << defaultInitBeta << "]"
+            << std::endl;
   std::cout << "  " << keyCEqualD << " [" << defaultCEqualD << "]" << std::endl;
 #if Tensile_RUNTIME_LANGUAGE_OCL
-  std::cout << "  " << keyPlatformIdx << " [" << defaultPlatformIdx << "]" << std::endl;  
+  std::cout << "  " << keyPlatformIdx << " [" << defaultPlatformIdx << "]"
+            << std::endl;
 #endif
-  std::cout << "  " << keyPrintValids << " [" << defaultPrintValids << "]" << std::endl;  
-  std::cout << "  " << keyPrintMax << " [" << defaultPrintMax << "]" << std::endl;  
-  std::cout << "  " << keyNumBenchmarks << " [" << defaultNumBenchmarks << "]" << std::endl;  
-  std::cout << "  " << keyNumElementsToValidate << " [" << defaultNumElementsToValidate << "]" << std::endl;  
-  std::cout << "  " << keyNumEnqueuesPerSync << " [" << defaultNumEnqueuesPerSync << "]" << std::endl;  
-  std::cout << "  " << keyNumSyncsPerBenchmark << " [" << defaultNumSyncsPerBenchmark << "]" << std::endl;  
-  std::cout << "  " << keyUseGPUTimer << " [" << defaultUseGPUTimer << "]" << std::endl;  
-  std::cout << "  " << keySleepPercent << " [" << defaultSleepPercent << "]" << std::endl;  
-  std::cout << "  " << keyStrideA << " [defaut is size of array A]" << std::endl;  
-  std::cout << "  " << keyStrideB << " [defaut is size of array B]" << std::endl;  
-  std::cout << "  " << keyStrideC << " [defaut is size of array C]" << std::endl;  
+  std::cout << "  " << keyPrintValids << " [" << defaultPrintValids << "]"
+            << std::endl;
+  std::cout << "  " << keyPrintMax << " [" << defaultPrintMax << "]"
+            << std::endl;
+  std::cout << "  " << keyNumBenchmarks << " [" << defaultNumBenchmarks << "]"
+            << std::endl;
+  std::cout << "  " << keyNumElementsToValidate << " ["
+            << defaultNumElementsToValidate << "]" << std::endl;
+  std::cout << "  " << keyNumEnqueuesPerSync << " ["
+            << defaultNumEnqueuesPerSync << "]" << std::endl;
+  std::cout << "  " << keyNumSyncsPerBenchmark << " ["
+            << defaultNumSyncsPerBenchmark << "]" << std::endl;
+  std::cout << "  " << keyUseGPUTimer << " [" << defaultUseGPUTimer << "]"
+            << std::endl;
+  std::cout << "  " << keySleepPercent << " [" << defaultSleepPercent << "]"
+            << std::endl;
+  std::cout << "  " << keyStrideA << " [defaut is size of array A]"
+            << std::endl;
+  std::cout << "  " << keyStrideB << " [defaut is size of array B]"
+            << std::endl;
+  std::cout << "  " << keyStrideC << " [defaut is size of array C]"
+            << std::endl;
 #if Tensile_CLIENT_LIBRARY
-  std::cout << "  " << keyFunctionIdx << " [" << defaultFunctionIdx << "]" << std::endl;  
-  std::cout << "  " << keySizes << " [" << defaultSize << " " << defaultSize << " " << defaultSize << "]" << std::endl;  
+  std::cout << "  " << keyFunctionIdx << " [" << defaultFunctionIdx << "]"
+            << std::endl;
+  std::cout << "  " << keySizes << " [" << defaultSize << " " << defaultSize
+            << " " << defaultSize << "]" << std::endl;
   std::cout << "FunctionIdx:" << std::endl;
   for (unsigned int i = 0; i < numFunctions; i++) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
   }
 #else
-  std::cout << "  " << keySolutionStartIdx << " [" << defaultSolutionStartIdx << "]" << std::endl;  
-  std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]" << std::endl;  
+  std::cout << "  " << keySolutionStartIdx << " [" << defaultSolutionStartIdx
+            << "]" << std::endl;
+  std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]"
+            << std::endl;
 #endif
 }
-
 
 /*******************************************************************************
  * Parse Command Line Parameters
  ******************************************************************************/
-void parseCommandLineParameters( int argc, char *argv[] ) {
+void parseCommandLineParameters(int argc, char *argv[]) {
   std::string executableName(argv[0]);
 
   // set benchmark parameters to default values before parsing user values
@@ -1630,8 +1639,8 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
     // check for help
     for (unsigned int argIdx = 1; argIdx < argc; argIdx++) {
       if (keyHelp1 == argv[argIdx] || keyHelp2 == argv[argIdx]) {
-          printClientUsage(executableName);
-          exit(0);
+        printClientUsage(executableName);
+        exit(0);
       }
     }
 #if Tensile_CLIENT_LIBRARY
@@ -1639,10 +1648,10 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
     functionIdx = defaultFunctionIdx;
     for (unsigned int argIdx = 1; argIdx < argc; argIdx++) {
       if (keyFunctionIdx == argv[argIdx]) {
-        functionIdx = static_cast<unsigned int>(atoi(argv[argIdx+1]));
+        functionIdx = static_cast<unsigned int>(atoi(argv[argIdx + 1]));
         if (functionIdx >= numFunctions) {
           std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= "
-            << "NumFunctions=" << numFunctions << std::endl;
+                    << "NumFunctions=" << numFunctions << std::endl;
           printClientUsage(executableName);
           exit(0);
         }
@@ -1662,27 +1671,27 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
         argIdx++;
         deviceIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // init alpha
+        // init alpha
       } else if (keyInitAlpha == argv[argIdx]) {
         argIdx++;
         initAlpha = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // init beta
+        // init beta
       } else if (keyInitBeta == argv[argIdx]) {
         argIdx++;
         initBeta = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // init d
+        // init d
       } else if (keyInitD == argv[argIdx]) {
         argIdx++;
         initD = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // init c
+        // init c
       } else if (keyInitC == argv[argIdx]) {
         argIdx++;
         initC = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // init ab
+        // init ab
       } else if (keyInitA == argv[argIdx]) {
         argIdx++;
         initA = static_cast<unsigned int>(atoi(argv[argIdx]));
@@ -1691,52 +1700,52 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
         argIdx++;
         initB = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // c == d
+        // c == d
       } else if (keyCEqualD == argv[argIdx]) {
         argIdx++;
         cEqualD = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // platform idx
+        // platform idx
       } else if (keyPlatformIdx == argv[argIdx]) {
         argIdx++;
         platformIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // print valids
+        // print valids
       } else if (keyPrintValids == argv[argIdx]) {
         argIdx++;
         printValids = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // print max
+        // print max
       } else if (keyPrintMax == argv[argIdx]) {
         argIdx++;
         printMax = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // num benchmarks
+        // num benchmarks
       } else if (keyNumBenchmarks == argv[argIdx]) {
         argIdx++;
         numBenchmarks = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // num elements to validate
+        // num elements to validate
       } else if (keyNumElementsToValidate == argv[argIdx]) {
         argIdx++;
         numElementsToValidate = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // num enqueues per sync
+        // num enqueues per sync
       } else if (keyNumEnqueuesPerSync == argv[argIdx]) {
         argIdx++;
         numEnqueuesPerSync = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // num syncs per benchmark
+        // num syncs per benchmark
       } else if (keyNumSyncsPerBenchmark == argv[argIdx]) {
         argIdx++;
         numSyncsPerBenchmark = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // use gpu timer
+        // use gpu timer
       } else if (keyUseGPUTimer == argv[argIdx]) {
         argIdx++;
         useGPUTimer = static_cast<unsigned int>(atoi(argv[argIdx]));
 
-      // sleep percent
+        // sleep percent
       } else if (keySleepPercent == argv[argIdx]) {
         argIdx++;
         sleepPercent = static_cast<unsigned int>(atoi(argv[argIdx]));
@@ -1759,7 +1768,7 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
         argIdx++;
         // handled above
 
-      // sizes
+        // sizes
       } else if (keySizes == argv[argIdx]) {
         argIdx++;
         for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
@@ -1774,31 +1783,38 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
         argIdx++;
         solutionStartIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
         if (solutionStartIdx >= maxNumSolutions) {
-          std::cout << "Tensile::FATAL: " << keySolutionStartIdx << " " << solutionStartIdx << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
-          throw -1;
+          std::cout << "Tensile::FATAL: " << keySolutionStartIdx << " "
+                    << solutionStartIdx << " must be less than maxNumSolutions "
+                    << maxNumSolutions << std::endl;
+          throw - 1;
         }
 
-      // num solutions
+        // num solutions
       } else if (keyNumSolutions == argv[argIdx]) {
         argIdx++;
         numSolutions = static_cast<unsigned int>(atoi(argv[argIdx]));
         if (numSolutions > maxNumSolutions) {
-          std::cout << "Tensile::FATAL: " << keyNumSolutions << " " << numSolutions << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
-          throw -1;
+          std::cout << "Tensile::FATAL: " << keyNumSolutions << " "
+                    << numSolutions << " must be less than maxNumSolutions "
+                    << maxNumSolutions << std::endl;
+          throw - 1;
         }
       }
 #endif
       // unrecognized
       else {
-       std::cout << "Unrecognized: " << argv[argIdx] << std::endl;
-       printClientUsage(executableName);
-       exit(0);
+        std::cout << "Unrecognized: " << argv[argIdx] << std::endl;
+        printClientUsage(executableName);
+        exit(0);
       }
     } // loop
 #if Tensile_CLIENT_BENCHMARK
     if (solutionStartIdx + numSolutions > maxNumSolutions) {
-      std::cout << "Tensile::FATAL: " << keySolutionStartIdx << " " << solutionStartIdx << " + " << keyNumSolutions << " " << numSolutions << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
-      throw -1;
+      std::cout << "Tensile::FATAL: " << keySolutionStartIdx << " "
+                << solutionStartIdx << " + " << keyNumSolutions << " "
+                << numSolutions << " must be less than maxNumSolutions "
+                << maxNumSolutions << std::endl;
+      throw - 1;
     }
 #endif
   } catch (...) {
@@ -1819,5 +1835,4 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
     maxSizeB *= userSizes[indexAssignmentsB[problemTypeIdx][i]];
   }
 #endif
-
 }
