@@ -92,7 +92,6 @@ namespace Tensile
                 HIP_LAUNCH_PARAM_END
             };
 
-
             HIP_CHECK_EXC(hipHccModuleLaunchKernel(
                         function,
                         kernel.numWorkItems.x, kernel.numWorkItems.y, kernel.numWorkItems.z,
