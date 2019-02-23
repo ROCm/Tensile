@@ -10,5 +10,4 @@ else
     echo su --login $_USER
     su --login $_USER
 fi
-#exec sudo -u $_USER "$@"
 
