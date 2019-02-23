@@ -206,6 +206,68 @@ namespace Tensile
         return a.logicalCounts()[boundIndices[idx].a];
     }
 
+    std::string ContractionProblem::operationDescription() const
+    {
+        std::string aNames(a.dimensions(), '_');
+        std::string bNames(b.dimensions(), '_');
+        std::string cNames(c.dimensions(), '_');
+        std::string dNames(d.dimensions(), '_');
+        std::string sumNames(boundIndices.size(), '_');
+
+        char name = 'i';
+
+        for(char & ch: dNames)
+        {
+            ch = name;
+            name++;
+        }
+
+        for(char & ch: sumNames)
+        {
+            ch = name;
+            name++;
+        }
+
+        for(auto const& free: freeIndices)
+        {
+            aNames[free.a] = dNames[free.da];
+            bNames[free.b] = dNames[free.db];
+            if(!c.empty())
+            {
+                cNames[free.ca] = dNames[free.da];
+                cNames[free.cb] = dNames[free.db];
+            }
+        }
+
+        for(auto const& batch: batchIndices)
+        {
+            aNames[batch.a] = dNames[batch.d];
+            bNames[batch.b] = dNames[batch.d];
+            if(!c.empty())
+                cNames[batch.c] = dNames[batch.d];
+        }
+
+        for(size_t i = 0; i < sumNames.size(); i++)
+        {
+            aNames[boundIndices[i].a] = sumNames[i];
+            bNames[boundIndices[i].b] = sumNames[i];
+        }
+
+        std::ostringstream rv;
+
+        rv << "D[" << dNames << "] = alpha * (";
+
+        if(!sumNames.empty())
+            rv << "Sum[" << sumNames << "] ";
+
+        rv << "A[" << aNames << "] * B[" << bNames << "])";
+
+        if(!c.empty())
+            rv << " + beta * C[" << cNames << "]";
+
+        return rv.str();
+    }
+
 #if 0
     {
         if(a.dimensions() != b.dimensions() || a.dimensions() != c.dimensions() || a.dimensions() != d.dimensions())
@@ -286,6 +348,28 @@ namespace Tensile
         return b.dimensionOrder() == std::vector<size_t>{1,0,2};
     }
 #endif
+
+    std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free)
+    {
+        return stream << "{a=" << free.a << " b=" << free.b
+                      << " ca=" << free.ca << " cb=" << free.cb
+                      << " da=" << free.da << " db=" << free.db << "}";
+    }
+    std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch)
+    {
+        if(batch.a == batch.b && batch.a == batch.c && batch.a == batch.d)
+            return stream << "{" << batch.a << "}";
+
+        return stream << "{a=" << batch.a
+                      << " b=" << batch.b
+                      << " c=" << batch.c
+                      << " d=" << batch.d << "}";
+    }
+
+    std::ostream & operator<<(std::ostream & stream, ContractionProblem::BoundIndex const& bound)
+    {
+        return stream << "{a=" << bound.a << " b=" << bound.b << "}";
+    }
 
 }
 

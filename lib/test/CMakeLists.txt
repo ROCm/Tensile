@@ -11,6 +11,7 @@ set(tensile_test_source
 
 set(test_sources
     test.cpp
+    ContractionProblem_test.cpp
     GEMMLibraryLoading_test.cpp
     GEMMProblem_test.cpp
     GEMMSelectionLibrary_test.cpp

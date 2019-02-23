@@ -78,6 +78,8 @@ namespace Tensile
         size_t batchSize(size_t idx);
         size_t boundSize(size_t idx);
 
+        std::string operationDescription() const;
+
         /*
         size_t blas_m()          const { return a.logicalCounts()[0]; }
         size_t blas_n()          const { return b.logicalCounts()[1]; }
@@ -132,5 +134,9 @@ namespace Tensile
         Alpha alpha = 0;
         Beta beta   = 0;
     };
+
+    std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);
+    std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch);
+    std::ostream & operator<<(std::ostream & stream, ContractionProblem::BoundIndex const& bound);
 }
 
