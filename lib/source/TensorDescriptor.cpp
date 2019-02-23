@@ -98,6 +98,14 @@ namespace Tensile {
         }
     }
 
+    bool TensorDescriptor::transposed() const
+    {
+        for(int i = 0; i < m_dimensionOrder.size(); i++)
+            if(m_dimensionOrder[i] != i)
+                return true;
+        return false;
+    }
+
     void TensorDescriptor::transpose(std::size_t dimA, std::size_t dimB)
     {
         if(dimA >= dimensions()) throw std::runtime_error("Invalid dimA.");
@@ -118,6 +126,19 @@ namespace Tensile {
 
     bool TensorDescriptor::operator!=(const TensorDescriptor& rhs) const { return !(*this == rhs); }
 
+    void TensorDescriptor::appendDim(size_t logicalCount)
+    {
+        appendDim(logicalCount, logicalCount);
+    }
+
+    void TensorDescriptor::appendDim(size_t logicalCount, size_t allocatedCount)
+    {
+        m_logicalCounts.push_back(logicalCount);
+        m_allocatedCounts.push_back(allocatedCount);
+        m_dimensionOrder.push_back(m_dimensionOrder.size());
+
+        calculate();
+    }
 
     std::string ToString(DataType d)
     {

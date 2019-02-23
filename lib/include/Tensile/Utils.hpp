@@ -71,5 +71,14 @@ namespace Tensile
             stream << "]" << std::endl;
         }
     }
-
 }
+
+#define TENSILE_ASSERT_EXC(exp)                                             \
+    do                                                                      \
+    {                                                                       \
+        if(!(exp))                                                          \
+        {                                                                   \
+            throw std::runtime_error("Error in __FILE__:__LINE__: " #exp);  \
+        }                                                                   \
+    } while(false)
+

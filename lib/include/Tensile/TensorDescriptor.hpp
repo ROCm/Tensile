@@ -142,6 +142,11 @@ namespace Tensile
         size_t storedAllocatedCount(size_t idx) const { return m_allocatedCounts[m_dimensionOrder[idx]]; }
 
         void transpose(std::size_t dimA, std::size_t dimB);
+        bool transposed() const;
+        bool empty() const { return m_dimensionOrder.empty(); }
+
+        void appendDim(size_t logicalCount);
+        void appendDim(size_t logicalCount, size_t allocatedCount);
 
         std::size_t dimensions()             const { return m_dimensionOrder.size(); }
         std::size_t totalLogicalElements()   const { return m_totalLogicalElements; }
