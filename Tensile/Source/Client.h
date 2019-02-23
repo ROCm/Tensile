@@ -345,6 +345,7 @@ bool callLibrary(
     unsigned int strideA,
     unsigned int strideB,
     unsigned int strideC,
+    DestDataType *referenceD,
     DestDataType *referenceC,
     DestDataType *deviceOnHostD,
     DestDataType *deviceOnHostC)
@@ -448,6 +449,8 @@ bool callLibrary(
   bool solutionIsValid = true;
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
+    if(!cEqualD)
+      memcpy(referenceD, initialD, sizeToCopy);
     // calculate validation stride
     if (numElementsToValidate >= currentElementSizeC) {
       validationStride = 1;
@@ -475,7 +478,7 @@ bool callLibrary(
     }
 
     // call reference function
-    TensileStatus referenceStatus = generatedCallToReferenceCPU(userSizes, minStrides, referenceC,
+    TensileStatus referenceStatus = generatedCallToReferenceCPU(userSizes, minStrides, referenceD, referenceC,
         initialA, initialB, strideA, strideB, strideC,
         alpha, beta, useHighPrecisionAccumulate);
 
@@ -795,6 +798,7 @@ bool benchmarkAllSolutionsForSize(
     DataType *initialB,
     DestDataType alpha,
     DestDataType beta,
+    DestDataType *referenceD,
     DestDataType *referenceC,
     DestDataType *deviceOnHostD,
     DestDataType *deviceOnHostC,
@@ -884,6 +888,8 @@ bool benchmarkAllSolutionsForSize(
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
+    if(!cEqualD)
+      memcpy(referenceD, initialD, sizeToCopy);
     if (numElementsToValidate >= currentElementSizeC) {
       validationStride = 1;
     } else {
@@ -908,7 +914,8 @@ bool benchmarkAllSolutionsForSize(
         validationStride = 0;
       }
     }
-    generatedCallToReferenceCPU( sizes, minStrides, referenceC, initialA, initialB, strideA, strideB, strideC,
+    generatedCallToReferenceCPU( sizes, minStrides, referenceD, referenceC,
+        initialA, initialB, strideA, strideB, strideC,
         alpha, beta, useHighPrecisionAccumulate);
 
   }
@@ -1003,9 +1010,9 @@ bool benchmarkAllSolutionsForSize(
 
           bool equalC, equalD;
           equalD = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
-              deviceOnHostD[serialIdxC], referenceC[serialIdxC]);
+              deviceOnHostD[serialIdxC], referenceD[serialIdxC]);
           equalC = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
-              deviceOnHostC[serialIdxC], cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC]);
+              deviceOnHostC[serialIdxC], referenceC[serialIdxC]);
           numChecked++;
           
           if (!equalC || !equalD) numInvalids++;
@@ -1020,10 +1027,10 @@ bool benchmarkAllSolutionsForSize(
                 << " e=" << e
                 << " serialIdxC=" << serialIdxC << ": "
                 << tensileToString(deviceOnHostD[serialIdxC])
-                << (equalD ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
+                << (equalD ? "==" : "!=") << tensileToString(referenceD[serialIdxC])
                 << " , "
                 << tensileToString(deviceOnHostC[serialIdxC])
-                << (equalC ? "==" : "!=") << tensileToString(cEqualD ? referenceC[serialIdxC] : initialC[serialIdxC])
+                << (equalC ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
                 << std::endl;
               printIdx++;
             }
@@ -1251,6 +1258,7 @@ bool benchmarkProblemSizes(
     DataType *initialB,
     DestDataType alpha,
     DestDataType beta,
+    DestDataType *referenceD,
     DestDataType *referenceC,
     DestDataType *deviceOnHostD,
     DestDataType *deviceOnHostC) {
@@ -1304,7 +1312,7 @@ bool benchmarkProblemSizes(
     // benchmark all solutions for this problem size
     double problem_gpu_time_ms;
     bool invalids = benchmarkAllSolutionsForSize( problemIdx, initialD, initialC,
-        initialA, initialB, alpha, beta, referenceC, deviceOnHostD, deviceOnHostC,
+        initialA, initialB, alpha, beta, referenceD, referenceC, deviceOnHostD, deviceOnHostC,
         &problem_gpu_time_ms);
     if (invalids) returnInvalids = true;
     gpu_time_ms += problem_gpu_time_ms;
@@ -1390,6 +1398,7 @@ void initData(
     DataType **initialB,
     DestDataType *alpha,
     DestDataType *beta,
+    DestDataType **referenceD,
     DestDataType **referenceC,
     DestDataType **deviceOnHostD,
     DestDataType **deviceOnHostC) {
@@ -1435,6 +1444,10 @@ void initData(
   // initial and reference buffers
   *referenceC = new DestDataType[maxSizeC];
   std::cout << ".";
+  if(cEqualD)
+    *referenceD = *referenceC;
+  else
+    *referenceD = new DestDataType[maxSizeC];
   *deviceOnHostC = new DestDataType[maxSizeC];
   std::cout << ".";
   *deviceOnHostD = new DestDataType[maxSizeC];
@@ -1522,6 +1535,7 @@ void destroyData(
     DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
+    DestDataType *referenceD,
     DestDataType *referenceC,
     DestDataType *deviceOnHostD,
     DestDataType *deviceOnHostC) {
@@ -1532,6 +1546,8 @@ void destroyData(
   delete[] initialA;
   delete[] initialB;
   delete[] referenceC;
+  if(!cEqualD)
+    delete[] referenceD;
   delete[] deviceOnHostD;
   delete[] deviceOnHostC;
 

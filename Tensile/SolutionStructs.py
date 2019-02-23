@@ -238,6 +238,10 @@ class ProblemType:
     else:
       self["NumIndicesC"] = 2
 
+    self["IndexAssignmentLDC"] = self["NumIndicesC"] + 1
+    self["IndexAssignmentLDA"] = self["NumIndicesC"] + 2
+    self["IndexAssignmentLDB"] = self["NumIndicesC"] + 3
+
   ########################################
   def initTensorContraction(self, config):
     assignParameterRequired(self.state, "NumIndicesC", config)
@@ -421,10 +425,14 @@ class ProblemSizeRange:
 
   ########################################
   def __init__(self, problemType, config):
-    self.totalIndices = 1+max(problemType["IndexAssignmentsA"])
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"])+3
     if len(config) < self.totalIndices:
       for i in range(len(config), self.totalIndices):
-        config.append(0)
+        if i < self.totalIndices - 3:
+          config.append(0)
+        else:
+          config.append([0])
+
     self.indexMax = []
     self.indexIsSized = []
     self.indicesSized = []
@@ -566,11 +574,17 @@ class ProblemSizes:
           self.ranges.append( psr )
         elif sizeTypeKey == "Exact":
           e = dictionary[sizeTypeKey]
-          if len(e) != problemType["TotalIndices"]:
+          print e
+          if len(e) == problemType["TotalIndices"]:
+            e += [0, 0, 0]
+            print e
+            self.exacts.append(tuple(e))
+          elif len(e) == (problemType["TotalIndices"] + 3):
+            self.exacts.append(tuple(e))
+          else:
             printExit("ExactSize %s doesn't match indices of ProblemType %s" \
                 % (e, problemType) )
-          else:
-            self.exacts.append(tuple(e))
+
         elif sizeTypeKey == "MinStride":
           e = dictionary[sizeTypeKey]
           if len(e) != problemType["TotalIndices"]:
@@ -600,15 +614,22 @@ class ProblemSizes:
     self.maxA = 0
     self.maxB = 0
     for problemSize in self.sizes:
-      sizeC = 1
-      sizeA = 1
-      sizeB = 1
-      for i in range(0, problemType["NumIndicesC"]):
+      sizeC = max(self.minStrides[0], problemSize[0], problemSize[self.problemType["IndexAssignmentLDC"]])
+      for i in range(1, problemType["NumIndicesC"]):
         sizeC *= max(self.minStrides[i], problemSize[i])
-      for i in self.problemType["IndexAssignmentsA"]:
+
+      sizeA = max(self.minStrides[self.problemType["IndexAssignmentsA"][0]],
+                  problemSize[self.problemType["IndexAssignmentsA"][0]],
+                  problemSize[self.problemType["IndexAssignmentLDA"]])
+      for i in self.problemType["IndexAssignmentsA"][1:]:
         sizeA *= max(self.minStrides[i], problemSize[i])
-      for i in self.problemType["IndexAssignmentsB"]:
+
+      sizeB = max(self.minStrides[self.problemType["IndexAssignmentsB"][0]],
+                  problemSize[self.problemType["IndexAssignmentsB"][0]],
+                  problemSize[self.problemType["IndexAssignmentLDB"]])
+      for i in self.problemType["IndexAssignmentsB"][1:]:
         sizeB *= max(self.minStrides[i], problemSize[i])
+
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)

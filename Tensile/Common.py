@@ -743,6 +743,10 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    "IndexAssignmentLDC":       3,
+    "IndexAssignmentLDA":       4,
+    "IndexAssignmentLDB":       5,
+
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [

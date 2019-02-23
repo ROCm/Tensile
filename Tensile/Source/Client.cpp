@@ -69,25 +69,26 @@ int main( int argc, char *argv[] ) {
     float *initialB_float;
     float alpha_float;
     float beta_float;
+    float *referenceD_float;
     float *referenceC_float;
     float *deviceOnHostD_float;
     float *deviceOnHostC_float;
     initData(&initialD_float, &initialC_float, &initialA_float, &initialB_float, &alpha_float,
-        &beta_float, &referenceC_float, &deviceOnHostD_float, &deviceOnHostC_float);
+        &beta_float, &referenceD_float, &referenceC_float, &deviceOnHostD_float, &deviceOnHostC_float);
 
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialD_float, initialC_float, initialA_float,
-          initialB_float, alpha_float, beta_float, referenceC_float,
+          initialB_float, alpha_float, beta_float, referenceD_float, referenceC_float,
           deviceOnHostD_float, deviceOnHostC_float);
 #else
       invalids = callLibrary(initialD_float, initialC_float, initialA_float, initialB_float,
-          alpha_float, beta_float, strideA, strideB, strideC, referenceC_float, 
+          alpha_float, beta_float, strideA, strideB, strideC, referenceD_float, referenceC_float,
           deviceOnHostD_float, deviceOnHostC_float);
 #endif
     }
     destroyData(initialD_float, initialC_float, initialA_float, initialB_float,
-        referenceC_float, deviceOnHostD_float, deviceOnHostC_float);
+        referenceD_float, referenceC_float, deviceOnHostD_float, deviceOnHostC_float);
     }
     break;
 #endif
@@ -99,24 +100,25 @@ int main( int argc, char *argv[] ) {
     double *initialB_double;
     double alpha_double;
     double beta_double;
+    double *referenceD_double;
     double *referenceC_double;
     double *deviceOnHostD_double;
     double *deviceOnHostC_double;
     initData(&initialD_double, &initialC_double, &initialA_double, &initialB_double,
-        &alpha_double, &beta_double, &referenceC_double, &deviceOnHostD_double, &deviceOnHostC_double);
+        &alpha_double, &beta_double, &referenceD_double, &referenceC_double, &deviceOnHostD_double, &deviceOnHostC_double);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialD_double, initialC_double, initialA_double,
-          initialB_double, alpha_double, beta_double, referenceC_double,
+          initialB_double, alpha_double, beta_double, referenceD_double, referenceC_double,
           deviceOnHostD_double, deviceOnHostC_double);
 #else
       invalids = callLibrary(initialD_double, initialC_double, initialA_double, initialB_double,
-          alpha_double, beta_double, strideA, strideB, strideC, referenceC_double,
+          alpha_double, beta_double, strideA, strideB, strideC, referenceD_double, referenceC_double,
           deviceOnHostD_double, deviceOnHostC_double);
 #endif
     }
     destroyData(initialD_double, initialC_double, initialA_double, initialB_double,
-        referenceC_double, deviceOnHostD_double, deviceOnHostC_double);
+        referenceD_double, referenceC_double, deviceOnHostD_double, deviceOnHostC_double);
     }
     break;
 #endif
@@ -128,22 +130,23 @@ int main( int argc, char *argv[] ) {
     TensileComplexFloat *initialB_TCF;
     TensileComplexFloat alpha_TCF;
     TensileComplexFloat beta_TCF;
+    TensileComplexFloat *referenceD_TCF;
     TensileComplexFloat *referenceC_TCF;
     TensileComplexFloat *deviceOnHostD_TCF;
     TensileComplexFloat *deviceOnHostC_TCF;
     initData(&initialD_TCF, &initialC_TCF, &initialA_TCF, &initialB_TCF, &alpha_TCF,
-        &beta_TCF, &referenceC_TCF, &deviceOnHostD_TCF, &deviceOnHostC_TCF);
+        &beta_TCF, &referenceD_TCF, &referenceC_TCF, &deviceOnHostD_TCF, &deviceOnHostC_TCF);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
+          alpha_TCF, beta_TCF, referenceD_TCF, referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
 #else
       invalids = callLibrary(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, strideA, strideB, strideC, referenceC_TCF,
+          alpha_TCF, beta_TCF, strideA, strideB, strideC, referenceD_TCF, referenceC_TCF,
           deviceOnHostD_TCF, deviceOnHostC_TCF);
 #endif
     }
-    destroyData(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
+    destroyData(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF, referenceD_TCF, referenceC_TCF,
         deviceOnHostD_TCF, deviceOnHostC_TCF);
     }
     break;
@@ -156,22 +159,23 @@ int main( int argc, char *argv[] ) {
     TensileComplexDouble *initialB_TCD;
     TensileComplexDouble alpha_TCD;
     TensileComplexDouble beta_TCD;
+    TensileComplexDouble *referenceD_TCD;
     TensileComplexDouble *referenceC_TCD;
     TensileComplexDouble *deviceOnHostD_TCD;
     TensileComplexDouble *deviceOnHostC_TCD;
     initData(&initialD_TCD, &initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
-        &beta_TCD, &referenceC_TCD, &deviceOnHostD_TCD, &deviceOnHostC_TCD);
+        &beta_TCD, &referenceD_TCD, &referenceC_TCD, &deviceOnHostD_TCD, &deviceOnHostC_TCD);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
+          alpha_TCD, beta_TCD, referenceD_TCD, referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
 #else
       invalids = callLibrary(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, strideA, strideB, strideC, referenceC_TCD,
+          alpha_TCD, beta_TCD, strideA, strideB, strideC, referenceD_TCD, referenceC_TCD,
           deviceOnHostD_TCD, deviceOnHostC_TCD);
 #endif
     }
-    destroyData(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
+    destroyData(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD, referenceD_TCD, referenceC_TCD,
         deviceOnHostD_TCD, deviceOnHostC_TCD);
     }
     break;
@@ -184,22 +188,23 @@ int main( int argc, char *argv[] ) {
     TensileHalf *initialB_TH;
     TensileHalf alpha_TH;
     TensileHalf beta_TH;
+    TensileHalf *referenceD_TH;
     TensileHalf *referenceC_TH;
     TensileHalf *deviceOnHostD_TH;
     TensileHalf *deviceOnHostC_TH;
     initData(&initialD_TH, &initialC_TH, &initialA_TH, &initialB_TH, &alpha_TH,
-        &beta_TH, &referenceC_TH, &deviceOnHostD_TH, &deviceOnHostC_TH);
+        &beta_TH, &referenceD_TH, &referenceC_TH, &deviceOnHostD_TH, &deviceOnHostC_TH);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
+          alpha_TH, beta_TH, referenceD_TH, referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
 #else
       invalids = callLibrary(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, strideA, strideB, strideC, referenceC_TH,
+          alpha_TH, beta_TH, strideA, strideB, strideC, referenceD_TH, referenceC_TH,
           deviceOnHostD_TH, deviceOnHostC_TH);
 #endif
     }
-    destroyData(initialD_TH, initialC_TH, initialA_TH, initialB_TH, referenceC_TH,
+    destroyData(initialD_TH, initialC_TH, initialA_TH, initialB_TH, referenceD_TH, referenceC_TH,
         deviceOnHostD_TH, deviceOnHostC_TH);
     }
     break;
@@ -215,22 +220,23 @@ int main( int argc, char *argv[] ) {
     TensileInt8x4 *initialB_TI;
     TensileInt32 alpha_TI;
     TensileInt32 beta_TI;
+    TensileInt32 *referenceD_TI;
     TensileInt32 *referenceC_TI;
     TensileInt32 *deviceOnHostD_TI;
     TensileInt32 *deviceOnHostC_TI;
     initData(&initialD_TI, &initialC_TI, &initialA_TI, &initialB_TI, &alpha_TI,
-        &beta_TI, &referenceC_TI, &deviceOnHostD_TI, &deviceOnHostC_TI);
+        &beta_TI, &referenceD_TI, &referenceC_TI, &deviceOnHostD_TI, &deviceOnHostC_TI);
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
-          alpha_TI, beta_TI, referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
+          alpha_TI, beta_TI, referenceD_TI, referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
 #else
       invalids = callLibrary(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
-          alpha_TI, beta_TI, strideA, strideB, strideC, referenceC_TI,
+          alpha_TI, beta_TI, strideA, strideB, strideC, referenceD_TI, referenceC_TI,
           deviceOnHostD_TI, deviceOnHostC_TI);
 #endif
     }
-    destroyData(initialD_TI, initialC_TI, initialA_TI, initialB_TI, referenceC_TI,
+    destroyData(initialD_TI, initialC_TI, initialA_TI, initialB_TI, referenceD_TI, referenceC_TI,
         deviceOnHostD_TI, deviceOnHostC_TI);
     }
     break;

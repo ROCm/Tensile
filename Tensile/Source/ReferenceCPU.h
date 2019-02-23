@@ -48,9 +48,13 @@ void unpack_int8x4(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, 
 
 template< typename Type, typename DestType >
 TensileStatus tensileReferenceCPU(
-    DestType *dataC,
+    DestType *dataD,
+    const DestType *dataC,
     const Type *dataA,
     const Type *dataB,
+    const unsigned int lda,
+    const unsigned int ldb,
+    const unsigned int ldc,
     const unsigned int stride_a,
     const unsigned int stride_b,
     const unsigned int stride_c,
@@ -101,6 +105,11 @@ TensileStatus tensileReferenceCPU(
   for (unsigned int i = 1; i < numIndicesC; i++) {
     stridesC[i] = stridesC[i-1] * strides[i-1];
   }
+
+  stridesA[1] = std::max(stridesA[1], lda);
+  stridesB[1] = std::max(stridesB[1], ldb);
+  stridesC[1] = std::max(stridesC[1], ldc);
+
   if (stride_a != std::numeric_limits<unsigned int>::max())  stridesA[2] = stride_a;
   if (stride_b != std::numeric_limits<unsigned int>::max())  stridesB[2] = stride_b;
   if (stride_c != std::numeric_limits<unsigned int>::max())  stridesC[2] = stride_c;
@@ -238,9 +247,9 @@ TensileStatus tensileReferenceCPU(
     }
 
     if (localUseHighPrecisionAccumulate)
-      dataC[serialIdxC] = (Type)sumCfloat;
+      dataD[serialIdxC] = (Type)sumCfloat;
     else
-      dataC[serialIdxC] = sumC;
+      dataD[serialIdxC] = sumC;
 
     // increment free coord
     // skip = 1, validate everything
