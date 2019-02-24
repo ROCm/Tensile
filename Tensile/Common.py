@@ -495,7 +495,8 @@ validParameters = {
     #         this increases the switch time between work-groups but results in
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
-    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
+    #       - Host code will not launch more groups than tiles in the C space
+    "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
