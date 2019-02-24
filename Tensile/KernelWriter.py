@@ -330,64 +330,14 @@ class KernelWriter:
       waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
-
     return iterCode
 
   ##############################################################################
-  # Kernel Body
   ##############################################################################
-  def kernelBody( self, kernel, tensorParametersA, tensorParametersB ):
-
-    ####################################
-    # Begin String
+  def setupForNewWorkGroup(self, kernel, doShadowInit, tensorParametersA, tensorParametersB):
     kl = []
-    kl.append(self.openString(kernel))
-
-    ####################################
-    # Function Prefix
-    kl.append(self.comment3("Function Prefix"))
-    kl.append(self.functionPrefix(kernel))
-
-    ####################################
-    # Function Signature
-    ####################################
-    kl.append(self.comment3("Begin Kernel"))
-    kl.append(self.functionSignaturePrefix(kernel))
-
-    beforeFunctionSignature = '\n'.join([str(x) for x in kl])
-    kl = []
-
-    kl.append(self.functionSignatureSuffix(kernel))
-    kl.append(self.functionBegin(kernel))
-
-    kl.append(self.comment3("Allocate Resources"))
-    kl.append(self.allocateResources(kernel))
 
     if self.enable["PreLoop"]:
-      ####################################
-      # Local Read Addresses
-      ####################################
-      kl.append(self.comment3("Local Read Addresses"))
-
-      # tile assignments
-      kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
-
-
-      # final offsets
-      kl.append(self.comment("local read addresses: final offsets a"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: final offsets b"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
-
-      # declare addresses
-      kl.append(self.comment("local read addresses: declare addresses a"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: declare addresses b"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
-
       ####################################
       # Global Read Addresses
       ####################################
@@ -526,9 +476,8 @@ class KernelWriter:
     # If we have multiple summation indicies (unrollIdx>0),
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
-    shadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
 
-    if not shadowInit:
+    if not doShadowInit:
       kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
@@ -564,7 +513,68 @@ class KernelWriter:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
-      if shadowInit:
+    return kl
+
+  ##############################################################################
+  # Kernel Body
+  ##############################################################################
+  def kernelBody( self, kernel, tensorParametersA, tensorParametersB ):
+
+    ####################################
+    # Begin String
+    kl = []
+    kl.append(self.openString(kernel))
+
+    ####################################
+    # Function Prefix
+    kl.append(self.comment3("Function Prefix"))
+    kl.append(self.functionPrefix(kernel))
+
+    ####################################
+    # Function Signature
+    ####################################
+    kl.append(self.comment3("Begin Kernel"))
+    kl.append(self.functionSignaturePrefix(kernel))
+
+    beforeFunctionSignature = '\n'.join([str(x) for x in kl])
+    kl = []
+
+    kl.append(self.functionSignatureSuffix(kernel))
+    kl.append(self.functionBegin(kernel))
+
+    kl.append(self.comment3("Allocate Resources"))
+    kl.append(self.allocateResources(kernel))
+
+    if self.enable["PreLoop"]:
+      ####################################
+      # Local Read Addresses
+      ####################################
+      kl.append(self.comment3("Local Read Addresses"))
+
+      # tile assignments
+      kl.append(self.comment("local read addresses: tile assignments a"))
+      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: tile assignments b"))
+      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
+
+
+      # final offsets
+      kl.append(self.comment("local read addresses: final offsets a"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: final offsets b"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
+
+      # declare addresses
+      kl.append(self.comment("local read addresses: declare addresses a"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: declare addresses b"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
+
+    doShadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+    kl += self.setupForNewWorkGroup(kernel, doShadowInit, tensorParametersA, tensorParametersB)
+
+    if kernel["PrefetchGlobalRead"]:
+      if doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
         kl.append(self.initC(kernel)) # initC while waiting for global reads
@@ -1021,7 +1031,7 @@ class KernelWriter:
 
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
-      if not shadowInit:
+      if not doShadowInit:
         kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
