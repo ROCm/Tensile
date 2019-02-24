@@ -373,7 +373,7 @@ class LogicAnalyzer:
     # column indices
     csvFile = csv.reader(dataFile)
     problemSizeStartIdx = 1
-    totalSizeIdx = problemSizeStartIdx + self.numIndices
+    totalSizeIdx = problemSizeStartIdx + self.numIndices + 3
     solutionStartIdx = totalSizeIdx + 1
     rowLength = solutionStartIdx + numSolutions
 

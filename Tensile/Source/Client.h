@@ -832,7 +832,7 @@ bool benchmarkAllSolutionsForSize(
   size_t sizeToCopy = currentMemorySizeC*bytesPerElement[dataTypeIdx];
 
   file << problemIdx << ", " << sizes[0];
-  for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
+  for (unsigned int i = 1; i < totalIndices[problemTypeIdx]+3; i++) {
     file << ", " << sizes[i];
   }
   size_t totalFlops = numFlopsPerMac[dataTypeIdx];
@@ -1276,7 +1276,7 @@ bool benchmarkProblemSizes(
   for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     file << ", Size" << indexChars[i];
   }
-  file << ", TotalFlops";
+  file << ", LDC, LDA, LDB, TotalFlops";
   for ( unsigned int s = 0; s < numSolutions; s++) {
     file << ", " << solutions[s]._name;
   }
@@ -1304,7 +1304,7 @@ bool benchmarkProblemSizes(
 
     // print size
     std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << problemSizes[problemIdx][0];
-    for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
+    for (unsigned int i = 1; i < totalIndices[problemTypeIdx]+3; i++) {
       std::cout << ", " << problemSizes[problemIdx][i];
     }
     std::cout << std::endl;

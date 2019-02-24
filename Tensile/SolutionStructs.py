@@ -574,10 +574,8 @@ class ProblemSizes:
           self.ranges.append( psr )
         elif sizeTypeKey == "Exact":
           e = dictionary[sizeTypeKey]
-          print e
           if len(e) == problemType["TotalIndices"]:
             e += [0, 0, 0]
-            print e
             self.exacts.append(tuple(e))
           elif len(e) == (problemType["TotalIndices"] + 3):
             self.exacts.append(tuple(e))
@@ -602,6 +600,12 @@ class ProblemSizes:
       # set harmless default mins of 0
       self.minStrides = ([0]* problemType["TotalIndices"])
 
+    # not the ideal spot, but convert leading dims that are below the minimum size
+    for i in range(0, len(self.ranges)):
+      self.ranges[i].problemSizes[:] = \
+        [self.convertLeadingDims(problemSize) for problemSize in self.ranges[i].problemSizes]
+    self.exacts[:] = [self.convertLeadingDims(problemSize) for problemSize in self.exacts]
+
     self.sizes = set()
     for sizeRange in self.ranges:
       self.sizes.update(sizeRange.problemSizes)
@@ -614,18 +618,16 @@ class ProblemSizes:
     self.maxA = 0
     self.maxB = 0
     for problemSize in self.sizes:
-      sizeC = max(self.minStrides[0], problemSize[0], problemSize[self.problemType["IndexAssignmentLDC"]])
+      sizeC = max(self.minStrides[0], problemSize[self.problemType["IndexAssignmentLDC"]])
       for i in range(1, problemType["NumIndicesC"]):
         sizeC *= max(self.minStrides[i], problemSize[i])
 
       sizeA = max(self.minStrides[self.problemType["IndexAssignmentsA"][0]],
-                  problemSize[self.problemType["IndexAssignmentsA"][0]],
                   problemSize[self.problemType["IndexAssignmentLDA"]])
       for i in self.problemType["IndexAssignmentsA"][1:]:
         sizeA *= max(self.minStrides[i], problemSize[i])
 
       sizeB = max(self.minStrides[self.problemType["IndexAssignmentsB"][0]],
-                  problemSize[self.problemType["IndexAssignmentsB"][0]],
                   problemSize[self.problemType["IndexAssignmentLDB"]])
       for i in self.problemType["IndexAssignmentsB"][1:]:
         sizeB *= max(self.minStrides[i], problemSize[i])
@@ -633,6 +635,14 @@ class ProblemSizes:
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
+
+  def convertLeadingDims(self, problemSize):
+    return problemSize[:self.problemType["NumIndicesC"]+1] + \
+           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentLDC"]]),) + \
+           (max(problemSize[self.problemType["IndexAssignmentLDA"]],
+                problemSize[self.problemType["IndexAssignmentsA"][0]]),) + \
+           (max(problemSize[self.problemType["IndexAssignmentLDB"]],
+                problemSize[self.problemType["IndexAssignmentsB"][0]]),)
 
   def __str__(self):
     s = "ProblemSizes\n"

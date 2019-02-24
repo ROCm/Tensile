@@ -410,8 +410,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           % (argListData[i][0], argListData[i][1], \
           ",\n" if i < len(argListData)-1 else ");\n\n")
 
-
-    numSizes = problemType["TotalIndices"];
+    numSizes = problemType["TotalIndices"] + 3
     firstStride = 0 if problemType["UseInitialStrides"] else 1
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
