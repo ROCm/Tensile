@@ -1052,6 +1052,7 @@ class KernelWriterSource(KernelWriter):
     #      % (wg0, wg1)+ self.endLine
 
     if kernel["PersistentKernel"]:
+      # could compare serialWgIter against problem nwg0*nwg1?
       kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
         % (wg1, wg1, wg0, wg0, self.endLine)
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  probNumWG=%%u_%%u\\n%s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s, problemNumGroupTiles0, problemNumGroupTiles1);" % (self.endLinePP, wg0, wg1)+ self.endLine

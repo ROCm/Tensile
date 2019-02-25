@@ -2711,16 +2711,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
           sgpr(blockId2), "wg1 += blockId * WGM")
 
-
-    if kernel["PersistentKernel"]:
-      # TODO - For GlobalSplitU, perhaps need to do this before the GSU workgroup assignment?  Or NumWorkGroups0
-      # needs to be devided by the GSU split factor?
-      kStr += "\n"
-      kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup0"), sgpr("NumWorkGroups0"), "Persistent check: WG0 OOB?")
-      kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
-      kStr += inst("s_cmp_ge_i32", sgpr("WorkGroup1"), sgpr("NumWorkGroups1"), "Persistent check: WG1 OOB?")
-      kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
-
     return kStr
 
   ##############################################################################
