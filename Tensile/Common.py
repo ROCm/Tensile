@@ -269,6 +269,11 @@ validParameters = {
     # than as a separate block of instructions
     "InterleaveAlpha":              [0, 1],
 
+    # Prefetch across persistent kernel iterations - the no-load-loop computes the 
+    # tile assignment and next global read offset and launches the buffer loads for
+    # the next tile in the sequence.
+    "PrefetchAcrossPersistent":     [0, 1],
+
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
@@ -670,6 +675,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
+    {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },

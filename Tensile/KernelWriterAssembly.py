@@ -654,6 +654,8 @@ class KernelWriterAssembly(KernelWriter):
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
+    self.prefetchAcrossPersistent = kernel["PersistentKernel"] and kernel["PrefetchAcrossPersistent"]
+
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
     # appropriate vmwnts into the stores so they issue as loads become available
@@ -1349,6 +1351,10 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
+      if self.prefetchAcrossPersistent:
+        self.defineSgpr("PrevWorkGroup0", 1) # WorkGroup0 from prev iteration, use for stores
+        self.defineSgpr("PrevWorkGroup1", 1) # WorkGroup0 from prev iteration, use for stores
+
     self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
@@ -5829,6 +5835,15 @@ class KernelWriterAssembly(KernelWriter):
     tmpS1 = tmpS0+1
     wgMT1 = tmpS0+2
 
+    if self.prefetchAcrossPersistent:
+      wg0="PrevWorkGroup0"
+      wg1="PrevWorkGroup1"
+      kStr += inst("s_mov_b32", sgpr(wg0), sgpr("WorkGroup0"), "create copy")
+      kStr += inst("s_mov_b32", sgpr(wg1), sgpr("WorkGroup1"), "create copy")
+    else:
+      wg0="WorkGroup0"
+      wg1="WorkGroup1"
+
     # tid0, tid1: element offsets from the start of macroTile in 0 and 1 direction
     # These will live for entire GlobalWrite loop - allocate before tmps
     # to avoid fragmentation
@@ -5874,7 +5889,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mul_i32", \
         sgpr(tmpS0), \
         hex(kernel["MacroTile0"]), \
-        sgpr("WorkGroup0"), \
+        sgpr(wg0), \
         "%s = wg0*MT0"%sgpr(tmpS0))
 
     # coord = tid*VW + workgroup offset
@@ -5887,7 +5902,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mul_i32", \
         sgpr(wgMT1), \
         hex(kernel["MacroTile1"]), \
-        sgpr("WorkGroup1"), \
+        sgpr(wg1), \
         "<- wg1*MT1")
     kStr += inst("_v_add_co_u32", \
         vgpr(tid1), \
@@ -6201,6 +6216,13 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
 
+    if self.prefetchAcrossPersistent:
+      wg0="PrevWorkGroup0"
+      wg1="PrevWorkGroup1"
+    else:
+      wg0="WorkGroup0"
+      wg1="WorkGroup1"
+
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
     edges = [False, True] if self.do["EdgeWrite"] else [False]
@@ -6300,11 +6322,12 @@ class KernelWriterAssembly(KernelWriter):
       # check edge0 ###
 
       # s01 = rMT0
-      kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT0=0" )
+      if 1: # TODO - not needed, but seems to help performance:
+        kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT0=0" )
 
       # s23 = nwg0-1
       kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
-      kStr += inst("s_cmp_lt_u32", sgpr("WorkGroup0"), sgpr(tmpS23), "wg0 < nwg0-1")
+      kStr += inst("s_cmp_lt_u32", sgpr(wg0), sgpr(tmpS23), "wg0 < nwg0-1")
       kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck0"], \
           "wg0 < nwg0-1 so skip rMT0 = Size0 % MT0")
 
@@ -6340,7 +6363,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # s23 = nwg1-1
       kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
-      kStr += inst("s_cmp_lt_u32", sgpr("WorkGroup1"), sgpr(tmpS23), "wg1 < nwg1-1")
+      kStr += inst("s_cmp_lt_u32", sgpr(wg1), sgpr(tmpS23), "wg1 < nwg1-1")
       kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck1"], \
           "wg1 < nwg1-1 so skip rMT1 = Size1 % MT1")
 
