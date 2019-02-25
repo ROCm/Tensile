@@ -5918,8 +5918,6 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
 
-    kStr += self.globalWriteWorkGroupInit(kernel)
-
     # lr0 = serial % SG0
     kStr += self.computeStoreVgprs(kernel, \
               divisor = kernel["MacroTile0"] / kernel["GlobalWriteVectorWidth"], \
@@ -5974,7 +5972,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PostLoop"]: return ""
     kStr = ""
 
-    kStr += self.globalWriteWorkGroupInit(kernel)
 
     kStr += self.computeStoreVgprs(kernel,
               divisor = kernel["SubGroup0"],\
