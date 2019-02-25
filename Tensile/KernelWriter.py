@@ -574,8 +574,15 @@ class KernelWriter:
       kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
 
     self.doShadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
-    kl.append(self.openPersistentLoop(kernel))
-    kl += self.setupForNewWorkGroup(kernel, tensorParametersA, tensorParametersB)
+    if self.prefetchAcrossPersistent:
+      # first prefetch is outside persistent loop, subsequent prefetch will
+      # be integrated into no-load-loop
+      kl += self.setupForNewWorkGroup(kernel, tensorParametersA, tensorParametersB)
+      kl.append(self.openPersistentLoop(kernel))
+    else:
+      # prefetch is inside persistent loop
+      kl.append(self.openPersistentLoop(kernel))
+      kl += self.setupForNewWorkGroup(kernel, tensorParametersA, tensorParametersB)
 
     if kernel["PrefetchGlobalRead"]:
       if self.doShadowInit:

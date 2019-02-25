@@ -2484,7 +2484,8 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += ".if 0\n"
 
-    #kStr += self.bomb()
+    if kernel["PersistentKernel"]:
+      kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
 
 
     ########################################
@@ -2561,12 +2562,8 @@ class KernelWriterAssembly(KernelWriter):
   def openPersistentLoop(self, kernel):
     kStr = ""
     if kernel["PersistentKernel"]:
-      stmp = self.getTmpSgpr(2)
-      kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
-      kStr += "\n"
       kStr += self.comment3("Persistent Loop Start")
       kStr += self.getLabelDef("PersistentLoopStart")
-      kStr += "\n"
       #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
     return kStr
 
@@ -7540,7 +7537,17 @@ class KernelWriterAssembly(KernelWriter):
       stmp = self.getTmpSgpr(2)
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
       imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-      imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
+      if self.prefetchAcrossPersistent:
+        imod.addInst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "persistent loop exit")
+
+        kl = self.setupForNewWorkGroup(kernel, self.tPA, self.tPB)
+        kStr = '\n'.join([str(x) for x in kl])
+        imod.addText(kStr)
+
+        imod.addInst("s_branch", self.getLabelTarget("PersistentLoopStart"), \
+            "persistent loop back")
+      else:
+        imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
     imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")
     return imod
