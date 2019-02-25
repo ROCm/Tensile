@@ -2567,16 +2567,10 @@ class KernelWriterAssembly(KernelWriter):
       stmp = self.getTmpSgpr(2)
       kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
       kStr += "\n"
+      kStr += self.comment3("Persistent Loop Start")
       kStr += self.getLabelDef("PersistentLoopStart")
+      kStr += "\n"
       #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
-
-      # Persistent may generate a SerialWorkGroupIter which is OOB
-      # In some cases the wg remapping code may not compute correct remainder for these OOB cases
-      # So check here and skip out early
-      kStr += inst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
-      kStr += inst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-      kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
-
 
       # Always reset pointers since tail loop iterates through LRA
       if kernel["PrefetchGlobalRead"]:
@@ -7536,8 +7530,11 @@ class KernelWriterAssembly(KernelWriter):
       imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
           sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
           "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
-      imod.addInst("s_branch", self.getLabelTarget("PersistentLoopStart"), \
-          "persistent loop back")
+      # Persistent may generate a SerialWorkGroupIter which is OOB, only loop back if we are in a valid WG:
+      stmp = self.getTmpSgpr(2)
+      imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
+      imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
+      imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
     imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")
     return imod
