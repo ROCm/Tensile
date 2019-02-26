@@ -53,18 +53,18 @@ namespace Tensile
         void normalize();
         void consistencyCheck() const;
 
-        size_t blas_m()          const { return a.logicalCounts()[0]; }
-        size_t blas_n()          const { return b.logicalCounts()[1]; }
-        size_t blas_k()          const { return a.logicalCounts()[1]; }
-        size_t blas_batchCount() const { return a.logicalCounts()[2]; }
+        size_t blas_m()          const { return a.sizes()[0]; }
+        size_t blas_n()          const { return b.sizes()[1]; }
+        size_t blas_k()          const { return a.sizes()[1]; }
+        size_t blas_batchCount() const { return a.sizes()[2]; }
 
         bool blas_transA() const;
         bool blas_transB() const;
 
-        size_t tensile_I() const { return d.logicalCounts()[0]; }
-        size_t tensile_J() const { return d.logicalCounts()[1]; }
-        size_t tensile_K() const { return d.logicalCounts()[2]; }
-        size_t tensile_L() const { return a.logicalCounts()[1]; }
+        size_t tensile_I() const { return d.sizes()[0]; }
+        size_t tensile_J() const { return d.sizes()[1]; }
+        size_t tensile_K() const { return d.sizes()[2]; }
+        size_t tensile_L() const { return a.sizes()[1]; }
 
         size_t tensile_strideA1() const;
         size_t tensile_strideA2() const;

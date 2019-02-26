@@ -19,6 +19,7 @@ file(COPY ${test_yaml} DESTINATION .)
 add_custom_target(test_code_object
                   COMMAND python ${tensile_script} ${test_yaml} code_object
                   DEPENDS ${test_yaml})
+#add_dependencies(test_code_object ${test_yaml})
 
 
 

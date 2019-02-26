@@ -60,7 +60,7 @@ namespace Tensile
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
-                    return value == problem.a.dimensionOrder();
+                    return true;
                 }
             };
 
@@ -84,7 +84,7 @@ namespace Tensile
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
-                    return value == problem.b.dimensionOrder();
+                    return true;
                 }
             };
 
@@ -108,7 +108,7 @@ namespace Tensile
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
-                    return value == problem.c.dimensionOrder();
+                    return true;
                 }
             };
 
@@ -132,7 +132,7 @@ namespace Tensile
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
-                    return value == problem.d.dimensionOrder();
+                    return true;
                 }
             };
 

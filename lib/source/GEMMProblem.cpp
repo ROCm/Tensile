@@ -35,22 +35,24 @@ namespace Tensile
         TensorDescriptor a, b, c, d;
         if(transA)
         {
-            a = TensorDescriptor(DataType::Float, {k, m, batchCount}, {lda, m, batchCount});
-            a.transpose(0,1);
+            throw std::runtime_error("Nope");
+            //a = TensorDescriptor(DataType::Float, {k, m, batchCount}, {lda, m, batchCount});
+            //a.transpose(0,1);
         }
         else
         {
-            a = TensorDescriptor(DataType::Float, {m, k, batchCount}, {lda, k, batchCount});
+            a = TensorDescriptor(DataType::Float, {m, k, batchCount}, {1, lda, k*lda});
         }
 
         if(transB)
         {
-            b = TensorDescriptor(DataType::Float, {n, k, batchCount}, {ldb, k, batchCount});
-            b.transpose(0,1);
+            throw std::runtime_error("Nope");
+            //b = TensorDescriptor(DataType::Float, {n, k, batchCount}, {ldb, k, batchCount});
+            //b.transpose(0,1);
         }
         else
         {
-            b = TensorDescriptor(DataType::Float, {k, n, batchCount}, {ldb, n, batchCount});
+            b = TensorDescriptor(DataType::Float, {k, n, batchCount}, {1, ldb, n*ldb});
         }
 
         c = TensorDescriptor(DataType::Float, {m, n, batchCount});
@@ -88,76 +90,78 @@ namespace Tensile
         if(a.dimensions() != 3)
             throw std::runtime_error("Only 3- dimensional tensors are accepted.");
 
-        if(c.logicalCounts() != d.logicalCounts())
+        if(c.sizes() != d.sizes())
             throw std::runtime_error("C and D must have the same logical dimensions.");
 
         // "M"
-        if(a.logicalCounts()[0] != d.logicalCounts()[0])
+        if(a.sizes()[0] != d.sizes()[0])
             throw std::runtime_error("A size 0 and C/D size 0 must be equal.");
 
         // "N"
-        if(b.logicalCounts()[1] != d.logicalCounts()[1])
+        if(b.sizes()[1] != d.sizes()[1])
             throw std::runtime_error("B size 1 and C/D size 1 must be equal.");
 
         // "K"
-        if(a.logicalCounts()[1] != b.logicalCounts()[0])
+        if(a.sizes()[1] != b.sizes()[0])
             throw std::runtime_error("A size 1 and B size 0 must be equal.");
 
-        if(a.logicalCounts()[2] != b.logicalCounts()[2])
+        if(a.sizes()[2] != b.sizes()[2])
             throw std::runtime_error("Batch dimensions must be equal. A and B mismatched.");
 
-        if(a.logicalCounts()[2] != d.logicalCounts()[2])
+        if(a.sizes()[2] != d.sizes()[2])
             throw std::runtime_error("Batch dimensions must be equal. A and C/D mismatched.");
     }
 
     size_t GEMMProblem::tensile_strideA1() const
     {
-        return a.storedStride(1);
+        return a.strides()[1];
     }
 
     size_t GEMMProblem::tensile_strideA2() const
     {
-        return a.storedStride(2);
+        return a.strides()[2];
     }
 
     size_t GEMMProblem::tensile_strideB1() const
     {
-        return b.storedStride(1);
+        return b.strides()[1];
     }
 
     size_t GEMMProblem::tensile_strideB2() const
     {
-        return b.storedStride(2);
+        return b.strides()[2];
     }
 
     size_t GEMMProblem::tensile_strideC1() const
     {
-        return c.storedStride(1);
+        return c.strides()[1];
     }
 
     size_t GEMMProblem::tensile_strideC2() const
     {
-        return c.storedStride(2);
+        return c.strides()[2];
     }
 
     size_t GEMMProblem::tensile_strideD1() const
     {
-        return d.storedStride(1);
+        return d.strides()[1];
     }
 
     size_t GEMMProblem::tensile_strideD2() const
     {
-        return d.storedStride(2);
+        return d.strides()[2];
     }
 
     bool GEMMProblem::blas_transA() const
     {
-        return a.dimensionOrder() == std::vector<size_t>{1,0,2};
+        return false;
+        //return a.dimensionOrder() == std::vector<size_t>{1,0,2};
     }
 
     bool GEMMProblem::blas_transB() const
     {
-        return b.dimensionOrder() == std::vector<size_t>{1,0,2};
+        return false;
+        //return b.dimensionOrder() == std::vector<size_t>{1,0,2};
     }
 
 }

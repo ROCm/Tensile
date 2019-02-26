@@ -26,6 +26,7 @@
 #include <Tensile/Tensile.hpp>
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/TensorOps.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
@@ -58,7 +59,7 @@ namespace Tensile
         static ContractionProblem GEMM(bool transA, bool transB,
                                        size_t m, size_t n, size_t k,
                                        size_t lda, size_t ldb, size_t ldc,
-                                       bool useBeta, bool colMajor, size_t batchCount);
+                                       double beta, bool colMajor, size_t batchCount);
 
         static ContractionProblem FromTensile(/* TODO */);
 
@@ -68,17 +69,40 @@ namespace Tensile
                            TensorDescriptor const& d, TensorOps const& dOps,
                            FreeIndices  const& freeIndices,
                            BatchIndices const& batchIndices,
-                           BoundIndices const& boundIndices);
+                           BoundIndices const& boundIndices,
+                           double beta);
 
-        void normalize();
-        void consistencyCheck() const;
 
         size_t freeSizeA(size_t idx);
         size_t freeSizeB(size_t idx);
         size_t batchSize(size_t idx);
         size_t boundSize(size_t idx);
 
-        std::string operationDescription() const;
+        TensorDescriptor const& a() const { return m_a; }
+        TensorDescriptor const& b() const { return m_b; }
+        TensorDescriptor const& c() const { return m_c; }
+        TensorDescriptor const& d() const { return m_d; }
+
+        TensorOps const& aOps() const { return m_aOps; }
+        TensorOps const& bOps() const { return m_bOps; }
+        TensorOps const& cOps() const { return m_cOps; }
+        TensorOps const& dOps() const { return m_dOps; }
+
+        FreeIndices  const&  freeIndices() const { return m_freeIndices; }
+        BatchIndices const& batchIndices() const { return m_batchIndices; }
+        BoundIndices const& boundIndices() const { return m_boundIndices; }
+
+        double beta() const { return m_beta; }
+
+        std::string const& aNames()   const { return m_aNames; }
+        std::string const& bNames()   const { return m_bNames; }
+        std::string const& cNames()   const { return m_cNames; }
+        std::string const& dNames()   const { return m_dNames; }
+        std::string const& sumNames() const { return m_sumNames; }
+
+        std::string operationName() const;
+        std::string const& operationIdentifer()   const { return m_operationIdentifier; }
+        std::string        operationDescription() const { return getOperationDescription(); }
 
         /*
         size_t blas_m()          const { return a.logicalCounts()[0]; }
@@ -107,18 +131,82 @@ namespace Tensile
         size_t tensile_strideD2() const;
         */
 
-        TensorDescriptor a;
-        TensorDescriptor b;
-        TensorDescriptor c;
-        TensorDescriptor d;
-        TensorOps aOps;
-        TensorOps bOps;
-        TensorOps cOps;
-        TensorOps dOps;
+    private:
+        TensorDescriptor m_a;
+        TensorDescriptor m_b;
+        TensorDescriptor m_c;
+        TensorDescriptor m_d;
+        TensorOps m_aOps;
+        TensorOps m_bOps;
+        TensorOps m_cOps;
+        TensorOps m_dOps;
 
-        FreeIndices freeIndices;
-        BatchIndices batchIndices;
-        BoundIndices boundIndices;
+        std::string m_aNames;
+        std::string m_bNames;
+        std::string m_cNames;
+        std::string m_dNames;
+        std::string m_sumNames;
+        std::string m_operationIdentifier;
+
+        FreeIndices m_freeIndices;
+        BatchIndices m_batchIndices;
+        BoundIndices m_boundIndices;
+
+        double m_beta;
+
+        void normalize();
+        void consistencyCheck() const;
+
+        void getIndexNames(std::string & aNames,
+                           std::string & bNames,
+                           std::string & cNames,
+                           std::string & dNames,
+                           std::string & sumNames) const;
+
+        std::string getOperationIdentifier() const;
+        std::string getOperationDescription() const;
+    };
+
+    template <>
+    struct Comparison<ContractionProblem::FreeIndex>
+    {
+        enum { implemented = true };
+
+        static int compare(ContractionProblem::FreeIndex const& lhs, ContractionProblem::FreeIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.da, rhs.da,
+                                        lhs.db, rhs.db,
+                                        lhs.ca, rhs.ca,
+                                        lhs.cb, rhs.cb,
+                                        lhs.a,  rhs.a,
+                                        lhs.b,  rhs.b);
+        }
+    };
+
+    template <>
+    struct Comparison<ContractionProblem::BatchIndex>
+    {
+        enum { implemented = true };
+
+        static int compare(ContractionProblem::BatchIndex const& lhs, ContractionProblem::BatchIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.d, rhs.d,
+                                        lhs.c, rhs.c,
+                                        lhs.a, rhs.a,
+                                        lhs.b, rhs.b);
+        }
+    };
+
+    template <>
+    struct Comparison<ContractionProblem::BoundIndex>
+    {
+        enum { implemented = true };
+
+        static int compare(ContractionProblem::BoundIndex const& lhs, ContractionProblem::BoundIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.a, rhs.a,
+                                        lhs.b, rhs.b);
+        }
     };
 
     template <typename A = float, typename B = A, typename C = A, typename D = A, typename Alpha = D, typename Beta = D>

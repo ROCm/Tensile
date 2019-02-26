@@ -60,7 +60,7 @@ namespace Tensile
 
         rv.workGroupSize = workGroupSize;
 
-        std::vector<size_t> cSize = problem.c.logicalCounts();
+        std::vector<size_t> cSize = problem.c.sizes();
 
         rv.numWorkGroups.x = CeilDivide(cSize[0], macroTile.x);
         rv.numWorkGroups.y = CeilDivide(cSize[1], macroTile.y);

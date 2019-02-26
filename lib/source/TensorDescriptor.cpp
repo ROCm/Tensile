@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc.
+ * Copyright (c) 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 #include <sstream>
 
 #include <Tensile/TensorDescriptor.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile {
 
@@ -40,102 +41,71 @@ namespace Tensile {
 
     void TensorDescriptor::calculate()
     {
-        if(m_allocatedCounts.empty())
-            m_allocatedCounts = m_logicalCounts;
-
-        if(m_logicalCounts.size() != m_allocatedCounts.size())
+        if(m_sizes.empty())
         {
-            throw std::runtime_error("Size mismatch between logical and allocated counts.");
-        }
-
-        for(int i = 0; i < m_logicalCounts.size(); i++)
-        {
-            if(m_logicalCounts[i] <= 0)
-                throw std::runtime_error("Each logical count must be > 0.");
-            if(m_logicalCounts[i] > m_allocatedCounts[i])
-                throw std::runtime_error("Each allocated count must be >= equivalent logical count.");
-        }
-
-        std::vector<std::size_t> modelDimensionOrder(m_logicalCounts.size(), 0);
-        std::iota(modelDimensionOrder.begin(), modelDimensionOrder.end(), 0);
-
-        if(m_dimensionOrder.empty())
-        {
-            m_dimensionOrder = std::move(modelDimensionOrder);
-        }
-        else
-        {
-            if(m_logicalCounts.size() != m_dimensionOrder.size())
-                throw std::runtime_error("Dimension mismatch.");
-
-            {
-                std::vector<std::size_t> doCopy(m_dimensionOrder);
-                std::sort(doCopy.begin(), doCopy.end());
-                if(doCopy != modelDimensionOrder)
-                    throw std::runtime_error("Each dimension must be < number of dimensions and each dimension must appear exactly once.");
-            }
-        }
-
-        m_strides.resize(m_logicalCounts.size(), 0);
-
-        if(m_logicalCounts.size() == 0)
-        {
+            m_strides = m_sizes;
             m_totalLogicalElements = 0;
             m_totalAllocatedElements = 0;
             return;
         }
 
-        auto multiply = [](size_t a, size_t b) { return a * b; };
-        m_totalLogicalElements = std::accumulate(m_logicalCounts.begin(), m_logicalCounts.end(), 1, multiply);
-        m_totalAllocatedElements = std::accumulate(m_allocatedCounts.begin(), m_allocatedCounts.end(), 1, multiply);
-
-        m_strides[m_dimensionOrder[0]] = 1;
-
-        for(std::size_t i = 1; i < m_strides.size(); i++)
+        for(int i = 0; i < m_sizes.size(); i++)
         {
-            m_strides[m_dimensionOrder[i]] = m_strides[m_dimensionOrder[i-1]]
-                                           * m_allocatedCounts[m_dimensionOrder[i-1]];
+            TENSILE_ASSERT_EXC(m_sizes[i] > 0);
         }
-    }
 
-    bool TensorDescriptor::transposed() const
-    {
-        for(int i = 0; i < m_dimensionOrder.size(); i++)
-            if(m_dimensionOrder[i] != i)
-                return true;
-        return false;
-    }
+        bool calculateStride = m_strides.empty();
 
-    void TensorDescriptor::transpose(std::size_t dimA, std::size_t dimB)
-    {
-        if(dimA >= dimensions()) throw std::runtime_error("Invalid dimA.");
-        if(dimB >= dimensions()) throw std::runtime_error("Invalid dimB.");
+        if(calculateStride)
+        {
+            m_strides.resize(m_sizes.size(), 0);
+            m_strides[0] = 1;
+        }
+        else
+        {
+            TENSILE_ASSERT_EXC(m_sizes.size() == m_strides.size());
+            TENSILE_ASSERT_EXC(m_strides[0] > 0);
+        }
 
-        std::swap(m_logicalCounts[dimA],   m_logicalCounts[dimB]);
-        std::swap(m_allocatedCounts[dimA], m_allocatedCounts[dimB]);
-        std::swap(m_dimensionOrder[dimA],  m_dimensionOrder[dimB]);
-        std::swap(m_strides[dimA],         m_strides[dimB]);
+        m_totalLogicalElements = m_sizes[0];
+
+        for(int i = 1; i < m_sizes.size(); i++)
+        {
+            m_totalLogicalElements *= m_sizes[i];
+
+            auto minStride = m_strides[i-1] * m_sizes[i-1];
+
+            if(calculateStride)
+            {
+                m_strides[i] = minStride;
+            }
+            else
+            {
+                TENSILE_ASSERT_EXC(m_strides[i] >= minStride);
+            }
+        }
+
+        m_totalAllocatedElements = m_strides.back() * m_sizes.back();
     }
 
     bool TensorDescriptor::operator==(const TensorDescriptor& rhs) const
     {
-        return m_logicalCounts   == rhs.m_logicalCounts
-            && m_allocatedCounts == rhs.m_allocatedCounts
-            && m_dimensionOrder  == rhs.m_dimensionOrder;
+        return m_dataType == rhs.m_dataType
+            && m_sizes    == rhs.m_sizes
+            && m_strides  == rhs.m_strides;
     }
 
     bool TensorDescriptor::operator!=(const TensorDescriptor& rhs) const { return !(*this == rhs); }
 
-    void TensorDescriptor::appendDim(size_t logicalCount)
+    void TensorDescriptor::appendDim(size_t size)
     {
-        appendDim(logicalCount, logicalCount);
+        appendDim(size, m_totalAllocatedElements);
     }
 
-    void TensorDescriptor::appendDim(size_t logicalCount, size_t allocatedCount)
+    void TensorDescriptor::appendDim(size_t size, size_t stride)
     {
-        m_logicalCounts.push_back(logicalCount);
-        m_allocatedCounts.push_back(allocatedCount);
-        m_dimensionOrder.push_back(m_dimensionOrder.size());
+        m_sizes.push_back(size);
+        m_strides.push_back(stride);
 
         calculate();
     }
@@ -177,14 +147,12 @@ namespace Tensile {
 
         result << dimensions()
                << "-tensor<" << dataType() << ">"
-               << "( logical(";
-        streamJoin(result, m_logicalCounts, ", ");
+               << "( sizes(";
+        streamJoin(result, m_sizes, ", ");
 
-        result << "), allocated(";
-        streamJoin(result, m_allocatedCounts, ", ");
+        result << "), strides(";
+        streamJoin(result, m_strides, ", ");
 
-        result << "), dimensions(";
-        streamJoin(result, m_dimensionOrder, ", ");
         result << ") )";
 
         return result.str();
@@ -201,17 +169,4 @@ namespace Tensile {
     //}
 
 }
-
-#if 0
-int main()
-{
-    Tensile::TensorDescriptor t(Tensile::DataType::Float, {2,3,4});
-
-    std::cout << t << std::endl;
-    std::cout << t.index(1,2,3) << std::endl;
-
-    return 0;
-}
-
-#endif
 
