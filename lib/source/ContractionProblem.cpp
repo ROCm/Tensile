@@ -29,7 +29,7 @@ namespace Tensile
     ContractionProblem ContractionProblem::GEMM(bool transA, bool transB,
                                                 size_t m, size_t n, size_t k,
                                                 size_t lda, size_t ldb, size_t ldc,
-                                                bool useBeta, bool colMajor, size_t batchCount)
+                                                double beta, bool colMajor, size_t batchCount)
     {
         if(colMajor) throw std::runtime_error("Column major not yet implemented.");
 
@@ -42,26 +42,26 @@ namespace Tensile
         TensorDescriptor a, b, c, d;
         if(transA)
         {
-            a = TensorDescriptor(DataType::Float, {k, m}, {lda, m});
+            a = TensorDescriptor(DataType::Float, {k, m}, {lda, k*lda});
             free.a = 1;
             bound.a = 0;
         }
         else
         {
-            a = TensorDescriptor(DataType::Float, {m, k}, {lda, k});
+            a = TensorDescriptor(DataType::Float, {m, k}, {lda, m*lda});
             free.a = 0;
             bound.a = 1;
         }
 
         if(transB)
         {
-            b = TensorDescriptor(DataType::Float, {n, k}, {ldb, k});
+            b = TensorDescriptor(DataType::Float, {n, k}, {ldb, n*ldb});
             free.b = 0;
             bound.b = 1;
         }
         else
         {
-            b = TensorDescriptor(DataType::Float, {k, n}, {ldb, n});
+            b = TensorDescriptor(DataType::Float, {k, n}, {ldb, k*ldb});
             free.b = 1;
             bound.b = 0;
         }
@@ -70,7 +70,7 @@ namespace Tensile
         BatchIndices batchIndices;
         BoundIndices boundIndices{bound};
 
-        d = TensorDescriptor(DataType::Float, {m, n});
+        d = TensorDescriptor(DataType::Float, {m, n}, {ldc, m*ldc});
         if(batchCount > 1)
         {
             a.appendDim(batchCount);
@@ -80,12 +80,12 @@ namespace Tensile
             batchIndices.push_back({2,2,2,2});
         }
 
-        if(useBeta)
+        if(beta != 0.0)
             c = d;
 
         TensorOps nop;
 
-        return ContractionProblem(a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices);
+        return ContractionProblem(a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices, beta);
     }
 
     ContractionProblem::ContractionProblem(TensorDescriptor const& a, TensorOps const& aOps,
@@ -94,36 +94,45 @@ namespace Tensile
                                            TensorDescriptor const& d, TensorOps const& dOps,
                                            FreeIndices  const& freeIndices,
                                            BatchIndices const& batchIndices,
-                                           BoundIndices const& boundIndices)
-        : a(a), aOps(aOps),
-          b(b), bOps(bOps),
-          c(c), cOps(cOps),
-          d(d), dOps(dOps),
-          freeIndices(freeIndices),
-          batchIndices(batchIndices),
-          boundIndices(boundIndices)
+                                           BoundIndices const& boundIndices,
+                                           double beta)
+        : m_a(a), m_aOps(aOps),
+          m_b(b), m_bOps(bOps),
+          m_c(c), m_cOps(cOps),
+          m_d(d), m_dOps(dOps),
+          m_freeIndices(freeIndices),
+          m_batchIndices(batchIndices),
+          m_boundIndices(boundIndices),
+          m_beta(beta)
     {
-        normalize();
         consistencyCheck();
+        normalize();
     }
 
     void ContractionProblem::normalize()
     {
+        std::sort(m_freeIndices.begin(),  m_freeIndices.end());
+        std::sort(m_batchIndices.begin(), m_batchIndices.end());
+        std::sort(m_boundIndices.begin(), m_boundIndices.end());
+
+        getIndexNames(m_aNames, m_bNames, m_cNames, m_dNames, m_sumNames);
+
+        m_operationIdentifier = getOperationIdentifier();
     }
 
     void ContractionProblem::consistencyCheck() const
     {
-        std::vector<int> aUseCount(a.dimensions(), 0);
-        std::vector<int> bUseCount(b.dimensions(), 0);
-        std::vector<int> cUseCount(c.dimensions(), 0);
-        std::vector<int> dUseCount(d.dimensions(), 0);
+        std::vector<int> aUseCount(m_a.dimensions(), 0);
+        std::vector<int> bUseCount(m_b.dimensions(), 0);
+        std::vector<int> cUseCount(m_c.dimensions(), 0);
+        std::vector<int> dUseCount(m_d.dimensions(), 0);
 
-        for(FreeIndex const& free: freeIndices)
+        for(FreeIndex const& free: m_freeIndices)
         {
-            TENSILE_ASSERT_EXC(free.a  < a.dimensions());
-            TENSILE_ASSERT_EXC(free.b  < b.dimensions());
-            TENSILE_ASSERT_EXC(free.da < d.dimensions());
-            TENSILE_ASSERT_EXC(free.db < d.dimensions());
+            TENSILE_ASSERT_EXC(free.a  < m_a.dimensions());
+            TENSILE_ASSERT_EXC(free.b  < m_b.dimensions());
+            TENSILE_ASSERT_EXC(free.da < m_d.dimensions());
+            TENSILE_ASSERT_EXC(free.db < m_d.dimensions());
 
             aUseCount[free.a]++;
             bUseCount[free.b]++;
@@ -131,53 +140,53 @@ namespace Tensile
             dUseCount[free.da]++;
             dUseCount[free.db]++;
 
-            TENSILE_ASSERT_EXC(a.logicalCounts()[free.a] == d.logicalCounts()[free.da]);
-            TENSILE_ASSERT_EXC(b.logicalCounts()[free.b] == d.logicalCounts()[free.db]);
+            TENSILE_ASSERT_EXC(m_a.sizes()[free.a] == m_d.sizes()[free.da]);
+            TENSILE_ASSERT_EXC(m_b.sizes()[free.b] == m_d.sizes()[free.db]);
 
-            if(!c.empty())
+            if(!m_c.empty())
             {
-                TENSILE_ASSERT_EXC(free.ca < c.dimensions());
-                TENSILE_ASSERT_EXC(free.cb < c.dimensions());
+                TENSILE_ASSERT_EXC(free.ca < m_c.dimensions());
+                TENSILE_ASSERT_EXC(free.cb < m_c.dimensions());
 
                 cUseCount[free.ca]++;
                 cUseCount[free.cb]++;
 
-                TENSILE_ASSERT_EXC(a.logicalCounts()[free.a] == c.logicalCounts()[free.ca]);
-                TENSILE_ASSERT_EXC(b.logicalCounts()[free.b] == c.logicalCounts()[free.cb]);
+                TENSILE_ASSERT_EXC(m_a.sizes()[free.a] == m_c.sizes()[free.ca]);
+                TENSILE_ASSERT_EXC(m_b.sizes()[free.b] == m_c.sizes()[free.cb]);
             }
         }
 
-        for(BatchIndex const& batch: batchIndices)
+        for(BatchIndex const& batch: m_batchIndices)
         {
-            TENSILE_ASSERT_EXC(batch.a < a.dimensions());
-            TENSILE_ASSERT_EXC(batch.b < b.dimensions());
-            TENSILE_ASSERT_EXC(batch.d < d.dimensions());
+            TENSILE_ASSERT_EXC(batch.a < m_a.dimensions());
+            TENSILE_ASSERT_EXC(batch.b < m_b.dimensions());
+            TENSILE_ASSERT_EXC(batch.d < m_d.dimensions());
 
             aUseCount[batch.a]++;
             bUseCount[batch.b]++;
             dUseCount[batch.d]++;
 
-            TENSILE_ASSERT_EXC(a.logicalCounts()[batch.a] == b.logicalCounts()[batch.b]);
-            TENSILE_ASSERT_EXC(a.logicalCounts()[batch.a] == d.logicalCounts()[batch.b]);
+            TENSILE_ASSERT_EXC(m_a.sizes()[batch.a] == m_b.sizes()[batch.b]);
+            TENSILE_ASSERT_EXC(m_a.sizes()[batch.a] == m_d.sizes()[batch.b]);
 
-            if(!c.empty())
+            if(!m_c.empty())
             {
-                TENSILE_ASSERT_EXC(batch.c < c.dimensions());
+                TENSILE_ASSERT_EXC(batch.c < m_c.dimensions());
                 cUseCount[batch.c]++;
 
-                TENSILE_ASSERT_EXC(a.logicalCounts()[batch.a] == c.logicalCounts()[batch.b]);
+                TENSILE_ASSERT_EXC(m_a.sizes()[batch.a] == m_c.sizes()[batch.b]);
             }
         }
 
-        for(BoundIndex const& bound: boundIndices)
+        for(BoundIndex const& bound: m_boundIndices)
         {
-            TENSILE_ASSERT_EXC(bound.a < a.dimensions());
-            TENSILE_ASSERT_EXC(bound.b < b.dimensions());
+            TENSILE_ASSERT_EXC(bound.a < m_a.dimensions());
+            TENSILE_ASSERT_EXC(bound.b < m_b.dimensions());
 
             aUseCount[bound.a]++;
             bUseCount[bound.b]++;
 
-            TENSILE_ASSERT_EXC(a.logicalCounts()[bound.a] == b.logicalCounts()[bound.b]);
+            TENSILE_ASSERT_EXC(m_a.sizes()[bound.a] == m_b.sizes()[bound.b]);
         }
 
         for(int aUse: aUseCount) TENSILE_ASSERT_EXC(aUse == 1);
@@ -188,31 +197,35 @@ namespace Tensile
 
     size_t ContractionProblem::freeSizeA(size_t idx)
     {
-        return a.logicalCounts()[freeIndices[idx].a];
+        return m_a.sizes()[m_freeIndices[idx].a];
     }
 
     size_t ContractionProblem::freeSizeB(size_t idx)
     {
-        return b.logicalCounts()[freeIndices[idx].b];
+        return m_b.sizes()[m_freeIndices[idx].b];
     }
 
     size_t ContractionProblem::batchSize(size_t idx)
     {
-        return a.logicalCounts()[batchIndices[idx].a];
+        return m_a.sizes()[m_batchIndices[idx].a];
     }
 
     size_t ContractionProblem::boundSize(size_t idx)
     {
-        return a.logicalCounts()[boundIndices[idx].a];
+        return m_a.sizes()[m_boundIndices[idx].a];
     }
 
-    std::string ContractionProblem::operationDescription() const
+    void ContractionProblem::getIndexNames(std::string & aNames,
+                                           std::string & bNames,
+                                           std::string & cNames,
+                                           std::string & dNames,
+                                           std::string & sumNames) const
     {
-        std::string aNames(a.dimensions(), '_');
-        std::string bNames(b.dimensions(), '_');
-        std::string cNames(c.dimensions(), '_');
-        std::string dNames(d.dimensions(), '_');
-        std::string sumNames(boundIndices.size(), '_');
+        aNames.resize(m_a.dimensions(), '_');
+        bNames.resize(m_b.dimensions(), '_');
+        cNames.resize(m_c.dimensions(), '_');
+        dNames.resize(m_d.dimensions(), '_');
+        sumNames.resize(m_boundIndices.size(), '_');
 
         char name = 'i';
 
@@ -228,42 +241,73 @@ namespace Tensile
             name++;
         }
 
-        for(auto const& free: freeIndices)
+        for(auto const& free: m_freeIndices)
         {
             aNames[free.a] = dNames[free.da];
             bNames[free.b] = dNames[free.db];
-            if(!c.empty())
+            if(!m_c.empty())
             {
                 cNames[free.ca] = dNames[free.da];
                 cNames[free.cb] = dNames[free.db];
             }
         }
 
-        for(auto const& batch: batchIndices)
+        for(auto const& batch: m_batchIndices)
         {
             aNames[batch.a] = dNames[batch.d];
             bNames[batch.b] = dNames[batch.d];
-            if(!c.empty())
+            if(!m_c.empty())
                 cNames[batch.c] = dNames[batch.d];
         }
 
         for(size_t i = 0; i < sumNames.size(); i++)
         {
-            aNames[boundIndices[i].a] = sumNames[i];
-            bNames[boundIndices[i].b] = sumNames[i];
+            aNames[m_boundIndices[i].a] = sumNames[i];
+            bNames[m_boundIndices[i].b] = sumNames[i];
         }
+    }
 
+    std::string ContractionProblem::getOperationDescription() const
+    {
         std::ostringstream rv;
 
-        rv << "D[" << dNames << "] = alpha * (";
+        rv << "D[" << m_dNames << "] = alpha * (";
 
-        if(!sumNames.empty())
-            rv << "Sum[" << sumNames << "] ";
+        if(!m_sumNames.empty())
+            rv << "Sum[" << m_sumNames << "] ";
 
-        rv << "A[" << aNames << "] * B[" << bNames << "])";
+        rv << "A[" << m_aNames << "] * B[" << m_bNames << "])";
 
-        if(!c.empty())
-            rv << " + beta * C[" << cNames << "]";
+        if(!m_c.empty() && m_beta != 0)
+        {
+            rv << " + ";
+            if(m_beta != 1.0)
+                rv << "beta * ";
+            rv << "C[" << m_cNames << "]";
+        }
+
+        return rv.str();
+    }
+
+    std::string ContractionProblem::getOperationIdentifier() const
+    {
+        std::ostringstream rv;
+
+        rv << "Contraction";
+
+        rv << "_A" << m_aNames;
+        rv << "_B" << m_bNames;
+        if(!m_c.empty() && m_beta != 0)
+            rv << "_C" << m_cNames;
+
+        rv << "_D" << m_dNames;
+
+        if(m_beta == 0)
+            rv << "_beta0";
+        else if(m_beta == 1)
+            rv << "_beta1";
+        else
+            rv << "_betaOther";
 
         return rv.str();
     }
@@ -276,25 +320,25 @@ namespace Tensile
         if(a.dimensions() != 3)
             throw std::runtime_error("Only 3- dimensional tensors are accepted.");
 
-        if(c.logicalCounts() != d.logicalCounts())
+        if(c.sizes() != d.sizes())
             throw std::runtime_error("C and D must have the same logical dimensions.");
 
         // "M"
-        if(a.logicalCounts()[0] != d.logicalCounts()[0])
+        if(a.sizes()[0] != d.sizes()[0])
             throw std::runtime_error("A size 0 and C/D size 0 must be equal.");
 
         // "N"
-        if(b.logicalCounts()[1] != d.logicalCounts()[1])
+        if(b.sizes()[1] != d.sizes()[1])
             throw std::runtime_error("B size 1 and C/D size 1 must be equal.");
 
         // "K"
-        if(a.logicalCounts()[1] != b.logicalCounts()[0])
+        if(a.sizes()[1] != b.sizes()[0])
             throw std::runtime_error("A size 1 and B size 0 must be equal.");
 
-        if(a.logicalCounts()[2] != b.logicalCounts()[2])
+        if(a.sizes()[2] != b.sizes()[2])
             throw std::runtime_error("Batch dimensions must be equal. A and B mismatched.");
 
-        if(a.logicalCounts()[2] != d.logicalCounts()[2])
+        if(a.sizes()[2] != d.sizes()[2])
             throw std::runtime_error("Batch dimensions must be equal. A and C/D mismatched.");
     }
 

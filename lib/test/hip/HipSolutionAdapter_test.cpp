@@ -120,14 +120,16 @@ struct GEMMTest: public ::testing::TestWithParam<GEMMProblem>
             size_t b_offset = problem.b.index(0,0,i);
             size_t d_offset = problem.d.index(0,0,i);
 
-            auto transA = problem.a.dimensionOrder() == std::vector<size_t>{0,1,2} ? rocblas_operation_none : rocblas_operation_transpose;
-            auto transB = problem.b.dimensionOrder() == std::vector<size_t>{0,1,2} ? rocblas_operation_none : rocblas_operation_transpose;
+            //auto transA = problem.a.dimensionOrder() == std::vector<size_t>{0,1,2} ? rocblas_operation_none : rocblas_operation_transpose;
+            //auto transB = problem.b.dimensionOrder() == std::vector<size_t>{0,1,2} ? rocblas_operation_none : rocblas_operation_transpose;
+            auto transA = rocblas_operation_none;
+            auto transB = rocblas_operation_none;
 
             ASSERT_RB(rocblas_sgemm(roc, transA, transB,
                                     problem.blas_m(), problem.blas_n(), problem.blas_k(),
-                                    &inputs.alpha, a_d + a_offset, problem.a.storedStride(1),
-                                    b_d + b_offset, problem.b.storedStride(1),
-                                    &inputs.beta, d_ref_d + d_offset, problem.d.storedStride(1)));
+                                    &inputs.alpha, a_d + a_offset, problem.a.strides()[1],
+                                    b_d + b_offset, problem.b.strides()[1],
+                                    &inputs.beta, d_ref_d + d_offset, problem.d.strides()[1]));
         }
 
         HIP_CHECK_EXC(hipMemcpy(d_ref_h.data(), d_ref_d, problem.d.totalAllocatedBytes(), hipMemcpyDeviceToHost));
@@ -152,11 +154,6 @@ TEST_P(GEMMTest, Simple)
 {
     GEMMProblem problem = GetParam();
 
-    if(problem.a.dimensionOrder() != std::vector<size_t>{0,1,2})
-        return;
-    if(problem.b.dimensionOrder() != std::vector<size_t>{0,1,2})
-        return;
-
     GEMMSolution solution;
 
     solution.kernelName = "Cijk_Ailk_Bljk_SB_MT128x128x08_K1";
@@ -170,6 +167,7 @@ TEST_P(GEMMTest, Simple)
     hip::SolutionAdapter adapter(false);
     adapter.loadCodeObjectFile(
             "test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bljk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bljk_SB_MT128x128x08_K1.co");
+           //test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bjlk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bjlk_SB_MT128x128x08_K1.co
 
     adapter.launchKernels(result);
 
@@ -255,13 +253,13 @@ INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, GEMMTest,
                           //GEMMProblem::FromBLAS( true,  true, 5760, 5760, 5760, 5760, 5760, 5760, true, false,  4),
 
                           GEMMProblem::FromBLAS(false, false,  234,  123,  634,  245,  768,  249, true, false, 12),
-                          GEMMProblem::FromBLAS(false,  true,  234,  123,  634,  245,  768,  249, true, false, 12),
-                          GEMMProblem::FromBLAS( true, false,  234,  123,  634,  768,  768,  249, true, false, 12),
-                          GEMMProblem::FromBLAS( true,  true,  234,  123,  634,  768,  768,  249, true, false, 12),
-                          GEMMProblem::FromBLAS(false, false,    4,    4,    6,    4,    6,    4, true, false,  2),
-                          GEMMProblem::FromBLAS(false,  true,    4,    4,    6,    4,    4,    4, true, false,  2),
-                          GEMMProblem::FromBLAS( true, false,    4,    4,    6,    6,    6,    4, true, false,  2),
-                          GEMMProblem::FromBLAS( true,  true,    4,    4,    6,    6,    4,    4, true, false,  2)
+                          //GEMMProblem::FromBLAS(false,  true,  234,  123,  634,  245,  768,  249, true, false, 12),
+                          //GEMMProblem::FromBLAS( true, false,  234,  123,  634,  768,  768,  249, true, false, 12),
+                          //GEMMProblem::FromBLAS( true,  true,  234,  123,  634,  768,  768,  249, true, false, 12),
+                          GEMMProblem::FromBLAS(false, false,    4,    4,    6,    4,    6,    4, true, false,  2)
+                          //GEMMProblem::FromBLAS(false,  true,    4,    4,    6,    4,    4,    4, true, false,  2),
+                          //GEMMProblem::FromBLAS( true, false,    4,    4,    6,    6,    6,    4, true, false,  2),
+                          //GEMMProblem::FromBLAS( true,  true,    4,    4,    6,    6,    4,    4, true, false,  2)
                           ));
 
 

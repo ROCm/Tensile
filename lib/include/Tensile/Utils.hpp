@@ -39,29 +39,21 @@ namespace Tensile
         if(desc.dimensions() != 3)
             throw std::runtime_error("Fix this function to work with dimensions != 3");
 
-        bool transpose = desc.dimensionOrder() != std::vector<size_t>{0,1,2};
-
         std::vector<size_t> index3{0,0,0};
 
-        const size_t d0 = desc.dimensionOrder()[0];
-        const size_t d1 = desc.dimensionOrder()[1];
-        const size_t d2 = desc.dimensionOrder()[2];
-
         stream << "Tensor("
-            << desc.allocatedCounts()[0] << ", "
-            << desc.allocatedCounts()[1] << ", "
-            << desc.allocatedCounts()[2] << ")";
-        if(transpose)
-            stream << " dimensionOrder(" << d0 << ", " << d1 << ", " << d2 << ")";
+            << desc.sizes()[0] << ", "
+            << desc.sizes()[1] << ", "
+            << desc.sizes()[2] << ")";
 
        stream << std::endl;
 
-        for(index3[d2] = 0; index3[d2] < desc.logicalCounts()[d2]; index3[d2]++)
+        for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
         {
             stream << "[" << std::endl;
-            for(index3[d0] = 0; index3[d0] < desc.logicalCounts()[d0]; index3[d0]++)
+            for(index3[0] = 0; index3[0] < desc.sizes()[0]; index3[0]++)
             {
-                for(index3[d1] = 0; index3[d1] < desc.logicalCounts()[d1]; index3[d1]++)
+                for(index3[1] = 0; index3[1] < desc.sizes()[1]; index3[1]++)
                 {
                     size_t idx = desc.index(index3);
                     stream << data[idx] << " ";
@@ -71,14 +63,83 @@ namespace Tensile
             stream << "]" << std::endl;
         }
     }
+
+    inline int LexicographicCompare()
+    {
+        return 0;
+    }
+
+    template<typename A>
+    inline int LexicographicCompare(A const& lhs, A const& rhs)
+    {
+        if(lhs < rhs) return -1;
+        if(lhs > rhs) return  1;
+        return 0;
+    }
+
+    template<typename A, typename... Args>
+    inline int LexicographicCompare(A const& lhs, A const& rhs, Args const&... rest)
+    {
+        if(lhs < rhs) return -1;
+        if(lhs > rhs) return  1;
+        return LexicographicCompare(rest...);
+    }
+
+    template <typename T>
+    struct Comparison
+    {
+        enum { implemented = false };
+    };
+
+    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
+    inline bool operator==(T const& lhs, T const& rhs)
+    {
+        return Comparison<T>::compare(lhs, rhs) == 0;
+    }
+
+    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
+    inline bool operator!=(T const& lhs, T const& rhs)
+    {
+        return Comparison<T>::compare(lhs, rhs) != 0;
+    }
+
+    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
+    inline bool operator<(T const& lhs, T const& rhs)
+    {
+        return Comparison<T>::compare(lhs, rhs) < 0; 
+    }
+
+    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
+    inline bool operator<=(T const& lhs, T const& rhs)
+    {
+        return Comparison<T>::compare(lhs, rhs) <= 0; 
+    }
+
+    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
+    inline bool operator>(T const& lhs, T const& rhs)
+    {
+        return Comparison<T>::compare(lhs, rhs) > 0; 
+    }
+
+    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
+    inline bool operator>=(T const& lhs, T const& rhs)
+    {
+        return Comparison<T>::compare(lhs, rhs) >= 0; 
+    }
+
 }
+
+#define TENSILE_STR_(x) #x
+#define TENSILE_STR(x) TENSILE_STR_(x)
+#define TENSILE_LINENO TENSILE_STR(__LINE__)
+#define TENSILE_LINEINFO __FILE__ ":" TENSILE_LINENO
 
 #define TENSILE_ASSERT_EXC(exp)                                             \
     do                                                                      \
     {                                                                       \
         if(!(exp))                                                          \
         {                                                                   \
-            throw std::runtime_error("Error in __FILE__:__LINE__: " #exp);  \
+            throw std::runtime_error("Error in " TENSILE_LINEINFO ": " #exp);  \
         }                                                                   \
     } while(false)
 

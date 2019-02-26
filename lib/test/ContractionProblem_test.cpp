@@ -32,28 +32,30 @@ using namespace Tensile;
 
 TEST(ContractionProblem, Simple)
 {
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  true, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  1.5, false, 2).beta(), 1.5);
+
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[ljk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  true, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[jlk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  true, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[ljk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  true, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[jlk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4, false, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[ljk])");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4, false, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[jlk])");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4, false, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[ljk])");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4, false, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[jlk])");
 }
 

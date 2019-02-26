@@ -34,7 +34,7 @@ BenchmarkProblems:
       OperationType: GEMM
       DataType: s
       TransposeA: False
-      TransposeB: True
+      TransposeB: False
       UseBeta: True
       Batched: True
 
