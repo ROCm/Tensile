@@ -27,7 +27,6 @@
 
 #include <gtest/gtest.h>
 
-#include <Tensile/GEMMProblem_fwd.hpp>
 #include <Tensile/Tensile_fwd.hpp>
 #include <Tensile/TensorDescriptor_fwd.hpp>
 #include <Tensile/TensorOps_fwd.hpp>
@@ -35,11 +34,6 @@
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/GEMMLibrary.hpp>
-#include <Tensile/GEMMMatchingProperties.hpp>
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMProblemPredicates.hpp>
-#include <Tensile/GEMMSolution.hpp>
 #include <Tensile/KernelArguments.hpp>
 #include <Tensile/MatchingLibrary.hpp>
 #include <Tensile/Predicates.hpp>

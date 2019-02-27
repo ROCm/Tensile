@@ -50,10 +50,6 @@ namespace Tensile
     }
 
     template
-    std::shared_ptr<SolutionLibrary<GEMMProblem, GEMMSolution>>
-    LLVMLoadLibraryFile<GEMMProblem, GEMMSolution>(std::string const& filename);
-
-    template
     std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
     LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 

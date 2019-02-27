@@ -27,7 +27,6 @@
 #pragma once
 
 #include <Tensile/Serialization.hpp>
-#include <Tensile/GEMMLibrary.hpp>
 #include <Tensile/ContractionLibrary.hpp>
 
 #include <llvm/ObjectYAML/YAML.h>
@@ -81,13 +80,6 @@ namespace Tensile
             }
         };
 
-        using GEMMHardwareRow =  typename Tensile::ExactLogicLibrary<Tensile::GEMMProblem,
-                                                                     Tensile::GEMMSolution,
-                                                                     Tensile::HardwarePredicate>::Row;
-        using GEMMProblemRow =  typename Tensile::ExactLogicLibrary<Tensile::GEMMProblem,
-                                                                    Tensile::GEMMSolution,
-                                                                    Tensile::ProblemPredicate<GEMMProblem>>::Row;
-
         using ContractionHardwareRow =  typename Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
                                                                             Tensile::ContractionSolution,
                                                                             Tensile::HardwarePredicate>::Row;
@@ -97,13 +89,9 @@ namespace Tensile
     }
 }
 
-LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::GEMMProblem>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::ContractionProblem>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Hardware>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
-LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::GEMMHardwareRow);
-LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::GEMMProblemRow);
-LLVM_YAML_IS_SEQUENCE_VECTOR(std::shared_ptr<Tensile::GEMMSolution>);
 LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionHardwareRow);
 LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionProblemRow);
 LLVM_YAML_IS_SEQUENCE_VECTOR(std::shared_ptr<Tensile::ContractionSolution>);
@@ -136,15 +124,6 @@ namespace llvm
           }
 
           static bool mustQuote(StringRef) { return false; }
-        };
-
-        template <>
-        struct MappingTraits<Tensile::GEMMSolution>
-        {
-            static void mapping(IO & io, Tensile::GEMMSolution & s)
-            {
-                sn::MappingTraits<Tensile::GEMMSolution, IO>::mapping(io, s);
-            }
         };
 
         template <>
@@ -242,46 +221,6 @@ namespace llvm
             {
                 Impl::output(io, elem);
             }
-        };
-
-        template <>
-        struct MappingTraits<std::shared_ptr<Tensile::GEMMSolution>>
-        {
-            using obj = Tensile::GEMMSolution;
-
-            static void mapping(IO & io, std::shared_ptr<obj> & o)
-            {
-                sn::PointerMappingTraits<obj, IO>::mapping(io, o);
-            }
-        };
-
-        template <>
-        struct MappingTraits<std::shared_ptr<Tensile::MasterGEMMLibrary>>
-        {
-            using obj = Tensile::MasterGEMMLibrary;
-
-            static void mapping(IO & io, std::shared_ptr<obj> & o)
-            {
-                sn::PointerMappingTraits<obj, IO>::mapping(io, o);
-            }
-        };
-
-        template <>
-        struct MappingTraits<Tensile::MasterGEMMLibrary>:
-        public ObjectMappingTraits<Tensile::MasterGEMMLibrary>
-        {
-        };
-
-        template <>
-        struct MappingTraits<Tensile::Serialization::GEMMProblemRow>:
-            public ObjectMappingTraits<Tensile::Serialization::GEMMProblemRow>
-        {
-        };
-
-        template <>
-        struct MappingTraits<Tensile::Serialization::GEMMHardwareRow>:
-            public ObjectMappingTraits<Tensile::Serialization::GEMMHardwareRow>
-        {
         };
 
         template <>

@@ -14,12 +14,8 @@ set(test_sources
     ContractionLibraryLoading_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
-    GEMMProblem_test.cpp
-    GEMMSelectionLibrary_test.cpp
-    GEMMSolution_test.cpp
     KernelArguments_test.cpp
     TensorDescriptor_test.cpp
-    llvm/LLVMYAML_test.cpp
     llvm/LLVMYAMLContraction_test.cpp
 )
 

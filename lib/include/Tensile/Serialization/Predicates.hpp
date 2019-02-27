@@ -29,7 +29,6 @@
 #include <Tensile/Serialization/Base.hpp>
 
 #include <Tensile/Predicates.hpp>
-#include <Tensile/GEMMProblemPredicates.hpp>
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/AMDGPUPredicates.hpp>
 

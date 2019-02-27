@@ -146,57 +146,6 @@ namespace Tensile
         template <typename IO> struct MappingTraits<Contraction::OperationIdentifier, IO>:
                            public AutoMappingTraits<Contraction::OperationIdentifier, IO> {};
 
-        template <typename IO>
-        struct SubclassMappingTraits<Property<GEMMProblem, size_t>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<Property<GEMMProblem, size_t>, IO>,
-                                                Property<GEMMProblem, size_t>,
-                                                IO>
-        {
-            using Self = SubclassMappingTraits<Property<GEMMProblem, size_t>, IO>;
-            using Base = DefaultSubclassMappingTraits<SubclassMappingTraits<Property<GEMMProblem, size_t>, IO>,
-                                                      Property<GEMMProblem, size_t>,
-                                                      IO>;
-            using SubclassMap = typename Base::SubclassMap;
-            const static SubclassMap subclasses;
-
-            static SubclassMap GetSubclasses()
-            {
-                return SubclassMap(
-                {
-                });
-            }
-        };
-
-        template <typename IO>
-        struct SubclassMappingTraits<Property<GEMMProblem, std::string>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<Property<GEMMProblem, std::string>, IO>,
-                                                Property<GEMMProblem, std::string>,
-                                                IO>
-        {
-            using Self = SubclassMappingTraits<Property<GEMMProblem, std::string>, IO>;
-            using Base = DefaultSubclassMappingTraits<SubclassMappingTraits<Property<GEMMProblem, std::string>, IO>,
-                                                      Property<GEMMProblem, std::string>,
-                                                      IO>;
-            using SubclassMap = typename Base::SubclassMap;
-            const static SubclassMap subclasses;
-
-            static SubclassMap GetSubclasses()
-            {
-                return SubclassMap(
-                {
-                });
-            }
-        };
-
-        template <typename IO>
-        const typename PropertySMT<GEMMProblem, size_t, IO>::SubclassMap
-            PropertySMT<GEMMProblem, size_t, IO>::subclasses =
-                PropertySMT<GEMMProblem, size_t, IO>::GetSubclasses();
-
-        template <typename IO>
-        const typename PropertySMT<GEMMProblem, std::string, IO>::SubclassMap
-            PropertySMT<GEMMProblem, std::string, IO>::subclasses =
-                PropertySMT<GEMMProblem, std::string, IO>::GetSubclasses();
     }
 }
 

@@ -28,8 +28,6 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
 
 #include <Tensile/llvm/Loading.hpp>
 
@@ -40,10 +38,6 @@ namespace Tensile
     {
         return LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
     }
-
-    template
-    std::shared_ptr<SolutionLibrary<GEMMProblem, GEMMSolution>>
-    LoadLibraryFile<GEMMProblem, GEMMSolution>(std::string const& filename);
 
     template
     std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
