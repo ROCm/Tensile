@@ -43,7 +43,7 @@ namespace Tensile
     struct ProblemMapLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         static std::string Type() { return "ProblemMap"; }
-        virtual std::string type() const { return Type(); }
+        virtual std::string type() const override { return Type(); }
 
         std::shared_ptr<Property<MyProblem, Key>> property;
         LibraryMap<MyProblem, MySolution, Key> map;
