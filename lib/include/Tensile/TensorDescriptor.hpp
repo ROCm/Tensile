@@ -33,35 +33,10 @@
 #include <numeric>
 #include <vector>
 
+#include <Tensile/DataTypes.hpp>
+
 namespace Tensile
 {
-
-    enum class DataType: int
-    {
-        Half,
-        Float,
-        Int32,
-        Int8,
-        Count
-    };
-
-    inline std::size_t TypeSize(DataType d)
-    {
-        switch(d)
-        {
-            case DataType::Int32:
-            case DataType::Float: return 4;
-            case DataType::Half: return 2;
-            case DataType::Int8: return 1;
-
-            case DataType::Count:
-                throw std::runtime_error("Unknown data type");
-        }
-        throw std::runtime_error("Unknown data type");
-    }
-
-    std::string ToString(DataType d);
-    std::ostream& operator<<(std::ostream& stream, const DataType& t);
 
     class TensorDescriptor
     {
@@ -110,25 +85,25 @@ namespace Tensile
 
         void calculate();
 
-        const std::vector<std::size_t>& sizes() const { return m_sizes; }
-        const std::vector<std::size_t>& strides() const { return m_strides; }
+        const std::vector<size_t>& sizes() const { return m_sizes; }
+        const std::vector<size_t>& strides() const { return m_strides; }
 
         bool empty() const { return m_sizes.empty(); }
 
         void appendDim(size_t logicalCount);
         void appendDim(size_t logicalCount, size_t allocatedCount);
 
-        std::size_t dimensions()             const { return m_sizes.size(); }
-        std::size_t totalLogicalElements()   const { return m_totalLogicalElements; }
-        std::size_t totalAllocatedElements() const { return m_totalAllocatedElements; }
-        std::size_t totalAllocatedBytes()    const { return totalAllocatedElements() * elementBytes(); }
+        size_t dimensions()             const { return m_sizes.size(); }
+        size_t totalLogicalElements()   const { return m_totalLogicalElements; }
+        size_t totalAllocatedElements() const { return m_totalAllocatedElements; }
+        size_t totalAllocatedBytes()    const { return totalAllocatedElements() * elementBytes(); }
 
-        std::size_t elementBytes() const { return TypeSize(m_dataType); }
+        size_t elementBytes() const { return TypeSize(m_dataType); }
 
         DataType dataType() const { return m_dataType; }
 
         template <typename Container>
-        inline std::size_t index(Container const& indices) const
+        inline size_t index(Container const& indices) const
         {
             if(indices.size() != dimensions())
                 throw std::runtime_error("Incorrect number of indices.");
@@ -137,11 +112,11 @@ namespace Tensile
                 if(indices[i] >= m_sizes[i])
                     throw std::runtime_error("Index out of bounds.");
 
-            return std::inner_product(indices.begin(), indices.end(), m_strides.begin(), std::size_t(0));
+            return std::inner_product(indices.begin(), indices.end(), m_strides.begin(), size_t(0));
         }
 
         template <typename T>
-        inline std::size_t index(std::initializer_list<T> indices) const
+        inline size_t index(std::initializer_list<T> indices) const
         {
             if(indices.size() != dimensions())
                 throw std::runtime_error("Incorrect number of indices.");
@@ -150,7 +125,7 @@ namespace Tensile
                 if(*i.first >= *i.second)
                     throw std::runtime_error("Index out of bounds.");
 
-            return std::inner_product(indices.begin(), indices.end(), m_strides.begin(), std::size_t(0));
+            return std::inner_product(indices.begin(), indices.end(), m_strides.begin(), size_t(0));
         }
 
 
@@ -163,7 +138,7 @@ namespace Tensile
                         >::value
                     >::type
                 >
-        inline std::size_t index(Ts... is) const
+        inline size_t index(Ts... is) const
         {
             return this->index({is...});
         }
@@ -176,11 +151,11 @@ namespace Tensile
         friend std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
     private:
-        std::vector<std::size_t> m_sizes;
-        std::vector<std::size_t> m_strides;
+        std::vector<size_t> m_sizes;
+        std::vector<size_t> m_strides;
 
-        std::size_t m_totalLogicalElements = 0;
-        std::size_t m_totalAllocatedElements = 0;
+        size_t m_totalLogicalElements = 0;
+        size_t m_totalAllocatedElements = 0;
 
         DataType m_dataType = DataType::Float;
     };

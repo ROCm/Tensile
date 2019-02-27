@@ -24,23 +24,28 @@
  *
  *******************************************************************************/
 
-#pragma once
-
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/DataTypes.hpp>
 
 namespace Tensile
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
+    std::string ToString(DataType d)
+    {
+        switch(d)
+        {
+            case DataType::Int32: return "Int32";
+            case DataType::Float: return "Float";
+            case DataType::Half: return  "Half";
+            case DataType::Int8: return  "Int8";
 
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
+            case DataType::Count:;
+        }
+        return "Invalid";
+    }
+
+    std::ostream& operator<<(std::ostream& stream, const DataType& t)
+    {
+        return stream << ToString(t);
+    }
+
 }
 

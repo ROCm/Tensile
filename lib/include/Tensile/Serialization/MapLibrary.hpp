@@ -26,21 +26,30 @@
 
 #pragma once
 
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
 #include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/MapLibrary.hpp>
+
+#include <Tensile/Serialization/Base.hpp>
+#include <Tensile/Serialization/Properties.hpp>
 
 namespace Tensile
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
+    namespace Serialization
+    {
+        template <typename MyProblem, typename MySolution, typename Key, typename IO>
+        struct MappingTraits<ProblemMapLibrary<MyProblem, MySolution, Key>, IO, SolutionMap<MySolution>>
+        {
+            using Library = ProblemMapLibrary<MyProblem, MySolution, Key>;
+            using iot = IOTraits<IO>;
 
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
+            static void mapping(IO & io, Library & lib, SolutionMap<MySolution> & ctx)
+            {
+                iot::setContext(io, &ctx);
+
+                iot::mapRequired(io, "property", lib.property);
+                iot::mapRequired(io, "map",      lib.map);
+            }
+        };
+    }
 }
 

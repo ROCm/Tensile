@@ -36,6 +36,14 @@ namespace Tensile
     template <typename MyProblem, typename MySolution, typename MyPredicate>
     using LibraryRow = std::pair<MyPredicate, LibraryEntry<MyProblem, MySolution>>;
 
+    /**
+     * Represents a set of sub-libraries, each with associated predicates.  It should be
+     * placed in order of best to worst solutions.  We assume the best solution is the first
+     * one where we match the predicates.
+     *
+     * Examples: Picking solutions written for a particular GPU, solutions that assume that a
+     * particular size is a multiple of something, etc.
+     */
     template <typename MyProblem, typename MySolution, typename MyPredicate>
     struct ExactLogicLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
@@ -127,8 +135,8 @@ namespace Tensile
         {
         }
 
-        static std::string Key() { return "Hardware"; }
-        virtual std::string key() const { return Key(); }
+        static std::string Type() { return "Hardware"; }
+        virtual std::string type() const { return Type(); }
     };
 
     template <typename MyProblem>
@@ -169,8 +177,8 @@ namespace Tensile
         {
         }
 
-        static std::string Key() { return "Problem"; }
-        virtual std::string key() const { return Key(); }
+        static std::string Type() { return "Problem"; }
+        virtual std::string type() const { return Type(); }
     };
 
 }

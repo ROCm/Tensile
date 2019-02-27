@@ -26,21 +26,23 @@
 
 #pragma once
 
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
+#include <Tensile/ContractionProblem.hpp>
+#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/MapLibrary.hpp>
 
 namespace Tensile
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
+    using ContractionLibrary = SolutionLibrary<ContractionProblem>;
+    using MasterContractionLibrary = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
+    using SingleContractionLibrary = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionHardwareSelectionLibrary = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemSelectionLibrary = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemMatchingLibrary  = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemMapLibrary       = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
 
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
+    using ContractionProblemPredicate = ProblemPredicate<ContractionProblem>;
 }
 

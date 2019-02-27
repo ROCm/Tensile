@@ -79,7 +79,7 @@ TEST(GEMMSelectionLibraryTest, GPUSelection)
     EXPECT_EQ(lib.findBestSolution(*problem, *v10), genericSolution);
 }
 
-TEST(GEMMSelectionLibraryTest, DISABLED_TransposeSelection)
+TEST(GEMMSelectionLibraryTest, TransposeSelection)
 {
     using namespace Predicates;
     using namespace Predicates::GEMM;
@@ -148,9 +148,9 @@ TEST(GEMMSelectionLibraryTest, DISABLED_TransposeSelection)
     AMDGPU gpu;
 
     auto NNProblem = GEMMProblem::FromBLAS(false, false, 4,4,4, 4,4,4, false, false, 1);
-    auto NTProblem = GEMMProblem::FromBLAS(false,  true, 4,4,4, 4,4,4, false, false, 1);
-    auto TNProblem = GEMMProblem::FromBLAS( true, false, 4,4,4, 4,4,4, false, false, 1);
-    auto TTProblem = GEMMProblem::FromBLAS( true,  true, 4,4,4, 4,4,4, false, false, 1);
+    //auto NTProblem = GEMMProblem::FromBLAS(false,  true, 4,4,4, 4,4,4, false, false, 1);
+    //auto TNProblem = GEMMProblem::FromBLAS( true, false, 4,4,4, 4,4,4, false, false, 1);
+    //auto TTProblem = GEMMProblem::FromBLAS( true,  true, 4,4,4, 4,4,4, false, false, 1);
 
     //auto WeirdProblemC = GEMMProblem::FromBLAS( true,  true, 4,4,4, 4,4,4, false, false, 1);
     //WeirdProblemC.c.transpose(0,1);
@@ -159,9 +159,9 @@ TEST(GEMMSelectionLibraryTest, DISABLED_TransposeSelection)
     //WeirdProblemD.d.transpose(0,1);
 
     EXPECT_EQ(lib->findBestSolution(NNProblem, gpu), NNSolution);
-    EXPECT_EQ(lib->findBestSolution(NTProblem, gpu), NTSolution);
-    EXPECT_EQ(lib->findBestSolution(TNProblem, gpu), TNSolution);
-    EXPECT_EQ(lib->findBestSolution(TTProblem, gpu), TTSolution);
+    //EXPECT_EQ(lib->findBestSolution(NTProblem, gpu), NTSolution);
+    //EXPECT_EQ(lib->findBestSolution(TNProblem, gpu), TNSolution);
+    //EXPECT_EQ(lib->findBestSolution(TTProblem, gpu), TTSolution);
 
     //EXPECT_EQ(lib->findBestSolution(WeirdProblemC, gpu), nullptr);
     //EXPECT_EQ(lib->findBestSolution(WeirdProblemD, gpu), nullptr);

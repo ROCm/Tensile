@@ -94,7 +94,7 @@ namespace Tensile
         virtual std::string name() const = 0;
     };
 
-    template <typename MyProblem, typename MySolution>
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename);
 }
 

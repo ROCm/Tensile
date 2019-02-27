@@ -20,10 +20,10 @@ GlobalParameters:
   PinClocks: False
   SleepPercent: 200
   DataInitTypeBeta : 0
-  PrintTensorA: 1
-  PrintTensorB: 1
-  PrintTensorC: 3
-  PrintTensorD: 3
+  #PrintTensorA: 1
+  #PrintTensorB: 1
+  #PrintTensorC: 3
+  #PrintTensorD: 3
 
 BenchmarkProblems:
   ########################################
@@ -63,6 +63,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
             #- Range: [ [5760], [5760], [1], [5760] ]
-          - Range: [ [4], [4], [1], [6] ]
+            #- Range: [ [4], [4], [1], [6] ]
+          - Range: [ [234], [123], [12], [634] ]
 
   ########################################

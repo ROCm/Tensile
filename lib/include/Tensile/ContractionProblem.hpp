@@ -24,6 +24,10 @@
 #pragma once
 
 #include <Tensile/Tensile.hpp>
+
+#include <Tensile/ContractionSolution_fwd.hpp>
+#include <Tensile/ContractionProblem_fwd.hpp>
+
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/TensorOps.hpp>
 #include <Tensile/Utils.hpp>
@@ -34,6 +38,9 @@ namespace Tensile
     class ContractionProblem: public Problem
     {
     public:
+        using Solution = ContractionSolution;
+        using Inputs   = ContractionInputs;
+
         ContractionProblem() = default;
 
         struct FreeIndex
@@ -73,10 +80,13 @@ namespace Tensile
                            double beta);
 
 
-        size_t freeSizeA(size_t idx);
-        size_t freeSizeB(size_t idx);
-        size_t batchSize(size_t idx);
-        size_t boundSize(size_t idx);
+        size_t freeSizeA(size_t idx) const;
+        size_t freeSizeB(size_t idx) const;
+        size_t batchSize(size_t idx) const;
+        size_t boundSize(size_t idx) const;
+
+        /// Largest of the free and bound indices.  Does not include batch size.
+        size_t maxProblemSize() const { return m_maxProblemSize; }
 
         TensorDescriptor const& a() const { return m_a; }
         TensorDescriptor const& b() const { return m_b; }
@@ -100,8 +110,11 @@ namespace Tensile
         std::string const& dNames()   const { return m_dNames; }
         std::string const& sumNames() const { return m_sumNames; }
 
+        bool transA() const { return m_transA; }
+        bool transB() const { return m_transB; }
+
         std::string operationName() const;
-        std::string const& operationIdentifer()   const { return m_operationIdentifier; }
+        std::string const& operationIdentifier()   const { return m_operationIdentifier; }
         std::string        operationDescription() const { return getOperationDescription(); }
 
         /*
@@ -148,11 +161,16 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
+        bool m_transA;
+        bool m_transB;
+
         FreeIndices m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
 
         double m_beta;
+
+        size_t m_maxProblemSize = 1;
 
         void normalize();
         void consistencyCheck() const;
@@ -209,10 +227,21 @@ namespace Tensile
         }
     };
 
-    template <typename A = float, typename B = A, typename C = A, typename D = A, typename Alpha = D, typename Beta = D>
     struct ContractionInputs: public ProblemInputs
     {
-        ContractionInputs() = default;
+    };
+
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    struct TypedContractionInputs: public ContractionInputs
+    {
+        using AType = A;
+        using BType = B;
+        using CType = C;
+        using DType = D;
+        using AlphaType = Alpha;
+        using BetaType = Beta;
+
+        TypedContractionInputs() = default;
         
         A const* a = nullptr;
         B const* b = nullptr;

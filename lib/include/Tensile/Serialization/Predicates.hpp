@@ -45,15 +45,15 @@ namespace Tensile
 
             static void mapping(IO & io, std::shared_ptr<Predicates::Predicate<Object>> & p)
             {
-                std::string key;
+                std::string type;
 
                 if(iot::outputting(io))
-                    key = p->key();
+                    type = p->type();
 
-                iot::mapRequired(io, "type", key);
+                iot::mapRequired(io, "type", type);
 
-                if(!SubclassMappingTraits<Predicates::Predicate<Object>, IO>::mapping(io, key, p))
-                    iot::setError(io, "Unknown predicate type " + key);
+                if(!SubclassMappingTraits<Predicates::Predicate<Object>, IO>::mapping(io, type, p))
+                    iot::setError(io, "Unknown predicate type " + type);
             }
         };
 
@@ -92,115 +92,23 @@ namespace Tensile
 
         template <typename Object, typename IO>
         struct MappingTraits<Predicates::True<Object>, IO>:
-        public EmptyMappingTraits<Predicates::True<Object>, IO> {};
+        public AutoMappingTraits<Predicates::True<Object>, IO> {};
 
         template <typename Object, typename IO>
         struct MappingTraits<Predicates::False<Object>, IO>:
-        public EmptyMappingTraits<Predicates::False<Object>, IO> {};
+        public AutoMappingTraits<Predicates::False<Object>, IO> {};
 
         template <typename Object, typename IO>
         struct MappingTraits<Predicates::And<Object>, IO>:
-        public ValueMappingTraits<Predicates::And<Object>, IO> {};
+        public AutoMappingTraits<Predicates::And<Object>, IO> {};
 
         template <typename Object, typename IO>
         struct MappingTraits<Predicates::Or<Object>, IO>:
-        public ValueMappingTraits<Predicates::Or<Object>, IO> {};
+        public AutoMappingTraits<Predicates::Or<Object>, IO> {};
 
         template <typename Object, typename IO>
         struct MappingTraits<Predicates::Not<Object>, IO>:
-        public ValueMappingTraits<Predicates::Not<Object>, IO> {};
-
-
-        template <typename IO>
-        struct SubclassMappingTraits<Predicates::Predicate<GEMMProblem>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<Predicates::Predicate<GEMMProblem>, IO>,
-                                                Predicates::Predicate<GEMMProblem>,
-                                                IO>
-        {
-            using Self = SubclassMappingTraits<Predicates::Predicate<GEMMProblem>, IO>;
-            using Base = DefaultSubclassMappingTraits<SubclassMappingTraits<Predicates::Predicate<GEMMProblem>, IO>,
-                                                      Predicates::Predicate<GEMMProblem>,
-                                                      IO>;
-            using SubclassMap = typename Base::SubclassMap;
-            const static SubclassMap subclasses;
-
-            using Generic = PredicateMappingTraits<GEMMProblem, IO>;
-
-            static SubclassMap GetSubclasses()
-            {
-                SubclassMap rv(
-                {
-                    Base::template Pair<Predicates::GEMM::ADimensionOrder>(),
-                    Base::template Pair<Predicates::GEMM::BDimensionOrder>(),
-                    Base::template Pair<Predicates::GEMM::CDimensionOrder>(),
-                    Base::template Pair<Predicates::GEMM::DDimensionOrder>(),
-                    Base::template Pair<Predicates::GEMM::IDivisible     >(),
-                    Base::template Pair<Predicates::GEMM::JDivisible     >(),
-                    Base::template Pair<Predicates::GEMM::KDivisible     >(),
-                    Base::template Pair<Predicates::GEMM::LDivisible     >(),
-                    Base::template Pair<Predicates::GEMM::CDStridesEqual >(),
-                    Base::template Pair<Predicates::GEMM::LDCEqualsLDD   >(),
-                    Base::template Pair<Predicates::GEMM::UseBeta        >()
-                });
-
-                auto gmap = Generic::GetSubclasses();
-                rv.insert(gmap.begin(), gmap.end());
-
-                return rv;
-            }
-
-        };
-
-        template <typename IO>
-        using GEMMProblemPredicateSMT = SubclassMappingTraits<Predicates::Predicate<GEMMProblem>, IO>;
-
-        template <typename IO>
-        const typename GEMMProblemPredicateSMT<IO>::SubclassMap
-        GEMMProblemPredicateSMT<IO>::subclasses = GEMMProblemPredicateSMT<IO>::GetSubclasses();
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::ADimensionOrder, IO>:
-        public ValueMappingTraits<Predicates::GEMM::ADimensionOrder, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::BDimensionOrder, IO>:
-        public ValueMappingTraits<Predicates::GEMM::BDimensionOrder, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::CDimensionOrder, IO>:
-        public ValueMappingTraits<Predicates::GEMM::CDimensionOrder, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::DDimensionOrder, IO>:
-        public ValueMappingTraits<Predicates::GEMM::DDimensionOrder, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::IDivisible, IO>:
-        public ValueMappingTraits<Predicates::GEMM::IDivisible, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::JDivisible, IO>:
-        public ValueMappingTraits<Predicates::GEMM::JDivisible, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::KDivisible, IO>:
-        public ValueMappingTraits<Predicates::GEMM::KDivisible, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::LDivisible, IO>:
-        public ValueMappingTraits<Predicates::GEMM::LDivisible, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::CDStridesEqual, IO>:
-        public EmptyMappingTraits<Predicates::GEMM::CDStridesEqual, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::LDCEqualsLDD, IO>:
-        public EmptyMappingTraits<Predicates::GEMM::LDCEqualsLDD, IO> {};
-
-        template <typename IO>
-        struct MappingTraits<Predicates::GEMM::UseBeta, IO>:
-        public ValueMappingTraits<Predicates::GEMM::UseBeta, IO> {};
+        public AutoMappingTraits<Predicates::Not<Object>, IO> {};
 
         template <typename IO>
         struct SubclassMappingTraits<Predicates::Predicate<Hardware>, IO>:
@@ -241,7 +149,7 @@ namespace Tensile
 
         template <typename IO>
         struct MappingTraits<Predicates::IsSubclass<Hardware, AMDGPU>, IO>:
-        public ValueMappingTraits<Predicates::IsSubclass<Hardware, AMDGPU>, IO> {};
+        public AutoMappingTraits<Predicates::IsSubclass<Hardware, AMDGPU>, IO> {};
 
         template <typename IO>
         struct SubclassMappingTraits<Predicates::Predicate<AMDGPU>, IO>:
@@ -283,11 +191,11 @@ namespace Tensile
 
         template <typename IO>
         struct MappingTraits<Predicates::GPU::ProcessorEqual, IO>:
-        public ValueMappingTraits<Predicates::GPU::ProcessorEqual, IO> {};
+        public AutoMappingTraits<Predicates::GPU::ProcessorEqual, IO> {};
 
         template <typename IO>
         struct MappingTraits<Predicates::GPU::RunsKernelTargeting, IO>:
-        public ValueMappingTraits<Predicates::GPU::RunsKernelTargeting, IO> {};
+        public AutoMappingTraits<Predicates::GPU::RunsKernelTargeting, IO> {};
 
         template <typename IO>
         struct EnumTraits<AMDGPU::Processor, IO>

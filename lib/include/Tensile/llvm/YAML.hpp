@@ -28,6 +28,7 @@
 
 #include <Tensile/Serialization.hpp>
 #include <Tensile/GEMMLibrary.hpp>
+#include <Tensile/ContractionLibrary.hpp>
 
 #include <llvm/ObjectYAML/YAML.h>
 
@@ -59,6 +60,7 @@ namespace Tensile
 
             static void setError(IO & io, std::string const& msg)
             {
+                throw std::runtime_error(msg);
                 return io.setError(msg);
             }
 
@@ -85,15 +87,26 @@ namespace Tensile
         using GEMMProblemRow =  typename Tensile::ExactLogicLibrary<Tensile::GEMMProblem,
                                                                     Tensile::GEMMSolution,
                                                                     Tensile::ProblemPredicate<GEMMProblem>>::Row;
+
+        using ContractionHardwareRow =  typename Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
+                                                                            Tensile::ContractionSolution,
+                                                                            Tensile::HardwarePredicate>::Row;
+        using ContractionProblemRow =  typename Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
+                                                                           Tensile::ContractionSolution,
+                                                                           Tensile::ProblemPredicate<ContractionProblem>>::Row;
     }
 }
 
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::GEMMProblem>>);
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::ContractionProblem>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Hardware>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
 LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::GEMMHardwareRow);
 LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::GEMMProblemRow);
 LLVM_YAML_IS_SEQUENCE_VECTOR(std::shared_ptr<Tensile::GEMMSolution>);
+LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionHardwareRow);
+LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionProblemRow);
+LLVM_YAML_IS_SEQUENCE_VECTOR(std::shared_ptr<Tensile::ContractionSolution>);
 
 namespace llvm
 {
@@ -131,6 +144,15 @@ namespace llvm
             static void mapping(IO & io, Tensile::GEMMSolution & s)
             {
                 sn::MappingTraits<Tensile::GEMMSolution, IO>::mapping(io, s);
+            }
+        };
+
+        template <>
+        struct MappingTraits<Tensile::ContractionSolution>
+        {
+            static void mapping(IO & io, Tensile::ContractionSolution & s)
+            {
+                sn::MappingTraits<Tensile::ContractionSolution, IO>::mapping(io, s);
             }
         };
 
@@ -189,12 +211,37 @@ namespace llvm
             static const bool flow = true;
         };
 
+        template <typename Object, typename Value>
+        struct MappingTraits<std::shared_ptr<Tensile::Property<Object, Value>>>:
+            public ObjectMappingTraits<std::shared_ptr<Tensile::Property<Object, Value>>>
+        {
+            static const bool flow = true;
+        };
+
         template <typename MyProblem, typename MySolution>
         struct MappingContextTraits<std::shared_ptr<Tensile::SolutionLibrary<MyProblem, MySolution>>,
                                     Tensile::SolutionMap<MySolution>>:
             public ObjectMappingContextTraits<std::shared_ptr<Tensile::SolutionLibrary<MyProblem, MySolution>>,
                                               Tensile::SolutionMap<MySolution>>
         {
+        };
+
+        template <typename MyProblem, typename MySolution>
+        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>>
+        {
+            using Value = Tensile::LibraryMap<MyProblem, MySolution, std::string>;
+            using Impl = sn::CustomMappingTraits<Value, IO, Tensile::SolutionMap<MySolution>>;
+
+
+            static void inputOne(IO &io, StringRef key, Value &elem)
+            {
+                Impl::inputOne(io, key, elem);
+            }
+
+            static void output(IO &io, Value &elem)
+            {
+                Impl::output(io, elem);
+            }
         };
 
         template <>
@@ -238,11 +285,60 @@ namespace llvm
         };
 
         template <>
+        struct MappingTraits<std::shared_ptr<Tensile::ContractionSolution>>
+        {
+            using obj = Tensile::ContractionSolution;
+
+            static void mapping(IO & io, std::shared_ptr<obj> & o)
+            {
+                sn::PointerMappingTraits<obj, IO>::mapping(io, o);
+            }
+        };
+
+        template <>
+        struct MappingTraits<std::shared_ptr<Tensile::MasterContractionLibrary>>
+        {
+            using obj = Tensile::MasterContractionLibrary;
+
+            static void mapping(IO & io, std::shared_ptr<obj> & o)
+            {
+                sn::PointerMappingTraits<obj, IO>::mapping(io, o);
+            }
+        };
+
+        template <>
+        struct MappingTraits<Tensile::MasterContractionLibrary>:
+        public ObjectMappingTraits<Tensile::MasterContractionLibrary>
+        {
+        };
+
+        template <>
+        struct MappingTraits<Tensile::Serialization::ContractionProblemRow>:
+            public ObjectMappingTraits<Tensile::Serialization::ContractionProblemRow>
+        {
+        };
+
+        template <>
+        struct MappingTraits<Tensile::Serialization::ContractionHardwareRow>:
+            public ObjectMappingTraits<Tensile::Serialization::ContractionHardwareRow>
+        {
+        };
+
+        template <>
         struct ScalarEnumerationTraits<Tensile::AMDGPU::Processor>
         {
             static void enumeration(IO & io, Tensile::AMDGPU::Processor & value)
             {
                 sn::EnumTraits<Tensile::AMDGPU::Processor, IO>::enumeration(io, value);
+            }
+        };
+
+        template <>
+        struct ScalarEnumerationTraits<Tensile::DataType>
+        {
+            static void enumeration(IO & io, Tensile::DataType & value)
+            {
+                sn::EnumTraits<Tensile::DataType, IO>::enumeration(io, value);
             }
         };
 

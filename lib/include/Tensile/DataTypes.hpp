@@ -26,21 +26,39 @@
 
 #pragma once
 
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <cstdlib>
+
+#include <stdexcept>
 
 namespace Tensile
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
 
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
+    enum class DataType: int
+    {
+        Half,
+        Float,
+        Int32,
+        Int8,
+        Count
+    };
+
+    inline size_t TypeSize(DataType d)
+    {
+        switch(d)
+        {
+            case DataType::Int32:
+            case DataType::Float: return 4;
+            case DataType::Half: return 2;
+            case DataType::Int8: return 1;
+
+            case DataType::Count:
+                throw std::runtime_error("Unknown data type");
+        }
+        throw std::runtime_error("Unknown data type");
+    }
+
+    std::string ToString(DataType d);
+    std::ostream& operator<<(std::ostream& stream, const DataType& t);
+
 }
 

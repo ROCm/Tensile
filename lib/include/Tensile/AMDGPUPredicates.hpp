@@ -39,14 +39,14 @@ namespace Tensile
         {
             struct ProcessorEqual: public Predicate<AMDGPU>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 AMDGPU::Processor value;
 
                 ProcessorEqual() = default;
                 ProcessorEqual(AMDGPU::Processor p) : value(p) {}
 
-                static std::string Key() { return "Processor"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "Processor"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
@@ -56,14 +56,14 @@ namespace Tensile
 
             struct RunsKernelTargeting: public Predicate<AMDGPU>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 AMDGPU::Processor value;
 
                 RunsKernelTargeting() = default;
                 RunsKernelTargeting(AMDGPU::Processor p) : value(p) {}
 
-                static std::string Key() { return "TargetProcessor"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "TargetProcessor"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {

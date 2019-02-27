@@ -27,23 +27,24 @@
 
 namespace Tensile
 {
+    template<typename Object, typename Value = size_t>
+    class Property
+    {
+    public:
+        virtual std::string type() const = 0;
+
+        virtual Value operator()(Object const& object) const = 0;
+    };
+
     namespace Matching
     {
-        template<typename Object>
-        class Property
-        {
-        public:
-            virtual std::string key() const;
-
-            virtual size_t operator()(Object const& object) const;
-        };
 
         class Distance
         {
         public:
-            virtual std::string key() const;
+            virtual std::string type() const = 0;
 
-            virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const;
+            virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const = 0;
         };
 
         template <typename Object, typename Value>

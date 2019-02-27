@@ -30,6 +30,8 @@
 #include <stdexcept>
 #include <sstream>
 
+#include <Tensile/Utils.hpp>
+
 #define HIP_CHECK_EXC(expr) \
     do \
     { \

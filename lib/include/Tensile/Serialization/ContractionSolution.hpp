@@ -8,7 +8,7 @@
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
+ * Copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all
@@ -26,21 +26,34 @@
 
 #pragma once
 
-#include <Tensile/GEMMProblem.hpp>
-#include <Tensile/GEMMSolution.hpp>
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
+#include <functional>
+
+#include <Tensile/ContractionSolution.hpp>
+#include <Tensile/Serialization/Base.hpp>
 
 namespace Tensile
 {
-    using GEMMLibrary = SolutionLibrary<GEMMProblem>;
-    using MasterGEMMLibrary = MasterSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using SingleGEMMLibrary = SingleSolutionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMHardwareSelectionLibrary = HardwareSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemSelectionLibrary = ProblemSelectionLibrary<GEMMProblem, GEMMSolution>;
-    using GEMMProblemMatchingLibrary  = ProblemMatchingLibrary<GEMMProblem, GEMMSolution>;
+    namespace Serialization
+    {
+        template <typename IO>
+        struct MappingTraits<ContractionSolution, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO & io, ContractionSolution & s)
+            {
+                iot::mapRequired(io, "name",       s.kernelName);
+                iot::mapRequired(io, "index",      s.index);
 
-    using GEMMProblemPredicate = ProblemPredicate<GEMMProblem>;
+                iot::mapRequired(io, "workGroup",  s.workGroupSize);
+                iot::mapRequired(io, "threadTile", s.threadTile);
+                iot::mapRequired(io, "macroTile",  s.macroTile);
+
+                iot::mapRequired(io, "AType", s.aType);
+                iot::mapRequired(io, "BType", s.bType);
+                iot::mapRequired(io, "CType", s.cType);
+                iot::mapRequired(io, "DType", s.dType);
+            }
+        };
+    }
 }
 

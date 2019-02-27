@@ -27,27 +27,27 @@
 #include <gtest/gtest.h>
 
 #include <Tensile/Tensile.hpp>
-#include <Tensile/GEMMLibrary.hpp>
+#include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/AMDGPU.hpp>
 
 using namespace Tensile;
 
-TEST(GEMMLibraryLoadingTest, Simple)
+TEST(ContractionLibraryLoadingTest, Simple)
 {
-    auto library = LoadLibraryFile<GEMMProblem, GEMMSolution>("test/sample_library.yaml");
+    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("test/sample_library.yaml");
 
     ASSERT_NE(library, nullptr);
 }
 
-TEST(GEMMLibraryLoadingTest, MultipleKernels)
+TEST(ContractionLibraryLoadingTest, MultipleKernels)
 {
-    auto library = LoadLibraryFile<GEMMProblem, GEMMSolution>("configs/TensileKernels.yaml");
+    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/TensileKernels.yaml");
     ASSERT_NE(library, nullptr);
 
     AMDGPU hardware;
 
     {
-        GEMMProblem p = GEMMProblem::FromBLAS(false, false, 4, 4, 4, 4, 4, 4, true, false, 2);
+        ContractionProblem p = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
@@ -59,7 +59,7 @@ TEST(GEMMLibraryLoadingTest, MultipleKernels)
     return;
 
     {
-        GEMMProblem p = GEMMProblem::FromBLAS(false,  true, 4, 4, 4, 4, 4, 4, true, false, 2);
+        ContractionProblem p = ContractionProblem::GEMM(false,  true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
@@ -69,7 +69,7 @@ TEST(GEMMLibraryLoadingTest, MultipleKernels)
     }
 
     {
-        GEMMProblem p = GEMMProblem::FromBLAS( true, false, 4, 4, 4, 4, 4, 4, true, false, 2);
+        ContractionProblem p = ContractionProblem::GEMM( true, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
@@ -79,7 +79,7 @@ TEST(GEMMLibraryLoadingTest, MultipleKernels)
     }
 
     {
-        GEMMProblem p = GEMMProblem::FromBLAS( true,  true, 4, 4, 4, 4, 4, 4, true, false, 2);
+        ContractionProblem p = ContractionProblem::GEMM( true,  true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 

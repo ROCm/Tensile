@@ -26,11 +26,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include <Tensile/geom.hpp>
+#include <Tensile/DataTypes.hpp>
 
 namespace Tensile
 {
@@ -46,6 +49,59 @@ namespace Tensile
         template <typename T, typename IO, typename Context = EmptyContext>
         struct MappingTraits
         {
+        };
+
+        template <typename Map, typename IO, typename Context = EmptyContext>
+        struct CustomMappingTraits
+        {
+            using iot = IOTraits<IO>;
+            using key_type = typename Map::key_type;
+            using mapped_type = typename Map::mapped_type;
+
+            static void inputOne(IO & io, std::string const& key, Map & value)
+            {
+                Context * ctx = static_cast<Context *>(iot::getContext(io));
+                iot::mapRequired(io, key.c_str(), value[key], *ctx);
+            }
+
+            static void output(IO & io, Map & value)
+            {
+                Context * ctx = static_cast<Context *>(iot::getContext(io));
+
+                std::vector<key_type> keys;
+                keys.reserve(value.size());
+                for(auto const& pair: value)
+                    keys.push_back(pair.first);
+                std::sort(keys.begin(), keys.end());
+
+                for(auto const& key: keys)
+                    iot::mapRequired(io, key.c_str(), value.find(key)->second, *ctx);
+            }
+        };
+
+        template <typename Map, typename IO>
+        struct CustomMappingTraits<Map, IO, EmptyContext>
+        {
+            using iot = IOTraits<IO>;
+            using key_type = typename Map::key_type;
+            using mapped_type = typename Map::mapped_type;
+
+            static void inputOne(IO & io, std::string const& key, Map & value)
+            {
+                iot::mapRequired(io, key.c_str(), value[key]);
+            }
+
+            static void output(IO & io, Map & value)
+            {
+                std::vector<key_type> keys;
+                keys.reserve(value.size());
+                for(auto const& pair: value)
+                    keys.push_back(pair.first);
+                std::sort(keys.begin(), keys.end());
+
+                for(auto const& key: keys)
+                    iot::mapRequired(io, key.c_str(), value.find(key)->second);
+            }
         };
 
         template <typename Object, typename IO>
@@ -67,6 +123,59 @@ namespace Tensile
             {
                 iot::mapRequired(io, "value", obj.value);
             }
+        };
+
+        template <typename Object, typename IO>
+        struct IndexMappingTraits
+        {
+            using iot = IOTraits<IO>;
+            static_assert(Object::HasIndex == true, "Object doesn't have index/value.  Use the empty base class.");
+            static void mapping(IO & io, Object & obj)
+            {
+                iot::mapRequired(io, "index", obj.index);
+            }
+        };
+
+        template <typename Object, typename IO>
+        struct IndexValueMappingTraits
+        {
+            using iot = IOTraits<IO>;
+            static_assert(Object::HasIndex == true && Object::HasValue == true,
+                          "Object doesn't have index/value.  Use the empty base class.");
+            static void mapping(IO & io, Object & obj)
+            {
+                iot::mapRequired(io, "index", obj.index);
+                iot::mapRequired(io, "value", obj.value);
+            }
+        };
+
+        template <typename Object, typename IO, bool HasIndex = Object::HasIndex, bool HasValue = Object::HasValue>
+        struct AutoMappingTraits
+        {
+        };
+
+        template <typename Object, typename IO>
+        struct AutoMappingTraits<Object, IO, false, false>:
+            public EmptyMappingTraits<Object, IO>
+        {
+        };
+
+        template <typename Object, typename IO>
+        struct AutoMappingTraits<Object, IO, false,  true>:
+            public ValueMappingTraits<Object, IO>
+        {
+        };
+
+        template <typename Object, typename IO>
+        struct AutoMappingTraits<Object, IO,  true, false>:
+            public IndexMappingTraits<Object, IO>
+        {
+        };
+
+        template <typename Object, typename IO>
+        struct AutoMappingTraits<Object, IO,  true,  true>:
+            public IndexValueMappingTraits<Object, IO>
+        {
         };
 
         template <typename T, typename IO, typename Context = EmptyContext>
@@ -151,12 +260,12 @@ namespace Tensile
             static typename SubclassMap::value_type Pair()
             {
                 auto f = PointerMappingTraits<Subclass, IO, Context>::template mapping<T>;
-                return typename SubclassMap::value_type(Subclass::Key(), f);
+                return typename SubclassMap::value_type(Subclass::Type(), f);
             }
 
-            static bool mapping(IO & io, std::string const& key, std::shared_ptr<T> & p, Context & ctx)
+            static bool mapping(IO & io, std::string const& type, std::shared_ptr<T> & p, Context & ctx)
             {
-                auto iter = CRTP_Traits::subclasses.find(key);
+                auto iter = CRTP_Traits::subclasses.find(type);
                 if(iter != CRTP_Traits::subclasses.end())
                     return iter->second(io, p, ctx);
                 return false;
@@ -174,12 +283,12 @@ namespace Tensile
             static typename SubclassMap::value_type Pair()
             {
                 auto f = PointerMappingTraits<Subclass, IO>::template mapping<T>;
-                return typename SubclassMap::value_type(Subclass::Key(), f);
+                return typename SubclassMap::value_type(Subclass::Type(), f);
             }
 
-            static bool mapping(IO & io, std::string const& key, std::shared_ptr<T> & p)
+            static bool mapping(IO & io, std::string const& type, std::shared_ptr<T> & p)
             {
-                auto iter = CRTP_Traits::subclasses.find(key);
+                auto iter = CRTP_Traits::subclasses.find(type);
                 if(iter != CRTP_Traits::subclasses.end())
                     return iter->second(io, p);
                 return false;
@@ -222,6 +331,19 @@ namespace Tensile
             }
         };
 
+        template <typename IO>
+        struct EnumTraits<DataType, IO>
+        {
+            using iot = IOTraits<IO>;
+
+            static void enumeration(IO & io, DataType & value)
+            {
+                iot::enumCase(io, value, "Half",  DataType::Half);
+                iot::enumCase(io, value, "Float", DataType::Float);
+                iot::enumCase(io, value, "Int32", DataType::Int32);
+                iot::enumCase(io, value, "Int8",  DataType::Int8);
+            }
+        };
     }
 }
 

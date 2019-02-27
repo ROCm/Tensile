@@ -41,7 +41,7 @@ namespace Tensile
 
             struct ADimensionOrder: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 std::vector<size_t> value;
 
                 ADimensionOrder() = default;
@@ -55,8 +55,8 @@ namespace Tensile
                 {
                 }
 
-                static std::string Key() { return "ADimensionOrder"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "ADimensionOrder"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -66,7 +66,7 @@ namespace Tensile
 
             struct BDimensionOrder: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 std::vector<size_t> value;
 
                 BDimensionOrder() = default;
@@ -79,8 +79,8 @@ namespace Tensile
                 {
                 }
 
-                static std::string Key() { return "BDimensionOrder"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "BDimensionOrder"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -90,7 +90,7 @@ namespace Tensile
 
             struct CDimensionOrder: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 std::vector<size_t> value;
 
                 CDimensionOrder() = default;
@@ -103,8 +103,8 @@ namespace Tensile
                 {
                 }
 
-                static std::string Key() { return "CDimensionOrder"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "CDimensionOrder"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -114,7 +114,7 @@ namespace Tensile
 
             struct DDimensionOrder: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 std::vector<size_t> value;
 
                 DDimensionOrder() = default;
@@ -127,8 +127,8 @@ namespace Tensile
                 {
                 }
 
-                static std::string Key() { return "DDimensionOrder"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "DDimensionOrder"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -138,14 +138,14 @@ namespace Tensile
 
             struct IDivisible: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 size_t value;
 
                 IDivisible() = default;
                 IDivisible(size_t init): value(init) {}
 
-                static std::string Key() { return "IDivisible"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "IDivisible"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -155,14 +155,14 @@ namespace Tensile
 
             struct JDivisible: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 size_t value;
 
                 JDivisible() = default;
                 JDivisible(size_t init): value(init) {}
 
-                static std::string Key() { return "JDivisible"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "JDivisible"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -172,14 +172,14 @@ namespace Tensile
 
             struct KDivisible: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 size_t value;
 
                 KDivisible() = default;
                 KDivisible(size_t init): value(init) {}
 
-                static std::string Key() { return "KDivisible"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "KDivisible"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -189,14 +189,14 @@ namespace Tensile
 
             struct LDivisible: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 size_t value;
 
                 LDivisible() = default;
                 LDivisible(size_t init): value(init) {}
 
-                static std::string Key() { return "LDivisible"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "LDivisible"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -206,9 +206,9 @@ namespace Tensile
 
             struct CDStridesEqual: public Predicate<GEMMProblem>
             {
-                enum { HasValue = false };
-                static std::string Key() { return "CDStridesEqual"; }
-                virtual std::string key() const { return Key(); }
+                enum { HasIndex = false, HasValue = false };
+                static std::string Type() { return "CDStridesEqual"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -218,9 +218,9 @@ namespace Tensile
 
             struct LDCEqualsLDD: public Predicate<GEMMProblem>
             {
-                enum { HasValue = false };
-                static std::string Key() { return "LDCEqualsLDD"; }
-                virtual std::string key() const { return Key(); }
+                enum { HasIndex = false, HasValue = false };
+                static std::string Type() { return "LDCEqualsLDD"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {
@@ -230,14 +230,14 @@ namespace Tensile
 
             struct UseBeta: public Predicate<GEMMProblem>
             {
-                enum { HasValue = true };
+                enum { HasIndex = false, HasValue = true };
                 bool value;
 
                 UseBeta() = default;
                 UseBeta(bool init): value(init) {}
 
-                static std::string Key() { return "UseBeta"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "UseBeta"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(GEMMProblem const& problem) const
                 {

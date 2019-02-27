@@ -39,7 +39,7 @@ namespace Tensile
         {
         public:
             virtual ~Predicate() = default;
-            virtual std::string key() const = 0;
+            virtual std::string type() const = 0;
             virtual bool operator()(Object const&) const = 0;
         };
 
@@ -47,9 +47,9 @@ namespace Tensile
         class True: public Predicate<Object>
         {
         public:
-            enum { HasValue = false };
-            static std::string Key() { return "True"; }
-            virtual std::string key() const { return Key(); } 
+            enum { HasIndex = false, HasValue = false };
+            static std::string Type() { return "True"; }
+            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const&) const
             {
@@ -61,9 +61,9 @@ namespace Tensile
         class False: public Predicate<Object>
         {
         public:
-            enum { HasValue = false };
-            static std::string Key() { return "False"; }
-            virtual std::string key() const { return Key(); } 
+            enum { HasIndex = false, HasValue = false };
+            static std::string Type() { return "False"; }
+            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const&) const
             {
@@ -75,15 +75,15 @@ namespace Tensile
         class And: public Predicate<Object>
         {
         public:
-            enum { HasValue = true };
+            enum { HasIndex = false, HasValue = true };
             std::vector<std::shared_ptr<Predicate<Object>>> value;
 
             And() = default;
             And(std::initializer_list<std::shared_ptr<Predicate<Object>>> init) : value(init) { }
             And(std::vector<std::shared_ptr<Predicate<Object>>>    const& init) : value(init) { }
 
-            static std::string Key() { return "And"; }
-            virtual std::string key() const { return Key(); } 
+            static std::string Type() { return "And"; }
+            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const& obj) const
             {
@@ -96,15 +96,15 @@ namespace Tensile
         class Or: public Predicate<Object>
         {
         public:
-            enum { HasValue = true };
+            enum { HasIndex = false, HasValue = true };
             std::vector<std::shared_ptr<Predicate<Object>>> value;
 
             Or() = default;
             Or(std::initializer_list<std::shared_ptr<Predicate<Object>>> init) : value(init) { }
             Or(std::vector<std::shared_ptr<Predicate<Object>>>    const& init) : value(init) { }
 
-            static std::string Key() { return "Or"; }
-            virtual std::string key() const { return Key(); } 
+            static std::string Type() { return "Or"; }
+            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const& obj) const
             {
@@ -117,13 +117,13 @@ namespace Tensile
         class Not: public Predicate<Object>
         {
         public:
-            enum { HasValue = true };
+            enum { HasIndex = false, HasValue = true };
             std::shared_ptr<Predicate<Object>> value;
             Not() = default;
             Not(std::shared_ptr<Predicate<Object>> init) : value(init) { }
 
-            static std::string Key() { return "Or"; }
-            virtual std::string key() const { return Key(); } 
+            static std::string Type() { return "Not"; }
+            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const& obj) const
             {
@@ -135,7 +135,7 @@ namespace Tensile
         class IsSubclass: public Predicate<Object>
         {
         public:
-            enum { HasValue = true };
+            enum { HasIndex = false, HasValue = true };
             static_assert(std::is_base_of<Object, Subclass>::value, "Subclass must be derived from Object.");
 
             std::shared_ptr<Predicate<Subclass>> value;
@@ -143,8 +143,8 @@ namespace Tensile
             IsSubclass() = default;
             IsSubclass(std::shared_ptr<Predicate<Subclass>> init) : value(init) { }
 
-            static std::string Key() { return Subclass::Key(); }
-            virtual std::string key() const { return Key(); }
+            static std::string Type() { return Subclass::Type(); }
+            virtual std::string type() const { return Type(); }
 
             virtual bool operator()(Object const& obj) const
             {

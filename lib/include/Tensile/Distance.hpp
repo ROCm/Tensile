@@ -25,15 +25,15 @@ namespace Tensile
 {
     struct Distance
     {
-        virtual std::string key() const = 0;
+        virtual std::string type() const = 0;
 
         virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const;
     };
 
     struct RatioDistance: public Distance
     {
-        static std::string  Key() { return "RatioDistance"; }
-        virtual std::string key() { return Key(); }
+        static std::string  Type() { return "RatioDistance"; }
+        virtual std::string type() { return Type(); }
 
         double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
         {
@@ -48,8 +48,8 @@ namespace Tensile
     
     struct ManhattanDistance: public Distance
     {
-        static std::string  Key() { return "ManhattanDistance"; }
-        virtual std::string key() { return Key(); }
+        static std::string  Type() { return "ManhattanDistance"; }
+        virtual std::string type() { return Type(); }
 
         double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
         {
@@ -65,8 +65,8 @@ namespace Tensile
     
     struct EuclideanDistance: public Distance
     {
-        static std::string  Key() { return "EuclideanDistance"; }
-        virtual std::string key() { return Key(); }
+        static std::string  Type() { return "EuclideanDistance"; }
+        virtual std::string type() { return Type(); }
 
         double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
         {
@@ -82,8 +82,8 @@ namespace Tensile
     template <class ProblemKeyType>
     struct RandomDistance: public Distance
     {
-        static std::string  Key() { return "EuclideanDistance"; }
-        virtual std::string key() { return Key(); }
+        static std::string  Type() { return "EuclideanDistance"; }
+        virtual std::string type() { return Type(); }
 
         double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
         {

@@ -16,6 +16,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror" )
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
     source/ContractionProblem.cpp
+    source/ContractionSolution.cpp
+    source/DataTypes.cpp
     source/GEMMProblem.cpp
     source/GEMMSolution.cpp
     source/KernelArguments.cpp

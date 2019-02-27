@@ -26,52 +26,53 @@
 
 #pragma once
 
-#include <vector>
-#include <set>
+#include <Tensile/SolutionLibrary.hpp>
 
 #include <Tensile/PropertyMatching.hpp>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
+    template<typename MyProblem, typename MySolution, typename MyKey>
+    using LibraryMap = std::unordered_map<MyKey, LibraryEntry<MyProblem, MySolution>>;
+
+    /**
+     * Represents a set of solutions where each problem can map to only one sub-library.
+     * Examples are number of dimensions, transposes, etc.
+     */
+    template <typename MyProblem, typename MySolution, typename Key = std::string>
+    struct ProblemMapLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
-        using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table = Matching::MatchingTable<MyProblem, Element>;
-        std::shared_ptr<Table> table;
+        static std::string Type() { return "ProblemMap"; }
+        virtual std::string type() const { return Type(); }
 
-        static std::string Type() { return "Matching"; }
-        virtual std::string type() { return Type(); }
+        std::shared_ptr<Property<MyProblem, Key>> property;
+        LibraryMap<MyProblem, MySolution, Key> map;
 
-        
         virtual std::shared_ptr<MySolution>
-            findBestSolution(std::shared_ptr<MyProblem> problem,
-                             std::shared_ptr<Hardware> hardware) const
+            findBestSolution(MyProblem const& problem,
+                             Hardware  const& hardware) const override
         {
-            auto closestEntry = table.findBestMatch(problem);
+            auto key = (*property)(problem);
+            auto iter = map.find(key);
 
-            if(closestEntry)
-                return closestEntry.findBestSolution(problem, hardware);
+            if(iter == map.end())
+                return std::shared_ptr<MySolution>();
 
-            return std::shared_ptr<MySolution>();
+            return iter->second->findBestSolution(problem, hardware);
         }
 
         virtual SolutionSet<MySolution>
-            findAllSolutions(std::shared_ptr<MyProblem> problem,
-                             std::shared_ptr<Hardware> hardware) const
+            findAllSolutions(MyProblem const& problem,
+                             Hardware  const& hardware) const override
         {
-            SolutionSet<MySolution> rv;
+            auto key = (*property)(problem);
+            auto iter = map.find(key);
 
-            for(auto const& row: table.table)
-            {
-                auto rowLibrary = std::get<Table::EntryValue>(row);
-                auto rowSolutions = rowLibrary.findAllSolutions(problem, hardware);
-                rv.insert(rowSolutions.begin(), rowSolutions.end());
-            }
+            if(iter == map.end())
+                return SolutionSet<MySolution>();
 
-            return rv;
+            return iter->second->findAllSolutions(problem, hardware);
         }
     };
-
 }
 

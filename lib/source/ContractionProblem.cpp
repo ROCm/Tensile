@@ -42,26 +42,26 @@ namespace Tensile
         TensorDescriptor a, b, c, d;
         if(transA)
         {
-            a = TensorDescriptor(DataType::Float, {k, m}, {lda, k*lda});
+            a = TensorDescriptor(DataType::Float, {k, m}, {1, lda});
             free.a = 1;
             bound.a = 0;
         }
         else
         {
-            a = TensorDescriptor(DataType::Float, {m, k}, {lda, m*lda});
+            a = TensorDescriptor(DataType::Float, {m, k}, {1, lda});
             free.a = 0;
             bound.a = 1;
         }
 
         if(transB)
         {
-            b = TensorDescriptor(DataType::Float, {n, k}, {ldb, n*ldb});
+            b = TensorDescriptor(DataType::Float, {n, k}, {1, ldb});
             free.b = 0;
             bound.b = 1;
         }
         else
         {
-            b = TensorDescriptor(DataType::Float, {k, n}, {ldb, k*ldb});
+            b = TensorDescriptor(DataType::Float, {k, n}, {1, ldb});
             free.b = 1;
             bound.b = 0;
         }
@@ -70,15 +70,13 @@ namespace Tensile
         BatchIndices batchIndices;
         BoundIndices boundIndices{bound};
 
-        d = TensorDescriptor(DataType::Float, {m, n}, {ldc, m*ldc});
-        if(batchCount > 1)
-        {
-            a.appendDim(batchCount);
-            b.appendDim(batchCount);
-            d.appendDim(batchCount);
+        d = TensorDescriptor(DataType::Float, {m, n}, {1, ldc});
 
-            batchIndices.push_back({2,2,2,2});
-        }
+        a.appendDim(batchCount);
+        b.appendDim(batchCount);
+        d.appendDim(batchCount);
+
+        batchIndices.push_back({2,2,2,2});
 
         if(beta != 0.0)
             c = d;
@@ -118,6 +116,17 @@ namespace Tensile
         getIndexNames(m_aNames, m_bNames, m_cNames, m_dNames, m_sumNames);
 
         m_operationIdentifier = getOperationIdentifier();
+
+        m_maxProblemSize = 0;
+
+        for(int i = 0; i < m_freeIndices.size(); i++)
+            m_maxProblemSize = std::max({m_maxProblemSize, freeSizeA(i), freeSizeB(i)});
+
+        for(int i = 0; i < m_boundIndices.size(); i++)
+            m_maxProblemSize = std::max(m_maxProblemSize, boundSize(i));
+
+        m_transA = m_aNames == "lik";
+        m_transB = m_bNames == "jlk";
     }
 
     void ContractionProblem::consistencyCheck() const
@@ -195,22 +204,22 @@ namespace Tensile
         for(int dUse: dUseCount) TENSILE_ASSERT_EXC(dUse == 1);
     }
 
-    size_t ContractionProblem::freeSizeA(size_t idx)
+    size_t ContractionProblem::freeSizeA(size_t idx) const
     {
         return m_a.sizes()[m_freeIndices[idx].a];
     }
 
-    size_t ContractionProblem::freeSizeB(size_t idx)
+    size_t ContractionProblem::freeSizeB(size_t idx) const
     {
         return m_b.sizes()[m_freeIndices[idx].b];
     }
 
-    size_t ContractionProblem::batchSize(size_t idx)
+    size_t ContractionProblem::batchSize(size_t idx) const
     {
         return m_a.sizes()[m_batchIndices[idx].a];
     }
 
-    size_t ContractionProblem::boundSize(size_t idx)
+    size_t ContractionProblem::boundSize(size_t idx) const
     {
         return m_a.sizes()[m_boundIndices[idx].a];
     }
@@ -265,6 +274,9 @@ namespace Tensile
             aNames[m_boundIndices[i].a] = sumNames[i];
             bNames[m_boundIndices[i].b] = sumNames[i];
         }
+
+        if(m_c.empty() || m_beta == 0.0)
+            cNames = dNames;
     }
 
     std::string ContractionProblem::getOperationDescription() const
@@ -295,19 +307,11 @@ namespace Tensile
 
         rv << "Contraction";
 
+        rv << "_" << m_sumNames;
         rv << "_A" << m_aNames;
         rv << "_B" << m_bNames;
-        if(!m_c.empty() && m_beta != 0)
-            rv << "_C" << m_cNames;
-
+        rv << "_C" << m_cNames;
         rv << "_D" << m_dNames;
-
-        if(m_beta == 0)
-            rv << "_beta0";
-        else if(m_beta == 1)
-            rv << "_beta1";
-        else
-            rv << "_betaOther";
 
         return rv.str();
     }

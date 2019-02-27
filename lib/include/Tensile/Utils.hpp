@@ -64,6 +64,18 @@ namespace Tensile
         }
     }
 
+    template <typename Container, typename Joiner>
+    void streamJoin(std::ostream & stream, Container const& c, Joiner const& j)
+    {
+        bool first = true;
+        for(auto const& item: c)
+        {
+            if(!first) stream << j;
+            stream << item;
+            first = false;
+        }
+    }
+
     inline int LexicographicCompare()
     {
         return 0;

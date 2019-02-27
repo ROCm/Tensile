@@ -28,10 +28,12 @@
 
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
+#include <Tensile/MapLibrary.hpp>
 
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
+#include <Tensile/Serialization/MapLibrary.hpp>
 
 namespace Tensile
 {
@@ -46,15 +48,15 @@ namespace Tensile
 
             static void mapping(IO & io, std::shared_ptr<Library> & lib, SolutionMap<MySolution> & ctx)
             {
-                std::string key;
+                std::string type;
 
                 if(iot::outputting(io))
-                    key = lib->key();
+                    type = lib->type();
 
-                iot::mapRequired(io, "type", key);
+                iot::mapRequired(io, "type", type);
 
-                if(!SubclassMappingTraits<Library, IO, SolutionMap<MySolution>>::mapping(io, key, lib, ctx))
-                    iot::setError(io, "Unknown predicate type " + key);
+                if(!SubclassMappingTraits<Library, IO, SolutionMap<MySolution>>::mapping(io, type, lib, ctx))
+                    iot::setError(io, "Unknown predicate type " + type);
             }
         };
 
@@ -74,11 +76,12 @@ namespace Tensile
 
             static typename Base::SubclassMap GetSubclasses()
             {
-                return SubclassMap(
+                return typename Base::SubclassMap(
                 {
                     Base::template Pair<SingleSolutionLibrary   <MyProblem, MySolution>>(),
                     Base::template Pair<HardwareSelectionLibrary<MyProblem, MySolution>>(),
-                    Base::template Pair<ProblemSelectionLibrary <MyProblem, MySolution>>()
+                    Base::template Pair<ProblemSelectionLibrary <MyProblem, MySolution>>(),
+                    Base::template Pair<ProblemMapLibrary       <MyProblem, MySolution>>()
                 });
             }
         };

@@ -110,37 +110,6 @@ namespace Tensile {
         calculate();
     }
 
-    std::string ToString(DataType d)
-    {
-        switch(d)
-        {
-            case DataType::Int32: return "Int32";
-            case DataType::Float: return "Float";
-            case DataType::Half: return  "Half";
-            case DataType::Int8: return  "Int8";
-
-            case DataType::Count:;
-        }
-        return "Invalid";
-    }
-
-    std::ostream& operator<<(std::ostream& stream, const DataType& t)
-    {
-        return stream << ToString(t);
-    }
-
-    template <typename Container, typename Joiner>
-    void streamJoin(std::ostream & stream, Container const& c, Joiner const& j)
-    {
-        bool first = true;
-        for(auto const& item: c)
-        {
-            if(!first) stream << j;
-            stream << item;
-            first = false;
-        }
-    }
-
     std::string TensorDescriptor::ToString() const
     {
         std::ostringstream result;
@@ -162,6 +131,7 @@ namespace Tensile {
     {
         return stream << t.ToString();
     }
+
 
     //std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t)
     //{

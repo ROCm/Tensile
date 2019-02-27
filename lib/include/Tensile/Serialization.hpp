@@ -29,8 +29,13 @@
 #include <functional>
 
 #include <Tensile/Serialization/Base.hpp>
+#include <Tensile/Serialization/ContractionPredicates.hpp>
+#include <Tensile/Serialization/ContractionSolution.hpp>
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
+#include <Tensile/Serialization/GEMMPredicates.hpp>
 #include <Tensile/Serialization/GEMMSolution.hpp>
+#include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
+#include <Tensile/Serialization/Properties.hpp>
 #include <Tensile/Serialization/SolutionLibrary.hpp>
 

@@ -25,6 +25,9 @@
  *******************************************************************************/
 
 #include <Tensile/Tensile.hpp>
+
+#include <Tensile/ContractionProblem.hpp>
+#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/GEMMProblem.hpp>
 #include <Tensile/GEMMSolution.hpp>
 
@@ -41,4 +44,8 @@ namespace Tensile
     template
     std::shared_ptr<SolutionLibrary<GEMMProblem, GEMMSolution>>
     LoadLibraryFile<GEMMProblem, GEMMSolution>(std::string const& filename);
+
+    template
+    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+    LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 }

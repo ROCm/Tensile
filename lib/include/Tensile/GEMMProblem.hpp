@@ -29,10 +29,27 @@
 
 namespace Tensile
 {
+    class GEMMSolution;
+
+    struct GEMMInputs: public ProblemInputs
+    {
+        GEMMInputs() = default;
+        
+        float const* a;
+        float const* b;
+        float const* c;
+        float      * d;
+
+        float alpha;
+        float beta;
+    };
 
     class GEMMProblem: public Problem
     {
     public:
+        using Solution = GEMMSolution;
+        using Inputs   = GEMMInputs;
+
         GEMMProblem() = default;
 
         virtual std::string description() const { return "asdf"; }
@@ -82,19 +99,6 @@ namespace Tensile
         bool useBeta;
         TensorDescriptor a, b, c, d;
         TensorOps aOps, bOps, cOps, dOps;
-    };
-
-    struct GEMMInputs: public ProblemInputs
-    {
-        GEMMInputs() = default;
-        
-        float const* a;
-        float const* b;
-        float const* c;
-        float      * d;
-
-        float alpha;
-        float beta;
     };
 }
 

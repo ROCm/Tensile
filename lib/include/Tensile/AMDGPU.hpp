@@ -32,8 +32,8 @@ namespace Tensile
 {
     struct AMDGPU: public Hardware
     {
-        static std::string Key() { return "AMDGPU"; }
-        virtual std::string key() const { return Key(); }
+        static std::string Type() { return "AMDGPU"; }
+        virtual std::string type() const { return Type(); }
 
         enum class Processor: int
         {

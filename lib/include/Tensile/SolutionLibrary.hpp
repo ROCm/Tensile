@@ -39,7 +39,7 @@ namespace Tensile
     template <typename MySolution>
     using SolutionSet = std::set<std::shared_ptr<MySolution>>;
 
-    template <typename MyProblem, typename MySolution>
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct SolutionLibrary
     {
         virtual ~SolutionLibrary() = default;
@@ -52,14 +52,14 @@ namespace Tensile
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const = 0;
 
-        virtual std::string key() const = 0;
+        virtual std::string type() const = 0;
     };
 
     template <typename MyProblem, typename MySolution>
     struct SingleSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
-        static std::string Key() { return "Single"; }
-        std::string key() const override { return Key(); }
+        static std::string Type() { return "Single"; }
+        std::string type() const override { return Type(); }
 
         std::shared_ptr<MySolution> solution;
 
@@ -95,8 +95,8 @@ namespace Tensile
     template <typename MyProblem, typename MySolution>
     struct MasterSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
-        static std::string Key() { return "Master"; }
-        std::string key() const override { return Key(); }
+        static std::string Type() { return "Master"; }
+        std::string type() const override { return Type(); }
 
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         SolutionMap<MySolution> solutions;

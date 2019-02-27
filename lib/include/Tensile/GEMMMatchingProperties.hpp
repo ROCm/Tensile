@@ -31,8 +31,8 @@ namespace Tensile
         {
             struct I: public Property<GEMMProblem>
             {
-                static std::string Key() { return "I"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "I"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -42,8 +42,8 @@ namespace Tensile
 
             struct J: public Property<GEMMProblem>
             {
-                static std::string Key() { return "J"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "J"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -53,8 +53,8 @@ namespace Tensile
 
             struct K: public Property<GEMMProblem>
             {
-                static std::string Key() { return "K"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "K"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -64,8 +64,8 @@ namespace Tensile
 
             struct L: public Property<GEMMProblem>
             {
-                static std::string Key() { return "L"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "L"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -75,8 +75,8 @@ namespace Tensile
 
             struct LDA: public Property<GEMMProblem>
             {
-                static std::string Key() { return "LDA"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "LDA"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -86,8 +86,8 @@ namespace Tensile
 
             struct LDB: public Property<GEMMProblem>
             {
-                static std::string Key() { return "LDB"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "LDB"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -97,8 +97,8 @@ namespace Tensile
 
             struct LDC: public Property<GEMMProblem>
             {
-                static std::string Key() { return "LDC"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "LDC"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
@@ -108,8 +108,8 @@ namespace Tensile
 
             struct LDD: public Property<GEMMProblem>
             {
-                static std::string Key() { return "LDD"; }
-                virtual std::string key() const { return Key(); }
+                static std::string Type() { return "LDD"; }
+                virtual std::string type() const { return Type(); }
 
                 virtual size_t operator()(GEMMProblem const& problem) const
                 {
