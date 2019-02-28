@@ -49,9 +49,9 @@ namespace Tensile
         TensorDescriptor(DataType t,
                          IterA sizesBegin,   IterA sizesEnd,
                          IterB stridesBegin, IterB stridesEnd)
-            : m_dataType(t),
-              m_sizes(sizesBegin, sizesEnd),
-              m_strides(stridesBegin, stridesEnd)
+            : m_sizes(sizesBegin, sizesEnd),
+              m_strides(stridesBegin, stridesEnd),
+              m_dataType(t)
         {
             this->calculate();
         }
@@ -59,16 +59,17 @@ namespace Tensile
         template <typename Iter>
         TensorDescriptor(DataType t,
                          Iter sizesBegin, Iter sizesEnd)
-            : m_dataType(t),
-              m_sizes(sizesBegin, sizesEnd)
+            : m_sizes(sizesBegin, sizesEnd),
+              m_dataType(t)
         {
             this->calculate();
         }
 
         TensorDescriptor(DataType t,
                          std::initializer_list<size_t> sizes)
-            : m_dataType(t),
-              m_sizes(sizes)
+            : m_sizes(sizes),
+              m_dataType(t)
+        
         {
             this->calculate();
         }
@@ -76,9 +77,9 @@ namespace Tensile
         TensorDescriptor(DataType t,
                          std::initializer_list<size_t> sizes,
                          std::initializer_list<size_t> strides)
-            : m_dataType(t),
-              m_sizes(sizes),
-              m_strides(strides)
+            : m_sizes(sizes),
+              m_strides(strides),
+              m_dataType(t)
         {
             this->calculate();
         }

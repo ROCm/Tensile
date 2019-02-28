@@ -138,7 +138,7 @@ namespace Tensile
 
         std::ostringstream msg;
         msg << value;
-        return std::move(msg.str());
+        return msg.str();
     }
 
     template <typename T>

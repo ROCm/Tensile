@@ -33,6 +33,8 @@ namespace Tensile
     public:
         virtual std::string type() const = 0;
 
+        virtual ~Property() = default;
+
         virtual Value operator()(Object const& object) const = 0;
     };
 
@@ -76,7 +78,7 @@ namespace Tensile
                 for(auto const& prop: properties)
                     myKey.push_back((*prop)(object));
 
-                return std::move(myKey);
+                return myKey;
             }
 
             virtual Value findBestMatch(Object const& object) const
