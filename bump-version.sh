@@ -3,8 +3,8 @@
 # This script needs to be edited to bump version for new release.
 # Version will be bumped in Tensile/__init__.py and in .yaml files
 
-OLD_VERSION="4.7.2"
-NEW_VERSION="4.8.0"
+OLD_VERSION="4.8.0"
+NEW_VERSION="4.8.1"
 
 OLD_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.7.2"
 NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.8.0"

@@ -226,6 +226,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Exact: [ 196, 256, 1, 576]  #MIOpen i8_r size
           - Range: [ [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
           - Range: [ [64, 64, 64, 7000], [64, 128], [1], [256, 1024, 1024, 4096] ] # skinny-1
           - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [256, 1024, 1024, 4096] ] # small
@@ -542,6 +543,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Exact: [ 50176, 128, 1, 64]       # MIOpen i8_r
+          - Exact: [ 50176, 512, 1, 64]       # MIOpen i8_r
+          - Exact: [ 12544, 256, 1, 128]      # MIOpen i8_r
+          - Exact: [ 784, 128, 1, 128]        # MIOpen i8_r
+          - Exact: [ 12544, 256, 1, 256]      # MIOpen i8_r
+          - Exact: [ 3136, 2048, 1, 128]      # MIOpen i8_r
+          - Exact: [ 50176, 63, 1, 196]       # MIOpen i8_r 
           - Exact: [ 256, 193600, 1, 64 ]
           - Exact: [ 64, 193600, 1, 64 ]
           - Exact: [ 64, 193600, 1, 256 ]
@@ -583,6 +591,11 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Exact: [  3025, 256, 64, 16]              # MIOpen i8_r
+          - Exact: [  3025,  64, 64, 16]              # MIOpen i8_r
+          - Exact: [  3025,  64, 64, 64]              # MIOpen i8_r
+          - Exact: [   784, 512, 64, 32]              # MIOpen i8_r
+          - Exact: [   784, 128, 64, 128]             # MIOpen i8_r
           - Exact: [  196,  256, 64, 1024 ]
           - Exact: [  784,  512, 64,  128 ]
           - Exact: [   49,  512, 64, 2048 ]
