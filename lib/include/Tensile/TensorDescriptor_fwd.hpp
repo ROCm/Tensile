@@ -30,7 +30,7 @@ namespace Tensile
 {
     enum class DataType: int;
 
-    struct TensorDescriptor;
+    class TensorDescriptor;
 
 } // namespace
 
