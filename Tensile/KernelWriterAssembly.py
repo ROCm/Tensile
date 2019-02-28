@@ -2285,8 +2285,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
       kStr += self.getKernArg("OrigStaggerUIter", self.staggerU)
 
-      kStr += self.getKernArg("NumWorkGroups%u" % (0 if (kernel["WorkGroupMapping"]>=0) else 1))
-      kStr += self.getKernArg("NumWorkGroups%u" % (1 if (kernel["WorkGroupMapping"]>=0) else 0))
+      kStr += self.getKernArg("NumWorkGroups0")
+      kStr += self.getKernArg("NumWorkGroups1")
       kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
       kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
       kStr += self.getKernArg("NumFullBlocks")

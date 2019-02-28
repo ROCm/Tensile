@@ -279,8 +279,8 @@ class SolutionWriter:
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
 
     # persistent:
-    s += "%sunsigned int problemNumGroupTiles0 = totalWorkGroups%u;\n" % (t, 0 if kernel["WorkGroupMapping"] >= 0 else 1)
-    s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups%u;\n" % (t, 1 if kernel["WorkGroupMapping"] >= 0 else 0)
+    s += "%sunsigned int problemNumGroupTiles0 = totalWorkGroups0;\n" % (t)
+    s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups1;\n" % (t)
     s += "%sconst unsigned smallNumMagicShift = 31; // bozo, review\n" % (t)
     s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<smallNumMagicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
     s += "%sunsigned numFullBlocks =  problemNumGroupTiles1 / %u; // divide by WorkGroupMapping\n" \

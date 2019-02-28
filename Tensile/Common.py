@@ -433,7 +433,7 @@ validParameters = {
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
-    # < 0 : Swaps the position of wg0 and wg1.
+    # < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*.
     # Tensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
     #
