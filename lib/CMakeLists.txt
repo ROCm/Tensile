@@ -6,7 +6,11 @@ find_package(HIP CONFIG PATHS /opt/rocm/hip)
 #message(${HIP_HIPCC_EXECUTABLE})
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
+option(USE_LLVM "Use LLVM for parsing config files." ON)
+
+if(USE_LLVM)
 find_package(LLVM REQUIRED CONFIG)
+endif()
 
 #set(HIP_FOUND 1)
 
@@ -22,15 +26,22 @@ set(tensile_sources  ${tensile_sources}
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
-    source/llvm/YAML.cpp
-    source/llvm/Loading.cpp
     )
 
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include" ${LLVM_INCLUDE_DIRS})
+if(USE_LLVM)
+    set(tensile_sources ${tensile_sources}
+        source/llvm/YAML.cpp
+        source/llvm/Loading.cpp
+    )
+
+include_directories (${LLVM_INCLUDE_DIRS})
+target_link_libraries( Tensile PUBLIC LLVM )
+endif()
+
+include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_library (Tensile STATIC ${tensile_sources})
 
-target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
 
 add_subdirectory(configs)
 

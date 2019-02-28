@@ -11,13 +11,18 @@ set(tensile_test_source
 
 set(test_sources
     test.cpp
-    ContractionLibraryLoading_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     KernelArguments_test.cpp
     TensorDescriptor_test.cpp
-    llvm/LLVMYAMLContraction_test.cpp
 )
+
+if(USE_LLVM)
+    set(test_sources ${test_sources}
+        llvm/LLVMYAMLContraction_test.cpp
+        ContractionLibraryLoading_test.cpp
+        )
+endif()
 
 #add_library(TensileCommonTests STATIC ${test_sources})
 

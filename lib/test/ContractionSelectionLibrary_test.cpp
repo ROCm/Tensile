@@ -31,7 +31,7 @@
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
-#include <Tensile/llvm/YAML.hpp>
+#include <Tensile/ContractionProblemProperties.hpp>
 
 using namespace Tensile;
 
@@ -130,7 +130,5 @@ TEST(ContractionSelectionLibraryTest, TransposeSelection)
     MasterContractionLibrary mlib;
     mlib.solutions = map;
     mlib.library = lib;
-    llvm::yaml::Output yout(llvm::outs());
-    yout << mlib;
 }
 
