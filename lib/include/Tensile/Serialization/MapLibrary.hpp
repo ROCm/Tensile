@@ -50,6 +50,12 @@ namespace Tensile
                 iot::mapRequired(io, "map",      lib.map);
             }
         };
+
+        template <typename MyProblem, typename MySolution, typename IO, typename Context>
+        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO, Context>:
+        public DefaultCustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO, Tensile::SolutionMap<MySolution>>
+        {
+        };
     }
 }
 

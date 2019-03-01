@@ -1,5 +1,5 @@
 
-set(INSTALL_GTEST OFF)
+set(INSTALL_GTEST OFF CACHE BOOL "Install GTest")
 add_subdirectory(googletest)
 
 if(HIP_FOUND)
@@ -9,7 +9,7 @@ endif()
 set(tensile_test_source
     test.cpp)
 
-set(test_sources
+set(test_sources ${test_sources}
     test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp

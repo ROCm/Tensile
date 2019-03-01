@@ -33,17 +33,20 @@ if(USE_LLVM)
         source/llvm/YAML.cpp
         source/llvm/Loading.cpp
     )
-
 include_directories (${LLVM_INCLUDE_DIRS})
-target_link_libraries( Tensile PUBLIC LLVM )
 endif()
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_library (Tensile STATIC ${tensile_sources})
 
+target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(configs)
+
+if(USE_LLVM)
+target_link_libraries( Tensile PUBLIC LLVM )
+endif()
 
 if(HIP_FOUND)
     add_subdirectory(source/hip)

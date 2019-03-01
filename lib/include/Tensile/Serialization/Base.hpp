@@ -51,8 +51,13 @@ namespace Tensile
         {
         };
 
-        template <typename Map, typename IO, typename Context = EmptyContext>
+        template <typename T, typename IO, typename Context = EmptyContext>
         struct CustomMappingTraits
+        {
+        };
+
+        template <typename Map, typename IO, typename Context = EmptyContext>
+        struct DefaultCustomMappingTraits
         {
             using iot = IOTraits<IO>;
             using key_type = typename Map::key_type;
@@ -80,7 +85,7 @@ namespace Tensile
         };
 
         template <typename Map, typename IO>
-        struct CustomMappingTraits<Map, IO, EmptyContext>
+        struct DefaultCustomMappingTraits<Map, IO, EmptyContext>
         {
             using iot = IOTraits<IO>;
             using key_type = typename Map::key_type;
