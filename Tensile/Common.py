@@ -675,7 +675,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
-    {"PrefetchAcrossPersistent":  [ 0 ] },
+    {"PrefetchAcrossPersistent":  [ 1 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
@@ -696,7 +696,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
-    {"PersistentKernel":          [ 0 ] },
+    {"PersistentKernel":          [ 2 ] },
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackGranularity":           [ 2 ] },

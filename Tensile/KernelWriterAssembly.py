@@ -654,8 +654,6 @@ class KernelWriterAssembly(KernelWriter):
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
-    self.prefetchAcrossPersistent = kernel["PersistentKernel"] and kernel["PrefetchAcrossPersistent"]
-
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
     # appropriate vmwnts into the stores so they issue as loads become available
@@ -2556,6 +2554,21 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_lshr_b64", sgpr(dest,2), sgpr(dest,2), magicShift, "sMagicDiv")
     return kStr
 
+  ##############################################################################
+  # Open Persistent Loop
+  # init iteration counter, define loop target
+  ##############################################################################
+  def openPersistentLoop(self, kernel):
+    kStr = ""
+    if kernel["PersistentKernel"]:
+      stmp = self.getTmpSgpr(2)
+      kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
+      kStr += "\n"
+      kStr += self.comment3("Persistent Loop Start")
+      kStr += self.getLabelDef("PersistentLoopStart")
+      kStr += "\n"
+      #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
+    return kStr
 
   ##############################################################################
   # Global Read Addresses: WorkGroup
@@ -2565,13 +2578,6 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["PersistentKernel"]:
       stmp = self.getTmpSgpr(2)
-      kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
-      kStr += "\n"
-      kStr += self.comment3("Persistent Loop Start")
-      kStr += self.getLabelDef("PersistentLoopStart")
-      kStr += "\n"
-      #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
-
       # Always reset pointers since tail loop iterates through LRA
       if kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)

@@ -333,15 +333,16 @@ class KernelWriter:
     return iterCode
 
   ##############################################################################
+  # returns list of modules or text
   ##############################################################################
-  def setupForNewWorkGroup(self, kernel, doShadowInit, tensorParametersA, tensorParametersB):
+  def setupForNewWorkGroup(self, kernel, tensorParametersA, tensorParametersB):
     kl = []
 
     if self.enable["PreLoop"]:
       ####################################
       # Global Read Addresses
       ####################################
-      kl.append(self.comment3("Global Read Addresses"))
+      kl.append(self.comment3("Begin setupForNewWorkGroup"))
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
@@ -477,7 +478,7 @@ class KernelWriter:
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
 
-    if not doShadowInit:
+    if not self.doShadowInit:
       kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
@@ -512,6 +513,8 @@ class KernelWriter:
       if self.enable["GlobalReadInc"]:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
+
+    kl.append(self.comment3("End setupForNewWorkGroup"))
 
     return kl
 
@@ -570,11 +573,12 @@ class KernelWriter:
       kl.append(self.comment("local read addresses: declare addresses b"))
       kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
 
-    doShadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
-    kl += self.setupForNewWorkGroup(kernel, doShadowInit, tensorParametersA, tensorParametersB)
+    self.doShadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+    kl.append(self.openPersistentLoop(kernel))
+    kl += self.setupForNewWorkGroup(kernel, tensorParametersA, tensorParametersB)
 
     if kernel["PrefetchGlobalRead"]:
-      if doShadowInit:
+      if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
         kl.append(self.initC(kernel)) # initC while waiting for global reads
@@ -1031,7 +1035,7 @@ class KernelWriter:
 
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
-      if not doShadowInit:
+      if not self.doShadowInit:
         kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
@@ -1194,6 +1198,12 @@ class KernelWriter:
     else:
       self.scheduleIterAlg = 0
 
+    self.prefetchAcrossPersistent = \
+        kernel["KernelLanguage"] == "Assembly" and \
+        kernel["PersistentKernel"] and \
+        kernel["PrefetchAcrossPersistent"]
+
+    print "pap=", self.prefetchAcrossPersistent
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
@@ -1583,6 +1593,16 @@ class KernelWriter:
   @abc.abstractmethod
   def allocateResources(self, kernel):
     return ""
+
+
+  ##############################################################################
+  # Open Persistent Loop
+  # init iteration counter, define loop target
+  ##############################################################################
+  @abc.abstractmethod
+  def openPersistentLoop(self, kernel):
+    return ""
+
 
   ##############################################################################
   # Global Read Addresses: Work-Group

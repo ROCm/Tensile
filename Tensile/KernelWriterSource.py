@@ -946,6 +946,33 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Open Persistent Loop
+  # init iteration counter, define loop target
+  ##############################################################################
+  def openPersistentLoop(self, kernel):
+    kStr = ""
+    if kernel["PersistentKernel"]:
+      wg0 = "wg%s" % self.tileChar0
+      wg1 = "wg%s" % self.tileChar1
+      kStr += "  %s serialWgIter = %s(0);%s" \
+        % (self.uint64Str, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int n%s = problemNumGroupTiles0;%s" \
+          % ( wg0, self.endLine)
+      kStr += "  unsigned int n%s = problemNumGroupTiles1;%s" \
+          % ( wg1, self.endLine)
+      kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
+      kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
+
+      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
+      kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
+      kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
+          % ( wg0, self.endLine)
+      kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
+          % ( wg1, self.endLine)
+    return kStr
+
+
+  ##############################################################################
   # Global Read Addresses: Work-Group
   ##############################################################################
   def graWorkGroup(self, kernel):
@@ -958,17 +985,6 @@ class KernelWriterSource(KernelWriter):
     n1 = 1 if nwgg else 0
 
     if kernel["PersistentKernel"]:
-      kStr += "  %s serialWgIter = %s(0);%s" \
-        % (self.uint64Str, self.getGroupIdStr, self.endLine)
-      kStr += "  unsigned int n%s = problemNumGroupTiles0;%s" \
-          % ( wg0, self.endLine)
-      kStr += "  unsigned int n%s = problemNumGroupTiles1;%s" \
-          % ( wg1, self.endLine)
-      kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
-      kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
-
-      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
-      kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
       kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
           % ( wg0, self.endLine)
       kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
