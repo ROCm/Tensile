@@ -7544,7 +7544,7 @@ class KernelWriterAssembly(KernelWriter):
       if self.prefetchAcrossPersistent:
         imod.addInst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "persistent loop exit")
 
-        kl = self.setupForNewWorkGroup(kernel, self.tPA, self.tPB)
+        kl = self.setupNewTile(kernel, self.tPA, self.tPB)
         kStr = '\n'.join([str(x) for x in kl])
         imod.addText(kStr)
 

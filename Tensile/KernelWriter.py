@@ -335,14 +335,14 @@ class KernelWriter:
   ##############################################################################
   # returns list of modules or text
   ##############################################################################
-  def setupForNewWorkGroup(self, kernel, tensorParametersA, tensorParametersB):
+  def setupNewTile(self, kernel, tensorParametersA, tensorParametersB):
     kl = []
 
     if self.enable["PreLoop"]:
       ####################################
       # Global Read Addresses
       ####################################
-      kl.append(self.comment3("Begin setupForNewWorkGroup"))
+      kl.append(self.comment3("Begin setupNewTile"))
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
@@ -504,7 +504,7 @@ class KernelWriter:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
-    kl.append(self.comment3("End setupForNewWorkGroup"))
+    kl.append(self.comment3("End setupNewTile"))
 
     return kl
 
@@ -567,12 +567,12 @@ class KernelWriter:
     if self.prefetchAcrossPersistent:
       # first prefetch is outside persistent loop, subsequent prefetch will
       # be integrated into no-load-loop
-      kl += self.setupForNewWorkGroup(kernel, tensorParametersA, tensorParametersB)
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB)
       kl.append(self.openPersistentLoop(kernel))
     else:
       # prefetch is inside persistent loop
       kl.append(self.openPersistentLoop(kernel))
-      kl += self.setupForNewWorkGroup(kernel, tensorParametersA, tensorParametersB)
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB)
 
     if kernel["PrefetchGlobalRead"]:
       if self.doShadowInit:
