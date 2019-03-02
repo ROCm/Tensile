@@ -429,15 +429,11 @@ class KernelWriter:
       kl.append(self.comment3("Local Write Addresses"))
 
       # tile assignments
-      kl.append(self.comment("local write addresses: tile assignment a"))
       kl.append(self.lwaTileAssignment(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: tile assignment b"))
       kl.append(self.lwaTileAssignment(kernel, tensorParametersB))
 
       # unroll assignments
-      kl.append(self.comment("local write addresses: unroll assignment a"))
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: unroll assignment b"))
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
 
       # first offsets
@@ -447,21 +443,15 @@ class KernelWriter:
       kl.append(self.lwaFirstOffset(kernel, tensorParametersB))
 
       # final offsets
-      kl.append(self.comment("local write addresses: final offsets a"))
       kl.append(self.lwaFinalOffsets(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: final offsets b"))
       kl.append(self.lwaFinalOffsets(kernel, tensorParametersB))
 
       # declare addresses
-      kl.append(self.comment("local write addresses: declare addresses a"))
       kl.append(self.lwaDeclareAddresses(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: declare addresses b"))
       kl.append(self.lwaDeclareAddresses(kernel, tensorParametersB))
 
       # init pointers
-      kl.append(self.comment("local write addresses: init pointers a"))
       kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: init pointers b"))
       kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
 
     ###########################################################################
@@ -495,9 +485,9 @@ class KernelWriter:
 
     if self.enable["PreLoop"]:
       # init lds read pointers before each unrolled loop
-      kl.append(self.comment("local read addresses: init pointers a"))
+      kl.append(self.comment1("local read addresses: init pointers a"))
       kl.append(self.localReadInitPointers(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: init pointers b"))
+      kl.append(self.comment1("local read addresses: init pointers b"))
       kl.append(self.localReadInitPointers(kernel, tensorParametersB))
 
     ####################################
@@ -603,9 +593,7 @@ class KernelWriter:
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersA))
         kl.append(self.comment("local write swap b"))
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersB))
-        kl.append(self.comment("local write init pointers a"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
-        kl.append(self.comment("local write init pointers b"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
@@ -762,9 +750,7 @@ class KernelWriter:
               pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersA))
               pointerCode.addText(self.comment("local write swap offsets b"))
               pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersB))
-              pointerCode.addText(self.comment("local write init pointers a"))
               pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersA))
-              pointerCode.addText(self.comment("local write init pointers b"))
               pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersB))
 
           if self.enable["LocalRead"]:
@@ -864,9 +850,7 @@ class KernelWriter:
           pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersA))
           pointerCode.addText(self.comment("local write swap offsets b"))
           pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersB))
-          pointerCode.addText(self.comment("local write init pointers a"))
           pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersA))
-          pointerCode.addText(self.comment("local write init pointers b"))
           pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersB))
         if self.enable["LocalRead"]:
           # swap read and write
@@ -919,6 +903,7 @@ class KernelWriter:
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
+      kl.append(self.comment3("No Load Loop - Begin"))
       kl.append(self.comment("prefetch: last unrolled iteration"))
       kl.append(self.openSumAtLeastUnroll(kernel, False))
       if not kernel["PrefetchLocalRead"]:
@@ -982,9 +967,7 @@ class KernelWriter:
         kl.append(self.syncThreads(kernel))
       if self.enable["LocalWrite"]:
         # tail: local write
-        kl.append(self.comment("local write init pointers a"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
-        kl.append(self.comment("local write init pointers b"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
         kl.append(self.comment("local write a"))
         kl.append(self.localWriteDo(kernel, tensorParametersA))

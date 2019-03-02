@@ -3480,14 +3480,14 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Tile Assignment A/B
   ##############################################################################
   def lwaTileAssignment(self, kernel, tP):
-    return self.comment1("lwaTile%s = %s" % (tP["tensorChar"], \
+    return self.comment1("lwaTileAssignment%s = %s" % (tP["tensorChar"], \
         vgpr(tP["gpr"]["lwoT"])))
 
   ##############################################################################
   # Local Write Addresses: Unroll Assignment A/B
   ##############################################################################
   def lwaUnrollAssignment(self, kernel, tP):
-    return self.comment1("lwaUnroll%s = %s" % (tP["tensorChar"], \
+    return self.comment1("lwaUnrollAssignment%s = %s" % (tP["tensorChar"], \
         vgpr(tP["gpr"]["uReg2" if kernel["GlobalSplitU"] > 1 else "uReg"])))
 
   ##############################################################################
@@ -3656,13 +3656,13 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Final Offsets A/B
   ##############################################################################
   def lwaFinalOffsets(self, kernel, tP):
-    return self.comment("N/A")
+    return ""
 
   ##############################################################################
   # Local Write Addresses: Declare Addresses A/B
   ##############################################################################
   def lwaDeclareAddresses(self, kernel, tP):
-    return self.comment1("N/A")
+    return ""
 
   ##############################################################################
   # Local Read Addresses: Tile Assignment A
@@ -4215,12 +4215,16 @@ class KernelWriterAssembly(KernelWriter):
   # End Summation
   ##############################################################################
   def endSummation(self, kernel):
+    kStr = ""
+
+    kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
+            (self.startVgprValuA, self.lastVgprForReads))
+
     self.vgprPool.add(self.startVgprValuA, \
         self.lastVgprForReads - self.startVgprValuA, "endSummation")
 
     self.setStartTmpPool(self.lastPostLoopSgpr)
 
-    kStr = ""
     if self.db["InitVgpr"] & 0x2:
       #kStr += self.vgprPool.initTmps(self.initVgprValue)
       kStr += self.vgprPool.initTmps(self.initVgprValue,start=0, stop=100)
@@ -4881,7 +4885,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Init Pointers A/B
   ##############################################################################
   def localWriteInitPointers(self, kernel, tP):
-    return self.comment1("N/A")
+    return ""
 
 
   ##############################################################################

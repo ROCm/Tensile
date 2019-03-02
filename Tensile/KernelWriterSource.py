@@ -1383,7 +1383,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Tile Assignment A/B
   ##############################################################################
   def lwaTileAssignment(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: tile assignment %s"%tP["tensorChar"])
     kStr += "  unsigned int lw%s%s = (serial%s" \
         % (tP["tensorChar"], tP["tileChar"], ("%" if tP["grcg"] \
         == tP["tlu"] else "/") )
@@ -1401,7 +1401,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Unroll Assignment A/B
   ##############################################################################
   def lwaUnrollAssignment(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: unroll assignment %s"%tP["tensorChar"])
     kStr += "  unsigned int lw%s%s = (serial%s" \
         % (tP["tensorChar"], self.unrollChar, ("/" if tP["grcg"] \
         == tP["tlu"] else "%") )
@@ -1430,7 +1430,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Final Offsets A/B
   ##############################################################################
   def lwaFinalOffsets(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: final offsets %s" % tP["tensorChar"])
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
@@ -1453,7 +1453,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Declare Addresses A/B
   ##############################################################################
   def lwaDeclareAddresses(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: declare addresses %s" % tP["tensorChar"])
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
@@ -1948,7 +1948,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write: Init Pointers A/B
   ##############################################################################
   def localWriteInitPointers(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write init pointers %s" % tP["tensorChar"])
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
