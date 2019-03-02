@@ -1191,6 +1191,7 @@ class KernelWriter:
     self.prefetchAcrossPersistent = \
         kernel["KernelLanguage"] == "Assembly" and \
         kernel["PersistentKernel"] and \
+        kernel["PrefetchGlobalRead"] and \
         kernel["PrefetchAcrossPersistent"]
 
     print "pap=", self.prefetchAcrossPersistent
