@@ -4063,6 +4063,7 @@ class KernelWriterAssembly(KernelWriter):
     # is numIter at least 1? otherwise skip to end
     # PGL needs a skip-check here if not bufferload
     # If kernel["SuppressNoLoadLoop"] we don't have a special loop for the 'last iter'
+    loopCounter = "LoopCounters+%u"%loopIdx
     if tailLoop:
       endCounter = 0
     elif kernel["PrefetchGlobalRead"]:
@@ -4074,7 +4075,7 @@ class KernelWriterAssembly(KernelWriter):
       endCounter =  0
 
     kStr += inst("s_cmp_ge_i32", \
-        sgpr("LoopCounters+%u"%loopIdx), \
+        sgpr(loopCounter), \
         hex(endCounter), \
         "LoopCounter%s < EndCounter"%(loopChar) )
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
@@ -4125,6 +4126,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Close Loop
+  # finalLoop : final unroll loop
   ##############################################################################
   def closeLoop(self, kernel, loopIdx, finalLoop):
     kStr = ""
@@ -4133,32 +4135,47 @@ class KernelWriterAssembly(KernelWriter):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
-    loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
-    loopLabelEndOddExit = self.getLabelNum("%sLoopEnd%s_oddexit"%("Tail" if tailLoop else "", loopChar) )
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+      loopLabelBegin = self.getLabelNum("TailLoopBegin%s"%(loopChar) )
+      loopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
+      loopLabelEndOddExit = self.getLabelNum("TailLoopEnd%s_oddexit"%(loopChar) )
+      if self.prefetchAcrossPersistent:
+        loopCounter = "LoopCounters+%u"%loopIdx
+      else:
+        loopCounter = "LoopCounters+%u"%loopIdx
+      if kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
+        unrollInc = kernel["InnerUnroll"]
 
-    if tailLoop and kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
-      unrollInc = kernel["InnerUnroll"]
-    else:
-      unrollInc = 1
+      kStr += inst("s_add_u32", \
+          sgpr(loopCounter), \
+          sgpr(loopCounter), \
+          hex(unrollInc), \
+          "inc counter%s"%(loopChar) )
 
-    kStr += inst("s_add_u32", \
-        sgpr("LoopCounters+%u"%loopIdx), \
-        sgpr("LoopCounters+%u"%loopIdx), \
-        hex(unrollInc), \
-        "inc counter%s"%(loopChar) )
-    if tailLoop:
+      # Track # LDS reads?
       kStr += inst("s_add_u32", \
         sgpr("OrigLoopCounter"), \
         sgpr("OrigLoopCounter"), \
         hex(unrollInc),
         "inc counter%s"%(loopChar) )
 
-    if tailLoop:
       endCounter = 0
-    else:
+    else: # not tailloop
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+      loopLabelBegin = self.getLabelNum("LoopBegin%s"%(loopChar) )
+      loopLabelEnd = self.getLabelNum("LoopEnd%s"%(loopChar) )
+      loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
+      loopCounter = "LoopCounters+%u"%loopIdx
+      unrollInc = 1
+
+      kStr += inst("s_add_u32", \
+          sgpr("LoopCounters+%u"%loopIdx), \
+          sgpr("LoopCounters+%u"%loopIdx), \
+          hex(unrollInc), \
+          "inc counter%s"%(loopChar) )
+
       # If PrefetchGlobalRead=1 the loads in the loop prefetch next macro-tile
       # For the final trip through the unroll loop we need to ensure those loads stay in bounds.
 
@@ -4172,7 +4189,7 @@ class KernelWriterAssembly(KernelWriter):
         endCounter = 0
 
     kStr += inst("s_cmp_eq_i32", \
-        sgpr("LoopCounters+%u"%loopIdx), \
+        sgpr(loopCounter), \
         hex(endCounter), \
         "counter%s==0"%(loopChar) )
 
