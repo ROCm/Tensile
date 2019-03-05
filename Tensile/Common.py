@@ -948,6 +948,8 @@ def assignGlobalParameters( config ):
       globalParameters["AsmCaps"][v]["MaxVmcnt"] = 63
     elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
       globalParameters["AsmCaps"][v]["MaxVmcnt"] = 15
+    else:
+      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 0
 
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
