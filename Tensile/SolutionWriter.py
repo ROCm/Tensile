@@ -148,14 +148,11 @@ class SolutionWriter:
       # number of unroll loop iterations to stagger the start in "U" dim.
       s += "%sint staggerUIter;\n" % t
 
-      # persistent
+      # persistent - pass in the number of tiles in problem since not available in WG
       s += "%sunsigned int problemNumGroupTiles0;\n" % t
       s += "%sunsigned int problemNumGroupTiles1;\n" % t
       s += "%sunsigned int magicNumberProblemNumGroupTiles0;\n" % t
       s += "%sunsigned int gridNumWorkGroups0;\n" % t
-      s += "%sunsigned int numFullBlocks;\n" % t
-      s += "%sunsigned int wgmRemainder1;\n" % t
-      s += "%sunsigned int magicNumberWgmRemainder1;\n" % t
 
       s += "%sunsigned int pad;\n" % t # FIXME can this be removed?
       t = t[2:]
@@ -255,7 +252,7 @@ class SolutionWriter:
     for idxChar in solution["PackedC1Indices"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
-              % (t, idxChar, idxChar, idxChar)
+          % (t, idxChar, idxChar, idxChar)
 
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
     s += "%sunsigned int macroTile1 = static_cast<unsigned int>(groupSize[1] * threadTile[1]);\n" % (t)
@@ -279,17 +276,10 @@ class SolutionWriter:
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
 
     # persistent:
-    s += "%sunsigned int problemNumGroupTiles0 = totalWorkGroups0;\n" % (t)
-    s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups1;\n" % (t)
-    s += "%sconst unsigned smallNumMagicShift = 31; // bozo, review\n" % (t)
-    s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<smallNumMagicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
-    s += "%sunsigned numFullBlocks =  problemNumGroupTiles1 / %u; // divide by WorkGroupMapping\n" \
-            % (t, abs(kernel["WorkGroupMapping"]) if abs(kernel["WorkGroupMapping"])>0 else 1)
-    s += "%sunsigned wgmRemainder1 =  %u ? (problemNumGroupTiles1 %% %u) : 0;\n" % \
-            (t, abs(kernel["WorkGroupMapping"]), abs(kernel["WorkGroupMapping"]))
-    s += "%sif (wgmRemainder1 == 0) wgmRemainder1 = %u;\n" % (t, abs(kernel["WorkGroupMapping"]))
-    s += "%sunsigned magicNumberWgmRemainder1 = ((1L<<smallNumMagicShift) / wgmRemainder1 + 1);\n"  % (t)
-    #s += '  printf ("wgmRemainder1=%u \\n", wgmRemainder1);'
+    s += "%sunsigned int problemNumGroupTiles0 = totalWorkGroups%u;\n" % (t, 0 if kernel["WorkGroupMapping"] >= 0 else 1)
+    s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups%u;\n" % (t, 1 if kernel["WorkGroupMapping"] >= 0 else 0)
+    s += "%sconst unsigned magicShift = 31; // bozo, review\n" % (t)
+    s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<magicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
 
     if gsu> 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, gsu)
@@ -297,10 +287,8 @@ class SolutionWriter:
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       # TODO - should cache the device properties - expensive to call on each iteration here:
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
-      s += "%sunsigned int numGroups = totalWorkGroups0 * totalWorkGroups1;\n" % (t)
-      s += "%sglobalWorkSize[0][0] = (deviceProperties.multiProcessorCount * %u < numGroups) ? (deviceProperties.multiProcessorCount * %u) : numGroups;\n" \
+      s += "%sglobalWorkSize[0][0] = deviceProperties.multiProcessorCount * %u; // persistent launch with %s WG/CU\n" \
               % (t, persistent, persistent)
-
       s += "%sglobalWorkSize[0][1] = 1;\n" % t
     else:
       s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] >= 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
@@ -754,9 +742,6 @@ class SolutionWriter:
           s += "%shipFunctionArgs.problemNumGroupTiles1 = problemNumGroupTiles1;\n" % (t)
           s += "%shipFunctionArgs.magicNumberProblemNumGroupTiles0 = magicNumberProblemNumGroupTiles0;\n" % (t)
           s += "%shipFunctionArgs.gridNumWorkGroups0 = globalWorkSize[kernelIdx][0];\n" % (t) #
-          s += "%shipFunctionArgs.numFullBlocks = numFullBlocks;\n" % (t)
-          s += "%shipFunctionArgs.wgmRemainder1 = wgmRemainder1;\n" % (t)
-          s += "%shipFunctionArgs.magicNumberWgmRemainder1 = magicNumberWgmRemainder1;\n" % (t)
 
           # Magic numbers for packed indices:
           for idxChar in solution["PackedC0Indices"][:-1]:
