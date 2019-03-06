@@ -505,6 +505,7 @@ validParameters = {
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
     #       - Host code will not launch more groups than tiles in the C space
+    # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
     "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.

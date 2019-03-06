@@ -1321,6 +1321,8 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("OrigLoopCounter", 1)
+    if self.prefetchAcrossPersistent:
+      self.defineSgpr("TailLoopCounter", 1)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
@@ -3953,6 +3955,10 @@ class KernelWriterAssembly(KernelWriter):
     # Tail Loop
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
+      if self.prefetchAcrossPersistent:
+        loopCounter = "TailLoopCounter"
+      else:
+        loopCounter = "LoopCounters+%u"%loopIdx
       kStr += "\n"
       if kernel["SuppressNoLoadLoop"]:
         # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
@@ -3971,15 +3977,15 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       # size % DepthU
-      kStr += scalarStaticDivideAndRemainder(tmpSgpr, "LoopCounters+%u"%loopIdx, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, True)
+      kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounter, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, True)
 
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
-        kStr += inst("s_add_u32", sgpr("LoopCounters+%u"%loopIdx), hex(kernel["LocalSplitU"]-1), sgpr("LoopCounters+%u"%loopIdx), "(size % DepthU) + LSU - 1" )
+        kStr += inst("s_add_u32", sgpr(loopCounter), hex(kernel["LocalSplitU"]-1), sgpr(loopCounter), "(size % DepthU) + LSU - 1" )
         dividend = tmpSgpr+2
-        kStr += inst("s_mov_b32", sgpr(dividend), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
-        kStr += scalarStaticDivideAndRemainder( "LoopCounters+%u"%loopIdx, None, dividend, kernel["LocalSplitU"], tmpSgpr, False)
+        kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
+        kStr += scalarStaticDivideAndRemainder( loopCounter, None, dividend, kernel["LocalSplitU"], tmpSgpr, False)
 
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:
@@ -3987,12 +3993,12 @@ class KernelWriterAssembly(KernelWriter):
             "gsuSumIdx == numIterPerWgRemainder" )
         afterZero = self.getLabelNum("AfterNumIterZero")
         kStr += inst("s_cbranch_scc1", "label_%04u"%afterZero, "skip" )
-        kStr += inst("s_mov_b32", sgpr("LoopCounters+%u"%loopIdx), hex(0), "numIter=0" )
+        kStr += inst("s_mov_b32", sgpr(loopCounter), hex(0), "numIter=0" )
         kStr += "label_%04u:%s" % (afterZero, self.endLine)
 
       # if tail numIter == 0 skip altogether
       tailLoopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
-      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
+      kStr += inst("s_cmp_eq_u32", sgpr(loopCounter), \
           hex(0), "numIter%s == 0"%loopChar )
       kStr += inst("s_cbranch_scc1 label_%04u"\
           % tailLoopLabelEnd, \
@@ -4001,9 +4007,10 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Unrolled Loop
     elif loopIdx == self.unrollIdx:
+      loopCounter = "LoopCounters+%u"%loopIdx
       if not self.do["PreLoop"]: kStr += ".endif\n"
       tmpSgpr = self.getTmpSgpr(2)
-      quotient = "LoopCounters+%u"%loopIdx
+      quotient = loopCounter
       dividend = "SizesSum+%u"%loopIdx
       divisor = kernel["DepthU"]
       kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, False)
@@ -4011,11 +4018,11 @@ class KernelWriterAssembly(KernelWriter):
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
         tmpSgpr = self.getTmpSgpr(3)
-        quotient = "LoopCounters+%u"%loopIdx
+        quotient = loopCounter
         remainder = "GSUSumIdx+1" # numIterPerWgRemainder
         dividend = tmpSgpr+2 # numIterMyWg
         divisor = kernel["GlobalSplitU"]
-        kStr += inst("s_mov_b32", sgpr(dividend), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
+        kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
         kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, True)
 
         # if gsuSumIdx < numIterPerWgRemainder
@@ -4023,11 +4030,11 @@ class KernelWriterAssembly(KernelWriter):
             "gsuSumIdx < numIterPerWgRemainder" )
         afterInc = self.getLabelNum("AfterNumIterInc")
         kStr += inst("s_cbranch_scc0", "label_%04u"%afterInc, "skip" )
-        kStr += inst("s_add_u32", sgpr("LoopCounters+%u"%loopIdx), hex(1), sgpr("LoopCounters+%u"%loopIdx), "numIterMyWg++" )
+        kStr += inst("s_add_u32", sgpr(loopCounter), hex(1), sgpr(loopCounter), "numIterMyWg++" )
         kStr += "label_%04u:%s" % (afterInc, self.endLine)
 
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
-                sgpr("LoopCounters+%u"%loopIdx), \
+                sgpr(loopCounter), \
                 "copy loop counter")
     ########################################
     # Multi-dimensional summation
@@ -4039,9 +4046,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # counter = -counter
     kStr += inst("s_sub_u32", \
-        sgpr("LoopCounters+%u"%loopIdx), \
+        sgpr(loopCounter), \
         hex(0), \
-        sgpr("LoopCounters+%u"%loopIdx), \
+        sgpr(loopCounter), \
         "counter%s = -size%s"%(loopChar, loopChar) )
     return kStr
 
@@ -4065,6 +4072,8 @@ class KernelWriterAssembly(KernelWriter):
     # If kernel["SuppressNoLoadLoop"] we don't have a special loop for the 'last iter'
     loopCounter = "LoopCounters+%u"%loopIdx
     if tailLoop:
+      if self.prefetchAcrossPersistent:
+        loopCounter = "TailLoopCounter"
       endCounter = 0
     elif kernel["PrefetchGlobalRead"]:
       if kernel["SuppressNoLoadLoop"]:
@@ -4141,7 +4150,7 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
       loopLabelEndOddExit = self.getLabelNum("TailLoopEnd%s_oddexit"%(loopChar) )
       if self.prefetchAcrossPersistent:
-        loopCounter = "LoopCounters+%u"%loopIdx
+        loopCounter = "TailLoopCounter"
       else:
         loopCounter = "LoopCounters+%u"%loopIdx
       if kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
@@ -4291,17 +4300,27 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # At Least 1 Unroll
+  # prefetch means this is in the prefetch code, either before unroll loop
+  # or in the PAP code.
+  # isPap means this is the PAP iteration, need to adjust the loop exit 
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isPap):
     kStr = ""
     if prefetch:
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
-      kStr += inst("s_cbranch_scc1 label_%04u"\
-          % self.getLabelNum("ShadowInitStart"), \
-          "skip to ShadowInitStart iter b/c numIter==0")
+      if not isPap:
+        kStr += inst("s_cbranch_scc1 label_%04u"\
+            % self.getLabelNum("ShadowInitStart"), \
+            "skip to ShadowInitStart iter b/c numIter==0")
+      else:
+        kStr += inst("s_cbranch_scc1 label_%04u"\
+            % self.getLabelNum("SkipPrefetchAcrossPersistent"), \
+            "skip prefetch loads since numIter==0")
     return kStr
 
+  ##############################################################################
+  ##############################################################################
   def closeSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     if not prefetch:
@@ -5180,6 +5199,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if tP["localReadInstruction"].numOffsets == 1:
       tP["localReadSwapByteOffset"] = 0
+      kStr += self.comment("localReadResetOffsets")
       tP["localReadOffset"] = 0
       kStr += self.comment1("handled internally")
     kStr += inst("v_and_b32", \
@@ -5197,6 +5217,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     if self.localReadInstructionA.numOffsets == 1:
+      kStr += self.comment("localReadInitPointers")
       tP["localReadOffset"] = 0
     else:
       kStr += inst("v_and_b32", \
@@ -5864,8 +5885,6 @@ class KernelWriterAssembly(KernelWriter):
     if self.prefetchAcrossPersistent:
       wg0="PrevWorkGroup0"
       wg1="PrevWorkGroup1"
-      kStr += inst("s_mov_b32", sgpr(wg0), sgpr("WorkGroup0"), "create copy")
-      kStr += inst("s_mov_b32", sgpr(wg1), sgpr("WorkGroup1"), "create copy")
     else:
       wg0="WorkGroup0"
       wg1="WorkGroup1"
@@ -7554,29 +7573,46 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  ##############################################################################
+  def openPrefetchAcrossPersistent(self, kernel):
+    imod = Code.Module()
+    imod.addInst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "create copy")
+    imod.addInst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "create copy")
+    imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
+        sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
+        "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
+    stmp = self.getTmpSgpr(1)
+    imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
+    imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
+    imod.addInst("s_cbranch_scc1", self.getLabelTarget("SkipPrefetchAcrossPersistent"), "skip pf if OOB")
+    #imod.addInst("s_branch", self.getLabelTarget("SkipPrefetchAcrossPersistent"), "skip pf if OOB")
+    return imod
+
+  ##############################################################################
+  ##############################################################################
+  def closePrefetchAcrossPersistent(self, kernel):
+    imod = Code.Module()
+    imod.addCode(Code.Label(self.getLabelNum("SkipPrefetchAcrossPersistent"), \
+        "SkipPrefetchAcrossPersistent"))
+    #imod.addText(self.bomb())
+    return imod
+
+  ##############################################################################
   # Function End
   ##############################################################################
   def functionEnd(self, kernel):
     imod = Code.Module()
     if kernel["PersistentKernel"]:
-      imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
-          sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
-          "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
+      if not self.prefetchAcrossPersistent:
+        imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
+            sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
+            "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
+
       # Persistent may generate a SerialWorkGroupIter which is OOB, only loop back if we are in a valid WG:
-      stmp = self.getTmpSgpr(2)
+      stmp = self.getTmpSgpr(1)
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
       imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-      if self.prefetchAcrossPersistent:
-        imod.addInst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "persistent loop exit")
-
-        kl = self.setupNewTile(kernel, self.tPA, self.tPB)
-        kStr = '\n'.join([str(x) for x in kl])
-        imod.addText(kStr)
-
-        imod.addInst("s_branch", self.getLabelTarget("PersistentLoopStart"), \
-            "persistent loop back")
-      else:
-        imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
+      imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
     imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")
     return imod

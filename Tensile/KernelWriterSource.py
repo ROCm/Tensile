@@ -1770,7 +1770,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # At Least 1 Unroll
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isPap):
     kStr = ""
     if kernel["GlobalSplitU"] > 1:
       kStr += "%sif (numIterMyWg >= 1) {%s" \
@@ -2521,6 +2521,12 @@ class KernelWriterSource(KernelWriter):
               kStr += " } }"
             kStr += self.endLine
     return kStr
+
+  def openPrefetchAcrossPersistent(self, kernel):
+    return ""
+
+  def closePrefetchAcrossPersistent(self, kernel):
+    return ""
 
   ##############################################################################
   # Function End

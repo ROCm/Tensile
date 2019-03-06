@@ -334,8 +334,10 @@ class KernelWriter:
 
   ##############################################################################
   # returns list of modules or text
+  # papIter indicates this is the setup for the "prefetchAcrossPersistent"
+  # (aka pap) iteration
   ##############################################################################
-  def setupNewTile(self, kernel, tensorParametersA, tensorParametersB):
+  def setupNewTile(self, kernel, tensorParametersA, tensorParametersB, isPap):
     kl = []
 
     if self.enable["PreLoop"]:
@@ -483,7 +485,9 @@ class KernelWriter:
       kl.append(self.calculateStagger(kernel, tensorParametersA))
       kl.append(self.calculateStagger(kernel, tensorParametersB))
 
-    if self.enable["PreLoop"]:
+    # isPap don't init the read pointers - we want to continue to use the the double-buffer
+    # LRO and LWA as assigned
+    if self.enable["PreLoop"] and not isPap:
       # init lds read pointers before each unrolled loop
       kl.append(self.comment1("local read addresses: init pointers a"))
       kl.append(self.localReadInitPointers(kernel, tensorParametersA))
@@ -496,7 +500,7 @@ class KernelWriter:
     if kernel["PrefetchGlobalRead"]:
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
-      kl.append(self.openSumAtLeastUnroll(kernel, True))
+      kl.append(self.openSumAtLeastUnroll(kernel, True, isPap))
       if self.enable["GlobalRead"]:
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
@@ -567,12 +571,12 @@ class KernelWriter:
     if self.prefetchAcrossPersistent:
       # first prefetch is outside persistent loop, subsequent prefetch will
       # be integrated into no-load-loop
-      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB)
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
       kl.append(self.openPersistentLoop(kernel))
     else:
       # prefetch is inside persistent loop
       kl.append(self.openPersistentLoop(kernel))
-      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB)
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
 
     if kernel["PrefetchGlobalRead"]:
       if self.doShadowInit:
@@ -904,8 +908,12 @@ class KernelWriter:
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
       kl.append(self.comment3("No Load Loop - Begin"))
+      if self.prefetchAcrossPersistent:
+        kl.append(self.openPrefetchAcrossPersistent(kernel))
+        #kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
+        kl.append(self.closePrefetchAcrossPersistent(kernel))
       kl.append(self.comment("prefetch: last unrolled iteration"))
-      kl.append(self.openSumAtLeastUnroll(kernel, False))
+      kl.append(self.openSumAtLeastUnroll(kernel, False, False))
       if not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
@@ -1192,9 +1200,8 @@ class KernelWriter:
         kernel["KernelLanguage"] == "Assembly" and \
         kernel["PersistentKernel"] and \
         kernel["PrefetchGlobalRead"] and \
+        not kernel["SuppressNoLoadLoop"] and \
         kernel["PrefetchAcrossPersistent"]
-
-    print "pap=", self.prefetchAcrossPersistent
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
@@ -2090,6 +2097,14 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def notLocalSplitUGlobalWrite(self, kernel):
+    return ""
+
+  @abc.abstractmethod
+  def openPrefetchAcrossPersistent(self, kernel):
+    return ""
+
+  @abc.abstractmethod
+  def closePrefetchAcrossPersistent(self, kernel):
     return ""
 
   ##############################################################################
