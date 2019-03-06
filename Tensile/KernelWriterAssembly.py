@@ -2575,12 +2575,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment3("Persistent Loop Start")
       kStr += self.getLabelDef("PersistentLoopStart")
       #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
+
     return kStr
 
   ##############################################################################
   # Global Read Addresses: WorkGroup
   ##############################################################################
-  def graWorkGroup(self, kernel):
+  def graWorkGroup(self, kernel, isPap):
     kStr = ""
 
     if kernel["PersistentKernel"]:
@@ -2594,15 +2595,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp), "wg1 = SerialWorkGroupIter / problemNumGroupTiles0")
       kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
       kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "wg0 = SerialWorkGroupIter % problemNumGroupTiles0")
-      # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
-      # As a result be aware for much of the loop SerialWorkGroupIter points to the next tile not the current one
-      kStr += self.comment1("move to next serial WG")
-      if self.prefetchAcrossPersistent0:
-        kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "create copy")
-        kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "create copy")
-      kStr += inst("s_add_u32", sgpr("SerialWorkGroupIter"), \
-          sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
-          "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
 
       #kStr += self.assert_ne(sgpr("SerialWorkGroupIter"), 2)
       kStr += "\n"
@@ -2732,6 +2724,11 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
           sgpr(blockId2), "wg1 += blockId * WGM")
+
+    if self.prefetchAcrossPersistent0:
+      kStr += self.comment1("save PrevWorkGroup for stores here")
+      kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "save for store code")
+      kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
 
     return kStr
 
@@ -3812,6 +3809,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
+
+    if kernel["PersistentKernel"]:
+      # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
+      # As a result be aware for much of the loop SerialWorkGroupIter points to the next tile not the current one
+      kStr += self.comment1("move to next serial WG")
+      kStr += inst("s_add_u32", sgpr("SerialWorkGroupIter"), \
+          sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
+          "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
 
     if kernel["PrefetchGlobalRead"]:
       #if kernel["PrefetchGlobalRead"]:

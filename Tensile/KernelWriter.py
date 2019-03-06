@@ -348,7 +348,7 @@ class KernelWriter:
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
-      kl.append(self.graWorkGroup(kernel))
+      kl.append(self.graWorkGroup(kernel, isPap))
 
       # tile assignments
       kl.append(self.comment("global read addresses: tile offset assignment a"))
@@ -1609,7 +1609,7 @@ class KernelWriter:
   # Global Read Addresses: Work-Group
   ##############################################################################
   @abc.abstractmethod
-  def graWorkGroup(self, kernel):
+  def graWorkGroup(self, kernel, isPap):
     return ""
 
   ##############################################################################

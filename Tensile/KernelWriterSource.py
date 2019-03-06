@@ -975,7 +975,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Work-Group
   ##############################################################################
-  def graWorkGroup(self, kernel):
+  def graWorkGroup(self, kernel, isPap):
     kStr = ""
 
     wg0 = "wg%s" % self.tileChar0
