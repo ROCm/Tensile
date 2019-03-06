@@ -2594,6 +2594,15 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp), "wg1 = SerialWorkGroupIter / problemNumGroupTiles0")
       kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
       kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "wg0 = SerialWorkGroupIter % problemNumGroupTiles0")
+      # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
+      # As a result be aware for much of the loop SerialWorkGroupIter points to the next tile not the current one
+      kStr += self.comment1("move to next serial WG")
+      if self.prefetchAcrossPersistent0:
+        kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "create copy")
+        kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "create copy")
+      kStr += inst("s_add_u32", sgpr("SerialWorkGroupIter"), \
+          sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
+          "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
 
       #kStr += self.assert_ne(sgpr("SerialWorkGroupIter"), 2)
       kStr += "\n"
@@ -7576,11 +7585,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def openPrefetchAcrossPersistent(self, kernel):
     imod = Code.Module()
-    imod.addInst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "create copy")
-    imod.addInst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "create copy")
-    imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
-        sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
-        "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
     stmp = self.getTmpSgpr(1)
     imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
     imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
@@ -7603,11 +7607,6 @@ class KernelWriterAssembly(KernelWriter):
   def functionEnd(self, kernel):
     imod = Code.Module()
     if kernel["PersistentKernel"]:
-      if not self.prefetchAcrossPersistent:
-        imod.addInst("s_add_u32", sgpr("SerialWorkGroupIter"), \
-            sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
-            "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
-
       # Persistent may generate a SerialWorkGroupIter which is OOB, only loop back if we are in a valid WG:
       stmp = self.getTmpSgpr(1)
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
