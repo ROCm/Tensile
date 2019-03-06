@@ -943,19 +943,19 @@ class KernelWriterSource(KernelWriter):
     if kernel["PersistentKernel"]:
       kStr += "  %s serialWgIter = %s(0);%s" \
         % (self.uint64Str, self.getGroupIdStr, self.endLine)
-      kStr += "  unsigned int n%s = problemNumGroupTiles0;%s" \
-          % ( wg0, self.endLine)
-      kStr += "  unsigned int n%s = problemNumGroupTiles1;%s" \
-          % ( wg1, self.endLine)
+      kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
+          % ( wg0, n0 , self.endLine)
+      kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
+          % ( wg1, n1 , self.endLine)
       kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
       kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
 
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
       kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
-      kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
-          % ( wg0, self.endLine)
-      kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
-          % ( wg1, self.endLine)
+      kStr += "  %s  = serialWgIter %% problemNumGroupTiles%u;%s" \
+          % ( wg0, n0, self.endLine)
+      kStr += "  %s  = serialWgIter / problemNumGroupTiles%u;%s" \
+          % ( wg1, n0, self.endLine)
     else:
       # optionally transpose work-group grid
       kStr += "  unsigned int %s = %s(%u);%s" \
