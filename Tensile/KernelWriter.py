@@ -910,7 +910,7 @@ class KernelWriter:
       kl.append(self.comment3("No Load Loop - Begin"))
       if self.prefetchAcrossPersistent:
         kl.append(self.openPrefetchAcrossPersistent(kernel))
-        #kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
+        kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
         kl.append(self.closePrefetchAcrossPersistent(kernel))
       kl.append(self.comment("prefetch: last unrolled iteration"))
       kl.append(self.openSumAtLeastUnroll(kernel, False, False))
@@ -1202,6 +1202,9 @@ class KernelWriter:
         kernel["PrefetchGlobalRead"] and \
         not kernel["SuppressNoLoadLoop"] and \
         kernel["PrefetchAcrossPersistent"]
+
+    self.prefetchAcrossPersistent0 = 1
+    self.prefetchAcrossPersistent2 = 0 and self.prefetchAcrossPersistent
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]

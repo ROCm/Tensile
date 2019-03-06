@@ -1321,7 +1321,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("OrigLoopCounter", 1)
-    if self.prefetchAcrossPersistent:
+    if self.prefetchAcrossPersistent0:
       self.defineSgpr("TailLoopCounter", 1)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
@@ -1359,7 +1359,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
-      if self.prefetchAcrossPersistent:
+      if self.prefetchAcrossPersistent0:
         self.defineSgpr("PrevWorkGroup0", 1) # WorkGroup0 from prev iteration, use for stores
         self.defineSgpr("PrevWorkGroup1", 1) # WorkGroup0 from prev iteration, use for stores
 
@@ -2586,7 +2586,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernel"]:
       stmp = self.getTmpSgpr(2)
       # Always reset pointers since tail loop iterates through LRA
-      if kernel["PrefetchGlobalRead"]:
+      if 0 and kernel["PrefetchGlobalRead"]: # bozo, move to appropriate spot
         kStr += self.localReadResetOffsets(kernel, self.tPA)
         kStr += self.localReadResetOffsets(kernel, self.tPB)
       kStr += self.comment1("compute SerialWorkGroupIter / problemNumGroupTiles0 (aka numWorkGroups0)")
@@ -3964,7 +3964,7 @@ class KernelWriterAssembly(KernelWriter):
     # Tail Loop
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
-      if self.prefetchAcrossPersistent:
+      if self.prefetchAcrossPersistent0:
         loopCounter = "TailLoopCounter"
       else:
         loopCounter = "LoopCounters+%u"%loopIdx
@@ -4081,7 +4081,7 @@ class KernelWriterAssembly(KernelWriter):
     # If kernel["SuppressNoLoadLoop"] we don't have a special loop for the 'last iter'
     loopCounter = "LoopCounters+%u"%loopIdx
     if tailLoop:
-      if self.prefetchAcrossPersistent:
+      if self.prefetchAcrossPersistent0:
         loopCounter = "TailLoopCounter"
       endCounter = 0
     elif kernel["PrefetchGlobalRead"]:
@@ -4158,7 +4158,7 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelBegin = self.getLabelNum("TailLoopBegin%s"%(loopChar) )
       loopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
       loopLabelEndOddExit = self.getLabelNum("TailLoopEnd%s_oddexit"%(loopChar) )
-      if self.prefetchAcrossPersistent:
+      if self.prefetchAcrossPersistent0:
         loopCounter = "TailLoopCounter"
       else:
         loopCounter = "LoopCounters+%u"%loopIdx
@@ -4869,7 +4869,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         imod.footer.addInst( "s_barrier", "debug")
-        imod.footer.addInst( "s_waitcnt", "lgkmcnt(0) & vmcnt(0)")
+        imod.footer.addInst( "s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "conservative wait")
         imod.footer.addInst( "s_barrier", "debug")
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
@@ -5233,7 +5233,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*tP["bpe"]-1), \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          "reset Red,Blk -> Red")
+          "init Red,Blk -> Red")
     return kStr
 
   ##############################################################################
