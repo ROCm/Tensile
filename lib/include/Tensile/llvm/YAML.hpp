@@ -86,15 +86,21 @@ namespace Tensile
         using ContractionProblemRow =  typename Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
                                                                            Tensile::ContractionSolution,
                                                                            Tensile::ProblemPredicate<ContractionProblem>>::Row;
+
+        using ContractionMatchingLibraryEntry = Tensile::Matching::MatchingTableEntry<std::shared_ptr<ContractionProblem>>;
     }
 }
 
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::ContractionProblem>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Hardware>>);
 LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
+LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
+LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Matching::MatchingTableEntry<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>);
 LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionHardwareRow);
 LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionProblemRow);
 LLVM_YAML_IS_SEQUENCE_VECTOR(std::shared_ptr<Tensile::ContractionSolution>);
+
+LLVM_YAML_IS_STRING_MAP(std::string);
 
 namespace llvm
 {
@@ -132,6 +138,25 @@ namespace llvm
             static void mapping(IO & io, Tensile::ContractionSolution & s)
             {
                 sn::MappingTraits<Tensile::ContractionSolution, IO>::mapping(io, s);
+            }
+        };
+
+        template <>
+        struct MappingTraits<Tensile::ContractionSolution::SizeMapping>
+        {
+            static void mapping(IO & io, Tensile::ContractionSolution::SizeMapping & s)
+            {
+                sn::MappingTraits<Tensile::ContractionSolution::SizeMapping, IO>::mapping(io, s);
+            }
+        };
+
+
+        template <>
+        struct MappingTraits<Tensile::ContractionSolution::ProblemType>
+        {
+            static void mapping(IO & io, Tensile::ContractionSolution::ProblemType & s)
+            {
+                sn::MappingTraits<Tensile::ContractionSolution::ProblemType, IO>::mapping(io, s);
             }
         };
 
@@ -193,6 +218,13 @@ namespace llvm
         template <typename Object, typename Value>
         struct MappingTraits<std::shared_ptr<Tensile::Property<Object, Value>>>:
             public ObjectMappingTraits<std::shared_ptr<Tensile::Property<Object, Value>>>
+        {
+            static const bool flow = true;
+        };
+
+        template <>
+        struct MappingTraits<std::shared_ptr<Tensile::Matching::Distance>>:
+            public ObjectMappingTraits<std::shared_ptr<Tensile::Matching::Distance>>
         {
             static const bool flow = true;
         };
@@ -263,6 +295,18 @@ namespace llvm
         {
         };
 
+        template <typename MyProblem, typename Element>
+        struct MappingTraits<Tensile::Matching::DistanceMatchingTable<MyProblem, Element>>:
+            public ObjectMappingTraits<Tensile::Matching::DistanceMatchingTable<MyProblem, Element>>
+        {
+        };
+
+        template <typename Value>
+        struct MappingTraits<Tensile::Matching::MatchingTableEntry<Value>>:
+            public ObjectMappingTraits<Tensile::Matching::MatchingTableEntry<Value>>
+        {
+        };
+
         template <>
         struct ScalarEnumerationTraits<Tensile::AMDGPU::Processor>
         {
@@ -279,6 +323,14 @@ namespace llvm
             {
                 sn::EnumTraits<Tensile::DataType, IO>::enumeration(io, value);
             }
+        };
+
+        template <typename Element, size_t N>
+        struct SequenceTraits<std::array<Element, N>>
+        {
+            using Value = std::array<Element, N>;
+            static size_t size(IO & io, Value & v) { return N; }
+            static Element & element(IO & io, Value & v, size_t index) { return v[index]; }
         };
 
     }

@@ -64,6 +64,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::LDCEqualsLDD             >(),
                     Base::template Pair<Predicates::Contraction::BetaZero                 >(),
                     Base::template Pair<Predicates::Contraction::BetaOne                  >(),
+                    Base::template Pair<Predicates::Contraction::TypesEqual               >(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -116,6 +117,10 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::BetaOne, IO>:
         public AutoMappingTraits<Predicates::Contraction::BetaOne, IO> {};
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::TypesEqual, IO>:
+        public AutoMappingTraits<Predicates::Contraction::TypesEqual, IO> {};
     }
 }
 

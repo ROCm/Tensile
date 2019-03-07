@@ -29,6 +29,7 @@
 
 #include <Tensile/ContractionProblem_fwd.hpp>
 #include <Tensile/DataTypes.hpp>
+#include <Tensile/Predicates.hpp>
 
 namespace Tensile
 {
@@ -61,17 +62,32 @@ namespace Tensile
 
         std::string kernelName;
 
-        std::map<std::string, std::string> options;
+        /// Debugging purposes.  Shouldn't contain any vital information that isn't somewhere else.
+        std::map<std::string, std::string> info;
 
-        dim3 workGroupSize;
-        dim3 threadTile;
-        dim3 macroTile;
+        struct SizeMapping
+        {
+            dim3 workGroupSize;
+            dim3 threadTile;
+            dim3 macroTile;
+        };
+
+        SizeMapping sizeMapping;
         bool debugKernel = false;
 
-        DataType aType = DataType::Float;
-        DataType bType = DataType::Float;
-        DataType cType = DataType::Float;
-        DataType dType = DataType::Float;
+        std::shared_ptr<Predicates::Predicate<Problem>>  problemPredicate;
+        std::shared_ptr<Predicates::Predicate<Hardware>> hardwarePredicate;
+
+        struct ProblemType
+        {
+            std::string operationIdentifier;
+            DataType aType = DataType::Float;
+            DataType bType = DataType::Float;
+            DataType cType = DataType::Float;
+            DataType dType = DataType::Float;
+        };
+
+        ProblemType problemType;
 
         int index;
 

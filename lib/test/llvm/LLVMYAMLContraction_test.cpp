@@ -36,14 +36,21 @@ TEST(LLVMYAMLContractionTest, Simple)
 {
     std::string mydoc =
         "name: foo\n"
-        "workGroup: [1,2,3]\n"
-        "macroTile: [2,4,6]\n"
-        "threadTile: [2,2,2]\n"
+        "sizeMapping:\n"
+        "  workGroup: [1,2,3]\n"
+        "  macroTile: [2,4,6]\n"
+        "  threadTile: [2,2,2]\n"
         "index: 0\n"
-        "AType: Float\n"
-        "BType: Float\n"
-        "CType: Float\n"
-        "DType: Float\n";
+        "hardwarePredicate: { type: True }\n"
+        "problemPredicate:  { type: True }\n"
+        "info: {}\n"
+        "debugKernel: false\n"
+        "problemType:\n"
+        "  operationIdentifier: foo\n"
+        "  aType: Float\n"
+        "  bType: Float\n"
+        "  cType: Float\n"
+        "  dType: Float\n";
     llvm::yaml::Input yin(mydoc);
 
     ContractionSolution s;
@@ -52,8 +59,8 @@ TEST(LLVMYAMLContractionTest, Simple)
     ASSERT_FALSE(yin.error());
 
     EXPECT_EQ(s.name(), "foo");
-    EXPECT_EQ(s.workGroupSize, dim3(1,2,3));
-    EXPECT_EQ(s.macroTile, dim3(2,4,6));
+    EXPECT_EQ(s.sizeMapping.workGroupSize, dim3(1,2,3));
+    EXPECT_EQ(s.sizeMapping.macroTile, dim3(2,4,6));
 
 }
 
@@ -84,26 +91,33 @@ TEST(LLVMYAMLContractionTest, Predicate)
 TEST(LLVMYAMLContractionTest, ContractionLibrary)
 {
     std::string mydoc =
-       "solutions:\n"
-       "  - name: foo\n"
-       "    workGroup: [1,2,3]\n"
-       "    macroTile: [1,2,3]\n"
-       "    threadTile: [1,2,3]\n"
-       "    index: 0\n"
-       "    AType: Float\n"
-       "    BType: Float\n"
-       "    CType: Float\n"
-       "    DType: Float\n"
-       "library:\n"
-       "  type: Hardware\n"
-       "  rows:\n"
-       "      - predicate: { type: AMDGPU, value: { type: Processor, value: gfx900 } }\n"
-       "        library:\n"
-       "          type: Problem\n"
-       "          rows:\n"
-       "              - predicate: { type: FreeSizeAMultiple, index: 0, value: 2 }\n"
-       "                library: { type: Single, index: 0 }\n"
-       "";
+        "solutions:\n"
+        "  - name: foo\n"
+        "    sizeMapping:\n"
+        "      workGroup: [1,2,3]\n"
+        "      macroTile: [1,2,3]\n"
+        "      threadTile: [1,2,3]\n"
+        "    index: 0\n"
+        "    hardwarePredicate: { type: True }\n"
+        "    problemPredicate:  { type: True }\n"
+        "    info: {}\n"
+        "    debugKernel: false\n"
+        "    problemType:\n"
+        "      operationIdentifier: foo\n"
+        "      aType: Float\n"
+        "      bType: Float\n"
+        "      cType: Float\n"
+        "      dType: Float\n"
+        "library:\n"
+        "  type: Hardware\n"
+        "  rows:\n"
+        "      - predicate: { type: AMDGPU, value: { type: Processor, value: gfx900 } }\n"
+        "        library:\n"
+        "          type: Problem\n"
+        "          rows:\n"
+        "              - predicate: { type: FreeSizeAMultiple, index: 0, value: 2 }\n"
+        "                library: { type: Single, index: 0 }\n"
+        "";
 
     llvm::yaml::Input yin(mydoc);
 

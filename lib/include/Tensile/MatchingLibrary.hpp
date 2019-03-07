@@ -33,39 +33,39 @@
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table = Matching::MatchingTable<MyProblem, Element>;
-        std::shared_ptr<Table> table;
+        using Table = Matching::DistanceMatchingTable<MyProblem, Element>;
+        Table table;
 
         static std::string Type() { return "Matching"; }
-        virtual std::string type() { return Type(); }
+        virtual std::string type() const { return Type(); }
 
         
         virtual std::shared_ptr<MySolution>
-            findBestSolution(std::shared_ptr<MyProblem> problem,
-                             std::shared_ptr<Hardware> hardware) const
+            findBestSolution(MyProblem const& problem,
+                             Hardware  const& hardware) const override
         {
             auto closestEntry = table.findBestMatch(problem);
 
             if(closestEntry)
-                return closestEntry.findBestSolution(problem, hardware);
+                return closestEntry->findBestSolution(problem, hardware);
 
             return std::shared_ptr<MySolution>();
         }
 
         virtual SolutionSet<MySolution>
-            findAllSolutions(std::shared_ptr<MyProblem> problem,
-                             std::shared_ptr<Hardware> hardware) const
+            findAllSolutions(MyProblem const& problem,
+                             Hardware  const& hardware) const override
         {
             SolutionSet<MySolution> rv;
 
             for(auto const& row: table.table)
             {
-                auto rowLibrary = std::get<Table::EntryValue>(row);
-                auto rowSolutions = rowLibrary.findAllSolutions(problem, hardware);
+                auto rowLibrary = row.value;
+                auto rowSolutions = rowLibrary->findAllSolutions(problem, hardware);
                 rv.insert(rowSolutions.begin(), rowSolutions.end());
             }
 

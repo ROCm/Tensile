@@ -6,6 +6,9 @@
 set(library_yaml TensileKernels.yaml)
 file(COPY ${library_yaml} DESTINATION .)
 
+set(lite_yaml KernelsLite.yaml)
+file(COPY ${lite_yaml} DESTINATION .)
+
 set(input_yaml sgemm_asm_all_transposes.yaml)
 file(COPY ${input_yaml} DESTINATION .)
 

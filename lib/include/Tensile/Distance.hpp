@@ -21,75 +21,78 @@
 
 #pragma once
 
+#include <Tensile/PropertyMatching.hpp>
+
 namespace Tensile
 {
-    struct Distance
+    namespace Matching
     {
-        virtual std::string type() const = 0;
-
-        virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const;
-    };
-
-    struct RatioDistance: public Distance
-    {
-        static std::string  Type() { return "RatioDistance"; }
-        virtual std::string type() { return Type(); }
-
-        double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+        struct RatioDistance: public Distance
         {
-            double distance = 1.0;
-            for (int i=0; i<p1.size(); i++)
+            enum { HasIndex = false, HasValue = false };
+            static std::string  Type() { return "Ratio"; }
+            virtual std::string type() const override { return Type(); }
+
+            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
             {
-                distance += std::abs(::log(double(p1[i])/double(p2[i])));
+                double distance = 1.0;
+                for (int i=0; i<p1.size(); i++)
+                {
+                    distance += std::abs(::log(double(p1[i])/double(p2[i])));
+                }
+              return distance;
             }
-          return distance;
-        }
-    };
-    
-    struct ManhattanDistance: public Distance
-    {
-        static std::string  Type() { return "ManhattanDistance"; }
-        virtual std::string type() { return Type(); }
-
-        double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+        };
+        
+        struct ManhattanDistance: public Distance
         {
-            double distance = 0;
-            for (int i=0; i<p1.size(); i++)
-            {
-                distance += std::abs(double(p1[i]) - double(p2[i]));
-        }
-        return distance;
-      }
-    };
-    
-    
-    struct EuclideanDistance: public Distance
-    {
-        static std::string  Type() { return "EuclideanDistance"; }
-        virtual std::string type() { return Type(); }
+            enum { HasIndex = false, HasValue = false };
+            static std::string  Type() { return "Manhattan"; }
+            virtual std::string type() const override { return Type(); }
 
-        double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
-        {
-            double distance = 0;
-            for (int i=0; i<p1.size(); i++)
+            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
             {
-                distance += std::pow(std::abs(p1[i]-p2[i]),2);
+                double distance = 0;
+                for (int i=0; i<p1.size(); i++)
+                {
+                    distance += std::abs(double(p1[i]) - double(p2[i]));
             }
             return distance;
-        }
-    };
-    
-    template <class ProblemKeyType>
-    struct RandomDistance: public Distance
-    {
-        static std::string  Type() { return "EuclideanDistance"; }
-        virtual std::string type() { return Type(); }
-
-        double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+          }
+        };
+        
+        
+        struct EuclideanDistance: public Distance
         {
-            return double(rand());
-        }
-    };
+            enum { HasIndex = false, HasValue = false };
 
+            static std::string  Type() { return "Euclidean"; }
+            virtual std::string type() const override { return Type(); }
+
+            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+            {
+                double distance = 0;
+                for (int i=0; i<p1.size(); i++)
+                {
+                    distance += std::pow(double(p1[i])-double(p2[i]),2);
+                }
+                return distance;
+            }
+        };
+        
+        struct RandomDistance: public Distance
+        {
+            enum { HasIndex = false, HasValue = false };
+
+            static std::string  Type() { return "Random"; }
+            virtual std::string type() const override { return Type(); }
+
+            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+            {
+                return double(rand());
+            }
+        };
+
+    }
 }
 

@@ -41,17 +41,45 @@ namespace Tensile
             using iot = IOTraits<IO>;
             static void mapping(IO & io, ContractionSolution & s)
             {
-                iot::mapRequired(io, "name",       s.kernelName);
-                iot::mapRequired(io, "index",      s.index);
+                iot::mapRequired(io, "name",  s.kernelName);
+                iot::mapRequired(io, "index", s.index);
 
+                iot::mapRequired(io, "hardwarePredicate", s.hardwarePredicate);
+                iot::mapRequired(io, "problemPredicate", s.problemPredicate);
+
+                iot::mapRequired(io, "debugKernel", s.debugKernel);
+                iot::mapRequired(io, "info", s.info);
+
+                iot::mapRequired(io, "sizeMapping", s.sizeMapping);
+                iot::mapRequired(io, "problemType", s.problemType);
+
+            }
+        };
+
+        template <typename IO>
+        struct MappingTraits<ContractionSolution::SizeMapping, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO & io, ContractionSolution::SizeMapping & s)
+            {
                 iot::mapRequired(io, "workGroup",  s.workGroupSize);
                 iot::mapRequired(io, "threadTile", s.threadTile);
                 iot::mapRequired(io, "macroTile",  s.macroTile);
+            }
+        };
 
-                iot::mapRequired(io, "AType", s.aType);
-                iot::mapRequired(io, "BType", s.bType);
-                iot::mapRequired(io, "CType", s.cType);
-                iot::mapRequired(io, "DType", s.dType);
+        template <typename IO>
+        struct MappingTraits<ContractionSolution::ProblemType, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO & io, ContractionSolution::ProblemType & s)
+            {
+                iot::mapRequired(io, "operationIdentifier", s.operationIdentifier);
+
+                iot::mapRequired(io, "aType", s.aType);
+                iot::mapRequired(io, "bType", s.bType);
+                iot::mapRequired(io, "cType", s.cType);
+                iot::mapRequired(io, "dType", s.dType);
             }
         };
     }

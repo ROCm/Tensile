@@ -51,7 +51,7 @@ namespace Tensile
                 iot::mapRequired(io, "type", type);
 
                 if(!SubclassMappingTraits<Property<Object, Value>, IO>::mapping(io, type, p))
-                    iot::setError(io, "Unknown predicate type " + type);
+                    iot::setError(io, "Unknown property type " + type);
             }
         };
 

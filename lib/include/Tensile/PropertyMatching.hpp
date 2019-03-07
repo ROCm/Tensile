@@ -49,14 +49,20 @@ namespace Tensile
             virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const = 0;
         };
 
+        template <typename Value>
+        struct MatchingTableEntry
+        {
+            std::vector<size_t> key;
+            Value value;
+            double speed;
+        };
+
         template <typename Object, typename Value>
         class MatchingTable
         {
         public:
             using Key = std::vector<size_t>;
-
-            enum { EntryKey, EntryValue, EntrySpeed };
-            using Entry = std::tuple<Key, Value, double>;
+            using Entry = MatchingTableEntry<Value>;
 
             using Properties = std::vector<std::shared_ptr<Property<Object>>>;
 
@@ -83,16 +89,16 @@ namespace Tensile
 
             virtual Value findBestMatch(Object const& object) const
             {
-                return std::move(findBestMatch(keyForProblem(object)));
+                return findBestKeyMatch(keyForProblem(object));
             }
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const
             {
-                return std::move(matchesInOrder(keyForProblem(object)));
+                return std::move(keyMatchesInOrder(keyForProblem(object)));
             }
 
-            virtual Value findBestMatch(Key const& key) const = 0;
-            virtual std::vector<Value> matchesInOrder(Key const& key) const = 0;
+            virtual Value findBestKeyMatch(Key const& key) const = 0;
+            virtual std::vector<Value> keyMatchesInOrder(Key const& key) const = 0;
 
             std::vector<std::shared_ptr<Property<Object>>> properties;
             std::vector<Entry> table;
@@ -129,34 +135,36 @@ namespace Tensile
             {
             }
 
-            virtual Value findBestMatch(Key const& key) const
+            virtual Value findBestKeyMatch(Key const& key) const override
             {
                 auto iter = this->table.begin();
                 if(iter == this->table.end())
                     return this->nullValue;
 
-                Value bestMatch = std::get<Base::EntryValue>(*iter);
-                auto bestDistance = (*distance)(key, std::get<Base::EntryKey>(*iter));
+                Value bestMatch = iter->value;
+                auto bestDistance = (*distance)(key, iter->key);
 
                 iter++;
 
                 while(iter != this->table.end())
                 {
-                    auto myDistance = (*distance)(key, std::get<Base::EntryKey>(*iter));
+                    auto myDistance = (*distance)(key, iter->key);
                     if(myDistance < bestDistance)
                     {
                         bestDistance = myDistance;
-                        bestMatch = std::get<Base::EntryValue>(iter);
+                        bestMatch = iter->value;
                     }
                 }
+
+                return bestMatch;
             }
 
-            virtual std::vector<Value> matchesInOrder(Key const& key) const
+            virtual std::vector<Value> keyMatchesInOrder(Key const& key) const override
             {
                 std::vector<std::pair<double, size_t>> indices(this->table.size());
 
                 for(size_t i = 0; i < this->table.size(); i++)
-                    indices[i] = std::make_pair((*distance)(key, this->table[i].first), i);
+                    indices[i] = std::make_pair((*distance)(key, this->table[i].key), i);
 
                 std::sort(indices.begin(), indices.end());
 
@@ -164,7 +172,7 @@ namespace Tensile
                 result.reserve(this->table.size());
 
                 for(auto const& entry: indices)
-                    result.push_back(this->table[entry.second].second);
+                    result.push_back(this->table[entry.second].value);
 
                 return result;
             }

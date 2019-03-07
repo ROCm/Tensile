@@ -7,41 +7,69 @@
 ---
 solutions:       
   - name:            'Cijk_Ailk_Bljk_SB_MT128x128x08_K1'
-    workGroup:       [ 256,   1, 1 ]
-    threadTile:      [   8,   8, 1 ]
-    macroTile:       [ 128, 128, 1 ]
+    sizeMapping:
+      workGroup:       [ 256,   1, 1 ]
+      threadTile:      [   8,   8, 1 ]
+      macroTile:       [ 128, 128, 1 ]
+    hardwarePredicate: { type: True }
+    problemPredicate:  { type: True }
+    info: {}
+    debugKernel: false
     index:           0
-    AType:           Float
-    BType:           Float
-    CType:           Float
-    DType:           Float
+    problemType:
+        operationIdentifier: foo
+        aType:           Float
+        bType:           Float
+        cType:           Float
+        dType:           Float
   - name:            'Cijk_Ailk_Bjlk_SB_MT128x128x08_K1'
-    workGroup:       [ 256,   1, 1 ]
-    threadTile:      [   8,   8, 1 ]
-    macroTile:       [ 128, 128, 1 ]
+    sizeMapping:
+      workGroup:       [ 256,   1, 1 ]
+      threadTile:      [   8,   8, 1 ]
+      macroTile:       [ 128, 128, 1 ]
+    hardwarePredicate: { type: True }
+    problemPredicate:  { type: True }
+    info: {}
+    debugKernel: false
     index:           1
-    AType:           Float
-    BType:           Float
-    CType:           Float
-    DType:           Float
+    problemType:
+        operationIdentifier: foo
+        aType:           Float
+        bType:           Float
+        cType:           Float
+        dType:           Float
   - name:            'Cijk_Alik_Bljk_SB_MT128x128x08_K1'
-    workGroup:       [ 256,   1, 1 ]
-    threadTile:      [   8,   8, 1 ]
-    macroTile:       [ 128, 128, 1 ]
+    sizeMapping:
+      workGroup:       [ 256,   1, 1 ]
+      threadTile:      [   8,   8, 1 ]
+      macroTile:       [ 128, 128, 1 ]
+    hardwarePredicate: { type: True }
+    problemPredicate:  { type: True }
+    info: {}
+    debugKernel: false
     index:           2
-    AType:           Float
-    BType:           Float
-    CType:           Float
-    DType:           Float
+    problemType:
+        operationIdentifier: foo
+        aType:           Float
+        bType:           Float
+        cType:           Float
+        dType:           Float
   - name:            'Cijk_Alik_Bjlk_SB_MT128x128x08_K1'
-    workGroup:       [ 256,   1, 1 ]
-    threadTile:      [   8,   8, 1 ]
-    macroTile:       [ 128, 128, 1 ]
+    sizeMapping:
+      workGroup:       [ 256,   1, 1 ]
+      threadTile:      [   8,   8, 1 ]
+      macroTile:       [ 128, 128, 1 ]
+    hardwarePredicate: { type: True }
+    problemPredicate:  { type: True }
+    info: {}
+    debugKernel: false
     index:           3
-    AType:           Float
-    BType:           Float
-    CType:           Float
-    DType:           Float
+    problemType:
+        operationIdentifier: foo
+        aType:           Float
+        bType:           Float
+        cType:           Float
+        dType:           Float
 library:         
   type:     ProblemMap
   property: { type: OperationIdentifier }

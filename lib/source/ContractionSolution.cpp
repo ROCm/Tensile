@@ -61,10 +61,10 @@ namespace Tensile
 
         rv.solution = this;
 
-        rv.workGroupSize = workGroupSize;
+        rv.workGroupSize = sizeMapping.workGroupSize;
 
-        rv.numWorkGroups.x = CeilDivide(problem.c().sizes()[0], macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(problem.c().sizes()[1], macroTile.y);
+        rv.numWorkGroups.x = CeilDivide(problem.c().sizes()[0], sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(problem.c().sizes()[1], sizeMapping.macroTile.y);
         rv.numWorkGroups.z = problem.c().sizes()[2];
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
@@ -127,7 +127,10 @@ namespace Tensile
     {
         std::vector<KernelInvocation> rv;
 
-        if(aType == DataType::Float && bType == DataType::Float && cType == DataType::Float && dType == DataType::Float)
+        if(problemType.aType == DataType::Float
+        && problemType.bType == DataType::Float
+        && problemType.cType == DataType::Float
+        && problemType.dType == DataType::Float)
         {
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
             rv.push_back(generateSingleCall(problem, typedInputs, hardware));

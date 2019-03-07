@@ -160,8 +160,8 @@ TEST_P(ContractionTest, Simple)
 
     solution.kernelName = "Cijk_Ailk_Bljk_SB_MT128x128x08_K1";
 
-    solution.workGroupSize = Tensile::dim3{256,1,1};
-    solution.macroTile = Tensile::dim3{128,128,1};
+    solution.sizeMapping.workGroupSize = Tensile::dim3{256,1,1};
+    solution.sizeMapping.macroTile = Tensile::dim3{128,128,1};
     solution.debugKernel = false;
 
     std::cout << "A: " << problem.a() << std::endl;

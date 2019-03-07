@@ -89,3 +89,9 @@ TEST(ContractionLibraryLoadingTest, MultipleKernels)
     }
 }
 
+TEST(ContractionLibraryLoadingTest, SGEMM_Kernels_Lite)
+{
+    auto library = LoadLibraryFile<ContractionProblem>("configs/KernelsLite.yaml");
+    ASSERT_NE(library, nullptr);
+}
+

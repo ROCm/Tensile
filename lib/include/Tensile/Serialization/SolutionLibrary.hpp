@@ -32,8 +32,10 @@
 
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
+
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
+#include <Tensile/Serialization/MatchingLibrary.hpp>
 
 namespace Tensile
 {
@@ -56,7 +58,7 @@ namespace Tensile
                 iot::mapRequired(io, "type", type);
 
                 if(!SubclassMappingTraits<Library, IO, SolutionMap<MySolution>>::mapping(io, type, lib, ctx))
-                    iot::setError(io, "Unknown predicate type " + type);
+                    iot::setError(io, "Unknown library type " + type);
             }
         };
 
@@ -81,7 +83,8 @@ namespace Tensile
                     Base::template Pair<SingleSolutionLibrary   <MyProblem, MySolution>>(),
                     Base::template Pair<HardwareSelectionLibrary<MyProblem, MySolution>>(),
                     Base::template Pair<ProblemSelectionLibrary <MyProblem, MySolution>>(),
-                    Base::template Pair<ProblemMapLibrary       <MyProblem, MySolution>>()
+                    Base::template Pair<ProblemMapLibrary       <MyProblem, MySolution>>(),
+                    Base::template Pair<ProblemMatchingLibrary  <MyProblem, MySolution>>()
                 });
             }
         };

@@ -37,8 +37,6 @@ namespace Tensile
     {
         namespace Contraction
         {
-            using namespace Tensile::Predicates;
-
             struct FreeSizeAMultiple: public Predicate<ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
@@ -177,6 +175,25 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const
                 {
                     return problem.beta() == 1.0;
+                }
+            };
+
+            struct TypesEqual: public Predicate<ContractionProblem>
+            {
+                enum { HasIndex = false, HasValue = true };
+                TypesEqual() = default;
+
+                std::array<DataType, 4> value;
+
+                static std::string Type() { return "TypesEqual"; }
+                virtual std::string type() const override { return Type(); }
+
+                virtual bool operator()(ContractionProblem const& problem) const
+                {
+                    return problem.a().dataType() == value[0]
+                        && problem.b().dataType() == value[1]
+                        && problem.c().dataType() == value[2]
+                        && problem.d().dataType() == value[3];
                 }
             };
         }
