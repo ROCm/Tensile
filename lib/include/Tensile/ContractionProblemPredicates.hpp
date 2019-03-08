@@ -29,6 +29,7 @@
 #include <Tensile/Predicates.hpp>
 #include <Tensile/ContractionProblem.hpp>
 
+#include <array>
 #include <vector>
 
 namespace Tensile
@@ -47,9 +48,9 @@ namespace Tensile
                 FreeSizeAMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "FreeSizeAMultiple"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.freeSizeA(index) % value == 0;
                 }
@@ -65,9 +66,9 @@ namespace Tensile
                 FreeSizeBMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "FreeSizeBMultiple"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.freeSizeA(index) % value == 0;
                 }
@@ -83,9 +84,9 @@ namespace Tensile
                 BatchSizeMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "BatchSizeMultiple"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.batchSize(index) % value == 0;
                 }
@@ -101,9 +102,9 @@ namespace Tensile
                 BoundSizeMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "BoundSizeMultiple"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.boundSize(index) % value == 0;
                 }
@@ -118,9 +119,9 @@ namespace Tensile
                 MaxProblemSizeGreaterThan(size_t value): value(value) {}
 
                 static std::string Type() { return "MaxProblemSizeGreaterThan"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.maxProblemSize() > value;
                 }
@@ -130,9 +131,9 @@ namespace Tensile
             {
                 enum { HasIndex = false, HasValue = false };
                 static std::string Type() { return "CDStridesEqual"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.c().strides() == problem.d().strides();
                 }
@@ -142,9 +143,9 @@ namespace Tensile
             {
                 enum { HasIndex = false, HasValue = false };
                 static std::string Type() { return "LDCEqualsLDD"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.c().strides()[1] == problem.d().strides()[1];
                 }
@@ -156,9 +157,9 @@ namespace Tensile
                 BetaZero() = default;
 
                 static std::string Type() { return "BetaZero"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.beta() == 0.0;
                 }
@@ -170,9 +171,9 @@ namespace Tensile
                 BetaOne() = default;
 
                 static std::string Type() { return "BetaOne"; }
-                virtual std::string type() const { return Type(); }
+                virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.beta() == 1.0;
                 }
@@ -188,7 +189,7 @@ namespace Tensile
                 static std::string Type() { return "TypesEqual"; }
                 virtual std::string type() const override { return Type(); }
 
-                virtual bool operator()(ContractionProblem const& problem) const
+                virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.a().dataType() == value[0]
                         && problem.b().dataType() == value[1]

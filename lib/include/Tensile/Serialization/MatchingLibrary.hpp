@@ -46,21 +46,23 @@ namespace Tensile
                 iot::mapRequired(io, "table",      table.table);
                 iot::mapRequired(io, "distance",   table.distance);
             }
+
+            const static bool flow = false;
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<ProblemMatchingLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>
+        struct MappingTraits<ProblemMatchingLibrary<MyProblem, MySolution>, IO>
         {
             using Library = ProblemMatchingLibrary<MyProblem, MySolution>;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib, SolutionMap<MySolution> & ctx)
+            static void mapping(IO & io, Library & lib)
             {
-                iot::setContext(io, &ctx);
-
                 // The inner table will be invisible in the YAML hierarchy.
                 MappingTraits<typename Library::Table, IO>::mapping(io, lib.table);
             }
+
+            const static bool flow = false;
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
@@ -71,31 +73,18 @@ namespace Tensile
 
             static void mapping(IO & io, Entry & entry)
             {
-                SolutionMap<MySolution> * ctx = static_cast<SolutionMap<MySolution> *>(iot::getContext(io));
-
                 iot::mapRequired(io, "key",   entry.key);
-                iot::mapRequired(io, "value", entry.value, *ctx);
+                iot::mapRequired(io, "value", entry.value);
                 iot::mapRequired(io, "speed", entry.speed);
             }
+
+            const static bool flow = true;
         };
 
         template <typename IO>
-        struct MappingTraits<std::shared_ptr<Matching::Distance>, IO>
+        struct MappingTraits<std::shared_ptr<Matching::Distance>, IO>:
+        public BaseClassMappingTraits<Matching::Distance, IO, true>
         {
-            using iot = IOTraits<IO>;
-
-            static void mapping(IO & io, std::shared_ptr<Matching::Distance> & p)
-            {
-                std::string type;
-
-                if(iot::outputting(io))
-                    type = p->type();
-
-                iot::mapRequired(io, "type", type);
-
-                if(!SubclassMappingTraits<Matching::Distance, IO>::mapping(io, type, p))
-                    iot::setError(io, "Unknown distance type " + type);
-            }
         };
 
         template <typename IO>
@@ -125,9 +114,16 @@ namespace Tensile
             SubclassMappingTraits<Matching::Distance, IO>::subclasses =
                 SubclassMappingTraits<Matching::Distance, IO>::GetSubclasses();
 
-        template <typename IO> struct MappingTraits<Matching::RatioDistance,     IO>: public AutoMappingTraits<Matching::RatioDistance,     IO> {};
-        template <typename IO> struct MappingTraits<Matching::ManhattanDistance, IO>: public AutoMappingTraits<Matching::ManhattanDistance, IO> {};
-        template <typename IO> struct MappingTraits<Matching::EuclideanDistance, IO>: public AutoMappingTraits<Matching::EuclideanDistance, IO> {};
-        template <typename IO> struct MappingTraits<Matching::RandomDistance,    IO>: public AutoMappingTraits<Matching::RandomDistance,    IO> {};
+        template <typename IO> struct MappingTraits<Matching::RatioDistance,     IO>:
+                           public AutoMappingTraits<Matching::RatioDistance,     IO> {};
+
+        template <typename IO> struct MappingTraits<Matching::ManhattanDistance, IO>:
+                           public AutoMappingTraits<Matching::ManhattanDistance, IO> {};
+
+        template <typename IO> struct MappingTraits<Matching::EuclideanDistance, IO>:
+                           public AutoMappingTraits<Matching::EuclideanDistance, IO> {};
+
+        template <typename IO> struct MappingTraits<Matching::RandomDistance,    IO>:
+                           public AutoMappingTraits<Matching::RandomDistance,    IO> {};
     }
 }

@@ -36,6 +36,17 @@ namespace Tensile
     namespace Serialization
     {
         template <typename IO>
+        struct MappingTraits<std::shared_ptr<ContractionSolution>, IO>
+        {
+            static void mapping(IO & io, std::shared_ptr<ContractionSolution> & p)
+            {
+                PointerMappingTraits<ContractionSolution, IO>::mapping(io, p);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
         struct MappingTraits<ContractionSolution, IO>
         {
             using iot = IOTraits<IO>;
@@ -54,6 +65,8 @@ namespace Tensile
                 iot::mapRequired(io, "problemType", s.problemType);
 
             }
+
+            const static bool flow = false;
         };
 
         template <typename IO>
@@ -66,6 +79,8 @@ namespace Tensile
                 iot::mapRequired(io, "threadTile", s.threadTile);
                 iot::mapRequired(io, "macroTile",  s.macroTile);
             }
+
+            const static bool flow = false;
         };
 
         template <typename IO>
@@ -81,6 +96,8 @@ namespace Tensile
                 iot::mapRequired(io, "cType", s.cType);
                 iot::mapRequired(io, "dType", s.dType);
             }
+
+            const static bool flow = false;
         };
     }
 }

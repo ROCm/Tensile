@@ -41,7 +41,7 @@ namespace Tensile
         Table table;
 
         static std::string Type() { return "Matching"; }
-        virtual std::string type() const { return Type(); }
+        virtual std::string type() const override { return Type(); }
 
         
         virtual std::shared_ptr<MySolution>

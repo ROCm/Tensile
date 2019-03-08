@@ -200,7 +200,7 @@ class Predicate:
     def FromOriginalDict(cls, d):
         predicates = list([p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None])
         if len(predicates) == 0:
-            return cls('True')
+            return cls('TruePred')
         if len(predicates) == 1:
             return predicates[0]
 
@@ -323,8 +323,8 @@ class ContractionSolution:
     def __init__(self, **kwargs):
         self.name = None
         self.problemType = None
-        self.hardwarePredicate = HardwarePredicate('True')
-        self.problemPredicate = ProblemPredicate('True')
+        self.hardwarePredicate = HardwarePredicate('TruePred')
+        self.problemPredicate = ProblemPredicate('TruePred')
         self.sizeMapping = None
         self.debugKernel = False
         self.info = {}

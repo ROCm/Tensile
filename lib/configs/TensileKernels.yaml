@@ -11,8 +11,8 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
-    hardwarePredicate: { type: True }
-    problemPredicate:  { type: True }
+    hardwarePredicate: { type: TruePred }
+    problemPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           0
@@ -27,8 +27,8 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
-    hardwarePredicate: { type: True }
-    problemPredicate:  { type: True }
+    hardwarePredicate: { type: TruePred }
+    problemPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           1
@@ -43,8 +43,8 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
-    hardwarePredicate: { type: True }
-    problemPredicate:  { type: True }
+    hardwarePredicate: { type: TruePred }
+    problemPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           2
@@ -59,8 +59,8 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
-    hardwarePredicate: { type: True }
-    problemPredicate:  { type: True }
+    hardwarePredicate: { type: TruePred }
+    problemPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           3

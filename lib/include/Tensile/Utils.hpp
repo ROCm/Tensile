@@ -139,6 +139,27 @@ namespace Tensile
         return Comparison<T>::compare(lhs, rhs) >= 0; 
     }
 
+    template <typename T>
+    inline std::ostream & stream_write(std::ostream & stream, T const& val)
+    {
+        return stream << val;
+    }
+
+    template <typename T, typename... Ts>
+    inline std::ostream & stream_write(std::ostream & stream, T const& val, Ts const&... vals)
+    {
+        return stream_write(stream << val, vals...);
+    }
+
+    template <typename... Ts>
+    inline std::string concatenate(Ts const&... vals)
+    {
+        std::ostringstream msg;
+        stream_write(msg, vals...);
+
+        return msg.str();
+    }
+
 }
 
 #define TENSILE_STR_(x) #x

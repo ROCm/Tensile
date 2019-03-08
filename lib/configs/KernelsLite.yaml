@@ -25,7 +25,7 @@ library:
   type: Hardware
 solutions:
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 0
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '2', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -67,7 +67,7 @@ solutions:
     threadTile: [4, 4]
     workGroup: [8, 8, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 1
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '2', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -111,7 +111,7 @@ solutions:
     threadTile: [4, 8]
     workGroup: [16, 16, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 2
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '2', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -155,7 +155,7 @@ solutions:
     threadTile: [8, 4]
     workGroup: [16, 16, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 3
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '2', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -199,7 +199,7 @@ solutions:
     threadTile: [8, 4]
     workGroup: [8, 8, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 4
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '2', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -243,7 +243,7 @@ solutions:
     threadTile: [4, 8]
     workGroup: [8, 8, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 5
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -280,14 +280,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x064x32_GSU04
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 64, 1]
     threadTile: [4, 8]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 6
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -322,14 +322,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU02
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 32, 1]
     threadTile: [4, 4]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 7
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -364,14 +364,14 @@ solutions:
     VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '8',
     WorkGroupMappingType: B, _staggerStrideShift: '2'}
   name: Cijk_Ailk_Bjlk_SB_MT064x128x16_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [64, 128, 1]
     threadTile: [4, 8]
     workGroup: [16, 16, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 8
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -408,14 +408,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT064x032x32_GSU02
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [64, 32, 1]
     threadTile: [8, 4]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 9
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -452,14 +452,14 @@ solutions:
     VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '8',
     WorkGroupMappingType: B, _staggerStrideShift: '2'}
   name: Cijk_Ailk_Bjlk_SB_MT064x064x16_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [64, 64, 1]
     threadTile: [4, 4]
     workGroup: [16, 16, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 10
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -494,14 +494,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 32, 1]
     threadTile: [4, 4]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 11
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -538,14 +538,14 @@ solutions:
     VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '1',
     WorkGroupMappingType: B, _staggerStrideShift: '2'}
   name: Cijk_Ailk_Bjlk_SB_MT128x128x16_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [128, 128, 1]
     threadTile: [8, 8]
     workGroup: [16, 16, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 12
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -580,14 +580,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU08
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 32, 1]
     threadTile: [4, 4]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 13
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -622,14 +622,14 @@ solutions:
     VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '8',
     WorkGroupMappingType: B, _staggerStrideShift: '2'}
   name: Cijk_Ailk_Bjlk_SB_MT128x064x16_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [128, 64, 1]
     threadTile: [8, 4]
     workGroup: [16, 16, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 14
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -666,14 +666,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT064x032x32_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [64, 32, 1]
     threadTile: [8, 4]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 15
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -710,14 +710,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x064x32_GSU01
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 64, 1]
     threadTile: [4, 8]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 16
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -752,14 +752,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU04
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 32, 1]
     threadTile: [4, 4]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 17
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -796,14 +796,14 @@ solutions:
     VectorWidth: '4', WorkGroup: '[8, 8, 4]', WorkGroupMapping: '8', WorkGroupMappingType: B,
     _staggerStrideShift: '1'}
   name: Cijk_Ailk_Bjlk_SB_MT032x064x32_GSU02
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [32, 64, 1]
     threadTile: [4, 8]
     workGroup: [8, 8, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 18
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '2', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -846,7 +846,7 @@ solutions:
     threadTile: [2, 2]
     workGroup: [8, 8, 1]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 19
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -882,14 +882,14 @@ solutions:
     VectorWidth: '2', WorkGroup: '[4, 4, 4]', WorkGroupMapping: '1', WorkGroupMappingType: B,
     _staggerStrideShift: '3'}
   name: Cijk_Ailk_Bjlk_SB_MT008x008x08_GSU02
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [8, 8, 1]
     threadTile: [2, 2]
     workGroup: [4, 4, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 20
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -925,14 +925,14 @@ solutions:
     VectorWidth: '2', WorkGroup: '[4, 4, 4]', WorkGroupMapping: '1', WorkGroupMappingType: B,
     _staggerStrideShift: '3'}
   name: Cijk_Ailk_Bjlk_SB_MT008x008x08_GSU04
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [8, 8, 1]
     threadTile: [2, 2]
     workGroup: [4, 4, 4]
 - debugKernel: false
-  hardwarePredicate: {type: 'True'}
+  hardwarePredicate: {type: 'TruePred'}
   index: 21
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -968,7 +968,7 @@ solutions:
     VectorWidth: '2', WorkGroup: '[4, 4, 4]', WorkGroupMapping: '1', WorkGroupMappingType: B,
     _staggerStrideShift: '3'}
   name: Cijk_Ailk_Bjlk_SB_MT008x008x08_GSU08
-  problemPredicate: {type: 'True'}
+  problemPredicate: {type: 'TruePred'}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     macroTile: [8, 8, 1]

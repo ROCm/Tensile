@@ -48,7 +48,7 @@ namespace Tensile
         {
         public:
             enum { HasIndex = false, HasValue = false };
-            static std::string Type() { return "True"; }
+            static std::string Type() { return "TruePred"; }
             virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const&) const
@@ -62,7 +62,7 @@ namespace Tensile
         {
         public:
             enum { HasIndex = false, HasValue = false };
-            static std::string Type() { return "False"; }
+            static std::string Type() { return "FalsePred"; }
             virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const&) const

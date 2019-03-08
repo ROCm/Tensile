@@ -41,38 +41,20 @@ namespace Tensile
 {
     namespace Serialization
     {
-        template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>, IO,
-                             SolutionMap<MySolution>>
+        template <typename IO>
+        struct MappingTraits<std::shared_ptr<SolutionLibrary<ContractionProblem>>, IO>:
+        public BaseClassMappingTraits<SolutionLibrary<ContractionProblem>, IO, false>
         {
-            using Library = SolutionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
-
-            static void mapping(IO & io, std::shared_ptr<Library> & lib, SolutionMap<MySolution> & ctx)
-            {
-                std::string type;
-
-                if(iot::outputting(io))
-                    type = lib->type();
-
-                iot::mapRequired(io, "type", type);
-
-                if(!SubclassMappingTraits<Library, IO, SolutionMap<MySolution>>::mapping(io, type, lib, ctx))
-                    iot::setError(io, "Unknown library type " + type);
-            }
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>,
-                                                                      IO,
-                                                                      SolutionMap<MySolution>>,
+        struct SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>:
+            public DefaultSubclassMappingTraits<SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>,
                                                 SolutionLibrary<MyProblem, MySolution>,
-                                                IO,
-                                                SolutionMap<MySolution>>
+                                                IO>
         {
-            using Self = SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>;
-            using Base = DefaultSubclassMappingTraits<Self, SolutionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>;
+            using Self = SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>;
+            using Base = DefaultSubclassMappingTraits<Self, SolutionLibrary<MyProblem, MySolution>, IO>;
             using SubclassMap = typename Base::SubclassMap;
             const static SubclassMap subclasses;
 
@@ -90,7 +72,7 @@ namespace Tensile
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        using dsmt = SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>;
+        using dsmt = SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>;
 
         template <typename MyProblem, typename MySolution, typename IO>
         const typename dsmt<MyProblem, MySolution, IO>::SubclassMap
@@ -98,13 +80,19 @@ namespace Tensile
         dsmt<MyProblem, MySolution, IO>::GetSubclasses();
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<SingleSolutionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>
+        struct MappingTraits<SingleSolutionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = SingleSolutionLibrary<MyProblem, MySolution>;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib, SolutionMap<MySolution> & ctx)
+            static void mapping(IO & io, Library & lib)
             {
+                SolutionMap<MySolution> * ctx = static_cast<SolutionMap<MySolution> *>(iot::getContext(io));
+                if(ctx == nullptr)
+                {
+                    iot::setError(io, "SingleSolutionLibrary requires that context be set to a SolutionMap.");
+                }
+
                 int index;
 
                 if(iot::outputting(io))
@@ -114,8 +102,8 @@ namespace Tensile
 
                 if(!iot::outputting(io))
                 {
-                    auto iter = ctx.find(index);
-                    if(iter == ctx.end())
+                    auto iter = ctx->find(index);
+                    if(iter == ctx->end())
                     {
                         std::ostringstream msg;
                         msg << "Invalid solution index: " << index;
@@ -127,6 +115,8 @@ namespace Tensile
                     }
                 }
             }
+
+            const static bool flow = true;
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
@@ -154,8 +144,12 @@ namespace Tensile
                         lib.solutions[s->index] = s;
                 }
 
-                iot::mapRequired(io, "library", lib.library, lib.solutions);
+                iot::setContext(io, &lib.solutions);
+
+                iot::mapRequired(io, "library", lib.library);
             }
+
+            const static bool flow = false;
         };
     }
 }

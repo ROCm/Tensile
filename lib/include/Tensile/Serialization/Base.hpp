@@ -49,65 +49,27 @@ namespace Tensile
         template <typename T, typename IO, typename Context = EmptyContext>
         struct MappingTraits
         {
+            static const bool flow = false;
         };
 
-        template <typename T, typename IO, typename Context = EmptyContext>
+        template <typename T, typename IO>
         struct CustomMappingTraits
         {
+            static const bool flow = false;
         };
 
-        template <typename Map, typename IO, typename Context = EmptyContext>
-        struct DefaultCustomMappingTraits
+        template <typename T, typename IO>
+        struct SequenceTraits
         {
-            using iot = IOTraits<IO>;
-            using key_type = typename Map::key_type;
-            using mapped_type = typename Map::mapped_type;
-
-            static void inputOne(IO & io, std::string const& key, Map & value)
-            {
-                Context * ctx = static_cast<Context *>(iot::getContext(io));
-                iot::mapRequired(io, key.c_str(), value[key], *ctx);
-            }
-
-            static void output(IO & io, Map & value)
-            {
-                Context * ctx = static_cast<Context *>(iot::getContext(io));
-
-                std::vector<key_type> keys;
-                keys.reserve(value.size());
-                for(auto const& pair: value)
-                    keys.push_back(pair.first);
-                std::sort(keys.begin(), keys.end());
-
-                for(auto const& key: keys)
-                    iot::mapRequired(io, key.c_str(), value.find(key)->second, *ctx);
-            }
+            using Value = int;
+            static const bool flow = false;
         };
 
-        template <typename Map, typename IO>
-        struct DefaultCustomMappingTraits<Map, IO, EmptyContext>
+        template <typename T, typename IO>
+        struct EnumTraits
         {
-            using iot = IOTraits<IO>;
-            using key_type = typename Map::key_type;
-            using mapped_type = typename Map::mapped_type;
-
-            static void inputOne(IO & io, std::string const& key, Map & value)
-            {
-                iot::mapRequired(io, key.c_str(), value[key]);
-            }
-
-            static void output(IO & io, Map & value)
-            {
-                std::vector<key_type> keys;
-                keys.reserve(value.size());
-                for(auto const& pair: value)
-                    keys.push_back(pair.first);
-                std::sort(keys.begin(), keys.end());
-
-                for(auto const& key: keys)
-                    iot::mapRequired(io, key.c_str(), value.find(key)->second);
-            }
         };
+
 
         template <typename Object, typename IO>
         struct EmptyMappingTraits
@@ -117,6 +79,8 @@ namespace Tensile
             static void mapping(IO & io, Object & obj)
             {
             }
+
+            const static bool flow = true;
         };
 
         template <typename Object, typename IO>
@@ -128,6 +92,8 @@ namespace Tensile
             {
                 iot::mapRequired(io, "value", obj.value);
             }
+
+            const static bool flow = true;
         };
 
         template <typename Object, typename IO>
@@ -139,6 +105,8 @@ namespace Tensile
             {
                 iot::mapRequired(io, "index", obj.index);
             }
+
+            const static bool flow = true;
         };
 
         template <typename Object, typename IO>
@@ -152,6 +120,8 @@ namespace Tensile
                 iot::mapRequired(io, "index", obj.index);
                 iot::mapRequired(io, "value", obj.value);
             }
+
+            const static bool flow = true;
         };
 
         template <typename Object, typename IO, bool HasIndex = Object::HasIndex, bool HasValue = Object::HasValue>
@@ -184,17 +154,7 @@ namespace Tensile
         };
 
         template <typename T, typename IO, typename Context = EmptyContext>
-        struct SequenceTraits
-        {
-        };
-
-        template <typename T, typename IO, typename Context = EmptyContext>
         struct SubclassMappingTraits
-        {
-        };
-
-        template <typename T, typename IO>
-        struct EnumTraits
         {
         };
 
@@ -251,6 +211,27 @@ namespace Tensile
             }
         };
 
+        template <typename T, typename IO, bool Flow>
+        struct BaseClassMappingTraits
+        {
+            using iot = IOTraits<IO>;
+
+            static void mapping(IO & io, std::shared_ptr<T> & value)
+            {
+                std::string type;
+
+                if(iot::outputting(io))
+                    type = value->type();
+
+                iot::mapRequired(io, "type", type);
+
+                if(!SubclassMappingTraits<T, IO>::mapping(io, type, value))
+                    iot::setError(io, "Unknown subclass type " + type);
+            }
+
+            const static bool flow = Flow;
+        };
+
         template <typename CRTP_Traits, typename T, typename IO, typename Context = EmptyContext>
         struct DefaultSubclassMappingTraits;
 
@@ -303,17 +284,23 @@ namespace Tensile
         template <typename Data, typename IO>
         struct SequenceTraits<vector2<Data>, IO>
         {
+            using Value = Data;
+
             static size_t size(IO & io, vector2<Data> & v) { return 2; }
             static Data & element(IO & io, vector2<Data> & v, size_t index)
             {
                 if(index == 0) return v.x;
                 return v.y;
             }
+
+            const static bool flow = true;
         };
 
         template <typename Data, typename IO>
         struct SequenceTraits<vector3<Data>, IO>
         {
+            using Value = Data;
+
             static size_t size(IO & io, vector3<Data> & v) { return 3; }
             static Data & element(IO & io, vector3<Data> & v, size_t index)
             {
@@ -321,11 +308,15 @@ namespace Tensile
                 if(index == 1) return v.y;
                 return v.z;
             }
+
+            const static bool flow = true;
         };
 
         template <typename Data, typename IO>
         struct SequenceTraits<vector4<Data>, IO>
         {
+            using Value = Data;
+
             static size_t size(IO & io, vector4<Data> & v) { return 4; }
             static Data & element(IO & io, vector4<Data> & v, size_t index)
             {
@@ -334,6 +325,8 @@ namespace Tensile
                 if(index == 2) return v.z;
                 return v.w;
             }
+
+            const static bool flow = true;
         };
 
         template <typename IO>

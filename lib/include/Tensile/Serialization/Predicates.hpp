@@ -38,22 +38,9 @@ namespace Tensile
     {
 
         template <typename Object, typename IO>
-        struct MappingTraits<std::shared_ptr<Predicates::Predicate<Object>>, IO>
+        struct MappingTraits<std::shared_ptr<Predicates::Predicate<Object>>, IO>:
+        public BaseClassMappingTraits<Predicates::Predicate<Object>, IO, true>
         {
-            using iot = IOTraits<IO>;
-
-            static void mapping(IO & io, std::shared_ptr<Predicates::Predicate<Object>> & p)
-            {
-                std::string type;
-
-                if(iot::outputting(io))
-                    type = p->type();
-
-                iot::mapRequired(io, "type", type);
-
-                if(!SubclassMappingTraits<Predicates::Predicate<Object>, IO>::mapping(io, type, p))
-                    iot::setError(io, "Unknown predicate type " + type);
-            }
         };
 
         /**

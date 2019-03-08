@@ -37,23 +37,24 @@ namespace Tensile
     namespace Serialization
     {
         template <typename MyProblem, typename MySolution, typename Key, typename IO>
-        struct MappingTraits<ProblemMapLibrary<MyProblem, MySolution, Key>, IO, SolutionMap<MySolution>>
+        struct MappingTraits<ProblemMapLibrary<MyProblem, MySolution, Key>, IO>
         {
             using Library = ProblemMapLibrary<MyProblem, MySolution, Key>;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib, SolutionMap<MySolution> & ctx)
+            static void mapping(IO & io, Library & lib)
             {
-                iot::setContext(io, &ctx);
-
                 iot::mapRequired(io, "property", lib.property);
                 iot::mapRequired(io, "map",      lib.map);
             }
+
+            const static bool flow = false;
         };
 
-        template <typename MyProblem, typename MySolution, typename IO, typename Context>
-        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO, Context>:
-        public DefaultCustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO, Tensile::SolutionMap<MySolution>>
+        template <typename MyProblem, typename MySolution, typename IO>
+        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO>:
+        public DefaultCustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>,
+                                          IO, true, false>
         {
         };
     }

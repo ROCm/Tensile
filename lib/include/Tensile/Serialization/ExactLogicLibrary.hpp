@@ -36,29 +36,31 @@ namespace Tensile
     namespace Serialization
     {
         template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<HardwareSelectionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>
+        struct MappingTraits<HardwareSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = HardwareSelectionLibrary<MyProblem, MySolution>;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib, SolutionMap<MySolution> & ctx)
+            static void mapping(IO & io, Library & lib)
             {
-                iot::setContext(io, &ctx);
                 iot::mapRequired(io, "rows", lib.rows);
             }
+
+            const static bool flow = false;
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<ProblemSelectionLibrary<MyProblem, MySolution>, IO, SolutionMap<MySolution>>
+        struct MappingTraits<ProblemSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = ProblemSelectionLibrary<MyProblem, MySolution>;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib, SolutionMap<MySolution> & ctx)
+            static void mapping(IO & io, Library & lib)
             {
-                iot::setContext(io, &ctx);
                 iot::mapRequired(io, "rows", lib.rows);
             }
+
+            const static bool flow = false;
         };
 
         template <typename MyProblem, typename MySolution, typename MyPredicate, typename IO>
@@ -69,10 +71,11 @@ namespace Tensile
 
             static void mapping(IO & io, Row & row)
             {
-                SolutionMap<MySolution> * ctx = static_cast<SolutionMap<MySolution> *>(iot::getContext(io));
                 iot::mapRequired(io, "predicate", row.first.value);
-                iot::mapRequired(io, "library", row.second, *ctx);
+                iot::mapRequired(io, "library", row.second);
             }
+
+            const static bool flow = false;
         };
     }
 }

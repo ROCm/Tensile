@@ -31,6 +31,89 @@
 
 #include <llvm/ObjectYAML/YAML.h>
 
+namespace llvm
+{
+    namespace yaml
+    {
+        namespace sn = Tensile::Serialization;
+
+        template <typename T>
+        struct Hide
+        {
+            T & _value;
+
+            Hide(T & value) :_value(value) {}
+
+            T & operator*() { return _value; }
+
+        };
+
+        template <typename T>
+        struct has_SequenceTraits<Hide<T>>
+        {
+            const static bool value = sn::has_SequenceTraits<T, IO>::value;
+        };
+
+        template <typename T>
+        struct has_ScalarEnumerationTraits<Hide<T>>
+        {
+            const static bool value = sn::has_EnumTraits<T, IO>::value;
+        };
+
+        template <typename T>
+        struct has_MappingTraits<Hide<T>, EmptyContext>
+        {
+            const static bool value = sn::has_EmptyMappingTraits<T, IO>::value;
+        };
+
+        template <typename T>
+        struct has_CustomMappingTraits<Hide<T>>
+        {
+            const static bool value = sn::has_CustomMappingTraits<T, IO>::value;
+        };
+
+        template <typename T>
+        struct missingTraits<T, EmptyContext>
+            : public std::integral_constant<bool,
+                                            !has_ScalarEnumerationTraits<T>::value &&
+                                                !has_ScalarBitSetTraits<T>::value &&
+                                                !has_ScalarTraits<T>::value &&
+                                                !has_BlockScalarTraits<T>::value &&
+                                                !has_MappingTraits<T, EmptyContext>::value &&
+                                                !has_SequenceTraits<T>::value &&
+                                                !has_CustomMappingTraits<T>::value &&
+                                                !has_DocumentListTraits<T>::value &&
+                                                !sn::has_SerializationTraits<T, IO>::value> {};
+
+        template <typename T>
+        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, void>::type
+        yamlize(IO & io, T &Val, bool b, EmptyContext & ctx)
+        {
+            Hide<T> hide(Val);
+
+            yamlize(io, hide, b, ctx);
+        }
+
+        template <typename T>
+        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, Input &>::type
+        operator>>(Input & input, T &Val)
+        {
+            Hide<T> hide(Val);
+
+            return input >> hide;
+        }
+
+        template <typename T>
+        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, Output &>::type
+        operator<<(Output & output, T &Val)
+        {
+            Hide<T> hide(Val);
+
+            return output << hide;
+        }
+    }
+}
+
 namespace Tensile
 {
     namespace Serialization
@@ -80,35 +163,13 @@ namespace Tensile
             }
         };
 
-        using ContractionHardwareRow =  typename Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
-                                                                            Tensile::ContractionSolution,
-                                                                            Tensile::HardwarePredicate>::Row;
-        using ContractionProblemRow =  typename Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
-                                                                           Tensile::ContractionSolution,
-                                                                           Tensile::ProblemPredicate<ContractionProblem>>::Row;
-
-        using ContractionMatchingLibraryEntry = Tensile::Matching::MatchingTableEntry<std::shared_ptr<ContractionProblem>>;
     }
 }
-
-LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::ContractionProblem>>);
-LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Hardware>>);
-LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
-LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR(std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
-LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Matching::MatchingTableEntry<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>);
-LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionHardwareRow);
-LLVM_YAML_IS_SEQUENCE_VECTOR(Tensile::Serialization::ContractionProblemRow);
-LLVM_YAML_IS_SEQUENCE_VECTOR(std::shared_ptr<Tensile::ContractionSolution>);
-
-LLVM_YAML_IS_STRING_MAP(std::string);
 
 namespace llvm
 {
     namespace yaml
     {
-
-        namespace sn = Tensile::Serialization;
-
         LLVM_YAML_STRONG_TYPEDEF(size_t, FooType);
 
         using mysize_t = std::conditional<std::is_same<size_t, uint64_t>::value, FooType, size_t>::type;
@@ -132,137 +193,51 @@ namespace llvm
           static bool mustQuote(StringRef) { return false; }
         };
 
-        template <>
-        struct MappingTraits<Tensile::ContractionSolution>
+        template <typename T>
+        struct MappingTraits<Hide<T>>
         {
-            static void mapping(IO & io, Tensile::ContractionSolution & s)
+            static void mapping(IO & io, Hide<T> & value)
             {
-                sn::MappingTraits<Tensile::ContractionSolution, IO>::mapping(io, s);
+                sn::MappingTraits<T, IO>::mapping(io, *value);
+            }
+
+            static const bool flow = sn::MappingTraits<T, IO>::flow;
+        };
+
+        template <typename T>
+        struct SequenceTraits<Hide<T>>
+        {
+            using Impl = sn::SequenceTraits<T, IO>;
+            using Value = typename Impl::Value;
+
+            static size_t size(IO & io, Hide<T> & t)                   { return Impl::size(io, *t); }
+            static Value & element(IO & io, Hide<T> & t, size_t index) { return Impl::element(io, *t, index); }
+
+            static const bool flow = Impl::flow;
+        };
+
+        template <typename T>
+        struct ScalarEnumerationTraits<Hide<T>>
+        {
+            static void enumeration(IO & io, Hide<T> & value)
+            {
+                sn::EnumTraits<T, IO>::enumeration(io, *value);
             }
         };
 
-        template <>
-        struct MappingTraits<Tensile::ContractionSolution::SizeMapping>
+        template <typename T>
+        struct CustomMappingTraits<Hide<T>>
         {
-            static void mapping(IO & io, Tensile::ContractionSolution::SizeMapping & s)
+            using Impl = sn::CustomMappingTraits<T, IO>;
+
+            static void inputOne(IO & io, StringRef key, Hide<T> & value)
             {
-                sn::MappingTraits<Tensile::ContractionSolution::SizeMapping, IO>::mapping(io, s);
-            }
-        };
-
-
-        template <>
-        struct MappingTraits<Tensile::ContractionSolution::ProblemType>
-        {
-            static void mapping(IO & io, Tensile::ContractionSolution::ProblemType & s)
-            {
-                sn::MappingTraits<Tensile::ContractionSolution::ProblemType, IO>::mapping(io, s);
-            }
-        };
-
-        template <typename Data>
-        struct SequenceTraits<Tensile::vector2<Data>>
-        {
-            using tt = sn::SequenceTraits<Tensile::vector2<Data>, IO>;
-            static size_t size(IO & io, Tensile::vector2<Data> & v)                  { return tt::size(io, v); }
-            static Data & element(IO & io, Tensile::vector2<Data> & v, size_t index) { return tt::element(io, v, index); }
-
-            static const bool flow = true;
-        };
-
-        template <typename Data>
-        struct SequenceTraits<Tensile::vector3<Data>>
-        {
-            using tt = sn::SequenceTraits<Tensile::vector3<Data>, IO>;
-            static size_t size(IO & io, Tensile::vector3<Data> & v)                  { return tt::size(io, v); }
-            static Data & element(IO & io, Tensile::vector3<Data> & v, size_t index) { return tt::element(io, v, index); }
-
-            static const bool flow = true;
-        };
-
-        template <typename Data>
-        struct SequenceTraits<Tensile::vector4<Data>>
-        {
-            using tt = sn::SequenceTraits<Tensile::vector4<Data>, IO>;
-            static size_t size(IO & io, Tensile::vector4<Data> & v)                  { return tt::size(io, v); }
-            static Data & element(IO & io, Tensile::vector4<Data> & v, size_t index) { return tt::element(io, v, index); }
-
-            static const bool flow = true;
-        };
-
-        template <typename Object>
-        struct ObjectMappingTraits
-        {
-            static void mapping(IO & io, Object & o)
-            {
-                sn::MappingTraits<Object, IO>::mapping(io, o);
-            }
-        };
-
-        template <typename Object, typename Context>
-        struct ObjectMappingContextTraits
-        {
-            static void mapping(IO & io, Object & o, Context & ctx)
-            {
-                sn::MappingTraits<Object, IO, Context>::mapping(io, o, ctx);
-            }
-        };
-
-        template <typename Object>
-        struct MappingTraits<std::shared_ptr<Tensile::Predicates::Predicate<Object>>>:
-            public ObjectMappingTraits<std::shared_ptr<Tensile::Predicates::Predicate<Object>>>
-        {
-            static const bool flow = true;
-        };
-
-        template <typename Object, typename Value>
-        struct MappingTraits<std::shared_ptr<Tensile::Property<Object, Value>>>:
-            public ObjectMappingTraits<std::shared_ptr<Tensile::Property<Object, Value>>>
-        {
-            static const bool flow = true;
-        };
-
-        template <>
-        struct MappingTraits<std::shared_ptr<Tensile::Matching::Distance>>:
-            public ObjectMappingTraits<std::shared_ptr<Tensile::Matching::Distance>>
-        {
-            static const bool flow = true;
-        };
-
-        template <typename MyProblem, typename MySolution>
-        struct MappingContextTraits<std::shared_ptr<Tensile::SolutionLibrary<MyProblem, MySolution>>,
-                                    Tensile::SolutionMap<MySolution>>:
-            public ObjectMappingContextTraits<std::shared_ptr<Tensile::SolutionLibrary<MyProblem, MySolution>>,
-                                              Tensile::SolutionMap<MySolution>>
-        {
-        };
-
-        template <typename MyProblem, typename MySolution>
-        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>>
-        {
-            using Value = Tensile::LibraryMap<MyProblem, MySolution, std::string>;
-            using Impl = sn::CustomMappingTraits<Value, IO, Tensile::SolutionMap<MySolution>>;
-
-
-            static void inputOne(IO &io, StringRef key, Value &elem)
-            {
-                Impl::inputOne(io, key, elem);
+                Impl::inputOne(io, key, *value);
             }
 
-            static void output(IO &io, Value &elem)
+            static void output(IO & io, Hide<T> & value)
             {
-                Impl::output(io, elem);
-            }
-        };
-
-        template <>
-        struct MappingTraits<std::shared_ptr<Tensile::ContractionSolution>>
-        {
-            using obj = Tensile::ContractionSolution;
-
-            static void mapping(IO & io, std::shared_ptr<obj> & o)
-            {
-                sn::PointerMappingTraits<obj, IO>::mapping(io, o);
+                Impl::output(io, *value);
             }
         };
 
@@ -277,62 +252,23 @@ namespace llvm
             }
         };
 
-        template <>
-        struct MappingTraits<Tensile::MasterContractionLibrary>:
-        public ObjectMappingTraits<Tensile::MasterContractionLibrary>
-        {
-        };
+        static_assert(sn::has_EmptyMappingTraits<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>,
+                                            IO>::value,
+                                            "asdf2");
 
-        template <>
-        struct MappingTraits<Tensile::Serialization::ContractionProblemRow>:
-            public ObjectMappingTraits<Tensile::Serialization::ContractionProblemRow>
-        {
-        };
+        static_assert(sn::has_SerializationTraits<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>,
+                                                  IO>::value,
+                                                  "asdf");
 
-        template <>
-        struct MappingTraits<Tensile::Serialization::ContractionHardwareRow>:
-            public ObjectMappingTraits<Tensile::Serialization::ContractionHardwareRow>
-        {
-        };
+        static_assert(!has_SequenceTraits<Hide<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>>::value, "fdsa");
+        static_assert(has_MappingTraits<
+                Hide<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>,
+                EmptyContext>::value, "fdsa");
 
-        template <typename MyProblem, typename Element>
-        struct MappingTraits<Tensile::Matching::DistanceMatchingTable<MyProblem, Element>>:
-            public ObjectMappingTraits<Tensile::Matching::DistanceMatchingTable<MyProblem, Element>>
-        {
-        };
-
-        template <typename Value>
-        struct MappingTraits<Tensile::Matching::MatchingTableEntry<Value>>:
-            public ObjectMappingTraits<Tensile::Matching::MatchingTableEntry<Value>>
-        {
-        };
-
-        template <>
-        struct ScalarEnumerationTraits<Tensile::AMDGPU::Processor>
-        {
-            static void enumeration(IO & io, Tensile::AMDGPU::Processor & value)
-            {
-                sn::EnumTraits<Tensile::AMDGPU::Processor, IO>::enumeration(io, value);
-            }
-        };
-
-        template <>
-        struct ScalarEnumerationTraits<Tensile::DataType>
-        {
-            static void enumeration(IO & io, Tensile::DataType & value)
-            {
-                sn::EnumTraits<Tensile::DataType, IO>::enumeration(io, value);
-            }
-        };
-
-        template <typename Element, size_t N>
-        struct SequenceTraits<std::array<Element, N>>
-        {
-            using Value = std::array<Element, N>;
-            static size_t size(IO & io, Value & v) { return N; }
-            static Element & element(IO & io, Value & v, size_t index) { return v[index]; }
-        };
-
+        static_assert(!missingTraits<
+                Hide<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>,
+                EmptyContext>::value, "fdsa");
     }
 }
+
 

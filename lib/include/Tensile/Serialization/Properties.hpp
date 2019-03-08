@@ -37,22 +37,9 @@ namespace Tensile
     {
 
         template <typename Object, typename Value, typename IO>
-        struct MappingTraits<std::shared_ptr<Property<Object, Value>>, IO>
+        struct MappingTraits<std::shared_ptr<Property<Object, Value>>, IO>:
+        public BaseClassMappingTraits<Property<Object, Value>, IO, true>
         {
-            using iot = IOTraits<IO>;
-
-            static void mapping(IO & io, std::shared_ptr<Property<Object, Value>> & p)
-            {
-                std::string type;
-
-                if(iot::outputting(io))
-                    type = p->type();
-
-                iot::mapRequired(io, "type", type);
-
-                if(!SubclassMappingTraits<Property<Object, Value>, IO>::mapping(io, type, p))
-                    iot::setError(io, "Unknown property type " + type);
-            }
         };
 
         template <typename IO>
