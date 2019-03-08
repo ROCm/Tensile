@@ -23,6 +23,8 @@
 
 #include <Tensile/PropertyMatching.hpp>
 
+#include <cmath>
+
 namespace Tensile
 {
     namespace Matching
@@ -38,7 +40,7 @@ namespace Tensile
                 double distance = 1.0;
                 for (int i=0; i<p1.size(); i++)
                 {
-                    distance += std::abs(::log(double(p1[i])/double(p2[i])));
+                    distance += std::abs(std::log(double(p1[i])/double(p2[i])));
                 }
               return distance;
             }
