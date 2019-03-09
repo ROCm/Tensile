@@ -1359,9 +1359,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
-      if self.prefetchAcrossPersistent0:
-        self.defineSgpr("PrevWorkGroup0", 1) # WorkGroup0 from prev iteration, use for stores
-        self.defineSgpr("PrevWorkGroup1", 1) # WorkGroup0 from prev iteration, use for stores
+    if self.prefetchAcrossPersistent0:
+      self.defineSgpr("PrevWorkGroup0", 1) # WorkGroup0 from prev iteration, use for stores
+      self.defineSgpr("PrevWorkGroup1", 1) # WorkGroup0 from prev iteration, use for stores
 
     self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
@@ -1428,6 +1428,8 @@ class KernelWriterAssembly(KernelWriter):
     self.getLabelNum("TailLoopEnd%s"%(unrollChar))
     self.getLabelNum("KernelEnd%s"%(unrollChar))
     # shift vectors determined later
+
+    assert not self.db["CheckValueC"] or kernel["ProblemType"]["DataType"].isSingle()
 
     if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
     if self.db["InitSgpr"] : print ("\n***WARNING: InitSgpr enabled, may impact performance\n")
@@ -6751,7 +6753,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   ##############################################################################
-  def applyAlpha(self, kernel, gwvw, elementSumIdx, elementIdx):
+  def applyAlpha(self, kernel, gwvw, elementSumIdx, elementIdx, tmpS01):
     kStr = ""
 
     if self.do["ApplyAlpha"]:
@@ -7126,7 +7128,7 @@ class KernelWriterAssembly(KernelWriter):
                     comment="load C for beta calc").toStr()
 
       if kernel["InterleaveAlpha"]:
-        kStr += self.applyAlpha(kernel, gwvw, elementSumIdx, elementIdx)
+        kStr += self.applyAlpha(kernel, gwvw, elementSumIdx, elementIdx, tmpS01)
 
       # Set write address to D
       if not kernel["LdcEqualsLdd"]:
@@ -7167,7 +7169,7 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["InterleaveAlpha"]:
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       for elementIdx in range(0, len(batchElements)):
-        kStr += self.applyAlpha(kernel, gwvw, elementSumIdx, elementIdx)
+        kStr += self.applyAlpha(kernel, gwvw, elementSumIdx, elementIdx, tmpS01)
 
     ########################################
     # Atomic
