@@ -37,7 +37,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 32,  4,  1 ]
           - [ 8, 8, 1 ]
-        - WorkGroupMapping: [1,2,8,-1,-2,-8]
+        - WorkGroupMapping: [1,2,8]
         - DepthU: [ 8 ]
         - GlobalReadVectorWidth: [2]
         - VectorWidth: [2]
@@ -70,7 +70,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 32,  4,  1 ]
           - [ 8, 8, 1 ]
-        - WorkGroupMapping: [1,2,8,-1,-2,-8]
+        - WorkGroupMapping: [1,2,8]
         - DepthU: [ 8 ]
         - GlobalReadVectorWidth: [2]
         - VectorWidth: [2]

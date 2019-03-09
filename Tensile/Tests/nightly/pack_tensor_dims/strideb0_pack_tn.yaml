@@ -53,7 +53,7 @@ BenchmarkProblems:
         - DepthU: [8]
         - GlobalReadVectorWidth: [1,4]
         - VectorWidth: [1,4]
-        - WorkGroupMapping: [0,1,8,-8]
+        - WorkGroupMapping: [0,1,8]
 
         - FractionalLoad: [1]
         - PackBatchDims: [1]  # pack into A
