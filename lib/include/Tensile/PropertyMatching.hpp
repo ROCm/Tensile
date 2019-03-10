@@ -21,9 +21,10 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
-#include <vector>
 #include <tuple>
+#include <vector>
 
 #include <Tensile/Properties.hpp>
 #include <Tensile/Debug.hpp>
