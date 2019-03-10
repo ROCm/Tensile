@@ -195,9 +195,9 @@ namespace Tensile
             IsSubclass(std::shared_ptr<Predicate<Subclass>> init) : value(init) { }
 
             static std::string Type() { return Subclass::Type(); }
-            virtual std::string type() const { return Type(); }
+            virtual std::string type() const override { return Type(); }
 
-            virtual bool operator()(Object const& obj) const
+            virtual bool operator()(Object const& obj) const override
             {
                 auto const* sc = dynamic_cast<Subclass const*>(&obj);
                 if(!sc) return false;
