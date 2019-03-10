@@ -449,7 +449,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
           - [ 8, 8, 1 ]
-        - WorkGroupMapping: [-1, -4]
+        - WorkGroupMapping: [1, 4]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
         - VectorWidth: [-1]
@@ -482,7 +482,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
           - [ 8, 8, 4 ]
-        - WorkGroupMapping: [-1, -4]
+        - WorkGroupMapping: [1, 4]
         - GlobalSplitU: [1, 2, 4, 8]
         - DepthU: [ 8, 16, 32 ]
         - VectorWidth: [-1]
@@ -506,7 +506,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Source"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -532,7 +532,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]

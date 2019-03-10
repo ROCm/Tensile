@@ -47,7 +47,7 @@ BenchmarkProblems:
           - [  8,  8,  1 ]
         - DepthU: [-3]
         - VectorWidth: [-1]
-        - WorkGroupMapping: [8,-4]
+        - WorkGroupMapping: [8,4]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:

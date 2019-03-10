@@ -1080,6 +1080,8 @@ class Solution:
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
 
+    state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
+
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
     # grid size [0,1]
     problemType = state["ProblemType"]
