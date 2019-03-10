@@ -11,6 +11,12 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
+      depthU: 8
+      globalSplitU: 1
+      staggerStrideShift: 3
+      staggerU: 32
+      workGroupMapping: 8
+
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
     info: {}
@@ -27,6 +33,12 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
+      depthU: 8
+      globalSplitU: 1
+      staggerStrideShift: 3
+      staggerU: 32
+      workGroupMapping: 8
+
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
     info: {}
@@ -43,6 +55,12 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
+      depthU: 8
+      globalSplitU: 1
+      staggerStrideShift: 3
+      staggerU: 32
+      workGroupMapping: 8
+
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
     info: {}
@@ -59,6 +77,12 @@ solutions:
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
       macroTile:       [ 128, 128, 1 ]
+      depthU: 8
+      globalSplitU: 1
+      staggerStrideShift: 3
+      staggerU: 32
+      workGroupMapping: 8
+
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
     info: {}

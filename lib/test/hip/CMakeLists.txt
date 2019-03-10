@@ -11,7 +11,9 @@ message(${gtest_SOURCE_DIR}/include)
 target_link_libraries(TensileHipTests hip::host)
 
 
-target_include_directories(TensileHipTests PRIVATE ${gtest_SOURCE_DIR}/include)
+target_include_directories(TensileHipTests
+                           PRIVATE
+                           ${gtest_SOURCE_DIR}/include)
 
 set(tensile_script ../../../../Tensile/Tensile.py) 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)

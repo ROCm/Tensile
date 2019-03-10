@@ -37,7 +37,7 @@ namespace Tensile
     {
         namespace GPU
         {
-            struct ProcessorEqual: public Predicate<AMDGPU>
+            struct ProcessorEqual: public Predicate_CRTP<ProcessorEqual, AMDGPU>
             {
                 enum { HasIndex = false, HasValue = true };
                 AMDGPU::Processor value;
@@ -54,7 +54,7 @@ namespace Tensile
                 }
             };
 
-            struct RunsKernelTargeting: public Predicate<AMDGPU>
+            struct RunsKernelTargeting: public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
             {
                 enum { HasIndex = false, HasValue = true };
                 AMDGPU::Processor value;

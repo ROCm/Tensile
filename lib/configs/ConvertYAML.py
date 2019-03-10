@@ -1,7 +1,12 @@
 from __future__ import print_function
 
+import itertools
 import sys
+import tqdm
 import yaml
+
+sys.path.append('../..')
+from Tensile.SolutionStructs import Solution
 
 def to_dict(obj):
     if hasattr(obj, 'to_dict'):
@@ -195,7 +200,36 @@ class ProblemType:
 
         return ProblemPredicate('And', value=predicates)
 
-class Predicate:
+class Property:
+    def __init__(self, tag=None, index=None, value=None):
+        self._tag = tag
+        self._index = index
+        self._value = value
+
+    @property
+    def tag(self):   return self._tag
+    @property
+    def index(self): return self._index
+    @property
+    def value(self): return self._value
+
+    def to_dict(self):
+        rv = {'type': self.tag}
+        if self.index is not None: rv['index'] = to_dict(self.index)
+        if self.value is not None: rv['value'] = to_dict(self.value)
+        return rv
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and \
+               self.tag   == other.tag   and \
+               self.value == other.value and \
+               self.index == other.index
+
+    def __hash__(self):
+        return hash(self.tag) ^ hash(self.value) ^ hash(self.index)
+
+
+class Predicate(Property):
     @classmethod
     def FromOriginalDict(cls, d):
         predicates = list([p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None])
@@ -205,22 +239,6 @@ class Predicate:
             return predicates[0]
 
         return cls('And', value=predicates)
-
-    def __init__(self, tag=None, index=None, value=None):
-        self.tag = tag
-        self.index = index
-        self.value = value
-
-    def to_dict(self):
-        rv = {'type': self.tag}
-        if self.index is not None: rv['index'] = to_dict(self.index)
-        if self.value is not None: rv['value'] = to_dict(self.value)
-        return rv
-
-    def __eq__(self, other):
-        return self.tag   == other.tag   and \
-               self.value == other.value and \
-               self.index == other.index
 
 class ProblemPredicate(Predicate):
     @classmethod
@@ -264,13 +282,26 @@ class HardwarePredicate(Predicate):
         return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 
 class ContractionSizeMapping:
-    DictKeys = ['workGroup', 'macroTile', 'threadTile']
+    DictKeys = ['workGroup',
+                'macroTile',
+                'threadTile',
+                'depthU',
+                'staggerU',
+                'globalSplitU',
+                'staggerStrideShift',
+                'workGroupMapping']
 
     @classmethod
     def FromOriginalDict(cls, d):
-        return cls(workGroup = d['WorkGroup'],
-                   macroTile = cls.ReadOriginalMacroTile(d),
-                   threadTile = d['ThreadTile'])
+        return cls(workGroup          = d['WorkGroup'],
+                   macroTile          = cls.ReadOriginalMacroTile(d),
+                   threadTile         = d['ThreadTile'],
+                   workGroupMapping   = d['WorkGroupMapping'],
+                   staggerU           = d['StaggerU'],
+                   depthU             = d['DepthU'],
+                   globalSplitU       = d['GlobalSplitU'],
+                   staggerStrideShift = d['_staggerStrideShift']
+                   )
 
     @classmethod
     def ReadOriginalMacroTile(cls, d):
@@ -279,10 +310,9 @@ class ContractionSizeMapping:
         rv[1] = d['MacroTile1']
         return rv
 
-    def __init__(self, workGroup = None, threadTile = None, macroTile = None):
-        self.workGroup  = workGroup
-        self.threadTile = threadTile
-        self.macroTile  = macroTile
+    def __init__(self, **kwargs):
+        for (key, value) in kwargs.iteritems():
+            setattr(self, key, value)
 
 class ContractionSolution:
     DictKeys = ['name',
@@ -293,9 +323,10 @@ class ContractionSolution:
                 'debugKernel',
                 'info',
                 'index']
+    HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromOriginalDict(cls, d):
+    def FromOriginalDict(cls, d, deviceInfo):
         rv = cls()
 
         rv.name = d['SolutionNameMin']
@@ -314,6 +345,14 @@ class ContractionSolution:
 
         rv.sizeMapping = ContractionSizeMapping.FromOriginalDict(d)
 
+        if d['KernelLanguage'] == 'Assembly':
+            d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
+            print(d['ISA'])
+        else:
+            d['ISA'] = (0,0,0)
+
+        rv.originalSolution = Solution(d)
+
         return rv
 
     @classmethod
@@ -331,7 +370,7 @@ class ContractionSolution:
         self.index = None
 
         for key, value in kwargs:
-            if key not in ContractionSolution.DictKeys:
+            if key not in ContractionSolution.DictKeys and key not in ContractionSolution.HiddenKeys:
                 raise KeyError("{0} is not a property of ContractionSolution.".format(key))
 
             setattr(self, key, value)
@@ -349,17 +388,8 @@ class SingleSolutionLibrary:
     def to_dict(self):
         return {'type': self.tag, 'index': self.solution.index}
 
-class MatchingProperty:
-    def __init__(self, tag, index=None, value=None):
-        self.tag = tag
-        self.index = index
-        self.value = value
-
-    def to_dict(self):
-        rv = {'type': self.tag}
-        if self.index is not None: rv['index'] = to_dict(self.index)
-        if self.value is not None: rv['value'] = to_dict(self.value)
-        return rv
+class MatchingProperty(Property):
+    pass
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -368,7 +398,7 @@ class MatchingLibrary:
     @classmethod
     def FromOriginalDict(cls, d, solutions):
         indices = d[0]
-        table = d[1]
+        origTable = d[1]
 
         propertyKeys = {
                 2:lambda: MatchingProperty('FreeSizeA', index=0),
@@ -383,11 +413,14 @@ class MatchingLibrary:
 
         distance = {'type': 'Euclidean'}
 
-        for row in table:
-            index = row[1][0]
-            value = SingleSolutionLibrary(solutions[index])
-            entry = {'key': list(row[0]), 'value': value, 'speed': row[1][1]}
-            table.append(entry)
+        for row in origTable:
+            try:
+                index = row[1][0]
+                value = SingleSolutionLibrary(solutions[index])
+                entry = {'key': list(row[0]), 'value': value, 'speed': row[1][1]}
+                table.append(entry)
+            except KeyError:
+                pass
 
         return cls(properties, table, distance)
 
@@ -412,12 +445,33 @@ class ProblemMapLibrary:
     def tag(self):
         return self.__class__.Tag
 
+    def merge(self, other):
+        assert self.__class__ == other.__class__ and self.tag == other.tag and self.mappingProperty == other.mappingProperty
+
+        for key,value in other.mapping.items():
+            if key in self.mapping:
+                self.mapping[key].merge(value)
+            else:
+                self.mapping[key] = value
+
 class PredicateLibrary:
     DictKeys = [('type', 'tag'), 'rows']
 
     def __init__(self, tag=None, rows=None):
         self.tag = tag
         self.rows = rows
+
+    def merge(self, other):
+        assert self.__class__ == other.__class__ and self.tag == other.tag
+
+        rowdict = dict([(r['predicate'], i) for i,r in enumerate(self.rows)])
+
+        for row in other.rows:
+            if row['predicate'] in rowdict:
+                myRownum = rowdict[row['predicate']]
+                self.rows[myRownum]['library'].merge(row['library'])
+            else:
+                self.rows.append(row)
 
 class MasterSolutionLibrary:
     DictKeys = ['solutions', 'library']
@@ -435,9 +489,12 @@ class MasterSolutionLibrary:
 
         problemType = ProblemType.FromOriginalDict(origProblemType)
 
-        solutions = dict([(solution.index, solution) for solution in map(ContractionSolution.FromOriginalDict, origSolutions)])
-        print(type(solutions))
-        matchingLibrary = MatchingLibrary.FromOriginalDict(origLibrary, solutions)
+        allSolutions = [ContractionSolution.FromOriginalDict(s, deviceSection) for s in origSolutions]
+
+        asmSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] != 'Source'])
+        sourceSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] == 'Source'])
+
+        matchingLibrary = MatchingLibrary.FromOriginalDict(origLibrary, asmSolutions)
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
@@ -465,7 +522,9 @@ class MasterSolutionLibrary:
             else:
                 raise ValueError("Unknown value " + libName)
 
-        return cls(solutions, library)
+        rv = cls(asmSolutions, library)
+        rv.sourceSolutions = sourceSolutions
+        return rv
 
     def __init__(self, solutions, library):
         self.solutions = solutions
@@ -474,7 +533,62 @@ class MasterSolutionLibrary:
     def to_dict(self):
         return {'solutions': to_dict(self.solutions.itervalues()), 'library': to_dict(self.library)}
 
-def main(args):
+    def applyMinNaming(self):
+        allSolutions = itertools.chain(self.solutions.itervalues(), self.sourceSolutions.itervalues())
+
+        kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in allSolutions]))
+
+        kernelMinNaming = Solution.getMinNaming(kernels)
+
+        for s in self.solutions.values():
+            s.name = Solution.getNameMin(s.originalSolution.getKernels()[0], kernelMinNaming)
+
+    def merge(self, other):
+        assert self.__class__ == other.__class__
+
+        allIndices = itertools.chain(self.solutions, self.sourceSolutions)
+        curIndex = max(allIndices) + 1
+
+        for k,s in other.solutions.items():
+            s.index = curIndex
+            self.solutions[curIndex] = s
+            curIndex += 1
+
+        for k,s in other.sourceSolutions.items():
+            s.index = curIndex
+            self.sourceSolutions[curIndex] = s
+            curIndex += 1
+
+        self.library.merge(other.library)
+
+def merge_libraries(args):
+    inFiles = args[:-1]
+    outFile = args[-1]
+
+    with open(inFiles[0]) as inf:
+        data = yaml.load(inf)
+
+    masterLibrary = MasterSolutionLibrary.FromOriginalDict(data)
+
+    for inFile in tqdm.tqdm(inFiles[1:]):
+        with open(inFile) as inf:
+            data = yaml.load(inf)
+        newLibrary = MasterSolutionLibrary.FromOriginalDict(data)
+        masterLibrary.merge(newLibrary)
+        del newLibrary
+
+    masterLibrary.applyMinNaming()
+    outData = to_dict(masterLibrary)
+
+    with open(outFile, 'w') as outf:
+        if True:
+            yaml.dump(outData, outf)
+        else:
+            import json
+            json.dump(outData, outf, sort_keys=True, indent=2, separators=(",", ": "))
+
+def convert_one(args):
+
     with open(args[0]) as inFile:
         data = yaml.load(inFile)
 
@@ -501,5 +615,5 @@ def main(args):
             json.dump(outData, outFile, sort_keys=True, indent=2, separators=(",", ": "))
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    merge_libraries(sys.argv[1:])
 

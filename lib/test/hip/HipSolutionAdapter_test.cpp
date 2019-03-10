@@ -46,6 +46,72 @@ using namespace Tensile;
 
 #define ASSERT_RB(exp) ASSERT_EQ((exp), rocblas_status_success)
 
+ContractionProblem RandomGEMM()
+{
+    static std::mt19937 rng;
+
+    std::uniform_int_distribution<int> random_bool(0,1);
+    //std::uniform_int_distribution<int> random_size(2,8192);
+    std::uniform_int_distribution<int> random_padding(0,32);
+    std::uniform_int_distribution<int> random_batch(1,10);
+
+    std::uniform_real_distribution<double> random_size(1.0, std::log(8192.0));
+
+    bool transA = random_bool(rng);
+    bool transB = random_bool(rng);
+
+    size_t m = std::exp(random_size(rng)) + 1;
+    size_t n = std::exp(random_size(rng)) + 1;
+    size_t k = std::exp(random_size(rng)) + 1;
+
+    bool padA = random_bool(rng);
+    bool padB = random_bool(rng);
+    bool padC = random_bool(rng);
+
+    size_t lda = transA ? k : m;
+    size_t ldb = transB ? n : k;
+    size_t ldc = m;
+
+    if(padA)
+    {
+        size_t aPadding = random_padding(rng);
+        if(aPadding == 0)
+            lda = RoundUpToMultiple<size_t>(lda, 128);
+        else
+            lda += aPadding;
+    }
+
+    if(padB)
+    {
+        size_t bPadding = random_padding(rng);
+        if(bPadding == 0)
+            ldb = RoundUpToMultiple<size_t>(ldb, 128);
+        else
+            ldb += bPadding;
+    }
+
+    if(padC)
+    {
+        size_t cPadding = random_padding(rng);
+        if(cPadding == 0)
+            ldc = RoundUpToMultiple<size_t>(ldc, 128);
+        else
+            ldc += cPadding;
+    }
+
+    size_t batchCount = random_batch(rng);
+
+    std::cout << "ContractionProblem::GEMM(" << transA << ", " << transB << ", "
+                                             << m << ", " << n << ", " << k << ", "
+                                             << lda << ", " << ldb << ", " << ldc << ", "
+                                             << 1.2 << ", " << false << ", " << batchCount << ");" << std::endl;
+
+    return ContractionProblem::GEMM(transA, transB,
+                                    m, n, k,
+                                    lda, ldb, ldc,
+                                    1.2, false, batchCount);
+}
+
 struct ContractionTest: public ::testing::TestWithParam<ContractionProblem>
 {
     std::vector<float> a_h;
@@ -162,6 +228,12 @@ TEST_P(ContractionTest, Simple)
 
     solution.sizeMapping.workGroupSize = Tensile::dim3{256,1,1};
     solution.sizeMapping.macroTile = Tensile::dim3{128,128,1};
+    solution.sizeMapping.depthU = 8;
+    solution.sizeMapping.globalSplitU = 1;
+    solution.sizeMapping.staggerStrideShift = 3;
+    solution.sizeMapping.staggerU = 32;
+    solution.sizeMapping.workGroupMapping = 8;
+
     solution.debugKernel = false;
 
     std::cout << "A: " << problem.a() << std::endl;
@@ -213,19 +285,10 @@ TEST_P(ContractionTest, Library)
 
     ASSERT_NE(solution, nullptr);
 
-    //ContractionSolution solution;
-
-    //solution.kernelName = "Cijk_Ailk_Bljk_SB_MT128x128x08_K1";
-
-    //solution.workGroupSize = Tensile::dim3{256,1,1};
-    //solution.macroTile = Tensile::dim3{128,128,1};
-    //solution.debugKernel = false;
-
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
-    hip::SolutionAdapter adapter(false);
+    hip::SolutionAdapter adapter(true);
     adapter.loadCodeObjectFile(
-            //"test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bljk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bljk_SB_MT128x128x08_K1.co");
             "configs/TensileKernels.co");
 
     adapter.launchKernels(result);
@@ -253,20 +316,140 @@ TEST_P(ContractionTest, Library)
     }
 }
 
+TEST_P(ContractionTest, KernelsLite)
+{
+    ContractionProblem problem = GetParam();
+
+    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/KernelsLite.yaml");
+
+    ASSERT_NE(library, nullptr);
+
+    auto solution = library->findBestSolution(problem, *hardware);
+
+    ASSERT_NE(solution, nullptr);
+
+    std::cout << solution->name() << std::endl;
+
+    std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+    hip::SolutionAdapter adapter(false);
+    adapter.loadCodeObjectFile(
+            "configs/KernelsLite.co");
+
+    adapter.launchKernels(result);
+
+    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+    /*
+    std::cout << "A:";
+    WriteTensor(std::cout, a_h.data(), problem.a());
+
+    std::cout << "B:";
+    WriteTensor(std::cout, b_h.data(), problem.b());
+
+    std::cout << "C Input:";
+    WriteTensor(std::cout, c_h.data(), problem.c());
+
+    std::cout << "C Reference:";
+    WriteTensor(std::cout, d_ref_h.data(), problem.d());
+
+    std::cout << "C Result:";
+    WriteTensor(std::cout, d_h.data(), problem.c());
+    */
+
+    for(int i = 0; i < d_ref_h.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+    }
+}
+
+TEST_P(ContractionTest, KernelsLiteExhaustive)
+{
+    ContractionProblem problem = GetParam();
+
+    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/KernelsLite.yaml");
+
+    ASSERT_NE(library, nullptr);
+
+    auto solutions = library->findAllSolutions(problem, *hardware);
+
+    ASSERT_GT(solutions.size(), 0);
+
+    for(auto const& solution : solutions)
+    {
+        ASSERT_NE(solution, nullptr);
+
+        std::cout << solution->name() << std::endl;
+
+        std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+        hip::SolutionAdapter adapter(false);
+        adapter.loadCodeObjectFile(
+                "configs/KernelsLite.co");
+
+        //OldTensile::CallOldTensile(problem.transA(), problem.transB(),
+        //                           inputs.d, inputs.c, inputs.a, inputs.b,
+        //                           inputs.alpha, inputs.beta,
+        //                           problem.d().strides()[1], problem.d().strides()[2],
+        //                           problem.a().strides()[1], problem.a().strides()[2],
+        //                           problem.b().strides()[1], problem.b().strides()[2],
+        //                           problem.d().sizes()[0],
+        //                           problem.d().sizes()[1],
+        //                           problem.d().sizes()[2],
+        //                           problem.boundSize(0),
+        //                           0, 0, nullptr, nullptr);
+
+        adapter.launchKernels(result);
+
+        HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+        /*
+        std::cout << "A:";
+        WriteTensor(std::cout, a_h.data(), problem.a());
+
+        std::cout << "B:";
+        WriteTensor(std::cout, b_h.data(), problem.b());
+
+        std::cout << "C Input:";
+        WriteTensor(std::cout, c_h.data(), problem.c());
+
+        std::cout << "C Reference:";
+        WriteTensor(std::cout, d_ref_h.data(), problem.d());
+
+        std::cout << "C Result:";
+        WriteTensor(std::cout, d_h.data(), problem.c());
+        */
+
+        for(int i = 0; i < d_ref_h.size(); i++)
+        {
+            ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, ContractionTest,
         ::testing::Values(
                         //ContractionProblem::GEMM(false, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
                         //ContractionProblem::GEMM(false,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
                         //ContractionProblem::GEMM( true, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
                         //ContractionProblem::GEMM( true,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
+                          ContractionProblem::GEMM(false, false,    4,    4,    6,    4,    6,    4, 1.5, false,  2),
+                          ContractionProblem::GEMM(false,  true,    4,    4,    6,    4,    4,    4, 1.5, false,  2),
+                          ContractionProblem::GEMM( true, false,    4,    4,    6,    6,    6,    4, 1.5, false,  2),
+                          ContractionProblem::GEMM( true,  true,    4,    4,    6,    6,    4,    4, 1.5, false,  2),
                           ContractionProblem::GEMM(false, false,  234,  123,  634,  245,  768,  249, 1.5, false, 12),
                           ContractionProblem::GEMM(false,  true,  234,  123,  634,  245,  768,  249, 1.5, false, 12),
                           ContractionProblem::GEMM( true, false,  234,  123,  634,  768,  768,  249, 1.5, false, 12),
                           ContractionProblem::GEMM( true,  true,  234,  123,  634,  768,  768,  249, 1.5, false, 12),
-                          ContractionProblem::GEMM(false, false,    4,    4,    6,    4,    6,    4, 1.5, false,  2),
-                          ContractionProblem::GEMM(false,  true,    4,    4,    6,    4,    4,    4, 1.5, false,  2),
-                          ContractionProblem::GEMM( true, false,    4,    4,    6,    6,    6,    4, 1.5, false,  2),
-                          ContractionProblem::GEMM( true,  true,    4,    4,    6,    6,    4,    4, 1.5, false,  2)
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM(),
+                          RandomGEMM()
                           ));
 
 

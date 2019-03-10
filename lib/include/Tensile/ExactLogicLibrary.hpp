@@ -28,6 +28,7 @@
 
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/Predicates.hpp>
+#include <Tensile/Debug.hpp>
 
 namespace Tensile
 {
@@ -113,6 +114,14 @@ namespace Tensile
         bool operator()(Any const& problem,
                         Hardware const& hardware) const
         {
+            bool debug = Debug::Get().printDeviceSelection();
+
+            if(debug)
+            {
+                value->debugEval(hardware, std::cout);
+                std::cout << std::endl;
+            }
+
             return (*value)(hardware);
         }
     };
@@ -153,6 +162,14 @@ namespace Tensile
         bool operator()(MyProblem const& problem,
                         Hardware  const& hardware) const
         {
+            bool debug = Debug::Get().printPredicateEvaluation();
+
+            if(debug)
+            {
+                value->debugEval(problem, std::cout);
+                std::cout << std::endl;
+            }
+
             return (*value)(problem);
         }
     };

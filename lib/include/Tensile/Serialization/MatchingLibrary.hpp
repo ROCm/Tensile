@@ -34,10 +34,10 @@ namespace Tensile
 {
     namespace Serialization
     {
-        template <typename MyProblem, typename Element, typename IO>
-        struct MappingTraits<Matching::DistanceMatchingTable<MyProblem, Element>, IO>
+        template <typename MyProblem, typename Element, typename Return, typename IO>
+        struct MappingTraits<Matching::DistanceMatchingTable<MyProblem, Element, Return>, IO>
         {
-            using Table = Matching::DistanceMatchingTable<MyProblem, Element>;
+            using Table = Matching::DistanceMatchingTable<MyProblem, Element, Return>;
             using iot = IOTraits<IO>;
 
             static void mapping(IO & io, Table & table)

@@ -108,5 +108,11 @@ namespace Tensile
     {
         return (num + (den-1))/den;
     }
+
+    template <typename T>
+    T RoundUpToMultiple(T val, T den)
+    {
+        return CeilDivide(val, den) * den;
+    }
 }
 

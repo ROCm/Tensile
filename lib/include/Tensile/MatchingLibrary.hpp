@@ -37,7 +37,7 @@ namespace Tensile
     struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table = Matching::DistanceMatchingTable<MyProblem, Element>;
+        using Table = Matching::DistanceMatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
         Table table;
 
         static std::string Type() { return "Matching"; }
@@ -48,12 +48,15 @@ namespace Tensile
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            auto closestEntry = table.findBestMatch(problem);
+            typename Table::Transform transform =
+                [&](Element library) -> std::shared_ptr<MySolution>
+                {
+                    return library->findBestSolution(problem, hardware);
+                };
 
-            if(closestEntry)
-                return closestEntry->findBestSolution(problem, hardware);
+            auto closestEntry = table.findBestMatch(problem, transform);
 
-            return std::shared_ptr<MySolution>();
+            return closestEntry;
         }
 
         virtual SolutionSet<MySolution>

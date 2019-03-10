@@ -73,7 +73,11 @@ namespace Tensile
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            if(solution) return solution;
+            if(solution)
+            {
+                if((*solution->hardwarePredicate)(hardware) && (*solution->problemPredicate)(problem))
+                    return solution;
+            }
 
             return std::shared_ptr<MySolution>();
         }

@@ -31,13 +31,22 @@ namespace Tensile
     {
         uint32_t sizeL = problem.boundSize(0);
 
-        unsigned int staggerUIter = 32; // how many stride-sized clicks to stagger start offset
-        int unrollLoopIters = sizeL/8/1; // /DepthU/GSU
-        while (staggerUIter>1) {
-          if (unrollLoopIters >= (staggerUIter*8)) {
-            break;}
-          staggerUIter /= 2; // step down to smaller stagger
+        // how many stride-sized clicks to stagger start offset
+        unsigned int staggerUIter = sizeMapping.staggerU;
+
+        // /DepthU/GSU
+        int unrollLoopIters = sizeL/sizeMapping.depthU/sizeMapping.globalSplitU;
+
+        unsigned int shifted = 1 << sizeMapping.staggerStrideShift;
+
+        while (staggerUIter>1)
+        {
+            if (unrollLoopIters >= (staggerUIter * shifted))
+                break;
+
+            staggerUIter /= 2; // step down to smaller stagger
         }
+
         if (staggerUIter>=1) staggerUIter -= 1;
 
         return staggerUIter;
@@ -61,11 +70,20 @@ namespace Tensile
 
         rv.solution = this;
 
-        rv.workGroupSize = sizeMapping.workGroupSize;
+        rv.workGroupSize.x = sizeMapping.workGroupSize.x
+                           * sizeMapping.workGroupSize.y
+                           * sizeMapping.workGroupSize.z;
+        rv.workGroupSize.y = 1;
+        rv.workGroupSize.z = 1;
 
         rv.numWorkGroups.x = CeilDivide(problem.c().sizes()[0], sizeMapping.macroTile.x);
         rv.numWorkGroups.y = CeilDivide(problem.c().sizes()[1], sizeMapping.macroTile.y);
         rv.numWorkGroups.z = problem.c().sizes()[2];
+
+        if(sizeMapping.workGroupMapping < 0)
+        {
+            std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
+        }
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -78,9 +96,15 @@ namespace Tensile
 
         rv.sharedMemBytes = 0;
 
-        rv.args.append<uint64_t>("tensor2dSizeC", problem.c().totalAllocatedElements());
-        rv.args.append<uint64_t>("tensor2dSizeA", problem.a().totalAllocatedElements());
-        rv.args.append<uint64_t>("tensor2dSizeB", problem.b().totalAllocatedElements());
+        unsigned int problemNumGroupTiles0;
+        unsigned int problemNumGroupTiles1;
+
+        problemNumGroupTiles0 = rv.numWorkGroups.x;
+        problemNumGroupTiles1 = rv.numWorkGroups.y;
+
+        rv.args.append<uint64_t>("tensor2dSizeC", problem.c().strides()[2]);
+        rv.args.append<uint64_t>("tensor2dSizeA", problem.a().strides()[2]);
+        rv.args.append<uint64_t>("tensor2dSizeB", problem.b().strides()[2]);
 
         rv.args.append<float       *>("d", inputs.d);
         rv.args.append<float const *>("c", inputs.c);
@@ -90,12 +114,8 @@ namespace Tensile
         rv.args.append<float>("alpha", inputs.alpha);
         rv.args.append<float>("beta",  inputs.beta);
 
-        //rv.args.append<uint32_t>("offsetC", 0);
-        //rv.args.append<uint32_t>("offsetA", 0);
-        //rv.args.append<uint32_t>("offsetB", 0);
-
-        rv.args.append<uint32_t>("strideC1", problem.c().strides()[1]);
-        rv.args.append<uint32_t>("strideC2", problem.c().strides()[2]);
+        rv.args.append<uint32_t>("strideC1", problem.d().strides()[1]);
+        rv.args.append<uint32_t>("strideC2", problem.d().strides()[2]);
 
         rv.args.append<uint32_t>("strideA1", problem.a().strides()[1]);
         rv.args.append<uint32_t>("strideA2", problem.a().strides()[2]);
@@ -108,11 +128,11 @@ namespace Tensile
         rv.args.append<uint32_t>("sizeK", problem.batchSize(0));
         rv.args.append<uint32_t>("sizeL", problem.boundSize(0));
 
-        rv.args.append<uint32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
+        rv.args.append< int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
-        rv.args.append<uint32_t>("problemNumGroupTiles0", rv.numWorkGroups.x);
-        rv.args.append<uint32_t>("problemNumGroupTiles1", rv.numWorkGroups.y);
-        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(rv.numWorkGroups.x));
+        rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
+        rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
+        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(problemNumGroupTiles0));
         rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
 
         rv.args.append<uint32_t>("pad", 0);

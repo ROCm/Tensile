@@ -25,22 +25,14 @@
 #include <vector>
 #include <tuple>
 
+#include <Tensile/Properties.hpp>
+#include <Tensile/Debug.hpp>
+#include <Tensile/Utils.hpp>
+
 namespace Tensile
 {
-    template<typename Object, typename Value = size_t>
-    class Property
-    {
-    public:
-        virtual std::string type() const = 0;
-
-        virtual ~Property() = default;
-
-        virtual Value operator()(Object const& object) const = 0;
-    };
-
     namespace Matching
     {
-
         class Distance
         {
         public:
@@ -57,21 +49,22 @@ namespace Tensile
             double speed;
         };
 
-        template <typename Object, typename Value>
+        template <typename Object, typename Value, typename ReturnValue>
         class MatchingTable
         {
         public:
             using Key = std::vector<size_t>;
             using Entry = MatchingTableEntry<Value>;
+            using Transform = std::function<ReturnValue(Value)>;
 
             using Properties = std::vector<std::shared_ptr<Property<Object>>>;
 
-            MatchingTable(Value nullValue = Value())
+            MatchingTable(ReturnValue nullValue = ReturnValue())
                 : nullValue(nullValue)
             {
             }
 
-            MatchingTable(Properties const& properties, Value nullValue = Value())
+            MatchingTable(Properties const& properties, ReturnValue nullValue = Value())
                 : properties(properties),
                   nullValue(nullValue)
             {
@@ -79,81 +72,128 @@ namespace Tensile
 
             virtual Key keyForProblem(Object const& object) const
             {
-                Key myKey(properties.size());
+                bool debug = Debug::Get().printPropertyEvaluation();
+
+                Key myKey;
+                myKey.reserve(properties.size());
 
                 for(auto const& prop: properties)
                     myKey.push_back((*prop)(object));
 
+                if(debug)
+                {
+                    std::cout << "Object key: ";
+                    streamJoin(std::cout, myKey, ", ");
+                    std::cout << std::endl;
+                }
+
                 return myKey;
             }
 
-            virtual Value findBestMatch(Object const& object) const
+            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const
             {
-                return findBestKeyMatch(keyForProblem(object));
+                return findBestKeyMatch(keyForProblem(object), transform);
             }
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const
             {
-                return std::move(keyMatchesInOrder(keyForProblem(object)));
+                return keyMatchesInOrder(keyForProblem(object));
             }
 
-            virtual Value findBestKeyMatch(Key const& key) const = 0;
+            virtual ReturnValue findBestKeyMatch(Key const& key, Transform transform) const = 0;
             virtual std::vector<Value> keyMatchesInOrder(Key const& key) const = 0;
 
             std::vector<std::shared_ptr<Property<Object>>> properties;
             std::vector<Entry> table;
 
         protected:
-            Value nullValue;
+            ReturnValue nullValue;
         };
 
-        template <typename Object, typename Value>
-        class DistanceMatchingTable: public MatchingTable<Object, Value>
+        template <typename Object, typename Value, typename ReturnValue>
+        class DistanceMatchingTable: public MatchingTable<Object, Value, ReturnValue>
         {
         public:
-            using Base = MatchingTable<Object, Value>;
+            using Base = MatchingTable<Object, Value, ReturnValue>;
             using Key = typename Base::Key;
             using Entry = typename Base::Entry;
             using Properties = typename Base::Properties;
+            using Transform = typename Base::Transform;
 
-            DistanceMatchingTable(Value nullValue = Value())
+            DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
                 : Base(nullValue)
             {
             }
 
             DistanceMatchingTable(Properties const& properties,
-                                  Value nullValue = Value())
+                                  ReturnValue nullValue = ReturnValue())
                 : Base(properties, nullValue)
             {
             }
 
             DistanceMatchingTable(std::shared_ptr<Distance> distance,
                                   Properties const& properties,
-                                  Value nullValue = Value())
+                                  ReturnValue nullValue = ReturnValue())
                 : Base(properties, nullValue),
                   distance(distance)
             {
             }
 
-            virtual Value findBestKeyMatch(Key const& key) const override
+            virtual ReturnValue findBestKeyMatch(Key const& key, Transform transform) const override
             {
+                bool debug = Debug::Get().printPropertyEvaluation();
+
+                double bestDistance = std::numeric_limits<double>::max();
+
                 auto iter = this->table.begin();
                 if(iter == this->table.end())
                     return this->nullValue;
 
-                Value bestMatch = iter->value;
-                auto bestDistance = (*distance)(key, iter->key);
+                ReturnValue bestMatch = transform(iter->value);
+
+                if(bestMatch)
+                    bestDistance = (*distance)(key, iter->key);
+
+                if(debug)
+                {
+                    std::cout << "Key: ";
+                    streamJoin(std::cout, key, ", ");
+                    std::cout << std::endl;
+
+                    streamJoin(std::cout, iter->key, ", ");
+
+                    std::cout << ": " << bestDistance << " <-- First" << std::endl;
+                }
 
                 iter++;
 
                 while(iter != this->table.end())
                 {
-                    auto myDistance = (*distance)(key, iter->key);
-                    if(myDistance < bestDistance)
+                    auto myMatch = transform(iter->value);
+
+                    if(myMatch)
                     {
-                        bestDistance = myDistance;
-                        bestMatch = iter->value;
+                        auto myDistance = (*distance)(key, iter->key);
+
+                        if(debug)
+                        {
+                            streamJoin(std::cout, iter->key, ", ");
+                            std::cout << ": " << myDistance;
+
+                            if(myDistance < bestDistance)
+                                std::cout << " <-- Best so far";
+
+                            std::cout << std::endl;
+                        }
+
+                        if(myDistance < bestDistance)
+                        {
+                            bestDistance = myDistance;
+                            bestMatch = myMatch;
+                        }
                     }
+
+                    iter++;
                 }
 
                 return bestMatch;

@@ -51,32 +51,27 @@ namespace Tensile
                     Problem  const& inputs,
                     Hardware    const& hardware) const;
 
-        virtual std::vector<KernelInvocation> solve(Problem const& problem,
-                                                    Inputs  const& inputs,
-                                                    Hardware    const& hardware) const;
+        virtual std::vector<KernelInvocation> solve(Problem  const& problem,
+                                                    Inputs   const& inputs,
+                                                    Hardware const& hardware) const;
 
         template <typename TypedInputs>
-        KernelInvocation generateSingleCall(Problem  const& problem,
-                                            TypedInputs   const& inputs,
-                                            Hardware const& hardware) const;
-
-        std::string kernelName;
-
-        /// Debugging purposes.  Shouldn't contain any vital information that isn't somewhere else.
-        std::map<std::string, std::string> info;
+        KernelInvocation generateSingleCall(Problem     const& problem,
+                                            TypedInputs const& inputs,
+                                            Hardware    const& hardware) const;
 
         struct SizeMapping
         {
             dim3 workGroupSize;
             dim3 threadTile;
             dim3 macroTile;
+
+            size_t staggerU;
+            size_t depthU;
+            size_t globalSplitU;
+            size_t staggerStrideShift;
+            int workGroupMapping;
         };
-
-        SizeMapping sizeMapping;
-        bool debugKernel = false;
-
-        std::shared_ptr<Predicates::Predicate<Problem>>  problemPredicate;
-        std::shared_ptr<Predicates::Predicate<Hardware>> hardwarePredicate;
 
         struct ProblemType
         {
@@ -87,9 +82,21 @@ namespace Tensile
             DataType dType = DataType::Float;
         };
 
+        int index;
+        std::string kernelName;
+        bool debugKernel = false;
+
+        std::shared_ptr<Predicates::Predicate<Problem>>  problemPredicate =
+            std::make_shared<Predicates::True<Problem>>();
+        std::shared_ptr<Predicates::Predicate<Hardware>> hardwarePredicate =
+            std::make_shared<Predicates::True<Hardware>>();
+
+        SizeMapping sizeMapping;
+
         ProblemType problemType;
 
-        int index;
+        /// Debugging purposes.  Shouldn't contain any vital information that isn't somewhere else.
+        std::map<std::string, std::string> info;
 
         int32_t staggerUIter(Problem  const& problem,
                              Inputs   const& inputs,

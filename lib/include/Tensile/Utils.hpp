@@ -27,6 +27,8 @@
 #pragma once
 
 #include <iostream>
+#include <sstream>
+#include <array>
 
 #include <Tensile/TensorDescriptor.hpp>
 
@@ -160,6 +162,12 @@ namespace Tensile
         return msg.str();
     }
 
+    template <typename T, size_t N>
+    inline std::ostream & operator<<(std::ostream & stream, std::array<T, N> const& array)
+    {
+        streamJoin(stream, array, ", ");
+        return stream;
+    }
 }
 
 #define TENSILE_STR_(x) #x

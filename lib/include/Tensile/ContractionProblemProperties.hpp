@@ -28,7 +28,7 @@ namespace Tensile
 {
     namespace Contraction
     {
-        struct FreeSizeA: public Property<ContractionProblem>
+        struct FreeSizeA: public Property_CRTP<FreeSizeA, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -42,7 +42,7 @@ namespace Tensile
             }
         };
 
-        struct FreeSizeB: public Property<ContractionProblem>
+        struct FreeSizeB: public Property_CRTP<FreeSizeB, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -56,7 +56,7 @@ namespace Tensile
             }
         };
 
-        struct BatchSize: public Property<ContractionProblem>
+        struct BatchSize: public Property_CRTP<BatchSize, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -70,7 +70,7 @@ namespace Tensile
             }
         };
 
-        struct BoundSize: public Property<ContractionProblem>
+        struct BoundSize: public Property_CRTP<BoundSize, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -84,7 +84,7 @@ namespace Tensile
             }
         };
 
-        struct AStride: public Property<ContractionProblem>
+        struct AStride: public Property_CRTP<AStride, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -98,7 +98,7 @@ namespace Tensile
             }
         };
 
-        struct BStride: public Property<ContractionProblem>
+        struct BStride: public Property_CRTP<BStride, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -112,7 +112,7 @@ namespace Tensile
             }
         };
 
-        struct CStride: public Property<ContractionProblem>
+        struct CStride: public Property_CRTP<CStride, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -126,7 +126,7 @@ namespace Tensile
             }
         };
 
-        struct DStride: public Property<ContractionProblem>
+        struct DStride: public Property_CRTP<DStride, ContractionProblem>
         {
             enum { HasIndex = true, HasValue = false };
             size_t index;
@@ -140,7 +140,7 @@ namespace Tensile
             }
         };
 
-        struct OperationIdentifier: public Property<ContractionProblem, std::string>
+        struct OperationIdentifier: public Property_CRTP<OperationIdentifier, ContractionProblem, std::string>
         {
             enum { HasIndex = false, HasValue = false };
 

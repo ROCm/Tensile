@@ -32,6 +32,13 @@ if(HIP_FOUND)
     add_custom_target(code_object
         COMMAND ${HIP_BIN_INSTALL_DIR}/hcc -target amdgcn--amdhsa ${co_object_files} -o TensileKernels.co
         DEPENDS code_object_inputs )
+
+    file(GLOB co_lite_objects
+        ${CMAKE_BINARY_DIR}/configs/code_object_lite/4_LibraryClient/build/assembly/*.o
+        )
+
+    add_custom_target(code_object_lite
+        COMMAND ${HIP_BIN_INSTALL_DIR}/hcc -target amdgcn--amdhsa ${co_lite_objects} -o KernelsLite.co)
 endif()
 
 if(false)

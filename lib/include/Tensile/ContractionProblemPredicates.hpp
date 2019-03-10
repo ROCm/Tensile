@@ -38,7 +38,7 @@ namespace Tensile
     {
         namespace Contraction
         {
-            struct FreeSizeAMultiple: public Predicate<ContractionProblem>
+            struct FreeSizeAMultiple: public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
                 size_t index;
@@ -56,7 +56,7 @@ namespace Tensile
                 }
             };
 
-            struct FreeSizeBMultiple: public Predicate<ContractionProblem>
+            struct FreeSizeBMultiple: public Predicate_CRTP<FreeSizeBMultiple, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
                 size_t index;
@@ -74,7 +74,7 @@ namespace Tensile
                 }
             };
 
-            struct BatchSizeMultiple: public Predicate<ContractionProblem>
+            struct BatchSizeMultiple: public Predicate_CRTP<BatchSizeMultiple, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
                 size_t index;
@@ -92,7 +92,7 @@ namespace Tensile
                 }
             };
 
-            struct BoundSizeMultiple: public Predicate<ContractionProblem>
+            struct BoundSizeMultiple: public Predicate_CRTP<BoundSizeMultiple, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
                 size_t index;
@@ -110,7 +110,7 @@ namespace Tensile
                 }
             };
 
-            struct MaxProblemSizeGreaterThan: public Predicate<ContractionProblem>
+            struct MaxProblemSizeGreaterThan: public Predicate_CRTP<MaxProblemSizeGreaterThan, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = true };
                 size_t value;
@@ -127,7 +127,7 @@ namespace Tensile
                 }
             };
 
-            struct CDStridesEqual: public Predicate<ContractionProblem>
+            struct CDStridesEqual: public Predicate_CRTP<CDStridesEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = false };
                 static std::string Type() { return "CDStridesEqual"; }
@@ -139,7 +139,7 @@ namespace Tensile
                 }
             };
 
-            struct LDCEqualsLDD: public Predicate<ContractionProblem>
+            struct LDCEqualsLDD: public Predicate_CRTP<LDCEqualsLDD, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = false };
                 static std::string Type() { return "LDCEqualsLDD"; }
@@ -151,7 +151,7 @@ namespace Tensile
                 }
             };
 
-            struct BetaZero: public Predicate<ContractionProblem>
+            struct BetaZero: public Predicate_CRTP<BetaZero, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = false };
                 BetaZero() = default;
@@ -165,7 +165,7 @@ namespace Tensile
                 }
             };
 
-            struct BetaOne: public Predicate<ContractionProblem>
+            struct BetaOne: public Predicate_CRTP<BetaOne, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = false };
                 BetaOne() = default;
@@ -179,7 +179,7 @@ namespace Tensile
                 }
             };
 
-            struct TypesEqual: public Predicate<ContractionProblem>
+            struct TypesEqual: public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = true };
                 TypesEqual() = default;
@@ -196,7 +196,32 @@ namespace Tensile
                         && problem.c().dataType() == value[2]
                         && problem.d().dataType() == value[3];
                 }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(type(),
+                                       "(a:",  value[0],
+                                       ", b:", value[1],
+                                       ", c:", value[2],
+                                       ", d:", value[3],
+                                       ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << type()
+                           <<   "(a:" << problem.a().dataType() << " == " << value[0]
+                           << "&& b:" << problem.b().dataType() << " == " << value[1]
+                           << "&& c:" << problem.c().dataType() << " == " << value[2]
+                           << "&& d:" << problem.d().dataType() << " == " << value[3]
+                           << "): " << rv;
+
+                    return rv;
+                }
             };
+
         }
     }
 }

@@ -30,21 +30,21 @@
 #include <string>
 #include <vector>
 
+#include <Tensile/Properties.hpp>
+#include <Tensile/Utils.hpp>
+
 namespace Tensile
 {
     namespace Predicates
     {
         template <typename Object>
-        class Predicate
-        {
-        public:
-            virtual ~Predicate() = default;
-            virtual std::string type() const = 0;
-            virtual bool operator()(Object const&) const = 0;
-        };
+        using Predicate = Property<Object, bool>;
+
+        template <typename Class, typename Object>
+        using Predicate_CRTP = Property_CRTP<Class, Object, bool>;
 
         template <typename Object>
-        class True: public Predicate<Object>
+        class True: public Predicate_CRTP<True<Object>, Object>
         {
         public:
             enum { HasIndex = false, HasValue = false };
@@ -58,7 +58,7 @@ namespace Tensile
         };
 
         template <typename Object>
-        class False: public Predicate<Object>
+        class False: public Predicate_CRTP<False<Object>, Object>
         {
         public:
             enum { HasIndex = false, HasValue = false };
@@ -72,7 +72,7 @@ namespace Tensile
         };
 
         template <typename Object>
-        class And: public Predicate<Object>
+        class And: public Predicate_CRTP<And<Object>, Object>
         {
         public:
             enum { HasIndex = false, HasValue = true };
@@ -90,10 +90,30 @@ namespace Tensile
                 return std::all_of(value.begin(), value.end(),
                         [&obj](std::shared_ptr<Predicate<Object>> pred) { return (*pred)(obj); });
             }
+
+            virtual bool debugEval(Object const& obj, std::ostream & stream) const
+            {
+                bool rv = (*this)(obj);
+
+                stream << type() << "(";
+
+                bool first = true;
+                for(auto const& term: value)
+                {
+                    if(!first)
+                        stream << ", ";
+                    first = false;
+
+                    term->debugEval(obj, stream);
+                }
+
+                stream << "): " << rv;
+                return rv;
+            }
         };
 
         template <typename Object>
-        class Or: public Predicate<Object>
+        class Or: public Predicate_CRTP<Or<Object>, Object>
         {
         public:
             enum { HasIndex = false, HasValue = true };
@@ -111,10 +131,30 @@ namespace Tensile
                 return std::any_of(value.begin(), value.end(),
                         [&obj](std::shared_ptr<Predicate<Object>> pred) { return (*pred)(obj); });
             }
+
+            virtual bool debugEval(Object const& obj, std::ostream & stream) const
+            {
+                bool rv = (*this)(obj);
+
+                stream << type() << "(";
+
+                bool first = true;
+                for(auto const& term: value)
+                {
+                    if(!first)
+                        stream << ", ";
+                    first = false;
+
+                    term->debugEval(obj, stream);
+                }
+
+                stream << "): " << rv;
+                return rv;
+            }
         };
 
         template <typename Object>
-        class Not: public Predicate<Object>
+        class Not: public Predicate_CRTP<Not<Object>, Object>
         {
         public:
             enum { HasIndex = false, HasValue = true };
@@ -129,10 +169,21 @@ namespace Tensile
             {
                 return !(*value)(obj);
             }
+
+            virtual bool debugEval(Object const& obj, std::ostream & stream) const
+            {
+                bool rv = (*this)(obj);
+
+                stream << type() << "(";
+                value->debugEval(obj, stream);
+                stream << "): " << rv;
+
+                return rv;
+            }
         };
 
         template <typename Object, typename Subclass>
-        class IsSubclass: public Predicate<Object>
+        class IsSubclass: public Predicate_CRTP<IsSubclass<Object, Subclass>, Object>
         {
         public:
             enum { HasIndex = false, HasValue = true };
@@ -152,6 +203,29 @@ namespace Tensile
                 if(!sc) return false;
 
                 return (*value)(*sc);
+            }
+
+            virtual bool debugEval(Object const& obj, std::ostream & stream) const override
+            {
+                bool rv = (*this)(obj);
+
+                stream << type() << "(";
+
+                auto const* sc = dynamic_cast<Subclass const*>(&obj);
+
+                if(sc)
+                {
+                    stream << " matches: ";
+                    value->debugEval(*sc, stream);
+                }
+                else
+                {
+                    stream << " no match. actual type: " << typeid(obj).name();
+                }
+
+                stream << "): " << rv;
+
+                return rv;
             }
         };
     }

@@ -22,6 +22,7 @@ set(tensile_sources  ${tensile_sources}
     source/ContractionProblem.cpp
     source/ContractionSolution.cpp
     source/DataTypes.cpp
+    source/Debug.cpp
     source/KernelArguments.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp

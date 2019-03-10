@@ -40,6 +40,11 @@ TEST(LLVMYAMLContractionTest, Simple)
         "  workGroup: [1,2,3]\n"
         "  macroTile: [2,4,6]\n"
         "  threadTile: [2,2,2]\n"
+        "  depthU: 8\n"
+        "  globalSplitU: 1\n"
+        "  staggerStrideShift: 3\n"
+        "  staggerU: 32\n"
+        "  workGroupMapping: 8\n"
         "index: 0\n"
         "hardwarePredicate: { type: TruePred }\n"
         "problemPredicate:  { type: TruePred }\n"
@@ -66,7 +71,10 @@ TEST(LLVMYAMLContractionTest, Simple)
 
 TEST(LLVMYAMLContractionTest, Predicate)
 {
-    std::string mydoc = "type: And\nvalue: [{type: TruePred}, {type: Not, value: {type: FalsePred}}, {type: FreeSizeAMultiple, index: 0, value: 2}]";
+    std::string mydoc = "type: And\n"
+                        "value: [{type: TruePred}, \n"
+                        "        {type: Not, value: {type: FalsePred}},\n"
+                        "        {type: FreeSizeAMultiple, index: 0, value: 2}]";
     llvm::yaml::Input yin(mydoc);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
@@ -97,6 +105,11 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
         "      workGroup: [1,2,3]\n"
         "      macroTile: [1,2,3]\n"
         "      threadTile: [1,2,3]\n"
+        "      depthU: 8\n"
+        "      globalSplitU: 1\n"
+        "      staggerStrideShift: 3\n"
+        "      staggerU: 32\n"
+        "      workGroupMapping: 8\n"
         "    index: 0\n"
         "    hardwarePredicate: { type: TruePred }\n"
         "    problemPredicate:  { type: TruePred }\n"
