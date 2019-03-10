@@ -1669,10 +1669,12 @@ class Solution:
 
 
     # avoid bug somehow related to GlobalSplitU + Persistent
+    # avoid bug related to WGM<0
     # avoid bug somehow related to HPA + Persistent
-    if state["PersistentKernel"] and \
+    if state["PersistentKernel"] and (\
             (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) :
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) or \
+            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) ):
       state["PersistentKernel"] = 0
 
     problemType["AssignedDerivedParameters"] = True
