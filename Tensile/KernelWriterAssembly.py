@@ -481,11 +481,24 @@ class KernelWriterAssembly(KernelWriter):
 
   ########################################
   # Get Label
+  # return label number - create new if it doesn't already exist
+  ########################################
   def getLabelNum(self, name):
     if name not in self.labels:
       self.labels[name] = len(self.labels)
     return self.labels[name]
 
+  ########################################
+  # return label name including a unique number
+  # create new if it doesn't already exist
+  ########################################
+  def getLabelName(self, name):
+    if name not in self.labels:
+      self.labels[name] = "l" + len(self.labels) + "_" + name
+    return self.labels[name]
+
+
+  ########################################
   # labelDef is a comment string if this is a label definition
   def getLabelDef(self,name,labelComment=""):
     t = "label_%04u: // %s %s\n" % (self.getLabelNum(name), name, labelComment)
@@ -2588,8 +2601,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["PersistentKernel"]:
       stmp = self.getTmpSgpr(2)
-      # Always reset pointers since tail loop iterates through LRA
-      if 0 and kernel["PrefetchGlobalRead"]: # bozo, move to appropriate spot
+      # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
+      if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
         kStr += self.localReadResetOffsets(kernel, self.tPB)
       kStr += self.comment1("compute SerialWorkGroupIter / problemNumGroupTiles0 (aka numWorkGroups0)")
@@ -2726,11 +2739,6 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
           sgpr(blockId2), "wg1 += blockId * WGM")
-
-    if self.prefetchAcrossPersistent0:
-      kStr += self.comment1("save PrevWorkGroup for stores here")
-      kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "save for store code")
-      kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
 
     return kStr
 
@@ -3818,7 +3826,12 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment1("move to next serial WG")
       kStr += inst("s_add_u32", sgpr("SerialWorkGroupIter"), \
           sgpr("SerialWorkGroupIter"), sgpr("GridNumWorkGroups0"), \
-          "Move Serial forward by numworkgroups - will map to new wg0/wg1 at top of loop")
+          "Move Serial forward by numworkgroups - will map to new wg0/wg1 later")
+      if self.prefetchAcrossPersistent0:
+        kStr += self.comment1("save PrevWorkGroup for stores here")
+        kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "save for store code")
+        kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
+
 
     if kernel["PrefetchGlobalRead"]:
       #if kernel["PrefetchGlobalRead"]:
@@ -4106,6 +4119,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "don't enter Loop%s"%loopChar )
 
+    if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
+      kStr += inst("","compare if odd-iter return")
+      #kStr += inst("s_cbranch_scc1", self.getLabelTarget("LoopCopy2"), "start at oddIter?")
+
     if tailLoop:
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), 0, \
           "repurpose to count each localRead increment")
@@ -4241,12 +4258,13 @@ class KernelWriterAssembly(KernelWriter):
           # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
           # if we exit the main loop at an odd iter - need to swap LDS read pointers
           # so the ds_reads read from the 'high' buffer of LDS
+          oddIterCode.addComment1("Select high bank of LDS")
           oddIterCode.addText(self.localReadSwapOffsets(kernel, False, self.tPA))
           oddIterCode.addText(self.localReadSwapOffsets(kernel, False, self.tPB))
 
         if oddIterCode.count():
           kStr += inst("s_branch label_%04u"%loopLabelEnd, \
-              "restart unrolled Loop%s"%(loopChar ))
+              "exit unroll loop%s (and skip oddexit)"%(loopChar ))
         kStr += "label_%04u: // unroll loop odditer exit\n" % (loopLabelEndOddExit)
         kStr += str(oddIterCode)
 
@@ -4260,6 +4278,11 @@ class KernelWriterAssembly(KernelWriter):
           "0xFFFFFFFFFFFFFFFF", "restore all threads active")
       kStr += inst("s_or_saveexec_b64",  sgpr(fullExec,2), sgpr(fullExec,2), "full mask -> exec" )
     return kStr
+
+  ##############################################################################
+  ##############################################################################
+  def openLoopCopy(self, kernel, lc):
+    return self.getLabelDef("LoopCopy%u"%(lc+1) )
 
   ##############################################################################
   # End Summation
@@ -7603,6 +7626,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def closePrefetchAcrossPersistent(self, kernel):
     imod = Code.Module()
+    imod.addCode(Code.WaitCnt(0,0, "bozo, conservative wait"))
     imod.addCode(Code.Label(self.getLabelNum("SkipPrefetchAcrossPersistent"), \
         "SkipPrefetchAcrossPersistent"))
     #imod.addText(self.bomb())

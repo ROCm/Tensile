@@ -461,7 +461,7 @@ class KernelWriter:
     ###########################################################################
 
     # declare loop num iter
-    kl.append(self.comment("declare loop num iterations"))
+    kl.append(self.comment1("declare loop num iterations"))
     kl.append(self.declareLoopNumIter(kernel))
 
     # perform initC in the shadow of the prefetch
@@ -627,6 +627,7 @@ class KernelWriter:
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
+      kl.append(self.openLoopCopy(kernel, lc))
       if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
@@ -1927,6 +1928,13 @@ class KernelWriter:
   @abc.abstractmethod
   def closeLoop(self, kernel, loopIdx, finalLoop):
     return ""
+
+  ##############################################################################
+  # Open Loop Copy
+  ##############################################################################
+  @abc.abstractmethod
+  def openLoopCopy(self, kernel, lc):
+      return ""
 
   ##############################################################################
   # End Summation
