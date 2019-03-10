@@ -494,21 +494,25 @@ class KernelWriterAssembly(KernelWriter):
   ########################################
   def getLabelName(self, name):
     if name not in self.labels:
-      self.labels[name] = "l" + len(self.labels) + "_" + name
+      self.labels[name] = "%s_%u" % (name, len(self.labels))
     return self.labels[name]
-
 
   ########################################
   # labelDef is a comment string if this is a label definition
+  ##############################################################################
   def getLabelDef(self,name,labelComment=""):
     t = "label_%04u: // %s %s\n" % (self.getLabelNum(name), name, labelComment)
     return t
 
+  ##############################################################################
   # define a label and return undecorated label_%4u - suitable for using as jump target
+  ##############################################################################
   def getLabelTarget(self,name,labelDef=None):
     t = "label_%04u" % (self.getLabelNum(name))
     return t
 
+  ##############################################################################
+  ##############################################################################
   def getUniqLabel(self):
     name = "uniq_label_" + str(len(self.labels))
     return self.getLabelNum(name)
@@ -1335,6 +1339,14 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("OrigLoopCounter", 1)
     if self.prefetchAcrossPersistent0:
+      if kernel["ExpandPointerSwap"]:
+        # For ExpandPointerSwap + PAP, track which expanded loop iter to start on
+        # global prefetches bounce between two LDS buffers, and the bounce state
+        # must be maintained across PK boundaries.
+        # If the no-load-loop is present it counts as one iteration and
+        # So if K is even multiple of unroll then we exit at odd iteration
+        # and each PK loop will start on the second expanded pointer swap
+        self.defineSgpr("EvenIterStart", 1)
       self.defineSgpr("TailLoopCounter", 1)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
@@ -2408,6 +2420,8 @@ class KernelWriterAssembly(KernelWriter):
     self.kernArgOffset += 1*4
     return kStr
 
+  ##############################################################################
+  ##############################################################################
   def allocateResources(self, kernel):
     kStr = ""
     if self.do["NullKernel"]:
@@ -2511,6 +2525,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["PersistentKernel"]:
       kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
+    if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"]:
+      kStr += inst("s_mov_b32", sgpr("EvenIterStart"), 0, "init SerialWorkGroupIter")
 
 
     ########################################
@@ -3971,7 +3987,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Calculate Loop Num Iter
   ##############################################################################
-  def calculateLoopNumIter(self, kernel, loopIdx):
+  def calculateLoopNumIter(self, kernel, loopIdx, isPap):
     kStr = ""
 
     tailLoop = loopIdx < 0
@@ -4065,6 +4081,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
                 sgpr(loopCounter), \
                 "copy loop counter")
+      if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"] and isPap:
+        kStr += inst("s_and_b32", sgpr("EvenIterStart"), sgpr("OrigLoopCounter"), \
+                  0x1,
+                  "save unroll loop start position - copy1 or copy2")
     ########################################
     # Multi-dimensional summation
     else:
@@ -4093,6 +4113,8 @@ class KernelWriterAssembly(KernelWriter):
       self.inTailLoop = True
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    if not tailLoop:
+      kStr += "%s:\n" % self.getLabelName("openLoop%s"%loopChar)
     loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
     loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
 

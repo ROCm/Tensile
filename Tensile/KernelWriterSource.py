@@ -1663,7 +1663,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Calculate Loop Num Iterations
   ##############################################################################
-  def calculateLoopNumIter(self, kernel, loopIdx):
+  def calculateLoopNumIter(self, kernel, loopIdx, isPap):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx

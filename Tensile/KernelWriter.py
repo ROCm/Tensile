@@ -476,16 +476,16 @@ class KernelWriter:
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
       kl.append(self.comment("summation loop %u"%i))
-      kl.append(self.calculateLoopNumIter(kernel, i))
+      kl.append(self.calculateLoopNumIter(kernel, i, isPap))
       kl.append(self.openLoop(kernel, i))
-    kl.append(self.calculateLoopNumIter(kernel, self.unrollIdx))
+    kl.append(self.calculateLoopNumIter(kernel, self.unrollIdx, isPap))
 
     if self.staggerU:
       kl.append(self.declareStaggerParms(kernel))
       kl.append(self.calculateStagger(kernel, tensorParametersA))
       kl.append(self.calculateStagger(kernel, tensorParametersB))
 
-    # isPap don't init the read pointers - we want to continue to use the the double-buffer
+    # isPap don't init the read pointers - we want to continue to use the double-buffer
     # LRO and LWA as assigned
     if self.enable["PreLoop"] and not isPap:
       # init lds read pointers before each unrolled loop
@@ -960,7 +960,7 @@ class KernelWriter:
 
       if self.enable["GlobalRead"]:
         # tail: global read
-        kl.append(self.calculateLoopNumIter(kernel, -1))
+        kl.append(self.calculateLoopNumIter(kernel, -1, False))
         if self.staggerU:
           kl.append(self.comment("remove stagger offsets for tail loop"))
           kl.append(self.removeStagger(kernel, tensorParametersA))
@@ -1895,7 +1895,7 @@ class KernelWriter:
   # Calculate Loop Num Iter
   ##############################################################################
   @abc.abstractmethod
-  def calculateLoopNumIter(self, kernel, loopIdx):
+  def calculateLoopNumIter(self, kernel, loopIdx, isPap):
     return ""
 
 
