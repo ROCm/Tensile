@@ -12,6 +12,8 @@ file(COPY ${lite_yaml} DESTINATION .)
 set(input_yaml sgemm_asm_all_transposes.yaml)
 file(COPY ${input_yaml} DESTINATION .)
 
+set (asm_only_yaml  ../../../Tensile/Configs/rocblas_sgemm_asm_only.yaml)
+
 if(HIP_FOUND)
     set(tensile_script ../../../Tensile/Tensile.py) 
 
@@ -31,10 +33,14 @@ if(HIP_FOUND)
 
     add_custom_target(code_object
         COMMAND ${HIP_BIN_INSTALL_DIR}/hcc -target amdgcn--amdhsa ${co_object_files} -o TensileKernels.co
-        DEPENDS code_object_inputs )
+        DEPENDS code_object_inputs)
 
     file(GLOB co_lite_objects
         ${CMAKE_BINARY_DIR}/configs/code_object_lite/4_LibraryClient/build/assembly/*.o
+        )
+
+    add_custom_target(code_object_lite_library
+        COMMAND python ${tensile_script}  ../../../Tensile/Configs/rocblas_sgemm_asm_only.yaml code_object_lite
         )
 
     add_custom_target(code_object_lite
