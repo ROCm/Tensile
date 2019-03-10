@@ -1254,7 +1254,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("KernArgAddress", self.rpga)
     assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
 
-    if kernel["WorkGroupMapping"]>0 :
+    if kernel["WorkGroupMapping"]>=0 :
       self.defineSgpr("WorkGroup0", 1)
       self.defineSgpr("WorkGroup1", 1)
     else:
@@ -1346,6 +1346,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
+    self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
+    self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
+    self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2282,10 +2285,13 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
       kStr += self.getKernArg("OrigStaggerUIter", self.staggerU)
 
-      kStr += self.getKernArg("NumWorkGroups%u" % (0 if (kernel["WorkGroupMapping"]>=0) else 1))
-      kStr += self.getKernArg("NumWorkGroups%u" % (1 if (kernel["WorkGroupMapping"]>=0) else 0))
+      kStr += self.getKernArg("NumWorkGroups0")
+      kStr += self.getKernArg("NumWorkGroups1")
       kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
       kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
+      kStr += self.getKernArg("NumFullBlocks")
+      kStr += self.getKernArg("WgmRemainder1")
+      kStr += self.getKernArg("MagicNumberWgmRemainder1")
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % self.kernArgOffset )
@@ -2350,11 +2356,18 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-  def sMagicDiv(self, kernel, stmp, dividend, magicNumber, magicShift):
+
+  ##############################################################################
+  # Perform a magic division (mul by magic number and shift)
+  # dest is two consec SGPR, used for intermediate temp as well as final result
+  # result quotient returned in sgpr(dest,1)
+  ##############################################################################
+  def sMagicDiv(self, kernel, dest, dividend, magicNumber, magicShift):
     kStr = ""
-    kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), dividend, magicNumber, "s_magic mul")
-    kStr += inst("s_lshr_b64", sgpr(stmp,2), sgpr(stmp,2), magicShift, "sMagicDiv")
+    kStr += self.s_mul_u64_u32(sgpr(dest), sgpr(dest+1), dividend, magicNumber, "s_magic mul")
+    kStr += inst("s_lshr_b64", sgpr(dest,2), sgpr(dest,2), magicShift, "sMagicDiv")
     return kStr
+
 
   ##############################################################################
   # Global Read Addresses: WorkGroup
@@ -2368,6 +2381,15 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "\n"
       kStr += self.getLabelDef("PersistentLoopStart")
       #kStr += str(Code.WaitCnt(0,0,"wait for outstanding stores"))
+
+      # Persistent may generate a SerialWorkGroupIter which is OOB
+      # In some cases the wg remapping code may not compute correct remainder for these OOB cases
+      # So check here and skip out early
+      kStr += inst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
+      kStr += inst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
+      kStr += inst("s_cbranch_scc1", self.getLabelTarget("KernelEnd"), "exit persistent")
+
+
       # Always reset pointers since tail loop iterates through LRA
       if kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
@@ -2457,85 +2479,56 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Blocked rows or columns
+    absWgm = abs(kernel["WorkGroupMapping"])
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
-      tmpVgpr = self.vgprPool.checkOut(2)
-      # nwg0
-      nwg0 = self.vgprPool.checkOut(1)
-      tmpSgpr = self.getTmpSgpr(2)
+      smallNumMagicShift = 31
+      magicNumberWgm = ((1L<<smallNumMagicShift) / absWgm + 1)
 
-      kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("NumWorkGroups0"), "copy to vgpr for div")
-      #kStr += dump(vgpr(nwg0))
+      tmpSgpr = self.getTmpSgpr(4)
+      blockId2  = tmpSgpr+0
+      wgSerial2 = tmpSgpr+1
+      wgmDivisor = tmpSgpr+2
+      wgmDivisorMagicNumber = tmpSgpr+3
 
-      # nwg1
-      nwg1 = self.vgprPool.checkOut(1)
-      kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("NumWorkGroups1"), "copy to vgpr for div")
-
+      kStr += inst("s_mov_b32", sgpr(wgmDivisorMagicNumber), hex(magicNumberWgm), \
+          "magic number for WGM==%u"%absWgm)
       # blockId and serial within block
-      blockId = self.vgprPool.checkOut(1)
-      wgSerial = self.vgprPool.checkOut(1)
-      wg1 = self.vgprPool.checkOut(1)
-      kStr += inst("v_mov_b32", vgpr(wg1), sgpr("WorkGroup1"), "wg1")
 
-      kStr += vectorStaticDivideAndRemainder(blockId, wgSerial, wg1, \
-          abs(kernel["WorkGroupMapping"]), tmpVgpr, tmpSgpr)
-      kStr += inst("v_mul_lo_u32", vgpr(wgSerial), vgpr(wgSerial), \
-          vgpr(nwg0), "(wg1 % WGM)*nwg0")
-      self.vgprPool.checkIn(nwg0)
-      kStr += inst("_v_add_co_u32", vgpr(wgSerial), "vcc", sgpr("WorkGroup0"), vgpr(wgSerial), \
-          "wgSerial = wg0 + (wg1 % WGM)*nwg0")
-      #kStr += "s_endpgm\n"
-      #return kStr
+      # note this overwrites blockId2+1
+      kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
+          magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), absWgm, "quotient * non-magic divisor")
+      kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr("WorkGroup1"), sgpr(wgSerial2), "WorkGroup1=remainder")
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
+      kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
 
-      # num full blocks
-      numFullBlocks = self.vgprPool.checkOut(1)
-      kStr += "// numFullBlocks = (nwg1) / WGM%s" % (self.endLine)
-      blockRemainder = self.vgprPool.checkOut(1)
-      kStr += vectorStaticDivideAndRemainder(numFullBlocks, blockRemainder, \
-          nwg1, abs(kernel["WorkGroupMapping"]), tmpVgpr, tmpSgpr)
-      self.vgprPool.checkIn(nwg1)
+      kStr += inst("s_cmp_ge_u32", sgpr(blockId2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
+      # reuse wgmDivisorMagicNumber - may override with remainder here:
+      kStr += inst("s_cmov_b32", sgpr(wgmDivisorMagicNumber), sgpr("MagicNumberWgmRemainder1"),  "")
+      kStr += inst("s_cselect_b32", sgpr(wgmDivisor), sgpr("WgmRemainder1"), absWgm,  "")
 
-      #kStr += dump(vgpr(blockId))
-      #kStr += dump(vgpr(numFullBlocks))
-      #kStr += dump(vgpr(blockRemainder))
-      # lastBlockWidth = blockRemainder
+      if kernel["WorkGroupMapping"]>=0 :
+        firstWg = "WorkGroup0"
+        secondWg = "WorkGroup1"
+      else:
+        firstWg = "WorkGroup1"
+        secondWg = "WorkGroup0"
 
-      # my block's width
-      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(111), "")
-      #kStr += dump(vgpr(tmpVgpr))
-      kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(blockId), vgpr(numFullBlocks), "blockId < numFullBlocks" )
-      self.vgprPool.checkIn(numFullBlocks)
-      blockWidth = self.vgprPool.checkOut(1)
-      kStr += inst("v_cndmask_b32", vgpr(blockWidth), vgpr(blockRemainder), hex(abs(kernel["WorkGroupMapping"])), sgpr(tmpSgpr,2), "blockWidth = (blockId < numFullBlocks) ? WGM : remainder" )
-      self.vgprPool.checkIn(blockRemainder)
-      #kStr += dump(vgpr(blockWidth))
+      assert(self.sgprs[firstWg] & 0x1 == 0) # must be even and ...
+      assert(self.sgprs[firstWg]+1 == self.sgprs[secondWg] ) # must be consecutive (for magic div below)
+      kStr += self.sMagicDiv(kernel, dest=self.sgprs[firstWg], dividend=sgpr(wgSerial2), \
+          magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
+      if kernel["WorkGroupMapping"]<0 :
+        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(firstWg), "")
+      kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(wgmDivisor), "quotient * non-magic divisor")
+      kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(wgSerial2), sgpr("WorkGroup1"), "WorkGroup1=remainder")
 
-      # dynamic divide and remainder
-      # wg0 = wgSerialInBlock / myBlockWidth
-      # wg1 = wgSerialInBlock % myBlockWidth + blockId*WGM
-      wg0 = self.vgprPool.checkOut(1)
-      kStr += "DYNAMIC_VECTOR_DIVIDE %s %s %s %s %s %s %s%s" % ( wg0, wg1, wgSerial, blockWidth, tmpVgpr, tmpVgpr+1, tmpSgpr, self.endLine )
-      kStr += inst("v_mul_lo_u32", vgpr(blockId), vgpr(blockId), \
+      kStr += inst("s_mul_i32", sgpr(blockId2), sgpr(blockId2), \
           abs(kernel["WorkGroupMapping"]), "blockId * WGM")
-      kStr += inst("_v_add_co_u32", vgpr(wg1), "vcc", vgpr(wg1), \
-          vgpr(blockId), "wg1 += blockId * WGM")
 
-      # move wg0,1 in vgprs into sgprs
-      kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup0"), vgpr(wg0), "")
-      kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup1"), vgpr(wg1), "")
+      kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
+          sgpr(blockId2), "wg1 += blockId * WGM")
 
-      # checkin scratch registers
-      self.vgprPool.checkIn(wg0)
-      self.vgprPool.checkIn(wg1)
-      self.vgprPool.checkIn(blockWidth)
-      self.vgprPool.checkIn(wgSerial)
-      self.vgprPool.checkIn(blockId)
-
-      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup0"), "")
-      #kStr += dump(vgpr(tmpVgpr))
-      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup1"), "")
-      #kStr += dump(vgpr(tmpVgpr))
-      self.vgprPool.checkIn(tmpVgpr)
-      #kStr += "s_endpgm\n"
 
     if kernel["PersistentKernel"]:
       # TODO - For GlobalSplitU, perhaps need to do this before the GSU workgroup assignment?  Or NumWorkGroups0
