@@ -12,10 +12,19 @@ file(COPY ${lite_yaml} DESTINATION .)
 set(input_yaml sgemm_asm_all_transposes.yaml)
 file(COPY ${input_yaml} DESTINATION .)
 
-set (asm_only_yaml  ../../../Tensile/Configs/rocblas_sgemm_asm_only.yaml)
+set(lite_configs lite_configs)
+file(COPY ${lite_configs} DESTINATION .)
+
+set (asm_only_yaml  ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/Configs/rocblas_sgemm_asm_only.yaml)
+
+set(tensile_library_options --merge-files)
+if(CMAKE_BUILD_TYPE EQUAL "Debug")
+    set(tensile_library_options ${tensile_library_options} --library-print-debug)
+endif()
 
 if(HIP_FOUND)
-    set(tensile_script ../../../Tensile/Tensile.py) 
+    set(tensile_script ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/Tensile.py) 
+    set(tensile_library_script ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/TensileCreateLibrary.py) 
 
     add_custom_target(code_object_inputs
                       COMMAND python ${tensile_script} ${input_yaml} code_object
@@ -36,11 +45,16 @@ if(HIP_FOUND)
         DEPENDS code_object_inputs)
 
     file(GLOB co_lite_objects
-        ${CMAKE_BINARY_DIR}/configs/code_object_lite/4_LibraryClient/build/assembly/*.o
+        ${CMAKE_BINARY_DIR}/configs/lite_library/assembly/*.o
+        )
+
+    add_custom_target(code_object_lite_bench
+        COMMAND python ${tensile_script}  ${asm_only_yaml} code_object_lite
         )
 
     add_custom_target(code_object_lite_library
-        COMMAND python ${tensile_script}  ../../../Tensile/Configs/rocblas_sgemm_asm_only.yaml code_object_lite
+        WORKING_DIRECTORY lite_library
+        COMMAND python ${tensile_library_script} ../${lite_configs} Tensile HIP ${tensile_library_options}
         )
 
     add_custom_target(code_object_lite
