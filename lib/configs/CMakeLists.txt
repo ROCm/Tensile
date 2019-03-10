@@ -52,9 +52,12 @@ if(HIP_FOUND)
         COMMAND python ${tensile_script}  ${asm_only_yaml} code_object_lite
         )
 
+    set(lite_library_dir ${CMAKE_CURRENT_BINARY_DIR}/lite_library)
+    file(MAKE_DIRECTORY ${lite_library_dir})
     add_custom_target(code_object_lite_library
-        WORKING_DIRECTORY lite_library
+        WORKING_DIRECTORY ${lite_library_dir}
         COMMAND python ${tensile_library_script} ../${lite_configs} Tensile HIP ${tensile_library_options}
+        DEPENDS ${lite_library_dir}
         )
 
     add_custom_target(code_object_lite
