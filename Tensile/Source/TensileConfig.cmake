@@ -60,7 +60,7 @@ function(TensileCreateLibrary
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-short-file-names")
   endif()
 
-  if(${Tensile_PRINT_DEBUG})
+  if(${Tensile_LIBRARY_PRINT_DEBUG})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--library-print-debug")
   else()
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")

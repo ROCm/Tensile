@@ -598,6 +598,7 @@ class SolutionWriter:
         for idxChar in solution["PackedC1Indices"][:-1]:
           s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
               % (t, idxChar, idxChar, idxChar, idxChar)
+        s += "%sprintf(\"  magicNumberProblemNumGroupTiles0==%%u\\n\", magicNumberProblemNumGroupTiles0);\n" % t
 
       ########################################
       # OpenCL Runtime
@@ -635,6 +636,7 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
+
         if not globalParameters["PreciseKernelTime"] or kernelLanguage == "Source":
           s += "%sif( inputEvents != NULL )\n" % (t)
           t += "  "
@@ -750,6 +752,18 @@ class SolutionWriter:
           for idxChar in solution["PackedC1Indices"][:-1]:
             s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
+          if globalParameters["LibraryPrintDebug"]:
+            s += """
+            std::vector<char> tmp(hipFunctionArgsSize);
+            memcpy(tmp.data(), &hipFunctionArgs, hipFunctionArgsSize);
+            for(int i = 0; i < hipFunctionArgsSize; i++)
+            {
+                if(i % 8 == 0) printf("\\n");
+
+                printf("%02hhx", tmp[i]);
+            }
+            printf("\\n");
+            """
 
           s += "%skernelsLaunched++;\n" % (t)
           s += "%shipHccModuleLaunchKernel(\n" % (t)
