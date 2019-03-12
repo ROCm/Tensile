@@ -684,8 +684,6 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   s += "// The entrypoint to find a solution for this problem is through the master solution master\n"
   s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
   s += "  \"%s\", // schedule+problem name\n" % (schedProbName) 
-  #s += "  {%s}, // Device names\n" % (', '.join('"{0}"'.format(w) for w in deviceNames))
-  #s += "  &masterSolutionMapper_%s, // add to this master solution mapper\n" % (problemType)
   s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
   s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
   s += "  &problemType_%s);\n" % (problemType)
