@@ -34,10 +34,10 @@
 namespace Tensile
 {
     template <typename MySolution>
-    using SolutionIndex = std::vector<std::shared_ptr<MySolution>>;
+    using SolutionSet = std::set<std::shared_ptr<MySolution>>;
 
     template <typename MySolution>
-    using SolutionSet = std::set<std::shared_ptr<MySolution>>;
+    using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct SolutionLibrary
@@ -92,9 +92,6 @@ namespace Tensile
             return SolutionSet<MySolution>();
         }
     };
-
-    template <typename MySolution>
-    using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
     template <typename MyProblem, typename MySolution>
     struct MasterSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
