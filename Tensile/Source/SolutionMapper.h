@@ -70,13 +70,16 @@ class MasterSolutionMapper
 {
 public:
   MasterSolutionMapper()  {
+  };
+
+  void initialize() {
     int numDevices;
     hipGetDeviceCount(&numDevices);
     _mapper.resize(numDevices);
     for (int i=0; i<numDevices; i++) {
       _mapper[i] = nullptr;
     }
-  };
+  }
 
   int addMapper(const std::string &mapperName, SolutionMapperBase<ProblemDimsType> *mapper)
   {
@@ -87,13 +90,12 @@ public:
       hipDeviceProp_t deviceProperties;
       hipGetDeviceProperties(&deviceProperties, i);
       std::string deviceName(deviceProperties.name);
-      //  printf("compare #%d:%s == %s\n", i, deviceName.c_str(), mapperName.c_str());
+
       if ((deviceName == mapperName)) { 
-          //((mapperName == "fallback" || mapperName == "Device 0000") && _mapper[i] == nullptr)) {
         matches++;
         _mapper[i] = mapper;
-        // printf ("  match->%d\n", matches);
       }
+
       if ((mapperName == "fallback" || mapperName == "Device 0000")) {
         if (_fallbackMapper == nullptr) {
 	  _fallbackMapper = mapper;
@@ -137,28 +139,13 @@ class SolutionMapper : public SolutionMapperBase<ProblemDimsType> {
   typedef std::pair<const ProblemKeyType, int>  PtoS;
 
 public:
-  SolutionMapper(const std::string &name, const std::vector<std::string> &deviceNames,
-                 MasterSolutionMapper<ProblemDimsType> *masterSolutionMapper,
+  SolutionMapper(const std::string &name, 
                  const SolutionInfo *solutionTable, size_t numSolutions,
                  const PtoS *embeddedExactTable, size_t numExacts,
                  const ProblemType *problemType)
      :  _name(name), _problemType(problemType), _numSolutions(numSolutions),
         _findAlg(SolutionMapperRuntime::EuclideanDistanceAlgo), _db(DEBUG_SM)
   {
-    int used=0; // how many devices are using this solution mapper:
-    for (auto iter=deviceNames.begin(); iter!=deviceNames.end(); iter++) {
-      used += masterSolutionMapper->addMapper(*iter, this);
-    }
-
-    if (_db & 0x8) {
-      printf ("info: mapper init - %s was used in %d devices\n", name.c_str(), used);
-    }
-    if (used==0) {
-      if (_db & 0x8) {
-        printf ("info: **skipping mapper init - no devices of type: %s found\n", name.c_str());
-      }
-      return;
-    }
 
     _solutionTable = new SolutionMapperRuntime::SolutionRuntime[numSolutions];
 
@@ -186,6 +173,25 @@ public:
     }
     if (_db & 0x1)
       printf ("TENSILE_FIND_ALGO= %d (%s)\n", _findAlg, algoString(_findAlg));
+  }
+
+  void initializeMappers(const std::vector<std::string> &deviceNames,
+                 MasterSolutionMapper<ProblemDimsType> *masterSolutionMapper) {
+
+    int used=0; // how many devices are using this solution mapper:
+    for (auto iter=deviceNames.begin(); iter!=deviceNames.end(); iter++) {
+      used += masterSolutionMapper->addMapper(*iter, this);
+    }
+
+    if (_db & 0x8) {
+      printf ("info: mapper init - %s was used in %d devices\n", _name.c_str(), used);
+    }
+    if (used==0) {
+      if (_db & 0x8) {
+        printf ("info: **skipping mapper init - no devices of type: %s found\n", _name.c_str());
+      }
+      return;
+    }
   }
 
 #define CASE_STRING(X)  case X: return(#X)

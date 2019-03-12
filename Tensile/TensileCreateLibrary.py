@@ -401,6 +401,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
     argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
     argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
+    
+    # tensile initializer
+    h += "\nvoid tensileInitialize();\n\n"
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"
@@ -589,6 +592,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       logicSourceFile.write(s)
       logicSourceFile.close()
 
+  s += "\n"
+  s += writeTensileInitialize(logicData)
+
   # close merged files
   if globalParameters["MergeFiles"]:
     logicSourceFile = open(os.path.join(outputPath, \
@@ -606,6 +612,30 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.write(ih)
   internalHeaderFile.close()
 
+
+def writeTensileInitialize(logicData):
+
+  s = "/*******************************************************************************\n"
+  s += "* Tensilze initializer\n"
+  s += "*******************************************************************************/\n"
+  s += "void tensileInitialize() {\n"
+
+  for problemType in logicData:
+    s += "  masterSolutionMapper_%s.initialize();\n" % problemType
+    
+    for scheduleTuple in logicData[problemType]:
+      scheduleName  = scheduleTuple[0]
+      deviceNames   = scheduleTuple[1]
+
+
+      schedProbName = "%s_%s" % (scheduleName, problemType)
+      s += "  solutionMapper_%s.initializeMappers(" % (schedProbName)
+      s += "{%s}," % (', '.join('"{0}"'.format(w) for w in deviceNames))
+      s += "&masterSolutionMapper_%s);\n" % (problemType)
+      
+  s += "}"
+
+  return s
 
 def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
                                solutionsForSchedule, solutionNames, exactLogic):
@@ -654,8 +684,6 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   s += "// The entrypoint to find a solution for this problem is through the master solution master\n"
   s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
   s += "  \"%s\", // schedule+problem name\n" % (schedProbName) 
-  s += "  {%s}, // Device names\n" % (', '.join('"{0}"'.format(w) for w in deviceNames))
-  s += "  &masterSolutionMapper_%s, // add to this master solution mapper\n" % (problemType)
   s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
   s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
   s += "  &problemType_%s);\n" % (problemType)
