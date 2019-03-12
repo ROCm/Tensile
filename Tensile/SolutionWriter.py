@@ -75,7 +75,8 @@ class SolutionWriter:
     tt1 = solution["ThreadTile1"]
     sg0 = solution["SubGroup0"]
     sg1 = solution["SubGroup1"]
-    nt  =  solution["NumThreads"]
+    nt  = solution["NumThreads"]
+    es  = solution["LdcEqualsLdd"]
 
     kernels = solution.getKernels()
     kernelNames = []

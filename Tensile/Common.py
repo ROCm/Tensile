@@ -261,7 +261,7 @@ validParameters = {
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
-    "LdcEqualsLdd":               [False, True],
+    "LdcEqualsLdd":               [ False, True ],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -275,7 +275,7 @@ validParameters = {
     # G2L registers used to stage data.  Also replaces the
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
-    "DirectToLds":                [ False, True],
+    "DirectToLds":                [ False, True ],
 
     # Load options:
     # (GRO = Global Read Offset)
@@ -654,8 +654,8 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"SuppressNoLoadLoop":       [ True ]},
-    {"ExpandPointerSwap":         [ True ]},
+    {"SuppressNoLoadLoop":        [ True ] },
+    {"ExpandPointerSwap":         [ True ] },
 
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
@@ -748,6 +748,7 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [

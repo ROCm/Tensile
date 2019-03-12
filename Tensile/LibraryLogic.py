@@ -232,7 +232,7 @@ class LogicAnalyzer:
 
     # merge problem sizes from size groups
     #self.numIndices = len(problemSizesList[0].numProblemSizes)
-    self.numIndices = self.problemType["TotalIndices"]
+    self.numIndices = self.problemType["TotalIndices"] + len(self.problemType["IndexAssignmentsLD"])
     unifiedProblemSizes = []
     for i in range(0, self.numIndices):
       unifiedProblemSizes.append(set())

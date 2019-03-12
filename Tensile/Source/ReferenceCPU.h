@@ -48,12 +48,18 @@ void unpack_int8x4(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, 
 
 template< typename Type, typename DestType >
 TensileStatus tensileReferenceCPU(
-    DestType *dataC,
+    DestType *dataD,
+    const DestType *dataC,
     const Type *dataA,
     const Type *dataB,
+    const unsigned int lda,
+    const unsigned int ldb,
+    const unsigned int ldc,
+    const unsigned int ldd,
     const unsigned int stride_a,
     const unsigned int stride_b,
     const unsigned int stride_c,
+    const unsigned int stride_d,
     DestType alpha,
     DestType beta,
     unsigned int totalIndices,
@@ -79,6 +85,7 @@ TensileStatus tensileReferenceCPU(
   // Stride in each index
   std::vector<unsigned int> strides(totalIndices);
 
+  unsigned int *stridesD = new unsigned int[numIndicesC];
   unsigned int *stridesC = new unsigned int[numIndicesC];
   unsigned int *stridesA = new unsigned int[numIndicesAB];
   unsigned int *stridesB = new unsigned int[numIndicesAB];
@@ -91,6 +98,7 @@ TensileStatus tensileReferenceCPU(
     sizesB[i] = sizes[indexAssignmentsB[i]];
   }
   // strides
+  stridesD[0] = 1;
   stridesC[0] = 1;
   stridesA[0] = 1;
   stridesB[0] = 1;
@@ -99,11 +107,17 @@ TensileStatus tensileReferenceCPU(
     stridesB[i] = stridesB[i-1] * strides[indexAssignmentsB[i-1]];
   }
   for (unsigned int i = 1; i < numIndicesC; i++) {
+    stridesD[i] = stridesD[i-1] * strides[i-1];
     stridesC[i] = stridesC[i-1] * strides[i-1];
   }
+  if (lda != std::numeric_limits<unsigned int>::max())  stridesA[1] = lda;
+  if (ldb != std::numeric_limits<unsigned int>::max())  stridesB[1] = ldb;
+  if (ldc != std::numeric_limits<unsigned int>::max())  stridesC[1] = ldc;
+  if (ldd != std::numeric_limits<unsigned int>::max())  stridesD[1] = ldd;
   if (stride_a != std::numeric_limits<unsigned int>::max())  stridesA[2] = stride_a;
   if (stride_b != std::numeric_limits<unsigned int>::max())  stridesB[2] = stride_b;
   if (stride_c != std::numeric_limits<unsigned int>::max())  stridesC[2] = stride_c;
+  if (stride_d != std::numeric_limits<unsigned int>::max())  stridesD[2] = stride_d;
 
   unsigned int numIndicesSummation = totalIndices - numIndicesC;
 
@@ -221,8 +235,10 @@ TensileStatus tensileReferenceCPU(
     } // bound range
 
 
+    size_t serialIdxD = 0;
     size_t serialIdxC = 0;
     for (unsigned int i = 0; i < numIndicesC; i++) {
+      serialIdxD += freeCoord[i]*stridesD[i];
       serialIdxC += freeCoord[i]*stridesC[i];
     }
     if (localUseHighPrecisionAccumulate)
@@ -238,9 +254,9 @@ TensileStatus tensileReferenceCPU(
     }
 
     if (localUseHighPrecisionAccumulate)
-      dataC[serialIdxC] = (Type)sumCfloat;
+      dataD[serialIdxD] = (Type)sumCfloat;
     else
-      dataC[serialIdxC] = sumC;
+      dataD[serialIdxD] = sumC;
 
     // increment free coord
     // skip = 1, validate everything
