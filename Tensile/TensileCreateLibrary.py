@@ -616,10 +616,11 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   # Write the exact problems here
   s += "// table of exact problem dims and selected solutionIdx\n"
   s += "static const std::pair<const ProblemKey_%s, int> embeddedExactTable_%s[] = {\n" % (problemType,schedProbName)
+  numSizes = problemType["TotalIndices"]
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
-    problemSize = rule[0][:-4]
-    problemStrides = rule[0][-4:]
+    problemSize = rule[0][:numSizes]
+    problemStrides = rule[0][numSizes:]
     solutionIdx = rule[1][0]
     solutionGFlops = rule[1][1]
     s += " { {"
