@@ -1820,7 +1820,7 @@ class Solution:
       return "1" if value else "0"
     elif isinstance(value, int):
       if value >= 0:
-        return "%02u" % value
+        return "%01u" % value
       else: # -1 -> n1
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):
