@@ -34,115 +34,96 @@ namespace Tensile
 {
     namespace Matching
     {
+        template <typename Key>
         class Distance
         {
         public:
             virtual std::string type() const = 0;
+            virtual ~Distance() = default;
 
-            virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const = 0;
+            virtual double operator()(Key const& a, Key const& b) const = 0;
         };
 
-        template <typename Value>
+        template <typename Key, typename Value>
         struct MatchingTableEntry
         {
-            std::vector<size_t> key;
-            Value value;
+            Key    key;
+            Value  value;
             double speed;
         };
 
         template <typename Object, typename Value, typename ReturnValue>
-        class MatchingTable
+        struct MatchingTable
         {
-        public:
-            using Key = std::vector<size_t>;
-            using Entry = MatchingTableEntry<Value>;
+            using Properties = std::vector<std::shared_ptr<Property<Object>>>;
             using Transform = std::function<ReturnValue(Value)>;
 
-            using Properties = std::vector<std::shared_ptr<Property<Object>>>;
-
-            MatchingTable(ReturnValue nullValue = ReturnValue())
-                : nullValue(nullValue)
+            MatchingTable() = default;
+            MatchingTable(Properties const& properties)
+                : properties(properties)
             {
             }
 
-            MatchingTable(Properties const& properties, ReturnValue nullValue = Value())
-                : properties(properties),
-                  nullValue(nullValue)
-            {
-            }
+            virtual ~MatchingTable() = default;
 
-            virtual Key keyForProblem(Object const& object) const
-            {
-                bool debug = Debug::Get().printPropertyEvaluation();
+            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const = 0;
 
-                Key myKey;
-                myKey.reserve(properties.size());
+            virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
-                for(auto const& prop: properties)
-                    myKey.push_back((*prop)(object));
-
-                if(debug)
-                {
-                    std::cout << "Object key: ";
-                    streamJoin(std::cout, myKey, ", ");
-                    std::cout << std::endl;
-                }
-
-                return myKey;
-            }
-
-            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const
-            {
-                return findBestKeyMatch(keyForProblem(object), transform);
-            }
-
-            virtual std::vector<Value> matchesInOrder(Object const& object) const
-            {
-                return keyMatchesInOrder(keyForProblem(object));
-            }
-
-            virtual ReturnValue findBestKeyMatch(Key const& key, Transform transform) const = 0;
-            virtual std::vector<Value> keyMatchesInOrder(Key const& key) const = 0;
-
-            std::vector<std::shared_ptr<Property<Object>>> properties;
-            std::vector<Entry> table;
-
-        protected:
-            ReturnValue nullValue;
+            Properties properties;
         };
 
-        template <typename Object, typename Value, typename ReturnValue>
+        template <typename Key>
+        struct KeyInitializer
+        {
+            static Key InitializeKey(size_t size)
+            {
+                return Key(size);
+            }
+        };
+
+        template <typename T, size_t N>
+        struct KeyInitializer<std::array<T, N>>
+        {
+            static std::array<T, N> InitializeKey(size_t size)
+            {
+                return std::array<T, N>();
+            }
+        };
+
+        template <typename Key, typename Object, typename Value, typename ReturnValue>
         class DistanceMatchingTable: public MatchingTable<Object, Value, ReturnValue>
         {
         public:
-            using Base = MatchingTable<Object, Value, ReturnValue>;
-            using Key = typename Base::Key;
-            using Entry = typename Base::Entry;
+            using Base       = MatchingTable<Object, Value, ReturnValue>;
+            using Entry      = MatchingTableEntry<Key, Value>;
+            using Transform  = typename Base::Transform;
             using Properties = typename Base::Properties;
-            using Transform = typename Base::Transform;
 
             DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
-                : Base(nullValue)
+                : nullValue(nullValue)
             {
             }
 
             DistanceMatchingTable(Properties const& properties,
                                   ReturnValue nullValue = ReturnValue())
-                : Base(properties, nullValue)
+                : Base(properties),
+                  nullValue(nullValue)
             {
             }
 
-            DistanceMatchingTable(std::shared_ptr<Distance> distance,
+            DistanceMatchingTable(std::shared_ptr<Distance<Key>> distance,
                                   Properties const& properties,
                                   ReturnValue nullValue = ReturnValue())
-                : Base(properties, nullValue),
+                : Base(properties),
+                  nullValue(nullValue),
                   distance(distance)
             {
             }
 
-            virtual ReturnValue findBestKeyMatch(Key const& key, Transform transform) const override
+            ReturnValue findBestKeyMatch(Key const& key, Transform transform) const
             {
-                bool debug = Debug::Get().printPropertyEvaluation();
+                const bool debug = Debug::Get().printPropertyEvaluation();
 
                 double bestDistance = std::numeric_limits<double>::max();
 
@@ -170,28 +151,38 @@ namespace Tensile
 
                 while(iter != this->table.end())
                 {
-                    auto myMatch = transform(iter->value);
+                    auto myDistance = (*distance)(key, iter->key);
+                    bool thisMatch = false;
 
-                    if(myMatch)
+                    if(myDistance < bestDistance)
                     {
-                        auto myDistance = (*distance)(key, iter->key);
+                        auto myMatch = transform(iter->value);
 
-                        if(debug)
-                        {
-                            streamJoin(std::cout, iter->key, ", ");
-                            std::cout << ": " << myDistance;
-
-                            if(myDistance < bestDistance)
-                                std::cout << " <-- Best so far";
-
-                            std::cout << std::endl;
-                        }
-
-                        if(myDistance < bestDistance)
+                        if(myMatch)
                         {
                             bestDistance = myDistance;
                             bestMatch = myMatch;
+                            thisMatch = true;
                         }
+
+                    }
+
+                    if(debug)
+                    {
+                        streamJoin(std::cout, iter->key, ", ");
+                        std::cout << ": " << myDistance;
+                        if(myDistance < bestDistance)
+                        {
+                            std::cout << " <-- Best so far";
+
+                        if(thisMatch)
+                            std::cout << " (has a matching solution)";
+                        else
+                            std::cout << " (no match)";
+
+                        }
+
+                        std::cout << std::endl;
                     }
 
                     iter++;
@@ -200,7 +191,7 @@ namespace Tensile
                 return bestMatch;
             }
 
-            virtual std::vector<Value> keyMatchesInOrder(Key const& key) const override
+            std::vector<Value> keyMatchesInOrder(Key const& key) const
             {
                 std::vector<std::pair<double, size_t>> indices(this->table.size());
 
@@ -218,8 +209,39 @@ namespace Tensile
                 return result;
             }
 
-            std::shared_ptr<Distance> distance;
+            Key keyForProblem(Object const& object) const
+            {
+                bool debug = Debug::Get().printPropertyEvaluation();
 
+                Key myKey = KeyInitializer<Key>::InitializeKey(this->properties.size());
+
+                for(int i = 0; i < this->properties.size(); i++)
+                    myKey[i] = (*this->properties[i])(object);
+
+                if(debug)
+                {
+                    std::cout << "Object key: ";
+                    streamJoin(std::cout, myKey, ", ");
+                    std::cout << std::endl;
+                }
+
+                return myKey;
+            }
+
+            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const override
+            {
+                return findBestKeyMatch(keyForProblem(object), transform);
+            }
+
+            virtual std::vector<Value> matchesInOrder(Object const& object) const override
+            {
+                return keyMatchesInOrder(keyForProblem(object));
+            }
+            std::vector<Entry> table;
+            std::shared_ptr<Distance<Key>> distance;
+
+        protected:
+            ReturnValue nullValue;
         };
     }
 }

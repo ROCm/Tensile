@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <random>
+
 namespace Tensile
 {
     template <typename T>
