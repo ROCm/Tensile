@@ -328,7 +328,7 @@ parallel rocm22_ubuntu_gfx900:
         docker_build_args:' --pull' )
 
     def hcc_compiler_args = new compiler_data(
-        compiler_name:'hcc-rocm20-ubuntu',
+        compiler_name:'hcc-rocm22-ubuntu',
         build_config:'Release',
         compiler_path:'/opt/rocm/bin/hcc' )
 
@@ -363,7 +363,7 @@ rocm22_ubuntu_gfx906:
                 docker_build_args:' --pull' )
 
             def hcc_compiler_args = new compiler_data(
-                compiler_name:'hcc-rocm20-ubuntu',
+                compiler_name:'hcc-rocm22-ubuntu',
                 build_config:'Release',
                 compiler_path:'/opt/rocm/bin/hcc' )
 
