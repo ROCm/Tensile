@@ -1738,7 +1738,7 @@ class Solution:
     if "MacroTile0" in state \
         and "MacroTile1" in state \
         and "DepthU" in state:
-      name += "%s%03ux%03ux%02u_" \
+      name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     for key in sorted(state.keys()):
@@ -1820,7 +1820,7 @@ class Solution:
       return "1" if value else "0"
     elif isinstance(value, int):
       if value >= 0:
-        return "%01u" % value
+        return "%u" % value
       else: # -1 -> n1
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):
