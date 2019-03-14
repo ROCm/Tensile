@@ -825,38 +825,46 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0,lastStrideD):
       h += "  unsigned int strideD%u%s = 1" % (i, indexChars[i])
       for j in range(0, i):
-        h += "* std::max(minStrides[%i], sizes[%i])" % (j,j)
+        h += " * ("
+        if j == 0:
+          h += "(ldd != std::numeric_limits<unsigned int>::max()) ? ldd : "
+        h += "std::max(minStrides[%i], sizes[%i]))" % (j,j)
       h += ";\n"
-    h += "  if (ldd != std::numeric_limits<unsigned int>::max())  strideD%u%s = ldd;\n" % (lastStrideD-2, indexChars[lastStrideD-2])
     h += "  if (stride_d != std::numeric_limits<unsigned int>::max())  strideD%u%s = stride_d;\n" % (lastStrideD-1, indexChars[lastStrideD-1])
     for i in range(0,lastStrideC):
-      h += "  unsigned int strideC%u%s = 1" % (i, indexChars[i])
+      h += "  unsigned int strideC%u%s = 1 " % (i, indexChars[i])
       for j in range(0, i):
-        h += "* std::max(minStrides[%i], sizes[%i])" % (j,j)
+        h += " * ("
+        if j == 0:
+          h += "(ldc != std::numeric_limits<unsigned int>::max()) ? ldc : "
+        h+= "std::max(minStrides[%i], sizes[%i]))" % (j,j)
       h += ";\n"
-    h += "  if (ldc != std::numeric_limits<unsigned int>::max())  strideC%u%s = ldc;\n" % (lastStrideC-2, indexChars[lastStrideC-2])
     h += "  if (stride_c != std::numeric_limits<unsigned int>::max())  strideC%u%s = stride_c;\n" % (lastStrideC-1, indexChars[lastStrideC-1])
     
     for i in range(0,lastStrideA):
       h += "  unsigned int strideA%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsA"][i]])
       for j in range(0, i):
-        h += "* std::max(minStrides[%i], sizes[%i])" % \
+        h += " * ("
+        if j == 0:
+          h += "(lda != std::numeric_limits<unsigned int>::max()) ? lda : "
+        h += "std::max(minStrides[%i], sizes[%i]))" % \
           (problemType["IndexAssignmentsA"][j],
            problemType["IndexAssignmentsA"][j])
       h += ";\n"
-    h += "  if (lda != std::numeric_limits<unsigned int>::max())  strideA%u%s = lda;\n" % (lastStrideA-2, indexChars[problemType["IndexAssignmentsA"][lastStrideA-2]])
     h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
 
     for i in range(0,lastStrideB):
       h += "  unsigned int strideB%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsB"][i]])
       for j in range(0, i):
-        h += "* std::max(minStrides[%i], sizes[%i])" % \
+        h += " * ("
+        if j == 0:
+          h += "(ldb != std::numeric_limits<unsigned int>::max()) ? ldb : "
+        h+= "std::max(minStrides[%i], sizes[%i]))" % \
           (problemType["IndexAssignmentsB"][j],
            problemType["IndexAssignmentsB"][j])
       h += ";\n"
-    h += "  if (ldb != std::numeric_limits<unsigned int>::max())  strideB%u%s = lda;\n" % (lastStrideB-2, indexChars[problemType["IndexAssignmentsB"][lastStrideB-2]])
     h += "  if (stride_b != std::numeric_limits<unsigned int>::max())  strideB%u%s = stride_b;\n" % (lastStrideB-1, indexChars[problemType["IndexAssignmentsB"][lastStrideB-1]])
 
     for i in range(0, problemType["TotalIndices"]):

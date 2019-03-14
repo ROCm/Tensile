@@ -97,23 +97,27 @@ TensileStatus tensileReferenceCPU(
     sizesA[i] = sizes[indexAssignmentsA[i]];
     sizesB[i] = sizes[indexAssignmentsB[i]];
   }
+
   // strides
   stridesD[0] = 1;
   stridesC[0] = 1;
   stridesA[0] = 1;
   stridesB[0] = 1;
-  for (unsigned int i = 1; i < numIndicesAB; i++) {
+
+  stridesD[1] = (ldd != std::numeric_limits<unsigned int>::max()) ? ldd : strides[0];
+  stridesC[1] = (ldc != std::numeric_limits<unsigned int>::max()) ? ldc : strides[0];
+  stridesA[1] = (lda != std::numeric_limits<unsigned int>::max()) ? lda : strides[indexAssignmentsA[0]];
+  stridesB[1] = (ldb != std::numeric_limits<unsigned int>::max()) ? ldb : strides[indexAssignmentsB[0]];
+
+  for (unsigned int i = 2; i < numIndicesAB; i++) {
     stridesA[i] = stridesA[i-1] * strides[indexAssignmentsA[i-1]];
     stridesB[i] = stridesB[i-1] * strides[indexAssignmentsB[i-1]];
   }
-  for (unsigned int i = 1; i < numIndicesC; i++) {
+  for (unsigned int i = 2; i < numIndicesC; i++) {
     stridesD[i] = stridesD[i-1] * strides[i-1];
     stridesC[i] = stridesC[i-1] * strides[i-1];
   }
-  if (lda != std::numeric_limits<unsigned int>::max())  stridesA[1] = lda;
-  if (ldb != std::numeric_limits<unsigned int>::max())  stridesB[1] = ldb;
-  if (ldc != std::numeric_limits<unsigned int>::max())  stridesC[1] = ldc;
-  if (ldd != std::numeric_limits<unsigned int>::max())  stridesD[1] = ldd;
+
   if (stride_a != std::numeric_limits<unsigned int>::max())  stridesA[2] = stride_a;
   if (stride_b != std::numeric_limits<unsigned int>::max())  stridesB[2] = stride_b;
   if (stride_c != std::numeric_limits<unsigned int>::max())  stridesC[2] = stride_c;

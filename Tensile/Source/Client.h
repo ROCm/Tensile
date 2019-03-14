@@ -830,31 +830,43 @@ bool benchmarkAllSolutionsForSize(
     double *problem_gpu_time_ms) {
   const unsigned int *sizes = problemSizes[problemIdx];
 
+  ldd = sizes[indexAssignmentsLD[0]];
+  ldc = sizes[indexAssignmentsLD[1]];
+  lda = sizes[indexAssignmentsLD[2]];
+  ldb = sizes[indexAssignmentsLD[3]];
+
   // Compute stridesC for validation
   // strideC accounts for memory strides (ie ldc)
   // while elementStride is a pure element space
   std::vector<unsigned int> strides(totalIndices[problemTypeIdx]);
+  std::vector<unsigned int> stridesD(numIndicesC[problemTypeIdx]);
   std::vector<unsigned int> stridesC(numIndicesC[problemTypeIdx]);
-  std::vector<unsigned int> elementStridesC(numIndicesC[problemTypeIdx]);
+  std::vector<unsigned int> elementStrides(numIndicesC[problemTypeIdx]);
 
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
   }
-  elementStridesC[0] = 1;
+  elementStrides[0] = 1;
+  stridesD[0] = 1;
   stridesC[0] = 1;
-  for (unsigned int i = 1; i < numIndicesC[problemTypeIdx]; i++) {
-    elementStridesC[i] = elementStridesC[i-1] * sizes[i-1];
+
+  elementStrides[1] = sizes[0];
+  stridesD[1] = ldd;
+  stridesC[1] = ldc;
+
+  for (unsigned int i = 2; i < numIndicesC[problemTypeIdx]; i++) {
+    elementStrides[i] = elementStrides[i-1] * sizes[i-1];
+    stridesD[i] = stridesD[i-1] * strides[i-1];
     stridesC[i] = stridesC[i-1] * strides[i-1];
   }
 
   bool returnInvalids = false;
-  size_t currentElementSizeC = 1;
-  size_t currentMemorySizeC = 1;
-  for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
-    currentElementSizeC *= sizes[i];
-    currentMemorySizeC *= strides[i];
-  }
-  size_t sizeToCopy = currentMemorySizeC*bytesPerElement[dataTypeIdx];
+  size_t currentElementSizeC = elementStrides[numIndicesC[problemTypeIdx]-1];
+  size_t currentMemorySizeD = stridesD[numIndicesC[problemTypeIdx]-1];
+  size_t currentMemorySizeC = stridesC[numIndicesC[problemTypeIdx]-1];
+
+  size_t sizeToCopyD = currentMemorySizeD*bytesPerElement[dataTypeIdx];
+  size_t sizeToCopyC = currentMemorySizeC*bytesPerElement[dataTypeIdx];
 
   file << problemIdx << ", " << sizes[0];
   for (unsigned int i = 1; i < totalIndices[problemTypeIdx]+numIndicesLD; i++) {
@@ -912,9 +924,9 @@ bool benchmarkAllSolutionsForSize(
 
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
-    memcpy(referenceC, initialC, sizeToCopy);
+    memcpy(referenceC, initialC, sizeToCopyC);
     if(!cEqualD)
-      memcpy(referenceD, initialD, sizeToCopy);
+      memcpy(referenceD, initialD, sizeToCopyD);
     if (numElementsToValidate >= currentElementSizeC) {
       validationStride = 1;
     } else {
@@ -972,16 +984,16 @@ bool benchmarkAllSolutionsForSize(
       // copy data in language
 #if Tensile_RUNTIME_LANGUAGE_OCL
       status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-          sizeToCopy, initialC, 0, NULL, NULL);
+          sizeToCopyC, initialC, 0, NULL, NULL);
       tensileStatusCheck(status);
       if(!cEqualD)
         status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE, 0,
-            sizeToCopy, initialD, 0, NULL, NULL);
+            sizeToCopyD, initialD, 0, NULL, NULL);
 #else
-      status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
+      status = hipMemcpy(deviceC, initialC, sizeToCopyC, hipMemcpyHostToDevice);
       tensileStatusCheck(status);
       if(!cEqualD)
-        status = hipMemcpy(deviceD, initialD, sizeToCopy, hipMemcpyHostToDevice);
+        status = hipMemcpy(deviceD, initialD, sizeToCopyD, hipMemcpyHostToDevice);
 #endif
       tensileStatusCheck(status);
 
@@ -996,12 +1008,14 @@ bool benchmarkAllSolutionsForSize(
         // copy data back to host
 #if Tensile_RUNTIME_LANGUAGE_OCL
         clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-            sizeToCopy, deviceOnHostC, 0, NULL, NULL);
-        clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE, 0,
-            sizeToCopy, deviceOnHostD, 0, NULL, NULL);
+            sizeToCopyC, deviceOnHostC, 0, NULL, NULL);
+        if(!cEqualD)
+          clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceD), CL_TRUE, 0,
+              sizeToCopyD, deviceOnHostD, 0, NULL, NULL);
 #else
-        hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
-        hipMemcpy(deviceOnHostD, deviceD, sizeToCopy, hipMemcpyDeviceToHost);
+        hipMemcpy(deviceOnHostC, deviceC, sizeToCopyC, hipMemcpyDeviceToHost);
+        if(!cEqualD)
+          hipMemcpy(deviceOnHostD, deviceD, sizeToCopyD, hipMemcpyDeviceToHost);
 #endif
         if (printTensorC & 0x2) {
           std::vector<unsigned int> indexAssignmentsC;
@@ -1029,16 +1043,18 @@ bool benchmarkAllSolutionsForSize(
         for (size_t e = 0; e < currentElementSizeC; e+= validationStride) {
 
           // Compute the actual serialIdxX accouting for strides:
+          size_t serialIdxD = 0;
           size_t serialIdxC = 0;
           size_t r = e;
           for (int j = numIndicesC[problemTypeIdx]-1; j >=0; j--) {
-            serialIdxC += r / elementStridesC[j] * stridesC[j];
-            r = r % elementStridesC[j];
+            serialIdxD += r / elementStrides[j] * stridesD[j];
+            serialIdxC += r / elementStrides[j] * stridesC[j];
+            r = r % elementStrides[j];
           }
 
           bool equalC, equalD;
           equalD = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
-              deviceOnHostD[serialIdxC], referenceD[serialIdxC]);
+              deviceOnHostD[serialIdxD], referenceD[serialIdxD]);
           equalC = tensileAlmostEqual<DataType>( // need AlmostEqual for StaggerU
               deviceOnHostC[serialIdxC], referenceC[serialIdxC]);
           numChecked++;
@@ -1053,10 +1069,10 @@ bool benchmarkAllSolutionsForSize(
               }
               std::cout << "[" << (numChecked-1) << "] " 
                 << " e=" << e
-                << " serialIdxC=" << serialIdxC << ": "
-                << tensileToString(deviceOnHostD[serialIdxC])
-                << (equalD ? "==" : "!=") << tensileToString(referenceD[serialIdxC])
-                << " , "
+                << " serialIdxD=" << serialIdxD << ": "
+                << tensileToString(deviceOnHostD[serialIdxD])
+                << (equalD ? "==" : "!=") << tensileToString(referenceD[serialIdxD])
+                << " , serialIdxC=" << serialIdxC << ": "
                 << tensileToString(deviceOnHostC[serialIdxC])
                 << (equalC ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
                 << std::endl;
@@ -1317,7 +1333,7 @@ bool benchmarkProblemSizes(
     std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
       generatedCallToSolution( solutions[sIdx], &solutionLocks[sIdx], problemSizes[0], minStrides,
-          strideA, strideB, strideC, strideD, alpha, beta );
+          lda, ldb, ldc, ldd, strideA, strideB, strideC, strideD, alpha, beta );
       status = clFinish(stream); tensileStatusCheck(status);
       tensileStatusCheck(status);
       std::cout << ".";
