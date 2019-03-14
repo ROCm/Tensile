@@ -68,6 +68,9 @@ def processKernelSourceChunk(kernels,
 
     if pipe != None:
       pipe.send(results)
+    else:
+      return results
+
 
 
 # create and prepare the assembly directory  - called ONCE per output dir:
@@ -96,6 +99,39 @@ def prepAsm():
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0777)
+
+################################################################################
+# processResults
+# input: results is list with (err, src, header, kernelName)
+# Log errors and write appropriate info to kernelSourceFile and kernelHeaderFile
+################################################################################
+def processResults(results, outputPath, kernelsWithBuildErrs, \
+      kernelSourceFile, kernelHeaderFile):
+
+  for (err,src,header,kernelName) in results:
+    if err:
+      kernelsWithBuildErrs[kernelName] = err
+      #print "*** warning: invalid kernel#%s"%kernelName
+
+    # write kernel.cpp
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".cpp"), "w")
+      kernelSourceFile.write(CHeader)
+
+    kernelSourceFile.write(src)
+
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
+      # write kernel.h
+      kernelHeaderFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".h"), "w")
+      kernelHeaderFile.write(CHeader)
+
+    kernelHeaderFile.write(header)
+
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
@@ -131,8 +167,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
       kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
       kernelHeaderFile.write("\n\n")
       kernelHeaderFile.write("__device__ inline int GenDot4(int a, int b, int c) { \n")
-      kernelHeaderFile.write("  typedef struct { int c0:8,c1:8,c2:8,c3:8; } C4I8;\n")
-      kernelHeaderFile.write("  typedef union { int32_t i; C4I8 z; } PkInt8x4;\n")
+      kernelHeaderFile.write("  typedef union { int32_t i; char4 z; } PkInt8x4;\n")
       kernelHeaderFile.write("  PkInt8x4 va, vb; va.i = a; vb.i = b;\n")
 
       kernelHeaderFile.write("//if (__oclc_ISA_version == 906)\n")
@@ -141,7 +176,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
       kernelHeaderFile.write("//}\n")
       kernelHeaderFile.write("//else\n")
       kernelHeaderFile.write("//{\n")
-      kernelHeaderFile.write("      return c + (vb.z.c3*va.z.c3 + vb.z.c2*va.z.c2 + vb.z.c1*va.z.c1 + vb.z.c0*va.z.c0); }\n")
+      kernelHeaderFile.write("      return amd_mixed_dot(va.z, vb.z, c, true); }\n")
       kernelHeaderFile.write("//}\n")
       kernelHeaderFile.write("\n\n")
     else:
@@ -189,52 +224,34 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
         sys.stderr.write("  # launched process %s for kernels %d..%d\n" %(t, kiStart, kiStop-1))
 
     else: # non-threaded version
-      processKernelSourceChunk(kernels, kernelWriterSource, kernelWriterAssembly, \
+      results = processKernelSourceChunk(kernels, kernelWriterSource, kernelWriterAssembly, \
                                kiStart, kiStop, None)
+      if globalParameters["ShowProgressBar"]:
+        progressBar.increment(kiStop-kiStart)
+      processResults(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
+
     kiStart += workPerCpu
     cpu += 1
   sys.stderr.write("# Waiting for kernel compilation processes...\n")
 
   someError = 0
-  for (t,kiStart,kiStop,parentConn) in threads:
-    try:
-      results = parentConn.recv()
-    except EOFError as pipeErr:
-      print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
+  if cpus:
+    for (t,kiStart,kiStop,parentConn) in threads:
+      try:
+        results = parentConn.recv()
+      except EOFError as pipeErr:
+        print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
 
-    t.join()
-    e = t.exitcode
-    if e != 0 :
-      print  "*** warning: process", t, "returned",t,e
-      someError = 1
-      results = []
+      t.join()
+      e = t.exitcode
+      if e != 0 :
+        print  "*** warning: process", t, "returned",t,e
+        someError = 1
+        results = []
 
-    if globalParameters["ShowProgressBar"]:
-      progressBar.increment(kiStop-kiStart)
-    for (err,src,header,kernelName) in results:
-      if err:
-        kernelsWithBuildErrs[kernelName] = err
-        #print "*** warning: invalid kernel#%s"%kernelName
-
-      # write kernel.cpp
-      if not globalParameters["MergeFiles"]:
-        kernelSourceFile = open(os.path.join(outputPath, \
-            "Kernels", kernelName+".cpp"), "w")
-        kernelSourceFile.write(CHeader)
-
-      kernelSourceFile.write(src)
-
-      if not globalParameters["MergeFiles"]:
-        kernelSourceFile.close()
-        # write kernel.h
-        kernelHeaderFile = open(os.path.join(outputPath, \
-            "Kernels", kernelName+".h"), "w")
-        kernelHeaderFile.write(CHeader)
-
-      kernelHeaderFile.write(header)
-
-      if not globalParameters["MergeFiles"]:
-        kernelHeaderFile.close()
+      if globalParameters["ShowProgressBar"]:
+        progressBar.increment(kiStop-kiStart)
+      processResults(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if someError:
     print "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
@@ -383,6 +400,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
     argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
     argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
+    
+    # tensile initializer
+    h += "\nvoid tensileInitialize();\n\n"
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"
@@ -572,6 +592,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       logicSourceFile.write(s)
       logicSourceFile.close()
 
+  s += "\n"
+  s += writeTensileInitialize(logicData)
+
   # close merged files
   if globalParameters["MergeFiles"]:
     logicSourceFile = open(os.path.join(outputPath, \
@@ -589,6 +612,30 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.write(ih)
   internalHeaderFile.close()
 
+
+def writeTensileInitialize(logicData):
+
+  s = "/*******************************************************************************\n"
+  s += "* Tensilze initializer\n"
+  s += "*******************************************************************************/\n"
+  s += "void tensileInitialize() {\n"
+
+  for problemType in logicData:
+    s += "  masterSolutionMapper_%s.initialize();\n" % problemType
+    
+    for scheduleTuple in logicData[problemType]:
+      scheduleName  = scheduleTuple[0]
+      deviceNames   = scheduleTuple[1]
+
+
+      schedProbName = "%s_%s" % (scheduleName, problemType)
+      s += "  solutionMapper_%s.initializeMappers(" % (schedProbName)
+      s += "{%s}," % (', '.join('"{0}"'.format(w) for w in deviceNames))
+      s += "&masterSolutionMapper_%s);\n" % (problemType)
+      
+  s += "}"
+
+  return s
 
 def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
                                solutionsForSchedule, solutionNames, exactLogic):
@@ -640,8 +687,6 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   s += "// The entrypoint to find a solution for this problem is through the master solution master\n"
   s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
   s += "  \"%s\", // schedule+problem name\n" % (schedProbName) 
-  s += "  {%s}, // Device names\n" % (', '.join('"{0}"'.format(w) for w in deviceNames))
-  s += "  &masterSolutionMapper_%s, // add to this master solution mapper\n" % (problemType)
   s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
   s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
   s += "  &problemType_%s);\n" % (problemType)

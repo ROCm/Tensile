@@ -1118,6 +1118,8 @@ class Solution:
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
 
+    state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
+
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
     # grid size [0,1]
     problemType = state["ProblemType"]
@@ -1705,10 +1707,12 @@ class Solution:
 
 
     # avoid bug somehow related to GlobalSplitU + Persistent
+    # avoid bug related to WGM<0
     # avoid bug somehow related to HPA + Persistent
-    if state["PersistentKernel"] and \
+    if state["PersistentKernel"] and (\
             (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) :
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) or \
+            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) ):
       state["PersistentKernel"] = 0
 
     problemType["AssignedDerivedParameters"] = True
@@ -1773,7 +1777,7 @@ class Solution:
     if "MacroTile0" in state \
         and "MacroTile1" in state \
         and "DepthU" in state:
-      name += "%s%03ux%03ux%02u_" \
+      name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     if "LdcEqualsLdd" in state:
@@ -1860,7 +1864,7 @@ class Solution:
       return "1" if value else "0"
     elif isinstance(value, int):
       if value >= 0:
-        return "%02u" % value
+        return "%u" % value
       else: # -1 -> n1
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):

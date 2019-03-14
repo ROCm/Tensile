@@ -851,6 +851,11 @@ class KernelWriterSource(KernelWriter):
   def allocateResources(self, kernel):
     kStr = ""
 
+    kStr += "  unsigned int serial = %s(0);%s" \
+        % (self.getLocalIdStr, self.endLine)
+    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
+        % (self.tileChar0, self.tileChar1, self.endLine)
+
     ####################################
     # zero
     if kernel["ProblemType"]["DataType"].isHalf() \
@@ -941,17 +946,6 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Subgroup
-  ##############################################################################
-  def graSubgroup(self, kernel):
-    kStr = ""
-    kStr += "  unsigned int serial = %s(0);%s" \
-        % (self.getLocalIdStr, self.endLine)
-    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine)
-    return kStr
-
-  ##############################################################################
   # Global Read Addresses: Work-Group
   ##############################################################################
   def graWorkGroup(self, kernel):
@@ -959,32 +953,26 @@ class KernelWriterSource(KernelWriter):
 
     wg0 = "wg%s" % self.tileChar0
     wg1 = "wg%s" % self.tileChar1
-    nwgg = kernel["WorkGroupMapping"] > 0
+    nwgg = kernel["WorkGroupMapping"] >= 0
     n0 = 0 if nwgg else 1
     n1 = 1 if nwgg else 0
-
 
     if kernel["PersistentKernel"]:
       kStr += "  %s serialWgIter = %s(0);%s" \
         % (self.uint64Str, self.getGroupIdStr, self.endLine)
-      kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
-          % ( wg0, n0 , self.endLine)
-      kStr += "  unsigned int n%s = problemNumGroupTiles%u;%s" \
-          % ( wg1, n1 , self.endLine)
+      kStr += "  unsigned int n%s = problemNumGroupTiles0;%s" \
+          % ( wg0, self.endLine)
+      kStr += "  unsigned int n%s = problemNumGroupTiles1;%s" \
+          % ( wg1, self.endLine)
       kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
       kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
 
-      if kernel["GlobalSplitU"] > 1:
-        kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
-
-      # TODO - should the loop include the GSU calc?
-
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
       kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
-      kStr += "  %s  = serialWgIter %% problemNumGroupTiles%u;%s" \
-          % ( wg0, n0, self.endLine)
-      kStr += "  %s  = serialWgIter / problemNumGroupTiles%u;%s" \
-          % ( wg1, n0, self.endLine)
+      kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
+          % ( wg0, self.endLine)
+      kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
+          % ( wg1, self.endLine)
     else:
       # optionally transpose work-group grid
       kStr += "  unsigned int %s = %s(%u);%s" \
@@ -1494,6 +1482,12 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE *localRead%s;%s" % (self.sharedPtrStr, \
         tP["tensorChar"], self.endLine)
     return kStr
+
+  ##############################################################################
+  # openShadowInit
+  ##############################################################################
+  def openShadowInit(self, kernel):
+    return ""
 
   ##############################################################################
   # Initialize C
@@ -2242,6 +2236,12 @@ class KernelWriterSource(KernelWriter):
             #kStr += "printf(\"post: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalCK=%%u\\n\", serial, wg0I, wg1J, globalC0I, globalCK);%s" % (self.endLine)
 
     return kStr
+
+  ##############################################################################
+  # globalWriteWorkGroupInit:
+  ##############################################################################
+  def globalWriteWorkGroupInit(self, kernel):
+    return ""
 
   ##############################################################################
   # LocalSplitU: Global Write Indices

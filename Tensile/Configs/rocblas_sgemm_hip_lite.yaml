@@ -169,7 +169,7 @@ BenchmarkProblems:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [-4]
+        - WorkGroupMapping: [4]
         - GlobalSplitU: [1]
         - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
