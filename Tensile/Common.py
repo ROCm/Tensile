@@ -676,7 +676,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
-    {"PrefetchAcrossPersistent":  [ 1 ] },
+    {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },

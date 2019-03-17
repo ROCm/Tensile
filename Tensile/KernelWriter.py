@@ -605,17 +605,20 @@ class KernelWriter:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
-        for iui in range(0,kernel["InnerUnroll"]):
-          if self.enable["LocalRead"]:
-            for plrIdx in range(0, kernel["PrefetchLocalRead"]):
-              kl.append(self.comment("local read prefetch a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
-              kl.append(self.comment("local read prefetch b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
-              kl.append(self.comment("local read inc a"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersA))
-              kl.append(self.comment("local read inc b"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersB))
+
+        # in some cases need an extra copy of the LDS read with appropriate double buffer offsets
+        for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
+          for iui in range(0,kernel["InnerUnroll"]):
+            if self.enable["LocalRead"]:
+              for plrIdx in range(0, kernel["PrefetchLocalRead"]):
+                kl.append(self.comment("local read prefetch a"))
+                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersA))
+                kl.append(self.comment("local read prefetch b"))
+                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersB))
+                kl.append(self.comment("local read inc a"))
+                kl.append(self.localReadInc(kernel, iui, tensorParametersA))
+                kl.append(self.comment("local read inc b"))
+                kl.append(self.localReadInc(kernel, iui, tensorParametersB))
       kl.append(self.closeSumAtLeastUnroll(kernel, True))
 
     # open unrolled summation loop
@@ -701,9 +704,9 @@ class KernelWriter:
           if self.enable["LocalRead"]:
             for plrIdx in range(0, kernel["PrefetchLocalRead"]):
               kl.append(self.comment("prefetch local a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
               kl.append(self.comment("prefetch local b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
               kl.append(self.comment1("local read increment a"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersA))
               kl.append(self.comment1("local read increment b"))
@@ -733,9 +736,9 @@ class KernelWriter:
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             localReads.addText(self.comment("local read a"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
 
             # Don't increment the LRO if we are going to reset them below:
             if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
@@ -827,9 +830,9 @@ class KernelWriter:
             # local read
             plrIdx = (unrollIter+pf) % (kernel["PrefetchLocalRead"] + 1)
             localReads.addText(self.comment("local read a"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
             if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
               localReads.addText(self.comment("unroll increments:"))
               localReads.addText(self.comment("local read inc a"))
@@ -927,9 +930,9 @@ class KernelWriter:
           if self.enable["LocalRead"]:
             if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
               kl.append(self.comment("local read a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
               kl.append(self.comment("local read b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
               kl.append(self.comment("local read inc a"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersA))
               kl.append(self.comment("local read inc b"))
@@ -1009,9 +1012,9 @@ class KernelWriter:
       for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
           kl.append(self.comment("local read a"))
-          kl.append(self.localReadDo(kernel, 0, iui, tensorParametersA))
+          kl.append(self.localReadDo(kernel, 0, iui, 0, tensorParametersA))
           kl.append(self.comment("local read b"))
-          kl.append(self.localReadDo(kernel, 0, iui, tensorParametersB))
+          kl.append(self.localReadDo(kernel, 0, iui, 0, tensorParametersB))
           kl.append(self.comment("local read inc a"))
           kl.append(self.localReadInc(kernel, iui, tensorParametersA))
           kl.append(self.comment("local read inc b"))
@@ -2036,7 +2039,7 @@ class KernelWriter:
   # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, tP):
+  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, epsi, tP):
     return ""
 
   ##############################################################################

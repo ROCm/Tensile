@@ -5323,8 +5323,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   # iui = Inner Unroll Idx
+  # epsi = expand pointer swap index. Only used for PAP
   ##############################################################################
-  def localReadDo(self, kernel, bufferIdx, iui, tP):
+  def localReadDo(self, kernel, bufferIdx, iui, epsi, tP):
 
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
