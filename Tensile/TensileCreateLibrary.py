@@ -95,7 +95,8 @@ def prepAsm():
     assemblerFile.write( \
       "${ASM} -x assembler -target amdgcn--amdhsa %s $@ -c -o $f.o $f.s\n" % \
       ("-mno-code-object-v3" if \
-      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] else ""))
+      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
+      globalParameters["CodeObjectVersion"] == "V2" else ""))
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0777)

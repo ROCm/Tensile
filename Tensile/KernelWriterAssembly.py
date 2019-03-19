@@ -1434,6 +1434,25 @@ class KernelWriterAssembly(KernelWriter):
   def macroRegister(self, name, value):
     return ".set %s, %s%s" % (name, value, self.endLine)
 
+  def v2Argument(self, name, size, align, valueKind, valueType, AddrSpaceQual = None):
+    kStr = ""
+    kStr += "      - Name:            %s\n" % name
+    kStr += "        Size:            %s\n" % size
+    kStr += "        Align:           %s\n" % align
+    kStr += "        ValueKind:       %s\n" % valueKind
+    kStr += "        ValueType:       %s\n" % valueType
+    if AddrSpaceQual != None:
+      kStr += "        AddrSpaceQual:   %s\n" % AddrSpaceQual
+    return kStr
+
+  def v3Argument(self, name, size, offset, valueKind, valueType):
+    kStr = ""
+    kStr += "      - value_kind:       %s\n" % valueKind
+    kStr += "        .offset:          %s\n" % offset
+    kStr += "        .size:            %s\n" % size
+    kStr += "        .value_type:      %s\n" % valueType
+    kStr += "        .name:            %s\n" % name
+    return kStr
 
   ##############################################################################
   # Function Prefix
@@ -1814,6 +1833,164 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
     kStr += self.comment1("UseSgprForGRO=%s" % kernel["UseSgprForGRO"])
 
+    if kernel["ProblemType"]["DataType"].isHalf():
+      if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        srcSize = "2"
+        srcAlign = "2"
+        srcValueType = "F16"
+        dstSize = "2"
+        dstAlign = "2"
+        dstValueType = "F16"
+        cptSize = "4"
+        cptAlign = "4"
+        cptValueType = "F32"
+      else:
+        srcSize = "2"
+        srcAlign = "2"
+        srcValueType = "F16"
+        dstSize = "2"
+        dstAlign = "2"
+        dstValueType = "F16"
+        cptSize = "2"
+        cptAlign = "2"
+        cptValueType = "F16"
+    
+    elif kernel["ProblemType"]["DataType"].isInt8x4():
+      srcSize = "1"
+      srcAlign = "1"
+      srcValueType = "I8"
+      dstSize = "4"
+      dstAlign = "4"
+      dstValueType = "I32"
+      cptSize = "4"
+      cptAlign = "4"
+      cptValueType = "I32"
+    
+    elif kernel["ProblemType"]["DataType"].isSingle():
+      srcSize = "4"
+      srcAlign = "4"
+      srcValueType = "F32"
+      dstSize = "4"
+      dstAlign = "4"
+      dstValueType = "F32"
+      cptSize = "4"
+      cptAlign = "4"
+      cptValueType = "F32"
+    
+    elif kernel["ProblemType"]["DataType"].isDouble():
+      srcSize = "8"
+      srcAlign = "8"
+      srcValueType = "F64"
+      dstSize = "8"
+      dstAlign = "8"
+      dstValueType = "F64"
+      cptSize = "8"
+      cptAlign = "8"
+      cptValueType = "F64"
+
+    if globalParameters["CodeObjectVersion"] == "V2":
+#     Codeobject V2 metadata
+      kStr += ".amd_amdgpu_hsa_metadata\n"
+      kStr += "Version: [ 1, 0 ]\n"
+      kStr += "Kernels:\n"
+      kStr += "  - Name: %s%s" % (self.kernelName, self.endLine)
+      kStr += "    SymbolName: '%s@kd'%s" % (self.kernelName, self.endLine)
+      kStr += "    Language: OpenCL C\n"
+      kStr += "    LanguageVersion: [ 2, 0 ]\n"
+      kStr += "    Args:\n"
+
+      kStr += self.v2Argument(                               'D', dstSize, dstAlign, "GlobalBuffer", dstValueType, "Generic")
+      kStr += self.v2Argument(                               'C', dstSize, dstAlign, "GlobalBuffer", dstValueType, "Generic")
+      kStr += self.v2Argument(                               'A', srcSize, srcAlign, "GlobalBuffer", srcValueType, "Generic")
+      kStr += self.v2Argument(                               'B', srcSize, srcAlign, "GlobalBuffer", srcValueType, "Generic")
+      kStr += self.v2Argument(                           "alpha", cptSize, cptAlign,      "ByValue", cptValueType)
+      kStr += self.v2Argument(                            "beta", cptSize, cptAlign,      "ByValue", cptValueType)
+      kStr += self.v2Argument(                       "strideC1J",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideCK",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideAL",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideAK",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideBL",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideBK",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                          "size0I",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                          "size1J",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                           "sizeK",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                           "sizeL",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                "staggerUIterParm",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(           "problemNumGroupTiles0",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(           "problemNumGroupTiles1",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument("magicNumberProblemNumGroupTiles0",     '4',      '4',      "ByValue",        "I32")
+
+      kStr += "    CodeProps:\n"
+      kStr += "      KernargSegmentSize: %u%s" % (kernArgBytes, self.endLine)
+      kStr += "      GroupSegmentFixedSize: %u%s" % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
+      kStr += "      PrivateSegmentFixedSize: %u%s" % ( 0, self.endLine )
+      kStr += "      KernargSegmentAlign:  %u%s" % ( 8, self.endLine )
+      kStr += "      WavefrontSize:        %u%s" % ( 64, self.endLine )
+      kStr += "      NumSGPRs:             %u%s" % ( self.totalSgprs, self.endLine )
+      kStr += "      NumVGPRs:             %u%s" % ( totalVgprs, self.endLine )
+      kStr += "      MaxFlatWorkGroupSize: %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], self.endLine )
+      kStr += ".end_amd_amdgpu_hsa_metadata\n"
+    else:
+#     Codeobject V3 metadata
+      kStr += ".amdgpu_metadata\n"
+      kStr += "---\n"
+      kStr += "amdhsa.version:\n"
+      kStr += "  - 1\n"
+      kStr += "  - 0\n"
+      kStr += "amdhsa.kernels:\n"
+      kStr += "  - .name: %s%s" % (self.kernelName, self.endLine)
+      kStr += "    .symbol: '%s.kd'%s" % (self.kernelName, self.endLine)
+      kStr += "    .kernarg_segment_size:       %u%s" % (kernArgBytes, self.endLine)
+      kStr += "    .group_segment_fixed_size:   %u%s" % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
+      kStr += "    .private_segment_fixed_size: %u%s" % ( 0, self.endLine )
+      kStr += "    .kernarg_segment_align:      %u%s" % ( 8, self.endLine )
+      kStr += "    .wavefront_size:             %u%s" % ( 64, self.endLine )
+      kStr += "    .sgpr_count:                 %u%s" % ( self.totalSgprs, self.endLine )
+      kStr += "    .vgpr_count:                 %u%s" % ( totalVgprs, self.endLine )
+      kStr += "    .max_flat_workgroup_size: %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], self.endLine )
+      kStr += "    .args:\n"
+      offset = 0;
+      kStr += self.v3Argument(                               'D', dstSize, offset, "GlobalBuffer", dstValueType)
+      offset = offset + int(dstSize)
+      kStr += self.v3Argument(                               'C', dstSize, offset, "GlobalBuffer", dstValueType)
+      offset = offset + int(dstSize)
+      kStr += self.v3Argument(                               'A', srcSize, offset, "GlobalBuffer", srcValueType)
+      offset = offset + int(srcSize)
+      kStr += self.v3Argument(                               'B', srcSize, offset, "GlobalBuffer", srcValueType)
+      offset = offset + int(srcSize)
+      kStr += self.v3Argument(                           "alpha", cptSize, offset,      "ByValue", cptValueType)
+      offset = offset + int(cptSize)
+      kStr += self.v3Argument(                            "beta", cptSize, offset,      "ByValue", cptValueType)
+      offset = offset + int(cptSize)
+      kStr += self.v3Argument(                       "strideC1J",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideCK",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideAL",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideAK",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideBL",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideBK",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                          "size0I",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                          "size1J",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                           "sizeK",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                           "sizeL",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                "staggerUIterParm",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(           "problemNumGroupTiles0",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(           "problemNumGroupTiles1",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument("magicNumberProblemNumGroupTiles0",     '4', offset,      "ByValue",        "I32")
+      kStr += "...\n"
+      kStr += ".end_amdgpu_metadata\n"
 
     kStr += self.comment3("Asm syntax workarounds")
     kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine

@@ -147,6 +147,8 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
+globalParameters["CodeObjectVersion"] = "V2"
+
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
