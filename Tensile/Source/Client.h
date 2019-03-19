@@ -389,15 +389,15 @@ bool callLibrary(
   if (specializeAB) {
     if (initA == 5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
-                      numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
-                      userSizes, indexAssignmentsA[problemTypeIdx]);
+                     numIndicesC[problemTypeIdx],
+                     numIndicesAB[problemTypeIdx],
+                     userSizes, indexAssignmentsA[problemTypeIdx]);
     }
     if (initB == 5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
-                      numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
-                      userSizes, indexAssignmentsB[problemTypeIdx]);
+                     numIndicesC[problemTypeIdx],
+                     numIndicesAB[problemTypeIdx],
+                     userSizes, indexAssignmentsB[problemTypeIdx]);
     }
     copyData<DataType> (initialA, initialB);
   }
@@ -1826,15 +1826,15 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 
       } else if (keyLdb == argv[argIdx]) {
         argIdx++;
-        lda = static_cast<unsigned int>(atoi(argv[argIdx]));
+        ldb = static_cast<unsigned int>(atoi(argv[argIdx]));
 
       } else if (keyLdc == argv[argIdx]) {
         argIdx++;
-        lda = static_cast<unsigned int>(atoi(argv[argIdx]));
+        ldc = static_cast<unsigned int>(atoi(argv[argIdx]));
 
       } else if (keyLdd == argv[argIdx]) {
         argIdx++;
-        lda = static_cast<unsigned int>(atoi(argv[argIdx]));
+        ldd = static_cast<unsigned int>(atoi(argv[argIdx]));
 
       } else if (keyStrideA == argv[argIdx]) {
         argIdx++;

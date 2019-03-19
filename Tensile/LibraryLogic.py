@@ -1254,7 +1254,7 @@ class LogicAnalyzer:
   # TODO, this may depend on transposes
   def recommendedIndexOrder(self):
     order = []
-    for i in range(0, self.numIndices):
+    for i in range(0, self.problemType["TotalIndices"]):
       if i != self.idxU and i != self.idx1 and i != self.idx0:
         order.append(i)
     order.append(self.idxU)
