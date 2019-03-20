@@ -40,6 +40,8 @@ namespace Tensile
             virtual std::string type() const = 0;
 
             virtual double operator()(std::vector<size_t> const& a, std::vector<size_t> const& b) const = 0;
+
+            virtual ~Distance() = default;
         };
 
         template <typename Value>
