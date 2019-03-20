@@ -3465,7 +3465,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_cmp_lt_u32", \
           sgpr(mask,2),
           vgpr("Serial"), \
-          sgpr(mask,2),
+          sgpr(mask,1),
           "fractional-overhang: some wi write to harmless LDS location")
       if kernel["FractionalLoad"] == 1:
         kStr += inst("v_cndmask_b32", \
