@@ -6860,13 +6860,14 @@ class KernelWriterAssembly(KernelWriter):
 
           if edge:
             kStr += inst("v_cndmask_b32", vgpr(addr), -1, vgpr(addr), sgpr(mask,2), "clip if OOB. offset")
-        else:
-          offsetSrc = (tmpVgpr+2) if beta else addr
 
-          kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrD+0), \
-              vgpr(offsetSrc+0), "addr = D + index*bytes (lo)" )
-          kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrD+1), \
-              vgpr(offsetSrc+1), "vcc", "addr = D + index*bytes (hi)")
+      if not kernel["BufferStore"]:
+        offsetSrc = (tmpVgpr+2) if beta else addr
+
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrD+0), \
+            vgpr(offsetSrc+0), "addr = D + index*bytes (lo)" )
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrD+1), \
+            vgpr(offsetSrc+1), "vcc", "addr = D + index*bytes (hi)")
 
       # restore full exec mask for calculating addr of next element
       if not kernel["BufferStore"] and edge and (beta or atomic):
