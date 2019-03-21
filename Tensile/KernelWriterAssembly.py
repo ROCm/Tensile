@@ -5634,10 +5634,18 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
         kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
-        kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
-        kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
         kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
         kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
+
+        if not kernel["LdcEqualsLdd"]:
+          # These are constant across all workitems, just add to the SRD:
+          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesD+%u"%(i-1)), "Scale %s by Stride"%coord)
+          #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
+          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
+
+        kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
+        kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
+
         kStr += "\n"
 
     return kStr
@@ -6727,7 +6735,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["BufferStore"]:
         if kernel["LdcEqualsLdd"] or beta or atomic:
-          if optStoreAddrVgpr and self.ss.firstBatch and elementIdx == 0:
+          if optStoreAddrVgpr and ((not kernel["LdcEqualsLdd"]) or self.ss.firstBatch) and elementIdx == 0:
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(addr), \
                 vgpr(self.cinRowStart), \
@@ -6826,6 +6834,8 @@ class KernelWriterAssembly(KernelWriter):
         addrCalc = elementAddr[elementIdx]
         if optStoreAddrVgpr and addrCalc.rowInc:
           kStr += addrCalc.incrementToNextRow("C", optStoreAddrVgpr, tmpS01)
+          #if not kernel["LdcEqualsLdd"]:
+          #  kStr += addrCalc.incrementToNextRow("D", optStoreAddrVgpr, tmpS01)
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
@@ -6842,7 +6852,7 @@ class KernelWriterAssembly(KernelWriter):
       # Set write address to D
       if not kernel["LdcEqualsLdd"]:
         if kernel["BufferStore"]:
-          if optStoreAddrVgpr and self.ss.firstBatch and elementIdx == (len(batchElements) - 1):
+          if optStoreAddrVgpr and elementIdx == (len(batchElements) - 1):
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(addr), \
                 vgpr(self.coutRowStart), \
