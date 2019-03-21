@@ -25,20 +25,24 @@ import YAMLIO
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
 from KernelWriterAssembly import KernelWriterAssembly
-import multiprocessing
+import Utils
 
-import os
-import sys
-import os.path
-import argparse
 from shutil import copy as shutil_copy
+
+import argparse
+import itertools
+import multiprocessing
+import os
+import subprocess
+import sys
 import time
 
 
 ################################################################################
-# Process a single kernel, return results:
-################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
+    """
+    Process a single kernel, return results.
+    """
     kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
     kernelName = kernelWriter.getKernelName(kernel)
@@ -49,32 +53,29 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
 
     return (err, src, header, kernelName)
 
+def processKernelSourceWithArgs(args):
+    """
+    Multiprocessing aid.  Wraps up processKernelSource and takes only a single argument.
+    """
+    return processKernelSource(*args)
+
+def linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
+    kernelsToLink = [kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly']
+    asmDir = kernelWriterAssembly.getAssemblyDirectory()
+
+    objectFiles = [os.path.join(asmDir, k + '.o') for k in kernelsToLink]
+
+    coFile = os.path.join(outputPath, 'TensileLibrary.co')
+
+    args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
+
+    subprocess.check_call(args)
 
 ################################################################################
-# Process a range of kernels:
-# kLock is for the kernel file - is this used?
-# pLock is for the progress bar
-
-################################################################################
-def processKernelSourceChunk(kernels,
-                             kernelWriterSource, kernelWriterAssembly, \
-                             kiStart, kiStop, pipe):
-
-    results = []
-
-    for ki in range(kiStart, kiStop):
-      kernel = kernels[ki]
-      results.append (processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly)) # returns err, src, header, kernelName
-
-    if pipe != None:
-      pipe.send(results)
-    else:
-      return results
-
-
-
-# create and prepare the assembly directory  - called ONCE per output dir:
 def prepAsm():
+  """
+  Create and prepare the assembly directory  - called ONCE per output dir:
+  """
   asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
   assemblerFileName = os.path.join(asmPath, \
       "asm.%s"%("bat" if os.name=="nt" else "sh"))
@@ -101,12 +102,18 @@ def prepAsm():
   os.chmod(assemblerFileName, 0777)
 
 ################################################################################
-# processResults
-# input: results is list with (err, src, header, kernelName)
-# Log errors and write appropriate info to kernelSourceFile and kernelHeaderFile
-################################################################################
-def processResults(results, outputPath, kernelsWithBuildErrs, \
+def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       kernelSourceFile, kernelHeaderFile):
+  """
+  Logs errors and writes appropriate info to kernelSourceFile and kernelHeaderFile.
+
+  Arguments:
+    results:              list of (err, src, header, kernelName)
+    outputPath:           path to source directory
+    kernelsWithBuildErrs: Dictionary to be updated with kernels that have errors
+    kernelSourceFile:     File to write source data to
+    kernelHeaderFile:     File to write header data to
+  """
 
   for (err,src,header,kernelName) in results:
     if err:
@@ -143,9 +150,6 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
-
-  if globalParameters["ShowProgressBar"]:
-    progressBar = ProgressBar(len(kernels))
 
   ##############################################################################
   # Write Kernels
@@ -189,72 +193,32 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
   if globalParameters["CpuThreads"] == 0:
     cpus = 0
-  elif globalParameters["CodeFromFiles"]:
+  else:
     cpu_count = multiprocessing.cpu_count()
     cpuThreads = globalParameters["CpuThreads"]
     cpus = cpu_count*abs(cpuThreads) if cpuThreads < 0 \
            else min(cpu_count, cpuThreads)
-  else: #! CodeFromFiles is not thread-safe since code merged into same file
-    cpus = 1
 
-  workPerCpu = max(10, (len(kernels)+cpus-1)/cpus) if cpus else 1
+  kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
+  if cpus > 1:
+    print "# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels))
 
-  kiStart = 0
-  cpu = 0
-  threads = []
-  if 1 and cpus and globalParameters["ShowProgressBar"]:
-    print "# Launching kernel compilation processes (cpus=%u kernelsPerCpu=%u)" % (cpus, workPerCpu)
-    processLaunchProgressBar = ProgressBar(len(kernels))
+    pool = multiprocessing.Pool(cpus)
+
+    results = pool.map(processKernelSourceWithArgs, kIter)
+
+    pool.close()
   else:
-    print "# Compiling kernels (no multiprocessing, cpus=%u #kernels=%u)" % (cpus, workPerCpu)
-    processLaunchProgressBar = None
-  while kiStart < len(kernels):
-    kiStop = min(len(kernels), kiStart + workPerCpu)
-    if cpus:
-      results = []
-      parentConn,child  = multiprocessing.Pipe()
-      args=(kernels, kernelWriterSource, kernelWriterAssembly, \
-            kiStart, kiStop, child)
-      t = multiprocessing.Process(target=processKernelSourceChunk, args=args)
-      t.start()
-      child.close() # close child pipe in the parent process
-      threads.append([t,kiStart,kiStop, parentConn])
-      if processLaunchProgressBar:
-        processLaunchProgressBar.increment(kiStop-kiStart)
-      else:
-        sys.stderr.write("  # launched process %s for kernels %d..%d\n" %(t, kiStart, kiStop-1))
+    print "# Compiling kernels (no multiprocessing, kernels=%u)" % (len(kernels))
+    if globalParameters['ShowProgressBar']:
+      kIter = Utils.tqdm(kIter)
 
-    else: # non-threaded version
-      results = processKernelSourceChunk(kernels, kernelWriterSource, kernelWriterAssembly, \
-                               kiStart, kiStop, None)
-      if globalParameters["ShowProgressBar"]:
-        progressBar.increment(kiStop-kiStart)
-      processResults(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
+    results = map(processKernelSourceWithArgs, kIter)
 
-    kiStart += workPerCpu
-    cpu += 1
-  sys.stderr.write("# Waiting for kernel compilation processes...\n")
+  buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
-  someError = 0
-  if cpus:
-    for (t,kiStart,kiStop,parentConn) in threads:
-      try:
-        results = parentConn.recv()
-      except EOFError as pipeErr:
-        print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
 
-      t.join()
-      e = t.exitcode
-      if e != 0 :
-        print  "*** warning: process", t, "returned",t,e
-        someError = 1
-        results = []
-
-      if globalParameters["ShowProgressBar"]:
-        progressBar.increment(kiStop-kiStart)
-      processResults(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
-
-  if someError:
+  if len(kernelsWithBuildErrs) > 0:
     print "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
     printExit("** kernel compilation failure **")
 
@@ -288,6 +252,8 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   # close merged
   if globalParameters["MergeFiles"]:
     kernelHeaderFile.close()
+
+  linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print "# Kernel Building elapsed time = %.1f secs" % (stop-start)
@@ -866,9 +832,10 @@ def TensileCreateLibrary():
   ##############################################################################
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
-  for logicFileName in logicFiles:
+  newMasterLibrary = None
+  for logicFileName in Utils.tqdm(logicFiles, "Reading logic files"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-        indexOrder, exactLogic, rangeLogic) \
+        indexOrder, exactLogic, rangeLogic, newLibrary) \
         = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType not in logicData:
       logicData[problemType] = []
@@ -877,6 +844,11 @@ def TensileCreateLibrary():
     for solution in solutionsForSchedule:
       if solution not in solutions:
         solutions.append(solution)
+
+    if newMasterLibrary is None:
+        newMasterLibrary = newLibrary
+    else:
+        newMasterLibrary.merge(newLibrary)
 
   # create solution writer and kernel writer
   kernels = []
@@ -929,6 +901,11 @@ def TensileCreateLibrary():
 
   # write logic
   writeLogic(outputPath, logicData, solutionWriter)
+
+  masterFile = os.path.join(outputPath, "TensileLibrary.yaml")
+  newMasterLibrary.applyNaming(kernelMinNaming)
+  YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
+
   print1("# Tensile Library Writer DONE")
   print1(HR)
   print1("")

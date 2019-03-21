@@ -21,6 +21,7 @@ if(USE_LLVM)
     set(test_sources ${test_sources}
         llvm/LLVMYAMLContraction_test.cpp
         ContractionLibraryLoading_test.cpp
+        llvm/LibraryPerformance_test.cpp
         )
 endif()
 

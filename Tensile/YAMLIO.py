@@ -21,6 +21,7 @@
 from Common import print1, print2, printExit, printWarning, versionIsCompatible
 from SolutionStructs import Solution, ProblemSizes, ProblemType
 from __init__ import __version__
+import SolutionLibrary
 
 import os
 try:
@@ -41,6 +42,11 @@ def readConfig( filename ):
   stream.close()
   return config
 
+def write(filename, data):
+    """ Write data to a given file. """
+
+    with open(filename, 'w') as f:
+        yaml.dump(data, f)
 
 ################################################################################
 # Write List of Solutions to YAML File
@@ -195,6 +201,8 @@ def readLibraryLogicForSchedule( filename ):
   exactLogic        = data[7]
   rangeLogic        = data[8]
 
+  newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data)
+
   # does version match
   if not versionIsCompatible(versionString):
     printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
@@ -220,4 +228,4 @@ def readLibraryLogicForSchedule( filename ):
     solutions.append(solutionObject)
 
   return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-      exactLogic, rangeLogic )
+      exactLogic, rangeLogic, newLibrary)

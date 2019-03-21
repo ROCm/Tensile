@@ -56,9 +56,24 @@ namespace Tensile
                                                     Hardware const& hardware) const;
 
         template <typename TypedInputs>
+        std::vector<KernelInvocation> solveTyped(Problem     const& problem,
+                                                 TypedInputs const& inputs,
+                                                 Hardware    const& hardware) const;
+    
+        template <typename TypedInputs>
         KernelInvocation generateSingleCall(Problem     const& problem,
                                             TypedInputs const& inputs,
                                             Hardware    const& hardware) const;
+
+        template <typename TypedInputs>
+        KernelInvocation generateBetaOnlyCall(Problem     const& problem,
+                                              TypedInputs const& inputs,
+                                              Hardware    const& hardware) const;
+
+        template <typename TypedInputs>
+        std::string betaOnlyKernelName(Problem     const& problem,
+                                       TypedInputs const& inputs,
+                                       Hardware    const& hardware) const;
 
         struct SizeMapping
         {
@@ -100,7 +115,7 @@ namespace Tensile
 
         int32_t staggerUIter(Problem  const& problem,
                              Inputs   const& inputs,
-                             Hardware    const& hardware) const;
+                             Hardware const& hardware) const;
 
         uint32_t magicNumber(uint32_t x) const;
     };

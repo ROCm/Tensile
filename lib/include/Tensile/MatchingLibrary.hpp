@@ -37,11 +37,18 @@ namespace Tensile
     struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table = Matching::DistanceMatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
-        Table table;
+        using Table = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
+        std::shared_ptr<Table> table;
 
         static std::string Type() { return "Matching"; }
         virtual std::string type() const override { return Type(); }
+        virtual std::string description() const override
+        {
+            if(table == nullptr)
+                return concatenate(type(), ", table: nullptr");
+            else
+                return concatenate(type(), ": ", table->description());
+        }
 
         
         virtual std::shared_ptr<MySolution>
@@ -54,7 +61,7 @@ namespace Tensile
                     return library->findBestSolution(problem, hardware);
                 };
 
-            auto closestEntry = table.findBestMatch(problem, transform);
+            auto closestEntry = table->findBestMatch(problem, transform);
 
             return closestEntry;
         }
@@ -63,13 +70,22 @@ namespace Tensile
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
+            bool debug = Debug::Get().printPropertyEvaluation();
+
             SolutionSet<MySolution> rv;
 
-            for(auto const& row: table.table)
+            auto matches = table->matchesInOrder(problem);
+
+            for(auto const& row: matches)
             {
-                auto rowLibrary = row.value;
-                auto rowSolutions = rowLibrary->findAllSolutions(problem, hardware);
+                if(debug)
+                    std::cout << row->description() << std::endl;
+
+                auto rowSolutions = row->findAllSolutions(problem, hardware);
                 rv.insert(rowSolutions.begin(), rowSolutions.end());
+
+                if(debug)
+                    std::cout << std::endl;
             }
 
             return rv;

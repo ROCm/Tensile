@@ -29,13 +29,14 @@ namespace Tensile
 {
     namespace Matching
     {
-        struct RatioDistance: public Distance
+        template <typename Key>
+        struct RatioDistance: public Distance<Key>
         {
             enum { HasIndex = false, HasValue = false };
             static std::string  Type() { return "Ratio"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+            double operator() (Key const& p1, Key const& p2) const override
             {
                 double distance = 1.0;
                 for (int i=0; i<p1.size(); i++)
@@ -46,13 +47,14 @@ namespace Tensile
             }
         };
         
-        struct ManhattanDistance: public Distance
+        template <typename Key>
+        struct ManhattanDistance: public Distance<Key>
         {
             enum { HasIndex = false, HasValue = false };
             static std::string  Type() { return "Manhattan"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+            double operator() (Key const& p1, Key const& p2) const override
             {
                 double distance = 0;
                 for (int i=0; i<p1.size(); i++)
@@ -64,14 +66,15 @@ namespace Tensile
         };
         
         
-        struct EuclideanDistance: public Distance
+        template <typename Key>
+        struct EuclideanDistance: public Distance<Key>
         {
             enum { HasIndex = false, HasValue = false };
 
             static std::string  Type() { return "Euclidean"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+            double operator() (Key const& p1, Key const& p2) const override
             {
                 double distance = 0;
                 for (int i=0; i<p1.size(); i++)
@@ -82,14 +85,15 @@ namespace Tensile
             }
         };
         
-        struct RandomDistance: public Distance
+        template <typename Key>
+        struct RandomDistance: public Distance<Key>
         {
             enum { HasIndex = false, HasValue = false };
 
             static std::string  Type() { return "Random"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (std::vector<size_t> const& p1, std::vector<size_t> const& p2) const override
+            double operator() (Key const& p1, Key const& p2) const override
             {
                 return double(rand());
             }

@@ -46,7 +46,8 @@ target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/includ
 add_subdirectory(configs)
 
 if(USE_LLVM)
-target_link_libraries( Tensile PUBLIC LLVM )
+    #target_link_libraries( Tensile PUBLIC LLVM )
+    target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
 endif()
 
 if(HIP_FOUND)

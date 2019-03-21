@@ -75,12 +75,12 @@ namespace Tensile
         {
             if(m_debug)
             {
-                std::cout << "Kernel " << kernel.solution->name() << std::endl;
+                std::cout << "Kernel " << kernel.kernelName << std::endl;
                 std::cout << " l" << kernel.workGroupSize << " x g" << kernel.numWorkGroups << " = " << kernel.numWorkItems << std::endl;
                 std::cout << kernel.args;
             }
 
-            hipFunction_t function = getKernel(kernel.solution->name());
+            hipFunction_t function = getKernel(kernel.kernelName);
 
             void * kernelArgs = const_cast<void *>(kernel.args.data());
             size_t argsSize = kernel.args.size();
