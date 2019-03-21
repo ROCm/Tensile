@@ -44,35 +44,77 @@ namespace Tensile
     {
         static std::string Type() { return "ProblemMap"; }
         virtual std::string type() const override { return Type(); }
+        virtual std::string description() const override
+        {
+            if(property == nullptr)
+            {
+                return concatenate(type(), " (property: nullptr, ", map.size(), " rows)");
+            }
+            else
+            {
+                return concatenate(type(), " (property: ", property->toString(), ", ", map.size(), " rows)");
+            }
+        }
 
-        std::shared_ptr<Property<MyProblem, Key>> property;
-        LibraryMap<MyProblem, MySolution, Key> map;
+        LibraryEntry<MyProblem, MySolution> lookup(MyProblem const& problem,
+                                                   Hardware  const& hardware) const
+        {
+            auto key = (*property)(problem);
+            auto iter = map.find(key);
+
+            bool debug = Debug::Get().printPropertyEvaluation();
+            if(debug)
+            {
+                std::cout << type() << " Searching for " << key;
+
+                if(iter == map.end())
+                {
+                    std::cout << " (not found).  Available keys:" << std::endl;
+                    for(auto const& pair: map)
+                    {
+                        std::cout << "  " << pair.first << std::endl;
+                    }
+                }
+                else
+                {
+                    std::cout << " found " << iter->second->description();
+                }
+
+                std::cout << std::endl;
+            }
+
+            if(iter == map.end())
+                return nullptr;
+
+            return iter->second;
+        }
 
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            auto key = (*property)(problem);
-            auto iter = map.find(key);
+            auto library = lookup(problem, hardware);
 
-            if(iter == map.end())
+            if(library == nullptr)
                 return std::shared_ptr<MySolution>();
 
-            return iter->second->findBestSolution(problem, hardware);
+            return library->findBestSolution(problem, hardware);
         }
 
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            auto key = (*property)(problem);
-            auto iter = map.find(key);
+            auto library = lookup(problem, hardware);
 
-            if(iter == map.end())
+            if(library == nullptr)
                 return SolutionSet<MySolution>();
 
-            return iter->second->findAllSolutions(problem, hardware);
+            return library->findAllSolutions(problem, hardware);
         }
+
+        std::shared_ptr<Property<MyProblem, Key>> property;
+        LibraryMap<MyProblem, MySolution, Key> map;
     };
 }
 

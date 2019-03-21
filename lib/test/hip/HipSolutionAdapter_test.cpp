@@ -223,8 +223,7 @@ TEST_P(ContractionTest, Library)
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
     hip::SolutionAdapter adapter(true);
-    adapter.loadCodeObjectFile(
-            "configs/TensileKernels.co");
+    adapter.loadCodeObjectFile("configs/TensileKernels.co");
 
     adapter.launchKernels(result);
 
@@ -268,8 +267,7 @@ TEST_P(ContractionTest, KernelsLite)
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(
-            "configs/KernelsLite.co");
+    adapter.loadCodeObjectFile("configs/KernelsLite.co");
 
     adapter.launchKernels(result);
 
@@ -302,7 +300,10 @@ TEST_P(ContractionTest, KernelsLiteExhaustive)
 {
     ContractionProblem problem = GetParam();
 
-    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/KernelsLite.yaml");
+    auto library = LoadLibraryFile<ContractionProblem>("configs/lite_library/Tensile/TensileLibrary.yaml");
+
+    hip::SolutionAdapter adapter(false);
+    adapter.loadCodeObjectFile("configs/lite_library/Tensile/TensileLibrary.co");
 
     ASSERT_NE(library, nullptr);
 
@@ -317,10 +318,6 @@ TEST_P(ContractionTest, KernelsLiteExhaustive)
         std::cout << solution->name() << std::endl;
 
         std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
-
-        hip::SolutionAdapter adapter(false);
-        adapter.loadCodeObjectFile(
-                "configs/KernelsLite.co");
 
         //OldTensile::CallOldTensile(problem.transA(), problem.transB(),
         //                           inputs.d, inputs.c, inputs.a, inputs.b,

@@ -68,7 +68,7 @@ namespace Tensile
 
         rv.args = KernelArguments(true);
 
-        rv.solution = this;
+        rv.kernelName = kernelName;
 
         rv.workGroupSize.x = sizeMapping.workGroupSize.x
                            * sizeMapping.workGroupSize.y
@@ -140,27 +140,101 @@ namespace Tensile
         return rv;
     }
 
+    template <typename TypedInputs>
+    KernelInvocation ContractionSolution::generateBetaOnlyCall(Problem     const& problem,
+                                                               TypedInputs const& inputs,
+                                                               Hardware    const& hardware) const
+    {
+        KernelInvocation rv;
+
+        rv.args = KernelArguments(true);
+
+        rv.kernelName = betaOnlyKernelName(problem, inputs, hardware);
+
+        rv.workGroupSize.x = 8;
+        rv.workGroupSize.y = 8;
+        rv.workGroupSize.z = 1;
+
+        rv.numWorkGroups.x = CeilDivide(problem.c().sizes()[0], rv.workGroupSize.x);
+        rv.numWorkGroups.y = CeilDivide(problem.c().sizes()[1], rv.workGroupSize.y);
+        rv.numWorkGroups.z = problem.c().sizes()[2];
+
+        rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
+        rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
+        rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
+
+        rv.args.append<typename TypedInputs::DType      *>("D", inputs.d);
+        rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+
+        rv.args.append<uint32_t>("strideC1", problem.d().strides()[1]);
+        rv.args.append<uint32_t>("strideC2", problem.d().strides()[2]);
+
+        rv.args.append<uint32_t>("sizeI", problem.freeSizeA(0));
+        rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));
+        rv.args.append<uint32_t>("sizeK", problem.batchSize(0));
+
+        if(inputs.beta == static_cast<typename TypedInputs::BetaType>(0))
+        {
+            rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+        }
+
+        return rv;
+    }
+
+    template <typename TypedInputs>
+    std::string ContractionSolution::betaOnlyKernelName(Problem     const& problem,
+                                                        TypedInputs const& inputs,
+                                                        Hardware    const& hardware) const
+    {
+        if(inputs.beta == static_cast<typename TypedInputs::BetaType>(0))
+        {
+            return "Cijk_S";
+        }
+        else
+        {
+            return "Cijk_SB";
+        }
+    }
+
+    template <typename TypedInputs>
+    std::vector<KernelInvocation>
+    ContractionSolution::solveTyped(Problem     const& problem,
+                                    TypedInputs const& inputs,
+                                    Hardware    const& hardware) const
+    {
+        std::vector<KernelInvocation> rv;
+
+        if(sizeMapping.globalSplitU > 1)
+            rv.reserve(2);
+        else
+            rv.reserve(1);
+
+        if(sizeMapping.globalSplitU > 1)
+            rv.push_back(generateBetaOnlyCall(problem, inputs, hardware));
+
+        rv.push_back(generateSingleCall(problem, inputs, hardware));
+
+        return rv;
+    }
+
+
     std::vector<KernelInvocation>
     ContractionSolution::solve(ContractionSolution::Problem const& problem,
                                ContractionSolution::Inputs  const& inputs,
                                Hardware                     const& hardware) const
     {
-        std::vector<KernelInvocation> rv;
-
         if(problemType.aType == DataType::Float
         && problemType.bType == DataType::Float
         && problemType.cType == DataType::Float
         && problemType.dType == DataType::Float)
         {
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
-            rv.push_back(generateSingleCall(problem, typedInputs, hardware));
+            return solveTyped(problem, typedInputs, hardware);
         }
         else
         {
             throw std::runtime_error("Data type not implemented.");
         }
-
-        return rv;
     }
 
 }

@@ -451,6 +451,34 @@ class KernelWriterAssembly(KernelWriter):
     for i in range(85, 128+1): self.vgprOccupancy[i] = 2
     for i in range(129,256+1): self.vgprOccupancy[i] = 1
 
+  def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs):
+    isa = self.version
+    archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
+
+    rv = [globalParameters['AssemblerPath'],
+          '-x', 'assembler',
+          '-target', 'amdgcn--amdhsa']
+
+    if archHasV3:
+      rv += ['-mno-code-object-v3']
+
+    rv += ['-mcpu=gfx' + ''.join(map(str,isa))]
+
+    rv += moreArgs
+
+    rv += ['-c', '-o', objectFileName, sourceFileName]
+
+    return rv
+
+  def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
+    rv = [globalParameters['AssemblerPath'],
+          '-target', 'amdgcn--amdhsa']
+
+    rv += moreArgs
+
+    rv += ['-o', coFileName] + objectFileNames
+
+    return rv
 
   ########################################
   def getOccupancy(self, kernel, vgprs):

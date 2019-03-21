@@ -57,7 +57,7 @@ namespace Tensile
     struct KernelInvocation
     {
     public:
-        Solution const * solution;
+        std::string kernelName;
 
         dim3 workGroupSize;
         dim3 numWorkGroups;

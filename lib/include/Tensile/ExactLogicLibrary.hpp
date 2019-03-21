@@ -98,6 +98,11 @@ namespace Tensile
 
             return rv;
         }
+
+        virtual std::string description() const override
+        {
+            return concatenate(this->type(), " library (", rows.size(), " rows)");
+        }
     };
 
     struct HardwarePredicate
@@ -145,7 +150,7 @@ namespace Tensile
         }
 
         static std::string Type() { return "Hardware"; }
-        virtual std::string type() const { return Type(); }
+        virtual std::string type() const override { return Type(); }
     };
 
     template <typename MyProblem>

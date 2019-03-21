@@ -30,6 +30,7 @@
 #include <set>
 
 #include <Tensile/Tensile.hpp>
+#include <Tensile/Debug.hpp>
 
 namespace Tensile
 {
@@ -53,6 +54,7 @@ namespace Tensile
                              Hardware  const& hardware) const = 0;
 
         virtual std::string type() const = 0;
+        virtual std::string description() const = 0;
     };
 
     template <typename MyProblem, typename MySolution>
@@ -60,6 +62,21 @@ namespace Tensile
     {
         static std::string Type() { return "Single"; }
         std::string type() const override { return Type(); }
+        std::string description() const override
+        {
+            std::string rv = type();
+            if(solution != nullptr)
+            {
+                rv += ": ";
+                rv += solution->name();
+            }
+            else
+            {
+                rv += " (nullptr)";
+            }
+
+            return rv;
+        }
 
         std::shared_ptr<MySolution> solution;
 
@@ -73,10 +90,22 @@ namespace Tensile
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
+            bool debug = Debug::Get().printPredicateEvaluation();
+
             if(solution)
             {
+                if(debug)
+                {
+                    solution->hardwarePredicate->debugEval(hardware, std::cout);
+                    solution->problemPredicate->debugEval(problem, std::cout);
+                }
+
                 if((*solution->hardwarePredicate)(hardware) && (*solution->problemPredicate)(problem))
                     return solution;
+            }
+            else if(debug)
+            {
+                std::cout << " (empty library)";
             }
 
             return std::shared_ptr<MySolution>();
@@ -86,7 +115,18 @@ namespace Tensile
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
+
             auto result = findBestSolution(problem, hardware);
+
+            bool debug = Debug::Get().printPredicateEvaluation();
+            if(debug)
+            {
+                if(result)
+                    std::cout << " (match)";
+                else
+                    std::cout << " (no match)";
+            }
+
             if(result) return SolutionSet<MySolution>({result});
 
             return SolutionSet<MySolution>();
@@ -98,6 +138,13 @@ namespace Tensile
     {
         static std::string Type() { return "Master"; }
         std::string type() const override { return Type(); }
+        std::string description() const override
+        {
+            if(library == nullptr)
+                return concatenate(type(), " (", solutions.size(), " solutions, next level: nullptr)");
+            else
+                return concatenate(type(), " (", solutions.size(), " solutions, next level: ", library->type(), ")");
+        }
 
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         SolutionMap<MySolution> solutions;

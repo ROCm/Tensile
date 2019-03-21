@@ -42,6 +42,13 @@ namespace Tensile
 
         static std::string Type() { return "Matching"; }
         virtual std::string type() const override { return Type(); }
+        virtual std::string description() const override
+        {
+            if(table == nullptr)
+                return concatenate(type(), ", table: nullptr");
+            else
+                return concatenate(type(), ": ", table->description());
+        }
 
         
         virtual std::shared_ptr<MySolution>
@@ -63,15 +70,23 @@ namespace Tensile
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
+            bool debug = Debug::Get().printPropertyEvaluation();
+
             SolutionSet<MySolution> rv;
 
-            /*
-            for(auto const& row: table->table)
+            auto matches = table->matchesInOrder(problem);
+
+            for(auto const& row: matches)
             {
-                auto rowLibrary = row.value;
-                auto rowSolutions = rowLibrary->findAllSolutions(problem, hardware);
+                if(debug)
+                    std::cout << row->description() << std::endl;
+
+                auto rowSolutions = row->findAllSolutions(problem, hardware);
                 rv.insert(rowSolutions.begin(), rowSolutions.end());
-            }*/
+
+                if(debug)
+                    std::cout << std::endl;
+            }
 
             return rv;
         }

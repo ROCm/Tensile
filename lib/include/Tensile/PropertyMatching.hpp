@@ -70,22 +70,33 @@ namespace Tensile
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
+            virtual std::string description() const = 0;
+
             Properties properties;
         };
 
+        /**
+         * This exists to provide an abstraction around the different syntax of creating a vector of a size given 
+         * at runtime vs. creating an array with a fixed size.
+         */
         template <typename Key>
-        struct KeyInitializer
+        struct KeyFactory
         {
-            static Key InitializeKey(size_t size)
+        };
+
+        template <typename T>
+        struct KeyFactory<std::vector<T>>
+        {
+            static std::vector<T> MakeKey(size_t size)
             {
-                return Key(size);
+                return std::vector<T>(size);
             }
         };
 
         template <typename T, size_t N>
-        struct KeyInitializer<std::array<T, N>>
+        struct KeyFactory<std::array<T, N>>
         {
-            static std::array<T, N> InitializeKey(size_t size)
+            static std::array<T, N> MakeKey(size_t size)
             {
                 return std::array<T, N>();
             }
@@ -213,7 +224,7 @@ namespace Tensile
             {
                 bool debug = Debug::Get().printPropertyEvaluation();
 
-                Key myKey = KeyInitializer<Key>::InitializeKey(this->properties.size());
+                Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
 
                 for(int i = 0; i < this->properties.size(); i++)
                     myKey[i] = (*this->properties[i])(object);
@@ -237,6 +248,19 @@ namespace Tensile
             {
                 return keyMatchesInOrder(keyForProblem(object));
             }
+
+            virtual std::string description() const override
+            {
+                std::string rv = concatenate("Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
+
+                if(distance != nullptr)
+                    rv += concatenate("Distance: ", distance->type());
+                else
+                    rv += "Distance: nullptr";
+
+                return rv;
+            }
+
             std::vector<Entry> table;
             std::shared_ptr<Distance<Key>> distance;
 
