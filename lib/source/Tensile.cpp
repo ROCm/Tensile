@@ -29,10 +29,20 @@
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
 
+#ifdef TENSILE_DEFAULT_SERIALIZATION
 #include <Tensile/llvm/Loading.hpp>
+#endif
 
 namespace Tensile
 {
+    TENSILE_API Problem::~Problem() = default;
+    TENSILE_API ProblemInputs::~ProblemInputs() = default;
+    TENSILE_API Hardware::Hardware() = default;
+    TENSILE_API Hardware::~Hardware() = default;
+    TENSILE_API Solution::~Solution() = default;
+    TENSILE_API SolutionAdapter::~SolutionAdapter() = default;
+
+#ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename)
     {
@@ -42,4 +52,5 @@ namespace Tensile
     template
     std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
     LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+#endif
 }

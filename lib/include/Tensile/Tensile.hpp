@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 
+#include <Tensile/Macros.hpp>
 #include <Tensile/Tensile_fwd.hpp>
 #include <Tensile/SolutionLibrary_fwd.hpp>
 
@@ -39,22 +40,22 @@
 
 namespace Tensile
 {
-    class Problem
+    class TENSILE_API Problem
     {
     public:
-        virtual ~Problem() = default;
+        virtual ~Problem();
 
         virtual std::string description() const = 0;
     };
 
-    class ProblemInputs
+    class TENSILE_API ProblemInputs
     {
     public:
-        virtual ~ProblemInputs() = default;
+        virtual ~ProblemInputs();
 
     };
 
-    struct KernelInvocation
+    struct TENSILE_API KernelInvocation
     {
     public:
         std::string kernelName;
@@ -67,34 +68,37 @@ namespace Tensile
         KernelArguments args;
     };
 
-    class Hardware
+    class TENSILE_API Hardware
     {
     public:
-        virtual ~Hardware() = default;
+        Hardware();
+        virtual ~Hardware();
 
         virtual std::string description() const = 0;
     };
 
     /// Generally encapsulates a single kernel.
-    class Solution
+    class TENSILE_API Solution
     {
     public:
-        virtual ~Solution() = default;
+        virtual ~Solution();
 
         virtual std::string name() const = 0;
         virtual std::string description() const = 0;
 
     };
 
-    class SolutionAdapter
+    class TENSILE_API SolutionAdapter
     {
     public:
-        virtual ~SolutionAdapter() = default;
+        virtual ~SolutionAdapter();
 
         virtual std::string name() const = 0;
     };
 
+#ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename);
+    TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename);
+#endif
 }
 

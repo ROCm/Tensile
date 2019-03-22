@@ -19,3 +19,13 @@
  * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Tensile/TensorOps.hpp>
+
+namespace Tensile
+{
+    TensorOp::TensorOp() = default;
+    TensorOp::TensorOp(Type type)
+        : type(type)
+    {}
+}
+

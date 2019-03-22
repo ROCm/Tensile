@@ -35,7 +35,7 @@
 namespace Tensile
 {
 
-    class ContractionProblem: public Problem
+    class TENSILE_API ContractionProblem: public Problem
     {
     public:
         using Solution = ContractionSolution;
@@ -117,33 +117,6 @@ namespace Tensile
         std::string const& operationIdentifier()   const { return m_operationIdentifier; }
         std::string        operationDescription() const { return getOperationDescription(); }
 
-        /*
-        size_t blas_m()          const { return a.logicalCounts()[0]; }
-        size_t blas_n()          const { return b.logicalCounts()[1]; }
-        size_t blas_k()          const { return a.logicalCounts()[1]; }
-        size_t blas_batchCount() const { return a.logicalCounts()[2]; }
-
-        bool blas_transA() const;
-        bool blas_transB() const;
-
-        size_t tensile_I() const { return d.logicalCounts()[0]; }
-        size_t tensile_J() const { return d.logicalCounts()[1]; }
-        size_t tensile_K() const { return d.logicalCounts()[2]; }
-        size_t tensile_L() const { return a.logicalCounts()[1]; }
-
-        size_t tensile_strideA1() const;
-        size_t tensile_strideA2() const;
-
-        size_t tensile_strideB1() const;
-        size_t tensile_strideB2() const;
-
-        size_t tensile_strideC1() const;
-        size_t tensile_strideC2() const;
-
-        size_t tensile_strideD1() const;
-        size_t tensile_strideD2() const;
-        */
-
     private:
         TensorDescriptor m_a;
         TensorDescriptor m_b;
@@ -185,54 +158,12 @@ namespace Tensile
         std::string getOperationDescription() const;
     };
 
-    template <>
-    struct Comparison<ContractionProblem::FreeIndex>
-    {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::FreeIndex const& lhs, ContractionProblem::FreeIndex const& rhs)
-        {
-            return LexicographicCompare(lhs.da, rhs.da,
-                                        lhs.db, rhs.db,
-                                        lhs.ca, rhs.ca,
-                                        lhs.cb, rhs.cb,
-                                        lhs.a,  rhs.a,
-                                        lhs.b,  rhs.b);
-        }
-    };
-
-    template <>
-    struct Comparison<ContractionProblem::BatchIndex>
-    {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::BatchIndex const& lhs, ContractionProblem::BatchIndex const& rhs)
-        {
-            return LexicographicCompare(lhs.d, rhs.d,
-                                        lhs.c, rhs.c,
-                                        lhs.a, rhs.a,
-                                        lhs.b, rhs.b);
-        }
-    };
-
-    template <>
-    struct Comparison<ContractionProblem::BoundIndex>
-    {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::BoundIndex const& lhs, ContractionProblem::BoundIndex const& rhs)
-        {
-            return LexicographicCompare(lhs.a, rhs.a,
-                                        lhs.b, rhs.b);
-        }
-    };
-
-    struct ContractionInputs: public ProblemInputs
+    struct TENSILE_API ContractionInputs: public ProblemInputs
     {
     };
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    struct TypedContractionInputs: public ContractionInputs
+    struct TENSILE_API TypedContractionInputs: public ContractionInputs
     {
         using AType = A;
         using BType = B;
@@ -252,8 +183,8 @@ namespace Tensile
         Beta beta   = 0;
     };
 
-    std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);
-    std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch);
-    std::ostream & operator<<(std::ostream & stream, ContractionProblem::BoundIndex const& bound);
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch);
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BoundIndex const& bound);
 }
 

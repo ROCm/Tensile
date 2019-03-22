@@ -22,6 +22,7 @@
  */
 
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/ContractionProblem_Detail.hpp>
 #include <Tensile/Utils.hpp>
 
 namespace Tensile
@@ -319,87 +320,6 @@ namespace Tensile
 
         return rv.str();
     }
-
-#if 0
-    {
-        if(a.dimensions() != b.dimensions() || a.dimensions() != c.dimensions() || a.dimensions() != d.dimensions())
-            throw std::runtime_error("Tensors must all have the same number of dimensions.");
-
-        if(a.dimensions() != 3)
-            throw std::runtime_error("Only 3- dimensional tensors are accepted.");
-
-        if(c.sizes() != d.sizes())
-            throw std::runtime_error("C and D must have the same logical dimensions.");
-
-        // "M"
-        if(a.sizes()[0] != d.sizes()[0])
-            throw std::runtime_error("A size 0 and C/D size 0 must be equal.");
-
-        // "N"
-        if(b.sizes()[1] != d.sizes()[1])
-            throw std::runtime_error("B size 1 and C/D size 1 must be equal.");
-
-        // "K"
-        if(a.sizes()[1] != b.sizes()[0])
-            throw std::runtime_error("A size 1 and B size 0 must be equal.");
-
-        if(a.sizes()[2] != b.sizes()[2])
-            throw std::runtime_error("Batch dimensions must be equal. A and B mismatched.");
-
-        if(a.sizes()[2] != d.sizes()[2])
-            throw std::runtime_error("Batch dimensions must be equal. A and C/D mismatched.");
-    }
-
-    size_t ContractionProblem::tensile_strideA1() const
-    {
-        return a.storedStride(1);
-    }
-
-    size_t ContractionProblem::tensile_strideA2() const
-    {
-        return a.storedStride(2);
-    }
-
-    size_t ContractionProblem::tensile_strideB1() const
-    {
-        return b.storedStride(1);
-    }
-
-    size_t ContractionProblem::tensile_strideB2() const
-    {
-        return b.storedStride(2);
-    }
-
-    size_t ContractionProblem::tensile_strideC1() const
-    {
-        return c.storedStride(1);
-    }
-
-    size_t ContractionProblem::tensile_strideC2() const
-    {
-        return c.storedStride(2);
-    }
-
-    size_t ContractionProblem::tensile_strideD1() const
-    {
-        return d.storedStride(1);
-    }
-
-    size_t ContractionProblem::tensile_strideD2() const
-    {
-        return d.storedStride(2);
-    }
-
-    bool ContractionProblem::blas_transA() const
-    {
-        return a.dimensionOrder() == std::vector<size_t>{1,0,2};
-    }
-
-    bool ContractionProblem::blas_transB() const
-    {
-        return b.dimensionOrder() == std::vector<size_t>{1,0,2};
-    }
-#endif
 
     std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free)
     {

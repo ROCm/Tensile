@@ -27,10 +27,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Tensile/Macros.hpp>
+
 namespace Tensile
 {
 
-    class KernelArguments
+    class TENSILE_API KernelArguments
     {
     public:
         KernelArguments(bool log = true);
@@ -78,7 +80,7 @@ namespace Tensile
         bool m_log;
     };
 
-    std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
+    TENSILE_API std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
 
     template <typename T>
     void KernelArguments::append(std::string const& name, T value)

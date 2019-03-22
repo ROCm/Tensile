@@ -26,24 +26,9 @@
 
 #pragma once
 
-#include <Tensile/ContractionProblem.hpp>
-#include <Tensile/ContractionSolution.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MapLibrary.hpp>
-#include <Tensile/MasterSolutionLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
-#include <Tensile/SingleSolutionLibrary.hpp>
-#include <Tensile/SolutionLibrary.hpp>
+//#ifdef TENSILE_STATIC_ONLY
+//#define TENSILE_API
+//#else
+//#endif
 
-namespace Tensile
-{
-    using ContractionLibrary                  = SolutionLibrary<ContractionProblem>;
-    using MasterContractionLibrary            = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using SingleContractionLibrary            = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionHardwareSelectionLibrary = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemSelectionLibrary  = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMatchingLibrary   = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMapLibrary        = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemPredicate         = ProblemPredicate<ContractionProblem>;
-}
-
+#define TENSILE_API __attribute__ ((visibility("default")))

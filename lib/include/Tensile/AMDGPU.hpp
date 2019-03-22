@@ -30,10 +30,10 @@
 
 namespace Tensile
 {
-    struct AMDGPU: public Hardware
+    struct TENSILE_API AMDGPU: public Hardware
     {
         static std::string Type() { return "AMDGPU"; }
-        virtual std::string type() const { return Type(); }
+        virtual std::string type() const;
 
         enum class Processor: int
         {
@@ -42,8 +42,9 @@ namespace Tensile
             gfx906 = 906
         };
 
-        AMDGPU() = default;
+        AMDGPU();
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
+        ~AMDGPU();
 
         Processor   processor = Processor::gfx900;
         int         computeUnitCount = 0;

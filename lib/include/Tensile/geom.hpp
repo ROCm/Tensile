@@ -27,7 +27,7 @@
 namespace Tensile
 {
     template <typename T>
-    struct vector2
+    struct TENSILE_API vector2
     {
         vector2() = default;
         vector2(T _x, T _y) : x(_x), y(_y) {}
@@ -38,19 +38,19 @@ namespace Tensile
     };
 
     template <typename T>
-    inline bool operator==(vector2<T> const& l, vector2<T> const& r)
+    TENSILE_API inline bool operator==(vector2<T> const& l, vector2<T> const& r)
     {
         return (l.x == r.x) && (l.y == r.y);
     }
 
     template <typename T>
-    inline std::ostream & operator<<(std::ostream & stream, vector2<T> const& v)
+    TENSILE_API inline std::ostream & operator<<(std::ostream & stream, vector2<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ")";
     }
 
     template <typename T>
-    struct vector3
+    struct TENSILE_API vector3
     {
         vector3() = default;
         vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
@@ -63,19 +63,19 @@ namespace Tensile
     };
 
     template <typename T>
-    inline bool operator==(vector3<T> const& l, vector3<T> const& r)
+    inline TENSILE_API bool operator==(vector3<T> const& l, vector3<T> const& r)
     {
         return (l.x == r.x) && (l.y == r.y) && (l.z == r.z);
     }
 
     template <typename T>
-    inline std::ostream & operator<<(std::ostream & stream, vector3<T> const& v)
+    inline TENSILE_API std::ostream & operator<<(std::ostream & stream, vector3<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     }
 
     template <typename T>
-    struct vector4
+    struct TENSILE_API vector4
     {
         vector4() = default;
         vector4(T _x, T _y, T _z, T _w) : x(_x), y(_y), z(_z), w(_w) {}
@@ -89,30 +89,18 @@ namespace Tensile
     };
 
     template <typename T>
-    inline bool operator==(vector4<T> const& l, vector4<T> const& r)
+    inline TENSILE_API bool operator==(vector4<T> const& l, vector4<T> const& r)
     {
         return (l.x == r.x) && (l.y == r.y) && (l.z == r.z) && (l.w == r.w);
     }
 
     template <typename T>
-    inline std::ostream & operator<<(std::ostream & stream, vector4<T> const& v)
+    inline TENSILE_API std::ostream & operator<<(std::ostream & stream, vector4<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
     }
 
     using dim3 = vector3<size_t>;
     using int3 = vector3<int>;
-
-    template <typename T>
-    T CeilDivide(T num, T den)
-    {
-        return (num + (den-1))/den;
-    }
-
-    template <typename T>
-    T RoundUpToMultiple(T val, T den)
-    {
-        return CeilDivide(val, den) * den;
-    }
 }
 

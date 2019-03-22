@@ -28,22 +28,7 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/MapLibrary.hpp>
-#include <Tensile/MasterSolutionLibrary.hpp>
-#include <Tensile/MatchingLibrary.hpp>
-#include <Tensile/SingleSolutionLibrary.hpp>
 #include <Tensile/SolutionLibrary.hpp>
-
-namespace Tensile
-{
-    using ContractionLibrary                  = SolutionLibrary<ContractionProblem>;
-    using MasterContractionLibrary            = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using SingleContractionLibrary            = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionHardwareSelectionLibrary = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemSelectionLibrary  = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMatchingLibrary   = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMapLibrary        = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemPredicate         = ProblemPredicate<ContractionProblem>;
-}
+#include <Tensile/Tensile.hpp>
+#include <Tensile/TensorDescriptor.hpp>
 

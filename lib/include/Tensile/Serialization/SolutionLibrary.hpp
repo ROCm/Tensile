@@ -27,8 +27,11 @@
 #pragma once
 
 #include <Tensile/SolutionLibrary.hpp>
+
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/MapLibrary.hpp>
+#include <Tensile/MasterSolutionLibrary.hpp>
+#include <Tensile/SingleSolutionLibrary.hpp>
 
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>

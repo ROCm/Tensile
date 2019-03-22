@@ -35,7 +35,7 @@ namespace Tensile
      * a complex conjugate but this could be where we represent inline activation layers
      * later.
      */
-    class TensorOp
+    class TENSILE_API TensorOp
     {
     public:
 
@@ -48,8 +48,8 @@ namespace Tensile
 
         Type type = Type::None;
 
-        TensorOp() = default;
-        TensorOp(Type type) : type(type) {}
+        TensorOp();
+        TensorOp(Type type);
 
         static TensorOp ComplexConjugate() { return TensorOp(Type::ComplexConjugate); }
 

@@ -215,12 +215,12 @@ namespace Tensile
 
                 if(sc)
                 {
-                    stream << " matches: ";
+                    stream << "matches: ";
                     value->debugEval(*sc, stream);
                 }
                 else
                 {
-                    stream << " no match. actual type: " << typeid(obj).name();
+                    stream << "no match. actual type: " << typeid(obj).hash_code() << ", expected " << typeid(Subclass).hash_code();
                 }
 
                 stream << "): " << rv;

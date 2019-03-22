@@ -34,11 +34,12 @@
 #include <vector>
 
 #include <Tensile/DataTypes.hpp>
+#include <Tensile/Macros.hpp>
 
 namespace Tensile
 {
 
-    class TensorDescriptor
+    class TENSILE_API TensorDescriptor
     {
     public:
 

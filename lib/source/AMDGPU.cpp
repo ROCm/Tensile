@@ -28,14 +28,22 @@
 
 namespace Tensile
 {
-    AMDGPU::AMDGPU(AMDGPU::Processor p, int cus, std::string const& name)
+    TENSILE_API std::string AMDGPU::type() const { return Type(); }
+
+    TENSILE_API AMDGPU::AMDGPU()
+    {
+    }
+
+    TENSILE_API AMDGPU::AMDGPU(AMDGPU::Processor p, int cus, std::string const& name)
         : processor(p),
           computeUnitCount(cus),
           deviceName(name)
     {
     }
 
-    bool AMDGPU::runsKernelTargeting(AMDGPU::Processor other) const
+    TENSILE_API AMDGPU::~AMDGPU() = default;
+
+    TENSILE_API bool AMDGPU::runsKernelTargeting(AMDGPU::Processor other) const
     {
         if(other > this->processor)
             return false;
@@ -62,7 +70,7 @@ namespace Tensile
         return stream;
     }
 
-    std::string AMDGPU::description() const
+    TENSILE_API std::string AMDGPU::description() const
     {
         std::ostringstream rv;
 

@@ -34,6 +34,17 @@
 
 namespace Tensile
 {
+    template <typename T>
+    T CeilDivide(T num, T den)
+    {
+        return (num + (den-1))/den;
+    }
+
+    template <typename T>
+    T RoundUpToMultiple(T val, T den)
+    {
+        return CeilDivide(val, den) * den;
+    }
 
     template <typename T>
     void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
@@ -76,69 +87,6 @@ namespace Tensile
             stream << item;
             first = false;
         }
-    }
-
-    inline int LexicographicCompare()
-    {
-        return 0;
-    }
-
-    template<typename A>
-    inline int LexicographicCompare(A const& lhs, A const& rhs)
-    {
-        if(lhs < rhs) return -1;
-        if(lhs > rhs) return  1;
-        return 0;
-    }
-
-    template<typename A, typename... Args>
-    inline int LexicographicCompare(A const& lhs, A const& rhs, Args const&... rest)
-    {
-        if(lhs < rhs) return -1;
-        if(lhs > rhs) return  1;
-        return LexicographicCompare(rest...);
-    }
-
-    template <typename T>
-    struct Comparison
-    {
-        enum { implemented = false };
-    };
-
-    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
-    inline bool operator==(T const& lhs, T const& rhs)
-    {
-        return Comparison<T>::compare(lhs, rhs) == 0;
-    }
-
-    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
-    inline bool operator!=(T const& lhs, T const& rhs)
-    {
-        return Comparison<T>::compare(lhs, rhs) != 0;
-    }
-
-    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
-    inline bool operator<(T const& lhs, T const& rhs)
-    {
-        return Comparison<T>::compare(lhs, rhs) < 0; 
-    }
-
-    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
-    inline bool operator<=(T const& lhs, T const& rhs)
-    {
-        return Comparison<T>::compare(lhs, rhs) <= 0; 
-    }
-
-    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
-    inline bool operator>(T const& lhs, T const& rhs)
-    {
-        return Comparison<T>::compare(lhs, rhs) > 0; 
-    }
-
-    template <typename T, typename = typename std::enable_if<Comparison<T>::implemented>::type>
-    inline bool operator>=(T const& lhs, T const& rhs)
-    {
-        return Comparison<T>::compare(lhs, rhs) >= 0; 
     }
 
     template <typename T>
