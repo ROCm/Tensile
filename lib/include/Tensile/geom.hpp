@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <iostream>
 
+#include <Tensile/Macros.hpp>
+
 namespace Tensile
 {
     template <typename T>

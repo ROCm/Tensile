@@ -26,9 +26,9 @@
 
 #pragma once
 
-//#ifdef TENSILE_STATIC_ONLY
-//#define TENSILE_API
-//#else
-//#endif
-
+#ifdef TENSILE_STATIC_ONLY
+#define TENSILE_API
+#else
 #define TENSILE_API __attribute__ ((visibility("default")))
+#endif
+

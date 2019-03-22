@@ -7,9 +7,15 @@ find_package(HIP CONFIG PATHS /opt/rocm/hip)
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
 option(USE_LLVM "Use LLVM for parsing config files." ON)
+option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library." ON)
 
 if(USE_LLVM)
 find_package(LLVM REQUIRED CONFIG)
+add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)
+endif()
+
+if(TENSILE_STATIC_ONLY)
+add_definitions(-DTENSILE_STATIC_ONLY)
 endif()
 
 #set(HIP_FOUND 1)
