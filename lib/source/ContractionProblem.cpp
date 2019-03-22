@@ -343,5 +343,9 @@ namespace Tensile
         return stream << "{a=" << bound.a << " b=" << bound.b << "}";
     }
 
+    ContractionInputs::ContractionInputs() = default;
+    ContractionInputs::~ContractionInputs() = default;
+    template <> TypedContractionInputs<float>::TypedContractionInputs() = default;
+    template <> TypedContractionInputs<float>::~TypedContractionInputs() = default;
 }
 

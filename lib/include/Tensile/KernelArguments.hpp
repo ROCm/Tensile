@@ -83,19 +83,19 @@ namespace Tensile
     TENSILE_API std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
 
     template <typename T>
-    void KernelArguments::append(std::string const& name, T value)
+    inline void KernelArguments::append(std::string const& name, T value)
     {
         append(name, value, true);
     }
 
     template <typename T>
-    void KernelArguments::appendUnbound(std::string const& name)
+    inline void KernelArguments::appendUnbound(std::string const& name)
     {
         append(name, static_cast<T>(0), false);
     }
 
     template <typename T>
-    void KernelArguments::bind(std::string const& name, T value)
+    inline void KernelArguments::bind(std::string const& name, T value)
     {
         auto it = m_argRecords.find(name);
         if(it == m_argRecords.end())
@@ -129,7 +129,7 @@ namespace Tensile
     }
 
     template <typename T>
-    std::string KernelArguments::stringForValue(T value, bool bound)
+    inline std::string KernelArguments::stringForValue(T value, bool bound)
     {
         if(!m_log)
             return "";
@@ -144,7 +144,7 @@ namespace Tensile
     }
 
     template <typename T>
-    void KernelArguments::append(std::string const& name, T value, bool bound)
+    inline void KernelArguments::append(std::string const& name, T value, bool bound)
     {
         std::string valueString = stringForValue(value, bound);
 
@@ -160,7 +160,7 @@ namespace Tensile
     }
 
     template <typename T>
-    void KernelArguments::writeValue(size_t offset, T value)
+    inline void KernelArguments::writeValue(size_t offset, T value)
     {
         if(offset + sizeof(T) > m_data.size())
         {
