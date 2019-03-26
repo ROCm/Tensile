@@ -19,9 +19,9 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import ProgressBar
-import sys
 from __future__ import unicode_literals
+from Common import ProgressBar
+import sys
 
 try:
   UNICODE_EXISTS = bool(type(unicode))

@@ -19,13 +19,13 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .SolutionStructs import DataType, isPackedIndex
-from .Common import globalParameters, printExit, printWarning, roundUp
-from .KernelWriter import KernelWriter
+from SolutionStructs import DataType, isPackedIndex
+from Common import globalParameters, printExit, printWarning, roundUp
+from KernelWriter import KernelWriter
 from math import log, ceil
 import collections
 import traceback
-from . import Code
+import Code
 
 ################################################################################
 # Memory Instruction

@@ -18,15 +18,16 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+
 from copy import copy, deepcopy
-from .Common import print1, print2, printWarning, defaultSolution, \
+from Common import print1, print2, printWarning, defaultSolution, \
     defaultProblemSizes, defaultBenchmarkFinalProblemSizes, \
     defaultBatchedProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
     defaultBenchmarkCommonParameters, hasParam, \
     defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
     defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
     validParameters
-from .SolutionStructs import Solution, ProblemType, ProblemSizes
+from SolutionStructs import Solution, ProblemType, ProblemSizes
 
 """ Benchmark Process
     steps in config need to be expanded and

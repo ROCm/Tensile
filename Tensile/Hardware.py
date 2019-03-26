@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from . import Properties
+import Properties
 
 class HardwarePredicate(Properties.Predicate):
     @classmethod

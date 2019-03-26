@@ -18,17 +18,17 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from .Common import print1, print2, printExit, printWarning, versionIsCompatible
-from .SolutionStructs import Solution, ProblemSizes, ProblemType
-from .__init__ import __version__
-from . import SolutionLibrary
 
+from Common import print1, print2, printExit, printWarning, versionIsCompatible
+from SolutionStructs import Solution, ProblemSizes, ProblemType
+from __init__ import __version__
+import SolutionLibrary
 import os
+
 try:
   import yaml
 except ImportError:
   printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
-
 
 ################################################################################
 # Read Benchmark Config from YAML Files

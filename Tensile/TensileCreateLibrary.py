@@ -19,17 +19,16 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
+
 from __future__ import print_function
-from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, listToInitializer
-from .SolutionStructs import Solution
-from . import YAMLIO
-from .SolutionWriter import SolutionWriter
-from .KernelWriterSource import KernelWriterSource
-from .KernelWriterAssembly import KernelWriterAssembly
-from . import Utils
-
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, listToInitializer
+from SolutionStructs import Solution
+import YAMLIO
+from SolutionWriter import SolutionWriter
+from KernelWriterSource import KernelWriterSource
+from KernelWriterAssembly import KernelWriterAssembly
+import Utils
 from shutil import copy as shutil_copy
-
 import argparse
 import itertools
 import multiprocessing
@@ -37,7 +36,6 @@ import os
 import subprocess
 import sys
 import time
-
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):

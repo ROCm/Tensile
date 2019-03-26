@@ -18,6 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+
 from __future__ import print_function
 import os, sys
 from copy import deepcopy
@@ -28,18 +29,15 @@ import filecmp
 import csv
 from subprocess import Popen
 import time
-
-from .BenchmarkStructs import BenchmarkProcess
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
-from .SolutionStructs import Solution, ProblemType
-from .SolutionWriter import SolutionWriter
-from .KernelWriterSource import KernelWriterSource
-from .KernelWriterAssembly import KernelWriterAssembly
-from .ClientWriter import writeRunScript, writeClientParameters
-from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
-from . import YAMLIO
-
-
+from BenchmarkStructs import BenchmarkProcess
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
+from SolutionStructs import Solution, ProblemType
+from SolutionWriter import SolutionWriter
+from KernelWriterSource import KernelWriterSource
+from KernelWriterAssembly import KernelWriterAssembly
+from ClientWriter import writeRunScript, writeClientParameters
+from TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
+import YAMLIO
 
 ################################################################################
 # Benchmark Problem Type
@@ -707,11 +705,8 @@ def main( config ):
         (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
         totalTestFails += benchmarkErrors
-<<<<<<< Updated upstream
-        print ("clientExit=%u %s for %s" %\
-=======
+        
         print("clientExit=%u %s for %s" %\
->>>>>>> Stashed changes
                 (totalTestFails, "(ERROR)" if totalTestFails else "(PASS)", \
                 globalParameters["ConfigPath"]))
 

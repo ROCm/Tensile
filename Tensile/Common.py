@@ -21,7 +21,7 @@
 from __future__ import print_function
 import os.path
 import sys
-from .__init__ import __version__
+from __init__ import __version__
 from collections import OrderedDict
 import subprocess
 from subprocess import Popen, PIPE

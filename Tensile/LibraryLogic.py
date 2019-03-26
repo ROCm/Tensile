@@ -18,6 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+
 from __future__ import print_function
 import os
 import os.path
@@ -25,12 +26,10 @@ import array
 import csv
 from sys import stdout
 import time
-
 from copy import deepcopy
-
-from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
-from .SolutionStructs import Solution
-from . import YAMLIO
+from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+from SolutionStructs import Solution
+import YAMLIO
 
 ################################################################################
 # Analyze Problem Type

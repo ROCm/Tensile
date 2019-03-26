@@ -20,17 +20,14 @@
 ################################################################################
 
 from __future__ import print_function
-
 import itertools
 import sys
 import time
 import yaml
-
-from . import Hardware
-from . import Properties
-
-from .SolutionStructs import Solution as OriginalSolution
-from .Utils import *
+import Hardware
+import Properties
+from SolutionStructs import Solution as OriginalSolution
+from Utils import *
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']
