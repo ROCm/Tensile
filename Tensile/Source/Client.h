@@ -830,10 +830,13 @@ bool benchmarkAllSolutionsForSize(
     double *problem_gpu_time_ms) {
   const unsigned int *sizes = problemSizes[problemIdx];
 
-  ldd = sizes[indexAssignmentsLD[0]];
-  ldc = sizes[indexAssignmentsLD[1]];
-  lda = sizes[indexAssignmentsLD[2]];
-  ldb = sizes[indexAssignmentsLD[3]];
+  if (numIndicesLD == 4)
+  {
+    ldd = sizes[indexAssignmentsLD[0]];
+    ldc = sizes[indexAssignmentsLD[1]];
+    lda = sizes[indexAssignmentsLD[2]];
+    ldb = sizes[indexAssignmentsLD[3]];
+  }
 
   // Compute stridesC for validation
   // strideC accounts for memory strides (ie ldc)
@@ -851,8 +854,8 @@ bool benchmarkAllSolutionsForSize(
   stridesC[0] = 1;
 
   elementStrides[1] = sizes[0];
-  stridesD[1] = ldd;
-  stridesC[1] = ldc;
+  stridesD[1] = (ldd != std::numeric_limits<unsigned int>::max()) ? ldd : strides[0];
+  stridesC[1] = (ldc != std::numeric_limits<unsigned int>::max()) ? ldc : strides[0];
 
   for (unsigned int i = 2; i < numIndicesC[problemTypeIdx]; i++) {
     elementStrides[i] = elementStrides[i-1] * sizes[i-1];

@@ -492,11 +492,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " }\n"
   h += "};\n"
   # Index Assignments LD
-  h += "const unsigned int numIndicesLD = %u;\n" % len(problemType["IndexAssignmentsLD"])
+  h += "const unsigned int numIndicesLD = %u;\n" % problemType["NumIndiciesLD"]
   h += "const unsigned int indexAssignmentsLD[numIndicesLD] = {"
-  h += " %u" % problemType["IndexAssignmentsLD"][0]
-  for ldIdx in range(1, len(problemType["IndexAssignmentsLD"])):
-    h += ", %u" % problemType["IndexAssignmentsLD"][ldIdx]
+  if problemType["NumIndiciesLD"] > 0:
+    h += " %u" % problemType["IndexAssignmentsLD"][0]
+    for ldIdx in range(1, len(problemType["IndexAssignmentsLD"])):
+      h += ", %u" % problemType["IndexAssignmentsLD"][ldIdx]
   h += "};\n"
   # beta
   h += "bool useBeta[numProblemTypes] = { %s" \
@@ -548,10 +549,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "const unsigned int numProblems = %u;\n" \
         % problemSizes.totalProblemSizes
     h += "const unsigned int problemSizes[numProblems][%u] = {\n" \
-        % (problemTypes[0]["TotalIndices"] + len(problemType["IndexAssignmentsLD"]))
+        % (problemTypes[0]["TotalIndices"] + problemType["NumIndiciesLD"])
     for i in range(0, problemSizes.totalProblemSizes):
       line = "  {%5u" %problemSizes.sizes[i][0]
-      for j in range(1, problemTypes[0]["TotalIndices"] + len(problemType["IndexAssignmentsLD"])):
+      for j in range(1, problemTypes[0]["TotalIndices"] + problemType["NumIndiciesLD"]):
         line += ",%5u" % problemSizes.sizes[i][j]
       line += " }"
       h += line

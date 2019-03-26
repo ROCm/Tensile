@@ -238,6 +238,7 @@ class ProblemType:
     else:
       self["NumIndicesC"] = 2
 
+    self["NumIndiciesLD"] = 4
     self["IndexAssignmentsLD"][0] = self["NumIndicesC"] + 1
     for i in range(1, len(self["IndexAssignmentsLD"])):
       self["IndexAssignmentsLD"][i] = self["IndexAssignmentsLD"][i-1] + 1
@@ -247,6 +248,7 @@ class ProblemType:
     assignParameterRequired(self.state, "NumIndicesC", config)
     assignParameterRequired(self.state, "IndexAssignmentsA", config)
     assignParameterRequired(self.state, "IndexAssignmentsB", config)
+    self["NumIndiciesLD"] = 0
 
   ########################################
   def isGEMM(self):
@@ -425,10 +427,10 @@ class ProblemSizeRange:
 
   ########################################
   def __init__(self, problemType, config):
-    self.totalIndices = 1+max(problemType["IndexAssignmentsA"])+len(problemType["IndexAssignmentsLD"])
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"]) + problemType["NumIndiciesLD"]
     if len(config) < self.totalIndices:
       for i in range(len(config), self.totalIndices):
-        if i < self.totalIndices - len(problemType["IndexAssignmentsLD"]):
+        if i < self.totalIndices - problemType["NumIndiciesLD"]:
           config.append(0)
         else:
           config.append([0])
@@ -575,9 +577,10 @@ class ProblemSizes:
         elif sizeTypeKey == "Exact":
           e = dictionary[sizeTypeKey]
           if len(e) == problemType["TotalIndices"]:
-            e += [0, 0, 0, 0]
+            if problemType["OperationType"] == "GEMM":
+              e += [0, 0, 0, 0]
             self.exacts.append(tuple(e))
-          elif len(e) == (problemType["TotalIndices"] + len(problemType["IndexAssignmentsLD"])):
+          elif len(e) == (problemType["TotalIndices"] + problemType["NumIndiciesLD"]):
             self.exacts.append(tuple(e))
           else:
             printExit("ExactSize %s doesn't match indices of ProblemType %s" \
@@ -601,10 +604,11 @@ class ProblemSizes:
       self.minStrides = ([0]* problemType["TotalIndices"])
 
     # not the ideal spot, but convert leading dims that are below the minimum size
-    for i in range(0, len(self.ranges)):
-      self.ranges[i].problemSizes[:] = \
-        [self.convertLeadingDims(problemSize) for problemSize in self.ranges[i].problemSizes]
-    self.exacts[:] = [self.convertLeadingDims(problemSize) for problemSize in self.exacts]
+    if problemType["OperationType"] == "GEMM":
+      for i in range(0, len(self.ranges)):
+        self.ranges[i].problemSizes[:] = \
+          [self.convertLeadingDims(problemSize) for problemSize in self.ranges[i].problemSizes]
+      self.exacts[:] = [self.convertLeadingDims(problemSize) for problemSize in self.exacts]
 
     self.sizes = set()
     for sizeRange in self.ranges:
@@ -619,21 +623,27 @@ class ProblemSizes:
     self.maxA = 0
     self.maxB = 0
     for problemSize in self.sizes:
-      sizeD = max(self.minStrides[0], problemSize[self.problemType["IndexAssignmentsLD"][0]])
+      sizeLdd = problemSize[self.problemType["IndexAssignmentsLD"][0]] if problemType["OperationType"] == "GEMM" else problemSize[0]
+      sizeD = max(self.minStrides[0], sizeLdd)
       for i in range(1, problemType["NumIndicesC"]):
         sizeD *= max(self.minStrides[i], problemSize[i])
 
-      sizeC = max(self.minStrides[0], problemSize[self.problemType["IndexAssignmentsLD"][1]])
+      sizeLdc = problemSize[self.problemType["IndexAssignmentsLD"][1]] if problemType["OperationType"] == "GEMM" else problemSize[0]
+      sizeC = max(self.minStrides[0], sizeLdc)
       for i in range(1, problemType["NumIndicesC"]):
         sizeC *= max(self.minStrides[i], problemSize[i])
 
-      sizeA = max(self.minStrides[self.problemType["IndexAssignmentsA"][0]],
-                  problemSize[self.problemType["IndexAssignmentsLD"][2]])
+      sizeLda = problemSize[self.problemType["IndexAssignmentsLD"][2]] \
+                if problemType["OperationType"] == "GEMM" \
+                else problemSize[self.problemType["IndexAssignmentsA"][0]]
+      sizeA = max(self.minStrides[self.problemType["IndexAssignmentsA"][0]], sizeLda)
       for i in self.problemType["IndexAssignmentsA"][1:]:
         sizeA *= max(self.minStrides[i], problemSize[i])
 
-      sizeB = max(self.minStrides[self.problemType["IndexAssignmentsB"][0]],
-                  problemSize[self.problemType["IndexAssignmentsLD"][3]])
+      sizeLdb = problemSize[self.problemType["IndexAssignmentsLD"][3]] \
+                if problemType["OperationType"] == "GEMM" \
+                else problemSize[self.problemType["IndexAssignmentsB"][0]]
+      sizeB = max(self.minStrides[self.problemType["IndexAssignmentsB"][0]], sizeLdb)
       for i in self.problemType["IndexAssignmentsB"][1:]:
         sizeB *= max(self.minStrides[i], problemSize[i])
 

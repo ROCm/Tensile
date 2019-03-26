@@ -74,7 +74,6 @@ TensileStatus tensileReferenceCPU(
     size_t validationStride, // = 1 means do all
     bool useHighPrecisionAccumulate
   ) {
-
   // Only allow high precision accumulate if Type is half
   bool localUseHighPrecisionAccumulate = useHighPrecisionAccumulate && std::is_same<Type, TensileHalf>::value;
 
@@ -83,12 +82,13 @@ TensileStatus tensileReferenceCPU(
   unsigned int *sizesB = new unsigned int[numIndicesAB];
 
   // Stride in each index
-  std::vector<unsigned int> strides(totalIndices);
+  unsigned int *strides = new unsigned int[totalIndices];
 
   unsigned int *stridesD = new unsigned int[numIndicesC];
   unsigned int *stridesC = new unsigned int[numIndicesC];
   unsigned int *stridesA = new unsigned int[numIndicesAB];
   unsigned int *stridesB = new unsigned int[numIndicesAB];
+
   for (unsigned int i = 0; i < totalIndices; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
   }
@@ -281,6 +281,12 @@ TensileStatus tensileReferenceCPU(
   } // free range
   delete[] sizesA;
   delete[] sizesB;
+
+  delete[] strides;
+  delete[] stridesD;
+  delete[] stridesC;
+  delete[] stridesA;
+  delete[] stridesB;
 
   return tensileStatusSuccess;
 } // referenceTensorContraction
