@@ -712,7 +712,7 @@ defaultSolution = {}
 for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
     defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
   for paramDict in paramList:
-    for key, value in list(paramDict.items()):
+    for key, value in paramDict.items():
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 

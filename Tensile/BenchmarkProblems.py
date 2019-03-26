@@ -707,7 +707,11 @@ def main( config ):
         (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
         totalTestFails += benchmarkErrors
+<<<<<<< Updated upstream
         print ("clientExit=%u %s for %s" %\
+=======
+        print("clientExit=%u %s for %s" %\
+>>>>>>> Stashed changes
                 (totalTestFails, "(ERROR)" if totalTestFails else "(PASS)", \
                 globalParameters["ConfigPath"]))
 
