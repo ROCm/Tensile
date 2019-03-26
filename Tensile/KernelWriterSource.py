@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,10 +19,10 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
-from SolutionStructs import DataType, isPackedIndex
-from Common import globalParameters, printExit
-from KernelWriter import KernelWriter
+from __future__ import print_function
+from .SolutionStructs import DataType, isPackedIndex
+from .Common import globalParameters, printExit
+from .KernelWriter import KernelWriter
 
 ################################################################################
 # Make OpenCL Kernel String
@@ -1090,7 +1090,7 @@ class KernelWriterSource(KernelWriter):
   def graOtherFreeAssignments(self, kernel):
     kStr = ""
     # packed free dims don't use 'wg' level vars for dims
-    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
@@ -1099,7 +1099,7 @@ class KernelWriterSource(KernelWriter):
         continue
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
+      for j in reversed(list(range( i+1, len(nonTileFreeIndices)))):
         index2 = nonTileFreeIndices[j]
         kStr += " / size" + self.indexChars[index2]
       kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
@@ -2748,14 +2748,14 @@ class KernelWriterSource(KernelWriter):
     #    + self.getGroupIdStr + "(1);" + self.endLine
     ########################################
     # wg other
-    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
+      for j in reversed(list(range(i+1, len(nonTileFreeIndices)))):
         index2 = nonTileFreeIndices[j]
         kStr += " / size" + self.indexChars[index2]
       kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine

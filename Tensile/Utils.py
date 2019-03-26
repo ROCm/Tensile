@@ -19,8 +19,14 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from Common import ProgressBar
+from .Common import ProgressBar
 import sys
+from __future__ import unicode_literals
+
+try:
+  UNICODE_EXISTS = bool(type(unicode))
+except NameError:
+  unicode = str
 
 class SpinnyThing:
     def __init__(self):
@@ -65,7 +71,7 @@ def state(obj):
         return rv
 
     if isinstance(obj, dict):
-        return dict([(key, state(value)) for key,value in obj.items()])
+        return dict([(key, state(value)) for key,value in list(obj.items())])
 
     if any([isinstance(obj, cls) for cls in [str, int, float, unicode]]):
         return obj
@@ -89,7 +95,7 @@ def hash_combine(*objs, **kwargs):
     rv = None
     try:
         it = iter(objs)
-        rv = it.next()
+        rv = next(it)
         for value in it:
             rv = (rv << shift) ^ value
     except TypeError:
@@ -106,5 +112,5 @@ def hash_objs(*objs, **kwargs):
     if len(objs) == 1:
         objs = objs[1]
 
-    return hash_combine(map(hash, objs), shift=shift)
+    return hash_combine(list(map(hash, objs)), shift=shift)
 

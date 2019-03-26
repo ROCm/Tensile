@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,13 +19,13 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import DataType, isPackedIndex
-from Common import globalParameters, printExit, printWarning, roundUp
-from KernelWriter import KernelWriter
+from .SolutionStructs import DataType, isPackedIndex
+from .Common import globalParameters, printExit, printWarning, roundUp
+from .KernelWriter import KernelWriter
 from math import log, ceil
 import collections
 import traceback
-import Code
+from . import Code
 
 ################################################################################
 # Memory Instruction
@@ -109,7 +109,7 @@ class RegisterPool:
   def add(self, start, size, tag=""):
     # reserve space
     if self.printRP:
-      print "RP::add(%u..%u for '%s')"%(start,start+size-1,tag)
+      print("RP::add(%u..%u for '%s')"%(start,start+size-1,tag))
     newSize = start + size
     oldSize = len(self.pool)
     if newSize > oldSize:
@@ -126,13 +126,13 @@ class RegisterPool:
       else:
         printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
     if self.printRP:
-      print self.state()
+      print(self.state())
   ########################################
   # Remove
   # Removes registers from the pool so they cannot be subsequently allocated for tmps
   def remove(self, start, size, tag=""):
     if self.printRP:
-      print "RP::remove(%u..%u) for %s"%(start,size-1,tag)
+      print("RP::remove(%u..%u) for %s"%(start,size-1,tag))
     # reserve space
     newSize = start + size
     oldSize = len(self.pool)
@@ -184,7 +184,7 @@ class RegisterPool:
         self.pool[i].status = self.statusInUse
       self.checkOutSize[found] = size
       if self.printRP:
-        print "RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
+        print("RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available()))
         #print self.state()
       return found
     # need overflow
@@ -214,8 +214,8 @@ class RegisterPool:
         self.pool.append(self.Register(self.statusInUse,tag))
       self.checkOutSize[start] = size
       if self.printRP:
-        print self.state()
-        print "RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
+        print(self.state())
+        print("RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start))
         if 0:
           import pdb
           pdb.set_trace()
@@ -241,14 +241,14 @@ class RegisterPool:
   # Check In
   def checkIn(self, start, tag=""):
     if self.printRP:
-      print "RP::checkIn '%s' () @ %u"%(tag, start)
+      print("RP::checkIn '%s' () @ %u"%(tag, start))
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
         self.pool[i].status = self.statusAvailable
       self.checkOutSize.pop(start)
       if self.printRP:
-        print "  RP::checkIn() @ %u +%u"%(start,size)
+        print("  RP::checkIn() @ %u +%u"%(start,size))
     else:
       if 0:
         traceback.print_stack(None)
@@ -294,7 +294,7 @@ class RegisterPool:
         printWarning("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
             %(si, self.pool[si].tag))
         if self.printRP:
-          print self.state()
+          print(self.state())
 
   ########################################
   # State
@@ -594,7 +594,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.startSgprTmpPool+num+pad > self.totalSgprs:
       self.totalSgprs = self.startSgprTmpPool + num + pad
       if 0:
-        print "grow sgpr to ", self.totalSgprs, "start=", self.startSgprTmpPool
+        print("grow sgpr to ", self.totalSgprs, "start=", self.startSgprTmpPool)
         import pdb
         pdb.set_trace()
       #print "startSgprTmpPool=", self.startSgprTmpPool
@@ -714,7 +714,7 @@ class KernelWriterAssembly(KernelWriter):
       self.version = kernel["ISA"]
     if not globalParameters["AsmCaps"][self.version]["SupportedIsa"]:
       defaultIsa = (9,0,0)
-      print "warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa
+      print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
 
     self.AsmBugs = {}
@@ -850,7 +850,7 @@ class KernelWriterAssembly(KernelWriter):
             # numRegisters for Int8x4 = numRegisters for float = 1
             self.bpeCinternal = int(self.bpr* kernel["ProblemType"]["DataType"].numRegisters())
         else:
-            print "HighPrecisionAccumulate only valid when DataType is half, Int8x4."
+            print("HighPrecisionAccumulate only valid when DataType is half, Int8x4.")
             self.bpeCinternal = int(self.bpr*\
                 kernel["ProblemType"]["DataType"].numRegisters())
             kernel["ProblemType"]["HighPrecisionAccumulate"] = False
@@ -1995,7 +1995,7 @@ class KernelWriterAssembly(KernelWriter):
     # This is used in Buffer addressing modes.
     # Flat addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
     for (tensorChar, indices, justOffset32, tP) in [ \
-        ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), kernel["BufferStore"], None), \
+        ("C", list(range(0, kernel["ProblemType"]["NumIndicesC"])), kernel["BufferStore"], None), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"], self.tPA), \
         ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"], self.tPB) ]:
 
@@ -2193,7 +2193,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.defineMACMacro(kernel, 1) # define OneIter case
 
     if self.overflowedResources:
-      print ""
+      print("")
       printWarning("%s overflowed resources, possibly too many vgprs(%u) or sgprs(%u)" \
           % (self.kernelName, self.vgprPool.size(), self.totalSgprs))
       kStr += "s_endpgm // overflowed resources\n"
@@ -3031,8 +3031,8 @@ class KernelWriterAssembly(KernelWriter):
 
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
-                print tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
-                      "Strides%s="%tc
+                print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
+                      "Strides%s="%tc)
 
                 kStr += self.assert_vector_diff(vgpr("GlobalReadOffset%s+%u"%(tc,0)), \
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
@@ -4873,19 +4873,19 @@ class KernelWriterAssembly(KernelWriter):
       g2lIdx = 0
       #kStr += dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
       if 0:
-        print "\nLocalWrite", tP["tensorChar"]
-        print "tlu", tP["tlu"]
-        print "lsc", kernel[tP["lsc"]]
-        print "lsp", kernel[tP["lsp"]]
-        print "grcv", tP["grcv"]
-        print "wtc", tP["wtc"]
-        print "wuc", tP["wuc"]
-        print "nrc", tP["nrc"]
-        print "nrp", tP["nrp"]
-        print "nwcv", tP["nwcv"]
-        print "nwpv", tP["nwpv"]
-        print "nrcvpi", tP["nrcvpi"]
-        print "nwcvpi", tP["nwcvpi"]
+        print("\nLocalWrite", tP["tensorChar"])
+        print("tlu", tP["tlu"])
+        print("lsc", kernel[tP["lsc"]])
+        print("lsp", kernel[tP["lsp"]])
+        print("grcv", tP["grcv"])
+        print("wtc", tP["wtc"])
+        print("wuc", tP["wuc"])
+        print("nrc", tP["nrc"])
+        print("nrp", tP["nrp"])
+        print("nwcv", tP["nwcv"])
+        print("nwpv", tP["nwpv"])
+        print("nrcvpi", tP["nrcvpi"])
+        print("nwcvpi", tP["nwcvpi"])
 
       tmpLocalWriteAddr = -1
 
@@ -5640,7 +5640,7 @@ class KernelWriterAssembly(KernelWriter):
     # TODO - future opportunities for store vgpr and other optimization
     #  - coutRowStart and tid1 are strongly related - can we merge or remove one of these?
     # Packed follows same philosophy but may have more vector components
-    indices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    indices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     numDim = len(indices)
     for i in range(1, numDim):
       if i == kernel["ProblemType"]["Index0"]:
@@ -6290,7 +6290,7 @@ class KernelWriterAssembly(KernelWriter):
         minNeeded = minElements*numVgprsPerElement
         shrinkDb = 0
         if shrinkDb:
-          print "numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded
+          print("numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded)
         subBatches = 1
         if numVgprAvailable < minNeeded:
           gwvwOrig = gwvw
@@ -6306,35 +6306,35 @@ class KernelWriterAssembly(KernelWriter):
                 self.vgprPool.size() - numVgprAvailable + minNeeded)
             if futureOccupancy < currentOccupancy:
               if shrinkDb:
-                print "shrink-gwvw-before: gwvw=%u  numVgprsPerElement=%u %s" % (gwvw, numVgprsPerElement, self.kernelName)
+                print("shrink-gwvw-before: gwvw=%u  numVgprsPerElement=%u %s" % (gwvw, numVgprsPerElement, self.kernelName))
               gwvw = gwvw/2
               subBatches *= 2
               numVgprsPerElement = numVgprsPerAddr + int(numVgprsPerDataPerVI * gwvw)
               if shrinkDb:
-                print "shrink-gwvw-after: gwvw=%u  numVgprsPerElement=%u" % (gwvw, numVgprsPerElement)
+                print("shrink-gwvw-after: gwvw=%u  numVgprsPerElement=%u" % (gwvw, numVgprsPerElement))
             else:
               break  # good enough
 
           if shrinkDb:
-            print "currentOccupancy=%u futureOccupancy=%u VGPRs=%u numVgprAvail=%u vgprPerElem=%u" \
+            print("currentOccupancy=%u futureOccupancy=%u VGPRs=%u numVgprAvail=%u vgprPerElem=%u" \
                 % (currentOccupancy, futureOccupancy, self.vgprPool.size(), \
-                   numVgprAvailable, minElements*numVgprsPerElement)
+                   numVgprAvailable, minElements*numVgprsPerElement))
           if futureOccupancy > currentOccupancy:
-            print "warning: %s growing VGPR for GlobalWrite batching - this may bloat VGPR usage" % \
-                  (self.kernelName)
-            print "   numVgprAvailable=", numVgprAvailable, \
+            print("warning: %s growing VGPR for GlobalWrite batching - this may bloat VGPR usage" % \
+                  (self.kernelName))
+            print("   numVgprAvailable=", numVgprAvailable, \
                   "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
-                  "beta=", beta, "gwvw=", gwvw
+                  "beta=", beta, "gwvw=", gwvw)
           elif gwvw != gwvwOrig:
             if shrinkDb:
-              print "info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
-                  % (self.kernelName, gwvwOrig, gwvw, currentOccupancy)
+              print("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
+                  % (self.kernelName, gwvwOrig, gwvw, currentOccupancy))
 
 
           if numVgprAvailable < minElements*numVgprsPerElement:
-            print "info: growing pool += %d * %d for GlobalWrite\n" \
-                % (minElements,numVgprsPerElement)
-            print self.vgprPool.state()
+            print("info: growing pool += %d * %d for GlobalWrite\n" \
+                % (minElements,numVgprsPerElement))
+            print(self.vgprPool.state())
             tl = []
             for i in range(0,minElements):
               tl.append(self.vgprPool.checkOut(numVgprsPerElement, "grow-pool for GlobalWrite"))
@@ -6352,7 +6352,7 @@ class KernelWriterAssembly(KernelWriter):
           numElementsPerBatch = len(elements[edgeI]) # max, do 'em all
 
         if shrinkDb:
-          print "NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
+          print("NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay")
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = numElementsPerBatchLimitedBySgprs
 

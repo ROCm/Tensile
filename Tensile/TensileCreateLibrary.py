@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,13 +19,14 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, listToInitializer
-from SolutionStructs import Solution
-import YAMLIO
-from SolutionWriter import SolutionWriter
-from KernelWriterSource import KernelWriterSource
-from KernelWriterAssembly import KernelWriterAssembly
-import Utils
+from __future__ import print_function
+from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, listToInitializer
+from .SolutionStructs import Solution
+from . import YAMLIO
+from .SolutionWriter import SolutionWriter
+from .KernelWriterSource import KernelWriterSource
+from .KernelWriterAssembly import KernelWriterAssembly
+from . import Utils
 
 from shutil import copy as shutil_copy
 
@@ -99,7 +100,7 @@ def prepAsm():
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] else ""))
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
-  os.chmod(assemblerFileName, 0777)
+  os.chmod(assemblerFileName, 0o777)
 
 ################################################################################
 def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
@@ -199,9 +200,9 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     cpus = cpu_count*abs(cpuThreads) if cpuThreads < 0 \
            else min(cpu_count, cpuThreads)
 
-  kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
+  kIter = list(zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly)))
   if cpus > 1:
-    print "# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels))
+    print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))
 
     pool = multiprocessing.Pool(cpus)
 
@@ -209,17 +210,17 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
     pool.close()
   else:
-    print "# Compiling kernels (no multiprocessing, kernels=%u)" % (len(kernels))
+    print("# Compiling kernels (no multiprocessing, kernels=%u)" % (len(kernels)))
     if globalParameters['ShowProgressBar']:
       kIter = Utils.tqdm(kIter)
 
-    results = map(processKernelSourceWithArgs, kIter)
+    results = list(map(processKernelSourceWithArgs, kIter))
 
   buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
 
   if len(kernelsWithBuildErrs) > 0:
-    print "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
+    print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
 
 
@@ -237,7 +238,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     (err, src) = kernelWriter.getSourceFileStringBetaOnly(kernel)
     kernelSourceFile.write(src)
     if err:
-      print "*** warning: invalid kernel#%u"%kernelName
+      print("*** warning: invalid kernel#%u"%kernelName)
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
     # write kernel.h
@@ -256,7 +257,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
-  print "# Kernel Building elapsed time = %.1f secs" % (stop-start)
+  print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
   print1("# Writing Solutions")
   if globalParameters["ShowProgressBar"]:
@@ -494,7 +495,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                     solutionsForSchedule, exactLogic, \
                                     solutionNamesForSchedule, True)
     if rangeLogic != None:
-      print "** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3"
+      print("** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3")
     s += "  /* exact mappings */\n"
     s += exactLogicStr
     s += "\n  return nullptr;\n"
@@ -882,7 +883,7 @@ def TensileCreateLibrary():
       kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
-  problemTypes = logicData.keys()
+  problemTypes = list(logicData.keys())
   writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly)
 

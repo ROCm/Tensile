@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,9 +18,9 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-
-from SolutionStructs import Solution
-from Common import globalParameters, CHeader
+from __future__ import print_function
+from .SolutionStructs import Solution
+from .Common import globalParameters, CHeader
 import abc
 import os
 import shutil
@@ -28,13 +28,12 @@ from os import path, chmod
 from os import name as osname
 from subprocess import Popen
 import subprocess
-import Code
+from . import Code
 
 ################################################################################
 # Kernel Writer
 ################################################################################
-class KernelWriter:
-  __metaclass__=abc.ABCMeta
+class KernelWriter(__metaclass__=abc.ABCMeta):
 
   ##############################################################################
   # Init
@@ -109,13 +108,13 @@ class KernelWriter:
         firstStep = 1
 
       # Add all loads from middle as individual schedulable items
-      itemsToSched =  self.globalReadACode.middle.items() + \
-                      self.globalReadBCode.middle.items()
+      itemsToSched =  list(self.globalReadACode.middle.items()) + \
+                      list(self.globalReadBCode.middle.items())
       itemsToSched.append(self.globalReadIncACode)
       itemsToSched.append(self.globalReadIncBCode)
 
       if schedDb & 0x1:
-        print "makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter
+        print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
@@ -154,7 +153,7 @@ class KernelWriter:
         imod.addCode(self.localWriteBCode)
     else:
       # create a plan:
-      itemsToSched = self.localWriteACode.items() + self.localWriteBCode.items()
+      itemsToSched = list(self.localWriteACode.items()) + list(self.localWriteBCode.items())
       if 1:
         # This counts the number of modules which contain a ds_write
         # Scheduler below keeps all writes in the same module in same iteration
@@ -173,16 +172,16 @@ class KernelWriter:
         startIter = lastLoadIter
 
       if schedDb & 0x2:
-        print "gra=", self.globalReadACode.middle.prettyPrint()
-        print "lwa=", self.localWriteACode.prettyPrint()
+        print ("gra=", self.globalReadACode.middle.prettyPrint())
+        print ("lwa=", self.localWriteACode.prettyPrint())
 
-        print "grb=", self.globalReadBCode.middle.prettyPrint()
-        print "lwb=", self.localWriteBCode.prettyPrint()
+        print ("grb=", self.globalReadBCode.middle.prettyPrint())
+        print ("lwb=", self.localWriteBCode.prettyPrint())
       if schedDb & 0x1:
-        print "makeSchedule-lw: writesToSched=", writesToSched, "lastLoadIter=", lastLoadIter, \
-              "startIter=", startIter, "localWriteEndIter=", localWriteEndIter
+        print ("makeSchedule-lw: writesToSched=", writesToSched, "lastLoadIter=", lastLoadIter, \
+              "startIter=", startIter, "localWriteEndIter=", localWriteEndIter)
 
-      readsToWait = len(self.localWriteACode.items()) + len(self.localWriteBCode.items())
+      readsToWait = len(list(self.localWriteACode.items())) + len(list(self.localWriteBCode.items()))
       if self.scheduleGlobalRead:
         # Number of write blocks should match number of reads.
         # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
@@ -190,10 +189,10 @@ class KernelWriter:
         if 0:
             if not kernel["DirectToLdsA"]:
               assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
-                  len(self.localWriteACode.items())
+                  len(list(self.localWriteACode.items()))
             if not kernel["DirectToLdsB"]:
               assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
-                  len(self.localWriteBCode.items())
+                  len(list(self.localWriteBCode.items()))
       for u in range(startIter, localWriteEndIter+1):
         if u==(localWriteEndIter):
           itemPerIter = len(itemsToSched) # schedule all remaining activity
@@ -219,7 +218,7 @@ class KernelWriter:
               imod.addCode(Code.WaitCnt(-1, min(maxVmcnt, readsToWait), \
                   "wait for global read before writing to local"))
             else:
-              print "warning - scheduleLocalWrite adding conservative vmcnt(0)"
+              print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
               imod.addCode(Code.Waitcnt(-1, 0, "conservative waitcnt"))
           imod.addCode(item)
           self.perIterLocalWriteCode[u].addCode(imod)
@@ -309,7 +308,7 @@ class KernelWriter:
     if isinstance(waitCode, Code.WaitCnt):
       # Set the waitCount, based on the new iter schedule
       lgkmcnt = 0 # most conservative
-      for item in iterCode.items():
+      for item in list(iterCode.items()):
         localReads  = item.countType(Code.LocalReadInst)
         localWrites = item.countType(Code.LocalWriteInst)
         if kernel["PrefetchLocalRead"]:
@@ -1013,7 +1012,7 @@ class KernelWriter:
       kl.append(self.closeLoop(kernel, -1, True))
 
     # extra summation loops: global increment and close
-    for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
+    for i in reversed(list(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1))):
       kl.append(self.comment("global read inc a"))
       kl.append(self.globalReadIncrement(kernel, i, tensorParametersA, 0))
       kl.append(self.comment("global read inc b"))
@@ -1201,7 +1200,7 @@ class KernelWriter:
     self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
 
     if dkp:
-      print "\nKernelWriter enable:", self.enable
+      print ("\nKernelWriter enable:", self.enable)
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
@@ -2226,7 +2225,7 @@ for codeObjectFileName in codeObjectFileNames:
     if not path.isfile(bytearrayFileName):
       with open(bytearrayFileName, 'w') as bytearrayFile:
         bytearrayFile.write(self.byteArrayScriptSource())
-      chmod(bytearrayFileName, 0777)
+      chmod(bytearrayFileName, 0o777)
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
@@ -2252,12 +2251,12 @@ for codeObjectFileName in codeObjectFileNames:
     if replacementKernel is not None:
       shutil.copyfile(replacementKernel, assemblyFileName)
       if globalParameters["PrintLevel"] >= 1:
-        print "replacement_assemblyFilename %s" % assemblyFileName
+        print("replacement_assemblyFilename %s" % assemblyFileName)
     else:
       kernelSource = self.getKernelSource(kernel)
 
       if globalParameters["PrintLevel"] >= 2:
-        print "write_assemblyFilename %s" % assemblyFileName
+        print("write_assemblyFilename %s" % assemblyFileName)
 
       with open(assemblyFileName, 'w') as assemblyFile:
         assemblyFile.write(kernelSource)
@@ -2339,10 +2338,10 @@ for codeObjectFileName in codeObjectFileNames:
         return (0, self.getKernelSource(kernel))
       
     except subprocess.CalledProcessError as exc:
-      print exc
+      print(exc)
       return (-1, "")
     except RuntimeError as exc:
-      print exc
+      print(exc)
       return (-1, "")
 
   ##############################################################################

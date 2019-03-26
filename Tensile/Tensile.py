@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,13 +23,13 @@ import os
 import sys
 import argparse
 
-from Common import globalParameters, print1, ensurePath, \
+from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-import YAMLIO
-import BenchmarkProblems
-import LibraryLogic
-import ClientWriter
-from __init__ import __version__
+from . import YAMLIO
+from . import BenchmarkProblems
+from . import LibraryLogic
+from . import ClientWriter
+from .__init__ import __version__
 
 ###############################################################################
 # Execute Steps in Config

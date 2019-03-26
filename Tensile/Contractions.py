@@ -26,11 +26,11 @@ import sys
 import time
 import yaml
 
-import Hardware
-import Properties
+from . import Hardware
+from . import Properties
 
-from SolutionStructs import Solution as OriginalSolution
-from Utils import *
+from .SolutionStructs import Solution as OriginalSolution
+from .Utils import *
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']
@@ -94,7 +94,7 @@ class ProblemType:
         for idx in indices:
             assert idx is not None
             idxState = state(idx)
-            for (key, value) in idxState.items():
+            for (key, value) in list(idxState.items()):
                 assert value is not None
 
         rv = cls()
@@ -263,7 +263,7 @@ class SizeMapping:
         return rv
 
     def __init__(self, **kwargs):
-        for (key, value) in kwargs.iteritems():
+        for (key, value) in list(kwargs.items()):
             setattr(self, key, value)
 
 class Solution:
@@ -309,7 +309,7 @@ class Solution:
 
     @classmethod
     def ReadOriginalInfo(cls, d):
-        return dict([(key, str(value)) for (key, value) in d.items() if key != 'ProblemType'])
+        return dict([(key, str(value)) for (key, value) in list(d.items()) if key != 'ProblemType'])
 
     def __init__(self, **kwargs):
         self.name = None

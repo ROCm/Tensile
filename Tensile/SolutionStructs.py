@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,11 +19,16 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
+from __future__ import print_function
 import sys,traceback
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
 import math
+
+try:
+  basestring
+except NameError:
+  basestring = str
 
 ################################################################################
 # Data Type
@@ -390,7 +395,7 @@ class ProblemType:
     return name
 
   def keys(self):
-    return self.state.keys()
+    return list(self.state.keys())
   def __len__(self):
     return len(self.state)
   def __iter__(self):
@@ -930,11 +935,11 @@ class Solution:
       perpDim = state["MacroTile%s"%tc]
 
     if dbFract:
-        print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
+        print("\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
           % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
             parDim, perpDim, \
             state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
-            state["NumThreads"], state["GlobalReadVectorWidth"])
+            state["NumThreads"], state["GlobalReadVectorWidth"]))
 
     # Try to find a GRVW which is smaller than the LSC and also does not force
     # the LSC to wrap - both of these conditions can be tested with lsc % grvw ==0.
@@ -962,7 +967,7 @@ class Solution:
 
       # Vector loads can't wrap to next P dim, so LSC must be divisible by vector elements;
       if dbFract:
-        print "  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw)
+        print("  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw))
       if state["LSC%s"%tc] % grvw == 0:
         bestVw = grvw
         # Try to shrink GRVW if possible while keeping same LSC and LSP:
@@ -976,7 +981,7 @@ class Solution:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
             if dbFract:
-              print "  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc]
+              print("  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc])
             bestVw = grvw
           grvw /= 2
         break
@@ -1015,7 +1020,7 @@ class Solution:
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
-      print "  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
              nlc, nlp, \
              nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
@@ -1024,7 +1029,7 @@ class Solution:
              nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
              (float)(parDim*perpDim) / \
              (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0 \
-             )
+             ))
 
       for p in range(0,nlp):
         elementWidth = 4
@@ -1034,12 +1039,12 @@ class Solution:
           perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
 
         validElements = state["LSC%s"%tc] * perp
-        print "  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
+        print("  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
               (state["GlobalLoadVectorWidth%s"%tc], \
               state["LSC%s"%tc], perp, \
               elementWidth, \
               validElements/state["GlobalLoadVectorWidth%s"%tc],
-              state["NumThreads"])
+              state["NumThreads"]))
 
     return True
 
@@ -1323,14 +1328,14 @@ class Solution:
       totalVectorsB = totalElementsB / state["GlobalReadVectorWidth"]
 
       if 0:
-        print "info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
+        print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
                        pvar(state, "ThreadTile0"), pvar(state, "ThreadTile1"), \
                        "WG=%ux%u" % (state["WorkGroup"][0], state["WorkGroup"][1]), \
-                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB")
-        print "info: totalElementsCoalescedA=", totalElementsCoalescedA, \
-              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA
-        print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
-              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
+                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB"))
+        print("info: totalElementsCoalescedA=", totalElementsCoalescedA, \
+              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA)
+        print("info: totalElementsCoalescedB=", totalElementsCoalescedB, \
+              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
 
       #if state["ProblemType"]["DataType"].isHalf() \
       #    and (state["GlobalLoadVectorWidthA"] == 1 \
@@ -1416,8 +1421,8 @@ class Solution:
 
     # Some of these might become 0?
     if 0:
-      print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
-            pvar(state, "LVCB"), pvar(state, "LVPB")
+      print("info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
+            pvar(state, "LVCB"), pvar(state, "LVPB"))
 
     # lds buffer size for A, B
     if state["KernelLanguage"] == "Source" and \
@@ -1493,13 +1498,13 @@ class Solution:
         return
 
     if 0:
-      print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
-      print "info: ", pvar(state["ProblemType"], "TLUA"), \
+      print("info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB"))
+      print("info: ", pvar(state["ProblemType"], "TLUA"), \
           pvar(state, "NumLoadsCoalescedA"), pvar(state, "NumLoadsPerpendicularA"), \
-          pvar(state, "LSCA"), pvar(state, "LSPA")
-      print "info:", pvar(state["ProblemType"], "TLUB"), \
+          pvar(state, "LSCA"), pvar(state, "LSPA"))
+      print("info:", pvar(state["ProblemType"], "TLUB"), \
           pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
-          pvar(state, "LSCB"), pvar(state, "LSPB")
+          pvar(state, "LSCB"), pvar(state, "LSPB"))
 
     # LoopUnroll too small
     if state["LoopUnroll"] < 2:
@@ -1544,29 +1549,29 @@ class Solution:
           state["LocalWriteUseSgprB"] = True
 
       if 0:
-        print "DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
-              "wavefronts=", wavefronts, ")"
-        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
-              "=>", (state["LSCA"] * numBytes == 256 * wavefronts)
-        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
-              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4)
-        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
-              "=>", (state["LSCB"] * numBytes == 256 * wavefronts)
-        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
-              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4)
+        print("DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
+              "wavefronts=", wavefronts, ")")
+        print("  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCA"] * numBytes == 256 * wavefronts))
+        print("  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4))
+        print("  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCB"] * numBytes == 256 * wavefronts))
+        print("  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4))
 
-        print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
+        print("A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
                " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsA=", state["DirectToLdsA"], \
                " NumLoadsCoalescedA=", state["NumLoadsCoalescedA"], \
-               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"]
-        print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
+               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"])
+        print("B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
                " LSCB=", state["LSCB"],"LSPB=", state["LSPB"],  "GLVB_B=", state["GlobalLoadVectorWidthB"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsB=", state["DirectToLdsB"], \
                " NumLoadsCoalescedB=", state["NumLoadsCoalescedB"], \
-               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"]
+               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"])
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
@@ -1691,12 +1696,12 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        if key in validParameters.keys():
+        if key in list(validParameters.keys()):
           requiredParameters[key] = False
     else:
       for key in keys:
         required = False
-        if key in validParameters.keys():
+        if key in list(validParameters.keys()):
           for i in range(1, len(objs)):
             if objs[0][key] != objs[i][key]:
               required = True
@@ -1718,7 +1723,7 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      if key in validParameters.keys():
+      if key in list(validParameters.keys()):
         requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
@@ -1756,7 +1761,7 @@ class Solution:
     for objIdx in range(0, len(objs)):
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
-        if paramName in validParameters.keys():
+        if paramName in list(validParameters.keys()):
           paramValue = obj[paramName]
           if paramName in data:
             if paramValue not in data[paramName]:
@@ -1780,7 +1785,7 @@ class Solution:
     serial = 0
     multiplier = 1
     for paramName in sorted(state.keys()):
-      if paramName in validParameters.keys():
+      if paramName in list(validParameters.keys()):
         paramValue = state[paramName]
         paramData = data[paramName]
         paramNameMultiplier = len(paramData)
@@ -1839,7 +1844,7 @@ class Solution:
 
   # make class look like dict
   def keys(self):
-    return self._state.keys()
+    return list(self._state.keys())
   def __len__(self):
     return len(self._state)
   def __iter__(self):

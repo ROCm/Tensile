@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,25 +19,20 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from copy import copy, deepcopy
-from Common import print1, print2, printWarning, defaultSolution, \
+from .Common import print1, print2, printWarning, defaultSolution, \
     defaultProblemSizes, defaultBenchmarkFinalProblemSizes, \
     defaultBatchedProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
     defaultBenchmarkCommonParameters, hasParam, \
     defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
     defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
     validParameters
-from SolutionStructs import Solution, ProblemType, ProblemSizes
+from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
-################################################################################
-# Benchmark Process
-# steps in config need to be expanded and
-# missing elements need to be assigned a default
-################################################################################
+""" Benchmark Process
+    steps in config need to be expanded and
+    missing elements need to be assigned a default"""
 class BenchmarkProcess:
 
-  ##############################################################################
-  # Init
-  ##############################################################################
   #def __init__(self, config):
   def __init__(self, problemTypeConfig, problemSizeGroupConfig ):
     # read problem type
@@ -128,7 +123,7 @@ class BenchmarkProcess:
 
     ############################################################################
     # Ensure only valid solution parameters were requested
-    validParameterNames = validParameters.keys()
+    validParameterNames = list(validParameters.keys())
     for paramDictList in [configBenchmarkCommonParameters, \
         configForkParameters, configBenchmarkForkParameters, \
         configBenchmarkJoinParameters]:
