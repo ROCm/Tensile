@@ -18,7 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-
+from __future__ import print_function
 from SolutionStructs import DataType, isPackedIndex
 from Common import globalParameters, printExit, printWarning, roundUp
 from KernelWriter import KernelWriter
@@ -100,7 +100,7 @@ class RegisterPool:
     self.printRP=printRP
     self.type = type
     self.reservedAtEnd = reservedAtEnd
-    self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
+    self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,int(size))]
     self.checkOutSize = {}
 
   ########################################
@@ -109,14 +109,14 @@ class RegisterPool:
   def add(self, start, size, tag=""):
     # reserve space
     if self.printRP:
-      print("RP::add(%u..%u for '%s')"%(start,start+size-1,tag))
-    newSize = start + size
+      print("RP::add(%u..%u for '%s')"%(int(start),int(start+size-1),tag))
+    newSize = int(start + size)
     oldSize = len(self.pool)
     if newSize > oldSize:
-      for i in range(0, newSize-oldSize):
+      for i in range(0, int(newSize-oldSize)):
         self.pool.addInst(self.Register(self.statusUnAvailable,tag))
     # mark as available
-    for i in range(start, start+size):
+    for i in range(int(start), int(start+size)):
       if self.pool[i].status == self.statusUnAvailable:
         self.pool[i].status = self.statusAvailable
       elif self.pool[i].status == self.statusAvailable:
@@ -710,6 +710,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
+    # import pdb
+    # pdb.set_trace()
     if "ISA" in kernel:
       self.version = kernel["ISA"]
     if not globalParameters["AsmCaps"][self.version]["SupportedIsa"]:

@@ -435,7 +435,7 @@ class BenchmarkProcess:
           for i in range(0, macroTilePermutations):
             pIdx = i
             workGroupIdx = pIdx % len(workGroupValues)
-            pIdx /= len(workGroupValues)
+            pIdx //= len(workGroupValues)
             threadTileIdx = pIdx % len(threadTileValues)
 
             workGroup = workGroupValues[workGroupIdx]

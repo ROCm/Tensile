@@ -18,6 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+from __future__ import print_function
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
@@ -242,7 +243,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write("exit $ERR\n")
   runScriptFile.close()
   if os.name != "nt":
-    os.chmod(runScriptName, 0777)
+    os.chmod(runScriptName, 0o777)
   return runScriptName
 
 
@@ -926,7 +927,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         functionsForDataType = []
         for problemType in problemTypesForDataType[dataType]:
           for scheduleName in schedulesForProblemType[problemType]:
-            functionsForDataType.append([scheduleName, problemType])
+            functionsForDataType.list(append([scheduleName, problemType]))
         h += "template<>\n"
         h += "inline %s generatedCallTo_%s<%s>(\n" \
             % (returnName, functionName, typeName)
@@ -948,14 +949,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
         h += "    unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
-        for functionIdx in range(0, len(functionsForDataType)):
+        for functionIdx in range(0, len(list(functionsForDataType))):
           function = functionsForDataType[functionIdx]
           scheduleName = function[0]
           problemType = function[1]
-          if len(functionsForDataType)> 1:
+          if len(list(functionsForDataType))> 1:
             if functionIdx == 0:
               h += "  if (functionIdxForDataType == %u) {\n" % functionIdx
-            elif functionIdx == len(functionsForDataType)-1:
+            elif functionIdx == len(list(functionsForDataType))-1:
               h += "  } else {\n"
             else:
               h += "  } else if (functionIdxForDataType == %u) {\n" \

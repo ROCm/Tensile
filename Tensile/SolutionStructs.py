@@ -809,7 +809,7 @@ class Solution:
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
-      for nlc in range(1, state["NumLoads%s"%tc]+1):
+      for nlc in range(1, int(state["NumLoads%s"%tc]+1)):
         nlp = state["NumLoads%s"%tc] / nlc
         #print nlc, nlp
         if state["NumLoads%s"%tc] % nlc == 0 \

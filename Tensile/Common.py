@@ -161,13 +161,11 @@ defaultGlobalParameters = deepcopy(globalParameters)
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
   for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
-    for sg0 in range(1, numThreads/nsg+1):
+    for sg0 in range(1, numThreads//nsg+1):
       sg1 = numThreads/nsg/sg0
       if sg0*sg1*nsg == numThreads:
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
-
-
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
@@ -916,7 +914,7 @@ def assignGlobalParameters( config ):
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline()
+    line = process.stdout.readline().decode()
     while line != "":
       gfxIdx = line.find("gfx")
       if gfxIdx >= 0:
@@ -926,7 +924,7 @@ def assignGlobalParameters( config ):
         if (major,minor,step) in globalParameters["SupportedISA"]:
           print1("# Detected local GPU with ISA: gfx%u%u%u"%(major, minor, step))
           globalParameters["CurrentISA"] = (major, minor, step)
-        line = process.stdout.readline()
+        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
