@@ -726,7 +726,7 @@ def writeExactLogic(problemType, indexOrder,
   for i in range(firstStride,lastStrideB):
     s += ", strideB%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsB"][i]])
-  for i in range(0,len(indexOrder)-4):
+  for i in range(0,len(indexOrder)):
     s += ", size%s" % indexChars[i]
   s += ");\n"
 
