@@ -154,6 +154,13 @@ class RegisterPool:
   # Check Out
   def checkOut(self, size, tag="", preventOverflow=False):
     return self.checkOutAligned(size, 1, tag, preventOverflow)
+  # def checkOutAligned(self, *args, **kwargs):
+    # tmp = self.checkOutAligned_(*args, **kwargs)
+    # if tmp == 74:
+      # import pdb
+      # pdb.set_trace()
+    # return tmp
+  
   def checkOutAligned(self, size, alignment, tag="", preventOverflow=False):
     assert(size > 0)
     assert(self.type != 's') # use getTmpSgpr instead of checkout
@@ -293,8 +300,6 @@ class RegisterPool:
   def checkFinalState(self):
     for si in range(0,len(self.pool)):
       if self.pool[si].status == self.statusInUse:
-        # import pdb
-        # pdb.set_trace()
         printWarning("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
             %(si, self.pool[si].tag))
         if self.printRP:
@@ -5230,7 +5235,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # which glvw vector of thread to shift? wgMT / (SG0*VW) -> (wgMT%VW) / glvw
     # (wgMT/(WG0*VW))*(VW/glvw) + (wgMT%VW) / glvw
-    if tP["tensorIdx"] > kernel["VectorWidth"]:
+    if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
       mvReg = self.vgprPool.checkOut(1)
       divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
       kStr += vectorStaticDivide(mvReg, wgMT, divisor, \
@@ -5250,7 +5255,7 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
     #kStr += dump(vgpr(vReg))
 
-    if tP["tensorIdx"] > kernel["VectorWidth"]:
+    if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
       kStr += inst("_v_add_co_u32", vgpr(vReg), "vcc", vgpr(mvReg), vgpr(vReg), "vId = 2 components")
       self.vgprPool.checkIn(mvReg)
       self.vgprPool.checkIn(vRegD)

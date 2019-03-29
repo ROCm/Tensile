@@ -766,8 +766,8 @@ class Solution:
       # Try to reduce size of vector so every thread has a load to do
       pv = ceil_divide(state["NumThreads"],totalVectors)
       #state["NumThreads"] / totalVectors # partial vector
-      import pdb
-      pdb.set_trace()
+      # import pdb
+      # pdb.set_trace()
       if not state["FractionalLoad"]:
         if state["NumThreads"] % totalVectors != 0:
           reject(None, "NumThreads %u %% totalVectors %u != 0" \
@@ -814,7 +814,6 @@ class Solution:
       foundValid = False
       for nlc in range(1, int(state["NumLoads%s"%tc]+1)):
         nlp = state["NumLoads%s"%tc] // nlc
-        print("nlc, nlp:", nlc, nlp)
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:

@@ -2302,7 +2302,7 @@ for codeObjectFileName in codeObjectFileNames:
     return s
 
   def getFileCobaDefinition(self, varName, fileName):
-    with open(fileName, 'r') as f:
+    with open(fileName, 'rb') as f:
       byteArray = bytearray(f.read())
     return self.getByteArrayCobaDefinition(varName, byteArray)
 
