@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.7.2
+  MinimumRequiredVersion: 4.9.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -18,7 +18,7 @@ GlobalParameters:
   KernelTime: True
   PinClocks: False
   SleepPercent: 0
-  DataInitTypeBeta : 0
+  DataInitTypeBeta : 2
   CEqualD: True
 # PrintSolutionRejectionReason: True
 # SolutionSelectionAlg: 1
@@ -164,6 +164,70 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128], [128, 1280, 44928], [1], [128, 128, 384] ]  # TRSM
+
+    - # BenchmarkProblemSizeGroup - March 11 small sizes
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - BufferLoad: [True]
+        - BufferStore: [True]
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+      ForkParameters:
+        - FractionalLoad: [True]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True, False]
+        - PersistentKernel: [0,2,4]
+        - SuppressNoLoadLoop: [True, False] 
+        - StaggerU: [0,32]
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 6, 4 ]
+          - [ 4, 6 ]
+          - [ 6, 6 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+        - WorkGroup:
+          - [ 32, 16,  1 ]
+          - [ 16,  8,  1 ]
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
+          - [ 16, 32,  1 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 4, 8 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [256, 256, 44288], [124], [1], [132], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [256, 256, 44288],  [66], [1],  [66], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [190, 256, 44222],  [66], [1],  [66], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [256, 256, 44288],  [58], [1],  [66], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [  [58, 256, 44090],  [58], [1],  [66], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [256, 256, 44288],  [30], [1],  [36], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [220, 256, 44252],  [30], [1],  [36], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [154, 256, 44186],  [30], [1],  [36], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [  [88, 256, 44120],  [30], [1],  [36], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [256, 256, 44288], [128], [1], [128], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [256, 256, 44288],  [64], [1],  [64], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [192, 256, 44224],  [64], [1],  [64], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [  [64, 256, 44096],  [64], [1],  [64], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [256, 256, 44288],  [32], [1],  [32], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [224, 256, 44256],  [32], [1],  [32], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [160, 256, 44192],  [32], [1],  [32], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [  [96, 256, 44128],  [32], [1],  [32], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [  [32, 256, 44064],  [32], [1],  [32], [44288], [44288], [44288], [256] ]  # 173
+          - Range: [ [384, 384, 44160], [192], [1], [192], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [ [384, 384, 44160],  [96], [1],  [96], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [ [288, 384, 44064],  [96], [1],  [96], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [  [96, 384, 43872],  [96], [1],  [96], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [ [384, 384, 44160],  [48], [1],  [48], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [ [336, 384, 44112],  [48], [1],  [48], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [ [240, 384, 44016],  [48], [1],  [48], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [ [144, 384, 43920],  [48], [1],  [48], [44160], [44160], [44160], [384] ]  # 173
+          - Range: [  [48, 384, 43824],  [48], [1],  [48], [44160], [44160], [44160], [384] ]  # 173
 
 LibraryLogic:
     ScheduleName: "vega20"
