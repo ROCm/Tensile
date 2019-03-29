@@ -197,7 +197,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     cpuThreads = globalParameters["CpuThreads"]
     cpus = cpu_count*abs(cpuThreads) if cpuThreads < 0 \
            else min(cpu_count, cpuThreads)
-
+  cpus = 1
   kIter = list(zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly)))
   if cpus > 1:
     print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))

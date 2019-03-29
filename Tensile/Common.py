@@ -162,7 +162,7 @@ validWorkGroups = []
 for numThreads in range(64, 1025, 64):
   for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
     for sg0 in range(1, numThreads//nsg+1):
-      sg1 = numThreads/nsg/sg0
+      sg1 = numThreads//nsg//sg0
       if sg0*sg1*nsg == numThreads:
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
@@ -856,15 +856,16 @@ def tryAssembler(isaVersion, options, asmString):
              % (globalParameters["AssemblerPath"], isaVersion, options)
 
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
-
+  # import pdb
+  # pdb.set_trace()
   try:
-    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT)
+    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
     if globalParameters["PrintLevel"] >=2:
         print("asm_cmd: ", asmCmd)
         print("output :", result)
     if result != "":
       return 0 # stdout and stderr must be empty
-  except subprocess.CalledProcessError as e:
+  except subprocess.CalledProcessError as RuntimeError:
     if globalParameters["PrintLevel"] >=2:
         print("CalledProcessError", e)
     return 0 # error, not supported
@@ -936,8 +937,10 @@ def assignGlobalParameters( config ):
   for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
     globalParameters["AsmCaps"][v] = {}
     globalParameters["ArchCaps"][v] = {}
+    # import pdb
+    # pdb.set_trace()
     isaVersion = "gfx" + "".join(map(str,v))
-    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "", "")
+    globalParameters["AsmCaps"][v]["SupportedISA"] = tryAssembler(isaVersion, "", "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,v0")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
@@ -951,7 +954,8 @@ def assignGlobalParameters( config ):
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
-
+    # import pdb
+    # pdb.set_trace()
     print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
     globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6))
     print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))

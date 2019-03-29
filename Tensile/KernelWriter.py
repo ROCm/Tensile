@@ -72,7 +72,6 @@ class KernelWriter:
   # blindly follows the plan set in unrollLoopHeaderCode and perIterCode
   ##############################################################################
   def makeSchedule(self, kernel, tensorParametersA, tensorParametersB, localWriteEndIter):
-
     # 0x2=print GR and LW code blocks, 0x1= print info messages
     schedDb = 0
 
@@ -83,7 +82,7 @@ class KernelWriter:
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
-
+    
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
       # put everything in the header:

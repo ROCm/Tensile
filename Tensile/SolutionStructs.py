@@ -24,6 +24,7 @@ import sys,traceback
 from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
 import math
+from Utils import ceil_divide, roundUpToNearestMultiple
 
 try:
   basestring
@@ -733,8 +734,8 @@ class Solution:
 
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
-      macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
-          state["MacroTile1"]/state["MacroTile0"])
+      macroTileShape = max(state["MacroTile0"]//state["MacroTile1"], \
+          state["MacroTile1"]//state["MacroTile0"])
       if macroTileShape > state["MacroTileShapeMax"] \
           or macroTileShape < state["MacroTileShapeMin"]:
         reject(state, "rejecting MacroTile Shape %u:%u for Min:Max %u:%u" \
@@ -763,7 +764,10 @@ class Solution:
     validDepthU = True
     if totalVectors < state["NumThreads"]:
       # Try to reduce size of vector so every thread has a load to do
-      pv = state["NumThreads"] / totalVectors # partial vector
+      pv = ceil_divide(state["NumThreads"],totalVectors)
+      #state["NumThreads"] / totalVectors # partial vector
+      import pdb
+      pdb.set_trace()
       if not state["FractionalLoad"]:
         if state["NumThreads"] % totalVectors != 0:
           reject(None, "NumThreads %u %% totalVectors %u != 0" \
@@ -785,12 +789,11 @@ class Solution:
               % (totalVectors, state["NumThreads"]))
           validDepthU = False
 
-    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"] / pv
+    state["GlobalLoadVectorWidth%s"%tc] = ceil_divide(state["GlobalReadVectorWidth"],pv)
 
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
-    state["NumLoads%s"%tc] = totalVectors * pv / state["NumThreads"]
-
+    state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -810,8 +813,8 @@ class Solution:
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
       for nlc in range(1, int(state["NumLoads%s"%tc]+1)):
-        nlp = state["NumLoads%s"%tc] / nlc
-        #print nlc, nlp
+        nlp = state["NumLoads%s"%tc] // nlc
+        print("nlc, nlp:", nlc, nlp)
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:
@@ -827,7 +830,7 @@ class Solution:
     elif state["NumLoadsCoalesced%s"%tc] == -1:
       foundValid = False
       for nlc in range(state["NumLoads%s"%tc], 0, -1):
-        nlp = state["NumLoads%s"%tc] / nlc
+        nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:
@@ -846,7 +849,7 @@ class Solution:
         return False
 
       state["NumLoadsPerpendicular%s"%tc] = state["NumLoads%s"%tc] \
-          / state["NumLoadsCoalesced%s"%tc]
+          // state["NumLoadsCoalesced%s"%tc]
 
       if state["NumLoads%s"%tc] % state["NumLoadsCoalesced%s"%tc] != 0:
         reject(state, "%s: numLoads %u %% numLoadsCoalesced %u != 0" \
@@ -864,12 +867,12 @@ class Solution:
 
     if state["ProblemType"]["TLU%s"%tc]:
       state["LSC%s"%tc] = state["MacroTile%s"%tc] \
-          / state["NumLoadsCoalesced%s"%tc]
+          // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-          / state["NumLoadsPerpendicular%s"%tc]
+          // state["NumLoadsPerpendicular%s"%tc]
 
     return True
 
@@ -961,7 +964,7 @@ class Solution:
       else:
         # work-group exceeds read dimension so wraps to multiple rows
         state["LSC%s"%tc] = parDim
-        state["LSP%s"%tc] = min(perpDim, elementsLoadedPerInst / parDim)
+        state["LSP%s"%tc] = min(perpDim, elementsLoadedPerInst // parDim)
         state["NumLoadsCoalesced%s"%tc] = 1
         state["NumLoadsPerpendicular%s"%tc] = roundupRatio(perpDim , state["LSP%s"%tc])
 
@@ -974,7 +977,7 @@ class Solution:
         # For example, avoid cases where we use a GRVW=4 with many empty addresses
         # when a GRVW=1 will do instead.
         validElementsLoadedPerInst = state["LSC%s"%tc] * state["LSP%s"%tc]
-        grvw /= 2
+        grvw //= 2
         while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if elementsLoadedPerInst < validElementsLoadedPerInst:
@@ -983,12 +986,12 @@ class Solution:
             if dbFract:
               print("  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc])
             bestVw = grvw
-          grvw /= 2
+          grvw //= 2
         break
 
       # TODO - could have this generate dwordx3 loads in addition, step down by 1 instead of div2
       # Would need to change asm code gen to generate x3
-      grvw /= 2
+      grvw //= 2
       # end-- while loop
 
     if bestVw == -1:
@@ -1027,8 +1030,8 @@ class Solution:
              parDim, perpDim, \
              parDim*perpDim, \
              nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
-             (float)(parDim*perpDim) / \
-             (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0 \
+             ceil_divide((float)(parDim*perpDim), \
+             (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0) \
              ))
 
       for p in range(0,nlp):
@@ -1043,7 +1046,7 @@ class Solution:
               (state["GlobalLoadVectorWidth%s"%tc], \
               state["LSC%s"%tc], perp, \
               elementWidth, \
-              validElements/state["GlobalLoadVectorWidth%s"%tc],
+              validElements//state["GlobalLoadVectorWidth%s"%tc],
               state["NumThreads"]))
 
     return True
@@ -1143,7 +1146,7 @@ class Solution:
       state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
       while state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
-        state["VectorWidth"] /= 2
+        state["VectorWidth"] //= 2
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
     if state["ThreadTile0"] % state["VectorWidth"] != 0 \
         or state["ThreadTile1"] % state["VectorWidth"] != 0:
@@ -1194,7 +1197,7 @@ class Solution:
       reject(state, "NumElementsPerWorkGroup %u < NumThreads %u; reduce LocalSplitU" \
           % (numElementsPerWorkGroup, state["NumThreads"]))
       return
-    state["NumElementsPerThread"] = numElementsPerWorkGroup / \
+    state["NumElementsPerThread"] = numElementsPerWorkGroup // \
         state["NumThreads"]
     state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
     if state["NumElementsPerThread"] % state["GlobalWriteVectorWidth"] != 0:
@@ -1202,7 +1205,7 @@ class Solution:
           % (state["NumElementsPerThread"], state["GlobalWriteVectorWidth"]))
       return
     state["NumGlobalWriteVectorsPerThread"] = state["NumElementsPerThread"] \
-        / state["GlobalWriteVectorWidth"]
+        // state["GlobalWriteVectorWidth"]
 
 
     # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways store
@@ -1308,8 +1311,8 @@ class Solution:
         if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU):
           validDepthU = False
       else:
-        tva = totalElementsA / state["GlobalReadVectorWidth"]
-        tvb = totalElementsB / state["GlobalReadVectorWidth"]
+        tva = totalElementsA // state["GlobalReadVectorWidth"]
+        tvb = totalElementsB // state["GlobalReadVectorWidth"]
         if not Solution.setGlobalLoadVectorWidth(state, "A", tva):
           validDepthU = False
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
@@ -1322,10 +1325,10 @@ class Solution:
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA / state["GlobalReadVectorWidth"]
-      totalVectorsCoalescedB = totalElementsCoalescedB / state["GlobalReadVectorWidth"]
-      totalVectorsA = totalElementsA / state["GlobalReadVectorWidth"]
-      totalVectorsB = totalElementsB / state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalReadVectorWidth"]
+      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"] 
+      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"] 
 
       if 0:
         print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
@@ -1439,10 +1442,11 @@ class Solution:
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
-    ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
-
+    ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
-    ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+    # import pdb
+    # pdb.set_trace()
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:
@@ -1466,8 +1470,8 @@ class Solution:
     ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds max occupancy
-    ldsSizeOccupancy = globalParameters["DeviceLDS"] / state["MaxOccupancy"]
-    ldsNumElementsOccupancy = ldsSizeOccupancy / state["ProblemType"]["DataType"].numBytes()
+    ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
+    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
@@ -1479,13 +1483,12 @@ class Solution:
 
     # LoopUnroll  = DepthU / LocalSplitU
     if "LocalSplitU" in state and "DepthU" in state:
-      state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
+      state["LoopUnroll"] = state["DepthU"] // state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
       state["Valid"] = False
     if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
       reject(state, "InnerUnroll only supported on assembly")
-    state["LoopUnroll"] /= state["InnerUnroll"]
-
+    state["LoopUnroll"] //= state["InnerUnroll"]
     ldl = state["LocalDotLayout"]
     if ldl > 1:
       # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
@@ -1524,7 +1527,7 @@ class Solution:
       elementMultipleOk = not state["ProblemType"]["DataType"].isHalf() \
                           or state["AssertSummationElementMultiple"] % 2 == 0
 
-      wavefronts = state["NumThreads"] / globalParameters["WavefrontWidth"]
+      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
       numBytes = state["ProblemType"]["DataType"].numBytes()
 
       # DirectToLds loads return 256 bytes/wave
