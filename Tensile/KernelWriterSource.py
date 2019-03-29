@@ -326,6 +326,16 @@ class KernelWriterSource(KernelWriter):
     # global memory indices
     kStr += self.endLine
     kStr += "/* global memory indices */" + self.endLine
+    # D
+    kStr += "#define GLOBAL_D(IDX%s" % self.indexChars[0]
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") (( (IDX%s)*strideD%s" % (indexChar, indexChar)
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
+    kStr += " ))" + self.endLine
     # C
     kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
@@ -682,6 +692,7 @@ class KernelWriterSource(KernelWriter):
     firstStride = 0
     if kernel["ProblemType"]["UseInitialStrides"]:
       # no strides #defined
+      lastStrideD = 0
       lastStrideC = 0
       lastStrideA = 0
       lastStrideB = 0
@@ -689,10 +700,13 @@ class KernelWriterSource(KernelWriter):
       # #define initial stride
       kStr += "/* hard-coded initial strides */%s" \
           % self.endLine
+      lastStrideD = 1
       lastStrideC = 1
       lastStrideA = 1
       lastStrideB = 1
 
+    for i in range(firstStride, lastStrideD):
+      kStr += "#define strideD" + self.indexChars[i] + " 1" + self.endLine
     for i in range(firstStride, lastStrideC):
       kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
     for i in range(firstStride, lastStrideA):
@@ -779,9 +793,12 @@ class KernelWriterSource(KernelWriter):
     firstStride = 1
     if kernel["ProblemType"]["UseInitialStrides"]:
       firstStride = 0
+    lastStrideD = kernel["ProblemType"]["NumIndicesC"]
     lastStrideC = kernel["ProblemType"]["NumIndicesC"]
     lastStrideA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     lastStrideB = len(kernel["ProblemType"]["IndexAssignmentsB"])
+    for i in range(firstStride, lastStrideD):
+      s += "," + self.endLine + "  unsigned int const strideD" + self.indexChars[i]
     for i in range(firstStride, lastStrideC):
       s += "," + self.endLine + "  unsigned int const strideC" + self.indexChars[i]
     for i in range(firstStride, lastStrideA):
@@ -2307,7 +2324,7 @@ class KernelWriterSource(KernelWriter):
           kStr += "  if (%s + %u*CPSV < %s) {" \
               % (globalC1ForCheck, b, size1ForCheck)
 
-        kStr += "  TYPE_MAC_WRITE( D[ GLOBAL_C( (%s)" % self.uint64Str
+        kStr += "  TYPE_MAC_WRITE( D[ GLOBAL_D( (%s)" % self.uint64Str
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           kStr += " globalC%s" % self.indexChars[i]
           if i == kernel["ProblemType"]["Index0"] and kernel["GlobalWriteVectorWidth"]>1:
@@ -2449,7 +2466,7 @@ class KernelWriterSource(KernelWriter):
                   b, self.tileChar1, size1ForCheck)
 
             # Write the result
-            kStr += "  TYPE_MAC_WRITE( D[ GLOBAL_C( (%s)" % self.uint64Str
+            kStr += "  TYPE_MAC_WRITE( D[ GLOBAL_D( (%s)" % self.uint64Str
             for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
               kStr += " globalC%s" % self.indexChars[i]
               if i == kernel["ProblemType"]["Index0"]:
@@ -2561,13 +2578,17 @@ class KernelWriterSource(KernelWriter):
       # initial strides
       firstStride = 0
       if kernel["ProblemType"]["UseInitialStrides"]:
+        lastStrideD = 0
         lastStrideC = 0
         lastStrideA = 0
         lastStrideB = 0
       else:
+        lastStrideD = 1
         lastStrideC = 1
         lastStrideA = 1
         lastStrideB = 1
+      for i in range(firstStride, lastStrideD):
+        kStr += "#undef strideD" + self.indexChars[i] + self.endLine
       for i in range(firstStride, lastStrideC):
         kStr += "#undef strideC" + self.indexChars[i] + self.endLine
       for i in range(firstStride, lastStrideA):
@@ -2688,6 +2709,9 @@ class KernelWriterSource(KernelWriter):
       firstStride = 0
     lastStrideC = kernel["ProblemType"]["NumIndicesC"]
     for i in range(firstStride, lastStrideC):
+      kStr += "  unsigned int const strideD%s,%s" \
+          % (self.indexChars[i], self.endLine)
+    for i in range(firstStride, lastStrideC):
       kStr += "  unsigned int const strideC%s,%s" \
           % (self.indexChars[i], self.endLine)
 
@@ -2726,9 +2750,21 @@ class KernelWriterSource(KernelWriter):
           % self.endLine
       lastStrideC = 1
     for i in range(firstStride, lastStrideC):
+      kStr += "#define strideD" + self.indexChars[i] + " 1" + self.endLine
+    for i in range(firstStride, lastStrideC):
       kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
 
     ########################################
+    # GLOBAL_D()
+    kStr += "#define GLOBAL_D(IDX%s" % self.indexChars[0]
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") (( (IDX%s)*strideD%s" % (indexChar, indexChar)
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
+    kStr += " ))" + self.endLine
     # GLOBAL_C()
     kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
@@ -2777,8 +2813,15 @@ class KernelWriterSource(KernelWriter):
       kStr += ";" + self.endLine
 
     ########################################
+    # D index
+    kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += " globalC%s" % self.indexChars[i]
+      if i < kernel["ProblemType"]["NumIndicesC"]-1:
+        kStr += ", "
+    kStr += ");%s" % (self.endLine)
     # C index
-    kStr += "  %s idx = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
+    kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += " globalC%s" % self.indexChars[i]
       if i < kernel["ProblemType"]["NumIndicesC"]-1:
@@ -2807,13 +2850,12 @@ class KernelWriterSource(KernelWriter):
         kStr += "    if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
       else:
         kStr += "    if(beta == SCALAR_ZERO) {%s" % self.endLine
-      kStr += "      D[idx] = SCALAR_ZERO;%s" % self.endLine
+      kStr += "      D[idxD] = SCALAR_ZERO;%s" % self.endLine
       kStr += "    } else {%s" % self.endLine
-      kStr += "      D[idx] = C[idx]*beta;%s" % self.endLine
+      kStr += "      D[idxD] = C[idxC]*beta;%s" % self.endLine
       kStr += "    }%s" % self.endLine
     else:
-      kStr += "    D[idx]"
-      kStr += " = SCALAR_ZERO;%s" % (self.endLine)
+      kStr += "    D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
     kStr += "  }%s" % self.endLine
 
 
@@ -2821,6 +2863,7 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # end
     kStr += "}%s" % self.endLine
+    kStr += "#undef GLOBAL_D%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
     if kernel["ProblemType"]["DataType"].isReal():
       kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)

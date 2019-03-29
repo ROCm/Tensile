@@ -421,9 +421,10 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
     lastStrideC = problemType["NumIndicesC"]
+    lastStrideD = problemType["NumIndicesC"]
     h += "typedef ProblemKey<%u> ProblemKey_%s;\n" % (numSizes,problemType)
-    h += "typedef ProblemDims<%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
-        % (firstStride, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
+    h += "typedef ProblemDims<%u,%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
+        % (firstStride, lastStrideD, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
     h += "typedef SolutionMapper<ProblemDims_%s, ProblemKey_%s> SolutionMapper_%s;\n" \
             % (problemType, problemType, problemType)
 
@@ -649,12 +650,13 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d} }%s // %d" % \
+    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d} }%s // %d" % \
       (solutionName, solutionName, \
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
         solution["AssertMinApproxSize"], \
+        solution["LdcEqualsLdd"], \
         "," if i < len(solutionsForSchedule)-1 else "", \
         i)
     s += "\n"
@@ -664,9 +666,11 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   # Write the exact problems here
   s += "// table of exact problem dims and selected solutionIdx\n"
   s += "static const std::pair<const ProblemKey_%s, int> embeddedExactTable_%s[] = {\n" % (problemType,schedProbName)
+  numSizes = problemType["TotalIndices"]
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
-    problemSize = rule[0]
+    problemSize = rule[0][:numSizes]
+    problemStrides = rule[0][numSizes:]
     solutionIdx = rule[1][0]
     solutionGFlops = rule[1][1]
     s += " { {"
@@ -707,12 +711,15 @@ def writeExactLogic(problemType, indexOrder,
   s += "  ProblemDims_%s pdims(" % problemType
   indexChars = globalParameters["IndexChars"]
   firstStride = 0 if problemType["UseInitialStrides"] else 1
+  lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
   lastStrideA = len(problemType["IndexAssignmentsA"])
   lastStrideB = len(problemType["IndexAssignmentsB"])
-  for i in range(firstStride,lastStrideC):
+  for i in range(firstStride,lastStrideD):
     if i != firstStride: s += ", "
-    s += "strideC%u%s" % (i, indexChars[i])
+    s += "strideD%u%s" % (i, indexChars[i])
+  for i in range(firstStride,lastStrideC):
+    s += ", strideC%u%s" % (i, indexChars[i])
   for i in range(firstStride,lastStrideA):
     s += ", strideA%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsA"][i]])
@@ -741,16 +748,19 @@ def writeSolutionCall(solutionName, problemType):
   s = ""
   s += "%s(" % solutionName
   # solution parameters
-  s += " dataC, dataA, dataB, alpha"
+  s += " dataD, dataC, dataA, dataB, alpha"
   if problemType["UseBeta"]:
     s += ", beta"
   s += ", offsetC, offsetA, offsetB"
   firstStride = 1
   if problemType["UseInitialStrides"]:
     firstStride = 0
+  lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
   lastStrideA = len(problemType["IndexAssignmentsA"])
   lastStrideB = len(problemType["IndexAssignmentsB"])
+  for i in range(firstStride,lastStrideD):
+    s += ", strideD%u%s" % (i, indexChars[i])
   for i in range(firstStride,lastStrideC):
     s += ", strideC%u%s" % (i, indexChars[i])
   for i in range(firstStride,lastStrideA):

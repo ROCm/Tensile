@@ -75,7 +75,8 @@ class SolutionWriter:
     tt1 = solution["ThreadTile1"]
     sg0 = solution["SubGroup0"]
     sg1 = solution["SubGroup1"]
-    nt  =  solution["NumThreads"]
+    nt  = solution["NumThreads"]
+    es  = solution["LdcEqualsLdd"]
 
     kernels = solution.getKernels()
     kernelNames = []
@@ -517,7 +518,7 @@ class SolutionWriter:
         s += "%sdataD,\n" % (t)
         s += "%sdataC,\n" % (t)
         # strides
-        for i in range(0,numStridesC):
+        for i in range(0,numStridesC*2):
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
         for i in range(0, problemType["NumIndicesC"]):
@@ -539,7 +540,7 @@ class SolutionWriter:
           s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
           # strides
-          for i in range(0,numStridesC):
+          for i in range(0,numStridesC*2):
             s += "%s%s,\n" % (t, self.strideList[i])
           # sizes
           for i in range(0, problemType["NumIndicesC"]):
@@ -896,6 +897,9 @@ class SolutionWriter:
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
+    # d strides
+    for i in range(firstStride,lastStrideC):
+      self.strideList.append("strideD%u%s" % (i, self.indexChars[i]))
     # c strides
     for i in range(firstStride,lastStrideC):
       self.strideList.append("strideC%u%s" % (i, self.indexChars[i]))
