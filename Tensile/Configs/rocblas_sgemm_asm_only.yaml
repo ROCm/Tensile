@@ -8,7 +8,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: True
-  NumElementsToValidate: 0
+  NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -20,6 +20,7 @@ GlobalParameters:
   SleepPercent: 0
   DataInitTypeBeta : 0
   PrintWinnersOnly: 1
+  ExitOnFails: 0
 
 BenchmarkProblems:
   ########################################

@@ -21,6 +21,7 @@
 
 from Utils import *
 
+
 class Property:
     def __init__(self, tag=None, index=None, value=None):
         self._tag = tag
@@ -28,11 +29,16 @@ class Property:
         self._value = value
 
     @property
-    def tag(self):   return self._tag
+    def tag(self):
+        return self._tag
+
     @property
-    def index(self): return self._index
+    def index(self):
+        return self._index
+
     @property
-    def value(self): return self._value
+    def value(self):
+        return self._value
 
     def state(self):
         rv = {'type': self.tag}
@@ -54,7 +60,10 @@ class Property:
 class Predicate(Property):
     @classmethod
     def FromOriginalState(cls, d):
-        predicates = list([p for p in map(cls.FromOriginalKeyPair, list(d.items())) if p is not None])
+        predicates = list([
+            p for p in map(cls.FromOriginalKeyPair, list(d.items()))
+            if p is not None
+        ])
         if len(predicates) == 0:
             return cls('TruePred')
         if len(predicates) == 1:

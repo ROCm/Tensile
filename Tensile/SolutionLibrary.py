@@ -26,6 +26,7 @@ import Contractions
 from SolutionStructs import Solution as OriginalSolution
 from Utils import *
 
+
 class SingleSolutionLibrary:
     Tag = 'Single'
 
@@ -39,8 +40,10 @@ class SingleSolutionLibrary:
     def state(self):
         return {'type': self.tag, 'index': self.solution.index}
 
+
 class MatchingProperty(Properties.Property):
     pass
+
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -52,11 +55,11 @@ class MatchingLibrary:
         origTable = d[1]
 
         propertyKeys = {
-                2:lambda: MatchingProperty('FreeSizeA', index=0),
-                3:lambda: MatchingProperty('FreeSizeB', index=0),
-                0:lambda: MatchingProperty('BatchSize', index=0),
-                1:lambda: MatchingProperty('BoundSize', index=0)
-            }
+            2: lambda: MatchingProperty('FreeSizeA', index=0),
+            3: lambda: MatchingProperty('FreeSizeB', index=0),
+            0: lambda: MatchingProperty('BatchSize', index=0),
+            1: lambda: MatchingProperty('BoundSize', index=0)
+        }
 
         properties = [propertyKeys[i]() for i in indices]
 
@@ -68,7 +71,11 @@ class MatchingLibrary:
             try:
                 index = row[1][0]
                 value = SingleSolutionLibrary(solutions[index])
-                entry = {'key': list(row[0]), 'value': value, 'speed': row[1][1]}
+                entry = {
+                    'key': list(row[0]),
+                    'value': value,
+                    'speed': row[1][1]
+                }
                 table.append(entry)
             except KeyError:
                 pass
@@ -84,9 +91,11 @@ class MatchingLibrary:
         self.table = table
         self.distance = distance
 
+
 class ProblemMapLibrary:
     Tag = 'ProblemMap'
-    StateKeys = [('type', 'tag'), ('property', 'mappingProperty'), ('map', 'mapping')]
+    StateKeys = [('type', 'tag'), ('property', 'mappingProperty'),
+                 ('map', 'mapping')]
 
     def __init__(self, mappingProperty=None, mapping=None):
         self.mappingProperty = mappingProperty
@@ -99,11 +108,12 @@ class ProblemMapLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag and self.mappingProperty == other.mappingProperty
 
-        for key,value in list(other.mapping.items()):
+        for key, value in list(other.mapping.items()):
             if key in self.mapping:
                 self.mapping[key].merge(value)
             else:
                 self.mapping[key] = value
+
 
 class PredicateLibrary:
     StateKeys = [('type', 'tag'), 'rows']
@@ -115,7 +125,7 @@ class PredicateLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag
 
-        rowdict = dict([(r['predicate'], i) for i,r in enumerate(self.rows)])
+        rowdict = dict([(r['predicate'], i) for i, r in enumerate(self.rows)])
 
         for row in other.rows:
             if row['predicate'] in rowdict:
@@ -124,13 +134,19 @@ class PredicateLibrary:
             else:
                 self.rows.append(row)
 
+
 class MasterSolutionLibrary:
     StateKeys = ['solutions', 'library']
 
     @classmethod
-    def FromOriginalState(cls, d, solutionClass=Contractions.Solution, libraryOrder = None):
+    def FromOriginalState(cls,
+                          d,
+                          solutionClass=Contractions.Solution,
+                          libraryOrder=None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
+            libraryOrder = [
+                'Hardware', 'OperationIdentifier', 'Predicates', 'Matching'
+            ]
 
         minVersion = d[0]
         deviceSection = d[1:4]
@@ -138,14 +154,21 @@ class MasterSolutionLibrary:
         origSolutions = d[5]
         origLibrary = d[6:8]
 
-        problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
+        problemType = Contractions.ProblemType.FromOriginalState(
+            origProblemType)
 
-        allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
+        allSolutions = [
+            solutionClass.FromOriginalState(s, deviceSection)
+            for s in origSolutions
+        ]
 
-        asmSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] != 'Source'])
-        sourceSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] == 'Source'])
+        asmSolutions = dict([(s.index, s) for s in allSolutions
+                             if s.info['KernelLanguage'] != 'Source'])
+        sourceSolutions = dict([(s.index, s) for s in allSolutions
+                                if s.info['KernelLanguage'] == 'Source'])
 
-        matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
+        matchingLibrary = MatchingLibrary.FromOriginalState(
+            origLibrary, asmSolutions)
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
@@ -153,7 +176,8 @@ class MasterSolutionLibrary:
 
             elif libName == 'Hardware':
                 newLib = PredicateLibrary(tag='Hardware', rows=[])
-                pred = Hardware.HardwarePredicate.FromOriginalDeviceSection(deviceSection)
+                pred = Hardware.HardwarePredicate.FromOriginalDeviceSection(
+                    deviceSection)
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
 
@@ -182,16 +206,24 @@ class MasterSolutionLibrary:
         self.library = library
 
     def state(self):
-        return {'solutions': state(iter(list(self.solutions.values()))), 'library': state(self.library)}
+        return {
+            'solutions': state(iter(list(self.solutions.values()))),
+            'library': state(self.library)
+        }
 
     def applyNaming(self, naming=None):
         if naming is None:
-            allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
-            kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in allSolutions]))
+            allSolutions = itertools.chain(
+                iter(list(self.solutions.values())),
+                iter(list(self.sourceSolutions.values())))
+            kernels = list(
+                itertools.chain(
+                    *[s.originalSolution.getKernels() for s in allSolutions]))
             naming = OriginalSolution.getMinNaming(kernels)
 
         for s in list(self.solutions.values()):
-            s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
+            s.name = OriginalSolution.getNameMin(
+                s.originalSolution.getKernels()[0], naming)
 
     def merge(self, other):
         assert self.__class__ == other.__class__
@@ -199,15 +231,14 @@ class MasterSolutionLibrary:
         allIndices = itertools.chain(self.solutions, self.sourceSolutions)
         curIndex = max(allIndices) + 1
 
-        for k,s in list(other.solutions.items()):
+        for k, s in list(other.solutions.items()):
             s.index = curIndex
             self.solutions[curIndex] = s
             curIndex += 1
 
-        for k,s in list(other.sourceSolutions.items()):
+        for k, s in list(other.sourceSolutions.items()):
             s.index = curIndex
             self.sourceSolutions[curIndex] = s
             curIndex += 1
 
         self.library.merge(other.library)
-

@@ -5235,7 +5235,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # which glvw vector of thread to shift? wgMT / (SG0*VW) -> (wgMT%VW) / glvw
     # (wgMT/(WG0*VW))*(VW/glvw) + (wgMT%VW) / glvw
-    if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
+    if tP["tensorIdx"] > kernel["VectorWidth"]:
       mvReg = self.vgprPool.checkOut(1)
       divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
       kStr += vectorStaticDivide(mvReg, wgMT, divisor, \
@@ -5254,11 +5254,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr += vectorStaticDivide(vReg, vRegD, divisor, \
         tmpVgpr, tmpSgpr)
     #kStr += dump(vgpr(vReg))
-
-    if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
+    self.vgprPool.checkIn(vRegD)
+    
+    if tP["tensorIdx"] > kernel["VectorWidth"]:
       kStr += inst("_v_add_co_u32", vgpr(vReg), "vcc", vgpr(mvReg), vgpr(vReg), "vId = 2 components")
       self.vgprPool.checkIn(mvReg)
-      self.vgprPool.checkIn(vRegD)
 
     kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
         vgpr(eReg), "mask" )
