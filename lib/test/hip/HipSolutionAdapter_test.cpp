@@ -85,7 +85,9 @@ struct ContractionTest: public ::testing::TestWithParam<ContractionProblem>
         //InitTensor(c_h.data(), problem.c, RandomInt<float>());
         //InitTensor(d_h.data(), problem.d, RandomInt<float>());
 
-        d_ref_h = c_h;
+        d_ref_h = d_h;
+
+        CopyTensor(d_ref_h.data(), c_h.data(), problem.d(), problem.c());
 
         HIP_CHECK_EXC(hipMalloc(&a_d,     problem.a().totalAllocatedBytes()));
         HIP_CHECK_EXC(hipMalloc(&b_d,     problem.b().totalAllocatedBytes()));
@@ -246,7 +248,7 @@ TEST_P(ContractionTest, Library)
 
     for(int i = 0; i < d_ref_h.size(); i++)
     {
-        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]);
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
 

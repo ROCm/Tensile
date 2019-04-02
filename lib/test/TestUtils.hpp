@@ -94,6 +94,27 @@ namespace Tensile
         }
     }
 
+    template <typename T>
+    void CopyTensor(T * dst, T const* src, TensorDescriptor const& dstDesc, TensorDescriptor const& srcDesc)
+    {
+        if(dstDesc.dimensions() != 3 || srcDesc.dimensions() != 3)
+            throw std::runtime_error("Fix this function to work with dimensions != 3");
+
+        if(dstDesc.sizes() != srcDesc.sizes())
+            throw std::runtime_error("Sizes must be equal!");
+
+        size_t bytes = dstDesc.sizes()[0] * sizeof(T);
+
+        for(int k = 0; k < dstDesc.sizes()[2]; k++)
+        for(int j = 0; j < dstDesc.sizes()[1]; j++)
+        {
+            T      * dst_col = dst + dstDesc.index(0, j, k);
+            T const* src_col = src + srcDesc.index(0, j, k);
+
+            memcpy(dst_col, src_col, bytes);
+        }
+    }
+
     inline ContractionProblem RandomGEMM()
     {
         static std::mt19937 rng;
@@ -102,6 +123,7 @@ namespace Tensile
         //std::uniform_int_distribution<int> random_size(2,8192);
         std::uniform_int_distribution<int> random_padding(0,32);
         std::uniform_int_distribution<int> random_batch(1,10);
+        std::uniform_int_distribution<int> random_beta(0,2);
 
         std::uniform_real_distribution<double> random_size(1.0, std::log(8192.0));
 
@@ -112,51 +134,74 @@ namespace Tensile
         size_t n = std::exp(random_size(rng)) + 1;
         size_t k = std::exp(random_size(rng)) + 1;
 
-        bool padA = random_bool(rng);
-        bool padB = random_bool(rng);
-        bool padC = random_bool(rng);
+        int beta_category = random_beta(rng);
+        double beta;
+        if(beta_category == 0)
+            beta = 0.0;
+        else if(beta_category == 1)
+            beta = 1.0;
+        else
+            beta = 1.2;
 
-        size_t lda = transA ? k : m;
-        size_t ldb = transB ? n : k;
-        size_t ldc = m;
-
-        if(padA)
+        auto random_pad = [&](size_t cols, size_t rows, size_t &ld, size_t & stride)
         {
-            size_t aPadding = random_padding(rng);
-            if(aPadding == 0)
-                lda = RoundUpToMultiple<size_t>(lda, 128);
-            else
-                lda += aPadding;
-        }
+            ld = cols;
 
-        if(padB)
-        {
-            size_t bPadding = random_padding(rng);
-            if(bPadding == 0)
-                ldb = RoundUpToMultiple<size_t>(ldb, 128);
-            else
-                ldb += bPadding;
-        }
+            bool pad_ld = random_bool(rng);
 
-        if(padC)
-        {
-            size_t cPadding = random_padding(rng);
-            if(cPadding == 0)
-                ldc = RoundUpToMultiple<size_t>(ldc, 128);
-            else
-                ldc += cPadding;
-        }
+            if(pad_ld)
+            {
+                size_t padding = random_padding(rng);
+                if(padding == 0)
+                    ld = RoundUpToMultiple<size_t>(ld, 128);
+                else
+                    ld += padding;
+            }
+
+            stride = ld * rows;
+
+            bool pad_stride = random_bool(rng);
+
+            if(pad_stride)
+            {
+                size_t padding = random_padding(rng);
+
+                if(padding == 0)
+                    stride = RoundUpToMultiple<size_t>(stride, 256);
+                else
+                    stride += padding;
+            }
+        };
+
+        size_t lda, ldb, ldc, ldd;
+        size_t strideA, strideB, strideC, strideD;
+
+        if(transA)
+            random_pad(k, m, lda, strideA);
+        else
+            random_pad(m, k, lda, strideA);
+
+        if(transB)
+            random_pad(n, k, ldb, strideB);
+        else
+            random_pad(k, n, ldb, strideB);
+
+        random_pad(m, n, ldc, strideC);
+
+        // ldd support not yet merged in.
+        ldd = ldc;
+        strideD = strideC;
+        //random_pad(m, n, ldd, strideD);
 
         size_t batchCount = random_batch(rng);
 
-        //std::cout << "ContractionProblem::GEMM(" << transA << ", " << transB << ", "
-        //                                         << m << ", " << n << ", " << k << ", "
-        //                                         << lda << ", " << ldb << ", " << ldc << ", "
-        //                                         << 1.2 << ", " << false << ", " << batchCount << ");" << std::endl;
-
-        return ContractionProblem::GEMM(transA, transB,
-                                        m, n, k,
-                                        lda, ldb, ldc,
-                                        1.2, false, batchCount);
+        return ContractionProblem::GEMM_Strides(transA, transB,
+                                                DataType::Float, DataType::Float, DataType::Float, DataType::Float,
+                                                m, n, k, batchCount,
+                                                lda, strideA,
+                                                ldb, strideB,
+                                                ldc, strideC,
+                                                ldd, strideD,
+                                                beta);
     }
 }
