@@ -27,6 +27,63 @@
 
 namespace Tensile
 {
+    ContractionProblem ContractionProblem::GEMM_Strides(bool transA, bool transB,
+                                                        DataType aType, DataType bType, DataType cType, DataType dType,
+                                                        size_t m, size_t n, size_t k, size_t batchSize,
+                                                        size_t lda, size_t aStride,
+                                                        size_t ldb, size_t bStride,
+                                                        size_t ldc, size_t cStride,
+                                                        size_t ldd, size_t dStride,
+                                                        double beta)
+    {
+        Tensile::ContractionProblem::FreeIndices  free(1);
+        Tensile::ContractionProblem::BoundIndices bound(1);
+        Tensile::ContractionProblem::BatchIndices batch(1);
+
+        free[0].ca = free[0].da = 0;
+        free[0].cb = free[0].db = 1;
+
+        batch[0].a = batch[0].b = batch[0].c = batch[0].d = 2;
+
+        TensorDescriptor a, b, c, d;
+
+        if(transA)
+        {
+            a = TensorDescriptor(aType, {k, m, batchSize}, {1, lda, aStride});
+            free[0].a = 1;
+            bound[0].a = 0;
+        }
+        else
+        {
+            a = TensorDescriptor(aType, {m, k, batchSize}, {1, lda, aStride});
+            free[0].a = 0;
+            bound[0].a = 1;
+        }
+
+        if(transB)
+        {
+            b = TensorDescriptor(bType, {n, k, batchSize}, {1, ldb, bStride});
+            free[0].b = 0;
+            bound[0].b = 1;
+        }
+        else
+        {
+            b = TensorDescriptor(bType, {k, n, batchSize}, {1, ldb, bStride});
+            free[0].b = 1;
+            bound[0].b = 0;
+        }
+
+        c = TensorDescriptor(cType, {m, n, batchSize}, {1, ldc, cStride});
+        d = TensorDescriptor(dType, {m, n, batchSize}, {1, ldd, dStride});
+
+        TensorOps nop;
+
+        ContractionProblem problem(a, nop, b, nop, c, nop, d, nop,
+                                   free, batch, bound, beta);
+
+        return problem;
+    }
+
     ContractionProblem ContractionProblem::GEMM(bool transA, bool transB,
                                                 size_t m, size_t n, size_t k,
                                                 size_t lda, size_t ldb, size_t ldc,

@@ -107,7 +107,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 
     for(int i = 0; i < d_ref_h.size(); i++)
     {
-        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]);
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
 

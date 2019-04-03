@@ -63,6 +63,15 @@ namespace Tensile
 
         virtual std::string description() const { return "asdf"; }
 
+        static ContractionProblem GEMM_Strides(bool transA, bool transB,
+                                               DataType aType, DataType bType, DataType cType, DataType dType,
+                                               size_t m, size_t n, size_t k, size_t batchSize,
+                                               size_t lda, size_t aStride,
+                                               size_t ldb, size_t bStride,
+                                               size_t ldc, size_t cStride,
+                                               size_t ldd, size_t dStride,
+                                               double beta);
+
         static ContractionProblem GEMM(bool transA, bool transB,
                                        size_t m, size_t n, size_t k,
                                        size_t lda, size_t ldb, size_t ldc,

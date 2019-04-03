@@ -16,7 +16,7 @@ target_include_directories(TensileHipTests
                            PRIVATE
                            ${gtest_SOURCE_DIR}/include)
 
-set(tensile_script ../../../../Tensile/Tensile.py) 
+set(tensile_script ${CMAKE_CURRENT_SOURCE_DIR}/../../../Tensile/Tensile.py) 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)
 add_custom_target(test_code_object
