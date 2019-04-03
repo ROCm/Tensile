@@ -17,7 +17,7 @@ file(COPY ${lite_configs} DESTINATION .)
 
 set (asm_only_yaml  ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/Configs/rocblas_sgemm_asm_only.yaml)
 
-set(tensile_library_options --merge-files)
+set(tensile_library_options --no-merge-files)
 if(CMAKE_BUILD_TYPE EQUAL "Debug")
     set(tensile_library_options ${tensile_library_options} --library-print-debug)
 endif()

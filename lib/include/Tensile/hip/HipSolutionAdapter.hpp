@@ -29,6 +29,8 @@
 #include <Tensile/Tensile.hpp>
 #include <hip/hip_runtime.h>
 
+#include <mutex>
+
 namespace Tensile
 {
     namespace hip
@@ -48,7 +50,9 @@ namespace Tensile
         private:
             hipFunction_t getKernel(std::string const& name);
 
-            hipModule_t m_module = nullptr;
+            std::mutex m_access;
+
+            std::vector<hipModule_t> m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
             bool m_debug = false;
         };

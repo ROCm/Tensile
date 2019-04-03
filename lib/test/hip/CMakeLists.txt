@@ -4,7 +4,8 @@
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
 add_library(TensileHipTests STATIC
-            HipSolutionAdapter_test.cpp)
+            HipSolutionAdapter_test.cpp
+            RunGEMMKernel_test.cpp)
 
 message(${gtest_SOURCE_DIR}/include)
 
