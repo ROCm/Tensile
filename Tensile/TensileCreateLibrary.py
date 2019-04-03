@@ -186,6 +186,9 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
       kernelHeaderFile.write("\n\n")
     else:
       kernelHeaderFile.write("#include <string>\n")
+  else:
+    kernelSourceFile = None
+    kernelHeaderFile = None
 
   kernelsWithBuildErrs = {}
 
@@ -264,14 +267,14 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   ##############################################################################
   # Write Solutions
   ##############################################################################
+  solutionSourceFile = open(os.path.join(outputPath, \
+      "Solutions.cpp"), "w")
+  solutionHeaderFile = open(os.path.join(outputPath, \
+      "Solutions.h"), "w")
+  solutionSourceFile.write(CHeader)
+  solutionHeaderFile.write(CHeader)
+
   if globalParameters["MergeFiles"]:
-    solutionSourceFile = open(os.path.join(outputPath, \
-        "Solutions.cpp"), "w")
-    solutionHeaderFile = open(os.path.join(outputPath, \
-        "Solutions.h"), "w")
-    if globalParameters["MergeFiles"]:
-      solutionSourceFile.write(CHeader)
-      solutionHeaderFile.write(CHeader)
     solutionSourceFile.write("#include \"Solutions.h\"\n")
     solutionSourceFile.write("#include <algorithm>\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
