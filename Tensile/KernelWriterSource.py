@@ -2070,7 +2070,7 @@ class KernelWriterSource(KernelWriter):
     ##############################################################################
     def localReadDo(self, kernel, black, iui, tP):
         kStr = ""
-        for r in range(0, kernel[tP["tt"]] / kernel["VectorWidth"]):
+        for r in range(0, kernel[tP["tt"]] // kernel["VectorWidth"]):
             for s in range(0, kernel["VectorWidth"]):
                 kStr += "%sr%s[%u*VECTOR_WIDTH+%u%s] = localRead%s[%u*SG%s*VECTOR_WIDTH + %u]; %s" \
                     % (self.indent, tP["tensorChar"], r, s, \
@@ -2107,7 +2107,7 @@ class KernelWriterSource(KernelWriter):
         for r in range(1, tP["glvw"]):
             kStr += "    if (r%s == %u) {%s" % (tP["tileChar"], r,
                                                 self.endLine)
-            numVectors = kernel["ThreadTile%s" % tP["tileIdx"]] / tP["glvw"]
+            numVectors = kernel["ThreadTile%s" % tP["tileIdx"]] // tP["glvw"]
             for vIdx in range(0, numVectors):
                 if vIdx == 0:
                     kStr += "      "
@@ -2471,8 +2471,8 @@ class KernelWriterSource(KernelWriter):
         packGranularity = kernel["PackGranularity"]
         addTensorDimCheck0 = addTensorDimCheck1 = 0
 
-        for b in range(0, kernel["ThreadTile1"] / kernel["VectorWidth"]):
-            for a in range(0, kernel["ThreadTile0"] / kernel["VectorWidth"]):
+        for b in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
+            for a in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
                 if packGranularity == 2:
                     addTensorDimCheck0 = 1
                     base0 = " %u*SG%s*VECTOR_WIDTH" % (a, self.tileChar0)

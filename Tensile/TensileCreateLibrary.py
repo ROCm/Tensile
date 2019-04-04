@@ -64,10 +64,12 @@ def processKernelSourceWithArgs(args):
 
 def linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource,
                                kernelWriterAssembly, outputPath):
-    kernelsToLink = [
+    kernelsToLink = list([
         kernelWriterAssembly.getKernelName(k) for k in kernels
         if k['KernelLanguage'] == 'Assembly'
-    ]
+    ])
+    if len(kernelsToLink) == 0:
+        return
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
 
     objectFiles = [os.path.join(asmDir, k + '.o') for k in kernelsToLink]
@@ -221,6 +223,8 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     kIter = list(
         zip(kernels, itertools.repeat(kernelWriterSource),
             itertools.repeat(kernelWriterAssembly)))
+    # cpus = 1
+    # cpuThreads = 0
     if cpus > 1:
         print("# Launching kernel compilation processes (cpus=%u kernels=%u)" %
               (cpus, len(kernels)))
@@ -240,7 +244,8 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
     buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs,
                                     kernelSourceFile, kernelHeaderFile)
-
+    # import pdb
+    # pdb.set_trace()
     if len(kernelsWithBuildErrs) > 0:
         print(
             "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"

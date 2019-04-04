@@ -102,10 +102,12 @@ class ProblemType:
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
         rv.dDims = rv.cDims
-
-        assert d['DataType'] == 0
-        assert d['DestDataType'] == 0
         
+        try:
+            assert d['DataType'] == 0
+            assert d['DestDataType'] == 0
+        except AssertionError as Error:
+            print("assert != 0")
         rv.aType = 'Float'
         rv.bType = 'Float'
         rv.cType = 'Float'

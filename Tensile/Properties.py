@@ -61,7 +61,7 @@ class Predicate(Property):
     @classmethod
     def FromOriginalState(cls, d):
         predicates = list([
-            p for p in map(cls.FromOriginalKeyPair, list(d.items()))
+            p for p in map(cls.FromOriginalKeyPair, d.items())
             if p is not None
         ])
         if len(predicates) == 0:

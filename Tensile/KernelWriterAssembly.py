@@ -283,6 +283,8 @@ class RegisterPool:
         else:
             if 0:
                 traceback.print_stack(None)
+            # import pdb
+            # pdb.set_trace()
             printWarning(
                 "RegisterPool::checkIn(%s) but it was never checked out" %
                 start)
@@ -2519,7 +2521,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.defineMACMacro(kernel, kernel["InnerUnroll"])
         if kernel["InnerUnroll"] > 1:
             kStr += self.defineMACMacro(kernel, 1)  # define OneIter case
-
         if self.overflowedResources:
             print("")
             printWarning("%s overflowed resources, possibly too many vgprs(%u) or sgprs(%u)" \
@@ -6953,7 +6954,8 @@ class KernelWriterAssembly(KernelWriter):
                     # - need 0 additional vgpr per element.
                     numVgprsPerAddr = 0
                 numVgprsPerDataPerVI = 0
-
+                # import pdb
+                # pdb.set_trace()
                 if atomic:
                     # flat atomics have another VGPR to allow different data for return#
                     regsPerElement = 2 if kernel["BufferStore"] else 3
@@ -7289,9 +7291,10 @@ class KernelWriterAssembly(KernelWriter):
         elementData = []
         elementMask = []
         elementSumIdx = []
-        lastData = None
-        addr = None
-
+        lastData = 0
+        addr = 0
+        # import pdb
+        # pdb.set_trace()
         for elementIdx in range(0, len(batchElements)):
             loadsIssued = 0
             storesIssued = 0
@@ -7307,7 +7310,6 @@ class KernelWriterAssembly(KernelWriter):
                 elementAddr.append(self.AddrCalc(self, addr))
             # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
             # should have same data pointer, next should move.
-
             if numVgprsPerDataPerVI > 0:
                 if halfDataRegPerVI:
                     if elementIdx % 2 == 0:
@@ -7322,7 +7324,7 @@ class KernelWriterAssembly(KernelWriter):
                     data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
                           "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
             else:
-                data = None
+                data = 0
 
             elementData.append(data)
             mask = batchElementSgprs + elementIdx * numSgprsPerElement  # elementSgprs+0
@@ -8137,13 +8139,15 @@ class KernelWriterAssembly(KernelWriter):
         # return registers to pool:
         lastData = -1
         for elementIdx in range(0, len(batchElements)):
+            # import pdb
+            # pdb.set_trace()
             if not optStoreAddrVgpr:
                 addr = elementAddr[elementIdx].addr
                 self.vgprPool.checkIn(addr,
                                       "writeBatch addr ei:%d" % elementIdx)
 
             data = elementData[elementIdx]
-            if data != None:
+            if data != 0:
                 if data != lastData:
                     self.vgprPool.checkIn(data,
                                           "writeBatch data ei:%d" % elementIdx)

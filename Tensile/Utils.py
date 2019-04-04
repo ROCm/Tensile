@@ -92,7 +92,7 @@ def hash_combine(*objs, **kwargs):
     if len(objs) == 1:
         objs = objs[0]
 
-    rv = None
+    rv = 0
     try:
         it = iter(objs)
         rv = next(it)
@@ -122,12 +122,12 @@ def ceil_divide(numerator, denominator):
             raise ValueError
     except ValueError:
         print("ERROR: Can't have a negative register value")
-        return None
+        return 0
     try:
         div = int((numerator+denominator-1) // denominator)
     except ZeroDivisionError:
         print("ERROR: Divide by 0")
-        return None
+        return 0
     return div
     
 def roundUpToNearestMultiple(numerator, denominator):
