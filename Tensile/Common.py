@@ -666,8 +666,8 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"SuppressNoLoadLoop":        [ True ] },
-    {"ExpandPointerSwap":         [ True ] },
+    {"SuppressNoLoadLoop":        [ False ]},
+    {"ExpandPointerSwap":         [ True ]},
 
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
