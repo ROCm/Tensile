@@ -6680,6 +6680,36 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+  ##############################################################################
+  ##############################################################################
+  def applyAlpha(self, kernel, gwvw, elementSumIdx, elementIdx):
+    kStr = ""
+
+    if self.do["ApplyAlpha"]:
+      for vi in range(0, gwvw):
+        sumIdxV = elementSumIdx[elementIdx] + vi
+        if kernel["ProblemType"]["DataType"].isHalf():
+          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            if sumIdxV%2:
+              kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV/2)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV/2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
+          else: # HPA
+            kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
+
+        elif kernel["ProblemType"]["DataType"].isInt8x4():
+          # below assume we use v_mul_lo_u32. Could also use v_mul_i32_i24.
+#           kStr += inst("v_mul_i32_i24", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
+          kStr += inst("v_mul_lo_u32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
+
+        elif kernel["ProblemType"]["DataType"].isSingle():
+          kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
+          if self.db["CheckValueC"]:
+            kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
+            kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
+
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += inst("v_mul_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), sgpr("Alpha",2), vgpr("ValuC+%u"%(sumIdxV*2),2), "*= alpha")
+    return kStr
+
 
   ##############################################################################
   # Global Write Batch
@@ -7026,6 +7056,9 @@ class KernelWriterAssembly(KernelWriter):
                     extraFields=extraFields, \
                     comment="load C for beta calc").toStr()
 
+      if kernel["InterleaveAlpha"]:
+        kStr += self.applyAlpha(kernel, gwvw, elementSumIdx, elementIdx)
+
       # Set write address to D
       if not kernel["LdcEqualsLdd"]:
         if kernel["BufferStore"]:
@@ -7062,31 +7095,10 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # rC *= alpha
-    if self.do["ApplyAlpha"]:
+    if not kernel["InterleaveAlpha"]:
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       for elementIdx in range(0, len(batchElements)):
-        for vi in range(0, gwvw):
-          sumIdxV = elementSumIdx[elementIdx] + vi
-          if kernel["ProblemType"]["DataType"].isHalf():
-            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              if sumIdxV%2:
-                kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV/2)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV/2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
-            else: # HPA
-              kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
-
-          elif kernel["ProblemType"]["DataType"].isInt8x4():
-            # below assume we use v_mul_lo_u32. Could also use v_mul_i32_i24.
-#           kStr += inst("v_mul_i32_i24", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
-            kStr += inst("v_mul_lo_u32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
-
-          elif kernel["ProblemType"]["DataType"].isSingle():
-            kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
-            if self.db["CheckValueC"]:
-              kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
-              kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
-
-          elif kernel["ProblemType"]["DataType"].isDouble():
-            kStr += inst("v_mul_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), sgpr("Alpha",2), vgpr("ValuC+%u"%(sumIdxV*2),2), "*= alpha")
+        kStr += self.applyAlpha(kernel, gwvw, elementSumIdx, elementIdx)
 
     ########################################
     # Atomic

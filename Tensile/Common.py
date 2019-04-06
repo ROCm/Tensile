@@ -257,13 +257,17 @@ validParameters = {
     "ScheduleLocalWrite":         [0, 1],
 
     # Scheduling algorithm to use for each iteration:
-    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
+    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
     "ScheduleIterAlg":              [0, 1],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
     "LdcEqualsLdd":               [ False, True ],
+
+    # Interleave alpha scale calculation with beta loads and address calcs - rather
+    # than as a separate block of instructions
+    "InterleaveAlpha":              [0, 1],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -665,6 +669,7 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleIterAlg":           [ 1 ] },
 
     {"LdcEqualsLdd":              [ True ] },
+    {"InterleaveAlpha":           [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
