@@ -49,7 +49,6 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     kernelName = kernelWriter.getKernelName(kernel)
     #sys.stderr.write("kernel:%s\n"% kernelName)
     (err, src) = kernelWriter.getSourceFileString(kernel)
-
     header = kernelWriter.getHeaderFileString(kernel)
 
     return (err, src, header, kernelName)
@@ -62,22 +61,22 @@ def processKernelSourceWithArgs(args):
     return processKernelSource(*args)
 
 
-def linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource,
-                               kernelWriterAssembly, outputPath):
-    kernelsToLink = list([
+def linkCombinedCodeObjectFile(kernels, kernelsWithBuildErrs, kernelsBetaOnly, 
+                               kernelWriterSource, kernelWriterAssembly, outputPath):
+    kernelNames = [
         kernelWriterAssembly.getKernelName(k) for k in kernels
         if k['KernelLanguage'] == 'Assembly'
-    ])
-    if len(kernelsToLink) == 0:
+    ]
+    kernelNames = list([ k for k in kernelNames if k not in kernelsWithBuildErrs])
+    if len(kernelNames) == 0:
         return
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
 
-    objectFiles = [os.path.join(asmDir, k + '.o') for k in kernelsToLink]
+    objectFiles = [os.path.join(asmDir, k + '.o') for k in kernelNames]
 
     coFile = os.path.join(outputPath, 'TensileLibrary.co')
 
     args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-
     subprocess.check_call(args)
 
 
@@ -230,7 +229,6 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
               (cpus, len(kernels)))
 
         pool = multiprocessing.Pool(cpus)
-
         results = pool.map(processKernelSourceWithArgs, kIter)
 
         pool.close()
@@ -240,17 +238,16 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
         if globalParameters['ShowProgressBar']:
             kIter = Utils.tqdm(kIter)
 
-        results = list(map(processKernelSourceWithArgs, kIter))
-
-    buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs,
-                                    kernelSourceFile, kernelHeaderFile)
+        results = map(processKernelSourceWithArgs, kIter)
     # import pdb
     # pdb.set_trace()
-    if len(kernelsWithBuildErrs) > 0:
-        print(
-            "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
-        )
-        printExit("** kernel compilation failure **")
+    buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs,
+                                    kernelSourceFile, kernelHeaderFile)
+    # if len(kernelsWithBuildErrs) > 0:
+        # print(
+            # "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
+        # )
+        # printExit("** kernel compilation failure **")
 
     # beta-only kernels
     for kernel in kernelsBetaOnly:
@@ -283,7 +280,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     if globalParameters["MergeFiles"]:
         kernelHeaderFile.close()
 
-    linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource,
+    linkCombinedCodeObjectFile(kernels, kernelsWithBuildErrs, kernelsBetaOnly, kernelWriterSource,
                                kernelWriterAssembly, outputPath)
 
     stop = time.time()

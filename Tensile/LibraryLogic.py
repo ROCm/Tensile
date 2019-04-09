@@ -679,7 +679,7 @@ class LogicAnalyzer:
                     # break when found initial rule
                     if nextRule != None:
                         break
-
+                
                 if nextRule == None:
                     printWarning(
                         "%sMultiProblem & NotLastIndex :: nextRule==None; returning"

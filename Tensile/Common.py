@@ -53,7 +53,7 @@ globalParameters[
 globalParameters[
     "KernelTime"] = False  # T=use device timers, F=use host timers
 globalParameters[
-    "PreciseKernelTime"] = True  # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
+    "PreciseKernelTime"] = False  # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
 # timing between GSU / non-GSU kernels
 globalParameters[
     "CodeFromFiles"] = True  # if False byte arrays will be generated during Benchmarking phase as before

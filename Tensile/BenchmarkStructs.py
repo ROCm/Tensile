@@ -515,11 +515,11 @@ class BenchmarkProcess:
                                 valueIdx = pIdx % len(paramValues)
                                 joinPermutations[i][joinName] = paramValues[
                                     valueIdx]
-                                pIdx /= len(paramValues)
+                                pIdx //= len(paramValues)
                                 break
                     elif joinName == "MacroTile":
                         valueIdx = pIdx % len(macroTiles)
-                        pIdx /= len(macroTiles)
+                        pIdx //= len(macroTiles)
                         joinPermutations[i]["MacroTile0"] = macroTiles[
                             valueIdx][0]
                         joinPermutations[i]["MacroTile1"] = macroTiles[

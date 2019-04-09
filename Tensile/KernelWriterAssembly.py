@@ -2091,9 +2091,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
             % (self.totalSgprs, self.endLine)
         kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
-            % ( (totalVgprs-1)//4, totalVgprs, self.endLine)
+            % ( (totalVgprs)//4, totalVgprs, self.endLine)
         kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
-            % ( 1+(self.totalSgprs-1)//8, self.totalSgprs, self.endLine)
+            % ( 1+(self.totalSgprs)//8, self.totalSgprs, self.endLine)
 
         # work-group dimensions
         kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
@@ -8177,13 +8177,18 @@ class KernelWriterAssembly(KernelWriter):
     ##############################################################################
     def functionSuffix(self, kernel):
         kStr = ""
+        # import pdb
+        # pdb.set_trace()
         if self.vgprPool.size(
         ) > self.maxVgprs or self.totalSgprs > self.maxSgprs:
             self.overflowedResources = True
 
         vgprPerCU = 65536
         vgprPerThreadPerOccupancy = vgprPerCU // kernel["NumThreads"]
+        # import pdb
+        # pdb.set_trace()
         numWorkGroupsPerCU = vgprPerThreadPerOccupancy // self.vgprPool.size()
+        # print("numWorkGroupsPerCU", numWorkGroupsPerCU)
         if numWorkGroupsPerCU < 1:
             self.overflowedResources = True
 

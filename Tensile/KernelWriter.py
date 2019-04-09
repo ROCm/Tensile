@@ -2384,7 +2384,8 @@ class KernelWriter:
         self.stringIdx = 0
         (error, kb) = self.kernelBody(kernel, tensorParametersA,
                                       tensorParametersB)
-
+        # import pdb
+        # pdb.set_trace()
         fileString += kb
         fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
             tensorParametersB )

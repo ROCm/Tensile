@@ -1258,6 +1258,8 @@ class Solution:
                 if (state["AssertSummationElementMultiple"] % 2 != 0 or \
                     state["AssertFree0ElementMultiple"] % 2 != 0):
                     # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
+                    # import pdb
+                    # pdb.set_trace()
                     reject(
                         state,
                         "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0"

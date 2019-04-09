@@ -107,7 +107,7 @@ class ProblemType:
             assert d['DataType'] == 0
             assert d['DestDataType'] == 0
         except AssertionError as Error:
-            print("assert != 0")
+            print("DataType mismatch!")
         rv.aType = 'Float'
         rv.bType = 'Float'
         rv.cType = 'Float'
@@ -202,7 +202,7 @@ class ProblemPredicate(Properties.Predicate):
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
         if key == 'AssertMinApproxSize':
-            if value == 1:
+            if value == 0 or value == 1:
                 return None
             elif value == 2:
                 return cls('MaxProblemSizeGreaterThan', value=32)

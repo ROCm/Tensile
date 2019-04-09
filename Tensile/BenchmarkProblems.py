@@ -458,6 +458,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName,
 
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
+    # import pdb
+    # pdb.set_trace()
     writeSolutionsAndKernels( \
         globalParameters["WorkingPath"], [problemType], solutions, kernels, kernelsBetaOnly, \
         solutionWriter, kernelWriterSource, kernelWriterAssembly )
