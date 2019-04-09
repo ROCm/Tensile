@@ -2525,6 +2525,7 @@ class KernelWriterAssembly(KernelWriter):
             print("")
             printWarning("%s overflowed resources, possibly too many vgprs(%u) or sgprs(%u)" \
                 % (self.kernelName, self.vgprPool.size(), self.totalSgprs))
+            traceback.print_exception()
             kStr += "s_endpgm // overflowed resources\n"
             kStr += ".if 0\n"
 
