@@ -174,10 +174,15 @@ public:
     for (int i=0; i<NumSizes; i++) {
       _sizes[i] = pdims.sizes(i);
     }
+
+    _equalStrides = ((pdims.strideD(0) == pdims.strideC(0)) &&
+                     (pdims.strideD(1) == pdims.strideC(1)));
 	}
 
   bool operator< (const ProblemKey<NumSizes> & p) const
   {
+    if (p._equalStrides != this->_equalStrides)
+        return true;
     for (int i=0; i<NumSizes; i++) {
       if (p._sizes[i] < this->_sizes[i])
         return true;
@@ -190,6 +195,8 @@ public:
 
   bool operator== (const ProblemKey<NumSizes> & p) const
   {
+    if(p._equalStrides != this->_equalStrides)
+      return false;
     for (int i=0; i<NumSizes; i++) {
       if (p._sizes[i] != this->_sizes[i])
         return false;
@@ -234,6 +241,7 @@ private:
 private:
   // Data members:
   SizeType _sizes[NumSizes];
+  bool     _equalStrides;
 };
 
 //-------------
@@ -393,7 +401,7 @@ struct ProblemProperties {
            (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
            (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
            ((this->_approxSize) >= solutionRequirements._approxSize) &&
-           ((this->_equalStrides) ? true : !solutionRequirements._equalStrides);
+           ((this->_equalStrides) == solutionRequirements._equalStrides);
   }
 
   unsigned _summationElementMultiple;
