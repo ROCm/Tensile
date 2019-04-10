@@ -25,6 +25,7 @@ from Common import globalParameters, defaultProblemType, assignParameterWithDefa
 from copy import deepcopy
 import math
 from Utils import ceil_divide, roundUpToNearestMultiple
+from DataType import dt
 
 try:
   basestring
