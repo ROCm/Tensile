@@ -1815,9 +1815,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
         % (self.totalSgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
-        % ( (totalVgprs)//4, totalVgprs, self.endLine) #there was a -1 here before
+        % ( (totalVgprs-1)//4, totalVgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
-        % ( 1+(self.totalSgprs)//8, self.totalSgprs, self.endLine) #see line 1818
+        % ( 1+(self.totalSgprs-1)//8, self.totalSgprs, self.endLine)
 
     # work-group dimensions
     kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
@@ -5235,7 +5235,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # which glvw vector of thread to shift? wgMT / (SG0*VW) -> (wgMT%VW) / glvw
     # (wgMT/(WG0*VW))*(VW/glvw) + (wgMT%VW) / glvw
-    if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
+    if tP["tensorIdx"] > kernel["VectorWidth"]:
       mvReg = self.vgprPool.checkOut(1)
       divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
       kStr += vectorStaticDivide(mvReg, wgMT, divisor, \
@@ -5254,11 +5254,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr += vectorStaticDivide(vReg, vRegD, divisor, \
         tmpVgpr, tmpSgpr)
     #kStr += dump(vgpr(vReg))
-
-    if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
+    self.vgprPool.checkIn(vRegD)
+    
+    if tP["tensorIdx"] > kernel["VectorWidth"]:
       kStr += inst("_v_add_co_u32", vgpr(vReg), "vcc", vgpr(mvReg), vgpr(vReg), "vId = 2 components")
       self.vgprPool.checkIn(mvReg)
-      self.vgprPool.checkIn(vRegD)
 
     kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
         vgpr(eReg), "mask" )
@@ -6094,6 +6094,7 @@ class KernelWriterAssembly(KernelWriter):
     # Layout
     """
     if B1 goto label_B1
+
     if E1 goto label_B0_E1
     label_B0_E0:
     writes
@@ -6101,8 +6102,10 @@ class KernelWriterAssembly(KernelWriter):
     label_B0_E1:
     writes
     goto label_End
+
     label_B1:
     if E1 goto label_B1_E1
+
     label_B1_E0:
     writes
     goto label_End
@@ -6577,8 +6580,8 @@ class KernelWriterAssembly(KernelWriter):
     elementData = []
     elementMask = []
     elementSumIdx = []
-    lastData = 0
-    addr = 0
+    lastData = None
+    addr = None
 
     for elementIdx in range(0, len(batchElements)):
       loadsIssued = 0
@@ -6607,7 +6610,7 @@ class KernelWriterAssembly(KernelWriter):
           data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
                 "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
       else:
-        data = 0
+        data = None
 
       elementData.append(data)
       mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
@@ -7322,7 +7325,7 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(addr,"writeBatch addr ei:%d"%elementIdx)
 
       data = elementData[elementIdx]
-      if data != 0:
+      if data != None:
         if data != lastData:
           self.vgprPool.checkIn(data,"writeBatch data ei:%d"%elementIdx)
         lastData = data
@@ -8032,3 +8035,5 @@ def staticMultiply(product, operand, multiplier, tmpSgpr=None):
       kStr += inst("v_mul_lo_u32", product, product, operand, \
           "staticMultiply: %s *= %s"%(product, operand) )
     return kStr
+
+
