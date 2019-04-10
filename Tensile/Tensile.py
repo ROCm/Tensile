@@ -30,7 +30,6 @@ import LibraryLogic
 import ClientWriter
 from __init__ import __version__
 
-
 ###############################################################################
 # Execute Steps in Config
 # called from Tensile() below
@@ -39,47 +38,47 @@ from __init__ import __version__
 #   LibraryLogic.main() to analyse final benchmark data and produce logic/yaml
 #   ClientWriter.main() to create client which calls library based on above yaml
 ################################################################################
-def executeStepsInConfig(config):
+def executeStepsInConfig( config ):
 
-    ##############################################################################
-    # Benchmark Problems
-    ##############################################################################
-    if "BenchmarkProblems" in config:
-        BenchmarkProblems.main(config["BenchmarkProblems"])
-        print1("")
+  ##############################################################################
+  # Benchmark Problems
+  ##############################################################################
+  if "BenchmarkProblems" in config:
+    BenchmarkProblems.main( config["BenchmarkProblems"] )
+    print1("")
 
-    ##############################################################################
-    # Library Logic
-    ##############################################################################
-    libraryLogicDataPath = os.path.join(globalParameters["WorkingPath"], \
-        globalParameters["LibraryLogicPath"])
-    if "LibraryLogic" in config:
-        if os.path.exists(libraryLogicDataPath):
-            libraryLogicFiles = os.listdir(libraryLogicDataPath)
-        else:
-            libraryLogicFiles = []
-        if len(libraryLogicFiles
-               ) < 1 or globalParameters["ForceRedoLibraryLogic"]:
-            if config["LibraryLogic"] != None:
-                libraryLogicConfig = config["LibraryLogic"]
-            else:
-                libraryLogicConfig = {}
-            LibraryLogic.main(libraryLogicConfig)
-            print1("")
-        else:
-            print1("# LibraryLogic already done.")
-        print1("")
+  ##############################################################################
+  # Library Logic
+  ##############################################################################
+  libraryLogicDataPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["LibraryLogicPath"])
+  if "LibraryLogic" in config:
+    if os.path.exists(libraryLogicDataPath):
+      libraryLogicFiles = os.listdir(libraryLogicDataPath)
+    else:
+      libraryLogicFiles = []
+    if len(libraryLogicFiles) < 1 or globalParameters["ForceRedoLibraryLogic"]:
+      if config["LibraryLogic"] != None:
+        libraryLogicConfig = config["LibraryLogic"]
+      else:
+        libraryLogicConfig = {}
+      LibraryLogic.main( libraryLogicConfig )
+      print1("")
+    else:
+      print1("# LibraryLogic already done.")
+    print1("")
 
-    ##############################################################################
-    # Write Client
-    ##############################################################################
-    if "LibraryClient" in config:
-        if config["LibraryClient"] != None:
-            libraryClientConfig = config["LibraryClient"]
-        else:
-            libraryClientConfig = {}
-        ClientWriter.main(libraryClientConfig)
-        print1("")
+
+  ##############################################################################
+  # Write Client
+  ##############################################################################
+  if "LibraryClient" in config:
+    if config["LibraryClient"] != None:
+      libraryClientConfig = config["LibraryClient"]
+    else:
+      libraryClientConfig = {}
+    ClientWriter.main( libraryClientConfig )
+    print1("")
 
 
 ################################################################################
@@ -87,99 +86,96 @@ def executeStepsInConfig(config):
 # - below entry points call here
 ################################################################################
 def Tensile(userArgs):
-    # 1st half of splash
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  Tensile v%s" % (__version__))
+  # 1st half of splash
+  print1("")
+  print1(HR)
+  print1("#")
+  print1("#  Tensile v%s" % (__version__) )
 
-    # setup argument parser
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument("config_file", \
-        help="benchmark config.yaml file")
-    argParser.add_argument("output_path", \
-        help="path where to conduct benchmark")
-    argParser.add_argument("--version", action="version", \
-        version="%(prog)s {version}".format(version=__version__))
-    argParser.add_argument("-d", "--device", dest="device", type=int, \
-        help="override which device to benchmark")
-    argParser.add_argument("-p", "--platform", dest="platform", type=int, \
-        help="override which OpenCL platform to benchmark")
-    argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
-        choices=["HIP", "OCL"], help="override which runtime language to use")
-    argParser.add_argument("-v", "--verbose", action="store_true", \
-        help="set PrintLevel=2")
-    argParser.add_argument("--debug", dest="debug", action="store_true", \
-        help="set PrintLevel=2 and CMakeBuildType=Debug")
-    argParser.add_argument("--short-names", dest="shortNames", action="store_true", \
-        help="use serial kernel and solution names")
-    argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
-        help="kernels and solutions written to individual files")
-    # argParser.add_argument("--hcc-version", dest="HccVersion", \
-    #     help="This can affect what opcodes are emitted by the assembler")
+  # setup argument parser
+  argParser = argparse.ArgumentParser()
+  argParser.add_argument("config_file", \
+      help="benchmark config.yaml file")
+  argParser.add_argument("output_path", \
+      help="path where to conduct benchmark")
+  argParser.add_argument("--version", action="version", \
+      version="%(prog)s {version}".format(version=__version__))
+  argParser.add_argument("-d", "--device", dest="device", type=int, \
+      help="override which device to benchmark")
+  argParser.add_argument("-p", "--platform", dest="platform", type=int, \
+      help="override which OpenCL platform to benchmark")
+  argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
+      choices=["HIP", "OCL"], help="override which runtime language to use")
+  argParser.add_argument("-v", "--verbose", action="store_true", \
+      help="set PrintLevel=2")
+  argParser.add_argument("--debug", dest="debug", action="store_true", \
+      help="set PrintLevel=2 and CMakeBuildType=Debug")
+  argParser.add_argument("--short-names", dest="shortNames", action="store_true", \
+      help="use serial kernel and solution names")
+  argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
+      help="kernels and solutions written to individual files")
+  # argParser.add_argument("--hcc-version", dest="HccVersion", \
+  #     help="This can affect what opcodes are emitted by the assembler")
 
-    print1("# Restoring default globalParameters")
-    for key in defaultGlobalParameters:
-        globalParameters[key] = defaultGlobalParameters[key]
+  print1("# Restoring default globalParameters")
+  for key in defaultGlobalParameters:
+    globalParameters[key] = defaultGlobalParameters[key]
 
-    # parse arguments
-    args = argParser.parse_args(userArgs)
-    configPath = os.path.realpath(args.config_file)
+  # parse arguments
+  args = argParser.parse_args(userArgs)
+  configPath = os.path.realpath( args.config_file)
 
-    # 2nd half of splash
-    print1("#  Config: %s" % (configPath))
-    print1("#")
-    print1(HR)
-    print1("")
+  # 2nd half of splash
+  print1("#  Config: %s" % (configPath) )
+  print1("#")
+  print1(HR)
+  print1("")
 
-    # read config
-    config = YAMLIO.readConfig(configPath)
-    globalParameters["ConfigPath"] = configPath
+  # read config
+  config = YAMLIO.readConfig( configPath )
+  globalParameters["ConfigPath"] = configPath
 
-    # assign global parameters
-    if "GlobalParameters" in config:
-        assignGlobalParameters(config["GlobalParameters"])
-    else:
-        assignGlobalParameters({})
+  # assign global parameters
+  if "GlobalParameters" in config:
+    assignGlobalParameters( config["GlobalParameters"] )
+  else:
+    assignGlobalParameters({})
 
-    globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
-    ensurePath(globalParameters["WorkingPath"])
+  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
+  ensurePath(globalParameters["WorkingPath"])
 
-    # override config with command-line options
-    if args.device:
-        print1("# Command-line override: Device")
-        globalParameters["Device"] = args.device
-    if args.platform:
-        print1("# Command-line override: Platform")
-        globalParameters["Platform"] = args.platform
-    if args.RuntimeLanguage:
-        print1("# Command-line override: RuntimeLanguage")
-        globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
-    if args.verbose:
-        print1("# Command-line override: PrintLevel")
-        globalParameters["PrintLevel"] = 2
-    if args.debug:
-        print1("# Command-line override: Debug")
-        globalParameters["PrintLevel"] = 2
-        globalParameters["CMakeBuildType"] = "Debug"
-    if args.shortNames:
-        globalParameters["ShortNames"] = True
-    if args.noMergeFiles:
-        globalParameters["MergeFiles"] = False
-    print1("")
+  # override config with command-line options
+  if args.device:
+    print1("# Command-line override: Device")
+    globalParameters["Device"] = args.device
+  if args.platform:
+    print1("# Command-line override: Platform")
+    globalParameters["Platform"] = args.platform
+  if args.RuntimeLanguage:
+    print1("# Command-line override: RuntimeLanguage")
+    globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
+  if args.verbose:
+    print1("# Command-line override: PrintLevel")
+    globalParameters["PrintLevel"] = 2
+  if args.debug:
+    print1("# Command-line override: Debug")
+    globalParameters["PrintLevel"] = 2
+    globalParameters["CMakeBuildType"] = "Debug"
+  if args.shortNames:
+    globalParameters["ShortNames"] = True
+  if args.noMergeFiles:
+    globalParameters["MergeFiles"] = False
+  print1("")
 
-    # Execute Steps in the config script
-    executeStepsInConfig(config)
+  # Execute Steps in the config script
+  executeStepsInConfig( config )
 
 
 def TensileConfigPath(*args):
-    return os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "Configs", *args)
-
+  return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Configs", *args)
 
 def TensileTestPath(*args):
-    return os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), "Tests", *args)
+  return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Tests", *args)
 
 
 ################################################################################
@@ -190,27 +186,27 @@ def TensileTestPath(*args):
 
 # installed "tensile_rocblas_sgemm" command
 def TensileROCBLASSGEMM():
-    Tensile([TensileConfigPath("rocblas_sgemm.yaml"), "."])
+  Tensile([TensileConfigPath("rocblas_sgemm.yaml"), "."])
 
 
 # installed "tensile_rocblas_dgemm" command
 def TensileROCBLASDGEMM():
-    Tensile([TensileConfigPath("rocblas_dgemm.yaml"), "."])
+  Tensile([TensileConfigPath("rocblas_dgemm.yaml"), "."])
 
 
 # installed "tensile_rocblas_cgemm" command
 def TensileROCBLASCGEMM():
-    Tensile([TensileConfigPath("rocblas_cgemm.yaml"), "."])
+  Tensile([TensileConfigPath("rocblas_cgemm.yaml"), "."])
 
 
 # installed "tensile_rocblas_zgemm" command
 def TensileROCBLASZGEMM():
-    Tensile([TensileConfigPath("rocblas_zgemm.yaml"), "."])
+  Tensile([TensileConfigPath("rocblas_zgemm.yaml"), "."])
 
 
 # installed "tensile_sgemm" command
 def TensileSGEMM5760():
-    Tensile([TensileConfigPath("sgemm_5760.yaml"), "."])
+  Tensile([TensileConfigPath("sgemm_5760.yaml"), "."])
 
 
 # installed "tensile" command
@@ -220,4 +216,4 @@ def main():
 
 # script run from commandline
 if __name__ == "__main__":
-    main()
+  main()
