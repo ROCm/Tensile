@@ -88,7 +88,7 @@ def main( config ):
   enableHalf = False
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
-        indexOrder, exactLogic, rangeLogic) \
+        indexOrder, exactLogic, rangeLogic, newLibrary) \
         = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True

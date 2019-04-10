@@ -204,8 +204,8 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     cpus = cpu_count*abs(cpuThreads) if cpuThreads < 0 \
            else min(cpu_count, cpuThreads)
   kIter = list(zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly)))
-  cpus = 1
-  cpuThreads = 0
+  # cpus = 1
+  # cpuThreads = 0
   if cpus > 1:
     print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))
 
@@ -224,9 +224,9 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
 
-  if len(kernelsWithBuildErrs) > 0:
-    print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
-    printExit("** kernel compilation failure **")
+  # if len(kernelsWithBuildErrs) > 0:
+    # print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
+    # printExit("** kernel compilation failure **")
 
 
   # beta-only kernels
@@ -259,7 +259,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   if globalParameters["MergeFiles"]:
     kernelHeaderFile.close()
 
-  linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
+  linkCombinedCodeObjectFile(kernels, kernelsWithBuildErrs, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))

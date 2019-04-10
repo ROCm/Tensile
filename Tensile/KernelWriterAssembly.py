@@ -746,8 +746,6 @@ class KernelWriterAssembly(KernelWriter):
     # name, numAddresses, numOffsets, offsetMultiplier, blockWidth, formatting):
     ########################################
     # Local Read
-    import pdb
-    pdb.set_trace()
     ds_read_b128 = MemoryInstruction("ds_read_b128",  1, 1, 4, 4, \
         "%s, %s offset:%s" )
     ds_read2_b64 = MemoryInstruction("ds_read2_b64",  1, 2, 2, 2, \
@@ -1703,24 +1701,23 @@ class KernelWriterAssembly(KernelWriter):
                   C[1] = A[1]*B[1]+D[1]
                   """
             else:
-              printExit("Half-precision not supported for arch=%u" %self.version)
+              printExit("Half-precision not supported for arch=%u" % self.version )
 
       # integer i8
       elif kernel["ProblemType"]["DataType"].isInt8x4():
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
-            if self.version == (8, 0, 3):
+            if self.version == (8,0,3):
               kStr += self.comment3("int8 not implemented yet for gfx803:")
-            elif self.version == (9, 0, 0):
+            elif self.version == (9,0,0):
               kStr += self.comment3("int8 not implemented yet for gfx900:")
-            elif self.version == (9, 0, 6):
+            elif self.version == (9,0,6):
               for iui in range(0, innerUnroll):
-                cidx = a + b * kernel["ThreadTile0"] + 0
+                cidx = a + b*kernel["ThreadTile0"] + 0
                 cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-                aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" %(m, iui), a)
-                bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" %(m, iui), b)
-                kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (
-                  cStr, aStr, bStr, cStr, cidx, self.endLine)
+                aStr = "v[%s+%u]"       % ("vgprValuA_X%u_I%u"%(m,iui), a)
+                bStr = "v[%s+%u]"       % ("vgprValuB_X%u_I%u"%(m,iui), b)
+                kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
 
       # single precision
       elif kernel["ProblemType"]["DataType"].isSingle():
@@ -1728,16 +1725,19 @@ class KernelWriterAssembly(KernelWriter):
           for a in range(0, kernel["ThreadTile0"]):
             for iui in range(0, innerUnroll):
               cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-              aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u"%(m,iui), a)
-              bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u"%(m,iui), b)
+              aStr = "v[%s+%u]" \
+                  % ("vgprValuA_X%u_I%u"%(m,iui), a)
+              bStr = "v[%s+%u]" \
+                  % ("vgprValuB_X%u_I%u"%(m,iui), b)
               #if a==0 and b==0:
               #  kStr += dump(aStr)
               kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
               if macIdx == kernel["PerformanceWaitLocation"]:
-                kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
-                  % (kernel["PerformanceWaitCount"], self.endLine)
+                  kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
+                      % (kernel["PerformanceWaitCount"], self.endLine)
               if macIdx == kernel["PerformanceSyncLocation"]:
-                kStr += "s_barrier // extra barrier for performance%s" % (self.endLine)
+                  kStr += "s_barrier // extra barrier for performance%s" \
+                      % (self.endLine)
               macIdx += 1
 
       # double precision
@@ -1747,168 +1747,178 @@ class KernelWriterAssembly(KernelWriter):
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             for iui in range(0, innerUnroll):
-              cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], \
-                "vgprValuC", a, b, kernel["ThreadTile0"])
-              aStr = "v[%s+%u*2:%s+%u*2+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
-              bStr = "v[%s+%u*2:%s+%u*2+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+              cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+              aStr = "v[%s+%u*2:%s+%u*2+1]" \
+                  % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+              bStr = "v[%s+%u*2:%s+%u*2+1]" \
+                  % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
               if beAggressive and not doOnce:
                 kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
                 doOnce = True
-          if beAggressive:
-            kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
+        if beAggressive:
+          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
-        # other precision
+      # other precision
       else:
         printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
 
       kStr += ".endm%s" % self.endLine
 
+
     return kStr
 
-    ##############################################################################
-    # Function Signature
-    # called after rest of code
-    ##############################################################################
-    def functionSignature(self, kernel):
-        kStr = ""
+  ##############################################################################
+  # Function Signature
+  # called after rest of code
+  ##############################################################################
+  def functionSignature(self, kernel ):
+    kStr = ""
 
-        # begin kernel descriptor
-        kStr += ".hsa_code_object_version 2,0%s" % self.endLine
-        kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
-            % (self.version[0], self.version[1], self.version[2], self.endLine)
-        kStr += ".text%s" % self.endLine
-        kStr += ".p2align 8%s" % self.endLine
-        kStr += ".amdgpu_hsa_kernel %s%s" % (self.kernelName, self.endLine)
-        kStr += "%s:%s" % (self.kernelName, self.endLine)
-        kStr += ".amd_kernel_code_t%s" % self.endLine
-        kStr += "  is_ptr64 = 1%s" % self.endLine
-        kStr += "  enable_sgpr_kernarg_segment_ptr = 1%s" % self.endLine
+    # begin kernel descriptor
+    kStr += ".hsa_code_object_version 2,0%s" % self.endLine
+    kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
+        % (self.version[0], self.version[1], self.version[2], self.endLine)
+    kStr += ".text%s" % self.endLine
+    kStr += ".p2align 8%s" % self.endLine
+    kStr += ".amdgpu_hsa_kernel %s%s" % (self.kernelName, self.endLine)
+    kStr += "%s:%s" % (self.kernelName, self.endLine)
+    kStr += ".amd_kernel_code_t%s" % self.endLine
+    kStr += "  is_ptr64 = 1%s" % self.endLine
+    kStr += "  enable_sgpr_kernarg_segment_ptr = 1%s" % self.endLine
 
-        # kern arg size
-        kernArgReg = 0
-        kernArgReg += 3 * self.rpga
-        kernArgReg += max(1, int(self.bpeAB / 4))  # alpha
-        if kernel["ProblemType"]["UseBeta"]:
-            kernArgReg += max(1, int(self.bpeCexternal / 4))  # beta
-        kernArgReg += 3  # offsets
-        kernArgReg += kernel["ProblemType"]["NumIndicesC"]  # strides
-        kernArgReg += len(
-            kernel["ProblemType"]["IndexAssignmentsA"])  # strides
-        kernArgReg += len(
-            kernel["ProblemType"]["IndexAssignmentsB"])  # strides
-        if not kernel["ProblemType"]["UseInitialStrides"]:
-            kernArgReg -= 3  # strides
-        kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
-        kernArgReg += kernel["ProblemType"]["NumIndicesC"]
-        if globalParameters["DebugKernel"]:
-            kernArgReg += self.rpga  # debug buffer
-        kernArgBytes = kernArgReg * 4  # bytes/reg
-        kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
-            % (kernArgBytes, self.endLine)
+    # kern arg size
+    kernArgReg = 0
+    kernArgReg += 3*self.rpga
+    kernArgReg += max(1,int(self.bpeAB/4)) # alpha
+    if kernel["ProblemType"]["UseBeta"]:
+      kernArgReg += max(1,int(self.bpeCexternal/4)) # beta
+    kernArgReg += 3 # offsets
+    kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
+    kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
+    kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsB"]) # strides
+    if not kernel["ProblemType"]["UseInitialStrides"]:
+      kernArgReg -= 3 # strides
+    kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
+    kernArgReg += kernel["ProblemType"]["NumIndicesC"]
+    if globalParameters["DebugKernel"]:
+      kernArgReg += self.rpga # debug buffer
+    kernArgBytes = kernArgReg * 4 # bytes/reg
+    kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
+        % (kernArgBytes, self.endLine)
 
-        # register allocation
-        totalVgprs = self.vgprPool.size()
-        assert (self.totalSgprs >= self.sgprPool.size())
-        kStr += "  workitem_vgpr_count = %u // vgprs%s" \
-            % (totalVgprs, self.endLine)
-        kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
-            % (self.totalSgprs, self.endLine)
-        kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
-            % ( (totalVgprs)//4, totalVgprs, self.endLine)
-        kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
-            % ( 1+(self.totalSgprs)//8, self.totalSgprs, self.endLine)
+    # register allocation
+    totalVgprs = self.vgprPool.size()
+    assert(self.totalSgprs >= self.sgprPool.size())
+    kStr += "  workitem_vgpr_count = %u // vgprs%s" \
+        % (totalVgprs, self.endLine)
+    kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
+        % (self.totalSgprs, self.endLine)
+    kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
+        % ( (totalVgprs)//4, totalVgprs, self.endLine) #there was a -1 here before
+    kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
+        % ( 1+(self.totalSgprs)//8, self.totalSgprs, self.endLine) #see line 1818
 
-        # work-group dimensions
-        kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
+    # work-group dimensions
+    kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
 
-        # grid dimensions
-        kStr += "  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x%s" % self.endLine
-        kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
-        if kernel["ProblemType"]["NumIndicesC"] > 2:
-            kStr += "  compute_pgm_rsrc2_tgid_z_en = %u // wg.z%s" % (
-                1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0,
-                self.endLine)
-        #if abs(kernel["WorkGroupMapping"]) > 1:
-        #  kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
-        #  kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
+    # grid dimensions
+    kStr += "  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x%s" % self.endLine
+    kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
+    if kernel["ProblemType"]["NumIndicesC"] > 2:
+      kStr += "  compute_pgm_rsrc2_tgid_z_en = %u // wg.z%s" % (1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0, self.endLine)
+    #if abs(kernel["WorkGroupMapping"]) > 1:
+    #  kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
+    #  kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
 
-        # lds size
-        #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
-        #jgolds HACK
-        # only want to enable this for cases we know it helps: 4x4 TT size and 16x16 WG size. Feel free to add more
-        # cases after validating performance
-        if kernel["AggressivePerfMode"]>=2 and kernel["ProblemType"]["DataType"].isDouble() and \
-          kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
-            kStr += "  workgroup_group_segment_byte_size = 32768 // lds bytes%s" \
-                % ( self.endLine ) # Pad LDS to ensure we run exactly two waves
-        else:
-            kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
-                % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
+    # lds size
+    #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
+    #jgolds HACK
+    # only want to enable this for cases we know it helps: 4x4 TT size and 16x16 WG size. Feel free to add more
+    # cases after validating performance
+    if kernel["AggressivePerfMode"]>=2 and kernel["ProblemType"]["DataType"].isDouble() and \
+      kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
+      kStr += "  workgroup_group_segment_byte_size = 32768 // lds bytes%s" \
+          % ( self.endLine ) # Pad LDS to ensure we run exactly two waves
+    else:
+      kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
+          % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
 
-        # other
-        kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
-        kStr += "  kernarg_segment_alignment = 4%s" % self.endLine
-        kStr += "  group_segment_alignment = 4%s" % self.endLine
-        kStr += "  private_segment_alignment = 4%s" % self.endLine
-        kStr += ".end_amd_kernel_code_t%s" % self.endLine
+    # other
+    kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
+    kStr += "  kernarg_segment_alignment = 4%s" % self.endLine
+    kStr += "  group_segment_alignment = 4%s" % self.endLine
+    kStr += "  private_segment_alignment = 4%s" % self.endLine
+    kStr += ".end_amd_kernel_code_t%s" % self.endLine
 
-        kStr += self.comment3("Optimizations and Config:")
-        kStr += self.comment1("ThreadTile= %u x %u" % (kernel["ThreadTile0"],
-                                                       kernel["ThreadTile1"]))
-        kStr += self.comment1(
-            "SubGroup= %u x %u" % (kernel["SubGroup0"], kernel["SubGroup1"]))
-        kStr += self.comment1("VectorWidth=%u" % (kernel["VectorWidth"]))
-        kStr += self.comment1(
-            "GlobalLoadVectorWidthA=%u, GlobalLoadVectorWidthB=%u" %
-            (kernel["GlobalLoadVectorWidthA"],
-             kernel["GlobalLoadVectorWidthB"]))
-        kStr += self.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
-        kStr += self.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
-        kStr += self.comment1("UseSgprForGRO=%s" % kernel["UseSgprForGRO"])
+    kStr += self.comment3("Optimizations and Config:")
+    kStr += self.comment1("ThreadTile= %u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
+    kStr += self.comment1("SubGroup= %u x %u" % (kernel["SubGroup0"], kernel["SubGroup1"]))
+    kStr += self.comment1("VectorWidth=%u" % (kernel["VectorWidth"]))
+    kStr += self.comment1("GlobalLoadVectorWidthA=%u, GlobalLoadVectorWidthB=%u" % (kernel["GlobalLoadVectorWidthA"], kernel["GlobalLoadVectorWidthB"]))
+    kStr += self.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
+    kStr += self.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
+    kStr += self.comment1("UseSgprForGRO=%s" % kernel["UseSgprForGRO"])
 
-        kStr += self.comment3("Asm syntax workarounds")
-        kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
-        if self.AsmBugs["ExplicitCO"]:
-            kStr += "   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
-        else:
-            kStr += "   v_add_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
-        kStr += ".endm" + self.endLine
 
-        kStr += ".macro _v_sub_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
-        if self.AsmBugs["ExplicitCO"]:
-            kStr += "   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
-        else:
-            kStr += "   v_sub_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
-        kStr += ".endm" + self.endLine
+    kStr += self.comment3("Asm syntax workarounds")
+    kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
+    if self.AsmBugs["ExplicitCO"]:
+        kStr += "   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+    else:
+        kStr += "   v_add_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+    kStr += ".endm" + self.endLine
 
-        kStr += ".macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=" + self.endLine
-        if self.AsmBugs["ExplicitCO"]:
-            kStr += "   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
-        else:
-            kStr += "   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
-        kStr += ".endm" + self.endLine
+    kStr += ".macro _v_sub_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
+    if self.AsmBugs["ExplicitCO"]:
+        kStr += "   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+    else:
+        kStr += "   v_sub_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+    kStr += ".endm" + self.endLine
 
-        # Use combined add+shift, where available:
-        kStr += ".macro _v_add_lshl_u32 dst, src0, src1, shiftCnt" + self.endLine
-        if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
-            kStr += "    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
-        else:
-            if self.AsmBugs["ExplicitCO"]:
-                kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
-            else:
-                kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
-            kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
-        kStr += ".endm" + self.endLine
+    kStr += ".macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=" + self.endLine
+    if self.AsmBugs["ExplicitCO"]:
+        kStr += "   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+    else:
+        kStr += "   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+    kStr += ".endm" + self.endLine
 
-        # Use combined shift+add, where available:
-        kStr += ".macro _v_lshl_add_u32 dst, src0, src1, shiftCnt" + self.endLine
-        if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
-            kStr += "    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
-        else:
-            kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
-            if self.AsmBugs["ExplicitCO"]:
-                kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+    # Use combined add+shift, where available:
+    kStr += ".macro _v_add_lshl_u32 dst, src0, src1, shiftCnt" + self.endLine
+    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+      kStr += "    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+    else:
+      if self.AsmBugs["ExplicitCO"]:
+        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      else:
+        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+    kStr += ".endm" + self.endLine
+
+
+    # Use combined shift+add, where available:
+    kStr += ".macro _v_lshl_add_u32 dst, src0, src1, shiftCnt" + self.endLine
+    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+      kStr += "    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+    else:
+      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+      if self.AsmBugs["ExplicitCO"]:
+        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      else:
+        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+    kStr += ".endm" + self.endLine
+
+
+    # Performs a division using 'magic number' computed on host
+    # Argument requirements:
+    #   - dstIdx must be two consecutive registers ; on exit the lower one will contain the quotient.  The upper is used as a temp.
+    #   - First parm is passed as an integer vgpr index ; remaining are vgpr or sgpr symbolic names
+    kStr += self.comment3("Magic div and mod functions")
+    kStr += ".macro V_MAGIC_DIV dstIdx, dividend, magicNumber, magicShift" + self.endLine
+    kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
+    kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+    kStr += "    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
+    kStr += ".endm" + self.endLine
 
     ########################################
     # VGPR Macros
@@ -6084,7 +6094,6 @@ class KernelWriterAssembly(KernelWriter):
     # Layout
     """
     if B1 goto label_B1
-
     if E1 goto label_B0_E1
     label_B0_E0:
     writes
@@ -6092,10 +6101,8 @@ class KernelWriterAssembly(KernelWriter):
     label_B0_E1:
     writes
     goto label_End
-
     label_B1:
     if E1 goto label_B1_E1
-
     label_B1_E0:
     writes
     goto label_End
@@ -7687,6 +7694,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.assert_eq(stmp, 0, cookie)
     return kStr
 
+
   def bomb_at_wg3d(self, wg0, wg1, wg2, cookie=-1):
     kStr = ""
     tmp0 = sgpr("SaveExecMask")
@@ -7697,6 +7705,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cmp_u32", tmp1, sgpr("WorkGroup2"), wg2)
     kStr += inst("s_or_b32", tmp0, tmp0, tmp1, "")
     kStr += "WIP"
+
+
 
   # asserts if val0 is not an integer multiple of multiple2
   # multiple2 must be a constant and power of 2
@@ -7721,6 +7731,7 @@ class KernelWriterAssembly(KernelWriter):
           "assert: restore execmask")
 
     return kStr
+
 
   def assert_scc_is_1(self, cookie=-1):
     kStr = ""
