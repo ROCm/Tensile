@@ -373,7 +373,7 @@ class BenchmarkProcess:
           values = param[name]
           valueIdx = pIdx % len(values)
           forkPermutations[i][name] = values[valueIdx]
-          pIdx /= len(values)
+          pIdx //= len(values)
     if len(forkPermutations) > 0:
       self.forkHardcodedParameters(forkPermutations)
 

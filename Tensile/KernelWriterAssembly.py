@@ -746,6 +746,8 @@ class KernelWriterAssembly(KernelWriter):
     # name, numAddresses, numOffsets, offsetMultiplier, blockWidth, formatting):
     ########################################
     # Local Read
+    import pdb
+    pdb.set_trace()
     ds_read_b128 = MemoryInstruction("ds_read_b128",  1, 1, 4, 4, \
         "%s, %s offset:%s" )
     ds_read2_b64 = MemoryInstruction("ds_read2_b64",  1, 2, 2, 2, \
@@ -1700,86 +1702,69 @@ class KernelWriterAssembly(KernelWriter):
                   C[0] = A[0]*B[0]+D[0]
                   C[1] = A[1]*B[1]+D[1]
                   """
-                        else:
-                            printExit(
-                                "Half-precision not supported for arch=%u" %
-                                self.version)
-
-            # integer i8
-            elif kernel["ProblemType"]["DataType"].isInt8x4():
-                for b in range(0, kernel["ThreadTile1"]):
-                    for a in range(0, kernel["ThreadTile0"]):
-                        if self.version == (8, 0, 3):
-                            kStr += self.comment3(
-                                "int8 not implemented yet for gfx803:")
-                        elif self.version == (9, 0, 0):
-                            kStr += self.comment3(
-                                "int8 not implemented yet for gfx900:")
-                        elif self.version == (9, 0, 6):
-                            for iui in range(0, innerUnroll):
-                                cidx = a + b * kernel["ThreadTile0"] + 0
-                                cStr = "v[%s+%u+%u*%u]" % (
-                                    "vgprValuC", a, b, kernel["ThreadTile0"])
-                                aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" %
-                                                     (m, iui), a)
-                                bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" %
-                                                     (m, iui), b)
-                                kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (
-                                    cStr, aStr, bStr, cStr, cidx, self.endLine)
-
-            # single precision
-            elif kernel["ProblemType"]["DataType"].isSingle():
-                for b in range(0, kernel["ThreadTile1"]):
-                    for a in range(0, kernel["ThreadTile0"]):
-                        for iui in range(0, innerUnroll):
-                            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b,
-                                                       kernel["ThreadTile0"])
-                            aStr = "v[%s+%u]" \
-                                % ("vgprValuA_X%u_I%u"%(m,iui), a)
-                            bStr = "v[%s+%u]" \
-                                % ("vgprValuB_X%u_I%u"%(m,iui), b)
-                            #if a==0 and b==0:
-                            #  kStr += dump(aStr)
-                            kStr += "v_mac_f32 %s, %s, %s%s" % (
-                                cStr, aStr, bStr, self.endLine)
-                            if macIdx == kernel["PerformanceWaitLocation"]:
-                                kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
-                                    % (kernel["PerformanceWaitCount"], self.endLine)
-                            if macIdx == kernel["PerformanceSyncLocation"]:
-                                kStr += "s_barrier // extra barrier for performance%s" \
-                                    % (self.endLine)
-                            macIdx += 1
-
-            # double precision
-            elif kernel["ProblemType"]["DataType"].isDouble():
-                doOnce = False
-                beAggressive = kernel["AggressivePerfMode"]
-                for b in range(0, kernel["ThreadTile1"]):
-                    for a in range(0, kernel["ThreadTile0"]):
-                        for iui in range(0, innerUnroll):
-                            cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % (
-                                "vgprValuC", a, b, kernel["ThreadTile0"],
-                                "vgprValuC", a, b, kernel["ThreadTile0"])
-                            aStr = "v[%s+%u*2:%s+%u*2+1]" \
-                                % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
-                            bStr = "v[%s+%u*2:%s+%u*2+1]" \
-                                % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
-                            kStr += "v_fma_f64 %s, %s, %s, %s%s" % (
-                                cStr, aStr, bStr, cStr, self.endLine)
-                            if beAggressive and not doOnce:
-                                kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
-                                doOnce = True
-                if beAggressive:
-                    kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
-
-            # other precision
             else:
-                printExit("Assembly doesn't support %s" %
-                          kernel["ProblemType"]["DataType"])
+              printExit("Half-precision not supported for arch=%u" %self.version)
 
-            kStr += ".endm%s" % self.endLine
+      # integer i8
+      elif kernel["ProblemType"]["DataType"].isInt8x4():
+        for b in range(0, kernel["ThreadTile1"]):
+          for a in range(0, kernel["ThreadTile0"]):
+            if self.version == (8, 0, 3):
+              kStr += self.comment3("int8 not implemented yet for gfx803:")
+            elif self.version == (9, 0, 0):
+              kStr += self.comment3("int8 not implemented yet for gfx900:")
+            elif self.version == (9, 0, 6):
+              for iui in range(0, innerUnroll):
+                cidx = a + b * kernel["ThreadTile0"] + 0
+                cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
+                aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" %(m, iui), a)
+                bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" %(m, iui), b)
+                kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (
+                  cStr, aStr, bStr, cStr, cidx, self.endLine)
 
-        return kStr
+      # single precision
+      elif kernel["ProblemType"]["DataType"].isSingle():
+        for b in range(0, kernel["ThreadTile1"]):
+          for a in range(0, kernel["ThreadTile0"]):
+            for iui in range(0, innerUnroll):
+              cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
+              aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u"%(m,iui), a)
+              bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u"%(m,iui), b)
+              #if a==0 and b==0:
+              #  kStr += dump(aStr)
+              kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+              if macIdx == kernel["PerformanceWaitLocation"]:
+                kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
+                  % (kernel["PerformanceWaitCount"], self.endLine)
+              if macIdx == kernel["PerformanceSyncLocation"]:
+                kStr += "s_barrier // extra barrier for performance%s" % (self.endLine)
+              macIdx += 1
+
+      # double precision
+      elif kernel["ProblemType"]["DataType"].isDouble():
+        doOnce = False
+        beAggressive = kernel["AggressivePerfMode"]
+        for b in range(0, kernel["ThreadTile1"]):
+          for a in range(0, kernel["ThreadTile0"]):
+            for iui in range(0, innerUnroll):
+              cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], \
+                "vgprValuC", a, b, kernel["ThreadTile0"])
+              aStr = "v[%s+%u*2:%s+%u*2+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+              bStr = "v[%s+%u*2:%s+%u*2+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+              if beAggressive and not doOnce:
+                kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                doOnce = True
+          if beAggressive:
+            kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
+
+        # other precision
+      else:
+        printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
+
+      kStr += ".endm%s" % self.endLine
+
+    return kStr
 
     ##############################################################################
     # Function Signature
@@ -6585,8 +6570,8 @@ class KernelWriterAssembly(KernelWriter):
     elementData = []
     elementMask = []
     elementSumIdx = []
-    lastData = None
-    addr = None
+    lastData = 0
+    addr = 0
 
     for elementIdx in range(0, len(batchElements)):
       loadsIssued = 0
@@ -6615,7 +6600,7 @@ class KernelWriterAssembly(KernelWriter):
           data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
                 "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
       else:
-        data = None
+        data = 0
 
       elementData.append(data)
       mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
@@ -7330,7 +7315,7 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(addr,"writeBatch addr ei:%d"%elementIdx)
 
       data = elementData[elementIdx]
-      if data != None:
+      if data != 0:
         if data != lastData:
           self.vgprPool.checkIn(data,"writeBatch data ei:%d"%elementIdx)
         lastData = data

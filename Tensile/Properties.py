@@ -54,7 +54,7 @@ class Property:
 class Predicate(Property):
     @classmethod
     def FromOriginalState(cls, d):
-        predicates = list([p for p in map(cls.FromOriginalKeyPair, list(d.items())) if p is not None])
+        predicates = list([p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None])
         if len(predicates) == 0:
             return cls('TruePred')
         if len(predicates) == 1:

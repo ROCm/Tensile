@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -370,10 +370,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     dataTypes = sorted(dataTypes)
     for dataType in dataTypes:
       problemTypesForDataType[dataType] = \
-          sorted(problemTypesForDataType[dataType])
+          sorted(problemTypesForDataType[dataType],key=str)
       for problemType in problemTypesForDataType[dataType]:
         schedulesForProblemType[problemType] = \
-            sorted(schedulesForProblemType[problemType])
+            sorted(schedulesForProblemType[problemType],key=str)
 
     # assign info
     functionIdxSerial = 0
@@ -927,7 +927,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         functionsForDataType = []
         for problemType in problemTypesForDataType[dataType]:
           for scheduleName in schedulesForProblemType[problemType]:
-            functionsForDataType.list(append([scheduleName, problemType]))
+            functionsForDataType.append([scheduleName, problemType])
         h += "template<>\n"
         h += "inline %s generatedCallTo_%s<%s>(\n" \
             % (returnName, functionName, typeName)
