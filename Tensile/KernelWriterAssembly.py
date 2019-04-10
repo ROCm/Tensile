@@ -791,6 +791,8 @@ class KernelWriterAssembly(KernelWriter):
         # name, numAddresses, numOffsets, offsetMultiplier, blockWidth, formatting):
         ########################################
         # Local Read
+        import pdb
+        pdb.set_trace()
         ds_read_b128 = MemoryInstruction("ds_read_b128",  1, 1, 4, 4, \
             "%s, %s offset:%s" )
         ds_read2_b64 = MemoryInstruction("ds_read2_b64",  1, 2, 2, 2, \
