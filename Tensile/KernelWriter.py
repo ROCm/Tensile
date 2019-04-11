@@ -29,6 +29,7 @@ import os
 import shutil
 import subprocess
 from os import path, chmod
+from math import log, ceil
 
 ################################################################################
 # Kernel Writer
@@ -83,6 +84,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
     
     lastLoadIter = 0
+    numTaskstoSched =0
     if not self.scheduleGlobalRead:
       # put everything in the header:
       self.unrollLoopHeaderCode.addCode(self.globalReadACode)
@@ -96,16 +98,34 @@ class KernelWriter(metaclass=abc.ABCMeta):
       readCnt = self.globalReadACode.middle.countType(Code.GlobalReadInst) + \
                 self.globalReadBCode.middle.countType(Code.GlobalReadInst)
       # reads and incs are scheduled in iters range(0...endIter)
-      endIter = readCnt + 2 # 2 for incA and incB
+      # treat incA and incB as independent tasks that can be in the same iter code as Load(s) 
+      # 
+      numTaskstoSched += readCnt;
+      numTaskstoSched += 2 # 2 for incA and incB
 
+       # why endIter (number of global load tasks  ) > LoopUnroll -1? we can still schedule these
+       # tasks endIter match with kernel['LoopUnroll']
+       
 
-      if endIter > kernel["LoopUnroll"]-1:
+      if (numTaskstoSched > kernel["LoopUnroll"]-1):
         # Front-load some of the buffer loads if we don't have enough loop iters:
         # could use a different/smarter algorithm to space out the loads?
-        firstStep = endIter-(kernel["LoopUnroll"]-1) + 1
+        # firstStep = endIter-(kernel["LoopUnroll"]-1) + 1
+        # conditions for scheduling b2b global load(S)
+        #  true b2b = bigger tiles
+        #  true b2b = not enough iteration to go around numTaskstoSched > Kernel['loopUnroll']
+        #  true b2b = 
+        firstStep = 1    #by default
+        if ((ceil(float(readCnt)/float(2))) < (kernel["LoopUnroll"] -1)):
+            firstStep = 2
+        else:
+            firstStep = readCnt-(kernel["LoopUnroll"]-1) + 1
         endIter = kernel["LoopUnroll"]-1
       else:
-        firstStep = 1
+	# schedule b2b for readCnt > 2 (True for bigger TT)
+        firstStep = 2  if readCnt > 2 else 1
+        endIter = numTaskstoSched-1
+        
 
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
@@ -113,28 +133,50 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsToSched.append(self.globalReadIncACode)
       itemsToSched.append(self.globalReadIncBCode)
 
+
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
-      for item in itemsToSched[:firstStep]:
-        self.perIterGlobalReadCode[0].addCode(item)
-      itemsToSched = itemsToSched[firstStep:]
-      for u in range(1, endIter):
+      # append 'n' global load at a time 
+      # append global load(S) first 'number of global load(s) determined by  firstStep
+      u = 0
+      listIndex = firstStep
+      for iter in range(0,readCnt,firstStep): 
+        try:
+          for item in itemsToSched[:listIndex]:
+              self.perIterGlobalReadCode[u].addCode(item)
+          itemsToSched = itemsToSched[listIndex:]
+          numTaskstoSched = numTaskstoSched - listIndex
+          lastLoadIter =  u # register last unroll iteration that global load was scheduled
+          u=u+1
+          if (readCnt - firstStep) < firstStep:	 #dont have enough reads to do firstStep *loads* in single iteration
+              listIndex = 1			 #downgrade number of loads to 1 in each iteration 
+        except IndexError:
+          break # no code left to schedule
+
+      #check reamining iteration count if >2 ; add incA, incB in each iteration else add IncA to last globalLoad
+      # remaining tasks 
+      loopIterStart = u  if ((kernel["LoopUnroll"] - u) >  2) else u-1
+      #print "Next Unroll iteration =", u, "LooopUnroll =", kernel["LoopUnroll"], "LoopIterStart=",loopIterStart , "numTaskstoSched=", numTaskstoSched
+      for loopIter in range(loopIterStart, (numTaskstoSched+loopIterStart)):
         itemPerIter = 1
         try:
           for item in itemsToSched[:itemPerIter]:
-            self.perIterGlobalReadCode[u].addCode(item)
-            lastLoadIter = u
+            self.perIterGlobalReadCode[loopIter].addCode(item)
+          #print "Next LooopUnroll =", kernel["LoopUnroll"], "LoopIterStart=",loopIter
           itemsToSched = itemsToSched[itemPerIter:]
+          numTaskstoSched = numTaskstoSched - itemPerIter
         except IndexError:
           break # no code left to schedule
 
       assert not itemsToSched # should have scheduled everthing already
+      assert not numTaskstoSched # should have scheduled everything already
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
 
-
+    # write(s) must be the last instruction starting in (LoopUnroll - number_writes)th iteration when PLR=0
+    # write(s) must be the last instruction starting in ((LoopUnroll-1) - number_writes)th iteration when PLR=1
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
       # if no scheduleLocalWrite - just add writes to localWritelocalWriteEndIter
@@ -293,10 +335,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for item in readItems:
         iterCode.addCode(item)
 
-      #move down write to be the last
-      iterCode.addCode(localWriteCode)
       # tack on the pointer and mac code:
       iterCode.addCode(pointerCode)
+      iterCode.addCode(localWriteCode)
       iterCode.addCode(waitCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
@@ -330,10 +371,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
             if localReads:
               lgkmcnt = 0 # reset to wait for all reads
             else:
-              lgkmcnt = localWrites  # this only survives if writes are at the end
-
+              lgkmcnt = localWrites # this only survives if writes are at the end
+                                    # wait for write completion 
+ 			            # New scheduling approach -> wait only for required number of LDS instructions 
       lgkmcnt = min(lgkmcnt, 15)
-      waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
+      waitCode.comment += " old=%u new=%u (Local write no wait)" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
     return iterCode
@@ -839,20 +881,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
           waitGlobalRead = -1
           if kernel["PrefetchGlobalRead"] and isResetLroIter:
-            waitLocalWrite = 1
+            waitLocalWrite = 1 
           else:
             waitLocalWrite = -1
           waitLocalRead  = 1 if isResetLroIter else 0
 
         else: # not isResetLroIter
           waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
-          waitLocalWrite = -1
+          waitLocalWrite = -1 
           waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
 
         if self.enable["Wait"]:
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               waitGlobalRead, waitLocalWrite, waitLocalRead, \
-              "wait for prior local read")
+              "wait for prior local read local write")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
