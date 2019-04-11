@@ -228,6 +228,41 @@ v_fma_f64 v[vgprValuC+(5+3*6)*2:(vgprValuC+5+3*6)*2+1], v[vgprValuA_X0_I0+5*2:vg
 s_setprio 0 // Reset priority after macs 
 .endm
 
+.macro MAC_6x4_X0_part_1
+v_fma_f64 v[vgprValuC+(0+0*6)*2:(vgprValuC+0+0*6)*2+1], v[vgprValuA_X0_I0+0*2:vgprValuA_X0_I0+0*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(0+0*6)*2:(vgprValuC+0+0*6)*2+1]
+s_setprio 1 // Raise priority while processing macs 
+v_fma_f64 v[vgprValuC+(1+0*6)*2:(vgprValuC+1+0*6)*2+1], v[vgprValuA_X0_I0+1*2:vgprValuA_X0_I0+1*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(1+0*6)*2:(vgprValuC+1+0*6)*2+1]
+v_fma_f64 v[vgprValuC+(0+1*6)*2:(vgprValuC+0+1*6)*2+1], v[vgprValuA_X0_I0+0*2:vgprValuA_X0_I0+0*2+1], v[vgprValuB_X0_I0+1*2:vgprValuB_X0_I0+1*2+1], v[vgprValuC+(0+1*6)*2:(vgprValuC+0+1*6)*2+1]
+v_fma_f64 v[vgprValuC+(1+1*6)*2:(vgprValuC+1+1*6)*2+1], v[vgprValuA_X0_I0+1*2:vgprValuA_X0_I0+1*2+1], v[vgprValuB_X0_I0+1*2:vgprValuB_X0_I0+1*2+1], v[vgprValuC+(1+1*6)*2:(vgprValuC+1+1*6)*2+1]
+v_fma_f64 v[vgprValuC+(0+2*6)*2:(vgprValuC+0+2*6)*2+1], v[vgprValuA_X0_I0+0*2:vgprValuA_X0_I0+0*2+1], v[vgprValuB_X0_I0+2*2:vgprValuB_X0_I0+2*2+1], v[vgprValuC+(0+2*6)*2:(vgprValuC+0+2*6)*2+1]
+v_fma_f64 v[vgprValuC+(1+2*6)*2:(vgprValuC+1+2*6)*2+1], v[vgprValuA_X0_I0+1*2:vgprValuA_X0_I0+1*2+1], v[vgprValuB_X0_I0+2*2:vgprValuB_X0_I0+2*2+1], v[vgprValuC+(1+2*6)*2:(vgprValuC+1+2*6)*2+1]
+v_fma_f64 v[vgprValuC+(0+3*6)*2:(vgprValuC+0+3*6)*2+1], v[vgprValuA_X0_I0+0*2:vgprValuA_X0_I0+0*2+1], v[vgprValuB_X0_I0+3*2:vgprValuB_X0_I0+3*2+1], v[vgprValuC+(0+3*6)*2:(vgprValuC+0+3*6)*2+1]
+v_fma_f64 v[vgprValuC+(1+3*6)*2:(vgprValuC+1+3*6)*2+1], v[vgprValuA_X0_I0+1*2:vgprValuA_X0_I0+1*2+1], v[vgprValuB_X0_I0+3*2:vgprValuB_X0_I0+3*2+1], v[vgprValuC+(1+3*6)*2:(vgprValuC+1+3*6)*2+1]
+.endm
+
+.macro MAC_6x4_X0_part_2
+.endm
+
+.macro MAC_6x4_X0_part_3
+v_fma_f64 v[vgprValuC+(2+0*6)*2:(vgprValuC+2+0*6)*2+1], v[vgprValuA_X0_I0+2*2:vgprValuA_X0_I0+2*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(2+0*6)*2:(vgprValuC+2+0*6)*2+1]
+v_fma_f64 v[vgprValuC+(3+0*6)*2:(vgprValuC+3+0*6)*2+1], v[vgprValuA_X0_I0+3*2:vgprValuA_X0_I0+3*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(3+0*6)*2:(vgprValuC+3+0*6)*2+1]
+v_fma_f64 v[vgprValuC+(2+1*6)*2:(vgprValuC+2+1*6)*2+1], v[vgprValuA_X0_I0+2*2:vgprValuA_X0_I0+2*2+1], v[vgprValuB_X0_I0+1*2:vgprValuB_X0_I0+1*2+1], v[vgprValuC+(2+1*6)*2:(vgprValuC+2+1*6)*2+1]
+v_fma_f64 v[vgprValuC+(3+1*6)*2:(vgprValuC+3+1*6)*2+1], v[vgprValuA_X0_I0+3*2:vgprValuA_X0_I0+3*2+1], v[vgprValuB_X0_I0+1*2:vgprValuB_X0_I0+1*2+1], v[vgprValuC+(3+1*6)*2:(vgprValuC+3+1*6)*2+1]
+v_fma_f64 v[vgprValuC+(4+0*6)*2:(vgprValuC+4+0*6)*2+1], v[vgprValuA_X0_I0+4*2:vgprValuA_X0_I0+4*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(4+0*6)*2:(vgprValuC+4+0*6)*2+1]
+v_fma_f64 v[vgprValuC+(5+0*6)*2:(vgprValuC+5+0*6)*2+1], v[vgprValuA_X0_I0+5*2:vgprValuA_X0_I0+5*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(5+0*6)*2:(vgprValuC+5+0*6)*2+1]
+v_fma_f64 v[vgprValuC+(4+1*6)*2:(vgprValuC+4+1*6)*2+1], v[vgprValuA_X0_I0+4*2:vgprValuA_X0_I0+4*2+1], v[vgprValuB_X0_I0+1*2:vgprValuB_X0_I0+1*2+1], v[vgprValuC+(4+1*6)*2:(vgprValuC+4+1*6)*2+1]
+v_fma_f64 v[vgprValuC+(5+1*6)*2:(vgprValuC+5+1*6)*2+1], v[vgprValuA_X0_I0+5*2:vgprValuA_X0_I0+5*2+1], v[vgprValuB_X0_I0+1*2:vgprValuB_X0_I0+1*2+1], v[vgprValuC+(5+1*6)*2:(vgprValuC+5+1*6)*2+1]
+v_fma_f64 v[vgprValuC+(4+2*6)*2:(vgprValuC+4+2*6)*2+1], v[vgprValuA_X0_I0+4*2:vgprValuA_X0_I0+4*2+1], v[vgprValuB_X0_I0+2*2:vgprValuB_X0_I0+2*2+1], v[vgprValuC+(4+2*6)*2:(vgprValuC+4+2*6)*2+1]
+v_fma_f64 v[vgprValuC+(5+2*6)*2:(vgprValuC+5+2*6)*2+1], v[vgprValuA_X0_I0+5*2:vgprValuA_X0_I0+5*2+1], v[vgprValuB_X0_I0+2*2:vgprValuB_X0_I0+2*2+1], v[vgprValuC+(5+2*6)*2:(vgprValuC+5+2*6)*2+1]
+v_fma_f64 v[vgprValuC+(4+3*6)*2:(vgprValuC+4+3*6)*2+1], v[vgprValuA_X0_I0+4*2:vgprValuA_X0_I0+4*2+1], v[vgprValuB_X0_I0+3*2:vgprValuB_X0_I0+3*2+1], v[vgprValuC+(4+3*6)*2:(vgprValuC+4+3*6)*2+1]
+v_fma_f64 v[vgprValuC+(5+3*6)*2:(vgprValuC+5+3*6)*2+1], v[vgprValuA_X0_I0+5*2:vgprValuA_X0_I0+5*2+1], v[vgprValuB_X0_I0+3*2:vgprValuB_X0_I0+3*2+1], v[vgprValuC+(5+3*6)*2:(vgprValuC+5+3*6)*2+1]
+v_fma_f64 v[vgprValuC+(2+2*6)*2:(vgprValuC+2+2*6)*2+1], v[vgprValuA_X0_I0+2*2:vgprValuA_X0_I0+2*2+1], v[vgprValuB_X0_I0+2*2:vgprValuB_X0_I0+2*2+1], v[vgprValuC+(2+2*6)*2:(vgprValuC+2+2*6)*2+1]
+v_fma_f64 v[vgprValuC+(3+2*6)*2:(vgprValuC+3+2*6)*2+1], v[vgprValuA_X0_I0+3*2:vgprValuA_X0_I0+3*2+1], v[vgprValuB_X0_I0+2*2:vgprValuB_X0_I0+2*2+1], v[vgprValuC+(3+2*6)*2:(vgprValuC+3+2*6)*2+1]
+v_fma_f64 v[vgprValuC+(2+3*6)*2:(vgprValuC+2+3*6)*2+1], v[vgprValuA_X0_I0+2*2:vgprValuA_X0_I0+2*2+1], v[vgprValuB_X0_I0+3*2:vgprValuB_X0_I0+3*2+1], v[vgprValuC+(2+3*6)*2:(vgprValuC+2+3*6)*2+1]
+v_fma_f64 v[vgprValuC+(3+3*6)*2:(vgprValuC+3+3*6)*2+1], v[vgprValuA_X0_I0+3*2:vgprValuA_X0_I0+3*2+1], v[vgprValuB_X0_I0+3*2:vgprValuB_X0_I0+3*2+1], v[vgprValuC+(3+3*6)*2:(vgprValuC+3+3*6)*2+1]
+s_setprio 0 // Reset Priority
+.endm
+
 .macro MAC_6x4_X0_unprio_0
 v_fma_f64 v[vgprValuC+(0+0*6)*2:(vgprValuC+0+0*6)*2+1], v[vgprValuA_X0_I0+0*2:vgprValuA_X0_I0+0*2+1], v[vgprValuB_X0_I0+0*2:vgprValuB_X0_I0+0*2+1], v[vgprValuC+(0+0*6)*2:(vgprValuC+0+0*6)*2+1]
 s_setprio 1 // Raise priority while processing macs 
@@ -894,28 +929,37 @@ s_waitcnt lgkmcnt(0)                               // 1wait for local write
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:0 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:128 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:0 // L -> Reg lro=0 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 buffer_load_dwordx4 v[vgprG2LA+0:vgprG2LA+0+3], v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0, offen offset:0 // G -> Reg 0_0_0_0
-buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
+/* local read b */
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:128 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
-/* local read b */
-ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:0 // L -> Reg lro=0 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->48 */
 
 /* local read increment b */
 /* N/A, lro->64 */
+s_waitcnt lgkmcnt(2)                               // wait for prior local read old=0 new=0
+//MAC_6x4_X0
+MAC_6x4_X0_part_1
+
 s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+MAC_6x4_X0_part_3
+
 
 /* iter 1 */
 
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:384 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+/* local read b */
+ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:512 // L -> Reg lro=64 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
+
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:768 // L -> Reg lro=64 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:512 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* global read inc A */
@@ -927,24 +971,24 @@ s_cmp_eq_u32 s[sgprShadowLimitA+1], 0              // are we within 2^32?
 s_cmov_b32 s[sgprSrdA+2], s[sgprShadowLimitA+0]    // Move shadow to real if we are within 2^32
 ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:640 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
-/* local read b */
-ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:512 // L -> Reg lro=64 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:768 // L -> Reg lro=64 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-
 /* local read increment a */
 /* N/A, lro->96 */
 
 /* local read increment b */
 /* N/A, lro->128 */
+s_waitcnt lgkmcnt(2)                               // wait for prior local read old=0 new=0
+//MAC_6x4_X0
+MAC_6x4_X0_part_1
 s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+MAC_6x4_X0_part_3
 
 /* iter 2 */
 
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:768 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:896 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+/* local read b */
+ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:1024 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* global read inc B */
 s_add_u32  s[sgprSrdB+0], s[sgprSrdB+0], s[sgprGlobalReadIncsB] // gra SRD += inc(lower)
@@ -953,39 +997,39 @@ s_sub_u32 s[sgprShadowLimitB+0], s[sgprShadowLimitB+0], s[sgprGlobalReadIncsB] /
 s_subb_u32 s[sgprShadowLimitB+1], s[sgprShadowLimitB+1], 0 // limit -= inc)
 s_cmp_eq_u32 s[sgprShadowLimitB+1], 0              // are we within 2^32?
 s_cmov_b32 s[sgprSrdB+2], s[sgprShadowLimitB+0]    // Move shadow to real if we are within 2^32
+
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:1280 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:896 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1024 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 /* sched write - iter 2 writesPerItem=1 */
 s_waitcnt vmcnt(1)                                 // wait for global read before writing to local
 ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:4096 // lwoA_0_0_0_0 = (0*LSCA) + (0*LSPA)(*MT0I+PAD) = 4096
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1024 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
-/* local read b */
-ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:1024 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:1280 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->144 */
 
 /* local read increment b */
 /* N/A, lro->192 */
-s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
-
-
+s_waitcnt lgkmcnt(3)                               // wait for prior local read old=0 new=0
+//MAC_6x4_X0
+MAC_6x4_X0_part_1
+s_waitcnt lgkmcnt(1)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_3
 
 /* iter 3 (last) */
 
-
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:1152 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:1280 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-/* sched write - iter 3 writesPerItem=1 */
-s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
-ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:4096 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 4096
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1408 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
 /* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:1536 // L -> Reg lro=192 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:1792 // L -> Reg lro=192 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:1280 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1408 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
+/* sched write - iter 3 writesPerItem=1 */
+s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
+ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:4096 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 4096
 
 /* local write swap offsets a */
 
@@ -1008,8 +1052,10 @@ ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] off
 /* local read init pointers a */
 
 /* local read init pointers b */
-s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2 new=0
-MAC_6x4_X0
+s_waitcnt lgkmcnt(3)                               // 6wait for local read old=2 new=0
+MAC_6x4_X0_part_1
+s_waitcnt lgkmcnt(1)                               // 6wait for local read old=2 new=0
+MAC_6x4_X0_part_3
 
 /******************************************/
 /* Unrolled Loop - End 1/2                */
@@ -1040,28 +1086,34 @@ s_waitcnt lgkmcnt(0)                               // 1wait for local write
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:4096 // L -> Reg lro=0 swapByteOffset=4096 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4224 // L -> Reg lro=0 swapByteOffset=4096 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-buffer_load_dwordx4 v[vgprG2LA+0:vgprG2LA+0+3], v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0, offen offset:0 // G -> Reg 0_0_0_0
-buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:4352 // L -> Reg lro=0 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
-/* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:4096 // L -> Reg lro=0 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+buffer_load_dwordx4 v[vgprG2LA+0:vgprG2LA+0+3], v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0, offen offset:0 // G -> Reg 0_0_0_0
+
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:4352 // L -> Reg lro=0 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+/* local read b */
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4224 // L -> Reg lro=0 swapByteOffset=4096 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:4352 // L -> Reg lro=0 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->48 */
 
 /* local read increment b */
 /* N/A, lro->64 */
+s_waitcnt lgkmcnt(2)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_1
 s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+MAC_6x4_X0_part_3
 
 /* iter 1 */
 
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:4480 // L -> Reg lro=48 swapByteOffset=4096 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+/* local read b */
+ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:4608 // L -> Reg lro=64 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:4864 // L -> Reg lro=64 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4608 // L -> Reg lro=48 swapByteOffset=4096 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* global read inc A */
@@ -1071,26 +1123,26 @@ s_sub_u32 s[sgprShadowLimitA+0], s[sgprShadowLimitA+0], s[sgprGlobalReadIncsA] /
 s_subb_u32 s[sgprShadowLimitA+1], s[sgprShadowLimitA+1], 0 // limit -= inc)
 s_cmp_eq_u32 s[sgprShadowLimitA+1], 0              // are we within 2^32?
 s_cmov_b32 s[sgprSrdA+2], s[sgprShadowLimitA+0]    // Move shadow to real if we are within 2^32
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:4736 // L -> Reg lro=48 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
-/* local read b */
-ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:4608 // L -> Reg lro=64 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:4864 // L -> Reg lro=64 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:4736 // L -> Reg lro=48 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->96 */
 
 /* local read increment b */
 /* N/A, lro->128 */
+s_waitcnt lgkmcnt(2)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_1
 s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+MAC_6x4_X0_part_3
 
 /* iter 2 */
 
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:4864 // L -> Reg lro=96 swapByteOffset=4096 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4992 // L -> Reg lro=96 swapByteOffset=4096 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+/* local read b */
+ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:5120 // L -> Reg lro=128 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* global read inc B */
 s_add_u32  s[sgprSrdB+0], s[sgprSrdB+0], s[sgprGlobalReadIncsB] // gra SRD += inc(lower)
@@ -1099,22 +1151,23 @@ s_sub_u32 s[sgprShadowLimitB+0], s[sgprShadowLimitB+0], s[sgprGlobalReadIncsB] /
 s_subb_u32 s[sgprShadowLimitB+1], s[sgprShadowLimitB+1], 0 // limit -= inc)
 s_cmp_eq_u32 s[sgprShadowLimitB+1], 0              // are we within 2^32?
 s_cmov_b32 s[sgprSrdB+2], s[sgprShadowLimitB+0]    // Move shadow to real if we are within 2^32
+
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:5376 // L -> Reg lro=128 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4992 // L -> Reg lro=96 swapByteOffset=4096 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:5120 // L -> Reg lro=96 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 /* sched write - iter 2 writesPerItem=1 */
 s_waitcnt vmcnt(1)                                 // wait for global read before writing to local
 ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:0 // lwoA_0_0_0_0 = (0*LSCA) + (0*LSPA)(*MT0I+PAD) = 0
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:5120 // L -> Reg lro=96 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
-/* local read b */
-ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:5120 // L -> Reg lro=128 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:5376 // L -> Reg lro=128 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->144 */
 
 /* local read increment b */
 /* N/A, lro->192 */
-s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+s_waitcnt lgkmcnt(3)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_1
+s_waitcnt lgkmcnt(1)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_3
 
 
 
@@ -1123,15 +1176,15 @@ MAC_6x4_X0
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:5248 // L -> Reg lro=144 swapByteOffset=4096 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+/* local read b */
+ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:5632 // L -> Reg lro=192 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:5888 // L -> Reg lro=192 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:5376 // L -> Reg lro=144 swapByteOffset=4096 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:5504 // L -> Reg lro=144 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 /* sched write - iter 3 writesPerItem=1 */
 s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
 ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:0 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 0
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:5504 // L -> Reg lro=144 swapByteOffset=4096 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
-/* local read b */
-ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:5632 // L -> Reg lro=192 swapByteOffset=4096 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:5888 // L -> Reg lro=192 swapByteOffset=4096 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local write swap offsets a */
 
@@ -1154,8 +1207,10 @@ ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] off
 /* local read init pointers a */
 
 /* local read init pointers b */
-s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2 new=0
-MAC_6x4_X0
+s_waitcnt lgkmcnt(3)                               // 6wait for local read old=3 new=0
+MAC_6x4_X0_part_1
+s_waitcnt lgkmcnt(1)                               // 6wait for local read old=1 new=0
+MAC_6x4_X0_part_3
 
 /******************************************/
 /* Unrolled Loop - End 2/2 (final)        */
@@ -1186,7 +1241,6 @@ s_cbranch_scc1 label_1003                            // wg1 < nwg1-1 so skip rMT
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:4096 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4224 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 buffer_load_dwordx4 v[vgprG2LA+0:vgprG2LA+0+3], v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0, offen offset:0 // G -> Reg 0_0_0_0
-buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
 ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:4352 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read b */
@@ -1207,6 +1261,7 @@ MAC_6x4_X0
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:4480 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4608 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
 
 ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:4736 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
@@ -1229,20 +1284,20 @@ MAC_6x4_X0
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:4864 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:4992 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 
-s_waitcnt vmcnt(1)                                 // wait for global read before writing to local
-ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:0 // lwoA_0_0_0_0 = (0*LSCA) + (0*LSPA)(*MT0I+PAD) = 4096
 ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:5120 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:5120 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:5376 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+s_waitcnt vmcnt(1)                                 // wait for global read before writing to local
+ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:0 // lwoA_0_0_0_0 = (0*LSCA) + (0*LSPA)(*MT0I+PAD) = 4096
 
 /* local read increment a */
 /* N/A, lro->144 */
 
 /* local read increment b */
 /* N/A, lro->192 */
-s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
+s_waitcnt lgkmcnt(1)                               // wait for prior local read old=0 new=0
 MAC_6x4_X0
 
 
@@ -1253,9 +1308,6 @@ MAC_6x4_X0
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:5248 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:5376 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-/* sched write - iter 3 writesPerItem=1 */
-s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
-ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:0 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 4096
 ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:5504 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read b */
@@ -1263,8 +1315,11 @@ ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] off
 s_mul_i32 s56, 0x30, s[sgprWorkGroup0]             // s56 = wg0*MT0
 s_mul_i32 s58, 0x40, s[sgprWorkGroup1]             // s56 = wg0*MT0
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:5888 // L -> Reg lro=192 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+/* sched write - iter 3 writesPerItem=1 */
+s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
+ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:0 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 4096
 
-s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2 new=0
+s_waitcnt lgkmcnt(1)                               // 6wait for local read old=2 new=0
 MAC_6x4_X0_unprio_0
 v_lshrrev_b32 v[vgprLocalWriteAddrB], 3, v[vgprSerial]                // vectorStaticDiv: v49 = v[vgprSerial] / 8
 v_and_b32 v[vgprLocalWriteAddrA], 7, v[vgprSerial]                    // vectorStaticDiv: v48 = v[vgprSerial] % 8
@@ -1621,66 +1676,72 @@ s_barrier //4sync for global read
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:0 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:128 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-buffer_load_dwordx4 v[vgprG2LA+0:vgprG2LA+0+3], v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0, offen offset:0 // G -> Reg 0_0_0_0
-buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
 /* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:0 // L -> Reg lro=0 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+buffer_load_dwordx4 v[vgprG2LA+0:vgprG2LA+0+3], v[vgprGlobalReadOffsetA+0], s[sgprSrdA:sgprSrdA+3], 0, offen offset:0 // G -> Reg 0_0_0_0
+
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:128 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:256 // L -> Reg lro=0 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->48 */
 
 /* local read increment b */
 /* N/A, lro->64 */
+s_waitcnt lgkmcnt(2)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_1
 s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+MAC_6x4_X0_part_3
 
 /* iter 1 */
 
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:384 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:512 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:640 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
-
 /* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:512 // L -> Reg lro=64 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+
+buffer_load_dwordx4 v[vgprG2LB+0:vgprG2LB+0+3], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:0 // G -> Reg 0_0_0_0
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:768 // L -> Reg lro=64 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:512 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:640 // L -> Reg lro=48 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read increment a */
 /* N/A, lro->96 */
 
 /* local read increment b */
 /* N/A, lro->128 */
+s_waitcnt lgkmcnt(2)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_1
 s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+MAC_6x4_X0_part_3
 
 /* iter 2 */
 
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:768 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:896 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-
-s_waitcnt vmcnt(1)                                 // wait for global read before writing to local
-ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:4096 // lwoA_0_0_0_0 = (0*LSCA) + (0*LSPA)(*MT0I+PAD) = 4096
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1024 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:1024 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
 ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:1280 // L -> Reg lro=128 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:896 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1024 // L -> Reg lro=96 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
+s_waitcnt vmcnt(1)                                 // wait for global read before writing to local
+ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:4096 // lwoA_0_0_0_0 = (0*LSCA) + (0*LSPA)(*MT0I+PAD) = 4096
 
 /* local read increment a */
 /* N/A, lro->144 */
 
 /* local read increment b */
 /* N/A, lro->192 */
-s_waitcnt lgkmcnt(0)                               // wait for prior local read old=0 new=0
-MAC_6x4_X0
+s_waitcnt lgkmcnt(3)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_1
+s_waitcnt lgkmcnt(1)                               // wait for prior local read old=0 new=0
+MAC_6x4_X0_part_3
 
 
 
@@ -1689,19 +1750,19 @@ MAC_6x4_X0
 
 /* local read a */
 ds_read_b128 v[vgprValuA_X0_I0+0:vgprValuA_X0_I0+0+3], v[vgprLocalReadAddrA] offset:1152 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
-ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:1280 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
-/* sched write - iter 3 writesPerItem=1 */
-s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
-ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:4096 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 4096
-ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1408 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
 
 /* local read b */
 ds_read_b128 v[vgprValuB_X0_I0+0:vgprValuB_X0_I0+0+3], v[vgprLocalReadAddrB] offset:1536 // L -> Reg lro=192 swapByteOffset=0 ti=16 vIdx=0 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:1792 // L -> Reg lro=192 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+ds_read_b128 v[vgprValuA_X0_I0+4:vgprValuA_X0_I0+4+3], v[vgprLocalReadAddrA] offset:1280 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
 s_mul_i32 s56, 0x30, s[sgprWorkGroup0]             // s56 = wg0*MT0
 s_mul_i32 s58, 0x40, s[sgprWorkGroup1]             // s56 = wg0*MT0
-ds_read_b128 v[vgprValuB_X0_I0+4:vgprValuB_X0_I0+4+3], v[vgprLocalReadAddrB] offset:1792 // L -> Reg lro=192 swapByteOffset=0 ti=16 vIdx=1 rIdx=0 oIdx=0 buffer=0 iui=0
+/* sched write - iter 3 writesPerItem=1 */
+ds_read_b128 v[vgprValuA_X0_I0+8:vgprValuA_X0_I0+8+3], v[vgprLocalReadAddrA] offset:1408 // L -> Reg lro=144 swapByteOffset=0 ti=8 vIdx=2 rIdx=0 oIdx=0 buffer=0 iui=0
+s_waitcnt vmcnt(0)                                 // wait for global read before writing to local
+ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:4096 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 4096
 
-s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2 new=0
+s_waitcnt lgkmcnt(1)                               // 6wait for local read old=2 new=0
 MAC_6x4_X0_unprio_0
 v_lshrrev_b32 v[vgprLocalWriteAddrB], 3, v[vgprSerial]                // vectorStaticDiv: v49 = v[vgprSerial] / 8
 v_and_b32 v[vgprLocalWriteAddrA], 7, v[vgprSerial]                    // vectorStaticDiv: v48 = v[vgprSerial] % 8
