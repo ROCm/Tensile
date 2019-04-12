@@ -36,15 +36,13 @@ namespace Tensile
 
     enum class DataType: int
     {
-        Single,
+        Float,
         Double,
-        ComplexSingle,
+        ComplexFloat,
         ComplexDouble,
         Half,
         Int8,
         Int32,
-        Num,
-        None,
         Count
     };
 
@@ -53,14 +51,13 @@ namespace Tensile
         switch(d)
         {
             case DataType::ComplexDouble: return 16;
-            case DataType::Num:
-            case DataType::ComplexSingle:
+            case DataType::ComplexFloat:
             case DataType::Double: return 8;
             case DataType::Int32:
-            case DataType::Single: return 4;
+            case DataType::Float: return 4;
             case DataType::Half: return 2;
             case DataType::Int8: return 1;
-            case DataType::None: return 0;
+            
             case DataType::Count:
                 throw std::runtime_error("Unknown data type");
         }

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +22,25 @@
 from __future__ import print_function
 from Common import printExit
 
-class dt:
+try:
+  basestring
+except NameError:
+  basestring = str
+
+class DataType:
     """ 
-    Data Type (new, called dt for now)
-    Uses a nested dictionary to organize the DataTypes and Properties
+    Data Type (new)
+    Uses a nested dictionary to organize the DataType and Properties
     """
-    single        = 0
-    double        = 1
-    complexSingle = 2
-    complexDouble = 3
-    half          = 4
-    int8x4        = 5
-    int32         = 6
-    num           = 7
-    none          = 8
+    # single        = 0
+    # double        = 1
+    # complexSingle = 2
+    # complexDouble = 3
+    # half          = 4
+    # int8x4        = 5
+    # int32         = 6
+    # num           = 7
+    # none          = 8
 
     # data type properties
     # idxChar    = 0
@@ -45,35 +50,25 @@ class dt:
     # idxLibType = 4
     # idxLibEnum = 5
     #    char, reg,    ocl,       hip,       libType,                 libEnum
-    properties = { 0: {'char': 'S', 'reg': 1, 'ocl': 'float', 'hip': 'float', 'libType': 'float', 'libEnum': 'tensileDataTypeFloat'},
-                 1: {'char': 'D', 'reg': 2, 'ocl': 'double', 'hip': 'double', 'libType': 'double', 'libEnum': 'tensileDataTypeDouble'},
-                 2: {'char': 'C', 'reg': 2, 'ocl': 'float2', 'hip': 'float2', 'libType': 'TensileComplexFloat', 'libEnum': 'tensileDataTypeComplexFloat'},
-                 3: {'char': 'Z', 'reg': 4, 'ocl': 'double2', 'hip': 'double2', 'libType': 'TensileComplexDouble', 'libEnum': 'tensileDataTypeComplexDouble'},
-                 4: {'char': 'H', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_half', 'libType': 'TensileHalf', 'libEnum': 'tensileDataTypeHalf'},
-                 5: {'char': '4xi8', 'reg': 1, 'ocl': 'ERROR', 'hip': 'uint32_t', 'libType': 'TensileInt8x4', 'libEnum': 'tensileDataTypeInt8x4'},
-                 6: {'char': 'I', 'reg': 1, 'ocl': 'ERROR', 'hip': 'int32_t', 'libType': 'TensileInt32', 'libEnum': 'tensileDataTypeInt32'}, 
-                 7: {'char': 'Num', 'reg': 2, 'ocl': '?', 'hip': '?', 'libType': '?', 'libEnum': '?'},
-                 8: {'char': 'None', 'reg': 0, 'ocl': '?', 'hip': '?', 'libType': '?', 'libEnum': '?'}
-               }
-      # ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
-      # ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
-      # ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
-      # ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
-      # ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
-      # ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      # ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
-  
+    
+    """
+    Changed older properties list of lists to list of dictionaries
+    While the inner keys (char, reg, etc) correspond with the data type properties values
+    """
 
-    ########################################
+     ########################################
+    """
+    For init, note that value is a letter
+    """
     def __init__( self, value ):
+        #print("init value:", value)
         if isinstance(value, int):
             self.value = value
         elif isinstance(value, basestring):
-            for propertiesIdx in range(0,8): #probably should be 6
-                for dataTypeIdx in range(0,self.num):
-                    if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
-                        self.value = dataTypeIdx
-                        return
+            import pdb
+            pdb.set_trace()
+            self.value = lookup[value.lower()]
+            return
         elif isinstance(value, DataType):
             self.value = value.value
         else:
@@ -93,16 +88,20 @@ class dt:
         else:
             return self.toHIP()
     def toCpp(self):
-        return self.properties[self.value]['idxLibType']
+        return self.properties[self.value]['libType']
     def getLibString(self):
-        return self.properties[self.value]['idxLibEnum']
+        return self.properties[self.value]['libEnum']
 
     ########################################
     def zeroString(self, language, vectorWidth):
+        """
+        Returns a string containing the data output format, depending on programming language 
+        and in the case of complex numbers, the vector width
+        """
         if language == "HIP":
-            if self.value == list(self.properties.keys())[2]: #complex float, can also just set this to 2
+            if self.value == 2: #complex float, can also just set this to 2
                 return "make_float2(0.f, 0.f)"
-            if self.value == list(self.properties.keys())[3]: #self.complexDouble:
+            if self.value == 3: #self.complexDouble: previously was the value
                 return "make_double2(0.0, 0.0)"
 
         zeroString = "("
@@ -130,7 +129,7 @@ class dt:
 
   ########################################
     def isReal(self):
-        if self.value == 4 or self.value == 0 or self.value == 1 or self.value == 5 or self.value == 6 
+        if self.value == dt.half or self.value == dt.single or self.value == dt.double or self.value == dt.int8x4 or self.value == dt.int32: 
         #self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
             return True
         else:
@@ -138,17 +137,17 @@ class dt:
     def isComplex(self):
         return not self.isReal()
     def isDouble(self):
-        return self.value == 1 or self.value == 3
+        return self.value == dt.double or self.value == dt.complexDouble
     def isSingle(self):
-        return self.value == 0
+        return self.value == dt.single or self.value == dt.complexSingle
     def isHalf(self):
-        return self.value == 4
+        return self.value == dt.half
     def isInt32(self):
-        return self.value == 6
+        return self.value == dt.int32
     def isInt8x4(self):
-        return self.value == 5
+        return self.value == dt.int8x4
     def isNone(self):
-        return self.value == 8
+        return self.value == None
 
   ########################################
     def numRegisters(self):
@@ -175,3 +174,24 @@ class dt:
         if result is NotImplemented:
             return result
         return not result
+        
+      # ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
+      # ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
+      # ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
+      # ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
+      # ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
+      # ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
+      # ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
+properties = [{'char': 'S', 'name': 'single', 'enum': 'Float', 'reg': 1, 'ocl': 'float', 'hip': 'float', 'libType': 'float', 'libEnum': 'tensileDataTypeFloat'},
+        {'char': 'D', 'name': 'double', 'enum': 'Double', 'reg': 2, 'ocl': 'double', 'hip': 'double', 'libType': 'double', 'libEnum': 'tensileDataTypeDouble'},
+        {'char': 'C', 'name': 'complexSingle', 'enum': 'ComplexFloat', 'reg': 2, 'ocl': 'float2', 'hip': 'float2', 'libType': 'TensileComplexFloat', 'libEnum': 'tensileDataTypeComplexFloat'},
+        {'char': 'Z', 'name': 'complexDouble', 'enum': 'ComplexDouble', 'reg': 4, 'ocl': 'double2', 'hip': 'double2', 'libType': 'TensileComplexDouble', 'libEnum': 'tensileDataTypeComplexDouble'},
+        {'char': 'H', 'name': 'half', 'enum': 'Half', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_half', 'libType': 'TensileHalf', 'libEnum': 'tensileDataTypeHalf'},
+        {'char': '4xi8', 'name': 'int8x4', 'enum': 'Int8', 'reg': 1, 'ocl': 'ERROR', 'hip': 'uint32_t', 'libType': 'TensileInt8x4', 'libEnum': 'tensileDataTypeInt8x4'},
+        {'char': 'I', 'name': 'int32', 'enum': 'Int32', 'reg': 1, 'ocl': 'ERROR', 'hip': 'int32_t', 'libType': 'TensileInt32', 'libEnum': 'tensileDataTypeInt32'}]
+lookup = {}
+dt = DataType(properties[0]['char'])
+for i,e in enumerate(properties):
+    setattr(dt, e['name'], i)
+    for k in ['char','name','enum']:
+        lookup[e[k]] = i

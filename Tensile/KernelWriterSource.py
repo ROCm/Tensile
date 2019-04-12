@@ -20,7 +20,8 @@
 ################################################################################
 
 from __future__ import print_function
-from SolutionStructs import DataType, isPackedIndex
+from DataType import DataType
+from SolutionStructs import isPackedIndex, DataType
 from Common import globalParameters, printExit
 from KernelWriter import KernelWriter
 

@@ -104,14 +104,14 @@ class ProblemType:
         rv.dDims = rv.cDims
         
         try:
-            assert d['DataType'] == 0
-            assert d['DestDataType'] == 0
+            assert d['DataType'] == 6
+            assert d['DestDataType'] == 6
         except AssertionError as Error:
             print("DataType mismatch!")
-        rv.aType = 'Float'
-        rv.bType = 'Float'
-        rv.cType = 'Float'
-        rv.dType = 'Float'
+        rv.aType = 'Int32'
+        rv.bType = 'Int32'
+        rv.cType = 'Int32'
+        rv.dType = 'Int32'
 
         rv.batched = d['Batched']
 

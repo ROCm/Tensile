@@ -19,7 +19,8 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from __future__ import print_function
-from SolutionStructs import DataType, isPackedIndex
+from DataType import DataType
+from SolutionStructs import isPackedIndex, DataType
 from Common import globalParameters, printExit, printWarning, roundUp
 from KernelWriter import KernelWriter
 from Utils import ceil_divide, roundUpToNearestMultiple
