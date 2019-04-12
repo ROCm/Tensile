@@ -21,6 +21,122 @@
 
 include(CMakeParseArguments)
 
+# Compute the installation prefix relative to this file.
+get_filename_component(_IMPORT_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(_IMPORT_PREFIX "${_IMPORT_PREFIX}" PATH)
+if(_IMPORT_PREFIX STREQUAL "/")
+  set(_IMPORT_PREFIX "")
+endif()
+
+set(Tensile_ROOT ${_IMPORT_PREFIX})
+
+function(tensile_add_library LIBRARY_NAME)
+  set(options SHARED STATIC MERGE_FILES SHORT_FILE_NAMES LIBRARY_PRINT_DEBUG)
+  set(oneValueArgs SOURCE_PATH RUNTIME)
+  set(multiValueArgs)
+
+  cmake_parse_arguments(PARSE "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
+  set(Tensile_LOGIC_PATH ${PARSE_UNPARSED_ARGUMENTS})
+
+  set(Tensile_RUNTIME_LANGUAGE HIP)
+  if(PARSE_RUNTIME)
+    set(Tensile_RUNTIME_LANGUAGE ${PARSE_RUNTIME})
+  endif()
+
+  if(PARSE_SOURCE_PATH)
+    set(Tensile_SOURCE_PATH "${PARSE_SOURCE_PATH}")
+  else()
+    set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
+  endif()
+  message(STATUS "Tensile_SOURCE_PATH=${Tensile_SOURCE_PATH}")
+
+  # TensileLibraryWriter optional arguments
+  if(PARSE_MERGE_FILES)
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--merge-files")
+  else()
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-merge-files")
+  endif()
+
+  if(PARSE_SHORT_FILE_NAMES)
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--short-file-names")
+  else()
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-short-file-names")
+  endif()
+
+  if(PARSE_LIBRARY_PRINT_DEBUG)
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--library-print-debug")
+  else()
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
+  endif()
+
+  # TensileLibraryWriter positional arguments
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
+    ${Tensile_LOGIC_PATH}
+    ${Tensile_SOURCE_PATH}
+    ${Tensile_RUNTIME_LANGUAGE}
+    )
+
+  #string( REPLACE ";" " " Tensile_CREATE_COMMAND "${Tensile_CREATE_COMMAND}")
+  message(STATUS "Tensile_CREATE_COMMAND: ${Tensile_CREATE_COMMAND}")
+
+  # execute python command
+  execute_process(
+    COMMAND ${Tensile_CREATE_COMMAND}
+    RESULT_VARIABLE Tensile_CREATE_RESULT
+  )
+  if(Tensile_CREATE_RESULT)
+    message(SEND_ERROR "Error generating kernels")
+  endif()
+
+  # glob generated source files
+  if(PARSE_MERGE_FILES)
+    file(GLOB Tensile_SOURCE_FILES
+      ${Tensile_SOURCE_PATH}/*.cpp
+      )
+  else()
+    file(GLOB Tensile_SOURCE_FILES
+      ${Tensile_SOURCE_PATH}/*.cpp
+      ${Tensile_SOURCE_PATH}/Kernels/*.cpp
+      ${Tensile_SOURCE_PATH}/Solutions/*.cpp
+      ${Tensile_SOURCE_PATH}/Logic/*.cpp
+      )
+  endif()
+
+  # create Tensile Library
+  set(options)
+  if(PARSE_SHARED)
+    set(options SHARED)
+  endif()
+  if(PARSE_STATIC)
+    set(options STATIC)
+  endif()
+  add_library(${LIBRARY_NAME} ${options} ${Tensile_SOURCE_FILES})
+
+  if(PARSE_MERGE_FILES)
+    target_include_directories(${LIBRARY_NAME}
+      PUBLIC $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}> )
+  else()
+    target_include_directories(${LIBRARY_NAME} PUBLIC
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}>
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Kernels>
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Solutions>
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Logic>
+      $<INSTALL_INTERFACE:include> )
+  endif()
+
+  # define language for library source
+  if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
+    target_compile_definitions( ${LIBRARY_NAME} PUBLIC
+      -DTensile_RUNTIME_LANGUAGE_OCL=1 -DTensile_RUNTIME_LANGUAGE_HIP=0 )
+  else()
+    target_compile_definitions( ${LIBRARY_NAME} PUBLIC
+      -DTensile_RUNTIME_LANGUAGE_OCL=0 -DTensile_RUNTIME_LANGUAGE_HIP=1 )
+  endif()
+
+endfunction()
+
 ################################################################################
 # Create A Tensile Library from LibraryLogic.yaml files
 ################################################################################
