@@ -101,7 +101,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # treat incA and incB as independent tasks that can be in the same iter code as Load(s) 
       # 
       numTaskstoSched += readCnt;
-      numTaskstoSched += 2 if self.enable["GlobalReadInc"] else 0: # 2 for incA and incB
+      numTaskstoSched += 2 if self.enable["GlobalReadInc"] else 0 # 2 for incA and incB
 
        # why endIter (number of global load tasks  ) > LoopUnroll -1? we can still schedule these
        # tasks endIter match with kernel['LoopUnroll']
@@ -890,7 +890,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         else: # not isResetLroIter
           waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
-          waitLocalWrite = -1 
+          waitLocalWrite = -1
           waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
 
         if self.enable["Wait"]:
