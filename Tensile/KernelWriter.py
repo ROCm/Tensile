@@ -101,7 +101,7 @@ class KernelWriter:
       # treat incA and incB as independent tasks that can be in the same iter code as Load(s) 
       # 
       numTaskstoSched += readCnt;
-      numTaskstoSched += 2 # 2 for incA and incB
+      numTaskstoSched += 2 if self.enable["GlobalReadInc"] else 0: # 2 for incA and incB
 
        # why endIter (number of global load tasks  ) > LoopUnroll -1? we can still schedule these
        # tasks endIter match with kernel['LoopUnroll']
@@ -112,6 +112,8 @@ class KernelWriter:
         # could use a different/smarter algorithm to space out the loads?
         # firstStep = endIter-(kernel["LoopUnroll"]-1) + 1
         # conditions for scheduling b2b global load(S)
+        #  default = false b2b
+        #  false b2b = smaller tiles & enough iteration(S) to  accodomate
         #  true b2b = bigger tiles
         #  true b2b = not enough iteration to go around numTaskstoSched > Kernel['loopUnroll']
         #  true b2b = 
@@ -815,7 +817,7 @@ class KernelWriter:
 
           waitGlobalRead = -1
           if kernel["PrefetchGlobalRead"] and isResetLroIter:
-            waitLocalWrite = 1 
+            waitLocalWrite = 1
           else:
             waitLocalWrite = -1
           waitLocalRead  = 1 if isResetLroIter else 0
