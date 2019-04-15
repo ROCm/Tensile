@@ -14,3 +14,4 @@ def test_igemm_asm_tn(tmpdir):
 
 def test_gemm_ldc_equals_ldd(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("vega_20/pre_checkin/gemm_ldc_equals_ldd.yaml"), tmpdir.strpath])
+ 
