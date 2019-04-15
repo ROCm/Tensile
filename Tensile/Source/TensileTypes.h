@@ -59,6 +59,7 @@ inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 
 #define TensileInt8x4 uint32_t
 #define TensileInt32 int32_t
+#define TensileBFloat16 uint16_t
 
 /*******************************************************************************
  * tensileSetup

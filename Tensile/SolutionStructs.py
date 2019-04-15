@@ -36,8 +36,9 @@ class DataType:
   half          = 4
   int8x4        = 5
   int32         = 6
-  num           = 7
-  none          = 8
+  bfloat16      = 7
+  num           = 8
+  none          = 9
 
   # data type properties
   idxChar    = 0
@@ -54,7 +55,8 @@ class DataType:
       ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
       ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
       ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
+      ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ],
+      ["B",    0.5, "ERROR",   "uint16_t",     "TensileBFloat16",      "tensileDataTypeBFloat16"     ]
   ]
 
   ########################################
@@ -123,7 +125,7 @@ class DataType:
 
   ########################################
   def isReal(self):
-    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
+    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32 or self.value == self.bfloat16:
       return True
     else:
       return False
@@ -139,6 +141,8 @@ class DataType:
     return self.value == self.int32
   def isInt8x4(self):
     return self.value == self.int8x4
+  def isBFloat16(self):
+    return self.value == self.bfloat16
   def isNone(self):
     return self.value == self.none
 
