@@ -44,8 +44,10 @@ class DataType:
     lookup = {}    
             
     def __init__(self, value):
-        if isinstance(value, int):
+        if isinstance(value, int) and value >= DataType.single and value <= DataType.int32:
             self.value = value
+        elif isinstance(value,int):
+            raise RunimeError("Index out of range") 
         elif isinstance(value, basestring):
             self.value = DataType.lookup[value.lower()]
             return
@@ -56,6 +58,10 @@ class DataType:
    
     def toChar(self):
         return self.properties[self.value]['char']
+    def toName(self):
+        return self.properties[self.value]['name']
+    def toEnum(self):
+        return self.properties[self.value]['enum']
     def toOpenCL(self):
         return self.properties[self.value]['ocl']
     def toHIP(self):
@@ -84,7 +90,7 @@ class DataType:
 
         zeroString = "("
         zeroString += self.toDevice(language)
-        if vectorWiDataTypeh > 1:
+        if vectorWidth > 1:
             zeroString += str(vectorWidth)
         zeroString += ")("
 
@@ -153,7 +159,7 @@ def populateLookupTable(properties,lookup):
     """
     for i,e in enumerate(properties):
         setattr(DataType, e['name'], i)
-        for k in ['name','char','enum']:
+        for k in ['name','char','enum','libEnum']:
             lookupKey = e[k].lower()
             if lookupKey in lookup and lookup[lookupKey] != i:
                 raise RuntimeError("Duplicate key {1} in property '{0}'".format(k,lookupKey)) 
