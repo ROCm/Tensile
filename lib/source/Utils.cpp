@@ -24,16 +24,40 @@
  *
  *******************************************************************************/
 
-#pragma once
-
-#include <Tensile/Tensile.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
+    StreamRead::StreamRead(std::string const& value, bool except)
+        : m_value(value), m_except(except), m_success(false)
+    {
+    }
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+    StreamRead::~StreamRead() = default;
+
+    //bool StreamRead::operator bool() const { return m_success; }
+
+    bool StreamRead::read(std::istream & stream)
+    {
+        m_success = false;
+        char ch;
+
+        for(int i = 0; i < m_value.size(); i++)
+        {
+            if((ch = stream.get()) != m_value[i])
+            {
+                for(int j = 0; j <= i; j++) stream.unget();
+
+                if(m_except)
+                    throw std::runtime_error(concatenate("Expected '", m_value[i], "', found '", ch, "'."));
+
+                return false;
+            }
+        }
+
+        m_success = true;
+        return true;
+    }
+
 }
 

@@ -31,7 +31,7 @@ function(TensileCreateLibrary
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
 
-  # Tensile_ROOT can be specified instead of installing
+  # Tensile_ROOT can be specified instead of using the installed path.
   set(oneValueArgs Tensile_ROOT)
   cmake_parse_arguments(PARSE "" "${oneValueArgs}" "" ${ARGN})
 
@@ -135,6 +135,63 @@ function(TensileCreateLibrary
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} )
     target_compile_definitions( Tensile PUBLIC
       -DTensile_RUNTIME_LANGUAGE_OCL=0 -DTensile_RUNTIME_LANGUAGE_HIP=1 )
+  endif()
+
+endfunction()
+
+function(TensileCreateLibraryFiles
+    Tensile_LOGIC_PATH
+    Tensile_MERGE_FILES
+    Tensile_SHORT_FILE_NAMES)
+
+  # Tensile_ROOT can be specified instead of using the installed path.
+  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY OUTPUT_PATH)
+  cmake_parse_arguments(Tensile "" "${oneValueArgs}" "" ${ARGN})
+
+  if(Tensile_TENSILE_ROOT)
+    # python not pre-installed, use scripts downloaded to extern/Tensile
+    include(FindPythonInterp)
+    set(Script ${PYTHON_EXECUTABLE} "${Tensile_TENSILE_ROOT}/Tensile/TensileCreateLibrary.py")
+  else()
+      set(Script TensileCreateLibrary)
+  endif()
+
+  set(Options "")
+
+  if(${Tensile_MERGE_FILES})
+    set(Options ${Options} "--merge-files")
+  else()
+    set(Options ${Options} "--no-merge-files")
+  endif()
+
+  if(${Tensile_SHORT_FILE_NAMES})
+    set(Options ${Options} "--short-file-names")
+  else()
+    set(Options ${Options} "--no-short-file-names")
+  endif()
+
+  if(${Tensile_EMBED_LIBRARY})
+    set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
+  endif()
+
+  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} hip)
+  message(STATUS "Tensile_CREATE_COMMAND: ${Script}")
+
+  execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
+  if(${CommandResult})
+    message(SEND_ERROR "Error creating Tensile library: ${CommandResult}")
+  endif()
+
+  if(${Tensile_EMBED_LIBRARY})
+    add_library(${Tensile_EMBED_LIBRARY} "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
+    target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC Tensile)
+  else()
+    file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
+
+    set(TENSILE_CODE_OBJECTS ${CodeObjects} PARENT_SCOPE)
+
+    set(TENSILE_LIBRARY_FILE "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml" PARENT_SCOPE)
+
   endif()
 
 endfunction()

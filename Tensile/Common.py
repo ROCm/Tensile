@@ -18,16 +18,16 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import os.path
-import sys
 from __init__ import __version__
 from collections import OrderedDict
-import subprocess
-from subprocess import Popen, PIPE
-import time
-import platform
-import math
 from copy import deepcopy
+from subprocess import Popen, PIPE
+import math
+import os.path
+import platform
+import subprocess
+import sys
+import time
 
 startTime = time.time()
 
@@ -911,6 +911,7 @@ def assignGlobalParameters( config ):
   if globalParameters["AssemblerPath"] is None:
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc");
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+  globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
 
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
@@ -999,6 +1000,16 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
+def CPUThreadCount():
+  if globalParameters["CpuThreads"] == 0:
+    return 0
+  else:
+    import multiprocessing
+    cpu_count = multiprocessing.cpu_count()
+    cpuThreads = globalParameters["CpuThreads"]
+    if cpuThreads < 0:
+        return cpu_count*abs(cpuThreads)
+    return min(cpu_count, cpuThreads)
 
 ################################################################################
 # Push / Pop Working Path
@@ -1117,7 +1128,7 @@ CMakeHeader = """###############################################################
 """
 
 CHeader = """/*******************************************************************************
-* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+* Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal

@@ -26,14 +26,56 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
+#include <memory>
+#include <vector>
+
+#include <Tensile/Macros.hpp>
+#include <Tensile/Singleton.hpp>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
+    template <typename Object>
+    struct EmbedData;
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+    /**
+     * Encapsulates the storage of binary data stored in the executable.
+     */
+    template <typename Object>
+    TENSILE_API
+    class EmbeddedData: public LazySingleton<EmbeddedData<Object>>
+    {
+    public:
+        using Base = LazySingleton<EmbeddedData<Object>>;
+
+
+        using Item = std::vector<uint8_t>;
+        using Items = std::vector<Item>;
+        static Items const& Get() { return Base::Instance().items; }
+
+    protected:
+        friend Base;
+        friend class EmbedData<Object>;
+
+        static Items & GetMutable() { return Base::Instance().items; }
+        EmbeddedData() = default;
+
+        Items items;
+    };
+
+    template <typename Object>
+    TENSILE_API
+    struct EmbedData
+    {
+        EmbedData(std::initializer_list<uint8_t> data)
+        {
+            EmbeddedData<Object>::GetMutable().emplace_back(data);
+        }
+
+        EmbedData(std::vector<uint8_t> const& data)
+        {
+            EmbeddedData<Object>::Get().push_back(data);
+        }
+    };
+
 }
 

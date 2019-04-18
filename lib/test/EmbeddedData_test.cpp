@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright (c) 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,16 +24,43 @@
  *
  *******************************************************************************/
 
-#pragma once
+#include <gtest/gtest.h>
 
-#include <Tensile/Tensile.hpp>
+#include <Tensile/EmbeddedData.hpp>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
+    namespace Tests
+    {
+        struct Foo {};
+        struct Bar {};
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+        EmbedData<Tests::Foo> a{1,2,3,4,5};
+
+        EmbedData<Tests::Bar> b{0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x00};
+        EmbedData<Tests::Bar> c{0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00};
+
+    }
+}
+
+using namespace Tensile;
+
+TEST(EmbeddedData, Simple)
+{
+    auto const& fooData = EmbeddedData<Tests::Foo>::Get();
+
+    ASSERT_EQ(fooData.size(), 1);
+    std::vector<uint8_t> fooRef{1,2,3,4,5};
+    ASSERT_EQ(fooData[0], fooRef);
+
+    auto const& barData = EmbeddedData<Tests::Bar>::Get();
+
+    ASSERT_EQ(barData.size(), 2);
+
+    std::string bar0((const char *)barData[0].data());
+    ASSERT_EQ(bar0, "hello");
+
+    std::string bar1((const char *)barData[1].data());
+    ASSERT_EQ(bar1, "world");
 }
 

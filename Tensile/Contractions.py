@@ -107,7 +107,8 @@ class ProblemType:
         rv.dDims = rv.cDims
 
         assert d['DataType'] == 0
-        assert d['DestDataType'] == 0
+        if 'DestDataType' in d:
+            assert d['DestDataType'] == 0
         
         rv.aType = 'Float'
         rv.bType = 'Float'

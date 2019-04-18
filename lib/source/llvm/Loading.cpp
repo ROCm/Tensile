@@ -49,10 +49,32 @@ namespace Tensile
         return rv;
     }
 
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data)
+    {
+        std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
+
+        llvm::StringRef dataRef((const char *) data.data(), data.size());
+        auto inputData = llvm::MemoryBuffer::getMemBuffer(dataRef);
+        llvm::yaml::Input yin(inputData->getMemBufferRef());
+
+        yin >> rv;
+
+        if(yin.error())
+        {
+            return nullptr;
+        }
+
+        return rv;
+    }
+
     template
     std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
     LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 
+    template
+    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+    LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);
 }
 
 

@@ -43,25 +43,39 @@ namespace Tensile
 
         ContractionProblem() = default;
 
+        /**
+         * Represents a pair of free indices in a tensor contraction.
+         */
         struct FreeIndex
         {
-            size_t a, b, ca, cb, da, db;
+            size_t a;  //< Dimension of A for this index.
+            size_t b;  //< Dimension of B for this index.
+            size_t ca; //< Dimension of C which corresponds to A in this index.
+            size_t cb; //< Dimension of C which corresponds to B in this index.
+            size_t da; //< Dimension of D which corresponds to A in this index.
+            size_t db; //< Dimension of D which corresponds to B in this index.
         };
         using FreeIndices = std::vector<FreeIndex>;
 
+        /**
+         * Represents a batched index in a tensor contraction.
+         */
         struct BatchIndex
         {
             size_t a, b, c, d;
         };
         using BatchIndices = std::vector<BatchIndex>;
 
+        /**
+         * Represents a bound or summed index in a tensor contraction.
+         */
         struct BoundIndex
         {
             size_t a, b;
         };
         using BoundIndices = std::vector<BoundIndex>;
 
-        virtual std::string description() const { return "asdf"; }
+        virtual std::string description() const { return operationDescription(); }
 
         static ContractionProblem GEMM_Strides(bool transA, bool transB,
                                                DataType aType, DataType bType, DataType cType, DataType dType,
@@ -77,7 +91,15 @@ namespace Tensile
                                        size_t lda, size_t ldb, size_t ldc,
                                        double beta, bool colMajor, size_t batchCount);
 
-        static ContractionProblem FromTensile(/* TODO */);
+        static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
+                                                 BatchIndices const& batchIndices,
+                                                 BoundIndices const& boundIndices,
+                                                 std::vector<size_t> const& indexSizes,
+                                                 DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
+                                                 DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
+                                                 DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
+                                                 DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
+                                                 double beta);
 
         ContractionProblem(TensorDescriptor const& a, TensorOps const& aOps,
                            TensorDescriptor const& b, TensorOps const& bOps,
@@ -87,7 +109,6 @@ namespace Tensile
                            BatchIndices const& batchIndices,
                            BoundIndices const& boundIndices,
                            double beta);
-
 
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
@@ -184,6 +205,8 @@ namespace Tensile
         using BetaType = Beta;
 
         TypedContractionInputs();
+        TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
+                               Alpha _alpha, Beta _beta);
         ~TypedContractionInputs();
         
         A const* a = nullptr;
@@ -198,5 +221,9 @@ namespace Tensile
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch);
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BoundIndex const& bound);
+
+    TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::FreeIndex       & free);
+    TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::BatchIndex      & batch);
+    TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::BoundIndex      & bound);
 }
 

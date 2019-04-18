@@ -25,6 +25,9 @@
  *******************************************************************************/
 
 #include <Tensile/DataTypes.hpp>
+#include <Tensile/Utils.hpp>
+
+#include <algorithm>
 
 namespace Tensile
 {
@@ -47,5 +50,29 @@ namespace Tensile
         return stream << ToString(t);
     }
 
+    std::istream& operator>>(std::istream& stream, DataType& t)
+    {
+        std::string strValue;
+        stream >> strValue;
+
+        if(     strValue == ToString(DataType::Half))  t = DataType::Half;
+        else if(strValue == ToString(DataType::Float)) t = DataType::Float;
+        else if(strValue == ToString(DataType::Int32)) t = DataType::Int32;
+        else if(strValue == ToString(DataType::Int8))  t = DataType::Int8;
+        else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
+        {
+            int value = atoi(strValue.c_str());
+            if(value >= 0 && value < static_cast<int>(DataType::Count))
+                t = static_cast<DataType>(value);
+            else
+                throw std::runtime_error(concatenate("Can't convert ", strValue, " to DataType."));
+        }
+        else
+        {
+            throw std::runtime_error(concatenate("Can't convert ", strValue, " to DataType."));
+        }
+
+        return stream;
+    }
 }
 

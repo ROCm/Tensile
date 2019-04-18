@@ -213,3 +213,11 @@ class MasterSolutionLibrary:
 
         self.library.merge(other.library)
 
+    @property
+    def cpp_base_class(self):
+        return "SolutionLibrary<ContractionProblem, ContractionSolution>"
+
+    @property
+    def cpp_class(self):
+        return "MasterSolutionLibrary<ContractionProblem, ContractionSolution>"
+

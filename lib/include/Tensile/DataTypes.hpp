@@ -31,6 +31,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <Tensile/Comparison.hpp>
+
 namespace Tensile
 {
 
@@ -58,8 +60,77 @@ namespace Tensile
         throw std::runtime_error("Unknown data type");
     }
 
-    std::string ToString(DataType d);
-    std::ostream& operator<<(std::ostream& stream, const DataType& t);
+    template <typename T>
+    DataType GetDataType();
 
+    template <>
+    inline DataType GetDataType<float>() { return DataType::Float; }
+
+    std::string ToString(DataType d);
+    std::ostream& operator<<(std::ostream& stream, DataType const& t);
+    std::istream& operator>>(std::istream& stream, DataType      & t);
+
+    template <typename T, DataType D>
+    struct DistinctType
+    {
+        using Value = T;
+
+        DistinctType() = default;
+        DistinctType(DistinctType const& other) = default;
+
+        DistinctType(T const& v) : value(v) { }
+
+        DistinctType & operator=(DistinctType const& other) = default;
+        DistinctType & operator=(T const& other)
+        {
+            value = other;
+            return *this;
+        }
+
+        operator const T &() const { return value; }
+
+        T value;
+    };
+
+    template <typename T, DataType D>
+    struct Comparison<DistinctType<T, D>>
+    {
+        enum { implemented = true };
+
+        static int compare(DistinctType<T, D> const& lhs, DistinctType<T, D> const& rhs)
+        {
+            return LexicographicCompare(lhs.value, rhs.value);
+        }
+    };
+
+    template <typename T, DataType D>
+    struct Comparison<DistinctType<T, D>, T>
+    {
+        enum { implemented = true };
+
+        static int compare(DistinctType<T, D> const& lhs, T const& rhs)
+        {
+            return LexicographicCompare(lhs.value, rhs);
+        }
+    };
+
+    using Int8 = DistinctType<uint32_t, DataType::Int8>;
+
+    template <typename T>
+    struct TypeInfo
+    { };
+
+    template <>
+    struct TypeInfo<float>
+    {
+        const static DataType Enum = DataType::Float;
+
+        const static size_t ElementSize = 4;
+
+        static inline size_t dataBytes(size_t elements)
+        {
+            return elements * ElementSize;
+        }
+    };
 }
 

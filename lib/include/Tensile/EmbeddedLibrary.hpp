@@ -26,14 +26,49 @@
 
 #pragma once
 
+#ifdef TENSILE_DEFAULT_SERIALIZATION
+
 #include <Tensile/Tensile.hpp>
+#include <Tensile/Singleton.hpp>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
+    TENSILE_API
+    class EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
+    {
+    public:
+        using Base = LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>;
+
+        /**
+         * Constructs and returns a new SolutionLibrary instance from the static data.
+         */
+        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> NewLibrary();
+
+        /**
+         * Constructs (if necessary) and returns the shared SolutionLibrary for this problem type.
+         */
+        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Get()
+        {
+            return Base::Instance().Library();
+        }
+
+        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Library()
+        {
+            if(!m_library)
+                m_library = NewLibrary();
+
+            return m_library;
+        }
+
+    private:
+        friend Base;
+        EmbeddedLibrary() = default;
+
+        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> m_library;
+    };
+
 }
 
+#endif

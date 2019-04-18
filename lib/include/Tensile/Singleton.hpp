@@ -26,14 +26,36 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
+#include <mutex>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
+    template <typename Class>
+    class LazySingleton
+    {
+    public:
+        static Class & Instance()
+        {
+            std::call_once(m_instanceConstructionFlag, Construct);
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+            return *m_instance;
+        }
+
+    private:
+        static std::once_flag m_instanceConstructionFlag;
+        static std::unique_ptr<Class> m_instance;
+
+        static void Construct()
+        {
+            std::unique_ptr<Class> newInstance(new Class());
+            m_instance = std::move(newInstance);
+        }
+    };
+
+    template <typename Class>
+    std::once_flag LazySingleton<Class>::m_instanceConstructionFlag;
+
+    template <typename Class>
+    std::unique_ptr<Class> LazySingleton<Class>::m_instance;
 }
 

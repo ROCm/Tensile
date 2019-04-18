@@ -144,6 +144,93 @@ namespace Tensile
         return ContractionProblem(a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices, beta);
     }
 
+    ContractionProblem ContractionProblem::FromIndexSizes(
+            FreeIndices const& freeIndices,
+            BatchIndices const& batchIndices,
+            BoundIndices const& boundIndices,
+            std::vector<size_t> const& indexSizes,
+            DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
+            DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
+            DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
+            DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
+            double beta)
+    {
+        size_t maxA = 0;
+        size_t maxB = 0;
+        size_t maxC = 0;
+        size_t maxD = 0;
+
+        // Determine number of dimension for each tensor.
+
+        for(auto const& free: freeIndices)
+        {
+            maxA = std::max(maxA, free.a);
+            maxB = std::max(maxB, free.b);
+            maxC = std::max({maxC, free.ca, free.cb});
+            maxD = std::max({maxD, free.da, free.db});
+        }
+
+        for(auto const& batch: batchIndices)
+        {
+            maxA = std::max(maxA, batch.a);
+            maxB = std::max(maxB, batch.b);
+            maxC = std::max(maxC, batch.c);
+            maxD = std::max(maxD, batch.d);
+        }
+
+        for(auto const& bound: boundIndices)
+        {
+            maxA = std::max(maxA, bound.a);
+            maxB = std::max(maxB, bound.b);
+        }
+
+        std::vector<size_t> aSizes(maxA+1), bSizes(maxB+1), cSizes(maxC+1), dSizes(maxD+1);
+
+        for(auto const& free: freeIndices)
+        {
+            size_t indexSizeA = indexSizes[free.da];
+            size_t indexSizeB = indexSizes[free.db];
+
+            aSizes[free.a] = indexSizeA;
+            bSizes[free.b] = indexSizeB;
+
+            cSizes[free.ca] = indexSizeA;
+            cSizes[free.cb] = indexSizeB;
+
+            dSizes[free.da] = indexSizeA;
+            dSizes[free.db] = indexSizeB;
+        }
+
+        for(auto const& batch: batchIndices)
+        {
+            size_t indexSize = indexSizes[batch.d];
+
+            aSizes[batch.a] = indexSize;
+            bSizes[batch.b] = indexSize;
+            cSizes[batch.c] = indexSize;
+            dSizes[batch.d] = indexSize;
+        }
+
+        for(auto const& bound: boundIndices)
+        {
+            size_t indexIdx = dSizes.size() + bound.a;
+            size_t indexSize = indexSizes[indexIdx];
+            
+            aSizes[bound.a] = indexSize;
+            bSizes[bound.b] = indexSize;
+        }
+
+        TensorDescriptor a(aType, aSizes.begin(), aSizes.end(), aStrides.begin(), aStrides.end());
+        TensorDescriptor b(bType, bSizes.begin(), bSizes.end(), bStrides.begin(), bStrides.end());
+        TensorDescriptor c(cType, cSizes.begin(), cSizes.end(), cStrides.begin(), cStrides.end());
+        TensorDescriptor d(dType, dSizes.begin(), dSizes.end(), dStrides.begin(), dStrides.end());
+
+        return ContractionProblem(a, aOps, b, bOps, c, cOps, d, dOps,
+                                  freeIndices, batchIndices, boundIndices,
+                                  beta);
+        
+    }
+
     ContractionProblem::ContractionProblem(TensorDescriptor const& a, TensorOps const& aOps,
                                            TensorDescriptor const& b, TensorOps const& bOps,
                                            TensorDescriptor const& c, TensorOps const& cOps,
@@ -400,9 +487,49 @@ namespace Tensile
         return stream << "{a=" << bound.a << " b=" << bound.b << "}";
     }
 
+    std::istream & operator>>(std::istream & stream, ContractionProblem::FreeIndex       & free)
+    {
+        StreamRead comma(",");
+        return stream   >> free.a
+               >> comma >> free.b
+               >> comma >> free.ca
+               >> comma >> free.cb
+               >> comma >> free.da
+               >> comma >> free.db;
+    }
+
+    std::istream & operator>>(std::istream & stream, ContractionProblem::BatchIndex      & batch)
+    {
+        StreamRead comma(",");
+        return stream   >> batch.a
+               >> comma >> batch.b
+               >> comma >> batch.c
+               >> comma >> batch.d;
+    }
+
+    std::istream & operator>>(std::istream & stream, ContractionProblem::BoundIndex      & bound)
+    {
+        StreamRead comma(",");
+        return stream >> bound.a >> comma >> bound.b;
+    }
+
     ContractionInputs::ContractionInputs() = default;
     ContractionInputs::~ContractionInputs() = default;
-    template <> TypedContractionInputs<float>::TypedContractionInputs() = default;
-    template <> TypedContractionInputs<float>::~TypedContractionInputs() = default;
+
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
+
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default;
+
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
+            A const* _a, B const* _b, C const* _c, D * _d,
+            Alpha _alpha, Beta _beta)
+        : a(_a), b(_b), c(_c), d(_d), alpha(_alpha), beta(_beta)
+    {
+    }
+
+    template struct TypedContractionInputs<float>;
 }
 

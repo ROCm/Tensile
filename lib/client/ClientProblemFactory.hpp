@@ -27,13 +27,51 @@
 #pragma once
 
 #include <Tensile/Tensile.hpp>
+#include <Tensile/ContractionProblem.hpp>
+
+#include <boost/program_options.hpp>
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
+    namespace Client
+    {
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+        namespace po = boost::program_options;
+
+        class ClientProblemFactory
+        {
+        public:
+            ClientProblemFactory(po::variables_map const& args);
+            ~ClientProblemFactory();
+
+            std::vector<ContractionProblem> const& problems() const;
+
+
+            std::vector<ContractionProblem> createProblems();
+        private:
+            std::vector<ContractionProblem> m_problems;
+
+            ContractionProblem::FreeIndices  m_freeIndices;
+            ContractionProblem::BatchIndices m_batchIndices;
+            ContractionProblem::BoundIndices m_boundIndices;
+
+            DataType m_aType;
+            DataType m_bType;
+            DataType m_cType;
+            DataType m_dType;
+            DataType m_alphaType;
+            DataType m_betaType;
+
+            std::vector<std::vector<size_t>> m_problemSizes;
+            std::vector<std::vector<size_t>> m_aStrides;
+            std::vector<std::vector<size_t>> m_bStrides;
+            std::vector<std::vector<size_t>> m_cStrides;
+            std::vector<std::vector<size_t>> m_dStrides;
+
+            double m_beta;
+        };
+
+    }
 }
+
 

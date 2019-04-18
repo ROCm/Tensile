@@ -24,16 +24,31 @@
  *
  *******************************************************************************/
 
-#pragma once
+#include <Tensile/EmbeddedLibrary.hpp>
 
-#include <Tensile/Tensile.hpp>
+#include <Tensile/Contractions.hpp>
+#include <Tensile/EmbeddedData.hpp>
+
+#ifdef TENSILE_DEFAULT_SERIALIZATION
+#include <Tensile/llvm/Loading.hpp>
+#endif
 
 namespace Tensile
 {
     template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename);
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> EmbeddedLibrary<MyProblem, MySolution>::NewLibrary()
+    {
+        auto const& data = EmbeddedData<SolutionLibrary<MyProblem, MySolution>>::Get();
+        if(data.size() != 1)
+            throw std::runtime_error(concatenate("Expected one data item, found ", data.size()));
 
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data);
+#ifdef TENSILE_DEFAULT_SERIALIZATION
+        return LLVMLoadLibraryData<MyProblem, MySolution>(data[0]);
+#endif
+    }
+
+    template
+    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+    EmbeddedLibrary<ContractionProblem, ContractionSolution>::NewLibrary();
 }
 

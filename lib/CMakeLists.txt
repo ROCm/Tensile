@@ -8,6 +8,7 @@ find_package(HIP CONFIG PATHS /opt/rocm/hip)
 
 option(USE_LLVM "Use LLVM for parsing config files." ON)
 option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library." ON)
+option(TENSILE_DISABLE_TESTS "Disable ctest integration." OFF)
 
 if(USE_LLVM)
 find_package(LLVM REQUIRED CONFIG)
@@ -18,10 +19,14 @@ if(TENSILE_STATIC_ONLY)
 add_definitions(-DTENSILE_STATIC_ONLY)
 endif()
 
+if(NOT TENSILE_DISABLE_TESTS)
+enable_testing()
+endif()
+
 #set(HIP_FOUND 1)
 
 #set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror" )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror -ftemplate-backtrace-limit=0" )
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
@@ -29,10 +34,12 @@ set(tensile_sources  ${tensile_sources}
     source/ContractionSolution.cpp
     source/DataTypes.cpp
     source/Debug.cpp
+    source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
+    source/Utils.cpp
     )
 
 if(USE_LLVM)
@@ -50,6 +57,7 @@ add_library (Tensile STATIC ${tensile_sources})
 target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(configs)
+add_subdirectory(client)
 
 if(USE_LLVM)
     #target_link_libraries( Tensile PUBLIC LLVM )
