@@ -55,7 +55,7 @@ def test_single():
     assert obj.toCpp() == 'float'
     assert obj.getLibString() == 'tensileDataTypeFloat'
     assert obj.numBytes() == 4
-    assert obj.isReal() == True
+    assert obj.isReal()
     
 def test_double():
     obj = DataType(1)
@@ -68,7 +68,7 @@ def test_double():
     assert obj.toCpp() == 'double'
     assert obj.getLibString() == 'tensileDataTypeDouble'
     assert obj.numBytes() == 8    
-    assert obj.isReal() == True
+    assert obj.isReal()
     
 def test_complexSingle():
     obj = DataType(2)
@@ -81,7 +81,7 @@ def test_complexSingle():
     assert obj.toCpp() == 'TensileComplexFloat'
     assert obj.getLibString() == 'tensileDataTypeComplexFloat'
     assert obj.numBytes() == 8
-    assert obj.isReal() == False
+    assert not obj.isReal()
     
 def test_complexDouble():
     obj = DataType(3)
@@ -94,7 +94,7 @@ def test_complexDouble():
     assert obj.toCpp() == 'TensileComplexDouble'
     assert obj.getLibString() == 'tensileDataTypeComplexDouble'
     assert obj.numBytes() == 16
-    assert obj.isReal() == False
+    assert not obj.isReal()
     
 def test_half():
     obj = DataType(4)
@@ -108,7 +108,7 @@ def test_half():
     assert obj.toCpp() == 'TensileHalf'
     assert obj.getLibString() == 'tensileDataTypeHalf'   
     assert obj.numBytes() == 2    
-    assert obj.isReal() == True
+    assert obj.isReal()
     
 def test_int8():
     obj = DataType(5)
@@ -122,7 +122,7 @@ def test_int8():
     assert obj.toCpp() == 'TensileInt8x4'
     assert obj.getLibString() == 'tensileDataTypeInt8x4'
     assert obj.numBytes() == 4
-    assert obj.isReal() == True
+    assert obj.isReal()
     
 def test_int32():
     obj = DataType(6)
@@ -136,10 +136,13 @@ def test_int32():
     assert obj.toCpp() == 'TensileInt32'
     assert obj.getLibString() == 'tensileDataTypeInt32'
     assert obj.numBytes() == 4
-    assert obj.isReal() == True
+    assert obj.isReal()
 
-#def test_eq():
-    
+def test_eq():
+    assert DataType('single').__eq__(DataType(0))
+    assert not DataType('double').__eq__(DataType('tensileDataTypeComplexFloat'))
+    assert DataType('ComplexDouble').__eq__(DataType('Z'))
+    assert not DataType('tensileDataTypeInt8x4').__eq__(DataType('int32'))
 
 def test_bounds():
     with pytest.raises(Exception) as e_info:
