@@ -24,25 +24,46 @@ import pytest
 from Tensile.DataType import DataType
 
 def test_init_single():
-    assert DataType('S').value == DataType('single').value == DataType('Float').value == DataType('tensileDataTypeFloat').value == 0
+    expected = DataType('S')
+    assert DataType('single') == expected
+    assert DataType('Float') == expected 
+    assert DataType('tensileDataTypeFloat') == expected
 
 def test_init_double():
-    assert DataType('D').value == DataType('double').value == DataType('Double').value == DataType('tensileDataTypeDouble').value == 1
+    expected = DataType('D')
+    assert DataType('double') == expected
+    assert DataType('Double') == expected
+    assert DataType('tensileDataTypeDouble') == expected
     
 def test_init_complexSingle():
-    assert DataType('C').value == DataType('complexSingle').value == DataType('complexFloat').value == DataType('tensileDataTypeComplexFloat').value == 2
+    expected = DataType('C')
+    assert DataType('complexSingle') == expected
+    assert DataType('complexFloat') == expected
+    assert DataType('tensileDataTypeComplexFloat') == expected
 
 def test_init_complexDouble():
-    assert DataType('Z').value == DataType('complexDouble').value == DataType('complexDouble').value == DataType('tensileDataTypeComplexDouble').value == 3
+    expected = DataType('Z') 
+    assert DataType('complexDouble') == expected 
+    assert DataType('complexDouble') == expected 
+    assert DataType('tensileDataTypeComplexDouble') == expected 
 
 def test_init_half():
-    assert DataType('H').value == DataType('half').value == DataType('Half').value == DataType('tensileDataTypeHalf').value == 4
+    expected = DataType('H') 
+    assert DataType('half') == expected
+    assert DataType('Half') == expected 
+    assert DataType('tensileDataTypeHalf') == expected
 
 def test_init_i8():
-    assert DataType('4xi8').value == DataType('int8x4').value == DataType('Int8').value == DataType('tensileDataTypeInt8x4').value == 5
+    expected = DataType('4xi8') 
+    assert DataType('int8x4') == expected 
+    assert DataType('Int8') == expected
+    assert DataType('tensileDataTypeInt8x4') == expected
 
 def test_init_i32():
-    assert DataType('I').value == DataType('int32').value == DataType('Int32').value == DataType('tensileDataTypeInt32').value == 6
+    expected = DataType('I') 
+    assert DataType('int32') == expected 
+    assert DataType('Int32') == expected 
+    assert DataType('tensileDataTypeInt32') == expected
 
 def test_single():
     obj = DataType(0)
@@ -138,11 +159,13 @@ def test_int32():
     assert obj.numBytes() == 4
     assert obj.isReal()
 
-def test_eq():
-    assert DataType('single').__eq__(DataType(0))
-    assert not DataType('double').__eq__(DataType('tensileDataTypeComplexFloat'))
-    assert DataType('ComplexDouble').__eq__(DataType('Z'))
-    assert not DataType('tensileDataTypeInt8x4').__eq__(DataType('int32'))
+def test_cmp():
+    assert DataType('single') == DataType('S')
+    assert not DataType('S') != DataType(0)
+    assert DataType('Float') < DataType('Double')
+    assert not DataType('tensileDataTypeFloat') > DataType('Z')
+    assert DataType('half') >= DataType('ComplexFloat')
+    assert not DataType('int32') <= DataType('tensileDataTypeInt8x4')
 
 def test_bounds():
     with pytest.raises(Exception) as e_info:

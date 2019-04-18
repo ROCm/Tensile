@@ -152,6 +152,14 @@ class DataType:
         if result is NotImplemented:
             return result
         return not result
+    def __lt__(self, other):
+        return isinstance(other, DataType) and self.getAttributes() < other.getAttributes()
+    def __gt__(self,other):
+        return isinstance(other, DataType) and self.getAttributes() > other.getAttributes()
+    def __le__(self,other):
+        return isinstance(other, DataType) and self.getAttributes() <= other.getAttributes()
+    def __ge__(self,other):
+        return isinstance(other, DataType) and self.getAttributes() >= other.getAttributes()
 
 def populateLookupTable(properties,lookup):
     """
