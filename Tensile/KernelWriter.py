@@ -23,6 +23,7 @@ from __future__ import print_function
 from SolutionStructs import Solution
 from Common import globalParameters, CHeader
 import abc
+import six
 import os
 import shutil
 from os import path, chmod
@@ -34,8 +35,9 @@ import Code
 ################################################################################
 # Kernel Writer
 ################################################################################
+@six.add_metaclass(abc.ABCMeta)
 class KernelWriter:
-  __metaclass__=abc.ABCMeta
+  #__metaclass__=abc.ABCMeta
   
   ##############################################################################
   # Init

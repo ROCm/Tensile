@@ -2110,35 +2110,35 @@ class KernelWriterSource(KernelWriter):
     kStr += "  }%s" % self.endLine
     return kStr
 
-    ##############################################################################
-    # Complex Declare Tmp Registers
-    ##############################################################################
-    def complexDeclareTmpRegisters(self, kernel):
-        kStr = ""
-        if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
-            kStr += "  float type_mac_tmp;" + self.endLine
-        if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
-            kStr += "  double type_mac_tmp;" + self.endLine
-        return kStr
+  ##############################################################################
+  # Complex Declare Tmp Registers
+  ##############################################################################
+  def complexDeclareTmpRegisters(self, kernel):
+    kStr = ""
+    if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
+      kStr += "  float type_mac_tmp;" + self.endLine
+    if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
+      kStr += "  double type_mac_tmp;" + self.endLine
+    return kStr
 
-    ##############################################################################
-    # LocalSplitU: Local Write
-    ##############################################################################
-    def localSplitULocalWrite(self, kernel):
-        kStr = ""
-        kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
-            % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-        for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
-            for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
-                for s in range(0, kernel["VectorWidth"]):
-                    for vc in range(0, kernel["VectorWidth"]):
-                        kStr += "%slocalLocalSplitU[%u + (lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId)*VECTOR_WIDTH] = rC[%u + (%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s)*VECTOR_WIDTH];%s" \
-                            % (self.indent, vc, self.tileChar0, i, self.tileChar0, \
-                            self.tileChar0, self.tileChar1, \
-                            s, self.tileChar1, j, self.tileChar0, self.tileChar1, vc, i, s, \
-                            self.tileChar0, j, self.tileChar0, self.endLine)
-        kStr += self.indent + self.syncStr + self.endLine
-        """
+  ##############################################################################
+  # LocalSplitU: Local Write
+  ##############################################################################
+  def localSplitULocalWrite(self, kernel):
+    kStr = ""
+    kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
+      % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
+    for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
+      for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
+        for s in range(0, kernel["VectorWidth"]):
+          for vc in range(0, kernel["VectorWidth"]):
+            kStr += "%slocalLocalSplitU[%u + (lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId)*VECTOR_WIDTH] = rC[%u + (%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s)*VECTOR_WIDTH];%s" \
+              % (self.indent, vc, self.tileChar0, i, self.tileChar0, \
+                self.tileChar0, self.tileChar1, \
+                s, self.tileChar1, j, self.tileChar0, self.tileChar1, vc, i, s, \
+                self.tileChar0, j, self.tileChar0, self.endLine)
+    kStr += self.indent + self.syncStr + self.endLine
+    """
 
     kStr += "    /* print Local state */" + self.endLine
     kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*LOCAL_SPLITU; i+=NUM_THREADS) {%s" % self.endLine
