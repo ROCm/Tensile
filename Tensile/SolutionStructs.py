@@ -363,7 +363,6 @@ class ProblemType:
     unrollIdxB = state["IndexAssignmentsB"].index(state["IndexUnroll"])
     state["TLUA"] = strideIdxA < unrollIdxA
     state["TLUB"] = strideIdxB < unrollIdxB
-
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
     #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
@@ -767,7 +766,7 @@ class Solution:
     validDepthU = True
     if totalVectors < state["NumThreads"]:
       # Try to reduce size of vector so every thread has a load to do
-      pv = ceil_divide(state["NumThreads"],totalVectors)
+      pv = state["NumThreads"]//totalVectors
       #state["NumThreads"] / totalVectors # partial vector
       # import pdb
       # pdb.set_trace()
@@ -792,7 +791,7 @@ class Solution:
               % (totalVectors, state["NumThreads"]))
           validDepthU = False
 
-    state["GlobalLoadVectorWidth%s"%tc] = ceil_divide(state["GlobalReadVectorWidth"],pv)
+    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"]//pv
 
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
@@ -1032,9 +1031,9 @@ class Solution:
              parDim, perpDim, \
              parDim*perpDim, \
              nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
-             ceil_divide((float)(parDim*perpDim), \
-             (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0) \
-             ))
+             float(parDim*perpDim), \
+             float(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0) \
+             )
 
       for p in range(0,nlp):
         elementWidth = 4
