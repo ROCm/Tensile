@@ -11,17 +11,27 @@ option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library
 option(TENSILE_DISABLE_TESTS "Disable ctest integration." OFF)
 
 if(USE_LLVM)
-find_package(LLVM REQUIRED CONFIG)
-add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)
+    find_package(LLVM REQUIRED CONFIG)
+    add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)
 endif()
 
 if(TENSILE_STATIC_ONLY)
-add_definitions(-DTENSILE_STATIC_ONLY)
+    add_definitions(-DTENSILE_STATIC_ONLY)
 endif()
 
 if(NOT TENSILE_DISABLE_TESTS)
-enable_testing()
+    enable_testing()
 endif()
+
+if(NOT DEFINED TENSILE_ROOT)
+    set(TENSILE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+endif()
+if(NOT DEFINED TENSILE_SCRIPT_ROOT)
+    set(TENSILE_SCRIPT_ROOT "${TENSILE_ROOT}/Tensile")
+endif()
+
+include("${TENSILE_SCRIPT_ROOT}/Source/TensileConfig.cmake")
+
 
 #set(HIP_FOUND 1)
 
@@ -69,5 +79,7 @@ if(HIP_FOUND)
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} TensileHip )
 endif()
 
-add_subdirectory(test)
+if(NOT TENSILE_DISABLE_TESTS)
+    add_subdirectory(test)
+endif()
 

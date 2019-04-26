@@ -27,6 +27,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include <Tensile/Macros.hpp>
@@ -50,16 +51,41 @@ namespace Tensile
 
         using Item = std::vector<uint8_t>;
         using Items = std::vector<Item>;
-        static Items const& Get() { return Base::Instance().items; }
+        using Map = std::unordered_map<std::string, Items>;
+
+        static Items const& Get()
+        {
+            return Get("");
+        }
+
+        static Items const& Get(std::string const& key)
+        {
+            auto const& items = Base::Instance().items;
+            auto iter = items.find(key);
+            if(iter == items.end())
+                return Base::Instance().empty;
+
+            return iter->second;
+        }
 
     protected:
         friend Base;
         friend class EmbedData<Object>;
 
-        static Items & GetMutable() { return Base::Instance().items; }
+        static Items & GetMutable()
+        {
+            return GetMutable("");
+        }
+
+        static Items & GetMutable(std::string const& key)
+        {
+            return Base::Instance().items[key];
+        }
+
         EmbeddedData() = default;
 
-        Items items;
+        Map items;
+        const Items empty;
     };
 
     template <typename Object>
@@ -73,9 +99,26 @@ namespace Tensile
 
         EmbedData(std::vector<uint8_t> const& data)
         {
-            EmbeddedData<Object>::Get().push_back(data);
+            EmbeddedData<Object>::GetMutable().push_back(data);
+        }
+
+        EmbedData(std::string const& key, std::initializer_list<uint8_t> data)
+        {
+            EmbeddedData<Object>::GetMutable(key).emplace_back(data);
+        }
+
+        EmbedData(std::string const& key, std::vector<uint8_t> const& data)
+        {
+            EmbeddedData<Object>::GetMutable(key).push_back(data);
         }
     };
 
 }
+
+#define TENSILE_CONCATENATE_SYMBOLS(a, b) TENSILE_CONCATENATE_SYMBOLS1(a, b) 
+#define TENSILE_CONCATENATE_SYMBOLS1(a, b) TENSILE_CONCATENATE_SYMBOLS2(a, b) 
+#define TENSILE_CONCATENATE_SYMBOLS2(a, b) a ## b
+
+#define TENSILE_EMBED_SYMBOL_NAME TENSILE_CONCATENATE_SYMBOLS(TensileEmbeddedData, __LINE__)
+
 

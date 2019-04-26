@@ -35,14 +35,23 @@ namespace Tensile
 {
     namespace hip
     {
-        class SolutionAdapter
+        class SolutionAdapter: public Tensile::SolutionAdapter
         {
         public:
             SolutionAdapter() = default;
             SolutionAdapter(bool debug);
             ~SolutionAdapter();
 
+            virtual std::string name() const { return "HipSolutionAdapter"; }
+
             void loadCodeObjectFile(std::string const& path);
+
+            void loadCodeObject(const void * image);
+
+            void loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
+
+            void loadEmbeddedCodeObjects();
+            void loadEmbeddedCodeObjects(std::string const& key);
 
             void launchKernel(KernelInvocation const& kernel);
             void launchKernels(std::vector<KernelInvocation> const& kernels);

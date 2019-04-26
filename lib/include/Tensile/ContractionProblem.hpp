@@ -91,6 +91,17 @@ namespace Tensile
                                        size_t lda, size_t ldb, size_t ldc,
                                        double beta, bool colMajor, size_t batchCount);
 
+        static ContractionProblem GEMM(bool transA, bool transB,
+                                       TensorDescriptor const& a, TensorOps const& aOps,
+                                       TensorDescriptor const& b, TensorOps const& bOps,
+                                       TensorDescriptor const& c, TensorOps const& cOps,
+                                       TensorDescriptor const& d, TensorOps const& dOps,
+                                       double beta);
+
+        static ContractionProblem Convolution_1x1_Fwd(TensorDescriptor const& weights, TensorOps const& wOps,
+                                                      TensorDescriptor const& x,       TensorOps const& xOps,
+                                                      TensorDescriptor const& y,       TensorOps const& yOps);
+
         static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
                                                  BatchIndices const& batchIndices,
                                                  BoundIndices const& boundIndices,
@@ -170,6 +181,11 @@ namespace Tensile
         FreeIndices m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
+
+        std::vector<size_t> m_freeSizeA;
+        std::vector<size_t> m_freeSizeB;
+        std::vector<size_t> m_batchSizes;
+        std::vector<size_t> m_boundSizes;
 
         double m_beta;
 

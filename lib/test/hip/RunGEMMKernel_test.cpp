@@ -35,6 +35,7 @@
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
+#include <Tensile/EmbeddedLibrary.hpp>
 #include <Tensile/Utils.hpp>
 
 #include <TestUtils.hpp>
@@ -252,11 +253,54 @@ TEST_P(RunGEMMKernelTest, Library)
     }
 }
 
+TEST_P(RunGEMMKernelTest, EmbeddedLibraryLite)
+{
+    ContractionProblem problem = GetParam();
+
+    auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite");
+
+    ASSERT_NE(library, nullptr);
+
+    auto solution = library->findBestSolution(problem, *hardware);
+
+    ASSERT_NE(solution, nullptr);
+
+    std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+    hip::SolutionAdapter adapter(true);
+    adapter.loadEmbeddedCodeObjects("kernels_lite");
+
+    adapter.launchKernels(result);
+
+    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+    //std::cout << "A:";
+    //WriteTensor(std::cout, a_h.data(), problem.a);
+
+    //std::cout << "B:";
+    //WriteTensor(std::cout, b_h.data(), problem.b);
+
+    //std::cout << "C Input:";
+    //WriteTensor(std::cout, c_h.data(), problem.c);
+
+    //std::cout << "C Reference:";
+    //WriteTensor(std::cout, d_ref_h.data(), problem.d);
+
+    //std::cout << "C Result:";
+    //WriteTensor(std::cout, d_h.data(), problem.c);
+
+    for(int i = 0; i < d_ref_h.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+    }
+}
+
 TEST_P(RunGEMMKernelTest, KernelsLite)
 {
     ContractionProblem problem = GetParam();
 
-    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/KernelsLite.yaml");
+    //auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/KernelsLite.yaml");
+    auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite");
 
     ASSERT_NE(library, nullptr);
 
@@ -269,7 +313,8 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile("configs/KernelsLite.co");
+    //adapter.loadCodeObjectFile("configs/KernelsLite.co");
+    adapter.loadEmbeddedCodeObjects("kernels_lite");
 
     adapter.launchKernels(result);
 

@@ -140,57 +140,68 @@ function(TensileCreateLibrary
 endfunction()
 
 function(TensileCreateLibraryFiles
-    Tensile_LOGIC_PATH
-    Tensile_MERGE_FILES
-    Tensile_SHORT_FILE_NAMES)
+        Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
 
   # Tensile_ROOT can be specified instead of using the installed path.
-  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY OUTPUT_PATH)
-  cmake_parse_arguments(Tensile "" "${oneValueArgs}" "" ${ARGN})
+  set(options NO_MERGE_FILES SHORT_FILE_NAMES)
+  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX)
+  set(multiValueArgs "")
+  cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   if(Tensile_TENSILE_ROOT)
     # python not pre-installed, use scripts downloaded to extern/Tensile
     include(FindPythonInterp)
-    set(Script ${PYTHON_EXECUTABLE} "${Tensile_TENSILE_ROOT}/Tensile/TensileCreateLibrary.py")
+    set(Script ${PYTHON_EXECUTABLE} "${Tensile_TENSILE_ROOT}/TensileCreateLibrary.py")
   else()
       set(Script TensileCreateLibrary)
   endif()
 
   set(Options "")
 
-  if(${Tensile_MERGE_FILES})
-    set(Options ${Options} "--merge-files")
-  else()
+  if(Tensile_NO_MERGE_FILES)
     set(Options ${Options} "--no-merge-files")
+  else()
+    set(Options ${Options} "--merge-files")
   endif()
 
-  if(${Tensile_SHORT_FILE_NAMES})
+  if(Tensile_SHORT_FILE_NAMES)
     set(Options ${Options} "--short-file-names")
   else()
     set(Options ${Options} "--no-short-file-names")
   endif()
 
-  if(${Tensile_EMBED_LIBRARY})
+  if(Tensile_EMBED_LIBRARY STREQUAL "")
+  else()
     set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
   endif()
 
-  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} hip)
-  message(STATUS "Tensile_CREATE_COMMAND: ${Script}")
+  if(Tensile_EMBED_KEY STREQUAL "")
+  else()
+    set(Options ${Options} "--embed-library-key=${Tensile_EMBED_KEY}")
+  endif()
+
+  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
   execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
-  if(${CommandResult})
+  if(CommandResult)
     message(SEND_ERROR "Error creating Tensile library: ${CommandResult}")
   endif()
 
-  if(${Tensile_EMBED_LIBRARY})
+  if(Tensile_VAR_PREFIX STREQUAL "")
+      set(Tensile_VAR_PREFIX TENSILE)
+  endif()
+
+
+  file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
+  set(${Tensile_VAR_PREFIX}_CODE_OBJECTS ${CodeObjects} PARENT_SCOPE)
+  set(${Tensile_VAR_PREFIX}_LIBRARY_FILE "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml" PARENT_SCOPE)
+
+  if(Tensile_EMBED_LIBRARY STREQUAL "")
+  else()
+
     add_library(${Tensile_EMBED_LIBRARY} "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
     target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC Tensile)
-  else()
-    file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
-
-    set(TENSILE_CODE_OBJECTS ${CodeObjects} PARENT_SCOPE)
-
-    set(TENSILE_LIBRARY_FILE "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml" PARENT_SCOPE)
 
   endif()
 

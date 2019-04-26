@@ -39,7 +39,7 @@ namespace Tensile
     class EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
     {
     public:
-        using Base = LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>;
+        using Singleton = LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>;
 
         /**
          * Constructs and returns a new SolutionLibrary instance from the static data.
@@ -47,26 +47,45 @@ namespace Tensile
         static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> NewLibrary();
 
         /**
+         * Constructs and returns a new SolutionLibrary instance from the static data for the specified key.
+         */
+        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> NewLibrary(std::string const& key);
+
+        /**
          * Constructs (if necessary) and returns the shared SolutionLibrary for this problem type.
          */
         static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Get()
         {
-            return Base::Instance().Library();
+            return Get("");
         }
 
-        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Library()
+        /**
+         * Constructs (if necessary) and returns the shared SolutionLibrary for this problem type and key.
+         */
+        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Get(std::string const& key)
         {
-            if(!m_library)
-                m_library = NewLibrary();
+            return Singleton::Instance().Library(key);
+        }
 
-            return m_library;
+        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Library(std::string const& key)
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+
+            auto & ptr = m_libraries[key];
+
+            if(!ptr)
+                ptr = NewLibrary(key);
+
+            return ptr;
         }
 
     private:
-        friend Base;
+        friend Singleton;
         EmbeddedLibrary() = default;
 
-        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> m_library;
+        std::mutex m_mutex;
+        std::unordered_map<std::string,
+                           std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>> m_libraries;
     };
 
 }

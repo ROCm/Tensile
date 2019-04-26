@@ -44,6 +44,7 @@ if(HIP_FOUND)
     add_subdirectory(hip)
 
     target_link_libraries(TensileTests TensileHipTests rocblas)
+    target_link_libraries(TensileTests "--amdgpu-target=gfx900")
     # ${HIP_LIBRARIES}
 endif()
 

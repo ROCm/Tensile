@@ -95,6 +95,27 @@ namespace Tensile
         void appendDim(size_t logicalCount);
         void appendDim(size_t logicalCount, size_t allocatedCount);
 
+        /**
+         * Returns the number of elements of padding in the given dimension (0 if unpadded).
+         */
+        size_t dimensionPadding(size_t dim) const;
+
+        /**
+         * Collapses dimensions in the interval [begin, end).
+         * 
+         * preconditions:
+         * - end >= begin
+         * - begin < dimensions()
+         * - end <= dimensions()
+         * - dimensions in the interval [begin, end-1) are not padded.
+         *
+         * postconditions:
+         * - dimensions() is diminished by end-begin
+         * - total elements (allocated and logical) remain the same
+         * - dimension 'begin' is the product of all the dimensions in the interval [begin, end).
+         */
+        void collapseDims(size_t begin, size_t end);
+
         size_t dimensions()             const { return m_sizes.size(); }
         size_t totalLogicalElements()   const { return m_totalLogicalElements; }
         size_t totalAllocatedElements() const { return m_totalAllocatedElements; }

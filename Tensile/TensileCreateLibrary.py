@@ -35,12 +35,11 @@ from KernelWriterSource import KernelWriterSource
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 
-from shutil import copy as shutil_copy
-
 import argparse
 import itertools
 import multiprocessing
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -68,19 +67,29 @@ def processKernelSourceWithArgs(args):
     """
     return processKernelSource(*args)
 
-def linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
-    kernelsToLink = [kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly']
+def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
+    assemblyKernels = [kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly']
+    destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
 
-    objectFiles = [os.path.join(asmDir, k + '.o') for k in kernelsToLink]
+    if globalParameters["MergeFiles"]:
+        objectFiles = [os.path.join(asmDir, k + '.o') for k in assemblyKernels]
 
-    coFile = os.path.join(outputPath, 'TensileLibrary.co')
+        coFile = os.path.join(destDir, 'TensileLibrary.co')
 
-    args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
+        args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
+        subprocess.check_call(args)
 
-    subprocess.check_call(args)
+        return [coFile]
 
-    return [coFile]
+    else:
+        origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernels]
+        newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernels]
+        for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
+            shutil.copyfile(src, dst)
+
+        return newCOFiles
+
 
 def buildSourceCodeObjectFile(kernelFile):
     buildPath = ensurePath(os.path.join(globalParameters['WorkingPath'], 'code_object_tmp'))
@@ -317,7 +326,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
   codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly)
 
-  codeObjectFiles += linkCombinedCodeObjectFile(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
+  codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print "# Kernel Building elapsed time = %.1f secs" % (stop-start)
@@ -826,7 +835,7 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
   generatedFile.write("set( TensileClient_SOURCE\n")
   for fileName in libraryStaticFiles:
     # copy file
-    shutil_copy( os.path.join(globalParameters["SourcePath"], fileName), \
+    shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
         outputPath )
     # add file to cmake
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
@@ -863,6 +872,9 @@ def TensileCreateLibrary():
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
+
+  argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
+                         help="Access key for embedding library files.")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -966,20 +978,22 @@ def TensileCreateLibrary():
   # write logic
   writeLogic(outputPath, logicData, solutionWriter)
 
+
+  newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
   
-  masterFile = os.path.join(outputPath, "TensileLibrary.yaml")
+  masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
   newMasterLibrary.applyNaming(kernelMinNaming)
   YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
-
-  ensurePath(os.path.join(outputPath, 'library'))
 
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(newMasterLibrary.cpp_base_class, masterFile, nullTerminated=True)
+          embedFile.embed_file(newMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
+                               key=args.EmbedLibraryKey)
 
           for co in codeObjectFiles:
-              embedFile.embed_file("SolutionAdapter", co, nullTerminated=False)
+              embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
+                                   key=args.EmbedLibraryKey)
 
   print1("# Tensile Library Writer DONE")
   print1(HR)

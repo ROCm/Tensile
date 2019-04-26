@@ -15,5 +15,6 @@ target_include_directories(TensileClient PUBLIC Tensile ${Boost_INCLUDE_DIRS})
 add_executable(tensile $<TARGET_OBJECTS:TensileClient>)
 
 target_link_libraries(tensile Tensile ${Boost_LIBRARIES})
+target_link_libraries(tensile "--amdgpu-target=gfx900")
 
 

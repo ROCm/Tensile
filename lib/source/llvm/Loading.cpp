@@ -28,6 +28,8 @@
 #include <Tensile/llvm/Loading.hpp>
 #include <Tensile/llvm/YAML.hpp>
 
+#include <fstream>
+
 namespace Tensile
 {
 
@@ -55,14 +57,13 @@ namespace Tensile
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         llvm::StringRef dataRef((const char *) data.data(), data.size());
-        auto inputData = llvm::MemoryBuffer::getMemBuffer(dataRef);
-        llvm::yaml::Input yin(inputData->getMemBufferRef());
+        llvm::yaml::Input yin(dataRef);
 
         yin >> rv;
 
         if(yin.error())
         {
-            return nullptr;
+            throw std::runtime_error(yin.error().message());
         }
 
         return rv;

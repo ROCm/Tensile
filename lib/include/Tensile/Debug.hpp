@@ -35,6 +35,8 @@ namespace Tensile
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
 
+        bool printCodeObjectInfo() const;
+
     private:
         int value;
 

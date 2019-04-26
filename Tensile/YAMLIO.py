@@ -46,7 +46,7 @@ def write(filename, data):
     """ Write data to a given file. """
 
     with open(filename, 'w') as f:
-        yaml.dump(data, f)
+        yaml.dump(data, f, explicit_start=True, explicit_end=True)
 
 ################################################################################
 # Write List of Solutions to YAML File

@@ -36,9 +36,9 @@
 namespace Tensile
 {
     template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> EmbeddedLibrary<MyProblem, MySolution>::NewLibrary()
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> EmbeddedLibrary<MyProblem, MySolution>::NewLibrary(std::string const& key)
     {
-        auto const& data = EmbeddedData<SolutionLibrary<MyProblem, MySolution>>::Get();
+        auto const& data = EmbeddedData<SolutionLibrary<MyProblem, MySolution>>::Get(key);
         if(data.size() != 1)
             throw std::runtime_error(concatenate("Expected one data item, found ", data.size()));
 
@@ -49,6 +49,6 @@ namespace Tensile
 
     template
     std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-    EmbeddedLibrary<ContractionProblem, ContractionSolution>::NewLibrary();
+    EmbeddedLibrary<ContractionProblem, ContractionSolution>::NewLibrary(std::string const&);
 }
 

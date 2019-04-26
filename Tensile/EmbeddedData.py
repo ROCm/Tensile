@@ -100,7 +100,6 @@ class EmbeddedDataFile:
     def write_header(self):
         self.write(Common.CHeader)
 
-        self.write(self.include_guard)
         self.write(self.includes)
 
         self.namespace("Tensile")
@@ -171,7 +170,7 @@ class EmbeddedDataFile:
     def write_footer(self):
         self.write('')
 
-    def embed_data(self, assocType, data, nullTerminated=False, comment=None):
+    def embed_data(self, assocType, data, nullTerminated=False, comment=None, key=None):
         if nullTerminated:
             empty = False
             data = itertools.chain(Utils.tqdm(data, comment), [0])
@@ -183,25 +182,31 @@ class EmbeddedDataFile:
             if comment is not None:
                 self.comment(comment)
             if empty:
-                self.write("EmbedData<{}> _{{}};".format(assocType))
+                if key is None:
+                    self.write("EmbedData<{0}> TENSILE_EMBED_SYMBOL_NAME{{}};".format(assocType))
+                else:
+                    self.write('EmbedData<{0}> TENSILE_EMBED_SYMBOL_NAME("{1}", {{}});'.format(assocType, key))
                 return
 
             hex_format = '{:#04x}'
 
-            self.write("EmbedData<{}> _{{".format(assocType))
+            if key is None:
+                self.write("EmbedData<{0}> TENSILE_EMBED_SYMBOL_NAME({{".format(assocType))
+            else:
+                self.write('EmbedData<{0}> TENSILE_EMBED_SYMBOL_NAME("{1}", {{'.format(assocType, key))
             with self.indent():
                 line = hex_format.format(next(data))
                 for byteIdx, byte in enumerate(data):
                     if byteIdx % 16 == 15:
-                        self.write(line)
+                        self.write(line + ",")
                         line = hex_format.format(byte)
                     else:
                         line += ', ' + hex_format.format(byte)
 
-                self.write(line + '};')
+                self.write(line + '});')
 
-    def embed_file(self, assocType, filename, nullTerminated=False):
+    def embed_file(self, assocType, filename, nullTerminated=False, key=None):
         with open(filename, 'rb') as f:
           byteArray = bytearray(f.read())
-        self.embed_data(assocType, byteArray, nullTerminated, os.path.basename(filename))
+        self.embed_data(assocType, byteArray, nullTerminated, os.path.basename(filename), key)
 

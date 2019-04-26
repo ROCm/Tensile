@@ -40,6 +40,9 @@ namespace Tensile
         EmbedData<Tests::Bar> b{0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x00};
         EmbedData<Tests::Bar> c{0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00};
 
+        EmbedData<Tests::Foo> d("asdf", {4,3,2,1});
+        EmbedData<Tests::Foo> e("asdf", {1,2,3,4});
+
     }
 }
 
@@ -51,16 +54,25 @@ TEST(EmbeddedData, Simple)
 
     ASSERT_EQ(fooData.size(), 1);
     std::vector<uint8_t> fooRef{1,2,3,4,5};
-    ASSERT_EQ(fooData[0], fooRef);
+    EXPECT_EQ(fooData[0], fooRef);
 
     auto const& barData = EmbeddedData<Tests::Bar>::Get();
 
     ASSERT_EQ(barData.size(), 2);
 
     std::string bar0((const char *)barData[0].data());
-    ASSERT_EQ(bar0, "hello");
+    EXPECT_EQ(bar0, "hello");
 
     std::string bar1((const char *)barData[1].data());
-    ASSERT_EQ(bar1, "world");
+    EXPECT_EQ(bar1, "world");
+
+    EXPECT_EQ(EmbeddedData<Tests::Foo>::Get("nope").size(), 0);
+
+    auto const& fooKeyData = EmbeddedData<Tests::Foo>::Get("asdf");
+
+    ASSERT_EQ(fooKeyData.size(), 2);
+
+    EXPECT_EQ(fooKeyData[0], std::vector<uint8_t>({4,3,2,1}));
+    EXPECT_EQ(fooKeyData[1], std::vector<uint8_t>({1,2,3,4}));
 }
 
