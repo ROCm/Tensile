@@ -20,15 +20,12 @@
 ################################################################################
 
 from __future__ import print_function
-
 import itertools
 import sys
 import time
 import yaml
-
 import Hardware
 import Properties
-
 from SolutionStructs import Solution as OriginalSolution
 from Utils import *
 
@@ -94,7 +91,7 @@ class ProblemType:
         for idx in indices:
             assert idx is not None
             idxState = state(idx)
-            for (key, value) in idxState.items():
+            for (key, value) in list(idxState.items()):
                 assert value is not None
 
         rv = cls()
@@ -105,14 +102,16 @@ class ProblemType:
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
         rv.dDims = rv.cDims
-
-        assert d['DataType'] == 0
-        assert d['DestDataType'] == 0
         
-        rv.aType = 'Float'
-        rv.bType = 'Float'
-        rv.cType = 'Float'
-        rv.dType = 'Float'
+        try:
+            assert d['DataType'] == 0
+            assert d['DestDataType'] == 0
+        except AssertionError as Error:
+            print("DataType mismatch!")
+        rv.aType = 'Single'
+        rv.bType = 'Single'
+        rv.cType = 'Single'
+        rv.dType = 'Single'
 
         rv.batched = d['Batched']
 
@@ -203,7 +202,7 @@ class ProblemPredicate(Properties.Predicate):
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
         if key == 'AssertMinApproxSize':
-            if value == 1:
+            if value == 0 or value == 1:
                 return None
             elif value == 2:
                 return cls('MaxProblemSizeGreaterThan', value=32)
@@ -263,7 +262,7 @@ class SizeMapping:
         return rv
 
     def __init__(self, **kwargs):
-        for (key, value) in kwargs.iteritems():
+        for (key, value) in list(kwargs.items()):
             setattr(self, key, value)
 
 class Solution:
@@ -309,7 +308,7 @@ class Solution:
 
     @classmethod
     def ReadOriginalInfo(cls, d):
-        return dict([(key, str(value)) for (key, value) in d.items() if key != 'ProblemType'])
+        return dict([(key, str(value)) for (key, value) in list(d.items()) if key != 'ProblemType'])
 
     def __init__(self, **kwargs):
         self.name = None

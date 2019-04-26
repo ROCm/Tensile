@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,6 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+from __future__ import print_function
 import os.path
 import sys
 from __init__ import __version__
@@ -160,13 +161,11 @@ defaultGlobalParameters = deepcopy(globalParameters)
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
   for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
-    for sg0 in range(1, numThreads/nsg+1):
-      sg1 = numThreads/nsg/sg0
+    for sg0 in range(1, numThreads//nsg+1):
+      sg1 = numThreads//nsg//sg0
       if sg0*sg1*nsg == numThreads:
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
-
-
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
@@ -177,8 +176,8 @@ validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 4
 validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
-depthUs = range(-16, 0)
-depthUs.extend(range(2,512+1,1))
+depthUs = list(range(-16, 0))
+depthUs.extend(list(range(2,512+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -216,7 +215,7 @@ validParameters = {
     # GSUWGMRR=False means workgroup 0,1,2,3 will all work on the same tile; =True means workgroup 0, N-1, 2N-1, 3N-1 will all work on the same tile
     # GSUSARR=False means the 4 workgroups do whole chunks of the summation: k=0 -> K/4-1, k=K/4 -> 2K/4-1, k=2K/4 -> 3K/4-1, k=3K/4 -> 4K/4-1
     # GSUSARR=True means the 4 workgroups round robin split up the chunks of the summation: k=0 -> DU-1, 4DU -> 5DU-1, ...; k=1DU -> 2DU-1, 5DU -> 6DU-1...; ...
-    "GlobalSplitU":               range(1, 1024+1),
+    "GlobalSplitU":               list(range(1, 1024+1)),
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
@@ -455,9 +454,9 @@ validParameters = {
     #
     # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
-    "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
+    "WorkGroupMapping":           list(range(-1024,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
-    "MaxOccupancy":               range(1, 40+1),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
+    "MaxOccupancy":               list(range(1, 40+1)),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
     "WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
 
     #ThreadTile: ( tt0 x tt1 ) dimensions of the C tile that each thread works on,
@@ -481,7 +480,7 @@ validParameters = {
     # 9= NullKernel
     # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
-    "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
+    "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -490,7 +489,7 @@ validParameters = {
     #         this increases the switch time between work-groups but results in
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
-    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
+    "PersistentKernel":           list(range(0,10+1)) ,       # Use persistent kernel.
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
@@ -546,8 +545,8 @@ validParameters = {
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
-    "MacroTileShapeMin":          range(1, 256+1),
-    "MacroTileShapeMax":          range(1, 256+1),
+    "MacroTileShapeMin":          list(range(1, 256+1)),
+    "MacroTileShapeMax":          list(range(1, 256+1)),
 
     # when loading all the data from global into lds requires multiple load instructions, these parameters govern which
     # loads will pull which rectangle of data from global into lds
@@ -555,8 +554,8 @@ validParameters = {
     # NLC=-1 looks for the largest number of reads along the coalesced dimension which results in the least ammount of coalescing;
     # however in this case the stride between one load and another is a static value, therefore buffer loads only need one set of registers
     # whereas the =1 case has a stride which is a multiple of a kernel argument and therefore needs one address per load in the perpendicular dimension
-    "NumLoadsCoalescedA":         range(-1, 64+1),
-    "NumLoadsCoalescedB":         range(-1, 64+1),
+    "NumLoadsCoalescedA":         list(range(-1, 64+1)),
+    "NumLoadsCoalescedB":         list(range(-1, 64+1)),
 
     # DepthU, LocalSplitU (which is the 3rd number in WorkGroup), and LoopUnroll are closely related
     # LoopUnroll=4 means there are 4 subiterations within the loop, 4 actual iterations written in the code.
@@ -578,14 +577,14 @@ validParameters = {
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
-    "PerformanceSyncLocation":    range(-1, 16*16+1),
-    "PerformanceWaitLocation":    range(-1, 16*16+1),
-    "PerformanceWaitCount":       range(-1, 16),
+    "PerformanceSyncLocation":    list(range(-1, 16*16+1)),
+    "PerformanceWaitLocation":    list(range(-1, 16*16+1)),
+    "PerformanceWaitCount":       list(range(-1, 16)),
 
     # add gls or slc after global memory read/writes to change cacheing, not cacheing the writes is promising and improved performance a tiny bit
-    "NonTemporalC":               range(0,4),
-    "NonTemporalA":               range(0,4),
-    "NonTemporalB":               range(0,4),
+    "NonTemporalC":               list(range(0,4)),
+    "NonTemporalA":               list(range(0,4)),
+    "NonTemporalB":               list(range(0,4)),
 
     # guard against out of bounds reads
     # None: don't guard
@@ -711,7 +710,7 @@ defaultSolution = {}
 for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
     defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
   for paramDict in paramList:
-    for key, value in paramDict.iteritems():
+    for key, value in paramDict.items():
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
@@ -817,18 +816,18 @@ def getParamValues( name, structure ):
 ################################################################################
 def print1(message):
   if globalParameters["PrintLevel"] >= 1:
-    print message
+    print(message)
     sys.stdout.flush()
 def print2(message):
   if globalParameters["PrintLevel"] >= 2:
-    print message
+    print(message)
     sys.stdout.flush()
 
 def printWarning(message):
-  print "Tensile::WARNING: %s" % message
+  print("Tensile::WARNING: %s" % message)
   sys.stdout.flush()
 def printExit(message):
-  print "Tensile::FATAL: %s" % message
+  print("Tensile::FATAL: %s" % message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -857,17 +856,18 @@ def tryAssembler(isaVersion, options, asmString):
              % (globalParameters["AssemblerPath"], isaVersion, options)
 
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
-
+  # import pdb
+  # pdb.set_trace()
   try:
-    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT)
+    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
     if globalParameters["PrintLevel"] >=2:
-        print "asm_cmd: ", asmCmd
-        print "output :", result
+        print("asm_cmd: ", asmCmd)
+        print("output :", result)
     if result != "":
       return 0 # stdout and stderr must be empty
-  except subprocess.CalledProcessError, e:
+  except subprocess.CalledProcessError as RuntimeError:
     if globalParameters["PrintLevel"] >=2:
-        print "CalledProcessError", e
+        print("CalledProcessError", e)
     return 0 # error, not supported
 
   return 1 # syntax works
@@ -915,7 +915,7 @@ def assignGlobalParameters( config ):
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline()
+    line = process.stdout.readline().decode()
     while line != "":
       gfxIdx = line.find("gfx")
       if gfxIdx >= 0:
@@ -925,7 +925,7 @@ def assignGlobalParameters( config ):
         if (major,minor,step) in globalParameters["SupportedISA"]:
           print1("# Detected local GPU with ISA: gfx%u%u%u"%(major, minor, step))
           globalParameters["CurrentISA"] = (major, minor, step)
-        line = process.stdout.readline()
+        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
@@ -937,8 +937,10 @@ def assignGlobalParameters( config ):
   for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
     globalParameters["AsmCaps"][v] = {}
     globalParameters["ArchCaps"][v] = {}
+    # import pdb
+    # pdb.set_trace()
     isaVersion = "gfx" + "".join(map(str,v))
-    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "", "")
+    globalParameters["AsmCaps"][v]["SupportedISA"] = tryAssembler(isaVersion, "", "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,v0")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
@@ -952,7 +954,8 @@ def assignGlobalParameters( config ):
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
-
+    # import pdb
+    # pdb.set_trace()
     print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
     globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6))
     print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))
