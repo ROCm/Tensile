@@ -3,23 +3,36 @@
 
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
+if(true)
 TensileCreateLibraryFiles(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../configs/lite_configs"
+    "${TENSILE_ROOT}/lib/configs/lite_configs"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite
     EMBED_KEY     kernels_lite
     VAR_PREFIX LITE
     )
+endif()
 
+TensileCreateLibraryFiles(
+    "${TENSILE_ROOT}/lib/configs/lite_configs_mixed"
+    "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
+    TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
+    EMBED_LIBRARY test_kernels_lite_mixed
+    EMBED_KEY     kernels_lite_mixed
+    VAR_PREFIX LITE
+    )
+
+if(true)
 # Link a second copy of the lite_configs library to test that there are no issues with duplicate symbols.
 TensileCreateLibraryFiles(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../configs/lite_configs"
+    "${TENSILE_ROOT}/lib/configs/lite_configs"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_2"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite_2
     EMBED_KEY     kernels_lite_2
     )
+endif()
 
 
 
@@ -35,7 +48,7 @@ add_library(TensileHipTests STATIC
 
 message(${gtest_SOURCE_DIR}/include)
 
-target_link_libraries(TensileHipTests hip::host test_kernels_lite test_kernels_lite_2)
+target_link_libraries(TensileHipTests hip::host test_kernels_lite test_kernels_lite_2 test_kernels_lite_mixed)
 
 target_include_directories(TensileHipTests
                            PRIVATE

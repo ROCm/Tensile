@@ -18,13 +18,16 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+<<<<<<< HEAD
+=======
 from __future__ import print_function
-
+import os.path
+import sys
+>>>>>>> 51b1777e7b1b83ca2c741e5fe90db8cb7fca87cf
 from __init__ import __version__
 from collections import OrderedDict
 from copy import deepcopy
 from subprocess import Popen, PIPE
-
 import math
 import os.path
 import platform
@@ -127,7 +130,6 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data

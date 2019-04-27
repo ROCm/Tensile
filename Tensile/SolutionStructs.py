@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,154 +19,163 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
+from __future__ import print_function
 import sys,traceback
 from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
 import math
+from Utils import ceil_divide, roundUpToNearestMultiple
+from DataType import DataType
 
-################################################################################
-# Data Type
-################################################################################
-class DataType:
-  single        = 0
-  double        = 1
-  complexSingle = 2
-  complexDouble = 3
-  half          = 4
-  int8x4        = 5
-  int32         = 6
-  num           = 7
-  none          = 8
+# try:
+  # basestring
+# except NameError:
+  # basestring = str
 
-  # data type properties
-  idxChar    = 0
-  idxReg     = 1
-  idxOpenCL  = 2
-  idxHIP     = 3
-  idxLibType = 4
-  idxLibEnum = 5
-  #    char, reg,    ocl,       hip,       libType,                 libEnum
-  properties = [
-      ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
-      ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
-      ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
-      ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
-      ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
-      ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
-  ]
+# ################################################################################
+# # Data Type
+# ################################################################################
+# class DataType:
+  # single        = 0
+  # double        = 1
+  # complexSingle = 2
+  # complexDouble = 3
+  # half          = 4
+  # int8x4        = 5
+  # int32         = 6
+  # num           = 7
+  # none          = 8
 
-  ########################################
-  def __init__( self, value ):
-    if isinstance(value, int):
-      self.value = value
-    elif isinstance(value, basestring):
-      for propertiesIdx in range(0,6):
-        for dataTypeIdx in range(0,self.num):
-          if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
-            self.value = dataTypeIdx
-            return
-    elif isinstance(value, DataType):
-      self.value = value.value
-    else:
-      printExit("initializing DataType to %s %s" % (str(type(value)), str(value)) )
+  # # data type properties
+  # idxChar    = 0
+  # idxReg     = 1
+  # idxOpenCL  = 2
+  # idxHIP     = 3
+  # idxLibType = 4
+  # idxLibEnum = 5
+  # #    char, reg,    ocl,       hip,       libType,                 libEnum
+  # properties = [
+      # ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
+      # ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
+      # ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
+      # ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
+      # ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
+      # ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
+      # ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
+  # ]
+
+  # ########################################
+  # def __init__( self, value ):
+    # if isinstance(value, int):
+      # self.value = value
+    # elif isinstance(value, basestring):
+      # for propertiesIdx in range(0,6):
+        # for dataTypeIdx in range(0,self.num):
+          # import pdb
+          # pdb.set_trace()
+          # if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
+            # self.value = dataTypeIdx
+            # return
+    # elif isinstance(value, DataType):
+      # self.value = value.value
+    # else:
+      # printExit("initializing DataType to %s %s" % (str(type(value)), str(value)) )
 
 
-  ########################################
-  def toChar(self):
-    return self.properties[self.value][self.idxChar]
-  def toOpenCL(self):
-    return self.properties[self.value][self.idxOpenCL]
-  def toHIP(self):
-    return self.properties[self.value][self.idxHIP]
-  def toDevice(self, language):
-    if language == "OCL":
-      return self.toOpenCL()
-    else:
-      return self.toHIP()
-  def toCpp(self):
-    return self.properties[self.value][self.idxLibType]
-  def getLibString(self):
-    return self.properties[self.value][self.idxLibEnum]
+  # ########################################
+  # def toChar(self):
+    # return self.properties[self.value][self.idxChar]
+  # def toOpenCL(self):
+    # return self.properties[self.value][self.idxOpenCL]
+  # def toHIP(self):
+    # return self.properties[self.value][self.idxHIP]
+  # def toDevice(self, language):
+    # if language == "OCL":
+      # return self.toOpenCL()
+    # else:
+      # return self.toHIP()
+  # def toCpp(self):
+    # return self.properties[self.value][self.idxLibType]
+  # def getLibString(self):
+    # return self.properties[self.value][self.idxLibEnum]
 
-  ########################################
-  def zeroString(self, language, vectorWidth):
-    if language == "HIP":
-      if self.value == self.complexSingle:
-        return "make_float2(0.f, 0.f)"
-      if self.value == self.complexDouble:
-        return "make_double2(0.0, 0.0)"
+  # ########################################
+  # def zeroString(self, language, vectorWidth):
+    # if language == "HIP":
+      # if self.value == self.complexSingle:
+        # return "make_float2(0.f, 0.f)"
+      # if self.value == self.complexDouble:
+        # return "make_double2(0.0, 0.0)"
 
-    zeroString = "("
-    zeroString += self.toDevice(language)
-    if vectorWidth > 1:
-      zeroString += str(vectorWidth)
-    zeroString += ")("
+    # zeroString = "("
+    # zeroString += self.toDevice(language)
+    # if vectorWidth > 1:
+      # zeroString += str(vectorWidth)
+    # zeroString += ")("
 
-    """
-    if self.value == self.half:
-      single = "0"
-      vectorWidth = 1
-    elif self.value == self.single:
-      single = "0.f"
-    elif self.value == self.double:
-      single = "0.0"
-    elif self.value == self.complexSingle:
-      single = "0.f, 0.f"
-    elif self.value == self.complexDouble:
-      single = "0.0, 0.0"
-    """
-    zeroString += "0"
-    zeroString += ")"
-    return zeroString
+    # """
+    # if self.value == self.half:
+      # single = "0"
+      # vectorWidth = 1
+    # elif self.value == self.single:
+      # single = "0.f"
+    # elif self.value == self.double:
+      # single = "0.0"
+    # elif self.value == self.complexSingle:
+      # single = "0.f, 0.f"
+    # elif self.value == self.complexDouble:
+      # single = "0.0, 0.0"
+    # """
+    # zeroString += "0"
+    # zeroString += ")"
+    # return zeroString
 
-  ########################################
-  def isReal(self):
-    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
-      return True
-    else:
-      return False
-  def isComplex(self):
-    return not self.isReal()
-  def isDouble(self):
-    return self.value == self.double or self.value == self.complexDouble
-  def isSingle(self):
-    return self.value == self.single
-  def isHalf(self):
-    return self.value == self.half
-  def isInt32(self):
-    return self.value == self.int32
-  def isInt8x4(self):
-    return self.value == self.int8x4
-  def isNone(self):
-    return self.value == self.none
+  # ########################################
+  # def isReal(self):
+    # if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
+      # return True
+    # else:
+      # return False
+  # def isComplex(self):
+    # return not self.isReal()
+  # def isDouble(self):
+    # return self.value == self.double or self.value == self.complexDouble
+  # def isSingle(self):
+    # return self.value == self.single
+  # def isHalf(self):
+    # return self.value == self.half
+  # def isInt32(self):
+    # return self.value == self.int32
+  # def isInt8x4(self):
+    # return self.value == self.int8x4
+  # def isNone(self):
+    # return self.value == self.none
 
-  ########################################
-  def numRegisters( self ):
-    return self.properties[self.value][self.idxReg]
-  def numBytes( self ):
-    return int(self.numRegisters() * 4)
-  def flopsPerMac(self):
-    return 2 if self.isReal() else 8
+  # ########################################
+  # def numRegisters( self ):
+    # return self.properties[self.value][self.idxReg]
+  # def numBytes( self ):
+    # return int(self.numRegisters() * 4)
+  # def flopsPerMac(self):
+    # return 2 if self.isReal() else 8
 
-  def __str__(self):
-    return self.toChar()
+  # def __str__(self):
+    # return self.toChar()
 
-  def __repr__(self):
-    return self.__str__()
+  # def __repr__(self):
+    # return self.__str__()
 
-  def getAttributes(self):
-    return (self.value)
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
+  # def getAttributes(self):
+    # return (self.value)
+  # def __hash__(self):
+    # return hash(self.getAttributes())
+  # def __eq__(self, other):
+    # return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
+  # def __ne__(self, other):
+    # result = self.__eq__(other)
+    # if result is NotImplemented:
+      # return result
+    # return not result
 
 ########################################
 # Print a reject message :
@@ -354,7 +363,6 @@ class ProblemType:
     unrollIdxB = state["IndexAssignmentsB"].index(state["IndexUnroll"])
     state["TLUA"] = strideIdxA < unrollIdxA
     state["TLUB"] = strideIdxB < unrollIdxB
-
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
     #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
@@ -390,7 +398,7 @@ class ProblemType:
     return name
 
   def keys(self):
-    return self.state.keys()
+    return list(self.state.keys())
   def __len__(self):
     return len(self.state)
   def __iter__(self):
@@ -728,8 +736,8 @@ class Solution:
 
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
-      macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
-          state["MacroTile1"]/state["MacroTile0"])
+      macroTileShape = max(state["MacroTile0"]//state["MacroTile1"], \
+          state["MacroTile1"]//state["MacroTile0"])
       if macroTileShape > state["MacroTileShapeMax"] \
           or macroTileShape < state["MacroTileShapeMin"]:
         reject(state, "rejecting MacroTile Shape %u:%u for Min:Max %u:%u" \
@@ -758,7 +766,10 @@ class Solution:
     validDepthU = True
     if totalVectors < state["NumThreads"]:
       # Try to reduce size of vector so every thread has a load to do
-      pv = state["NumThreads"] / totalVectors # partial vector
+      pv = state["NumThreads"]//totalVectors
+      #state["NumThreads"] / totalVectors # partial vector
+      # import pdb
+      # pdb.set_trace()
       if not state["FractionalLoad"]:
         if state["NumThreads"] % totalVectors != 0:
           reject(None, "NumThreads %u %% totalVectors %u != 0" \
@@ -780,12 +791,11 @@ class Solution:
               % (totalVectors, state["NumThreads"]))
           validDepthU = False
 
-    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"] / pv
+    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"]//pv
 
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
-    state["NumLoads%s"%tc] = totalVectors * pv / state["NumThreads"]
-
+    state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -804,9 +814,8 @@ class Solution:
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
-      for nlc in range(1, state["NumLoads%s"%tc]+1):
-        nlp = state["NumLoads%s"%tc] / nlc
-        #print nlc, nlp
+      for nlc in range(1, int(state["NumLoads%s"%tc]+1)):
+        nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:
@@ -822,7 +831,7 @@ class Solution:
     elif state["NumLoadsCoalesced%s"%tc] == -1:
       foundValid = False
       for nlc in range(state["NumLoads%s"%tc], 0, -1):
-        nlp = state["NumLoads%s"%tc] / nlc
+        nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:
@@ -841,7 +850,7 @@ class Solution:
         return False
 
       state["NumLoadsPerpendicular%s"%tc] = state["NumLoads%s"%tc] \
-          / state["NumLoadsCoalesced%s"%tc]
+          // state["NumLoadsCoalesced%s"%tc]
 
       if state["NumLoads%s"%tc] % state["NumLoadsCoalesced%s"%tc] != 0:
         reject(state, "%s: numLoads %u %% numLoadsCoalesced %u != 0" \
@@ -859,12 +868,12 @@ class Solution:
 
     if state["ProblemType"]["TLU%s"%tc]:
       state["LSC%s"%tc] = state["MacroTile%s"%tc] \
-          / state["NumLoadsCoalesced%s"%tc]
+          // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-          / state["NumLoadsPerpendicular%s"%tc]
+          // state["NumLoadsPerpendicular%s"%tc]
 
     return True
 
@@ -930,11 +939,11 @@ class Solution:
       perpDim = state["MacroTile%s"%tc]
 
     if dbFract:
-        print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
+        print("\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
           % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
             parDim, perpDim, \
             state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
-            state["NumThreads"], state["GlobalReadVectorWidth"])
+            state["NumThreads"], state["GlobalReadVectorWidth"]))
 
     # Try to find a GRVW which is smaller than the LSC and also does not force
     # the LSC to wrap - both of these conditions can be tested with lsc % grvw ==0.
@@ -956,34 +965,34 @@ class Solution:
       else:
         # work-group exceeds read dimension so wraps to multiple rows
         state["LSC%s"%tc] = parDim
-        state["LSP%s"%tc] = min(perpDim, elementsLoadedPerInst / parDim)
+        state["LSP%s"%tc] = min(perpDim, elementsLoadedPerInst // parDim)
         state["NumLoadsCoalesced%s"%tc] = 1
         state["NumLoadsPerpendicular%s"%tc] = roundupRatio(perpDim , state["LSP%s"%tc])
 
       # Vector loads can't wrap to next P dim, so LSC must be divisible by vector elements;
       if dbFract:
-        print "  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw)
+        print("  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw))
       if state["LSC%s"%tc] % grvw == 0:
         bestVw = grvw
         # Try to shrink GRVW if possible while keeping same LSC and LSP:
         # For example, avoid cases where we use a GRVW=4 with many empty addresses
         # when a GRVW=1 will do instead.
         validElementsLoadedPerInst = state["LSC%s"%tc] * state["LSP%s"%tc]
-        grvw /= 2
+        grvw //= 2
         while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
             if dbFract:
-              print "  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc]
+              print("  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc])
             bestVw = grvw
-          grvw /= 2
+          grvw //= 2
         break
 
       # TODO - could have this generate dwordx3 loads in addition, step down by 1 instead of div2
       # Would need to change asm code gen to generate x3
-      grvw /= 2
+      grvw //= 2
       # end-- while loop
 
     if bestVw == -1:
@@ -1015,15 +1024,15 @@ class Solution:
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
-      print "  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
              nlc, nlp, \
              nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
              parDim, perpDim, \
              parDim*perpDim, \
              nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
-             (float)(parDim*perpDim) / \
-             (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0 \
+             float(parDim*perpDim), \
+             float(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0) \
              )
 
       for p in range(0,nlp):
@@ -1034,12 +1043,12 @@ class Solution:
           perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
 
         validElements = state["LSC%s"%tc] * perp
-        print "  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
+        print("  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
               (state["GlobalLoadVectorWidth%s"%tc], \
               state["LSC%s"%tc], perp, \
               elementWidth, \
-              validElements/state["GlobalLoadVectorWidth%s"%tc],
-              state["NumThreads"])
+              validElements//state["GlobalLoadVectorWidth%s"%tc],
+              state["NumThreads"]))
 
     return True
 
@@ -1138,7 +1147,7 @@ class Solution:
       state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
       while state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
-        state["VectorWidth"] /= 2
+        state["VectorWidth"] //= 2
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
     if state["ThreadTile0"] % state["VectorWidth"] != 0 \
         or state["ThreadTile1"] % state["VectorWidth"] != 0:
@@ -1189,7 +1198,7 @@ class Solution:
       reject(state, "NumElementsPerWorkGroup %u < NumThreads %u; reduce LocalSplitU" \
           % (numElementsPerWorkGroup, state["NumThreads"]))
       return
-    state["NumElementsPerThread"] = numElementsPerWorkGroup / \
+    state["NumElementsPerThread"] = numElementsPerWorkGroup // \
         state["NumThreads"]
     state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
     if state["NumElementsPerThread"] % state["GlobalWriteVectorWidth"] != 0:
@@ -1197,7 +1206,7 @@ class Solution:
           % (state["NumElementsPerThread"], state["GlobalWriteVectorWidth"]))
       return
     state["NumGlobalWriteVectorsPerThread"] = state["NumElementsPerThread"] \
-        / state["GlobalWriteVectorWidth"]
+        // state["GlobalWriteVectorWidth"]
 
 
     # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways store
@@ -1251,7 +1260,6 @@ class Solution:
         if state["AssertFree0ElementMultiple"] < 2:
           reject(state, "Assembly GSU half requires AF0EM>=2 (for atomics on edge tiles)")
 
-
     ########################################
     # Initial DepthU
     ########################################
@@ -1303,8 +1311,8 @@ class Solution:
         if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU):
           validDepthU = False
       else:
-        tva = totalElementsA / state["GlobalReadVectorWidth"]
-        tvb = totalElementsB / state["GlobalReadVectorWidth"]
+        tva = totalElementsA // state["GlobalReadVectorWidth"]
+        tvb = totalElementsB // state["GlobalReadVectorWidth"]
         if not Solution.setGlobalLoadVectorWidth(state, "A", tva):
           validDepthU = False
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
@@ -1317,20 +1325,20 @@ class Solution:
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA / state["GlobalReadVectorWidth"]
-      totalVectorsCoalescedB = totalElementsCoalescedB / state["GlobalReadVectorWidth"]
-      totalVectorsA = totalElementsA / state["GlobalReadVectorWidth"]
-      totalVectorsB = totalElementsB / state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalReadVectorWidth"]
+      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"] 
+      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"] 
 
       if 0:
-        print "info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
+        print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
                        pvar(state, "ThreadTile0"), pvar(state, "ThreadTile1"), \
                        "WG=%ux%u" % (state["WorkGroup"][0], state["WorkGroup"][1]), \
-                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB")
-        print "info: totalElementsCoalescedA=", totalElementsCoalescedA, \
-              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA
-        print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
-              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
+                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB"))
+        print("info: totalElementsCoalescedA=", totalElementsCoalescedA, \
+              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA)
+        print("info: totalElementsCoalescedB=", totalElementsCoalescedB, \
+              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
 
       #if state["ProblemType"]["DataType"].isHalf() \
       #    and (state["GlobalLoadVectorWidthA"] == 1 \
@@ -1416,8 +1424,8 @@ class Solution:
 
     # Some of these might become 0?
     if 0:
-      print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
-            pvar(state, "LVCB"), pvar(state, "LVPB")
+      print("info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
+            pvar(state, "LVCB"), pvar(state, "LVPB"))
 
     # lds buffer size for A, B
     if state["KernelLanguage"] == "Source" and \
@@ -1434,10 +1442,11 @@ class Solution:
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
-    ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
-
+    ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
-    ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+    # import pdb
+    # pdb.set_trace()
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:
@@ -1461,8 +1470,8 @@ class Solution:
     ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds max occupancy
-    ldsSizeOccupancy = globalParameters["DeviceLDS"] / state["MaxOccupancy"]
-    ldsNumElementsOccupancy = ldsSizeOccupancy / state["ProblemType"]["DataType"].numBytes()
+    ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
+    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
@@ -1474,13 +1483,12 @@ class Solution:
 
     # LoopUnroll  = DepthU / LocalSplitU
     if "LocalSplitU" in state and "DepthU" in state:
-      state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
+      state["LoopUnroll"] = state["DepthU"] // state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
       state["Valid"] = False
     if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
       reject(state, "InnerUnroll only supported on assembly")
-    state["LoopUnroll"] /= state["InnerUnroll"]
-
+    state["LoopUnroll"] //= state["InnerUnroll"]
     ldl = state["LocalDotLayout"]
     if ldl > 1:
       # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
@@ -1493,13 +1501,13 @@ class Solution:
         return
 
     if 0:
-      print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
-      print "info: ", pvar(state["ProblemType"], "TLUA"), \
+      print("info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB"))
+      print("info: ", pvar(state["ProblemType"], "TLUA"), \
           pvar(state, "NumLoadsCoalescedA"), pvar(state, "NumLoadsPerpendicularA"), \
-          pvar(state, "LSCA"), pvar(state, "LSPA")
-      print "info:", pvar(state["ProblemType"], "TLUB"), \
+          pvar(state, "LSCA"), pvar(state, "LSPA"))
+      print("info:", pvar(state["ProblemType"], "TLUB"), \
           pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
-          pvar(state, "LSCB"), pvar(state, "LSPB")
+          pvar(state, "LSCB"), pvar(state, "LSPB"))
 
     # LoopUnroll too small
     if state["LoopUnroll"] < 2:
@@ -1519,7 +1527,7 @@ class Solution:
       elementMultipleOk = not state["ProblemType"]["DataType"].isHalf() \
                           or state["AssertSummationElementMultiple"] % 2 == 0
 
-      wavefronts = state["NumThreads"] / globalParameters["WavefrontWidth"]
+      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
       numBytes = state["ProblemType"]["DataType"].numBytes()
 
       # DirectToLds loads return 256 bytes/wave
@@ -1544,29 +1552,29 @@ class Solution:
           state["LocalWriteUseSgprB"] = True
 
       if 0:
-        print "DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
-              "wavefronts=", wavefronts, ")"
-        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
-              "=>", (state["LSCA"] * numBytes == 256 * wavefronts)
-        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
-              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4)
-        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
-              "=>", (state["LSCB"] * numBytes == 256 * wavefronts)
-        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
-              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4)
+        print("DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
+              "wavefronts=", wavefronts, ")")
+        print("  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCA"] * numBytes == 256 * wavefronts))
+        print("  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4))
+        print("  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCB"] * numBytes == 256 * wavefronts))
+        print("  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4))
 
-        print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
+        print("A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
                " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsA=", state["DirectToLdsA"], \
                " NumLoadsCoalescedA=", state["NumLoadsCoalescedA"], \
-               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"]
-        print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
+               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"])
+        print("B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
                " LSCB=", state["LSCB"],"LSPB=", state["LSPB"],  "GLVB_B=", state["GlobalLoadVectorWidthB"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsB=", state["DirectToLdsB"], \
                " NumLoadsCoalescedB=", state["NumLoadsCoalescedB"], \
-               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"]
+               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"])
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
@@ -1691,12 +1699,12 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        if key in validParameters.keys():
+        if key in list(validParameters.keys()):
           requiredParameters[key] = False
     else:
       for key in keys:
         required = False
-        if key in validParameters.keys():
+        if key in list(validParameters.keys()):
           for i in range(1, len(objs)):
             if objs[0][key] != objs[i][key]:
               required = True
@@ -1718,7 +1726,7 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      if key in validParameters.keys():
+      if key in list(validParameters.keys()):
         requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
@@ -1756,7 +1764,7 @@ class Solution:
     for objIdx in range(0, len(objs)):
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
-        if paramName in validParameters.keys():
+        if paramName in list(validParameters.keys()):
           paramValue = obj[paramName]
           if paramName in data:
             if paramValue not in data[paramName]:
@@ -1780,7 +1788,7 @@ class Solution:
     serial = 0
     multiplier = 1
     for paramName in sorted(state.keys()):
-      if paramName in validParameters.keys():
+      if paramName in list(validParameters.keys()):
         paramValue = state[paramName]
         paramData = data[paramName]
         paramNameMultiplier = len(paramData)
@@ -1839,7 +1847,7 @@ class Solution:
 
   # make class look like dict
   def keys(self):
-    return self._state.keys()
+    return list(self._state.keys())
   def __len__(self):
     return len(self._state)
   def __iter__(self):

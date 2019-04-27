@@ -6,12 +6,12 @@
 
 # The directory containing the test script can be passed to pytest:
 # PYTHONPATH=. py.test -v Tensile/Tests/TEST_DIR/
-
+from __future__ import print_function
 import glob, sys, os
 
-targetDir  = sys.argv[1] if sys.argv > 1 else "."
+targetDir  = sys.argv[1] if len(sys.argv) > 1 else "."
 targetFile = "%s/test_%s.py"%(targetDir,os.path.basename(targetDir))
-print "info: writing test script to %s" % targetFile
+print("info: writing test script to %s" % targetFile)
 outfile = open(targetFile, "w" )
 outfile.write("import Tensile.Tensile as Tensile\n\n")
 for f in glob.glob("%s/*aml"%targetDir):

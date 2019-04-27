@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,6 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+from __future__ import print_function
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
@@ -87,7 +88,7 @@ def main( config ):
   enableHalf = False
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
-        indexOrder, exactLogic, rangeLogic) \
+        indexOrder, exactLogic, rangeLogic, newLibrary) \
         = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
@@ -242,7 +243,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write("exit $ERR\n")
   runScriptFile.close()
   if os.name != "nt":
-    os.chmod(runScriptName, 0777)
+    os.chmod(runScriptName, 0o777)
   return runScriptName
 
 
@@ -369,10 +370,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     dataTypes = sorted(dataTypes)
     for dataType in dataTypes:
       problemTypesForDataType[dataType] = \
-          sorted(problemTypesForDataType[dataType])
+          sorted(problemTypesForDataType[dataType],key=str)
       for problemType in problemTypesForDataType[dataType]:
         schedulesForProblemType[problemType] = \
-            sorted(schedulesForProblemType[problemType])
+            sorted(schedulesForProblemType[problemType],key=str)
 
     # assign info
     functionIdxSerial = 0
@@ -948,14 +949,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
         h += "    unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
-        for functionIdx in range(0, len(functionsForDataType)):
+        for functionIdx in range(0, len(list(functionsForDataType))):
           function = functionsForDataType[functionIdx]
           scheduleName = function[0]
           problemType = function[1]
-          if len(functionsForDataType)> 1:
+          if len(list(functionsForDataType))> 1:
             if functionIdx == 0:
               h += "  if (functionIdxForDataType == %u) {\n" % functionIdx
-            elif functionIdx == len(functionsForDataType)-1:
+            elif functionIdx == len(list(functionsForDataType))-1:
               h += "  } else {\n"
             else:
               h += "  } else if (functionIdxForDataType == %u) {\n" \

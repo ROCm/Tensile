@@ -20,12 +20,10 @@
 ################################################################################
 
 import itertools
-
 import Properties
 import Hardware
 import Contractions
 from SolutionStructs import Solution as OriginalSolution
-
 from Utils import *
 
 class SingleSolutionLibrary:
@@ -101,7 +99,7 @@ class ProblemMapLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag and self.mappingProperty == other.mappingProperty
 
-        for key,value in other.mapping.items():
+        for key,value in list(other.mapping.items()):
             if key in self.mapping:
                 self.mapping[key].merge(value)
             else:
@@ -184,15 +182,15 @@ class MasterSolutionLibrary:
         self.library = library
 
     def state(self):
-        return {'solutions': state(self.solutions.itervalues()), 'library': state(self.library)}
+        return {'solutions': state(iter(list(self.solutions.values()))), 'library': state(self.library)}
 
     def applyNaming(self, naming=None):
         if naming is None:
-            allSolutions = itertools.chain(self.solutions.itervalues(), self.sourceSolutions.itervalues())
+            allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
             kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in allSolutions]))
             naming = OriginalSolution.getMinNaming(kernels)
 
-        for s in self.solutions.values():
+        for s in list(self.solutions.values()):
             s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
 
     def merge(self, other):
@@ -201,12 +199,12 @@ class MasterSolutionLibrary:
         allIndices = itertools.chain(self.solutions, self.sourceSolutions)
         curIndex = max(allIndices) + 1
 
-        for k,s in other.solutions.items():
+        for k,s in list(other.solutions.items()):
             s.index = curIndex
             self.solutions[curIndex] = s
             curIndex += 1
 
-        for k,s in other.sourceSolutions.items():
+        for k,s in list(other.sourceSolutions.items()):
             s.index = curIndex
             self.sourceSolutions[curIndex] = s
             curIndex += 1

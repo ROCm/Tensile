@@ -343,6 +343,71 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
     }
 }
 
+TEST_P(RunGEMMKernelTest, KernelsLiteMixedExhaustive)
+{
+    ContractionProblem problem = GetParam();
+
+    //auto library = LoadLibraryFile<ContractionProblem>("configs/lite_library/Tensile/TensileLibrary.yaml");
+    auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite_mixed");
+
+    hip::SolutionAdapter adapter(false);
+    //adapter.loadCodeObjectFile("configs/lite_library/Tensile/TensileLibrary.co");
+    adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
+
+    ASSERT_NE(library, nullptr);
+
+    auto solutions = library->findAllSolutions(problem, *hardware);
+
+    ASSERT_GT(solutions.size(), 0);
+
+    for(auto const& solution : solutions)
+    {
+        ASSERT_NE(solution, nullptr);
+
+        std::cout << solution->name() << std::endl;
+
+        std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+        //OldTensile::CallOldTensile(problem.transA(), problem.transB(),
+        //                           inputs.d, inputs.c, inputs.a, inputs.b,
+        //                           inputs.alpha, inputs.beta,
+        //                           problem.d().strides()[1], problem.d().strides()[2],
+        //                           problem.a().strides()[1], problem.a().strides()[2],
+        //                           problem.b().strides()[1], problem.b().strides()[2],
+        //                           problem.d().sizes()[0],
+        //                           problem.d().sizes()[1],
+        //                           problem.d().sizes()[2],
+        //                           problem.boundSize(0),
+        //                           0, 0, nullptr, nullptr);
+
+        adapter.launchKernels(result);
+
+        HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+        /*
+        std::cout << "A:";
+        WriteTensor(std::cout, a_h.data(), problem.a());
+
+        std::cout << "B:";
+        WriteTensor(std::cout, b_h.data(), problem.b());
+
+        std::cout << "C Input:";
+        WriteTensor(std::cout, c_h.data(), problem.c());
+
+        std::cout << "C Reference:";
+        WriteTensor(std::cout, d_ref_h.data(), problem.d());
+
+        std::cout << "C Result:";
+        WriteTensor(std::cout, d_h.data(), problem.c());
+        */
+
+        for(int i = 0; i < d_ref_h.size(); i++)
+        {
+            ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+        }
+    }
+}
+
 TEST_P(RunGEMMKernelTest, KernelsLiteExhaustive)
 {
     ContractionProblem problem = GetParam();

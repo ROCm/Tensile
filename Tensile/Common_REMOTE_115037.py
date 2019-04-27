@@ -19,18 +19,16 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from __future__ import print_function
-
+import os.path
+import sys
 from __init__ import __version__
 from collections import OrderedDict
-from copy import deepcopy
-from subprocess import Popen, PIPE
-
-import math
-import os.path
-import platform
 import subprocess
-import sys
+from subprocess import Popen, PIPE
 import time
+import platform
+import math
+from copy import deepcopy
 
 startTime = time.time()
 
@@ -127,7 +125,6 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
@@ -914,7 +911,6 @@ def assignGlobalParameters( config ):
   if globalParameters["AssemblerPath"] is None:
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc");
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
-  globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
 
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
@@ -1006,16 +1002,6 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
-def CPUThreadCount():
-  if globalParameters["CpuThreads"] == 0:
-    return 0
-  else:
-    import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
-    cpuThreads = globalParameters["CpuThreads"]
-    if cpuThreads < 0:
-        return cpu_count*abs(cpuThreads)
-    return min(cpu_count, cpuThreads)
 
 ################################################################################
 # Push / Pop Working Path
@@ -1134,7 +1120,7 @@ CMakeHeader = """###############################################################
 """
 
 CHeader = """/*******************************************************************************
-* Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal

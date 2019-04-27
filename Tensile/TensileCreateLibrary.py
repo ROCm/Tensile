@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,20 +20,19 @@
 ################################################################################
 # This script only gets called by CMake
 
-from Common import globalParameters, HR, print1, print2, printExit, \
-                   ensurePath, CHeader, CMakeHeader, assignGlobalParameters, \
-                   ProgressBar, listToInitializer
+from __future__ import print_function
 
-
-import Common
-import EmbeddedData
-import Utils
-import YAMLIO
-
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
+                   CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, \
+                   listToInitializer
 from KernelWriterAssembly import KernelWriterAssembly
 from KernelWriterSource import KernelWriterSource
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
+import Common
+import EmbeddedData
+import Utils
+import YAMLIO
 
 import argparse
 import itertools
@@ -43,7 +42,6 @@ import shutil
 import subprocess
 import sys
 import time
-
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -56,7 +54,6 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     kernelName = kernelWriter.getKernelName(kernel)
     #sys.stderr.write("kernel:%s\n"% kernelName)
     (err, src) = kernelWriter.getSourceFileString(kernel)
-
     header = kernelWriter.getHeaderFileString(kernel)
 
     return (err, src, header, kernelName)
@@ -68,9 +65,12 @@ def processKernelSourceWithArgs(args):
     return processKernelSource(*args)
 
 def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
-    assemblyKernels = [kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly']
+    assemblyKernels = list([kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly'])
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
+
+    if len(assemblyKernels) == 0:
+        return []
 
     if globalParameters["MergeFiles"]:
         objectFiles = [os.path.join(asmDir, k + '.o') for k in assemblyKernels]
@@ -108,7 +108,7 @@ def buildSourceCodeObjectFile(kernelFile):
     hipLinkFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--ldflags', '--shared']).split(' ')
 
     compileArgs = ['/opt/rocm/bin/hcc'] + archFlags + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
-    #print ' '.join(compileArgs)
+    #print(' '.join(compileArgs))
     subprocess.check_call(compileArgs)
 
     linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
@@ -127,7 +127,7 @@ def buildSourceCodeObjectFiles(kernelFiles, kernels):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
     if cpus > 1:
-        print "# Launching source kernel compilation processes (cpus={}, kernels={})".format(cpus, len(sourceKernelFiles))
+        print("# Launching source kernel compilation processes (cpus={}, kernels={})".format(cpus, len(sourceKernelFiles)))
         pool = multiprocessing.Pool(cpus)
         coFiles = pool.map(buildSourceCodeObjectFile, sourceKernelFiles)
     else:
@@ -163,7 +163,7 @@ def prepAsm():
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] else ""))
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
-  os.chmod(assemblerFileName, 0777)
+  os.chmod(assemblerFileName, 0o777)
 
 ################################################################################
 def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
@@ -272,7 +272,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   if cpus > 1:
-    print "# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels))
+    print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))
 
     pool = multiprocessing.Pool(cpus)
 
@@ -280,17 +280,17 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
     pool.close()
   else:
-    print "# Compiling kernels (no multiprocessing, kernels=%u)" % (len(kernels))
+    print("# Compiling kernels (no multiprocessing, kernels=%u)" % (len(kernels)))
     if globalParameters['ShowProgressBar']:
       kIter = Utils.tqdm(kIter)
 
     results = map(processKernelSourceWithArgs, kIter)
   
-  print len(results)
+  print(len(results))
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if len(kernelsWithBuildErrs) > 0:
-    print "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
+    print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
 
 
@@ -309,7 +309,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     (err, src) = kernelWriter.getSourceFileStringBetaOnly(kernel)
     kernelSourceFile.write(src)
     if err:
-      print "*** warning: invalid kernel#%u"%kernelName
+      print("*** warning: invalid kernel#%u"%kernelName)
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
     # write kernel.h
@@ -322,14 +322,15 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
   # close merged
   if globalParameters["MergeFiles"]:
+    kernelSourceFile.close()
     kernelHeaderFile.close()
 
-  codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly)
-
-  codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
+  if globalParameters["BuildCodeObjects"]:
+    codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly)
+    codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
-  print "# Kernel Building elapsed time = %.1f secs" % (stop-start)
+  print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
   print1("# Writing Solutions")
   if globalParameters["ShowProgressBar"]:
@@ -569,7 +570,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                     solutionsForSchedule, exactLogic, \
                                     solutionNamesForSchedule, True)
     if rangeLogic != None:
-      print "** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3"
+      print("** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3")
     s += "  /* exact mappings */\n"
     s += exactLogicStr
     s += "\n  return nullptr;\n"
@@ -890,6 +891,8 @@ def TensileCreateLibrary():
   arguments["EmbedLibrary"] = args.EmbedLibrary
   assignGlobalParameters(arguments)
 
+  globalParameters["BuildCodeObjects"] = True
+
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
@@ -956,7 +959,7 @@ def TensileCreateLibrary():
       kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
-  problemTypes = logicData.keys()
+  problemTypes = list(logicData.keys())
   codeObjectFiles = writeSolutionsAndKernels(outputPath, problemTypes, solutions,
                                              kernels, kernelsBetaOnly,
                                              solutionWriter,

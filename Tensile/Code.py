@@ -1,3 +1,26 @@
+################################################################################
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+# ies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+################################################################################
+
+from __future__ import print_function
+
 # Global to print module names around strings
 printModuleNames = 0
 
@@ -82,15 +105,15 @@ class Module(Item):
     self.addCode(TextBlock(text))
 
   def prettyPrint(self,indent=""):
-    print "%sModule %s:"% (indent,self.name)
+    print("%sModule %s:"% (indent,self.name))
     for i in self.itemList:
       if isinstance(i, Module):
         i.prettyPrint(indent+"  ")
       elif isinstance(i, str):
-        print indent, '"', str(i).strip('\n'), '"'
+        print(indent, '"', str(i).strip('\n'), '"')
       else: # Inst
-          print indent, "%s: [ %s ]" % \
-              (i.__class__.__name__, str(i).strip('\n'))
+          print(indent, "%s: [ %s ]" % \
+              (i.__class__.__name__, str(i).strip('\n')))
 
   """
   Count number of items with specified type in this Module
@@ -199,13 +222,14 @@ class Inst(Item):
 
   def __str__(self):
     return self.text
+"""
+ Construct a waitcnt from specified lgkmcnt and vmcnt:
+ lgkmcnt, vmcnt:
+   if -1 then will not be added to the wait term.
 
-# Construct a waitcnt from specified lgkmcnt and vmcnt:
-# lgkmcnt, vmcnt:
-#   if -1 then will not be added to the wait term.
-#
-# If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
-# an instruction with a comment is returned.
+ If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
+ an instruction with a comment is returned.
+"""
 class WaitCnt (Inst):
   def __init__(self,lgkmcnt=-1,vmcnt=-1,comment=""):
     self.lgkmcnt = lgkmcnt
