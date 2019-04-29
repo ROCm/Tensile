@@ -34,7 +34,12 @@ include_directories("." ${GTEST_SOURCE_DIR}/include)
 
 
 add_executable(TensileTests ${test_sources})
-add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+if(GTEST_INTEGRATION)
+    gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+else()
+    add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+endif()
 
 target_link_libraries(TensileTests gtest Tensile)
 
