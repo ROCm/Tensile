@@ -35,8 +35,7 @@ namespace Tensile
 {
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    TENSILE_API
-    class EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
+    class TENSILE_API EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
     {
     public:
         using Singleton = LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>;

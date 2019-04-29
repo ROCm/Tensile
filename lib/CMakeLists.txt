@@ -67,7 +67,6 @@ add_library (Tensile STATIC ${tensile_sources})
 target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(configs)
-add_subdirectory(client)
 
 if(USE_LLVM)
     #target_link_libraries( Tensile PUBLIC LLVM )
@@ -75,6 +74,7 @@ if(USE_LLVM)
 endif()
 
 if(HIP_FOUND)
+    add_subdirectory(client)
     add_subdirectory(source/hip)
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} TensileHip )
 endif()

@@ -274,48 +274,6 @@ namespace Tensile
                                   beta);
     }
 
-    ContractionProblem ContractionProblem::Convolution_1x1_Fwd(TensorDescriptor const& weights, TensorOps const& wOps,
-                                                               TensorDescriptor const& x,       TensorOps const& xOps,
-                                                               TensorDescriptor const& y,       TensorOps const& yOps)
-    {
-#if 0
-        TENSILE_ASSERT_EXC(x.dimensions() == 4);
-        TENSILE_ASSERT_EXC(weights.dimensions() == 4);
-        TENSILE_ASSERT_EXC(y.dimensions() == 4);
-
-
-        // in_c, w, h, out_c -> in_c, w*h, out_c
-        TensorDescriptor a = weights;
-        a.collapseDims(1,3);
-
-        // w, h, in_c, n -> w*h, in_c, n
-        TensorDescriptor b = x;
-        b.collapseDims(0,2);
-
-        // w, h, out_c, n -> w*h, out_c, n
-        TensorDescriptor d = y;
-        d.collapseDims(0,2);
-
-
-        TensorDescriptor weights(dataType, {outChannels, inChannels, 1});
-        TensorDescriptor input(  dataType, { inChannels, height, width, images});
-        TensorDescriptor output( dataType, {outChannels, height, width, images});
-
-        input.collapseDims(1,3);
-        output.collapseDims(1,3);
-
-        TensorOps nop;
-
-        ContractionProblem problem = ContractionProblem::GEMM(false, false,
-                                                              weights, nop, input, nop,
-                                                              output, nop, output, nop, 0.0);
-
-        ContractionProblem problem = ContractionProblem::GEMM(false, false,
-                                                              a, wOps, b, xOps,
-                                                              d, nop, d, yOps, 0.0);
-#endif
-    }
-
     ContractionProblem::ContractionProblem(TensorDescriptor const& a, TensorOps const& aOps,
                                            TensorDescriptor const& b, TensorOps const& bOps,
                                            TensorDescriptor const& c, TensorOps const& cOps,
