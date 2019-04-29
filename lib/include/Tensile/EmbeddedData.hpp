@@ -42,8 +42,7 @@ namespace Tensile
      * Encapsulates the storage of binary data stored in the executable.
      */
     template <typename Object>
-    TENSILE_API
-    class EmbeddedData: public LazySingleton<EmbeddedData<Object>>
+    class TENSILE_API EmbeddedData: public LazySingleton<EmbeddedData<Object>>
     {
     public:
         using Base = LazySingleton<EmbeddedData<Object>>;
@@ -70,7 +69,7 @@ namespace Tensile
 
     protected:
         friend Base;
-        friend class EmbedData<Object>;
+        friend struct EmbedData<Object>;
 
         static Items & GetMutable()
         {
@@ -89,8 +88,7 @@ namespace Tensile
     };
 
     template <typename Object>
-    TENSILE_API
-    struct EmbedData
+    struct TENSILE_API EmbedData
     {
         EmbedData(std::initializer_list<uint8_t> data)
         {

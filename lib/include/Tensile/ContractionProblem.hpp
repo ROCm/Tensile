@@ -98,10 +98,6 @@ namespace Tensile
                                        TensorDescriptor const& d, TensorOps const& dOps,
                                        double beta);
 
-        static ContractionProblem Convolution_1x1_Fwd(TensorDescriptor const& weights, TensorOps const& wOps,
-                                                      TensorDescriptor const& x,       TensorOps const& xOps,
-                                                      TensorDescriptor const& y,       TensorOps const& yOps);
-
         static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
                                                  BatchIndices const& batchIndices,
                                                  BoundIndices const& boundIndices,
