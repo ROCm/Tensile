@@ -108,10 +108,10 @@ class ProblemType:
             assert d['DestDataType'] == 0
         except AssertionError as Error:
             print("DataType mismatch!")
-        rv.aType = 'Single'
-        rv.bType = 'Single'
-        rv.cType = 'Single'
-        rv.dType = 'Single'
+        rv.aType = 'Float'
+        rv.bType = 'Float'
+        rv.cType = 'Float'
+        rv.dType = 'Float'
 
         rv.batched = d['Batched']
 

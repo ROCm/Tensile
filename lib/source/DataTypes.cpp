@@ -35,10 +35,13 @@ namespace Tensile
     {
         switch(d)
         {
-            case DataType::Int32: return "Int32";
-            case DataType::Float: return "Float";
-            case DataType::Half: return  "Half";
-            case DataType::Int8: return  "Int8";
+            case DataType::Float        : return "Float";
+            case DataType::Double       : return "Double";
+            case DataType::ComplexFloat : return "ComplexFloat";
+            case DataType::ComplexDouble: return "ComplexDouble";
+            case DataType::Half         : return "Half";
+            case DataType::Int8         : return "Int8";
+            case DataType::Int32        : return "Int32";
 
             case DataType::Count:;
         }
@@ -55,10 +58,13 @@ namespace Tensile
         std::string strValue;
         stream >> strValue;
 
-        if(     strValue == ToString(DataType::Half))  t = DataType::Half;
-        else if(strValue == ToString(DataType::Float)) t = DataType::Float;
-        else if(strValue == ToString(DataType::Int32)) t = DataType::Int32;
-        else if(strValue == ToString(DataType::Int8))  t = DataType::Int8;
+        if(     strValue == ToString(DataType::Float        )) t = DataType::Float;
+        else if(strValue == ToString(DataType::Double       )) t = DataType::Double;
+        else if(strValue == ToString(DataType::ComplexFloat )) t = DataType::ComplexFloat;
+        else if(strValue == ToString(DataType::ComplexDouble)) t = DataType::ComplexDouble;
+        else if(strValue == ToString(DataType::Half         )) t = DataType::Half;
+        else if(strValue == ToString(DataType::Int8         )) t = DataType::Int8;
+        else if(strValue == ToString(DataType::Int32        )) t = DataType::Int32;
         else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
         {
             int value = atoi(strValue.c_str());

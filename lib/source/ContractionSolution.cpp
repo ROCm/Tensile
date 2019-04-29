@@ -178,7 +178,7 @@ namespace Tensile
         rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));
         rv.args.append<uint32_t>("sizeK", problem.batchSize(0));
 
-        if(inputs.beta == static_cast<typename TypedInputs::BetaType>(0))
+        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
             rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
         }
