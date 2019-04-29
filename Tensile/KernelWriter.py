@@ -1207,7 +1207,8 @@ class KernelWriter:
         not kernel["SuppressNoLoadLoop"] and \
         kernel["PrefetchAcrossPersistent"]
 
-    self.prefetchAcrossPersistent0 = 1
+    # turn on parts of prefetchAcrossPersistent code for testing
+    self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
     self.prefetchAcrossPersistent2 = 0 and self.prefetchAcrossPersistent
 
     self.enable = {}

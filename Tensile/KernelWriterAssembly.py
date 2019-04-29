@@ -828,7 +828,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       self.mixinst = "NOT_SUPPORTED"
 
-    self.overflowedResources = False # if true, comment out whole kernel
+    self.overflowedResources = 0 # if true, comment out whole kernel
 
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
@@ -2390,8 +2390,20 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.overflowedResources:
       print ""
-      printWarning("%s overflowed resources, possibly too many vgprs(%u) or sgprs(%u)" \
-          % (self.kernelName, self.vgprPool.size(), self.totalSgprs))
+      if self.overflowedResources == 1:
+        msg = "too many vgprs"
+      elif self.overflowedResources == 2:
+        msg = "too many sgprs"
+      elif self.overflowedResources == 3:
+        msg = "half store requires at lesat two elements per batch"
+      elif self.overflowedResources == 4:
+        msg = "Occupancy limit"
+      else:
+        msg = "unknown"
+
+      printWarning("%s overflowed resources (%d), %s vgprs=%u, sgprs=%u" \
+          % (self.kernelName, self.overflowedResources, msg, \
+          self.vgprPool.size(), self.totalSgprs))
       kStr += "s_endpgm // overflowed resources\n"
       kStr += ".if 0\n"
 
@@ -6508,7 +6520,7 @@ class KernelWriterAssembly(KernelWriter):
         numSgprsPerElement = 2
         numElementsPerBatchLimitedBySgprs = (self.maxSgprs - self.startSgprTmpPool - fixedSgprsPerBatch - 1) / numSgprsPerElement
         if numElementsPerBatchLimitedBySgprs<=0:
-          self.overflowedResources = 1
+          self.overflowedResources = 2
           numElementsPerBatchLimitedBySgprs = 1 # dummy value
           #assert numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
 
@@ -6630,7 +6642,7 @@ class KernelWriterAssembly(KernelWriter):
           numElementsPerBatch = len(elements[edgeI]) # max, do 'em all
 
         if shrinkDb:
-          print "NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
+          print "NumElementsPerBatch=", numElementsPerBatch, "LimitedBySgprs=", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = numElementsPerBatchLimitedBySgprs
 
@@ -6639,6 +6651,17 @@ class KernelWriterAssembly(KernelWriter):
           # only do an even number of halves - since these share hi/lo pieces of some registers?
           if numElementsPerBatch > 1:
             numElementsPerBatch = int(numElementsPerBatch/2)*2
+          else:
+            # The globalWriteBatch routine below can't handle odd elements per batch
+            # and 0 elements per batch is illegal.
+            # so if we don't have *GPR resources to handle a larger batch then need
+            # to mark overflowedResources rather than generate a kernel that won't work.
+            # It might be possible to fix globalWriteBatch to handle this case but these
+            # are likely to be low-performing so likely not worth optimizing.
+            if shrinkDb:
+              print "WARNING: half requires at least two elements per batch"
+            self.overflowedResources = 3
+
 
         assert numElementsPerBatch > 0, "numElementsPerBatch=0 for %s"%self.kernelName
 
@@ -7675,14 +7698,16 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def functionSuffix(self, kernel):
     kStr = ""
-    if self.vgprPool.size() > self.maxVgprs or self.totalSgprs > self.maxSgprs:
-      self.overflowedResources = True
+    if self.vgprPool.size() > self.maxVgprs:
+      self.overflowedResources = 1
+    elif self.totalSgprs > self.maxSgprs:
+      self.overflowedResources = 2
 
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
     numWorkGroupsPerCU = vgprPerThreadPerOccupancy / self.vgprPool.size()
     if numWorkGroupsPerCU < 1:
-      self.overflowedResources = True
+      self.overflowedResources = 4
 
     if self.overflowedResources:
       kStr += ".endif // overflowed resources \n"
