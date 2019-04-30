@@ -47,16 +47,16 @@ class DataType:
   idxHIP     = 3
   idxLibType = 4
   idxLibEnum = 5
-  #    char, reg,    ocl,       hip,       libType,                 libEnum
+  #    char, reg,       ocl,       hip,               libType,                 libEnum
   properties = [
-      ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
-      ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
-      ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
-      ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
-      ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
-      ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ],
-      ["B",    0.5, "ERROR",   "uint16_t",     "TensileBFloat16",      "tensileDataTypeBFloat16"     ]
+      ["S",    1,   "float",   "float",            "float",                "tensileDataTypeFloat"        ],
+      ["D",    2,   "double",  "double",           "double",               "tensileDataTypeDouble"       ],
+      ["C",    2,   "float2",  "float2",           "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
+      ["Z",    4,   "double2", "double2",          "TensileComplexDouble", "tensileDataTypeComplexDouble"],
+      ["H",    0.5, "ERROR",   "tensile_half",     "TensileHalf",          "tensileDataTypeHalf"         ],
+      ["4xi8", 1,   "ERROR",   "uint32_t",         "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
+      ["I",    1,   "ERROR",   "int32_t",          "TensileInt32",         "tensileDataTypeInt32"        ],
+      ["B",    0.5, "ERROR",   "tensile_bfloat16", "tensile_bfloat16",      "tensileDataTypeBFloat16"     ]
   ]
 
   ########################################
@@ -216,6 +216,19 @@ class ProblemType:
       else:
         printExit("NO dest data type or data type specified")
         self["DataType"] = DataType(0)
+
+
+    if "ComputeDataType" in config:
+      self["ComputeDataType"] = DataType(config["ComputeDataType"])
+    else:
+      if "DestDataType" in config:
+        self["ComputeDataType"] = DataType(config["DestDataType"])
+      else:
+        if "DataType" in config:
+          self["ComputeDataType"] = DataType(config["DataType"])
+        else:
+          printExit("NO compute data type, or dest data type, or data type specified")
+          self["DataType"] = DataType(0)
 
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
@@ -734,6 +747,7 @@ class Solution:
       kernel["ProblemType"]["UseBeta"] = beta
       kernel["ProblemType"]["DataType"] = problemType["DataType"]
       kernel["ProblemType"]["DestDataType"] = problemType["DestDataType"]
+      kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \

@@ -876,6 +876,7 @@ class SolutionWriter:
     if includeData:
       typeName = problemType["DataType"].toCpp()
       destTypeName = problemType["DestDataType"].toCpp()
+      computeTypeName = problemType["ComputeDataType"].toCpp()
       if self.language == "HIP":
         argList.append(("%s *"%destTypeName, "dataD"))
         argList.append(("const %s *"%destTypeName, "dataC"))
@@ -886,9 +887,9 @@ class SolutionWriter:
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))
-      argList.append((destTypeName, "alpha"))
+      argList.append((computeTypeName, "alpha"))
       if problemType["UseBeta"]:
-        argList.append((destTypeName, "beta"))
+        argList.append((computeTypeName, "beta"))
 
     # initial strides ?
     firstStride = 1
