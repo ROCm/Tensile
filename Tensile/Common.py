@@ -169,6 +169,8 @@ for numThreads in range(64, 1025, 64):
       if sg0*sg1*nsg == numThreads:
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
+
+
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
@@ -256,11 +258,14 @@ validParameters = {
     # Can reduce pressure on local read instruction dispatch queue
     "ScheduleLocalWrite":         [0, 1],
 
-
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
     # followed by local writes, followed by MACs
     "ScheduleIterAlg":              [0, 1],
+
+    # LDD Support
+    # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
+    "LdcEqualsLdd":               [ False, True ],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -274,7 +279,7 @@ validParameters = {
     # G2L registers used to stage data.  Also replaces the
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
-    "DirectToLds":                [ False, True],
+    "DirectToLds":                [ False, True ],
 
     # Load options:
     # (GRO = Global Read Offset)
@@ -435,7 +440,7 @@ validParameters = {
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
-    # < 0 : Swaps the position of wg0 and wg1.
+    # < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*. No longer supported.
     # Tensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
     #
@@ -457,7 +462,7 @@ validParameters = {
     #
     # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
-    "WorkGroupMapping":           list(range(-1024,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
+    "WorkGroupMapping":           list(range(0,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               list(range(1, 40+1)),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
     "WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
@@ -653,12 +658,14 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"SuppressNoLoadLoop":       [ True ]},
-    {"ExpandPointerSwap":         [ True ]},
+    {"SuppressNoLoadLoop":        [ True ] },
+    {"ExpandPointerSwap":         [ True ] },
 
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
+
+    {"LdcEqualsLdd":              [ True ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
@@ -745,6 +752,9 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    # for LD description
+    "NumIndiciesLD":            4,
+    "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [
@@ -859,8 +869,7 @@ def tryAssembler(isaVersion, options, asmString):
              % (globalParameters["AssemblerPath"], isaVersion, options)
 
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
-  # import pdb
-  # pdb.set_trace()
+
   try:
     result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
     if globalParameters["PrintLevel"] >=2:
@@ -941,8 +950,6 @@ def assignGlobalParameters( config ):
   for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
     globalParameters["AsmCaps"][v] = {}
     globalParameters["ArchCaps"][v] = {}
-    # import pdb
-    # pdb.set_trace()
     isaVersion = "gfx" + "".join(map(str,v))
     globalParameters["AsmCaps"][v]["SupportedISA"] = tryAssembler(isaVersion, "", "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,v0")
@@ -954,12 +961,13 @@ def assignGlobalParameters( config ):
       globalParameters["AsmCaps"][v]["MaxVmcnt"] = 63
     elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
       globalParameters["AsmCaps"][v]["MaxVmcnt"] = 15
+    else:
+      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 0
 
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
-    # import pdb
-    # pdb.set_trace()
+
     print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
     globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6))
     print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))

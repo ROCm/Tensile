@@ -219,13 +219,13 @@ BenchmarkProblems:
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [1]
       BenchmarkCommonParameters:
         - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - VectorWidth: [2]
-        - WorkGroupMapping: [-8]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
@@ -246,13 +246,13 @@ BenchmarkProblems:
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [1]
       BenchmarkCommonParameters:
         - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - VectorWidth: [1]
-        - WorkGroupMapping: [-8]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]

@@ -83,7 +83,16 @@ class LibraryLogic:
           self.__set_indexOrder(None)
 
         if (length > 7):
-          self.__set_exactLogic(data[7])
+          exactData = data[7]
+          exactList = list()
+          for exact in exactData:
+            size = exact[0]
+            if (len(size) > 4):
+              exactOut = [size[:4],exact[1]]
+              exactList.append(exactOut)
+            else:
+              exactList.append(exact)
+          self.__set_exactLogic(exactList)
         else:
           self.__set_exactLogic(None)
 

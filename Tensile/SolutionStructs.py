@@ -247,11 +247,17 @@ class ProblemType:
     else:
       self["NumIndicesC"] = 2
 
+    self["NumIndiciesLD"] = 4
+    self["IndexAssignmentsLD"][0] = self["NumIndicesC"] + 1
+    for i in range(1, len(self["IndexAssignmentsLD"])):
+      self["IndexAssignmentsLD"][i] = self["IndexAssignmentsLD"][i-1] + 1
+
   ########################################
   def initTensorContraction(self, config):
     assignParameterRequired(self.state, "NumIndicesC", config)
     assignParameterRequired(self.state, "IndexAssignmentsA", config)
     assignParameterRequired(self.state, "IndexAssignmentsB", config)
+    self["NumIndiciesLD"] = 0
 
   ########################################
   def isGEMM(self):
@@ -429,10 +435,14 @@ class ProblemSizeRange:
 
   ########################################
   def __init__(self, problemType, config):
-    self.totalIndices = 1+max(problemType["IndexAssignmentsA"])
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"]) + problemType["NumIndiciesLD"]
     if len(config) < self.totalIndices:
       for i in range(len(config), self.totalIndices):
-        config.append(0)
+        if i < self.totalIndices - problemType["NumIndiciesLD"]:
+          config.append(0)
+        else:
+          config.append([0])
+
     self.indexMax = []
     self.indexIsSized = []
     self.indicesSized = []
@@ -574,11 +584,16 @@ class ProblemSizes:
           self.ranges.append( psr )
         elif sizeTypeKey == "Exact":
           e = dictionary[sizeTypeKey]
-          if len(e) != problemType["TotalIndices"]:
+          if len(e) == problemType["TotalIndices"]:
+            if problemType["OperationType"] == "GEMM":
+              e += [0, 0, 0, 0]
+            self.exacts.append(tuple(e))
+          elif len(e) == (problemType["TotalIndices"] + problemType["NumIndiciesLD"]):
+            self.exacts.append(tuple(e))
+          else:
             printExit("ExactSize %s doesn't match indices of ProblemType %s" \
                 % (e, problemType) )
-          else:
-            self.exacts.append(tuple(e))
+
         elif sizeTypeKey == "MinStride":
           e = dictionary[sizeTypeKey]
           if len(e) != problemType["TotalIndices"]:
@@ -596,6 +611,13 @@ class ProblemSizes:
       # set harmless default mins of 0
       self.minStrides = ([0]* problemType["TotalIndices"])
 
+    # not the ideal spot, but convert leading dims that are below the minimum size
+    if problemType["OperationType"] == "GEMM":
+      for i in range(0, len(self.ranges)):
+        self.ranges[i].problemSizes[:] = \
+          [self.convertLeadingDims(problemSize) for problemSize in self.ranges[i].problemSizes]
+      self.exacts[:] = [self.convertLeadingDims(problemSize) for problemSize in self.exacts]
+
     self.sizes = set()
     for sizeRange in self.ranges:
       self.sizes.update(sizeRange.problemSizes)
@@ -604,22 +626,48 @@ class ProblemSizes:
     self.totalProblemSizes = len(self.sizes)
 
     # max sizes
+    self.maxD = 0
     self.maxC = 0
     self.maxA = 0
     self.maxB = 0
     for problemSize in self.sizes:
-      sizeC = 1
-      sizeA = 1
-      sizeB = 1
-      for i in range(0, problemType["NumIndicesC"]):
+      sizeLdd = problemSize[self.problemType["IndexAssignmentsLD"][0]] if problemType["OperationType"] == "GEMM" else problemSize[0]
+      sizeD = max(self.minStrides[0], sizeLdd)
+      for i in range(1, problemType["NumIndicesC"]):
+        sizeD *= max(self.minStrides[i], problemSize[i])
+
+      sizeLdc = problemSize[self.problemType["IndexAssignmentsLD"][1]] if problemType["OperationType"] == "GEMM" else problemSize[0]
+      sizeC = max(self.minStrides[0], sizeLdc)
+      for i in range(1, problemType["NumIndicesC"]):
         sizeC *= max(self.minStrides[i], problemSize[i])
-      for i in self.problemType["IndexAssignmentsA"]:
+
+      sizeLda = problemSize[self.problemType["IndexAssignmentsLD"][2]] \
+                if problemType["OperationType"] == "GEMM" \
+                else problemSize[self.problemType["IndexAssignmentsA"][0]]
+      sizeA = max(self.minStrides[self.problemType["IndexAssignmentsA"][0]], sizeLda)
+      for i in self.problemType["IndexAssignmentsA"][1:]:
         sizeA *= max(self.minStrides[i], problemSize[i])
-      for i in self.problemType["IndexAssignmentsB"]:
+
+      sizeLdb = problemSize[self.problemType["IndexAssignmentsLD"][3]] \
+                if problemType["OperationType"] == "GEMM" \
+                else problemSize[self.problemType["IndexAssignmentsB"][0]]
+      sizeB = max(self.minStrides[self.problemType["IndexAssignmentsB"][0]], sizeLdb)
+      for i in self.problemType["IndexAssignmentsB"][1:]:
         sizeB *= max(self.minStrides[i], problemSize[i])
+
+      self.maxD = max(self.maxD, sizeD)
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
+
+  def convertLeadingDims(self, problemSize):
+    return problemSize[:self.problemType["NumIndicesC"]+1] + \
+           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentsLD"][0]]),) + \
+           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentsLD"][1]]),) + \
+           (max(problemSize[self.problemType["IndexAssignmentsLD"][2]],
+                problemSize[self.problemType["IndexAssignmentsA"][0]]),) + \
+           (max(problemSize[self.problemType["IndexAssignmentsLD"][3]],
+                problemSize[self.problemType["IndexAssignmentsB"][0]]),)
 
   def __str__(self):
     s = "ProblemSizes\n"
@@ -1088,6 +1136,8 @@ class Solution:
     state["DirectToLdsB"] = False
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
+
+    state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
 
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
     # grid size [0,1]
@@ -1675,10 +1725,12 @@ class Solution:
 
 
     # avoid bug somehow related to GlobalSplitU + Persistent
+    # avoid bug related to WGM<0
     # avoid bug somehow related to HPA + Persistent
-    if state["PersistentKernel"] and \
+    if state["PersistentKernel"] and (\
             (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) :
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) or \
+            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) ):
       state["PersistentKernel"] = 0
 
     problemType["AssignedDerivedParameters"] = True
@@ -1717,6 +1769,7 @@ class Solution:
     requiredParameters["MacroTile0"] = False # always prepended
     requiredParameters["MacroTile1"] = False # always prepended
     requiredParameters["DepthU"] = False # always prepended
+    requiredParameters["LdcEqualsLdd"] = False # always prepended
     requiredParameters["Kernel"] = True # distinguish kernels from solutions
                                         # for single-source compilation
     return requiredParameters
@@ -1742,9 +1795,14 @@ class Solution:
     if "MacroTile0" in state \
         and "MacroTile1" in state \
         and "DepthU" in state:
-      name += "%s%03ux%03ux%02u_" \
+      name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
+    if "LdcEqualsLdd" in state:
+      if state["LdcEqualsLdd"]:
+        name += "SE_"
+      else:
+        name += "SN_"
     for key in sorted(state.keys()):
       if key in requiredParameters:
         if requiredParameters[key]:
@@ -1824,7 +1882,7 @@ class Solution:
       return "1" if value else "0"
     elif isinstance(value, int):
       if value >= 0:
-        return "%02u" % value
+        return "%u" % value
       else: # -1 -> n1
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):

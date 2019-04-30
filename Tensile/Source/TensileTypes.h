@@ -86,7 +86,7 @@ TensileStatus tensileTeardown();
 // -  stores all dimensions of the problems (sizes and strides)
 // TensileCreateLibrary.cpp will create a typedef for each specific problem, ie
 // ProblemDims_Cijk_Ailk_Bljk_SB.
-template <int FirstStride, int LastStrideC, int LastStrideA, int LastStrideB, int NumSizes>
+template <int FirstStride, int LastStrideD, int LastStrideC, int LastStrideA, int LastStrideB, int NumSizes>
 class ProblemDims {
 public:
   using SizeType = unsigned int;
@@ -97,20 +97,26 @@ public:
     init<NumSizes>(args...);
 	};
 
-  const SizeType strideC(int idx) const {
+  const SizeType strideD(int idx) const {
     return  _dims[idx];
   }
 
+  const SizeType strideC(int idx) const {
+    return  _dims[LastStrideD-FirstStride + idx];
+  }
+
   const SizeType strideA(int idx) const {
-    return  _dims[LastStrideC-FirstStride + idx];
+    return  _dims[LastStrideD-FirstStride + LastStrideC-FirstStride + idx];
   }
 
   const SizeType strideB(int idx) const {
-    return  _dims[LastStrideC-FirstStride + LastStrideA-FirstStride + idx];
+    return  _dims[LastStrideD-FirstStride + LastStrideC-FirstStride +
+                  LastStrideA-FirstStride + idx];
   }
 
   const SizeType sizes(int idx=0) const {
-    return  _dims[LastStrideC-FirstStride + LastStrideA-FirstStride + LastStrideB-FirstStride + idx];
+    return  _dims[LastStrideD-FirstStride + LastStrideC-FirstStride +
+                  LastStrideA-FirstStride + LastStrideB-FirstStride + idx];
   }
 
   int numSizes() const { return NumSizes;};
@@ -138,8 +144,10 @@ private:
   }
 
 private:
-  // order: Cstride, Astride, Bstrides, sizes
-  SizeType _dims[LastStrideC-FirstStride + LastStrideA-FirstStride + LastStrideB-FirstStride + NumSizes];
+  // order: Dstride, Cstride, Astride, Bstrides, sizes
+  SizeType _dims[LastStrideD-FirstStride + LastStrideC-FirstStride +
+                 LastStrideA-FirstStride + LastStrideB-FirstStride +
+                 NumSizes];
 };
 
 
@@ -161,15 +169,20 @@ public:
     init<NumSizes-1>(args...);
   }
 
-	template <int FirstStride, int LastStrideC, int LastStrideA, int LastStrideB, int NumDimSizes>
-  ProblemKey(const ProblemDims<FirstStride, LastStrideC, LastStrideA, LastStrideB, NumDimSizes> &pdims) {
+	template <int FirstStride, int LastStrideD, int LastStrideC, int LastStrideA, int LastStrideB, int NumDimSizes>
+  ProblemKey(const ProblemDims<FirstStride, LastStrideD, LastStrideC, LastStrideA, LastStrideB, NumDimSizes> &pdims) {
     for (int i=0; i<NumSizes; i++) {
       _sizes[i] = pdims.sizes(i);
     }
+
+    _equalStrides = ((pdims.strideD(0) == pdims.strideC(0)) &&
+                     (pdims.strideD(1) == pdims.strideC(1)));
 	}
 
   bool operator< (const ProblemKey<NumSizes> & p) const
   {
+    if (p._equalStrides != this->_equalStrides)
+        return true;
     for (int i=0; i<NumSizes; i++) {
       if (p._sizes[i] < this->_sizes[i])
         return true;
@@ -182,6 +195,8 @@ public:
 
   bool operator== (const ProblemKey<NumSizes> & p) const
   {
+    if(p._equalStrides != this->_equalStrides)
+      return false;
     for (int i=0; i<NumSizes; i++) {
       if (p._sizes[i] != this->_sizes[i])
         return false;
@@ -226,6 +241,7 @@ private:
 private:
   // Data members:
   SizeType _sizes[NumSizes];
+  bool     _equalStrides;
 };
 
 //-------------
@@ -291,8 +307,8 @@ class ProblemType
 {
 public:
   ProblemType(const std::vector<int> &indicesFree,
-                    const std::vector<int> &indicesSummation,
-                    const std::vector<int> &indicesBatch)
+              const std::vector<int> &indicesSummation,
+              const std::vector<int> &indicesBatch)
     : _indicesFree(indicesFree),
       _indicesSummation(indicesSummation),
       _indicesBatch(indicesBatch)
@@ -324,13 +340,15 @@ struct ProblemProperties {
   // See writeSolutionAndExactTable in TensileCreateLibrary - this constructor must
   // be in-sync with the table written there.
   ProblemProperties(unsigned summationElementMultiple,
-                      unsigned free0ElementMultiple,
-                      unsigned free1ElementMultiple,
-                      int approxSize)
+                    unsigned free0ElementMultiple,
+                    unsigned free1ElementMultiple,
+                    int approxSize,
+                    bool equalStrides)
     : _summationElementMultiple(summationElementMultiple),
       _free0ElementMultiple(free0ElementMultiple),
       _free1ElementMultiple(free1ElementMultiple),
-      _approxSize(approxSize)
+      _approxSize(approxSize),
+      _equalStrides(equalStrides)
      {}
 
   // Constructor used to compute assertions for a specified problem size
@@ -371,6 +389,9 @@ struct ProblemProperties {
       _approxSize = 2; // still small
     else
       _approxSize = 99; // big enough
+
+    _equalStrides = ((pdims.strideD(0) == pdims.strideC(0)) &&
+                     (pdims.strideD(1) == pdims.strideC(1)));
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
@@ -379,13 +400,15 @@ struct ProblemProperties {
     return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
            (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
            (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
-           ((this->_approxSize) >= solutionRequirements._approxSize);
+           ((this->_approxSize) >= solutionRequirements._approxSize) &&
+           ((this->_equalStrides) == solutionRequirements._equalStrides);
   }
 
   unsigned _summationElementMultiple;
   unsigned _free0ElementMultiple;
   unsigned _free1ElementMultiple;
   int      _approxSize;
+  bool     _equalStrides;
 };
 
 

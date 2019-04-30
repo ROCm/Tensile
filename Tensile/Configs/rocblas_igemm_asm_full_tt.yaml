@@ -61,7 +61,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
           - [ 16, 8, 1 ]
           - [ 8, 16, 1 ]
-        - WorkGroupMapping: [-1, -4]
+        - WorkGroupMapping: [1, 4]
         - GlobalSplitU: [1]
         - DepthU: [ 8 ]
         - VectorWidth: [-1]
@@ -95,7 +95,7 @@ BenchmarkProblems:
           - [ 8, 8, 2 ]
           - [ 16, 8, 4 ]
           - [ 8, 16, 2 ]
-        - WorkGroupMapping: [-1, -4]
+        - WorkGroupMapping: [1, 4]
         - GlobalSplitU: [2, 4, 8]
         - DepthU: [ 8, 16, 24, 32 ]
         - VectorWidth: [-1]
@@ -130,7 +130,7 @@ BenchmarkProblems:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [-1, -4]
+        - WorkGroupMapping: [1, 4]
         - DepthU: [ 8 ]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -159,7 +159,7 @@ BenchmarkProblems:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [-1, -4]
+        - WorkGroupMapping: [1, 4]
         - DepthU: [ 8, 16, 24, 32 ]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -181,7 +181,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Source"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -208,7 +208,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -232,7 +232,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7"]
+    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
     ArchitectureName: "gfx906"
 
 #   ScheduleName: "vega10"

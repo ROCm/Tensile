@@ -160,7 +160,8 @@ def prepAsm():
     assemblerFile.write( \
       "${ASM} -x assembler -target amdgcn--amdhsa %s $@ -c -o $f.o $f.s\n" % \
       ("-mno-code-object-v3" if \
-      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] else ""))
+      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
+      globalParameters["CodeObjectVersion"] == "V2" else ""))
     assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
@@ -245,18 +246,19 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
       kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
       kernelHeaderFile.write("\n\n")
       kernelHeaderFile.write("__device__ inline int GenDot4(int a, int b, int c) { \n")
+      kernelHeaderFile.write("#if (__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__\n")
+      kernelHeaderFile.write("  typedef union { int32_t i; char4 z; } PkInt8x4;\n")
+      kernelHeaderFile.write("#else\n")
       kernelHeaderFile.write("  typedef struct { int c0:8,c1:8,c2:8,c3:8; } C4I8;\n")
       kernelHeaderFile.write("  typedef union { int32_t i; C4I8 z; } PkInt8x4;\n")
+      kernelHeaderFile.write("#endif\n")
       kernelHeaderFile.write("  PkInt8x4 va, vb; va.i = a; vb.i = b;\n")
 
-      kernelHeaderFile.write("//if (__oclc_ISA_version == 906)\n")
-      kernelHeaderFile.write("//{\n")
-      kernelHeaderFile.write("//    return (float)__llvm_amdgcn_sdot4(a, b, c, true);\n")
-      kernelHeaderFile.write("//}\n")
-      kernelHeaderFile.write("//else\n")
-      kernelHeaderFile.write("//{\n")
+      kernelHeaderFile.write("#if (__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__\n")
+      kernelHeaderFile.write("      return amd_mixed_dot(va.z, vb.z, c, true); }\n")
+      kernelHeaderFile.write("#else\n")
       kernelHeaderFile.write("      return c + (vb.z.c3*va.z.c3 + vb.z.c2*va.z.c2 + vb.z.c1*va.z.c1 + vb.z.c0*va.z.c0); }\n")
-      kernelHeaderFile.write("//}\n")
+      kernelHeaderFile.write("#endif\n")
       kernelHeaderFile.write("\n\n")
     else:
       kernelHeaderFile.write("#include <string>\n")
@@ -443,6 +445,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
     argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
     argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
+    
+    # tensile initializer
+    h += "\nvoid tensileInitialize();\n\n"
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"
@@ -458,9 +463,10 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
     lastStrideC = problemType["NumIndicesC"]
+    lastStrideD = problemType["NumIndicesC"]
     h += "typedef ProblemKey<%u> ProblemKey_%s;\n" % (numSizes,problemType)
-    h += "typedef ProblemDims<%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
-        % (firstStride, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
+    h += "typedef ProblemDims<%u,%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
+        % (firstStride, lastStrideD, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
     h += "typedef SolutionMapper<ProblemDims_%s, ProblemKey_%s> SolutionMapper_%s;\n" \
             % (problemType, problemType, problemType)
 
@@ -631,6 +637,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       logicSourceFile.write(s)
       logicSourceFile.close()
 
+  s += "\n"
+  s += writeTensileInitialize(logicData)
+
   # close merged files
   if globalParameters["MergeFiles"]:
     logicSourceFile = open(os.path.join(outputPath, \
@@ -649,6 +658,30 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.close()
 
 
+def writeTensileInitialize(logicData):
+
+  s = "/*******************************************************************************\n"
+  s += "* Tensilze initializer\n"
+  s += "*******************************************************************************/\n"
+  s += "void tensileInitialize() {\n"
+
+  for problemType in logicData:
+    s += "  masterSolutionMapper_%s.initialize();\n" % problemType
+    
+    for scheduleTuple in logicData[problemType]:
+      scheduleName  = scheduleTuple[0]
+      deviceNames   = scheduleTuple[1]
+
+
+      schedProbName = "%s_%s" % (scheduleName, problemType)
+      s += "  solutionMapper_%s.initializeMappers(" % (schedProbName)
+      s += "{%s}," % (', '.join('"{0}"'.format(w) for w in deviceNames))
+      s += "&masterSolutionMapper_%s);\n" % (problemType)
+      
+  s += "}"
+
+  return s
+
 def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
                                solutionsForSchedule, solutionNames, exactLogic):
   s = ""
@@ -659,12 +692,13 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d} }%s // %d" % \
+    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d} }%s // %d" % \
       (solutionName, solutionName, \
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
         solution["AssertMinApproxSize"], \
+        solution["LdcEqualsLdd"], \
         "," if i < len(solutionsForSchedule)-1 else "", \
         i)
     s += "\n"
@@ -674,9 +708,11 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   # Write the exact problems here
   s += "// table of exact problem dims and selected solutionIdx\n"
   s += "static const std::pair<const ProblemKey_%s, int> embeddedExactTable_%s[] = {\n" % (problemType,schedProbName)
+  numSizes = problemType["TotalIndices"]
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
-    problemSize = rule[0]
+    problemSize = rule[0][:numSizes]
+    problemStrides = rule[0][numSizes:]
     solutionIdx = rule[1][0]
     solutionGFlops = rule[1][1]
     s += " { {"
@@ -696,8 +732,6 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   s += "// The entrypoint to find a solution for this problem is through the master solution master\n"
   s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
   s += "  \"%s\", // schedule+problem name\n" % (schedProbName) 
-  s += "  {%s}, // Device names\n" % (', '.join('"{0}"'.format(w) for w in deviceNames))
-  s += "  &masterSolutionMapper_%s, // add to this master solution mapper\n" % (problemType)
   s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
   s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
   s += "  &problemType_%s);\n" % (problemType)
@@ -719,12 +753,15 @@ def writeExactLogic(problemType, indexOrder,
   s += "  ProblemDims_%s pdims(" % problemType
   indexChars = globalParameters["IndexChars"]
   firstStride = 0 if problemType["UseInitialStrides"] else 1
+  lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
   lastStrideA = len(problemType["IndexAssignmentsA"])
   lastStrideB = len(problemType["IndexAssignmentsB"])
-  for i in range(firstStride,lastStrideC):
+  for i in range(firstStride,lastStrideD):
     if i != firstStride: s += ", "
-    s += "strideC%u%s" % (i, indexChars[i])
+    s += "strideD%u%s" % (i, indexChars[i])
+  for i in range(firstStride,lastStrideC):
+    s += ", strideC%u%s" % (i, indexChars[i])
   for i in range(firstStride,lastStrideA):
     s += ", strideA%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsA"][i]])
@@ -753,16 +790,19 @@ def writeSolutionCall(solutionName, problemType):
   s = ""
   s += "%s(" % solutionName
   # solution parameters
-  s += " dataC, dataA, dataB, alpha"
+  s += " dataD, dataC, dataA, dataB, alpha"
   if problemType["UseBeta"]:
     s += ", beta"
   s += ", offsetC, offsetA, offsetB"
   firstStride = 1
   if problemType["UseInitialStrides"]:
     firstStride = 0
+  lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
   lastStrideA = len(problemType["IndexAssignmentsA"])
   lastStrideB = len(problemType["IndexAssignmentsB"])
+  for i in range(firstStride,lastStrideD):
+    s += ", strideD%u%s" % (i, indexChars[i])
   for i in range(firstStride,lastStrideC):
     s += ", strideC%u%s" % (i, indexChars[i])
   for i in range(firstStride,lastStrideA):

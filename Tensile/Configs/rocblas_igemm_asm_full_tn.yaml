@@ -374,6 +374,59 @@ BenchmarkProblems:
           - Exact: [ 8448, 48000, 1, 2816 ]
 
   ########################################
+  # TN - MIOpen tuning
+  ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - GlobalSplitU: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 4, 2 ]
+          - [ 2, 4 ]
+          - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16,  1 ]
+          - [ 16,  8,  2 ]
+          - [  8, 16,  2 ]
+          - [ 16,  4,  4 ]
+          - [  4, 16,  4 ]
+          - [ 16,  2,  8 ]
+          - [  8,  4,  8 ]
+          - [  8,  2, 16 ]
+          - [  4,  4, 16 ]
+          - [  2,  8, 16 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - GlobalSplitU: [1, 2, 3, 4, 5, 6]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [  3136, 2048, 1,  128]
+          - Exact: [  3025,   64, 1,  144]
+          - Exact: [  3025,  256, 1,   64]
+          - Exact: [   784,  512, 1,  128]
+          - Exact: [   784,  128, 1,  512]
+ 
+          - Exact: [ 50176,   63, 1,  784]
+          - Exact: [  3025,   64, 1,   64]
+          - Exact: [  3025,   64, 1,  256]
+
+          - Exact: [   196,  256, 1, 2304]
+          - Exact: [    49,  512, 1, 4608]
+
+  ########################################
   # TN - VectorWidth Correctness
   ########################################
     - # Benchmark Group
@@ -435,7 +488,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7"]
+    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
     ArchitectureName: "gfx906"
 
 #   ScheduleName: "vega10"
