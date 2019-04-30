@@ -545,6 +545,24 @@ namespace Tensile
         return rv.str();
     }
 
+    std::string ContractionProblem::description() const
+    {
+        std::ostringstream rv;
+
+        rv << operationIdentifier() << ",\n"
+           << "A: " << m_a << ",\n"
+           << "B: " << m_b << ",\n"
+           << "C: " << m_c << ",\n"
+           << "D: " << m_d << "\n";
+
+        return rv.str();
+    }
+
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem const& contraction)
+    {
+        return stream << contraction.description();
+    }
+
     std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free)
     {
         return stream << "{a=" << free.a << " b=" << free.b

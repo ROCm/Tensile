@@ -75,7 +75,7 @@ namespace Tensile
         };
         using BoundIndices = std::vector<BoundIndex>;
 
-        virtual std::string description() const { return operationDescription(); }
+        virtual std::string description() const;
 
         static ContractionProblem GEMM_Strides(bool transA, bool transB,
                                                DataType aType, DataType bType, DataType cType, DataType dType,
@@ -229,6 +229,8 @@ namespace Tensile
         Alpha alpha = 0;
         Beta beta   = 0;
     };
+
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem const& contraction);
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch);

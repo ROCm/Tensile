@@ -54,6 +54,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
     std::vector<float> b_h;
     std::vector<float> c_h;
     std::vector<float> d_h;
+    std::vector<float> d_in_h;
     std::vector<float> d_ref_h;
 
     float *a_d = nullptr;
@@ -75,11 +76,12 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
         b_h.resize(problem.b().totalAllocatedElements());
         c_h.resize(problem.c().totalAllocatedElements());
         d_h.resize(problem.d().totalAllocatedElements());
+        d_in_h.resize(problem.d().totalAllocatedElements());
 
-        InitTensor(a_h.data(), problem.a(), RandomInt<float>());
-        InitTensor(b_h.data(), problem.b(), RandomAlternatingInt<float>());
-        InitTensor(c_h.data(), problem.c(), RandomInt<float>());
-        InitTensor(d_h.data(), problem.d(), RandomInt<float>());
+        InitTensor(a_h.data(),    problem.a(), RandomInt<float>());
+        InitTensor(b_h.data(),    problem.b(), RandomAlternatingInt<float>());
+        InitTensor(c_h.data(),    problem.c(), RandomInt<float>());
+        InitTensor(d_in_h.data(), problem.d(), RandomInt<float>());
 
         //InitTensor(a_h.data(), problem.a, Iota<float>());
         //InitTensor(b_h.data(), problem.b, Iota<float>());
@@ -99,7 +101,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
         HIP_CHECK_EXC(hipMemcpy(a_d,     a_h.data(),     problem.a().totalAllocatedBytes(), hipMemcpyHostToDevice));
         HIP_CHECK_EXC(hipMemcpy(b_d,     b_h.data(),     problem.b().totalAllocatedBytes(), hipMemcpyHostToDevice));
         HIP_CHECK_EXC(hipMemcpy(c_d,     c_h.data(),     problem.c().totalAllocatedBytes(), hipMemcpyHostToDevice));
-        HIP_CHECK_EXC(hipMemcpy(d_d,     d_h.data(),     problem.d().totalAllocatedBytes(), hipMemcpyHostToDevice));
+        HIP_CHECK_EXC(hipMemcpy(d_d,     d_in_h.data(),  problem.d().totalAllocatedBytes(), hipMemcpyHostToDevice));
         HIP_CHECK_EXC(hipMemcpy(d_ref_d, d_ref_h.data(), problem.d().totalAllocatedBytes(), hipMemcpyHostToDevice));
 
         inputs.a = a_d;
@@ -343,7 +345,7 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
     }
 }
 
-TEST_P(RunGEMMKernelTest, DISABLED_KernelsLiteMixedExhaustive)
+TEST_P(RunGEMMKernelTest, KernelsLiteMixedExhaustive)
 {
     ContractionProblem problem = GetParam();
 
@@ -360,13 +362,11 @@ TEST_P(RunGEMMKernelTest, DISABLED_KernelsLiteMixedExhaustive)
 
     ASSERT_GT(solutions.size(), 0);
 
-    bool fail = false;
-
     for(auto const& solution : solutions)
     {
         ASSERT_NE(solution, nullptr);
 
-        //std::cout << solution->name() << std::endl;
+        std::cout << solution->name() << std::endl;
 
         std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
@@ -397,6 +397,9 @@ TEST_P(RunGEMMKernelTest, DISABLED_KernelsLiteMixedExhaustive)
         std::cout << "C Input:";
         WriteTensor(std::cout, c_h.data(), problem.c());
 
+        std::cout << "D Input:";
+        WriteTensor(std::cout, d_in_h.data(), problem.c());
+
         std::cout << "D Reference:";
         WriteTensor(std::cout, d_ref_h.data(), problem.d());
 
@@ -406,7 +409,7 @@ TEST_P(RunGEMMKernelTest, DISABLED_KernelsLiteMixedExhaustive)
 
         for(int i = 0; i < d_ref_h.size(); i++)
         {
-            ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i  << std::endl << solution->name();
+            ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i << " d input: " << d_in_h[i] << ", c: " << c_h[i] << std::endl << solution->name();
         }
     }
 }
@@ -484,6 +487,7 @@ INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, RunGEMMKernelTest,
                           ContractionProblem::GEMM(false,  true,    4,    4,    6,    4,    4,    4, 1.5, false,  2),
                           ContractionProblem::GEMM( true, false,    4,    4,    6,    6,    6,    4, 1.5, false,  2),
                           ContractionProblem::GEMM( true,  true,    4,    4,    6,    6,    4,    4, 1.5, false,  2),
+                          ContractionProblem::GEMM(false, false,  234,  123,  634,  234,  634,  234, 1.5, false, 1),
                           ContractionProblem::GEMM(false, false,  234,  123,  634,  245,  768,  249, 1.5, false, 12),
                           ContractionProblem::GEMM(false,  true,  234,  123,  634,  245,  768,  249, 1.5, false, 12),
                           ContractionProblem::GEMM( true, false,  234,  123,  634,  768,  768,  249, 1.5, false, 12),

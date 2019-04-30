@@ -86,9 +86,15 @@ namespace Tensile
         rv.numWorkGroups.z = c.sizes()[2];
 
         if(sizeMapping.workGroupMapping < 0)
-        {
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
-        }
+
+        unsigned int problemNumGroupTiles0 = rv.numWorkGroups.x;
+        unsigned int problemNumGroupTiles1 = rv.numWorkGroups.y;
+
+        if(sizeMapping.workGroupMapping < 0)
+            rv.numWorkGroups.x *= sizeMapping.globalSplitU;
+        else
+            rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -100,12 +106,6 @@ namespace Tensile
         }
 
         rv.sharedMemBytes = 0;
-
-        unsigned int problemNumGroupTiles0;
-        unsigned int problemNumGroupTiles1;
-
-        problemNumGroupTiles0 = rv.numWorkGroups.x;
-        problemNumGroupTiles1 = rv.numWorkGroups.y;
 
         rv.args.append<uint64_t>("tensor2dSizeC", c.strides()[2]);
         rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
@@ -181,6 +181,7 @@ namespace Tensile
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
             rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+            //rv.args.append<typename TypedInputs::BetaType>("beta", 0);
         }
 
         return rv;
