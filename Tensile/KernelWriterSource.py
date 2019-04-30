@@ -2561,6 +2561,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
       kStr += "#undef DATA_TYPE%s" % (self.endLine)
       kStr += "#undef DEST_DATA_TYPE%s" % (self.endLine)
+      kStr += "#undef COMPUTE_DATA_TYPE%s" % (self.endLine)
       #kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
