@@ -38,6 +38,8 @@ hipError_t hipHccModuleLaunchKernel(hipFunction_t f, uint32_t globalWorkSizeX,
 
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
+#include <Tensile/Debug.hpp>
+#include <Tensile/EmbeddedData.hpp>
 
 namespace Tensile
 {
@@ -50,25 +52,101 @@ namespace Tensile
 
         SolutionAdapter::~SolutionAdapter()
         {
-            if(m_module)
-                hipModuleUnload(m_module);
+            for(auto module: m_modules)
+                hipModuleUnload(module);
         }
 
         void SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
-            HIP_CHECK_EXC(hipModuleLoad(&m_module, path.c_str()));
+            hipModule_t module;
+            auto error = hipModuleLoad(&module, path.c_str());
+
+            if(error == hipErrorFileNotFound)
+                throw std::runtime_error(concatenate("Code object file '", path, "' not found."));
+            else
+                HIP_CHECK_EXC(error);
+
+            {
+                std::lock_guard<std::mutex> guard(m_access);
+                m_modules.push_back(module);
+            }
+        }
+
+        void SolutionAdapter::loadCodeObjectBytes(std::vector<uint8_t> const& bytes)
+        {
+            loadCodeObject(bytes.data());
+        }
+
+        void SolutionAdapter::loadCodeObject(const void * image)
+        {
+            hipModule_t module;
+
+            HIP_CHECK_EXC(hipModuleLoadData(&module, image));
+
+            {
+                std::lock_guard<std::mutex> guard(m_access);
+                m_modules.push_back(module);
+            }
+        }
+
+        void SolutionAdapter::loadEmbeddedCodeObjects()
+        {
+            loadEmbeddedCodeObjects("");
+        }
+
+        void SolutionAdapter::loadEmbeddedCodeObjects(std::string const& key)
+        {
+            auto const& embeddedData = EmbeddedData<Tensile::SolutionAdapter>::Get(key);
+
+            if(embeddedData.size() == 0)
+            {
+                if(Debug::Get().printCodeObjectInfo())
+                {
+                    std::cerr << "Found no embedded code objects";
+                    if(key != "")
+                        std::cerr << " with the key " << key;
+
+                    std::cerr << "." << std::endl;
+                }
+                return;
+            }
+
+            std::vector<hipModule_t> newModules(embeddedData.size());
+
+            for(size_t i = 0; i < embeddedData.size(); i++)
+                HIP_CHECK_EXC(hipModuleLoadData(&newModules[i], embeddedData[i].data()));
+
+            {
+                std::lock_guard<std::mutex> guard(m_access);
+                m_modules.insert(m_modules.end(), newModules.begin(), newModules.end());
+            }
         }
 
         hipFunction_t SolutionAdapter::getKernel(std::string const& name)
         {
+            std::unique_lock<std::mutex> guard(m_access);
+
             auto it = m_kernels.find(name);
             if(it != m_kernels.end())
                 return it->second;
 
-            hipFunction_t rv;
-            HIP_CHECK_EXC(hipModuleGetFunction(&rv, m_module, name.c_str()));
-            m_kernels[name] = rv;
-            return rv;
+            for(auto module: m_modules)
+            {
+                hipFunction_t rv;
+                auto err = hipModuleGetFunction(&rv, module, name.c_str());
+
+                if(err == hipSuccess)
+                {
+                    m_kernels[name] = rv;
+                    return rv;
+                }
+                else if(err != hipErrorNotFound)
+                {
+                    HIP_CHECK_EXC(err);
+                }
+            }
+
+            throw std::runtime_error(concatenate("Kernel ", name, " not found in any loaded module."));
         }
 
         void SolutionAdapter::launchKernel(KernelInvocation const& kernel)

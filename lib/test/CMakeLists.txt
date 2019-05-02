@@ -13,6 +13,7 @@ set(test_sources ${test_sources}
     test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
+    EmbeddedData_test.cpp
     KernelArguments_test.cpp
     TensorDescriptor_test.cpp
 )
@@ -34,6 +35,12 @@ include_directories("." ${GTEST_SOURCE_DIR}/include)
 
 add_executable(TensileTests ${test_sources})
 
+if(GTEST_INTEGRATION)
+    gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+else()
+    add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+endif()
+
 target_link_libraries(TensileTests gtest Tensile)
 
 file(COPY sample_library.yaml DESTINATION .)
@@ -42,6 +49,7 @@ if(HIP_FOUND)
     add_subdirectory(hip)
 
     target_link_libraries(TensileTests TensileHipTests rocblas)
+    target_link_libraries(TensileTests "--amdgpu-target=gfx900")
     # ${HIP_LIBRARIES}
 endif()
 

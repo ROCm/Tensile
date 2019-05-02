@@ -116,6 +116,27 @@ namespace Tensile
         streamJoin(stream, array, ", ");
         return stream;
     }
+
+    class StreamRead
+    {
+    public:
+        StreamRead(std::string const& value, bool except=true);
+        ~StreamRead();
+
+        bool read(std::istream & stream);
+
+    private:
+        std::string const& m_value;
+        bool m_except;
+        bool m_success = false;
+    };
+
+    //inline std::istream & operator>>(std::istream & stream, StreamRead & value);
+    inline std::istream & operator>>(std::istream & stream, StreamRead & value)
+    {
+        value.read(stream);
+        return stream;
+    }
 }
 
 #define TENSILE_STR_(x) #x

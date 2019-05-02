@@ -1,0 +1,5973 @@
+- {MinimumRequiredVersion: 4.8.1}
+- vega10
+- gfx900
+- [Device 6863, Device 6862, Device 687f, Device 6860, Device 6861, 'Vega 10 XTX [Radeon
+    Vega Frontier Edition]', 'Vega [Radeon RX Vega]', 'Vega 10 [Radeon Instinct MI25]']
+- AssignedDerivedParameters: true
+  Batched: true
+  ComplexConjugateA: false
+  ComplexConjugateB: false
+  DataType: 0
+  DestDataType: 0
+  HighPrecisionAccumulate: false
+  Index0: 0
+  Index01A: 0
+  Index01B: 1
+  Index1: 1
+  IndexAssignmentsA: [0, 3, 2]
+  IndexAssignmentsB: [1, 3, 2]
+  IndexUnroll: 3
+  IndexUnrollA: 1
+  IndexUnrollB: 1
+  IndicesBatch: [2]
+  IndicesFree: [0, 1]
+  IndicesSummation: [3]
+  NumIndicesBatch: 1
+  NumIndicesC: 3
+  NumIndicesFree: 2
+  NumIndicesSummation: 1
+  OperationType: GEMM
+  SilentHighPrecisionAccumulate: false
+  TLUA: true
+  TLUB: true
+  Tensor0: 0
+  Tensor1: 1
+  TileA: 0
+  TileB: 1
+  TotalIndices: 4
+  TransposeA: false
+  TransposeB: true
+  UseBeta: true
+  UseInitialStrides: false
+- - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 2
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: false
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 16
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: false
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Source
+    LSCA: 64
+    LSCB: 128
+    LSPA: 16
+    LSPB: 8
+    LVCA: 16
+    LVCB: 32
+    LVPA: 4
+    LVPB: 2
+    LdsNumElements: 7168
+    LdsNumElementsAlignedA: 1024
+    LdsNumElementsAlignedB: 2048
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 1024
+    LdsOffsetB_Blk: 5120
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 16
+    MacroTile0: 64
+    MacroTile1: 128
+    MacroTileA: 64
+    MacroTileB: 128
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 32
+    NumGlobalWriteVectorsPerThread: 8
+    NumLoadsA: 1
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 2
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 0
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT064x128x16_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 16
+    SubGroup1: 16
+    SubGroupA: 16
+    SubGroupB: 16
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 8]
+    ThreadTile0: 4
+    ThreadTile1: 8
+    ThreadTileA: 4
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: 0
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [16, 16, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 2
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 2
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: false
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: false
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Source
+    LSCA: 32
+    LSCB: 32
+    LSPA: 8
+    LSPB: 8
+    LVCA: 8
+    LVCB: 8
+    LVPA: 2
+    LVPB: 2
+    LdsNumElements: 2048
+    LdsOffsetA: 0
+    LdsOffsetB: 1024
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 32
+    MacroTile0: 32
+    MacroTile1: 32
+    MacroTileA: 32
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 16
+    NumGlobalWriteVectorsPerThread: 4
+    NumLoadsA: 4
+    NumLoadsB: 4
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 4
+    NumLoadsPerpendicularB: 4
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 1
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 4]
+    ThreadTile0: 4
+    ThreadTile1: 4
+    ThreadTileA: 4
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: 0
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 2
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: false
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 8
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: false
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Source
+    LSCA: 32
+    LSCB: 64
+    LSPA: 8
+    LSPB: 4
+    LVCA: 8
+    LVCB: 16
+    LVPA: 2
+    LVPB: 1
+    LdsNumElements: 1792
+    LdsNumElementsAlignedA: 256
+    LdsNumElementsAlignedB: 512
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 1024
+    LdsOffsetB: 256
+    LdsOffsetB_Blk: 1280
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 64
+    MacroTileA: 32
+    MacroTileB: 64
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 32
+    NumGlobalWriteVectorsPerThread: 8
+    NumLoadsA: 1
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 2
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 2
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x064x08_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 8]
+    ThreadTile0: 4
+    ThreadTile1: 8
+    ThreadTileA: 4
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: 0
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 1]
+    WorkGroupMapping: 1
+    WorkGroupMappingType: B
+    _staggerStrideShift: 3
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 2
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: false
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 16
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: false
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Source
+    LSCA: 64
+    LSCB: 32
+    LSPA: 4
+    LSPB: 8
+    LVCA: 16
+    LVCB: 8
+    LVPA: 1
+    LVPB: 2
+    LdsNumElements: 1536
+    LdsOffsetA: 0
+    LdsOffsetB: 1024
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 16
+    MacroTile0: 64
+    MacroTile1: 32
+    MacroTileA: 64
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 32
+    NumGlobalWriteVectorsPerThread: 8
+    NumLoadsA: 4
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 4
+    NumLoadsPerpendicularB: 2
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 3
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT064x032x16_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [8, 4]
+    ThreadTile0: 8
+    ThreadTile1: 4
+    ThreadTileA: 8
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: 0
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 2
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 4
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 64
+    LSPA: 32
+    LSPB: 16
+    LVCA: 8
+    LVCB: 16
+    LVPA: 8
+    LVPB: 4
+    LdsNumElements: 8192
+    LdsNumElementsAlignedA: 1024
+    LdsNumElementsAlignedB: 2048
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 1024
+    LdsOffsetB_Blk: 5120
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 64
+    MacroTileA: 32
+    MacroTileB: 64
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 8
+    NumGlobalWriteVectorsPerThread: 2
+    NumLoadsA: 1
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 2
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 4
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x064x32_GSU04
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 8]
+    ThreadTile0: 4
+    ThreadTile1: 8
+    ThreadTileA: 4
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 8
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 32
+    LSPA: 32
+    LSPB: 32
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 4096
+    LdsNumElementsAlignedA: 1024
+    LdsNumElementsAlignedB: 1024
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 2048
+    LdsOffsetB: 1024
+    LdsOffsetB_Blk: 3072
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 32
+    MacroTileA: 32
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 4
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 5
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU08
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 4]
+    ThreadTile0: 4
+    ThreadTile1: 4
+    ThreadTileA: 4
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 2
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 32
+    LSPA: 32
+    LSPB: 32
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 4096
+    LdsOffsetA: 0
+    LdsOffsetB: 1024
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 32
+    MacroTileA: 32
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 4
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 6
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU02
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 4]
+    ThreadTile0: 4
+    ThreadTile1: 4
+    ThreadTileA: 4
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 16
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 64
+    LSCB: 128
+    LSPA: 16
+    LSPB: 8
+    LVCA: 16
+    LVCB: 32
+    LVPA: 4
+    LVPB: 2
+    LdsNumElements: 3072
+    LdsOffsetA: 0
+    LdsOffsetB: 1024
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 16
+    MacroTile0: 64
+    MacroTile1: 128
+    MacroTileA: 64
+    MacroTileB: 128
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 32
+    NumGlobalWriteVectorsPerThread: 8
+    NumLoadsA: 1
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 2
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 7
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT064x128x16_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 16
+    SubGroup1: 16
+    SubGroupA: 16
+    SubGroupB: 16
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 8]
+    ThreadTile0: 4
+    ThreadTile1: 8
+    ThreadTileA: 4
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [16, 16, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 2
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 2
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 64
+    LSCB: 32
+    LSPA: 16
+    LSPB: 32
+    LVCA: 16
+    LVCB: 8
+    LVPA: 4
+    LVPB: 8
+    LdsNumElements: 8192
+    LdsNumElementsAlignedA: 2048
+    LdsNumElementsAlignedB: 1024
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 2048
+    LdsOffsetB_Blk: 6144
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 64
+    MacroTile1: 32
+    MacroTileA: 64
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 8
+    NumGlobalWriteVectorsPerThread: 2
+    NumLoadsA: 2
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 2
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 8
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT064x032x32_GSU02
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [8, 4]
+    ThreadTile0: 8
+    ThreadTile1: 4
+    ThreadTileA: 8
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 16
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 64
+    LSCB: 64
+    LSPA: 16
+    LSPB: 16
+    LVCA: 16
+    LVCB: 16
+    LVPA: 4
+    LVPB: 4
+    LdsNumElements: 4096
+    LdsNumElementsAlignedA: 1024
+    LdsNumElementsAlignedB: 1024
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 2048
+    LdsOffsetB: 1024
+    LdsOffsetB_Blk: 3072
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 16
+    MacroTile0: 64
+    MacroTile1: 64
+    MacroTileA: 64
+    MacroTileB: 64
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 16
+    NumGlobalWriteVectorsPerThread: 4
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 9
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT064x064x16_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 16
+    SubGroup1: 16
+    SubGroupA: 16
+    SubGroupB: 16
+    SuppressNoLoadLoop: true
+    ThreadTile: [4, 4]
+    ThreadTile0: 4
+    ThreadTile1: 4
+    ThreadTileA: 4
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [16, 16, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 2
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 32
+    LSPA: 32
+    LSPB: 32
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 4096
+    LdsOffsetA: 0
+    LdsOffsetB: 1024
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 32
+    MacroTileA: 32
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 4
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 10
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 4]
+    ThreadTile0: 4
+    ThreadTile1: 4
+    ThreadTileA: 4
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 16
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 128
+    LSCB: 128
+    LSPA: 8
+    LSPB: 8
+    LVCA: 32
+    LVCB: 32
+    LVPA: 2
+    LVPB: 2
+    LdsNumElements: 8192
+    LdsNumElementsAlignedA: 2048
+    LdsNumElementsAlignedB: 2048
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 2048
+    LdsOffsetB_Blk: 6144
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 16
+    MacroTile0: 128
+    MacroTile1: 128
+    MacroTileA: 128
+    MacroTileB: 128
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 64
+    NumGlobalWriteVectorsPerThread: 16
+    NumLoadsA: 2
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 2
+    NumLoadsPerpendicularB: 2
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 11
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT128x128x16_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 16
+    SubGroup1: 16
+    SubGroupA: 16
+    SubGroupB: 16
+    SuppressNoLoadLoop: true
+    ThreadTile: [8, 8]
+    ThreadTile0: 8
+    ThreadTile1: 8
+    ThreadTileA: 8
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [16, 16, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 2
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 64
+    LSPA: 32
+    LSPB: 16
+    LVCA: 8
+    LVCB: 16
+    LVPA: 8
+    LVPB: 4
+    LdsNumElements: 8192
+    LdsNumElementsAlignedA: 1024
+    LdsNumElementsAlignedB: 2048
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 1024
+    LdsOffsetB_Blk: 5120
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 64
+    MacroTileA: 32
+    MacroTileB: 64
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 8
+    NumGlobalWriteVectorsPerThread: 2
+    NumLoadsA: 1
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 2
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 12
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x064x32_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: true
+    ThreadTile: [4, 8]
+    ThreadTile0: 4
+    ThreadTile1: 8
+    ThreadTileA: 4
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 1
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 16
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 128
+    LSCB: 64
+    LSPA: 8
+    LSPB: 16
+    LVCA: 32
+    LVCB: 16
+    LVPA: 2
+    LVPB: 4
+    LdsNumElements: 3072
+    LdsOffsetA: 0
+    LdsOffsetB: 2048
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 16
+    MacroTile0: 128
+    MacroTile1: 64
+    MacroTileA: 128
+    MacroTileB: 64
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 32
+    NumGlobalWriteVectorsPerThread: 8
+    NumLoadsA: 2
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 2
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 13
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT128x064x16_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 16
+    SubGroup1: 16
+    SubGroupA: 16
+    SubGroupB: 16
+    SuppressNoLoadLoop: false
+    ThreadTile: [8, 4]
+    ThreadTile0: 8
+    ThreadTile1: 4
+    ThreadTileA: 8
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [16, 16, 1]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 2
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 64
+    LSCB: 32
+    LSPA: 16
+    LSPB: 32
+    LVCA: 16
+    LVCB: 8
+    LVPA: 4
+    LVPB: 8
+    LdsNumElements: 8192
+    LdsNumElementsAlignedA: 2048
+    LdsNumElementsAlignedB: 1024
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 2048
+    LdsOffsetB_Blk: 6144
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 64
+    MacroTile1: 32
+    MacroTileA: 64
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 8
+    NumGlobalWriteVectorsPerThread: 2
+    NumLoadsA: 2
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 2
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 14
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT064x032x32_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: true
+    ThreadTile: [8, 4]
+    ThreadTile0: 8
+    ThreadTile1: 4
+    ThreadTileA: 8
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 4
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 32
+    LSPA: 32
+    LSPB: 32
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 4096
+    LdsOffsetA: 0
+    LdsOffsetB: 1024
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 32
+    MacroTileA: 32
+    MacroTileB: 32
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 4
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: false
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 15
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x032x32_GSU04
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 4]
+    ThreadTile0: 4
+    ThreadTile1: 4
+    ThreadTileA: 4
+    ThreadTileB: 4
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BenchmarkFork: 0
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 32
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 4
+    GlobalLoadVectorWidthB: 4
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 4
+    GlobalSplitU: 2
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 4
+    GuaranteeNoPartialA: false
+    GuaranteeNoPartialB: false
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 32
+    LSCB: 64
+    LSPA: 32
+    LSPB: 16
+    LVCA: 8
+    LVCB: 16
+    LVPA: 8
+    LVPB: 4
+    LdsNumElements: 8192
+    LdsNumElementsAlignedA: 1024
+    LdsNumElementsAlignedB: 2048
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 4096
+    LdsOffsetB: 1024
+    LdsOffsetB_Blk: 5120
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 8
+    MacroTile0: 32
+    MacroTile1: 64
+    MacroTileA: 32
+    MacroTileB: 64
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 8
+    NumGlobalWriteVectorsPerThread: 2
+    NumLoadsA: 1
+    NumLoadsB: 2
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 2
+    NumThreads: 256
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 16
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT032x064x32_GSU02
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [4, 8]
+    ThreadTile0: 4
+    ThreadTile1: 8
+    ThreadTileA: 4
+    ThreadTileB: 8
+    UnrollMemFence: false
+    UseSgprForGRO: false
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 4
+    WorkGroup: [8, 8, 4]
+    WorkGroupMapping: 8
+    WorkGroupMappingType: B
+    _staggerStrideShift: 1
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 2
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BufferLoad: false
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 4
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: false
+    FractionalLoad: false
+    GlobalLoadVectorWidthA: 1
+    GlobalLoadVectorWidthB: 1
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 2
+    GlobalSplitU: 1
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 2
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: true
+    InnerUnroll: 1
+    KernelLanguage: Source
+    LSCA: 16
+    LSCB: 16
+    LSPA: 4
+    LSPB: 4
+    LVCA: 16
+    LVCB: 16
+    LVPA: 4
+    LVPB: 4
+    LdsNumElements: 409
+    LdsNumElementsAlignedA: 64
+    LdsNumElementsAlignedB: 64
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 128
+    LdsOffsetB: 64
+    LdsOffsetB_Blk: 192
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 1
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 4
+    MacroTile0: 16
+    MacroTile1: 16
+    MacroTileA: 16
+    MacroTileB: 16
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 4
+    NumGlobalWriteVectorsPerThread: 2
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 17
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT016x016x04_GSU01
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 8
+    SubGroup1: 8
+    SubGroupA: 8
+    SubGroupB: 8
+    SuppressNoLoadLoop: false
+    ThreadTile: [2, 2]
+    ThreadTile0: 2
+    ThreadTile1: 2
+    ThreadTileA: 2
+    ThreadTileB: 2
+    UnrollMemFence: false
+    UseSgprForGRO: 0
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 2
+    WorkGroup: [8, 8, 1]
+    WorkGroupMapping: 1
+    WorkGroupMappingType: B
+    _staggerStrideShift: 4
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 8
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 1
+    GlobalLoadVectorWidthB: 1
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 2
+    GlobalSplitU: 2
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 1
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: true
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 8
+    LSCB: 8
+    LSPA: 8
+    LSPB: 8
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 409
+    LdsNumElementsAlignedA: 64
+    LdsNumElementsAlignedB: 64
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 128
+    LdsOffsetB: 64
+    LdsOffsetB_Blk: 192
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 2
+    MacroTile0: 8
+    MacroTile1: 8
+    MacroTileA: 8
+    MacroTileB: 8
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 1
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 18
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT008x008x08_GSU02
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 4
+    SubGroup1: 4
+    SubGroupA: 4
+    SubGroupB: 4
+    SuppressNoLoadLoop: false
+    ThreadTile: [2, 2]
+    ThreadTile0: 2
+    ThreadTile1: 2
+    ThreadTileA: 2
+    ThreadTileB: 2
+    UnrollMemFence: false
+    UseSgprForGRO: 1
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 2
+    WorkGroup: [4, 4, 4]
+    WorkGroupMapping: 1
+    WorkGroupMappingType: B
+    _staggerStrideShift: 3
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 8
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 1
+    GlobalLoadVectorWidthB: 1
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 2
+    GlobalSplitU: 4
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 1
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: true
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 8
+    LSCB: 8
+    LSPA: 8
+    LSPB: 8
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 409
+    LdsNumElementsAlignedA: 64
+    LdsNumElementsAlignedB: 64
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 128
+    LdsOffsetB: 64
+    LdsOffsetB_Blk: 192
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 2
+    MacroTile0: 8
+    MacroTile1: 8
+    MacroTileA: 8
+    MacroTileB: 8
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 1
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 19
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT008x008x08_GSU04
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 4
+    SubGroup1: 4
+    SubGroupA: 4
+    SubGroupB: 4
+    SuppressNoLoadLoop: false
+    ThreadTile: [2, 2]
+    ThreadTile0: 2
+    ThreadTile1: 2
+    ThreadTileA: 2
+    ThreadTileB: 2
+    UnrollMemFence: false
+    UseSgprForGRO: 1
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 2
+    WorkGroup: [4, 4, 4]
+    WorkGroupMapping: 1
+    WorkGroupMappingType: B
+    _staggerStrideShift: 3
+  - AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 1
+    AssertSummationElementMultiple: 1
+    AssignedDerivedParameters: false
+    AssignedProblemIndependentDerivedParameters: true
+    BufferLoad: true
+    BufferStore: true
+    CheckDimOverflow: 0
+    CheckTensorDimAsserts: false
+    DepthU: 8
+    DirectToLds: false
+    DirectToLdsA: false
+    DirectToLdsB: false
+    DisableKernelPieces: 0
+    EdgeType: ShiftPtr
+    ExpandPointerSwap: true
+    FractionalLoad: 0
+    GlobalLoadVectorWidthA: 1
+    GlobalLoadVectorWidthB: 1
+    GlobalRead2A: true
+    GlobalRead2B: true
+    GlobalReadCoalesceGroupA: true
+    GlobalReadCoalesceGroupB: true
+    GlobalReadCoalesceVectorA: true
+    GlobalReadCoalesceVectorB: true
+    GlobalReadVectorWidth: 2
+    GlobalSplitU: 8
+    GlobalSplitUSummationAssignmentRoundRobin: true
+    GlobalSplitUWorkGroupMappingRoundRobin: false
+    GlobalWriteVectorWidth: 1
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: true
+    InnerUnroll: 1
+    KernelLanguage: Assembly
+    LSCA: 8
+    LSCB: 8
+    LSPA: 8
+    LSPB: 8
+    LVCA: 8
+    LVCB: 8
+    LVPA: 8
+    LVPB: 8
+    LdsNumElements: 409
+    LdsNumElementsAlignedA: 64
+    LdsNumElementsAlignedB: 64
+    LdsOffsetA: 0
+    LdsOffsetA_Blk: 128
+    LdsOffsetB: 64
+    LdsOffsetB_Blk: 192
+    LdsPadA: 0
+    LdsPadB: 0
+    LocalDotLayout: 1
+    LocalRead2A: true
+    LocalRead2B: true
+    LocalSplitU: 4
+    LocalWrite2A: true
+    LocalWrite2B: true
+    LocalWriteUseSgprA: false
+    LocalWriteUseSgprB: false
+    LoopDoWhile: false
+    LoopTail: true
+    LoopUnroll: 2
+    MacroTile0: 8
+    MacroTile1: 8
+    MacroTileA: 8
+    MacroTileB: 8
+    MacroTileShapeMax: 64
+    MacroTileShapeMin: 1
+    MaxOccupancy: 40
+    MinGlobalWriteVectorWidth: 1
+    NonTemporalA: 0
+    NonTemporalB: 0
+    NonTemporalC: 0
+    NumElementsPerThread: 1
+    NumGlobalWriteVectorsPerThread: 1
+    NumLoadsA: 1
+    NumLoadsB: 1
+    NumLoadsCoalescedA: 1
+    NumLoadsCoalescedB: 1
+    NumLoadsPerpendicularA: 1
+    NumLoadsPerpendicularB: 1
+    NumThreads: 64
+    PackBatchDims: 0
+    PackFreeDims: 1
+    PackGranularity: 2
+    PackedC0Indices: [I]
+    PackedC1Indices: [J]
+    PerformanceSyncLocation: -1
+    PerformanceWaitCount: -1
+    PerformanceWaitLocation: -1
+    PersistentKernel: 0
+    PrefetchGlobalRead: true
+    PrefetchLocalRead: true
+    ProblemType:
+      AssignedDerivedParameters: true
+      Batched: true
+      ComplexConjugateA: false
+      ComplexConjugateB: false
+      DataType: 0
+      DestDataType: 0
+      HighPrecisionAccumulate: false
+      Index0: 0
+      Index01A: 0
+      Index01B: 1
+      Index1: 1
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
+      IndexUnroll: 3
+      IndexUnrollA: 1
+      IndexUnrollB: 1
+      IndicesBatch: [2]
+      IndicesFree: [0, 1]
+      IndicesSummation: [3]
+      NumIndicesBatch: 1
+      NumIndicesC: 3
+      NumIndicesFree: 2
+      NumIndicesSummation: 1
+      OperationType: GEMM
+      SilentHighPrecisionAccumulate: false
+      TLUA: true
+      TLUB: true
+      Tensor0: 0
+      Tensor1: 1
+      TileA: 0
+      TileB: 1
+      TotalIndices: 4
+      TransposeA: false
+      TransposeB: true
+      UseBeta: true
+      UseInitialStrides: false
+    ReplacementKernel: false
+    ScheduleGlobalRead: 1
+    ScheduleIterAlg: 1
+    ScheduleLocalWrite: 1
+    SolutionIndex: 20
+    SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT008x008x08_GSU08
+    StaggerU: 32
+    StaggerUMapping: 0
+    StaggerUStride: 256
+    SubGroup0: 4
+    SubGroup1: 4
+    SubGroupA: 4
+    SubGroupB: 4
+    SuppressNoLoadLoop: false
+    ThreadTile: [2, 2]
+    ThreadTile0: 2
+    ThreadTile1: 2
+    ThreadTileA: 2
+    ThreadTileB: 2
+    UnrollMemFence: false
+    UseSgprForGRO: 1
+    Valid: true
+    VectorAtomicWidth: 1
+    VectorStore: true
+    VectorWidth: 2
+    WorkGroup: [4, 4, 4]
+    WorkGroupMapping: 1
+    WorkGroupMappingType: B
+    _staggerStrideShift: 3
+- [2, 3, 0, 1]
+- - - [1024, 128, 1, 128]
+    - [1, 499.969]
+  - - [4, 256, 1, 1792]
+    - [20, 64.679]
+  - - [128, 704, 1, 1792]
+    - [12, 2766.43]
+  - - [4, 1856, 1, 3328]
+    - [20, 332.872]
+  - - [5888, 256, 1, 1792]
+    - [9, 5823.15]
+  - - [1856, 448, 1, 3328]
+    - [14, 5409.26]
+  - - [3584, 1024, 1, 1792]
+    - [7, 6087.3]
+  - - [2368, 64, 1, 3328]
+    - [10, 3308.45]
+  - - [2368, 5888, 1, 256]
+    - [7, 6232.74]
+  - - [5888, 1856, 1, 256]
+    - [13, 6196.37]
+  - - [5056, 256, 1, 128]
+    - [2, 2068.98]
+  - - [4288, 4, 1, 768]
+    - [18, 255.135]
+  - - [2368, 1024, 1, 768]
+    - [7, 5389.11]
+  - - [128, 6784, 1, 3328]
+    - [14, 5646.63]
+  - - [5888, 1408, 1, 256]
+    - [9, 6080.37]
+  - - [5888, 1856, 1, 3328]
+    - [13, 6481.36]
+  - - [3584, 128, 1, 1792]
+    - [9, 4765.09]
+  - - [5056, 2944, 1, 768]
+    - [7, 6370.41]
+  - - [256, 1408, 1, 128]
+    - [2, 942.271]
+  - - [3584, 1408, 1, 256]
+    - [9, 5820.95]
+  - - [1024, 5056, 1, 128]
+    - [2, 2832.89]
+  - - [5056, 5056, 1, 3328]
+    - [11, 6588.9]
+  - - [448, 448, 1, 256]
+    - [12, 2720.11]
+  - - [2944, 3584, 1, 1792]
+    - [9, 6265.39]
+  - - [1024, 3584, 1, 3328]
+    - [9, 6285.1]
+  - - [4, 1408, 1, 1792]
+    - [20, 229.371]
+  - - [5888, 5056, 1, 128]
+    - [2, 3553.05]
+  - - [256, 4288, 1, 3328]
+    - [14, 5608.75]
+  - - [704, 1856, 1, 3328]
+    - [14, 6032.56]
+  - - [2944, 448, 1, 3328]
+    - [14, 5575.88]
+  - - [1024, 2368, 1, 256]
+    - [9, 5247.38]
+  - - [64, 4, 1, 256]
+    - [20, 3.73297]
+  - - [1024, 2944, 1, 1792]
+    - [11, 6101.32]
+  - - [5056, 64, 1, 3328]
+    - [14, 4568.73]
+  - - [448, 6784, 1, 1792]
+    - [9, 6038.41]
+  - - [256, 3584, 1, 1792]
+    - [14, 5498.11]
+  - - [704, 5056, 1, 768]
+    - [9, 6024.06]
+  - - [1408, 2368, 1, 1792]
+    - [9, 6131.83]
+  - - [256, 1408, 1, 3328]
+    - [14, 5106.87]
+  - - [448, 5056, 1, 256]
+    - [9, 5543.91]
+  - - [6784, 448, 1, 256]
+    - [9, 5711.46]
+  - - [128, 5056, 1, 128]
+    - [2, 1265.02]
+  - - [3584, 5888, 1, 768]
+    - [13, 6386.27]
+  - - [2368, 128, 1, 256]
+    - [10, 2926.0]
+  - - [1408, 2944, 1, 1792]
+    - [11, 6403.01]
+  - - [2944, 3584, 1, 768]
+    - [9, 6222.62]
+  - - [4, 5888, 1, 1792]
+    - [18, 389.18]
+  - - [1856, 5888, 1, 1792]
+    - [7, 6448.47]
+  - - [3584, 1024, 1, 256]
+    - [7, 5669.79]
+  - - [6784, 256, 1, 3328]
+    - [9, 5834.96]
+  - - [1408, 3584, 1, 256]
+    - [9, 5844.36]
+  - - [3584, 1024, 1, 768]
+    - [7, 5982.7]
+  - - [64, 704, 1, 128]
+    - [1, 188.97]
+  - - [6784, 6784, 1, 1792]
+    - [11, 6759.22]
+  - - [1856, 2368, 1, 3328]
+    - [9, 6240.68]
+  - - [1024, 64, 1, 3328]
+    - [16, 2242.46]
+  - - [6784, 4, 1, 128]
+    - [17, 123.721]
+  - - [1408, 704, 1, 768]
+    - [9, 5463.53]
+  - - [2368, 704, 1, 3328]
+    - [14, 5978.35]
+  - - [256, 5888, 1, 256]
+    - [9, 5193.66]
+  - - [1856, 4288, 1, 3328]
+    - [11, 6326.37]
+  - - [256, 2944, 1, 256]
+    - [9, 4626.31]
+  - - [5888, 1024, 1, 256]
+    - [9, 5823.61]
+  - - [4288, 2368, 1, 1792]
+    - [9, 6335.34]
+  - - [5056, 448, 1, 768]
+    - [9, 5844.69]
+  - - [1024, 704, 1, 256]
+    - [9, 4317.75]
+  - - [5056, 2944, 1, 1792]
+    - [7, 6423.36]
+  - - [1408, 2944, 1, 256]
+    - [9, 5924.47]
+  - - [4, 5888, 1, 256]
+    - [19, 160.224]
+  - - [6784, 5056, 1, 3328]
+    - [13, 6589.7]
+  - - [5056, 1856, 1, 768]
+    - [9, 6292.25]
+  - - [64, 2368, 1, 1792]
+    - [10, 3114.95]
+  - - [64, 128, 1, 128]
+    - [1, 32.7675]
+  - - [2944, 4, 1, 256]
+    - [18, 100.985]
+  - - [704, 5056, 1, 128]
+    - [3, 2955.58]
+  - - [4, 1856, 1, 768]
+    - [19, 164.466]
+  - - [64, 64, 1, 768]
+    - [10, 124.17]
+  - - [448, 448, 1, 3328]
+    - [14, 4211.6]
+  - - [64, 5888, 1, 1792]
+    - [14, 5033.75]
+  - - [128, 1024, 1, 128]
+    - [1, 455.711]
+  - - [5056, 128, 1, 768]
+    - [14, 5114.08]
+  - - [4, 448, 1, 1792]
+    - [20, 95.0683]
+  - - [4, 4288, 1, 128]
+    - [17, 83.4869]
+  - - [4, 6784, 1, 3328]
+    - [18, 436.655]
+  - - [1856, 1408, 1, 768]
+    - [9, 6117.32]
+  - - [704, 64, 1, 1792]
+    - [6, 1428.54]
+  - - [448, 2368, 1, 1792]
+    - [14, 5299.17]
+  - - [2944, 128, 1, 1792]
+    - [14, 5042.12]
+  - - [2944, 128, 1, 128]
+    - [2, 1055.36]
+  - - [3584, 64, 1, 3328]
+    - [12, 4712.02]
+  - - [704, 448, 1, 256]
+    - [10, 3079.05]
+  - - [1408, 128, 1, 1792]
+    - [10, 3834.55]
+  - - [448, 704, 1, 768]
+    - [10, 3949.18]
+  - - [2944, 64, 1, 256]
+    - [10, 2713.08]
+  - - [1408, 2944, 1, 128]
+    - [2, 2999.45]
+  - - [128, 2368, 1, 1792]
+    - [14, 4073.64]
+  - - [3584, 256, 1, 1792]
+    - [9, 5183.52]
+  - - [704, 4, 1, 256]
+    - [20, 28.6235]
+  - - [5056, 4, 1, 3328]
+    - [18, 414.321]
+  - - [448, 6784, 1, 256]
+    - [9, 5708.36]
+  - - [448, 5888, 1, 128]
+    - [2, 2573.72]
+  - - [64, 128, 1, 768]
+    - [10, 250.541]
+  - - [2944, 256, 1, 3328]
+    - [14, 5655.58]
+  - - [1024, 64, 1, 128]
+    - [1, 233.976]
+  - - [64, 4288, 1, 1792]
+    - [14, 3696.51]
+  - - [5056, 3584, 1, 1792]
+    - [7, 6478.49]
+  - - [6784, 5888, 1, 256]
+    - [7, 6390.35]
+  - - [1408, 448, 1, 128]
+    - [2, 1520.19]
+  - - [704, 1024, 1, 128]
+    - [2, 1699.44]
+  - - [4, 64, 1, 768]
+    - [20, 9.94074]
+  - - [1856, 2368, 1, 768]
+    - [9, 6157.64]
+  - - [1408, 5056, 1, 3328]
+    - [11, 6443.62]
+  - - [1024, 1408, 1, 256]
+    - [9, 4885.04]
+  - - [2368, 2368, 1, 3328]
+    - [13, 6202.16]
+  - - [1856, 6784, 1, 128]
+    - [2, 3430.62]
+  - - [704, 5888, 1, 3328]
+    - [9, 6249.95]
+  - - [5056, 704, 1, 3328]
+    - [9, 6111.08]
+  - - [2368, 2944, 1, 768]
+    - [9, 6206.78]
+  - - [1408, 1856, 1, 256]
+    - [9, 5792.94]
+  - - [704, 6784, 1, 1792]
+    - [9, 6061.13]
+  - - [1856, 704, 1, 768]
+    - [9, 5851.75]
+  - - [2368, 5056, 1, 256]
+    - [9, 6162.72]
+  - - [5056, 6784, 1, 1792]
+    - [7, 6571.06]
+  - - [5056, 128, 1, 1792]
+    - [14, 5561.63]
+  - - [256, 448, 1, 768]
+    - [12, 2935.96]
+  - - [4288, 64, 1, 3328]
+    - [14, 3891.87]
+  - - [704, 5888, 1, 256]
+    - [9, 5939.21]
+  - - [6784, 2944, 1, 128]
+    - [2, 3493.73]
+  - - [256, 704, 1, 1792]
+    - [10, 3666.87]
+  - - [2944, 256, 1, 256]
+    - [9, 4787.9]
+  - - [1024, 1024, 1, 1792]
+    - [9, 5637.03]
+  - - [448, 5888, 1, 1792]
+    - [14, 5768.67]
+  - - [704, 1408, 1, 3328]
+    - [14, 5684.6]
+  - - [5056, 64, 1, 768]
+    - [14, 3946.87]
+  - - [3584, 704, 1, 3328]
+    - [9, 6010.14]
+  - - [4, 1024, 1, 3328]
+    - [20, 267.085]
+  - - [2944, 256, 1, 128]
+    - [2, 1738.73]
+  - - [5056, 64, 1, 1792]
+    - [14, 4375.63]
+  - - [256, 6784, 1, 768]
+    - [9, 5662.19]
+  - - [6784, 5056, 1, 768]
+    - [13, 6521.32]
+  - - [256, 2944, 1, 1792]
+    - [9, 5511.57]
+  - - [5056, 256, 1, 768]
+    - [9, 5781.75]
+  - - [64, 3584, 1, 3328]
+    - [14, 4712.02]
+  - - [704, 1024, 1, 768]
+    - [9, 5074.06]
+  - - [2368, 1856, 1, 1792]
+    - [9, 6216.93]
+  - - [2944, 64, 1, 3328]
+    - [10, 4119.22]
+  - - [128, 6784, 1, 1792]
+    - [14, 5479.07]
+  - - [2368, 128, 1, 3328]
+    - [14, 4301.2]
+  - - [128, 2944, 1, 768]
+    - [14, 4537.65]
+  - - [448, 1408, 1, 256]
+    - [9, 4059.45]
+  - - [5056, 4288, 1, 128]
+    - [2, 3554.65]
+  - - [4, 704, 1, 256]
+    - [19, 28.0461]
+  - - [1024, 448, 1, 128]
+    - [3, 1208.4]
+  - - [448, 2944, 1, 1792]
+    - [14, 5413.39]
+  - - [1856, 5056, 1, 1792]
+    - [9, 6340.4]
+  - - [704, 2944, 1, 128]
+    - [2, 2731.76]
+  - - [1408, 5056, 1, 256]
+    - [9, 5958.4]
+  - - [2944, 1024, 1, 1792]
+    - [11, 6113.09]
+  - - [4288, 704, 1, 1792]
+    - [9, 6001.17]
+  - - [256, 4288, 1, 1792]
+    - [12, 5447.33]
+  - - [2368, 4288, 1, 768]
+    - [9, 6294.81]
+  - - [4, 1024, 1, 1792]
+    - [20, 188.025]
+  - - [5056, 1408, 1, 128]
+    - [2, 3214.3]
+  - - [1856, 4288, 1, 256]
+    - [9, 6038.23]
+  - - [64, 64, 1, 1792]
+    - [5, 202.635]
+  - - [5888, 1024, 1, 1792]
+    - [11, 6309.29]
+  - - [256, 3584, 1, 3328]
+    - [9, 5240.38]
+  - - [5888, 5056, 1, 256]
+    - [13, 6387.42]
+  - - [5056, 704, 1, 256]
+    - [9, 5775.17]
+  - - [128, 1408, 1, 128]
+    - [1, 668.289]
+  - - [448, 256, 1, 3328]
+    - [12, 3763.77]
+  - - [5056, 1024, 1, 3328]
+    - [11, 6494.21]
+  - - [3584, 3584, 1, 1792]
+    - [13, 6383.09]
+  - - [1408, 64, 1, 128]
+    - [1, 359.611]
+  - - [2944, 704, 1, 768]
+    - [9, 5993.88]
+  - - [1856, 3584, 1, 768]
+    - [7, 6184.14]
+  - - [1024, 6784, 1, 768]
+    - [9, 6155.83]
+  - - [1024, 256, 1, 256]
+    - [14, 3294.41]
+  - - [1856, 4, 1, 3328]
+    - [19, 322.572]
+  - - [128, 448, 1, 768]
+    - [10, 1665.35]
+  - - [2944, 3584, 1, 3328]
+    - [9, 6279.0]
+  - - [128, 4288, 1, 128]
+    - [2, 1068.04]
+  - - [64, 448, 1, 256]
+    - [10, 566.229]
+  - - [6784, 4288, 1, 1792]
+    - [13, 6559.47]
+  - - [256, 6784, 1, 1792]
+    - [9, 5792.57]
+  - - [128, 1024, 1, 3328]
+    - [14, 4141.15]
+  - - [448, 704, 1, 256]
+    - [10, 3132.14]
+  - - [3584, 5056, 1, 768]
+    - [13, 6397.59]
+  - - [6784, 128, 1, 768]
+    - [14, 5035.18]
+  - - [6784, 2944, 1, 256]
+    - [7, 6247.48]
+  - - [64, 1408, 1, 768]
+    - [12, 2301.15]
+  - - [5888, 4, 1, 1792]
+    - [18, 386.277]
+  - - [704, 448, 1, 768]
+    - [12, 3934.91]
+  - - [3584, 5056, 1, 128]
+    - [2, 3420.57]
+  - - [2944, 2368, 1, 768]
+    - [9, 6205.18]
+  - - [4288, 2368, 1, 3328]
+    - [9, 6350.51]
+  - - [4288, 6784, 1, 3328]
+    - [7, 6570.97]
+  - - [1024, 1856, 1, 768]
+    - [9, 5461.32]
+  - - [3584, 256, 1, 128]
+    - [3, 1935.81]
+  - - [2944, 5888, 1, 1792]
+    - [11, 6541.7]
+  - - [6784, 256, 1, 768]
+    - [9, 5692.63]
+  - - [3584, 6784, 1, 3328]
+    - [11, 6545.69]
+  - - [256, 1024, 1, 256]
+    - [12, 3355.36]
+  - - [1024, 5888, 1, 3328]
+    - [11, 6345.42]
+  - - [1408, 1856, 1, 3328]
+    - [9, 6228.09]
+  - - [128, 1408, 1, 1792]
+    - [10, 3732.77]
+  - - [5888, 64, 1, 256]
+    - [12, 3305.37]
+  - - [64, 5888, 1, 3328]
+    - [14, 5293.93]
+  - - [2944, 5888, 1, 128]
+    - [2, 3495.51]
+  - - [2368, 3584, 1, 128]
+    - [3, 3257.46]
+  - - [5888, 4, 1, 768]
+    - [20, 298.875]
+  - - [704, 4288, 1, 1792]
+    - [9, 6001.17]
+  - - [6784, 5888, 1, 1792]
+    - [11, 6621.92]
+  - - [128, 4288, 1, 1792]
+    - [12, 4698.46]
+  - - [5888, 256, 1, 768]
+    - [9, 5688.99]
+  - - [448, 1856, 1, 128]
+    - [2, 1938.98]
+  - - [64, 2944, 1, 768]
+    - [10, 3494.54]
+  - - [3584, 2368, 1, 3328]
+    - [9, 6262.5]
+  - - [1856, 1856, 1, 128]
+    - [2, 2858.98]
+  - - [2944, 4, 1, 128]
+    - [17, 60.5608]
+  - - [704, 5888, 1, 768]
+    - [9, 6157.92]
+  - - [3584, 1856, 1, 1792]
+    - [13, 6221.76]
+  - - [128, 5888, 1, 256]
+    - [9, 4553.54]
+  - - [1856, 1024, 1, 3328]
+    - [11, 5697.33]
+  - - [1024, 6784, 1, 1792]
+    - [11, 6241.56]
+  - - [4288, 1024, 1, 256]
+    - [9, 5798.5]
+  - - [2944, 2368, 1, 128]
+    - [2, 3152.67]
+  - - [704, 704, 1, 3328]
+    - [14, 5473.6]
+  - - [3584, 2944, 1, 256]
+    - [9, 6074.39]
+  - - [3584, 256, 1, 3328]
+    - [9, 5235.72]
+  - - [4, 128, 1, 128]
+    - [17, 2.75616]
+  - - [704, 256, 1, 768]
+    - [10, 3378.91]
+  - - [704, 1856, 1, 128]
+    - [2, 2179.35]
+  - - [6784, 6784, 1, 128]
+    - [2, 3662.41]
+  - - [3584, 5056, 1, 1792]
+    - [13, 6470.37]
+  - - [6784, 3584, 1, 1792]
+    - [11, 6525.93]
+  - - [1856, 256, 1, 3328]
+    - [14, 5197.59]
+  - - [64, 6784, 1, 768]
+    - [9, 4266.76]
+  - - [2944, 256, 1, 1792]
+    - [9, 5540.04]
+  - - [4, 4288, 1, 768]
+    - [18, 260.746]
+  - - [256, 5056, 1, 128]
+    - [3, 1909.96]
+  - - [128, 256, 1, 1792]
+    - [6, 1127.6]
+  - - [2944, 448, 1, 128]
+    - [2, 2096.63]
+  - - [2368, 4, 1, 768]
+    - [19, 189.218]
+  - - [6784, 256, 1, 128]
+    - [2, 2232.85]
+  - - [64, 64, 1, 3328]
+    - [5, 340.149]
+  - - [4, 3584, 1, 768]
+    - [18, 242.865]
+  - - [1024, 5888, 1, 256]
+    - [9, 5823.62]
+  - - [2368, 1024, 1, 3328]
+    - [7, 5509.57]
+  - - [1856, 1856, 1, 3328]
+    - [14, 6035.26]
+  - - [2368, 128, 1, 1792]
+    - [14, 4119.41]
+  - - [448, 1408, 1, 3328]
+    - [14, 5644.15]
+  - - [4, 4, 1, 1792]
+    - [20, 1.13178]
+  - - [2368, 2368, 1, 256]
+    - [9, 5911.8]
+  - - [4288, 128, 1, 3328]
+    - [14, 4905.29]
+  - - [5056, 704, 1, 128]
+    - [2, 2951.32]
+  - - [1408, 4288, 1, 256]
+    - [9, 5870.91]
+  - - [448, 4, 1, 256]
+    - [19, 19.2931]
+  - - [5888, 448, 1, 128]
+    - [3, 2533.67]
+  - - [448, 4, 1, 3328]
+    - [20, 139.288]
+  - - [704, 6784, 1, 3328]
+    - [14, 6123.55]
+  - - [1408, 6784, 1, 1792]
+    - [9, 6280.39]
+  - - [448, 5888, 1, 3328]
+    - [14, 5913.96]
+  - - [128, 4, 1, 128]
+    - [17, 2.90072]
+  - - [4288, 5888, 1, 128]
+    - [2, 3564.9]
+  - - [256, 3584, 1, 256]
+    - [9, 4575.5]
+  - - [2368, 1024, 1, 1792]
+    - [7, 5505.95]
+  - - [448, 1024, 1, 1792]
+    - [9, 4808.45]
+  - - [1408, 3584, 1, 128]
+    - [3, 2989.3]
+  - - [256, 2944, 1, 3328]
+    - [9, 5602.24]
+  - - [704, 5888, 1, 128]
+    - [2, 2999.45]
+  - - [1408, 4, 1, 768]
+    - [20, 133.619]
+  - - [4, 128, 1, 768]
+    - [20, 18.7576]
+  - - [2368, 5888, 1, 128]
+    - [3, 3471.06]
+  - - [64, 2944, 1, 128]
+    - [1, 706.236]
+  - - [5056, 6784, 1, 3328]
+    - [7, 6588.1]
+  - - [3584, 5888, 1, 256]
+    - [13, 6240.19]
+  - - [5888, 64, 1, 768]
+    - [12, 4449.78]
+  - - [2368, 1024, 1, 128]
+    - [3, 2562.71]
+  - - [2368, 704, 1, 128]
+    - [3, 2282.6]
+  - - [704, 2944, 1, 256]
+    - [9, 5675.65]
+  - - [64, 5056, 1, 768]
+    - [14, 3891.95]
+  - - [448, 2368, 1, 128]
+    - [3, 1814.98]
+  - - [5888, 128, 1, 768]
+    - [9, 5258.31]
+  - - [5056, 1024, 1, 256]
+    - [7, 5914.89]
+  - - [5056, 1408, 1, 3328]
+    - [11, 6449.73]
+  - - [1408, 704, 1, 256]
+    - [9, 4986.35]
+  - - [5888, 2944, 1, 768]
+    - [11, 6448.21]
+  - - [5056, 5888, 1, 768]
+    - [7, 6540.78]
+  - - [6784, 2944, 1, 3328]
+    - [7, 6456.57]
+  - - [2944, 5056, 1, 3328]
+    - [13, 6444.51]
+  - - [1856, 1856, 1, 256]
+    - [9, 5618.11]
+  - - [128, 1856, 1, 1792]
+    - [14, 4737.96]
+  - - [2944, 5888, 1, 768]
+    - [11, 6451.45]
+  - - [1024, 704, 1, 768]
+    - [9, 4999.42]
+  - - [128, 4, 1, 768]
+    - [20, 18.6912]
+  - - [1408, 2944, 1, 768]
+    - [11, 6230.23]
+  - - [4288, 3584, 1, 256]
+    - [7, 6210.41]
+  - - [4, 5888, 1, 768]
+    - [19, 287.61]
+  - - [5888, 1408, 1, 3328]
+    - [11, 6591.03]
+  - - [4288, 4288, 1, 256]
+    - [13, 6181.93]
+  - - [64, 1024, 1, 768]
+    - [12, 1702.9]
+  - - [2944, 4, 1, 768]
+    - [19, 214.571]
+  - - [1024, 3584, 1, 1792]
+    - [9, 6096.91]
+  - - [1856, 2944, 1, 3328]
+    - [9, 6302.88]
+  - - [256, 6784, 1, 3328]
+    - [9, 5837.58]
+  - - [64, 5888, 1, 256]
+    - [14, 3255.73]
+  - - [5888, 5888, 1, 256]
+    - [7, 6352.71]
+  - - [1408, 4288, 1, 1792]
+    - [11, 6305.32]
+  - - [2368, 4, 1, 1792]
+    - [19, 285.714]
+  - - [64, 704, 1, 1792]
+    - [6, 1393.83]
+  - - [5056, 1856, 1, 3328]
+    - [9, 6353.41]
+  - - [2368, 704, 1, 768]
+    - [9, 5469.58]
+  - - [4, 448, 1, 768]
+    - [20, 50.2146]
+  - - [1856, 1408, 1, 256]
+    - [9, 5822.84]
+  - - [256, 4, 1, 256]
+    - [20, 12.8688]
+  - - [128, 1024, 1, 1792]
+    - [14, 3895.37]
+  - - [256, 704, 1, 768]
+    - [10, 3348.62]
+  - - [6784, 128, 1, 3328]
+    - [14, 5632.76]
+  - - [4288, 1408, 1, 128]
+    - [2, 3145.19]
+  - - [1856, 5888, 1, 3328]
+    - [7, 6472.56]
+  - - [4288, 4, 1, 3328]
+    - [18, 404.085]
+  - - [448, 1024, 1, 768]
+    - [9, 4564.52]
+  - - [704, 704, 1, 256]
+    - [9, 4218.71]
+  - - [256, 3584, 1, 128]
+    - [2, 1695.63]
+  - - [1408, 256, 1, 1792]
+    - [14, 4896.01]
+  - - [6784, 1408, 1, 1792]
+    - [9, 6279.02]
+  - - [1856, 64, 1, 768]
+    - [12, 3025.84]
+  - - [1024, 64, 1, 1792]
+    - [12, 1924.06]
+  - - [64, 128, 1, 256]
+    - [10, 162.709]
+  - - [3584, 64, 1, 128]
+    - [1, 829.195]
+  - - [4288, 2368, 1, 256]
+    - [9, 6145.61]
+  - - [4, 3584, 1, 256]
+    - [18, 117.403]
+  - - [5056, 2368, 1, 1792]
+    - [11, 6351.1]
+  - - [64, 4, 1, 768]
+    - [20, 9.68679]
+  - - [256, 4, 1, 768]
+    - [20, 34.0277]
+  - - [6784, 5888, 1, 768]
+    - [11, 6547.77]
+  - - [128, 1856, 1, 768]
+    - [14, 4224.8]
+  - - [704, 128, 1, 768]
+    - [12, 2295.5]
+  - - [128, 4288, 1, 3328]
+    - [12, 4884.88]
+  - - [1024, 1408, 1, 768]
+    - [9, 5394.52]
+  - - [1856, 4, 1, 768]
+    - [19, 165.529]
+  - - [6784, 448, 1, 128]
+    - [2, 2799.41]
+  - - [5888, 1024, 1, 768]
+    - [11, 6161.11]
+  - - [2944, 5056, 1, 768]
+    - [13, 6356.5]
+  - - [256, 1408, 1, 1792]
+    - [14, 4918.09]
+  - - [128, 5056, 1, 3328]
+    - [14, 5774.65]
+  - - [1024, 448, 1, 3328]
+    - [9, 4847.22]
+  - - [2944, 128, 1, 256]
+    - [12, 3347.82]
+  - - [3584, 704, 1, 1792]
+    - [9, 5981.23]
+  - - [5888, 5888, 1, 3328]
+    - [11, 6607.35]
+  - - [5888, 704, 1, 256]
+    - [9, 5904.94]
+  - - [6784, 1024, 1, 256]
+    - [9, 5872.73]
+  - - [2944, 2368, 1, 256]
+    - [9, 6029.2]
+  - - [256, 448, 1, 256]
+    - [10, 2053.66]
+  - - [5056, 5888, 1, 3328]
+    - [11, 6640.46]
+  - - [1856, 1024, 1, 256]
+    - [9, 5036.93]
+  - - [704, 5888, 1, 1792]
+    - [9, 6225.33]
+  - - [6784, 5888, 1, 3328]
+    - [11, 6639.74]
+  - - [2944, 1408, 1, 1792]
+    - [11, 6410.38]
+  - - [4288, 6784, 1, 768]
+    - [7, 6497.27]
+  - - [6784, 64, 1, 768]
+    - [9, 4258.69]
+  - - [448, 5888, 1, 256]
+    - [9, 5390.99]
+  - - [1408, 6784, 1, 3328]
+    - [9, 6295.76]
+  - - [448, 1024, 1, 128]
+    - [3, 1254.29]
+  - - [6784, 4, 1, 1792]
+    - [18, 387.293]
+  - - [2944, 1408, 1, 3328]
+    - [11, 6456.0]
+  - - [128, 1856, 1, 128]
+    - [1, 794.023]
+  - - [448, 2368, 1, 3328]
+    - [14, 5435.24]
+  - - [5056, 64, 1, 128]
+    - [3, 896.054]
+  - - [5056, 2944, 1, 256]
+    - [7, 6214.94]
+  - - [1024, 448, 1, 1792]
+    - [9, 4738.64]
+  - - [6784, 5888, 1, 128]
+    - [2, 3542.69]
+  - - [704, 1024, 1, 256]
+    - [9, 4497.09]
+  - - [1024, 4, 1, 256]
+    - [19, 40.5599]
+  - - [2368, 1856, 1, 256]
+    - [9, 5926.2]
+  - - [5888, 256, 1, 256]
+    - [9, 5245.95]
+  - - [1408, 3584, 1, 3328]
+    - [11, 6346.81]
+  - - [1856, 6784, 1, 768]
+    - [9, 6230.23]
+  - - [1408, 64, 1, 768]
+    - [12, 2341.52]
+  - - [448, 1408, 1, 1792]
+    - [14, 5451.82]
+  - - [2944, 704, 1, 1792]
+    - [9, 6090.72]
+  - - [3584, 4, 1, 768]
+    - [18, 242.072]
+  - - [1408, 5888, 1, 3328]
+    - [11, 6596.99]
+  - - [1856, 5056, 1, 256]
+    - [9, 6144.42]
+  - - [64, 256, 1, 128]
+    - [1, 65.3828]
+  - - [4288, 2368, 1, 128]
+    - [2, 3334.42]
+  - - [64, 1856, 1, 768]
+    - [12, 3003.72]
+  - - [704, 6784, 1, 768]
+    - [9, 6006.3]
+  - - [4288, 128, 1, 768]
+    - [14, 4343.9]
+  - - [2368, 2944, 1, 256]
+    - [9, 6030.71]
+  - - [4, 1856, 1, 256]
+    - [19, 69.156]
+  - - [6784, 64, 1, 128]
+    - [3, 1114.77]
+  - - [3584, 1408, 1, 768]
+    - [11, 6139.26]
+  - - [256, 1856, 1, 128]
+    - [1, 1105.0]
+  - - [4288, 5056, 1, 1792]
+    - [13, 6491.11]
+  - - [5888, 64, 1, 3328]
+    - [12, 5295.58]
+  - - [5056, 1408, 1, 768]
+    - [11, 6277.69]
+  - - [1408, 3584, 1, 768]
+    - [11, 6155.87]
+  - - [2944, 1024, 1, 768]
+    - [11, 5953.39]
+  - - [448, 4288, 1, 128]
+    - [2, 2549.51]
+  - - [2944, 1856, 1, 1792]
+    - [9, 6281.31]
+  - - [256, 6784, 1, 256]
+    - [9, 5183.01]
+  - - [1408, 4288, 1, 128]
+    - [3, 3126.34]
+  - - [2368, 4288, 1, 1792]
+    - [9, 6336.65]
+  - - [128, 448, 1, 256]
+    - [10, 1152.19]
+  - - [3584, 6784, 1, 1792]
+    - [11, 6517.33]
+  - - [4288, 64, 1, 256]
+    - [10, 2619.92]
+  - - [256, 256, 1, 768]
+    - [10, 1826.49]
+  - - [448, 1408, 1, 128]
+    - [2, 1518.06]
+  - - [3584, 2944, 1, 768]
+    - [9, 6220.85]
+  - - [128, 5888, 1, 1792]
+    - [9, 5528.28]
+  - - [3584, 5056, 1, 256]
+    - [13, 6240.55]
+  - - [5888, 2368, 1, 1792]
+    - [13, 6453.1]
+  - - [5056, 448, 1, 128]
+    - [2, 2530.05]
+  - - [704, 4, 1, 768]
+    - [20, 75.637]
+  - - [64, 1408, 1, 3328]
+    - [12, 2968.09]
+  - - [64, 1856, 1, 1792]
+    - [12, 3578.55]
+  - - [4, 2368, 1, 3328]
+    - [19, 362.479]
+  - - [448, 64, 1, 3328]
+    - [4, 1490.91]
+  - - [704, 6784, 1, 128]
+    - [3, 3003.15]
+  - - [3584, 4, 1, 3328]
+    - [18, 339.882]
+  - - [4288, 2944, 1, 256]
+    - [9, 6113.68]
+  - - [4, 3584, 1, 1792]
+    - [18, 343.717]
+  - - [256, 128, 1, 128]
+    - [1, 128.396]
+  - - [704, 1408, 1, 128]
+    - [2, 2212.94]
+  - - [256, 5888, 1, 3328]
+    - [9, 5874.38]
+  - - [3584, 2368, 1, 128]
+    - [2, 3197.1]
+  - - [4288, 128, 1, 1792]
+    - [14, 4730.27]
+  - - [128, 1408, 1, 256]
+    - [10, 2639.21]
+  - - [4, 1408, 1, 768]
+    - [20, 131.809]
+  - - [64, 128, 1, 3328]
+    - [5, 612.383]
+  - - [5056, 2368, 1, 128]
+    - [3, 3434.3]
+  - - [448, 3584, 1, 128]
+    - [3, 2217.81]
+  - - [2944, 2944, 1, 3328]
+    - [13, 6308.66]
+  - - [5056, 6784, 1, 256]
+    - [7, 6391.92]
+  - - [1856, 3584, 1, 128]
+    - [2, 3142.22]
+  - - [128, 2944, 1, 128]
+    - [3, 956.17]
+  - - [3584, 6784, 1, 128]
+    - [2, 3479.38]
+  - - [128, 4288, 1, 256]
+    - [9, 3512.69]
+  - - [704, 448, 1, 3328]
+    - [14, 4494.03]
+  - - [1024, 1024, 1, 3328]
+    - [11, 5683.38]
+  - - [1024, 4288, 1, 768]
+    - [9, 6092.62]
+  - - [4, 704, 1, 3328]
+    - [20, 198.3]
+  - - [5056, 1856, 1, 256]
+    - [9, 6135.12]
+  - - [2944, 1856, 1, 768]
+    - [9, 6221.2]
+  - - [256, 128, 1, 256]
+    - [10, 662.241]
+  - - [1024, 1856, 1, 256]
+    - [9, 5083.71]
+  - - [2368, 1408, 1, 768]
+    - [9, 6050.71]
+  - - [4288, 64, 1, 128]
+    - [3, 785.117]
+  - - [256, 448, 1, 3328]
+    - [12, 3747.34]
+  - - [3584, 4, 1, 128]
+    - [17, 74.6151]
+  - - [5888, 5888, 1, 128]
+    - [2, 3449.02]
+  - - [256, 5056, 1, 768]
+    - [9, 5725.01]
+  - - [6784, 3584, 1, 3328]
+    - [11, 6549.53]
+  - - [64, 6784, 1, 3328]
+    - [14, 4761.12]
+  - - [3584, 2944, 1, 1792]
+    - [9, 6265.08]
+  - - [4288, 1024, 1, 3328]
+    - [7, 5844.37]
+  - - [256, 2368, 1, 128]
+    - [3, 1156.19]
+  - - [6784, 1856, 1, 768]
+    - [9, 6228.15]
+  - - [5056, 2368, 1, 3328]
+    - [11, 6390.5]
+  - - [128, 448, 1, 3328]
+    - [6, 2327.27]
+  - - [1024, 2944, 1, 768]
+    - [11, 5895.01]
+  - - [2368, 64, 1, 256]
+    - [10, 2182.32]
+  - - [64, 448, 1, 3328]
+    - [15, 1489.19]
+  - - [256, 256, 1, 3328]
+    - [8, 2589.57]
+  - - [4, 704, 1, 768]
+    - [20, 72.808]
+  - - [1408, 448, 1, 3328]
+    - [12, 5597.33]
+  - - [1024, 4, 1, 3328]
+    - [20, 265.542]
+  - - [4, 2368, 1, 1792]
+    - [19, 292.272]
+  - - [4288, 4, 1, 1792]
+    - [18, 360.185]
+  - - [1856, 256, 1, 768]
+    - [9, 4713.98]
+  - - [448, 1856, 1, 1792]
+    - [14, 5251.95]
+  - - [2368, 6784, 1, 3328]
+    - [7, 6502.21]
+  - - [3584, 128, 1, 768]
+    - [9, 4420.32]
+  - - [6784, 704, 1, 128]
+    - [3, 2976.07]
+  - - [704, 6784, 1, 256]
+    - [9, 5819.92]
+  - - [128, 5888, 1, 128]
+    - [2, 1414.01]
+  - - [5888, 2368, 1, 768]
+    - [13, 6383.0]
+  - - [1408, 5888, 1, 256]
+    - [13, 6090.71]
+  - - [4, 4288, 1, 1792]
+    - [18, 363.34]
+  - - [64, 256, 1, 1792]
+    - [15, 631.143]
+  - - [1856, 2368, 1, 128]
+    - [3, 3047.53]
+  - - [256, 64, 1, 256]
+    - [10, 327.296]
+  - - [704, 128, 1, 128]
+    - [1, 363.813]
+  - - [1024, 1024, 1, 256]
+    - [9, 4413.9]
+  - - [704, 1856, 1, 256]
+    - [9, 5343.89]
+  - - [4288, 1024, 1, 768]
+    - [9, 5943.87]
+  - - [1408, 1856, 1, 128]
+    - [2, 2760.15]
+  - - [1856, 128, 1, 1792]
+    - [14, 4745.77]
+  - - [448, 6784, 1, 768]
+    - [9, 5953.17]
+  - - [3584, 6784, 1, 256]
+    - [13, 6280.04]
+  - - [256, 3584, 1, 768]
+    - [9, 5033.06]
+  - - [5888, 2368, 1, 256]
+    - [13, 6195.87]
+  - - [448, 5056, 1, 3328]
+    - [9, 5979.43]
+  - - [2944, 6784, 1, 128]
+    - [2, 3550.52]
+  - - [3584, 448, 1, 3328]
+    - [14, 5515.86]
+  - - [1408, 4, 1, 256]
+    - [19, 55.6118]
+  - - [704, 2368, 1, 3328]
+    - [14, 5976.92]
+  - - [2944, 448, 1, 256]
+    - [9, 4689.37]
+  - - [1856, 448, 1, 128]
+    - [2, 1933.76]
+  - - [3584, 448, 1, 768]
+    - [9, 5268.0]
+  - - [3584, 5888, 1, 1792]
+    - [11, 6461.99]
+  - - [256, 5888, 1, 128]
+    - [3, 1973.19]
+  - - [64, 128, 1, 1792]
+    - [5, 355.794]
+  - - [3584, 256, 1, 256]
+    - [9, 4510.44]
+  - - [5888, 1408, 1, 128]
+    - [3, 3117.59]
+  - - [4, 6784, 1, 128]
+    - [17, 124.707]
+  - - [5888, 4288, 1, 768]
+    - [13, 6448.96]
+  - - [5056, 448, 1, 1792]
+    - [9, 5939.94]
+  - - [128, 2368, 1, 3328]
+    - [14, 4301.2]
+  - - [1408, 704, 1, 1792]
+    - [9, 5610.53]
+  - - [3584, 256, 1, 768]
+    - [9, 5017.13]
+  - - [1408, 128, 1, 128]
+    - [1, 609.436]
+  - - [6784, 704, 1, 3328]
+    - [14, 6089.48]
+  - - [4, 5056, 1, 1792]
+    - [18, 377.8]
+  - - [5888, 4288, 1, 128]
+    - [2, 3494.93]
+  - - [5888, 2944, 1, 256]
+    - [13, 6198.24]
+  - - [704, 1408, 1, 1792]
+    - [9, 5600.06]
+  - - [1408, 2944, 1, 3328]
+    - [11, 6453.98]
+  - - [5056, 3584, 1, 768]
+    - [7, 6436.61]
+  - - [3584, 704, 1, 128]
+    - [3, 2472.99]
+  - - [5888, 2944, 1, 1792]
+    - [11, 6543.02]
+  - - [64, 1024, 1, 256]
+    - [10, 1217.68]
+  - - [5056, 5056, 1, 128]
+    - [2, 3597.38]
+  - - [128, 3584, 1, 256]
+    - [9, 3748.02]
+  - - [4, 6784, 1, 1792]
+    - [19, 405.224]
+  - - [448, 5056, 1, 128]
+    - [3, 2549.83]
+  - - [256, 4, 1, 3328]
+    - [20, 90.5614]
+  - - [128, 5056, 1, 256]
+    - [9, 4037.11]
+  - - [1408, 5056, 1, 128]
+    - [2, 3187.65]
+  - - [2944, 3584, 1, 128]
+    - [3, 3291.62]
+  - - [3584, 2368, 1, 256]
+    - [9, 6035.02]
+  - - [2368, 5056, 1, 128]
+    - [2, 3434.3]
+  - - [64, 704, 1, 256]
+    - [10, 874.774]
+  - - [3584, 3584, 1, 3328]
+    - [13, 6411.2]
+  - - [448, 4288, 1, 1792]
+    - [12, 5850.75]
+  - - [704, 64, 1, 128]
+    - [1, 176.942]
+  - - [1408, 128, 1, 768]
+    - [10, 3518.89]
+  - - [448, 256, 1, 1792]
+    - [12, 3520.91]
+  - - [5888, 6784, 1, 256]
+    - [13, 6380.01]
+  - - [4288, 2944, 1, 3328]
+    - [13, 6319.62]
+  - - [1024, 5888, 1, 1792]
+    - [11, 6297.03]
+  - - [2944, 64, 1, 128]
+    - [1, 726.741]
+  - - [1024, 1024, 1, 128]
+    - [3, 2082.64]
+  - - [5056, 4, 1, 1792]
+    - [18, 366.755]
+  - - [1408, 2368, 1, 768]
+    - [9, 6058.14]
+  - - [256, 64, 1, 768]
+    - [10, 493.796]
+  - - [2944, 704, 1, 3328]
+    - [9, 6124.37]
+  - - [1856, 256, 1, 1792]
+    - [14, 5032.52]
+  - - [1408, 256, 1, 128]
+    - [3, 1019.38]
+  - - [2944, 5888, 1, 3328]
+    - [11, 6569.92]
+  - - [704, 128, 1, 256]
+    - [10, 1549.32]
+  - - [3584, 64, 1, 1792]
+    - [12, 4515.01]
+  - - [4288, 1856, 1, 768]
+    - [9, 6190.44]
+  - - [1408, 5056, 1, 1792]
+    - [11, 6387.59]
+  - - [5888, 3584, 1, 128]
+    - [3, 3111.31]
+  - - [128, 128, 1, 768]
+    - [10, 492.366]
+  - - [704, 704, 1, 768]
+    - [9, 4889.09]
+  - - [448, 4, 1, 1792]
+    - [20, 96.9819]
+  - - [1856, 448, 1, 1792]
+    - [14, 5251.94]
+  - - [448, 704, 1, 1792]
+    - [14, 4315.51]
+  - - [3584, 1024, 1, 3328]
+    - [7, 6103.17]
+  - - [704, 3584, 1, 128]
+    - [2, 2736.9]
+  - - [1856, 704, 1, 1792]
+    - [9, 5979.8]
+  - - [6784, 1024, 1, 768]
+    - [11, 6131.72]
+  - - [6784, 2944, 1, 768]
+    - [7, 6381.49]
+  - - [256, 448, 1, 1792]
+    - [12, 3472.43]
+  - - [2944, 4288, 1, 768]
+    - [9, 6242.87]
+  - - [2368, 4, 1, 256]
+    - [19, 86.5996]
+  - - [4288, 2944, 1, 128]
+    - [2, 3433.05]
+  - - [1408, 6784, 1, 128]
+    - [2, 3299.74]
+  - - [5056, 3584, 1, 128]
+    - [0, 3180.17]
+  - - [5056, 5888, 1, 128]
+    - [2, 3607.37]
+  - - [5888, 64, 1, 1792]
+    - [12, 4957.11]
+  - - [1024, 1024, 1, 768]
+    - [11, 5132.87]
+  - - [5056, 2944, 1, 3328]
+    - [7, 6438.99]
+  - - [448, 5888, 1, 768]
+    - [9, 5631.88]
+  - - [256, 1024, 1, 1792]
+    - [14, 4711.5]
+  - - [448, 128, 1, 256]
+    - [10, 1145.54]
+  - - [2944, 3584, 1, 256]
+    - [9, 6078.44]
+  - - [1408, 1408, 1, 3328]
+    - [11, 5959.21]
+  - - [448, 704, 1, 3328]
+    - [14, 4488.33]
+  - - [1024, 64, 1, 256]
+    - [10, 1204.7]
+  - - [3584, 3584, 1, 128]
+    - [3, 3153.71]
+  - - [64, 3584, 1, 256]
+    - [12, 2872.18]
+  - - [128, 2944, 1, 3328]
+    - [14, 5320.54]
+  - - [3584, 704, 1, 256]
+    - [9, 5603.98]
+  - - [704, 1024, 1, 1792]
+    - [9, 5278.32]
+  - - [2368, 1856, 1, 768]
+    - [9, 6150.99]
+  - - [3584, 1408, 1, 3328]
+    - [11, 6340.42]
+  - - [3584, 4288, 1, 3328]
+    - [11, 6583.1]
+  - - [1024, 1408, 1, 128]
+    - [3, 2107.75]
+  - - [448, 2944, 1, 3328]
+    - [14, 5565.93]
+  - - [1856, 6784, 1, 256]
+    - [9, 6102.95]
+  - - [4288, 448, 1, 3328]
+    - [14, 5988.49]
+  - - [6784, 4288, 1, 128]
+    - [2, 3592.75]
+  - - [704, 64, 1, 3328]
+    - [15, 1988.44]
+  - - [1856, 4288, 1, 1792]
+    - [11, 6283.17]
+  - - [256, 4288, 1, 256]
+    - [9, 4447.44]
+  - - [2368, 5888, 1, 1792]
+    - [7, 6440.04]
+  - - [1856, 5056, 1, 768]
+    - [9, 6296.32]
+  - - [5888, 1024, 1, 3328]
+    - [11, 6350.77]
+  - - [5888, 1408, 1, 768]
+    - [11, 6422.01]
+  - - [448, 64, 1, 128]
+    - [1, 114.684]
+  - - [5888, 128, 1, 256]
+    - [9, 4593.65]
+  - - [256, 4288, 1, 768]
+    - [14, 5062.74]
+  - - [1024, 1856, 1, 3328]
+    - [11, 5702.28]
+  - - [1024, 2368, 1, 1792]
+    - [9, 5732.47]
+  - - [1856, 448, 1, 768]
+    - [12, 4856.73]
+  - - [1024, 2944, 1, 3328]
+    - [11, 6168.41]
+  - - [4288, 448, 1, 1792]
+    - [14, 5838.25]
+  - - [1856, 5056, 1, 3328]
+    - [9, 6353.6]
+  - - [704, 64, 1, 768]
+    - [10, 1327.06]
+  - - [4, 6784, 1, 256]
+    - [18, 172.708]
+  - - [1024, 3584, 1, 128]
+    - [2, 2679.2]
+  - - [4288, 704, 1, 128]
+    - [2, 2834.94]
+  - - [2368, 2944, 1, 128]
+    - [2, 3185.18]
+  - - [2368, 4288, 1, 256]
+    - [9, 6147.77]
+  - - [256, 2944, 1, 128]
+    - [3, 1367.97]
+  - - [4, 448, 1, 3328]
+    - [20, 139.531]
+  - - [5056, 2944, 1, 128]
+    - [2, 3470.12]
+  - - [5888, 2944, 1, 3328]
+    - [11, 6569.37]
+  - - [448, 5056, 1, 1792]
+    - [9, 5943.16]
+  - - [5888, 5056, 1, 3328]
+    - [11, 6634.33]
+  - - [1024, 704, 1, 128]
+    - [3, 1539.77]
+  - - [5888, 2368, 1, 128]
+    - [2, 3336.47]
+  - - [128, 448, 1, 1792]
+    - [6, 1794.63]
+  - - [2944, 6784, 1, 3328]
+    - [13, 6462.29]
+  - - [4288, 1856, 1, 256]
+    - [9, 6031.61]
+  - - [1856, 5888, 1, 256]
+    - [7, 6224.97]
+  - - [256, 256, 1, 256]
+    - [10, 1301.67]
+  - - [64, 4, 1, 1792]
+    - [20, 16.212]
+  - - [256, 64, 1, 128]
+    - [1, 65.2333]
+  - - [4288, 4288, 1, 3328]
+    - [13, 6440.91]
+  - - [2368, 6784, 1, 256]
+    - [7, 6273.91]
+  - - [4, 2944, 1, 3328]
+    - [19, 390.165]
+  - - [5888, 1408, 1, 1792]
+    - [11, 6554.52]
+  - - [64, 1856, 1, 256]
+    - [10, 2138.07]
+  - - [2944, 2944, 1, 768]
+    - [7, 6213.46]
+  - - [2944, 2368, 1, 1792]
+    - [11, 6262.25]
+  - - [448, 64, 1, 768]
+    - [10, 856.68]
+  - - [4288, 704, 1, 768]
+    - [9, 5930.99]
+  - - [1856, 1408, 1, 128]
+    - [2, 2863.42]
+  - - [6784, 2368, 1, 3328]
+    - [13, 6503.79]
+  - - [6784, 704, 1, 256]
+    - [9, 5817.88]
+  - - [704, 4, 1, 128]
+    - [17, 15.1586]
+  - - [256, 1856, 1, 768]
+    - [9, 4634.18]
+  - - [1408, 4, 1, 128]
+    - [17, 29.2251]
+  - - [5888, 5056, 1, 768]
+    - [13, 6530.95]
+  - - [4288, 128, 1, 256]
+    - [9, 3525.73]
+  - - [704, 1856, 1, 1792]
+    - [9, 5971.89]
+  - - [6784, 448, 1, 768]
+    - [9, 5967.83]
+  - - [3584, 448, 1, 128]
+    - [3, 2090.78]
+  - - [4288, 1856, 1, 3328]
+    - [11, 6311.63]
+  - - [5888, 5056, 1, 1792]
+    - [13, 6600.39]
+  - - [4, 3584, 1, 128]
+    - [17, 74.6151]
+  - - [6784, 2368, 1, 128]
+    - [2, 3450.46]
+  - - [4288, 448, 1, 768]
+    - [9, 5561.79]
+  - - [5056, 4288, 1, 3328]
+    - [13, 6508.52]
+  - - [4, 1024, 1, 768]
+    - [20, 101.838]
+  - - [128, 4288, 1, 768]
+    - [14, 4320.81]
+  - - [704, 5056, 1, 1792]
+    - [9, 6088.81]
+  - - [6784, 2368, 1, 256]
+    - [13, 6260.47]
+  - - [1024, 4288, 1, 256]
+    - [9, 5763.27]
+  - - [2368, 448, 1, 1792]
+    - [14, 5292.62]
+  - - [1856, 4, 1, 256]
+    - [19, 71.8678]
+  - - [4, 256, 1, 256]
+    - [20, 12.594]
+  - - [256, 1024, 1, 768]
+    - [14, 4440.91]
+  - - [704, 448, 1, 128]
+    - [3, 874.779]
+  - - [704, 4288, 1, 768]
+    - [9, 5928.73]
+  - - [4, 4, 1, 128]
+    - [17, 0.000113472]
+  - - [128, 2368, 1, 256]
+    - [12, 2838.81]
+  - - [5056, 5056, 1, 768]
+    - [11, 6410.75]
+  - - [1408, 256, 1, 3328]
+    - [14, 4571.96]
+  - - [1024, 6784, 1, 256]
+    - [9, 5884.25]
+  - - [4, 128, 1, 256]
+    - [20, 6.99386]
+  - - [4, 1024, 1, 256]
+    - [19, 39.9876]
+  - - [2944, 1408, 1, 128]
+    - [2, 3001.97]
+  - - [448, 128, 1, 3328]
+    - [6, 2346.36]
+  - - [3584, 4288, 1, 1792]
+    - [11, 6541.04]
+  - - [64, 4288, 1, 3328]
+    - [14, 3875.97]
+  - - [1408, 1856, 1, 768]
+    - [9, 6113.19]
+  - - [448, 3584, 1, 768]
+    - [9, 5273.0]
+  - - [704, 2368, 1, 128]
+    - [3, 2289.86]
+  - - [256, 5888, 1, 1792]
+    - [9, 5824.08]
+  - - [128, 2944, 1, 256]
+    - [12, 3400.27]
+  - - [4, 5888, 1, 3328]
+    - [18, 444.59]
+  - - [1408, 448, 1, 768]
+    - [12, 5003.71]
+  - - [5056, 5056, 1, 1792]
+    - [11, 6552.49]
+  - - [128, 6784, 1, 128]
+    - [3, 1608.23]
+  - - [3584, 4288, 1, 256]
+    - [9, 6183.65]
+  - - [448, 1856, 1, 256]
+    - [9, 4201.13]
+  - - [1856, 6784, 1, 3328]
+    - [13, 6299.21]
+  - - [4288, 256, 1, 1792]
+    - [14, 5474.27]
+  - - [3584, 128, 1, 3328]
+    - [9, 4863.23]
+  - - [64, 2368, 1, 768]
+    - [10, 2805.81]
+  - - [1856, 256, 1, 256]
+    - [9, 4054.43]
+  - - [5888, 4288, 1, 256]
+    - [13, 6305.42]
+  - - [4, 448, 1, 128]
+    - [17, 9.67668]
+  - - [704, 2944, 1, 1792]
+    - [9, 6092.94]
+  - - [4288, 64, 1, 1792]
+    - [12, 3725.55]
+  - - [4, 6784, 1, 768]
+    - [18, 312.6]
+  - - [1856, 2944, 1, 1792]
+    - [9, 6285.5]
+  - - [256, 704, 1, 256]
+    - [10, 2552.62]
+  - - [704, 1856, 1, 768]
+    - [9, 5814.08]
+  - - [2944, 128, 1, 768]
+    - [14, 4532.39]
+  - - [1024, 2944, 1, 256]
+    - [9, 5448.97]
+  - - [448, 6784, 1, 3328]
+    - [9, 6069.16]
+  - - [1408, 1408, 1, 1792]
+    - [11, 5860.07]
+  - - [256, 2368, 1, 1792]
+    - [14, 5248.78]
+  - - [2368, 3584, 1, 1792]
+    - [9, 6248.82]
+  - - [2944, 1856, 1, 3328]
+    - [9, 6300.94]
+  - - [1408, 4, 1, 1792]
+    - [20, 226.699]
+  - - [2368, 64, 1, 128]
+    - [1, 597.894]
+  - - [2944, 448, 1, 768]
+    - [12, 5062.65]
+  - - [64, 6784, 1, 256]
+    - [9, 3677.63]
+  - - [64, 4288, 1, 128]
+    - [3, 762.394]
+  - - [64, 4, 1, 128]
+    - [17, 1.42696]
+  - - [2944, 5056, 1, 256]
+    - [13, 6204.45]
+  - - [2368, 5056, 1, 1792]
+    - [11, 6352.49]
+  - - [5888, 256, 1, 3328]
+    - [9, 5852.05]
+  - - [2944, 4288, 1, 128]
+    - [2, 3424.97]
+  - - [2944, 448, 1, 1792]
+    - [14, 5423.51]
+  - - [64, 5056, 1, 1792]
+    - [14, 4373.19]
+  - - [5888, 1856, 1, 768]
+    - [13, 6379.18]
+  - - [704, 3584, 1, 3328]
+    - [9, 6017.16]
+  - - [4, 4, 1, 256]
+    - [20, 0.237319]
+  - - [3584, 1856, 1, 3328]
+    - [13, 6250.93]
+  - - [1856, 2944, 1, 768]
+    - [9, 6230.1]
+  - - [1408, 1024, 1, 768]
+    - [9, 5451.57]
+  - - [64, 3584, 1, 1792]
+    - [14, 4496.71]
+  - - [128, 64, 1, 1792]
+    - [5, 377.477]
+  - - [2368, 4288, 1, 3328]
+    - [9, 6351.31]
+  - - [4, 1408, 1, 256]
+    - [19, 54.0665]
+  - - [64, 64, 1, 256]
+    - [10, 71.4922]
+  - - [5056, 64, 1, 256]
+    - [10, 2919.79]
+  - - [704, 256, 1, 3328]
+    - [10, 3876.0]
+  - - [2944, 64, 1, 1792]
+    - [10, 3984.32]
+  - - [4, 4288, 1, 3328]
+    - [18, 417.663]
+  - - [3584, 5056, 1, 3328]
+    - [13, 6489.78]
+  - - [448, 6784, 1, 128]
+    - [2, 2874.49]
+  - - [6784, 1408, 1, 256]
+    - [9, 6083.78]
+  - - [448, 2944, 1, 256]
+    - [9, 4694.19]
+  - - [2944, 4, 1, 1792]
+    - [20, 286.312]
+  - - [2944, 6784, 1, 256]
+    - [13, 6249.18]
+  - - [1856, 2368, 1, 1792]
+    - [9, 6220.2]
+  - - [2944, 2944, 1, 128]
+    - [3, 3286.48]
+  - - [5888, 128, 1, 3328]
+    - [9, 5592.99]
+  - - [2368, 3584, 1, 768]
+    - [9, 6205.26]
+  - - [1024, 256, 1, 1792]
+    - [12, 4797.04]
+  - - [4288, 4288, 1, 1792]
+    - [13, 6420.16]
+  - - [128, 5056, 1, 768]
+    - [14, 4929.97]
+  - - [1856, 4288, 1, 768]
+    - [9, 6188.58]
+  - - [256, 128, 1, 1792]
+    - [6, 1126.01]
+  - - [448, 256, 1, 128]
+    - [1, 454.533]
+  - - [64, 448, 1, 1792]
+    - [15, 955.396]
+  - - [1856, 1408, 1, 3328]
+    - [9, 6229.41]
+  - - [128, 1024, 1, 768]
+    - [14, 3182.48]
+  - - [6784, 704, 1, 768]
+    - [9, 6003.38]
+  - - [1024, 4288, 1, 3328]
+    - [9, 6172.24]
+  - - [1408, 5056, 1, 768]
+    - [11, 6258.52]
+  - - [64, 704, 1, 768]
+    - [10, 1279.82]
+  - - [1024, 4, 1, 128]
+    - [17, 21.065]
+  - - [6784, 64, 1, 1792]
+    - [12, 4578.62]
+  - - [5056, 448, 1, 256]
+    - [9, 5532.14]
+  - - [2944, 2368, 1, 3328]
+    - [11, 6304.82]
+  - - [704, 128, 1, 3328]
+    - [12, 2970.26]
+  - - [5888, 2944, 1, 128]
+    - [2, 3394.88]
+  - - [5056, 256, 1, 256]
+    - [9, 5337.86]
+  - - [6784, 1856, 1, 256]
+    - [9, 6097.81]
+  - - [5888, 6784, 1, 768]
+    - [11, 6548.9]
+  - - [2368, 5056, 1, 768]
+    - [9, 6304.51]
+  - - [704, 256, 1, 128]
+    - [1, 704.57]
+  - - [5888, 128, 1, 1792]
+    - [9, 5521.59]
+  - - [1024, 5056, 1, 1792]
+    - [11, 6412.44]
+  - - [3584, 2368, 1, 768]
+    - [9, 6199.58]
+  - - [1024, 128, 1, 768]
+    - [12, 2897.49]
+  - - [64, 5056, 1, 256]
+    - [14, 2831.08]
+  - - [128, 704, 1, 128]
+    - [1, 338.498]
+  - - [1408, 2368, 1, 256]
+    - [9, 5793.14]
+  - - [1408, 1408, 1, 256]
+    - [9, 5420.3]
+  - - [4, 64, 1, 128]
+    - [17, 1.34455]
+  - - [64, 1024, 1, 128]
+    - [1, 236.913]
+  - - [2944, 256, 1, 768]
+    - [9, 5337.32]
+  - - [448, 448, 1, 768]
+    - [12, 3650.63]
+  - - [256, 5056, 1, 1792]
+    - [9, 5905.69]
+  - - [2368, 2368, 1, 128]
+    - [2, 3139.81]
+  - - [64, 5888, 1, 128]
+    - [2, 992.612]
+  - - [2944, 4288, 1, 3328]
+    - [13, 6320.04]
+  - - [6784, 1408, 1, 128]
+    - [3, 3300.4]
+  - - [1856, 1024, 1, 1792]
+    - [11, 5592.63]
+  - - [4288, 5888, 1, 256]
+    - [7, 6307.7]
+  - - [448, 128, 1, 768]
+    - [10, 1665.35]
+  - - [448, 256, 1, 768]
+    - [12, 2935.96]
+  - - [1024, 1408, 1, 1792]
+    - [9, 5522.35]
+  - - [6784, 5056, 1, 256]
+    - [13, 6387.78]
+  - - [5056, 128, 1, 3328]
+    - [14, 5762.06]
+  - - [2368, 448, 1, 3328]
+    - [14, 5440.81]
+  - - [256, 1408, 1, 768]
+    - [14, 4355.52]
+  - - [4288, 3584, 1, 128]
+    - [3, 3191.79]
+  - - [5888, 4, 1, 3328]
+    - [18, 431.358]
+  - - [2944, 128, 1, 3328]
+    - [14, 5328.92]
+  - - [64, 2944, 1, 1792]
+    - [10, 3862.78]
+  - - [5056, 3584, 1, 256]
+    - [7, 6287.54]
+  - - [704, 704, 1, 128]
+    - [3, 1390.27]
+  - - [5056, 4, 1, 128]
+    - [17, 93.9422]
+  - - [6784, 5056, 1, 1792]
+    - [13, 6576.58]
+  - - [64, 2368, 1, 3328]
+    - [10, 3187.64]
+  - - [1856, 1024, 1, 128]
+    - [3, 2347.44]
+  - - [1856, 64, 1, 128]
+    - [1, 469.691]
+  - - [128, 704, 1, 768]
+    - [12, 2341.52]
+  - - [448, 128, 1, 1792]
+    - [6, 1785.37]
+  - - [704, 4288, 1, 256]
+    - [9, 5691.54]
+  - - [1024, 64, 1, 768]
+    - [12, 1677.69]
+  - - [128, 256, 1, 256]
+    - [10, 654.593]
+  - - [1856, 256, 1, 128]
+    - [2, 1313.64]
+  - - [64, 3584, 1, 768]
+    - [14, 3756.93]
+  - - [5056, 704, 1, 768]
+    - [9, 6021.11]
+  - - [6784, 1408, 1, 768]
+    - [9, 6237.05]
+  - - [4, 256, 1, 768]
+    - [20, 33.5974]
+  - - [64, 2944, 1, 256]
+    - [10, 2615.12]
+  - - [2368, 1856, 1, 3328]
+    - [9, 6239.49]
+  - - [64, 256, 1, 3328]
+    - [15, 954.72]
+  - - [2368, 128, 1, 128]
+    - [3, 877.311]
+  - - [2944, 704, 1, 256]
+    - [9, 5635.47]
+  - - [5056, 128, 1, 128]
+    - [2, 1544.6]
+  - - [6784, 448, 1, 1792]
+    - [9, 6038.41]
+  - - [6784, 128, 1, 1792]
+    - [14, 5469.09]
+  - - [256, 704, 1, 3328]
+    - [10, 3841.06]
+  - - [704, 3584, 1, 256]
+    - [9, 5618.43]
+  - - [1856, 6784, 1, 1792]
+    - [13, 6275.19]
+  - - [704, 2944, 1, 3328]
+    - [9, 6129.61]
+  - - [6784, 1024, 1, 128]
+    - [0, 2809.89]
+  - - [256, 448, 1, 128]
+    - [1, 454.533]
+  - - [448, 1024, 1, 3328]
+    - [9, 4885.14]
+  - - [2944, 1024, 1, 3328]
+    - [11, 6174.03]
+  - - [6784, 2944, 1, 1792]
+    - [7, 6439.84]
+  - - [2944, 5056, 1, 128]
+    - [2, 3450.1]
+  - - [2368, 256, 1, 256]
+    - [9, 3816.05]
+  - - [1408, 6784, 1, 256]
+    - [9, 6087.15]
+  - - [6784, 1408, 1, 3328]
+    - [9, 6293.36]
+  - - [4288, 6784, 1, 128]
+    - [2, 3622.79]
+  - - [3584, 1408, 1, 1792]
+    - [11, 6277.42]
+  - - [4, 2944, 1, 256]
+    - [19, 100.487]
+  - - [704, 64, 1, 256]
+    - [10, 874.807]
+  - - [256, 4, 1, 1792]
+    - [20, 62.3983]
+  - - [256, 2368, 1, 3328]
+    - [12, 5360.2]
+  - - [4288, 1856, 1, 128]
+    - [3, 3248.77]
+  - - [6784, 3584, 1, 256]
+    - [13, 6320.67]
+  - - [1856, 2944, 1, 128]
+    - [3, 3119.16]
+  - - [1024, 5888, 1, 768]
+    - [11, 6109.33]
+  - - [2368, 3584, 1, 256]
+    - [9, 6038.74]
+  - - [64, 3584, 1, 128]
+    - [1, 829.195]
+  - - [5056, 256, 1, 3328]
+    - [14, 5973.99]
+  - - [4288, 4, 1, 256]
+    - [18, 138.495]
+  - - [2368, 1856, 1, 128]
+    - [3, 2978.2]
+  - - [2944, 4288, 1, 1792]
+    - [13, 6296.33]
+  - - [64, 2944, 1, 3328]
+    - [10, 3974.17]
+  - - [4288, 704, 1, 256]
+    - [9, 5691.54]
+  - - [2368, 2368, 1, 1792]
+    - [13, 6171.05]
+  - - [2368, 448, 1, 128]
+    - [2, 1797.19]
+  - - [1856, 5888, 1, 768]
+    - [7, 6392.49]
+  - - [3584, 1024, 1, 128]
+    - [3, 2590.55]
+  - - [256, 256, 1, 1792]
+    - [12, 2019.65]
+  - - [1408, 4288, 1, 3328]
+    - [11, 6353.15]
+  - - [6784, 4288, 1, 256]
+    - [13, 6363.61]
+  - - [5888, 448, 1, 3328]
+    - [14, 5868.86]
+  - - [4288, 256, 1, 128]
+    - [3, 1856.01]
+  - - [704, 1408, 1, 768]
+    - [9, 5434.65]
+  - - [6784, 128, 1, 256]
+    - [9, 4330.38]
+  - - [3584, 64, 1, 768]
+    - [14, 3811.11]
+  - - [5888, 1024, 1, 128]
+    - [0, 2703.28]
+  - - [128, 64, 1, 3328]
+    - [5, 629.136]
+  - - [1408, 1408, 1, 768]
+    - [9, 5730.07]
+  - - [448, 64, 1, 256]
+    - [10, 576.118]
+  - - [2368, 256, 1, 128]
+    - [2, 1446.84]
+  - - [4288, 5888, 1, 1792]
+    - [11, 6501.96]
+  - - [6784, 2368, 1, 768]
+    - [13, 6425.43]
+  - - [6784, 6784, 1, 256]
+    - [11, 6450.02]
+  - - [4, 64, 1, 3328]
+    - [20, 25.0571]
+  - - [256, 1856, 1, 256]
+    - [9, 3863.63]
+  - - [1408, 2368, 1, 3328]
+    - [9, 6155.98]
+  - - [2944, 4, 1, 3328]
+    - [19, 381.17]
+  - - [128, 1408, 1, 3328]
+    - [10, 3861.2]
+  - - [2944, 1856, 1, 128]
+    - [2, 3026.19]
+  - - [128, 2944, 1, 1792]
+    - [14, 5078.63]
+  - - [256, 6784, 1, 128]
+    - [3, 1967.84]
+  - - [2368, 4, 1, 128]
+    - [17, 49.0043]
+  - - [704, 2944, 1, 768]
+    - [9, 5983.87]
+  - - [1856, 4, 1, 128]
+    - [17, 38.0665]
+  - - [5056, 6784, 1, 128]
+    - [2, 3650.47]
+  - - [2944, 1024, 1, 256]
+    - [9, 5550.59]
+  - - [4288, 5056, 1, 128]
+    - [2, 3577.74]
+  - - [4288, 5056, 1, 768]
+    - [13, 6439.44]
+  - - [1856, 5888, 1, 128]
+    - [2, 3393.25]
+  - - [2944, 5888, 1, 256]
+    - [13, 6205.31]
+  - - [1024, 4288, 1, 1792]
+    - [9, 6189.42]
+  - - [4288, 448, 1, 256]
+    - [9, 5260.66]
+  - - [2368, 448, 1, 256]
+    - [9, 4359.42]
+  - - [1856, 4, 1, 1792]
+    - [19, 257.305]
+  - - [4288, 256, 1, 3328]
+    - [14, 5618.98]
+  - - [1856, 704, 1, 128]
+    - [2, 2168.88]
+  - - [64, 5888, 1, 768]
+    - [14, 4511.45]
+  - - [64, 1856, 1, 128]
+    - [1, 459.18]
+  - - [4, 256, 1, 128]
+    - [17, 5.44443]
+  - - [2368, 1408, 1, 1792]
+    - [9, 6129.03]
+  - - [704, 704, 1, 1792]
+    - [14, 5267.88]
+  - - [2368, 2368, 1, 768]
+    - [9, 6102.94]
+  - - [128, 2368, 1, 768]
+    - [14, 3688.43]
+  - - [6784, 3584, 1, 128]
+    - [3, 3248.3]
+  - - [448, 2944, 1, 768]
+    - [12, 5075.8]
+  - - [64, 2368, 1, 256]
+    - [10, 2129.09]
+  - - [2944, 64, 1, 768]
+    - [10, 3500.83]
+  - - [4288, 128, 1, 128]
+    - [2, 1324.61]
+  - - [1408, 1408, 1, 128]
+    - [2, 2552.63]
+  - - [1024, 128, 1, 3328]
+    - [12, 3382.36]
+  - - [1856, 128, 1, 128]
+    - [1, 890.484]
+  - - [64, 4288, 1, 768]
+    - [14, 3323.9]
+  - - [4288, 704, 1, 3328]
+    - [9, 6023.98]
+  - - [448, 3584, 1, 256]
+    - [9, 4967.75]
+  - - [128, 256, 1, 3328]
+    - [4, 1684.41]
+  - - [2944, 6784, 1, 768]
+    - [13, 6383.65]
+  - - [1408, 448, 1, 256]
+    - [9, 4036.92]
+  - - [1024, 1408, 1, 3328]
+    - [9, 5600.03]
+  - - [3584, 4288, 1, 768]
+    - [11, 6420.11]
+  - - [448, 1856, 1, 768]
+    - [14, 4870.44]
+  - - [1408, 4, 1, 3328]
+    - [20, 291.845]
+  - - [5888, 3584, 1, 256]
+    - [13, 6261.62]
+  - - [5056, 4288, 1, 1792]
+    - [13, 6494.41]
+  - - [64, 5056, 1, 3328]
+    - [12, 4557.28]
+  - - [1024, 448, 1, 768]
+    - [9, 4428.54]
+  - - [4, 4, 1, 3328]
+    - [20, 1.55594]
+  - - [5888, 1856, 1, 128]
+    - [2, 3207.65]
+  - - [2368, 256, 1, 1792]
+    - [14, 5256.31]
+  - - [64, 256, 1, 768]
+    - [10, 482.575]
+  - - [704, 4288, 1, 128]
+    - [2, 2848.88]
+  - - [3584, 1856, 1, 256]
+    - [9, 5949.41]
+  - - [2368, 4288, 1, 128]
+    - [2, 3349.06]
+  - - [1408, 5888, 1, 128]
+    - [2, 3251.33]
+  - - [3584, 1856, 1, 128]
+    - [3, 3027.2]
+  - - [3584, 128, 1, 128]
+    - [3, 1148.84]
+  - - [1024, 6784, 1, 128]
+    - [2, 2963.92]
+  - - [4288, 2368, 1, 768]
+    - [9, 6294.81]
+  - - [4288, 1024, 1, 1792]
+    - [9, 5935.23]
+  - - [6784, 4288, 1, 768]
+    - [13, 6502.88]
+  - - [1408, 64, 1, 3328]
+    - [12, 2968.09]
+  - - [6784, 4, 1, 256]
+    - [19, 178.288]
+  - - [1856, 1856, 1, 768]
+    - [9, 5831.86]
+  - - [256, 2368, 1, 256]
+    - [9, 3844.08]
+  - - [448, 4288, 1, 3328]
+    - [14, 5995.14]
+  - - [4288, 3584, 1, 768]
+    - [11, 6448.17]
+  - - [2368, 1408, 1, 256]
+    - [9, 5787.33]
+  - - [704, 2368, 1, 256]
+    - [9, 5148.6]
+  - - [4288, 4288, 1, 768]
+    - [13, 6357.58]
+  - - [5888, 1856, 1, 1792]
+    - [13, 6450.83]
+  - - [1024, 256, 1, 128]
+    - [1, 957.672]
+  - - [128, 6784, 1, 768]
+    - [14, 4998.83]
+  - - [4288, 5056, 1, 256]
+    - [13, 6264.64]
+  - - [3584, 4, 1, 256]
+    - [18, 117.403]
+  - - [6784, 1024, 1, 3328]
+    - [11, 6296.28]
+  - - [5056, 1024, 1, 768]
+    - [11, 6270.75]
+  - - [4, 1856, 1, 128]
+    - [17, 38.0665]
+  - - [5056, 5888, 1, 1792]
+    - [11, 6616.88]
+  - - [4288, 3584, 1, 3328]
+    - [11, 6586.36]
+  - - [64, 1408, 1, 128]
+    - [1, 355.504]
+  - - [4288, 1408, 1, 768]
+    - [11, 6144.66]
+  - - [1024, 6784, 1, 3328]
+    - [11, 6291.08]
+  - - [2944, 1408, 1, 256]
+    - [9, 5912.24]
+  - - [4288, 4, 1, 128]
+    - [17, 83.0197]
+  - - [1856, 128, 1, 768]
+    - [12, 4246.63]
+  - - [1408, 1024, 1, 256]
+    - [9, 5002.76]
+  - - [4, 64, 1, 1792]
+    - [20, 17.899]
+  - - [128, 64, 1, 256]
+    - [10, 164.599]
+  - - [4, 5056, 1, 768]
+    - [18, 284.889]
+  - - [3584, 1856, 1, 768]
+    - [9, 6145.57]
+  - - [256, 1024, 1, 128]
+    - [1, 864.46]
+  - - [448, 1024, 1, 256]
+    - [9, 3857.46]
+  - - [128, 4, 1, 3328]
+    - [20, 47.2332]
+  - - [6784, 6784, 1, 3328]
+    - [11, 6781.25]
+  - - [4288, 1408, 1, 256]
+    - [9, 5882.49]
+  - - [4288, 5888, 1, 768]
+    - [13, 6450.87]
+  - - [704, 5056, 1, 3328]
+    - [9, 6116.22]
+  - - [6784, 1856, 1, 128]
+    - [2, 3359.63]
+  - - [64, 1024, 1, 3328]
+    - [8, 2370.64]
+  - - [5888, 3584, 1, 3328]
+    - [13, 6490.22]
+  - - [2944, 6784, 1, 1792]
+    - [13, 6441.64]
+  - - [4, 2944, 1, 128]
+    - [17, 61.8505]
+  - - [2368, 2944, 1, 3328]
+    - [11, 6310.15]
+  - - [5056, 128, 1, 256]
+    - [9, 4111.35]
+  - - [128, 3584, 1, 3328]
+    - [14, 4911.92]
+  - - [4288, 3584, 1, 1792]
+    - [11, 6551.77]
+  - - [1856, 3584, 1, 1792]
+    - [7, 6228.51]
+  - - [5056, 1408, 1, 1792]
+    - [11, 6400.88]
+  - - [1408, 64, 1, 256]
+    - [10, 1557.06]
+  - - [256, 5888, 1, 768]
+    - [9, 5647.87]
+  - - [1856, 1856, 1, 1792]
+    - [9, 5899.29]
+  - - [128, 1024, 1, 256]
+    - [14, 2004.33]
+  - - [6784, 6784, 1, 768]
+    - [11, 6677.3]
+  - - [4288, 1408, 1, 3328]
+    - [11, 6351.66]
+  - - [64, 704, 1, 3328]
+    - [15, 1942.64]
+  - - [64, 1408, 1, 1792]
+    - [12, 2777.02]
+  - - [2368, 2944, 1, 1792]
+    - [11, 6269.0]
+  - - [1408, 128, 1, 256]
+    - [10, 2542.21]
+  - - [2944, 1024, 1, 128]
+    - [0, 2549.79]
+  - - [1024, 1856, 1, 1792]
+    - [11, 5602.17]
+  - - [5888, 704, 1, 3328]
+    - [9, 6244.08]
+  - - [6784, 5056, 1, 128]
+    - [2, 3613.75]
+  - - [5888, 704, 1, 768]
+    - [9, 6154.39]
+  - - [256, 1024, 1, 3328]
+    - [14, 4868.69]
+  - - [1024, 4, 1, 768]
+    - [20, 103.325]
+  - - [1024, 128, 1, 256]
+    - [10, 2049.69]
+  - - [1856, 1024, 1, 768]
+    - [11, 5382.26]
+  - - [64, 6784, 1, 128]
+    - [3, 1118.1]
+  - - [5888, 448, 1, 1792]
+    - [14, 5721.6]
+  - - [448, 2944, 1, 128]
+    - [2, 2160.23]
+  - - [6784, 1856, 1, 1792]
+    - [13, 6278.56]
+  - - [256, 5056, 1, 256]
+    - [9, 5153.39]
+  - - [128, 3584, 1, 128]
+    - [1, 1108.68]
+  - - [1408, 5888, 1, 768]
+    - [11, 6421.05]
+  - - [448, 3584, 1, 3328]
+    - [14, 5671.55]
+  - - [1408, 1856, 1, 1792]
+    - [9, 6198.49]
+  - - [2368, 64, 1, 768]
+    - [10, 2862.04]
+  - - [256, 256, 1, 128]
+    - [1, 259.733]
+  - - [4, 704, 1, 128]
+    - [17, 15.1586]
+  - - [4, 5056, 1, 128]
+    - [17, 92.9438]
+  - - [448, 256, 1, 256]
+    - [10, 2043.08]
+  - - [704, 4, 1, 3328]
+    - [20, 199.236]
+  - - [1408, 256, 1, 256]
+    - [14, 3227.18]
+  - - [4288, 4288, 1, 128]
+    - [2, 3535.33]
+  - - [4, 5056, 1, 256]
+    - [18, 152.938]
+  - - [1856, 4288, 1, 128]
+    - [3, 3329.8]
+  - - [1024, 5056, 1, 256]
+    - [9, 5866.41]
+  - - [256, 64, 1, 1792]
+    - [15, 665.024]
+  - - [2368, 1408, 1, 3328]
+    - [9, 6155.47]
+  - - [6784, 1024, 1, 1792]
+    - [11, 6261.09]
+  - - [5888, 448, 1, 256]
+    - [9, 5368.74]
+  - - [5888, 6784, 1, 128]
+    - [2, 3569.8]
+  - - [2368, 4, 1, 3328]
+    - [19, 349.384]
+  - - [704, 256, 1, 1792]
+    - [10, 3784.63]
+  - - [1024, 2368, 1, 128]
+    - [3, 2322.64]
+  - - [1408, 2368, 1, 128]
+    - [2, 2765.86]
+  - - [128, 5888, 1, 3328]
+    - [14, 5627.38]
+  - - [6784, 4, 1, 3328]
+    - [18, 332.192]
+  - - [704, 4, 1, 1792]
+    - [20, 140.17]
+  - - [704, 2368, 1, 768]
+    - [9, 5469.58]
+  - - [128, 256, 1, 768]
+    - [10, 965.132]
+  - - [2368, 5888, 1, 768]
+    - [7, 6388.08]
+  - - [256, 4, 1, 128]
+    - [17, 5.61721]
+  - - [1024, 5888, 1, 128]
+    - [2, 2812.75]
+  - - [1024, 4, 1, 1792]
+    - [20, 190.188]
+  - - [3584, 5888, 1, 128]
+    - [2, 3443.62]
+  - - [5056, 5888, 1, 256]
+    - [7, 6408.9]
+  - - [2368, 1024, 1, 256]
+    - [9, 5240.82]
+  - - [1856, 128, 1, 3328]
+    - [14, 4957.37]
+  - - [256, 128, 1, 768]
+    - [10, 979.044]
+  - - [2368, 6784, 1, 1792]
+    - [7, 6481.4]
+  - - [4, 1856, 1, 1792]
+    - [19, 263.726]
+  - - [5888, 256, 1, 128]
+    - [2, 2363.54]
+  - - [1024, 1856, 1, 128]
+    - [3, 2241.69]
+  - - [5056, 3584, 1, 3328]
+    - [7, 6498.43]
+  - - [448, 704, 1, 128]
+    - [3, 880.426]
+  - - [4, 1024, 1, 128]
+    - [17, 21.1911]
+  - - [704, 3584, 1, 768]
+    - [9, 5906.37]
+  - - [1408, 5888, 1, 1792]
+    - [11, 6555.8]
+  - - [3584, 3584, 1, 768]
+    - [9, 6339.55]
+  - - [1408, 704, 1, 128]
+    - [2, 2227.33]
+  - - [448, 2368, 1, 768]
+    - [12, 4958.89]
+  - - [5056, 1024, 1, 1792]
+    - [11, 6436.83]
+  - - [6784, 3584, 1, 768]
+    - [13, 6453.52]
+  - - [1408, 1024, 1, 3328]
+    - [7, 5107.68]
+  - - [2368, 256, 1, 3328]
+    - [14, 5417.78]
+  - - [1408, 6784, 1, 768]
+    - [9, 6236.26]
+  - - [1024, 2368, 1, 768]
+    - [9, 5638.07]
+  - - [1856, 3584, 1, 3328]
+    - [7, 6256.3]
+  - - [4, 4, 1, 768]
+    - [20, 0.62363]
+  - - [1408, 64, 1, 1792]
+    - [12, 2776.99]
+  - - [448, 128, 1, 128]
+    - [1, 238.193]
+  - - [3584, 3584, 1, 256]
+    - [9, 6191.3]
+  - - [704, 5056, 1, 256]
+    - [9, 5786.05]
+  - - [3584, 448, 1, 1792]
+    - [12, 5473.11]
+  - - [5056, 2368, 1, 256]
+    - [9, 6154.47]
+  - - [128, 256, 1, 128]
+    - [1, 126.108]
+  - - [1024, 256, 1, 3328]
+    - [12, 4944.32]
+  - - [2368, 256, 1, 768]
+    - [14, 4805.07]
+  - - [448, 5056, 1, 768]
+    - [9, 5844.7]
+  - - [2368, 3584, 1, 3328]
+    - [9, 6264.56]
+  - - [3584, 5888, 1, 3328]
+    - [11, 6488.13]
+  - - [128, 4, 1, 256]
+    - [20, 7.04953]
+  - - [2368, 128, 1, 768]
+    - [14, 3736.65]
+  - - [4288, 5056, 1, 3328]
+    - [13, 6513.83]
+  - - [5056, 6784, 1, 768]
+    - [7, 6520.49]
+  - - [5888, 704, 1, 1792]
+    - [9, 6222.23]
+  - - [5056, 448, 1, 3328]
+    - [9, 5976.27]
+  - - [1408, 704, 1, 3328]
+    - [14, 5690.42]
+  - - [3584, 128, 1, 256]
+    - [9, 3687.01]
+  - - [2368, 6784, 1, 768]
+    - [7, 6426.42]
+  - - [6784, 64, 1, 3328]
+    - [14, 4762.27]
+  - - [64, 1856, 1, 3328]
+    - [12, 3903.9]
+  - - [128, 1408, 1, 768]
+    - [10, 3348.62]
+  - - [6784, 256, 1, 1792]
+    - [9, 5801.36]
+  - - [448, 64, 1, 1792]
+    - [15, 996.571]
+  - - [4, 704, 1, 1792]
+    - [20, 138.182]
+  - - [256, 4288, 1, 128]
+    - [3, 1698.15]
+  - - [3584, 4, 1, 1792]
+    - [18, 347.504]
+  - - [256, 128, 1, 3328]
+    - [15, 1674.82]
+  - - [1024, 704, 1, 1792]
+    - [9, 5243.4]
+  - - [128, 4, 1, 1792]
+    - [20, 33.7491]
+  - - [5888, 128, 1, 128]
+    - [2, 1640.18]
+  - - [4, 5056, 1, 3328]
+    - [20, 435.365]
+  - - [256, 1856, 1, 1792]
+    - [14, 5019.34]
+  - - [1856, 64, 1, 3328]
+    - [12, 3884.02]
+  - - [64, 1024, 1, 1792]
+    - [14, 1957.31]
+  - - [1024, 3584, 1, 768]
+    - [9, 6087.02]
+  - - [128, 128, 1, 1792]
+    - [15, 649.762]
+  - - [1856, 2944, 1, 256]
+    - [9, 6038.84]
+  - - [5888, 5888, 1, 1792]
+    - [11, 6584.37]
+  - - [4288, 6784, 1, 1792]
+    - [7, 6551.29]
+  - - [5056, 1024, 1, 128]
+    - [0, 2865.56]
+  - - [256, 2944, 1, 768]
+    - [9, 5279.61]
+  - - [1408, 4288, 1, 768]
+    - [11, 6136.22]
+  - - [4, 2368, 1, 768]
+    - [19, 192.934]
+  - - [5056, 704, 1, 1792]
+    - [9, 6085.79]
+  - - [2368, 704, 1, 1792]
+    - [14, 5832.95]
+  - - [4288, 2944, 1, 1792]
+    - [13, 6293.34]
+  - - [5888, 704, 1, 128]
+    - [2, 2904.57]
+  - - [64, 6784, 1, 1792]
+    - [14, 4596.67]
+  - - [2368, 448, 1, 768]
+    - [12, 4949.97]
+  - - [448, 4, 1, 128]
+    - [17, 9.73727]
+  - - [4288, 256, 1, 768]
+    - [14, 5076.28]
+  - - [1408, 256, 1, 768]
+    - [14, 4093.15]
+  - - [5888, 4, 1, 128]
+    - [17, 108.236]
+  - - [2944, 1408, 1, 768]
+    - [11, 6237.46]
+  - - [1024, 5056, 1, 3328]
+    - [11, 6490.95]
+  - - [5056, 5056, 1, 256]
+    - [13, 6246.07]
+  - - [1856, 1408, 1, 1792]
+    - [9, 6202.14]
+  - - [704, 4288, 1, 3328]
+    - [9, 6029.87]
+  - - [3584, 64, 1, 256]
+    - [12, 2821.05]
+  - - [4, 1408, 1, 3328]
+    - [20, 306.702]
+  - - [4288, 2944, 1, 768]
+    - [9, 6245.25]
+  - - [1408, 128, 1, 3328]
+    - [10, 3859.36]
+  - - [4, 2944, 1, 1792]
+    - [19, 317.947]
+  - - [1856, 64, 1, 1792]
+    - [12, 3632.81]
+  - - [256, 704, 1, 128]
+    - [1, 684.449]
+  - - [5056, 4288, 1, 768]
+    - [13, 6437.23]
+  - - [4, 256, 1, 3328]
+    - [20, 90.7411]
+  - - [128, 704, 1, 3328]
+    - [12, 2976.82]
+  - - [4288, 6784, 1, 256]
+    - [7, 6364.82]
+  - - [3584, 2944, 1, 3328]
+    - [9, 6278.33]
+  - - [128, 1856, 1, 256]
+    - [12, 3075.0]
+  - - [64, 4288, 1, 256]
+    - [10, 2476.28]
+  - - [4, 3584, 1, 3328]
+    - [18, 404.317]
+  - - [448, 3584, 1, 1792]
+    - [14, 5554.51]
+  - - [64, 4, 1, 3328]
+    - [20, 24.7874]
+  - - [2368, 64, 1, 1792]
+    - [10, 3193.61]
+  - - [704, 128, 1, 1792]
+    - [12, 2777.02]
+  - - [1408, 448, 1, 1792]
+    - [14, 5445.98]
+  - - [4288, 256, 1, 256]
+    - [9, 4537.86]
+  - - [4, 2368, 1, 256]
+    - [19, 85.2463]
+  - - [1856, 64, 1, 256]
+    - [10, 2127.0]
+  - - [2368, 6784, 1, 128]
+    - [2, 3501.82]
+  - - [5056, 2368, 1, 768]
+    - [9, 6299.39]
+  - - [448, 1856, 1, 3328]
+    - [14, 5405.35]
+  - - [5056, 1856, 1, 1792]
+    - [9, 6337.39]
+  - - [1024, 4288, 1, 128]
+    - [2, 2665.03]
+  - - [3584, 448, 1, 256]
+    - [9, 4945.58]
+  - - [5056, 4288, 1, 256]
+    - [13, 6284.6]
+  - - [1024, 448, 1, 256]
+    - [9, 3531.04]
+  - - [1856, 704, 1, 256]
+    - [9, 5388.53]
+  - - [1856, 5056, 1, 128]
+    - [3, 3392.99]
+  - - [64, 256, 1, 256]
+    - [10, 321.723]
+  - - [4288, 64, 1, 768]
+    - [12, 3371.14]
+  - - [2944, 2944, 1, 1792]
+    - [13, 6282.28]
+  - - [128, 2368, 1, 128]
+    - [2, 818.362]
+  - - [4288, 448, 1, 128]
+    - [2, 2518.56]
+  - - [5056, 1408, 1, 256]
+    - [7, 5965.62]
+  - - [2944, 1856, 1, 256]
+    - [9, 6013.82]
+  - - [64, 2368, 1, 128]
+    - [1, 581.948]
+  - - [6784, 4, 1, 768]
+    - [20, 301.867]
+  - - [3584, 2944, 1, 128]
+    - [2, 3121.97]
+  - - [256, 2368, 1, 768]
+    - [14, 4729.14]
+  - - [4288, 1408, 1, 1792]
+    - [11, 6295.81]
+  - - [448, 4288, 1, 768]
+    - [9, 5557.13]
+  - - [128, 3584, 1, 1792]
+    - [14, 4787.71]
+  - - [2368, 5888, 1, 3328]
+    - [7, 6466.42]
+  - - [704, 2368, 1, 1792]
+    - [14, 5826.21]
+  - - [4, 64, 1, 256]
+    - [19, 3.76471]
+  - - [704, 1024, 1, 3328]
+    - [9, 5360.44]
+  - - [6784, 64, 1, 256]
+    - [9, 3624.39]
+  - - [128, 448, 1, 128]
+    - [1, 214.48]
+  - - [128, 6784, 1, 256]
+    - [9, 4342.91]
+  - - [3584, 4288, 1, 128]
+    - [2, 3233.37]
+  - - [448, 2368, 1, 256]
+    - [9, 4422.5]
+  - - [64, 448, 1, 128]
+    - [1, 113.115]
+  - - [448, 1408, 1, 768]
+    - [12, 4988.44]
+  - - [5888, 4288, 1, 3328]
+    - [11, 6524.04]
+  - - [2368, 704, 1, 256]
+    - [9, 5130.25]
+  - - [256, 1856, 1, 3328]
+    - [14, 5223.02]
+  - - [1856, 128, 1, 256]
+    - [12, 3207.16]
+  - - [2944, 4288, 1, 256]
+    - [9, 6105.13]
+  - - [6784, 128, 1, 128]
+    - [3, 1870.91]
+  - - [3584, 1408, 1, 128]
+    - [3, 2899.83]
+  - - [128, 3584, 1, 768]
+    - [9, 4449.26]
+  - - [6784, 4288, 1, 3328]
+    - [13, 6582.06]
+  - - [5888, 3584, 1, 1792]
+    - [11, 6464.94]
+  - - [1408, 1024, 1, 1792]
+    - [13, 5049.82]
+  - - [5056, 4, 1, 256]
+    - [18, 155.317]
+  - - [128, 64, 1, 768]
+    - [10, 245.472]
+  - - [4, 4288, 1, 256]
+    - [18, 135.643]
+  - - [448, 4288, 1, 256]
+    - [9, 5244.03]
+  - - [5056, 4, 1, 768]
+    - [18, 278.088]
+  - - [1024, 2368, 1, 3328]
+    - [9, 5767.72]
+  - - [128, 128, 1, 3328]
+    - [15, 985.388]
+  - - [5888, 4288, 1, 1792]
+    - [13, 6499.33]
+  - - [704, 1408, 1, 256]
+    - [9, 4914.84]
+  - - [6784, 1856, 1, 3328]
+    - [13, 6295.71]
+  - - [1024, 2944, 1, 128]
+    - [3, 2469.99]
+  - - [704, 448, 1, 1792]
+    - [12, 4330.2]
+  - - [4288, 5888, 1, 3328]
+    - [11, 6527.08]
+  - - [1408, 3584, 1, 1792]
+    - [11, 6299.77]
+  - - [256, 1408, 1, 256]
+    - [12, 3348.62]
+  - - [5888, 64, 1, 128]
+    - [3, 1058.78]
+  - - [4, 5888, 1, 128]
+    - [17, 109.696]
+  - - [704, 3584, 1, 1792]
+    - [9, 5987.69]
+  - - [448, 448, 1, 1792]
+    - [12, 4022.63]
+  - - [1856, 3584, 1, 256]
+    - [9, 5983.48]
+  - - [1024, 256, 1, 768]
+    - [12, 4383.67]
+  - - [128, 5056, 1, 1792]
+    - [14, 5595.41]
+  - - [6784, 704, 1, 1792]
+    - [9, 6059.53]
+  - - [3584, 6784, 1, 768]
+    - [13, 6431.3]
+  - - [2944, 704, 1, 128]
+    - [2, 2676.64]
+  - - [64, 5056, 1, 128]
+    - [2, 884.714]
+  - - [64, 448, 1, 768]
+    - [10, 846.91]
+  - - [4, 128, 1, 3328]
+    - [20, 48.5286]
+  - - [3584, 2368, 1, 1792]
+    - [9, 6245.78]
+  - - [128, 704, 1, 256]
+    - [10, 1564.93]
+  - - [448, 4, 1, 768]
+    - [20, 52.7817]
+  - - [64, 1408, 1, 256]
+    - [10, 1692.49]
+  - - [5056, 256, 1, 1792]
+    - [9, 5928.04]
+  - - [6784, 2368, 1, 1792]
+    - [13, 6491.36]
+  - - [2368, 1408, 1, 128]
+    - [2, 2800.82]
+  - - [1856, 448, 1, 256]
+    - [9, 4207.28]
+  - - [1408, 1024, 1, 128]
+    - [2, 2157.03]
+  - - [128, 64, 1, 128]
+    - [1, 33.1508]
+  - - [5888, 6784, 1, 1792]
+    - [11, 6619.43]
+  - - [1024, 704, 1, 3328]
+    - [9, 5347.16]
+  - - [64, 64, 1, 128]
+    - [1, 16.4982]
+  - - [2944, 5056, 1, 1792]
+    - [13, 6422.56]
+  - - [1024, 128, 1, 1792]
+    - [14, 3678.46]
+  - - [5888, 2368, 1, 3328]
+    - [13, 6472.97]
+  - - [256, 64, 1, 3328]
+    - [15, 977.536]
+  - - [4, 1408, 1, 128]
+    - [17, 29.4015]
+  - - [128, 1856, 1, 3328]
+    - [14, 4955.09]
+  - - [2944, 2944, 1, 256]
+    - [13, 6026.77]
+  - - [4288, 1856, 1, 1792]
+    - [11, 6262.73]
+  - - [4, 448, 1, 256]
+    - [19, 18.9391]
+  - - [5888, 4, 1, 256]
+    - [18, 165.773]
+  - - [6784, 256, 1, 256]
+    - [9, 5344.57]
+  - - [256, 5056, 1, 3328]
+    - [9, 5970.92]
+  - - [4, 128, 1, 1792]
+    - [20, 34.598]
+  - - [4, 2944, 1, 768]
+    - [19, 213.818]
+  - - [1024, 3584, 1, 256]
+    - [13, 5649.59]
+  - - [5056, 1856, 1, 128]
+    - [2, 3339.88]
+  - - [3584, 704, 1, 768]
+    - [9, 5890.42]
+  - - [2368, 5056, 1, 3328]
+    - [11, 6387.99]
+  - - [128, 128, 1, 256]
+    - [10, 325.417]
+  - - [5888, 5888, 1, 768]
+    - [11, 6514.0]
+  - - [128, 5888, 1, 768]
+    - [9, 5276.05]
+  - - [448, 448, 1, 128]
+    - [1, 762.216]
+  - - [1024, 5056, 1, 768]
+    - [11, 6243.77]
+  - - [1856, 704, 1, 3328]
+    - [14, 6038.15]
+  - - [4, 2368, 1, 128]
+    - [17, 49.7483]
+  - - [5888, 6784, 1, 3328]
+    - [11, 6640.21]
+  - - [1856, 2368, 1, 256]
+    - [9, 5940.11]
+  - - [5888, 3584, 1, 768]
+    - [13, 6408.72]
+  - - [5888, 448, 1, 768]
+    - [9, 5637.69]
+  - - [128, 128, 1, 128]
+    - [1, 64.3436]
+  - - [704, 256, 1, 256]
+    - [10, 2491.42]
+  - - [6784, 448, 1, 3328]
+    - [9, 6065.11]
+  - - [4288, 1024, 1, 128]
+    - [0, 2647.36]
+- null

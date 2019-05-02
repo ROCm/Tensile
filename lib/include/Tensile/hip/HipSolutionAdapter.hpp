@@ -29,18 +29,29 @@
 #include <Tensile/Tensile.hpp>
 #include <hip/hip_runtime.h>
 
+#include <mutex>
+
 namespace Tensile
 {
     namespace hip
     {
-        class SolutionAdapter
+        class SolutionAdapter: public Tensile::SolutionAdapter
         {
         public:
             SolutionAdapter() = default;
             SolutionAdapter(bool debug);
             ~SolutionAdapter();
 
+            virtual std::string name() const { return "HipSolutionAdapter"; }
+
             void loadCodeObjectFile(std::string const& path);
+
+            void loadCodeObject(const void * image);
+
+            void loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
+
+            void loadEmbeddedCodeObjects();
+            void loadEmbeddedCodeObjects(std::string const& key);
 
             void launchKernel(KernelInvocation const& kernel);
             void launchKernels(std::vector<KernelInvocation> const& kernels);
@@ -48,7 +59,9 @@ namespace Tensile
         private:
             hipFunction_t getKernel(std::string const& name);
 
-            hipModule_t m_module = nullptr;
+            std::mutex m_access;
+
+            std::vector<hipModule_t> m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
             bool m_debug = false;
         };

@@ -17,14 +17,15 @@ file(COPY ${lite_configs} DESTINATION .)
 
 set (asm_only_yaml  ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/Configs/rocblas_sgemm_asm_only.yaml)
 
-set(tensile_library_options --merge-files)
+set(tensile_library_options --no-merge-files)
 if(CMAKE_BUILD_TYPE EQUAL "Debug")
     set(tensile_library_options ${tensile_library_options} --library-print-debug)
 endif()
 
 if(HIP_FOUND)
-    set(tensile_script ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/Tensile.py) 
-    set(tensile_library_script ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile/TensileCreateLibrary.py) 
+    set(tensile_root           ${CMAKE_CURRENT_SOURCE_DIR}/../../Tensile)
+    set(tensile_script         ${tensile_root}/Tensile.py) 
+    set(tensile_library_script ${tensile_root}/TensileCreateLibrary.py) 
 
     add_custom_target(code_object_inputs
                       COMMAND python ${tensile_script} ${input_yaml} code_object
@@ -41,7 +42,7 @@ if(HIP_FOUND)
     endforeach()
 
     add_custom_target(code_object
-        COMMAND ${HIP_BIN_INSTALL_DIR}/hcc -target amdgcn--amdhsa ${co_object_files} -o TensileKernels.co
+        COMMAND "${HIP_BIN_INSTALL_DIR}/hcc" -target amdgcn--amdhsa ${co_object_files} -o TensileKernels.co
         DEPENDS code_object_inputs)
 
     file(GLOB co_lite_objects

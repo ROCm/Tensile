@@ -110,6 +110,40 @@ namespace Tensile {
         calculate();
     }
 
+    size_t TensorDescriptor::dimensionPadding(size_t dim) const
+    {
+        TENSILE_ASSERT_EXC(dim < dimensions());
+
+        if(dim == 0)
+            return m_strides[0] - 1;
+
+        return m_strides[dim] - (m_strides[dim-1] * m_sizes[dim-1]);
+    }
+
+    void TensorDescriptor::collapseDims(size_t begin, size_t end)
+    {
+        TENSILE_ASSERT_EXC(end >= begin);
+        TENSILE_ASSERT_EXC(begin < dimensions());
+        TENSILE_ASSERT_EXC(end <= dimensions());
+
+        if(end <= (begin+1))
+            return;
+
+        for(size_t i = begin+1; i < end; i++)
+            TENSILE_ASSERT_EXC(dimensionPadding(i) == 0);
+
+        size_t newDimensionSize = 1;
+        for(size_t i = begin; i < end; i++)
+            newDimensionSize *= m_sizes[i];
+
+        m_sizes.erase(m_sizes.begin() + (begin + 1), m_sizes.begin() + end);
+        m_sizes[begin] = newDimensionSize;
+
+        m_strides.erase(m_strides.begin() + (begin + 1), m_strides.begin() + end);
+
+        calculate();
+    }
+
     std::string TensorDescriptor::ToString() const
     {
         std::ostringstream result;

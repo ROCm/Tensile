@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,6 +18,8 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+
+from __future__ import print_function
 import os, sys
 from copy import deepcopy
 from copy import copy as shallowcopy
@@ -27,7 +29,6 @@ import filecmp
 import csv
 from subprocess import Popen
 import time
-
 from BenchmarkStructs import BenchmarkProcess
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from SolutionStructs import Solution, ProblemType
@@ -37,8 +38,6 @@ from KernelWriterAssembly import KernelWriterAssembly
 from ClientWriter import writeRunScript, writeClientParameters
 from TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 import YAMLIO
-
-
 
 ################################################################################
 # Benchmark Problem Type
@@ -457,7 +456,6 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       filesToCopy, stepBaseDir)
 
-
 ################################################################################
 # FrozenDictionary
 ################################################################################
@@ -618,7 +616,7 @@ class WinningParameterDict:
 
     # only 1 winner, when benchmarking 1 solution
     if len(winners) == 1:
-      hardcodedFrozen = winners.keys()[0]
+      hardcodedFrozen = list(winners.keys())[0]
       winningParameters = winners[hardcodedFrozen][0]
       score = winners[hardcodedFrozen][1]
       matches.append([hardcodedFrozen, winningParameters, score])
@@ -706,9 +704,10 @@ def main( config ):
         (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
         totalTestFails += benchmarkErrors
-        print "clientExit=%u %s for %s" %\
+        
+        print("clientExit=%u %s for %s" %\
                 (totalTestFails, "(ERROR)" if totalTestFails else "(PASS)", \
-                globalParameters["ConfigPath"])
+                globalParameters["ConfigPath"]))
 
         # Copy Data
         resultsFileBase = resultsFileBaseFinal

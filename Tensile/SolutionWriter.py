@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -587,6 +587,7 @@ class SolutionWriter:
         # sizes
         for i in range(0, problemType["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
+        s += "%sprintf(\"  staggerUIter == %%u\\n\", staggerUIter );\n" % (t)
         s += "%sprintf(\"  problemNumGroupTiles0== %%u\\n\", problemNumGroupTiles0 );\n" % (t)
         s += "%sprintf(\"  problemNumGroupTiles1== %%u\\n\", problemNumGroupTiles1 );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)

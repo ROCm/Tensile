@@ -64,6 +64,11 @@ namespace Tensile
                                                              TypedInputs                  const& inputs,
                                                              Hardware                     const& hardware) const
     {
+        TensorDescriptor const& a = problem.a();
+        TensorDescriptor const& b = problem.b();
+        TensorDescriptor const& c = problem.c();
+        TensorDescriptor const& d = problem.d();
+
         KernelInvocation rv;
 
         rv.args = KernelArguments(true);
@@ -76,14 +81,20 @@ namespace Tensile
         rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(problem.c().sizes()[0], sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(problem.c().sizes()[1], sizeMapping.macroTile.y);
-        rv.numWorkGroups.z = problem.c().sizes()[2];
+        rv.numWorkGroups.x = CeilDivide(c.sizes()[0], sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(c.sizes()[1], sizeMapping.macroTile.y);
+        rv.numWorkGroups.z = c.sizes()[2];
 
         if(sizeMapping.workGroupMapping < 0)
-        {
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
-        }
+
+        unsigned int problemNumGroupTiles0 = rv.numWorkGroups.x;
+        unsigned int problemNumGroupTiles1 = rv.numWorkGroups.y;
+
+        if(sizeMapping.workGroupMapping < 0)
+            rv.numWorkGroups.x *= sizeMapping.globalSplitU;
+        else
+            rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -96,15 +107,9 @@ namespace Tensile
 
         rv.sharedMemBytes = 0;
 
-        unsigned int problemNumGroupTiles0;
-        unsigned int problemNumGroupTiles1;
-
-        problemNumGroupTiles0 = rv.numWorkGroups.x;
-        problemNumGroupTiles1 = rv.numWorkGroups.y;
-
-        rv.args.append<uint64_t>("tensor2dSizeC", problem.c().strides()[2]);
-        rv.args.append<uint64_t>("tensor2dSizeA", problem.a().strides()[2]);
-        rv.args.append<uint64_t>("tensor2dSizeB", problem.b().strides()[2]);
+        rv.args.append<uint64_t>("tensor2dSizeC", c.strides()[2]);
+        rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
+        rv.args.append<uint64_t>("tensor2dSizeB", b.strides()[2]);
 
         rv.args.append<float       *>("d", inputs.d);
         rv.args.append<float const *>("c", inputs.c);
@@ -114,14 +119,14 @@ namespace Tensile
         rv.args.append<float>("alpha", inputs.alpha);
         rv.args.append<float>("beta",  inputs.beta);
 
-        rv.args.append<uint32_t>("strideC1", problem.d().strides()[1]);
-        rv.args.append<uint32_t>("strideC2", problem.d().strides()[2]);
+        for(size_t i = 1; i < d.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideC", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
 
-        rv.args.append<uint32_t>("strideA1", problem.a().strides()[1]);
-        rv.args.append<uint32_t>("strideA2", problem.a().strides()[2]);
+        for(size_t i = 1; i < a.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideA", i), a.sizes()[i] == 1 ? 0 : a.strides()[i]);
 
-        rv.args.append<uint32_t>("strideB1", problem.b().strides()[1]);
-        rv.args.append<uint32_t>("strideB2", problem.b().strides()[2]);
+        for(size_t i = 1; i < b.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
 
         rv.args.append<uint32_t>("sizeI", problem.freeSizeA(0));
         rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));
@@ -173,9 +178,10 @@ namespace Tensile
         rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));
         rv.args.append<uint32_t>("sizeK", problem.batchSize(0));
 
-        if(inputs.beta == static_cast<typename TypedInputs::BetaType>(0))
+        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
             rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+            //rv.args.append<typename TypedInputs::BetaType>("beta", 0);
         }
 
         return rv;

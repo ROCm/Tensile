@@ -53,6 +53,11 @@ namespace Tensile
         return value & 0x8;
     }
 
+    bool Debug::printCodeObjectInfo() const
+    {
+        return value & 0x20;
+    }
+
     int value;
 
     Debug::Debug()

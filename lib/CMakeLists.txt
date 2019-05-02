@@ -8,20 +8,42 @@ find_package(HIP CONFIG PATHS /opt/rocm/hip)
 
 option(USE_LLVM "Use LLVM for parsing config files." ON)
 option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library." ON)
+option(TENSILE_DISABLE_TESTS "Disable ctest integration." OFF)
 
 if(USE_LLVM)
-find_package(LLVM REQUIRED CONFIG)
-add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)
+    find_package(LLVM REQUIRED CONFIG)
+    add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)
 endif()
 
 if(TENSILE_STATIC_ONLY)
-add_definitions(-DTENSILE_STATIC_ONLY)
+    add_definitions(-DTENSILE_STATIC_ONLY)
 endif()
+
+if(NOT TENSILE_DISABLE_TESTS)
+    enable_testing()
+
+    if(CMAKE_VERSION VERSION_GREATER 3.9)
+        include(GoogleTest)
+        option(GTEST_INTEGRATION "Enable Googletest integration with CMake." ON)
+    else()
+        option(GTEST_INTEGRATION "Enable Googletest integration with CMake." OFF)
+    endif()
+endif()
+
+if(NOT DEFINED TENSILE_ROOT)
+    set(TENSILE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+endif()
+if(NOT DEFINED TENSILE_SCRIPT_ROOT)
+    set(TENSILE_SCRIPT_ROOT "${TENSILE_ROOT}/Tensile")
+endif()
+
+include("${TENSILE_SCRIPT_ROOT}/Source/TensileConfig.cmake")
+
 
 #set(HIP_FOUND 1)
 
 #set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror" )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror -ftemplate-backtrace-limit=0" )
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
@@ -29,10 +51,12 @@ set(tensile_sources  ${tensile_sources}
     source/ContractionSolution.cpp
     source/DataTypes.cpp
     source/Debug.cpp
+    source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
+    source/Utils.cpp
     )
 
 if(USE_LLVM)
@@ -57,9 +81,12 @@ if(USE_LLVM)
 endif()
 
 if(HIP_FOUND)
+    add_subdirectory(client)
     add_subdirectory(source/hip)
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} TensileHip )
 endif()
 
-add_subdirectory(test)
+if(NOT TENSILE_DISABLE_TESTS)
+    add_subdirectory(test)
+endif()
 
