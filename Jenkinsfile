@@ -185,6 +185,22 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
   build_image.inside( docker_args.docker_run_args )
   {
+    stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+    {
+      timeout(time: 1, unit: 'HOURS') {
+        sh """#!/usr/bin/env bash
+          set -x
+          cd ${paths.project_src_prefix}
+          mkdir build
+          cd build
+          cmake -D CMAKE_BUILD_TYPE=Debug ../lib
+          make -j16
+          ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+        """
+      }
+      junit "${project.paths.project_src_prefix}/build/host_test_output.xml"
+    }
+
     def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
     stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
     {
@@ -195,8 +211,10 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
           tox --version
           tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e lint
           tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py27
+          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py37
         """
       }
+      junit "${paths.project_src_prefix}/*_tests.xml"
     }
   }
 

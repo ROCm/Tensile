@@ -27,11 +27,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     python-setuptools \
     python-yaml \
     libnuma1 \
+    llvm-6.0-dev \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install tox
+RUN pip install tox pyyaml
 
 # docker pipeline runs containers with particular uid
 # create a jenkins user with this specific uid so it can use sudo priviledges
