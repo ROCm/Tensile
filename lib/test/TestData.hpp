@@ -24,39 +24,40 @@
  *
  *******************************************************************************/
 
-#include <gtest/gtest.h>
+#pragma once
 
-#include <Tensile/Serialization.hpp>
-#include <Tensile/llvm/YAML.hpp>
-#include <Tensile/ContractionLibrary.hpp>
-#include <TestUtils.hpp>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "TestData.hpp"
+#include <boost/filesystem.hpp>
+#include <Tensile/Singleton.hpp>
 
-using namespace Tensile;
-
-TEST(LibraryPerformanceTest, CreateProblem)
+struct TestData: public Tensile::LazySingleton<TestData>
 {
-    for(int i = 0; i < 1000; i++)
-        RandomGEMM();
-}
+    using Base = Tensile::LazySingleton<TestData>;
 
-TEST(LibraryPerformanceTest, LoadLibrary)
-{
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLiteMixed.yaml").native());
-}
-
-TEST(LibraryPerformanceTest, FindSolution)
-{
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLiteMixed.yaml").native());
-    AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
-
-    for(int i = 0; i < 10000; i++)
+    static inline boost::filesystem::path File(std::string const& filename)
     {
-        auto problem = RandomGEMM();
-
-        auto solution = library->findBestSolution(problem, hardware);
-
-        //ASSERT_NE(solution, nullptr);
+        return Instance().DataDir() / filename;
     }
-}
+
+    boost::filesystem::path DataDir() const
+    {
+        return m_dataDir;
+    }
+
+private:
+    friend Base;
+
+    boost::filesystem::path m_executable;
+    boost::filesystem::path m_dataDir;
+
+    TestData()
+        : m_executable(boost::filesystem::read_symlink("/proc/self/exe")),
+          m_dataDir(m_executable.parent_path() / "data")
+    {
+    }
+};
+
+

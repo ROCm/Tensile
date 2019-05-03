@@ -64,6 +64,8 @@ namespace Tensile
                                                              TypedInputs                  const& inputs,
                                                              Hardware                     const& hardware) const
     {
+        TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
+
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
         TensorDescriptor const& c = problem.c();
@@ -85,16 +87,10 @@ namespace Tensile
         rv.numWorkGroups.y = CeilDivide(c.sizes()[1], sizeMapping.macroTile.y);
         rv.numWorkGroups.z = c.sizes()[2];
 
-        if(sizeMapping.workGroupMapping < 0)
-            std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
+        uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
+        uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
 
-        unsigned int problemNumGroupTiles0 = rv.numWorkGroups.x;
-        unsigned int problemNumGroupTiles1 = rv.numWorkGroups.y;
-
-        if(sizeMapping.workGroupMapping < 0)
-            rv.numWorkGroups.x *= sizeMapping.globalSplitU;
-        else
-            rv.numWorkGroups.y *= sizeMapping.globalSplitU;
+        rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -120,7 +116,10 @@ namespace Tensile
         rv.args.append<float>("beta",  inputs.beta);
 
         for(size_t i = 1; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+
+        for(size_t i = 1; i < c.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
 
         for(size_t i = 1; i < a.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideA", i), a.sizes()[i] == 1 ? 0 : a.strides()[i]);
@@ -140,6 +139,23 @@ namespace Tensile
         rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(problemNumGroupTiles0));
         rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
 
+        uint32_t numFullBlocks = problemNumGroupTiles1;
+        uint32_t wgmRemainder1 = 0;
+        uint32_t magicNumberWgmRemainder1 = 0;
+
+        if(sizeMapping.workGroupMapping != 0)
+        {
+            numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
+            wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
+            if(wgmRemainder1 == 0)
+                wgmRemainder1 = sizeMapping.workGroupMapping;
+            magicNumberWgmRemainder1 = magicNumber(wgmRemainder1);
+        }
+
+        rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
+        rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
+        rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+
         rv.args.append<uint32_t>("pad", 0);
 
         return rv;
@@ -150,6 +166,9 @@ namespace Tensile
                                                                TypedInputs const& inputs,
                                                                Hardware    const& hardware) const
     {
+        TensorDescriptor const& c = problem.c();
+        TensorDescriptor const& d = problem.d();
+
         KernelInvocation rv;
 
         rv.args = KernelArguments(true);
@@ -160,9 +179,9 @@ namespace Tensile
         rv.workGroupSize.y = 8;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(problem.c().sizes()[0], rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(problem.c().sizes()[1], rv.workGroupSize.y);
-        rv.numWorkGroups.z = problem.c().sizes()[2];
+        rv.numWorkGroups.x = CeilDivide(c.sizes()[0], rv.workGroupSize.x);
+        rv.numWorkGroups.y = CeilDivide(c.sizes()[1], rv.workGroupSize.y);
+        rv.numWorkGroups.z = c.sizes()[2];
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -171,8 +190,11 @@ namespace Tensile
         rv.args.append<typename TypedInputs::DType      *>("D", inputs.d);
         rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
 
-        rv.args.append<uint32_t>("strideC1", problem.d().strides()[1]);
-        rv.args.append<uint32_t>("strideC2", problem.d().strides()[2]);
+        for(size_t i = 1; i < d.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+
+        for(size_t i = 1; i < c.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
 
         rv.args.append<uint32_t>("sizeI", problem.freeSizeA(0));
         rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));

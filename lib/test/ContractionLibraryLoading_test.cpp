@@ -30,18 +30,13 @@
 #include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/AMDGPU.hpp>
 
+#include "TestData.hpp"
+
 using namespace Tensile;
-
-TEST(ContractionLibraryLoadingTest, Simple)
-{
-    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("test/sample_library.yaml");
-
-    ASSERT_NE(library, nullptr);
-}
 
 TEST(ContractionLibraryLoadingTest, MultipleKernels)
 {
-    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/TensileKernels.yaml");
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("SampleTensileKernels.yaml").native());
     ASSERT_NE(library, nullptr);
 
     AMDGPU hardware;
@@ -91,7 +86,7 @@ TEST(ContractionLibraryLoadingTest, MultipleKernels)
 
 TEST(ContractionLibraryLoadingTest, SGEMM_Kernels_Lite)
 {
-    auto library = LoadLibraryFile<ContractionProblem>("configs/KernelsLite.yaml");
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLite.yaml").native());
     ASSERT_NE(library, nullptr);
 }
 

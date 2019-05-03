@@ -30,8 +30,6 @@
 #include <sstream>
 #include <array>
 
-#include <Tensile/TensorDescriptor.hpp>
-
 namespace Tensile
 {
     template <typename T>
@@ -44,37 +42,6 @@ namespace Tensile
     T RoundUpToMultiple(T val, T den)
     {
         return CeilDivide(val, den) * den;
-    }
-
-    template <typename T>
-    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
-    {
-        if(desc.dimensions() != 3)
-            throw std::runtime_error("Fix this function to work with dimensions != 3");
-
-        std::vector<size_t> index3{0,0,0};
-
-        stream << "Tensor("
-            << desc.sizes()[0] << ", "
-            << desc.sizes()[1] << ", "
-            << desc.sizes()[2] << ")";
-
-       stream << std::endl;
-
-        for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
-        {
-            stream << "[" << std::endl;
-            for(index3[0] = 0; index3[0] < desc.sizes()[0]; index3[0]++)
-            {
-                for(index3[1] = 0; index3[1] < desc.sizes()[1]; index3[1]++)
-                {
-                    size_t idx = desc.index(index3);
-                    stream << data[idx] << " ";
-                }
-                stream << std::endl;
-            }
-            stream << "]" << std::endl;
-        }
     }
 
     template <typename Container, typename Joiner>

@@ -30,10 +30,15 @@
 
 namespace Tensile
 {
-    template <typename T>
+    template <typename T, typename RNG=std::mt19937>
     struct RandomInt
     {
-        std::mt19937 rng;
+        RandomInt(RNG & _rng)
+            : rng(_rng)
+        {
+        }
+
+        RNG & rng;
         std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(1,10);
         template <typename... Args>
         T operator()(Args &&...)
@@ -42,10 +47,15 @@ namespace Tensile
         }
     };
 
-    template <typename T>
+    template <typename T, typename RNG=std::mt19937>
     struct RandomAlternatingInt
     {
-        RandomInt<T> parent;
+        RandomInt<T, RNG> parent;
+
+        RandomAlternatingInt(RNG & _rng)
+            : parent(_rng)
+        {
+        }
 
         T operator()(std::vector<size_t> const& index3)
         {

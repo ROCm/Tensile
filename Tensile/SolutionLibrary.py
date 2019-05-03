@@ -58,7 +58,7 @@ class MatchingLibrary:
                 1:lambda: MatchingProperty('BoundSize', index=0)
             }
 
-        properties = [propertyKeys[i]() for i in indices]
+        properties = list([propertyKeys[i]() for i in indices])
 
         table = []
 
@@ -68,7 +68,8 @@ class MatchingLibrary:
             try:
                 index = row[1][0]
                 value = SingleSolutionLibrary(solutions[index])
-                entry = {'key': list(row[0]), 'value': value, 'speed': row[1][1]}
+                key = list(row[0][0:len(properties)])
+                entry = {'key': key, 'value': value, 'speed': row[1][1]}
                 table.append(entry)
             except KeyError:
                 pass

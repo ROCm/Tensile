@@ -10,6 +10,13 @@ option(USE_LLVM "Use LLVM for parsing config files." ON)
 option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library." ON)
 option(TENSILE_DISABLE_TESTS "Disable ctest integration." OFF)
 
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 if(USE_LLVM)
     find_package(LLVM REQUIRED CONFIG)
     add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)

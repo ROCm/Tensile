@@ -183,19 +183,26 @@ function(TensileCreateLibraryFiles
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
-  execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
-  if(CommandResult)
-    message(SEND_ERROR "Error creating Tensile library: ${CommandResult}")
+  if($ENV{TENSILE_SKIP_LIBRARY})
+      message(STATUS "Skipping build of ${Tensile_OUTPUT_PATH}")
+  else()
+      execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
+      if(CommandResult)
+        message(SEND_ERROR "Error creating Tensile library: ${CommandResult}")
+      endif()
   endif()
 
   if(Tensile_VAR_PREFIX STREQUAL "")
       set(Tensile_VAR_PREFIX TENSILE)
   endif()
 
-
   file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
-  set(${Tensile_VAR_PREFIX}_CODE_OBJECTS ${CodeObjects} PARENT_SCOPE)
-  set(${Tensile_VAR_PREFIX}_LIBRARY_FILE "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml" PARENT_SCOPE)
+  set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
+
+  set("${Tensile_VAR_PREFIX}_CODE_OBJECTS" ${CodeObjects} PARENT_SCOPE)
+  set("${Tensile_VAR_PREFIX}_LIBRARY_FILE" "${LibraryFile}" PARENT_SCOPE)
+
+  set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${LibraryFile} PARENT_SCOPE)
 
   if(Tensile_EMBED_LIBRARY STREQUAL "")
   else()

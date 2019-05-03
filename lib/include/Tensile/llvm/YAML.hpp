@@ -142,7 +142,7 @@ namespace Tensile
 
             static void setError(IO & io, std::string const& msg)
             {
-                throw std::runtime_error(msg);
+                //throw std::runtime_error(msg);
                 return io.setError(msg);
             }
 

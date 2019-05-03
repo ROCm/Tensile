@@ -38,10 +38,12 @@
 #include <Tensile/EmbeddedLibrary.hpp>
 #include <Tensile/Utils.hpp>
 
-#include <TestUtils.hpp>
+#include "TestData.hpp"
+#include "TestUtils.hpp"
+
+#include <Reference.hpp>
 
 #include <random>
-#include <rocblas.h>
 
 using namespace Tensile;
 
@@ -71,6 +73,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
 	{
         HIP_CHECK_EXC(hipSetDevice(0));
         ContractionProblem problem = GetParam();
+        std::cout << problem << std::endl;
 
         a_h.resize(problem.a().totalAllocatedElements());
         b_h.resize(problem.b().totalAllocatedElements());
@@ -78,10 +81,12 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
         d_h.resize(problem.d().totalAllocatedElements());
         d_in_h.resize(problem.d().totalAllocatedElements());
 
-        InitTensor(a_h.data(),    problem.a(), RandomInt<float>());
-        InitTensor(b_h.data(),    problem.b(), RandomAlternatingInt<float>());
-        InitTensor(c_h.data(),    problem.c(), RandomInt<float>());
-        InitTensor(d_in_h.data(), problem.d(), RandomInt<float>());
+        std::mt19937 rng;
+
+        InitTensor(a_h.data(),    problem.a(), RandomInt<float>(rng));
+        InitTensor(b_h.data(),    problem.b(), RandomAlternatingInt<float>(rng));
+        InitTensor(c_h.data(),    problem.c(), RandomInt<float>(rng));
+        InitTensor(d_in_h.data(), problem.d(), RandomInt<float>(rng));
 
         //InitTensor(a_h.data(), problem.a, Iota<float>());
         //InitTensor(b_h.data(), problem.b, Iota<float>());
@@ -109,17 +114,29 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
         inputs.c = c_d;
         inputs.d = d_d;
 
-        inputs.alpha = RandomInt<float>()();
+        inputs.alpha = RandomInt<float>(rng)();
         if(problem.beta() == 1.0)
             inputs.beta = 1.0;
         else if(problem.beta() == 0.0)
             inputs.beta = 0.0;
         else
-            inputs.beta = RandomInt<float>()();
+            inputs.beta = RandomInt<float>(rng)();
 
         hardware = hip::GetCurrentDevice();
         ASSERT_NE(hardware, nullptr);
 
+#if 1
+        TypedContractionInputs<float> inputsRefHost;
+        inputsRefHost.a = a_h.data();
+        inputsRefHost.b = b_h.data();
+        inputsRefHost.c = c_h.data();
+        inputsRefHost.d = d_ref_h.data();
+        inputsRefHost.alpha = inputs.alpha;
+        inputsRefHost.beta = inputs.beta;
+
+
+        Client::SolveCPU(problem, inputsRefHost);
+#else
         rocblas_handle roc = nullptr;
         ASSERT_RB(rocblas_create_handle(&roc));
 
@@ -142,6 +159,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
         HIP_CHECK_EXC(hipMemcpy(d_ref_h.data(), d_ref_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
 
         ASSERT_RB(rocblas_destroy_handle(roc));
+#endif
 
 	}
 	
@@ -157,104 +175,6 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<ContractionProblem>
     }
 };
 
-TEST_P(RunGEMMKernelTest, Simple)
-{
-    ContractionProblem problem = GetParam();
-    if(problem.transA() || problem.transB()) return;
-
-    ContractionSolution solution;
-
-    solution.kernelName = "Cijk_Ailk_Bljk_SB_MT128x128x08_K1";
-
-    solution.sizeMapping.workGroupSize = Tensile::dim3{256,1,1};
-    solution.sizeMapping.macroTile = Tensile::dim3{128,128,1};
-    solution.sizeMapping.depthU = 8;
-    solution.sizeMapping.globalSplitU = 1;
-    solution.sizeMapping.staggerStrideShift = 3;
-    solution.sizeMapping.staggerU = 32;
-    solution.sizeMapping.workGroupMapping = 8;
-
-    solution.debugKernel = false;
-
-    std::cout << "A: " << problem.a() << std::endl;
-    std::cout << "B: " << problem.b() << std::endl;
-    std::cout << "C: " << problem.c() << std::endl;
-    std::cout << "D: " << problem.d() << std::endl;
-
-    std::vector<KernelInvocation> result = solution.solve(problem, inputs, *hardware);
-
-    hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(
-            "test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bljk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bljk_SB_MT128x128x08_K1.co");
-           //test/hip/code_object/1_BenchmarkProblems/Cijk_Ailk_Bjlk_SB_00/00_Final/source/assembly/Cijk_Ailk_Bjlk_SB_MT128x128x08_K1.co
-
-    adapter.launchKernels(result);
-
-    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-
-    //std::cout << "A:";
-    //WriteTensor(std::cout, a_h.data(), problem.a);
-
-    //std::cout << "B:";
-    //WriteTensor(std::cout, b_h.data(), problem.b);
-
-    //std::cout << "C Input:";
-    //WriteTensor(std::cout, c_h.data(), problem.c);
-
-    //std::cout << "C Reference:";
-    //WriteTensor(std::cout, d_ref_h.data(), problem.d);
-
-    //std::cout << "C Result:";
-    //WriteTensor(std::cout, d_h.data(), problem.c);
-
-    for(int i = 0; i < d_ref_h.size(); i++)
-    {
-        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]);
-    }
-}
-
-TEST_P(RunGEMMKernelTest, Library)
-{
-    ContractionProblem problem = GetParam();
-
-    auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/TensileKernels.yaml");
-
-    ASSERT_NE(library, nullptr);
-
-    auto solution = library->findBestSolution(problem, *hardware);
-
-    ASSERT_NE(solution, nullptr);
-
-    std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
-
-    hip::SolutionAdapter adapter(true);
-    adapter.loadCodeObjectFile("configs/TensileKernels.co");
-
-    adapter.launchKernels(result);
-
-    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-
-    //std::cout << "A:";
-    //WriteTensor(std::cout, a_h.data(), problem.a);
-
-    //std::cout << "B:";
-    //WriteTensor(std::cout, b_h.data(), problem.b);
-
-    //std::cout << "C Input:";
-    //WriteTensor(std::cout, c_h.data(), problem.c);
-
-    //std::cout << "C Reference:";
-    //WriteTensor(std::cout, d_ref_h.data(), problem.d);
-
-    //std::cout << "C Result:";
-    //WriteTensor(std::cout, d_h.data(), problem.c);
-
-    for(int i = 0; i < d_ref_h.size(); i++)
-    {
-        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
-    }
-}
-
 TEST_P(RunGEMMKernelTest, EmbeddedLibraryLite)
 {
     ContractionProblem problem = GetParam();
@@ -269,27 +189,34 @@ TEST_P(RunGEMMKernelTest, EmbeddedLibraryLite)
 
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
-    hip::SolutionAdapter adapter(true);
+    hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite");
 
     adapter.launchKernels(result);
 
     HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
 
-    //std::cout << "A:";
-    //WriteTensor(std::cout, a_h.data(), problem.a);
+    /*
+    std::cout << "alpha: " << inputs.alpha << ", beta: " << inputs.beta
+              << ", transA: " << problem.transA() << ", transB: " << problem.transB() << std::endl;
+    std::cout << "A:";
+    WriteTensor(std::cout, a_h.data(), problem.a());
 
-    //std::cout << "B:";
-    //WriteTensor(std::cout, b_h.data(), problem.b);
+    std::cout << "B:";
+    WriteTensor(std::cout, b_h.data(), problem.b());
 
-    //std::cout << "C Input:";
-    //WriteTensor(std::cout, c_h.data(), problem.c);
+    std::cout << "C Input:";
+    WriteTensor(std::cout, c_h.data(), problem.c());
 
-    //std::cout << "C Reference:";
-    //WriteTensor(std::cout, d_ref_h.data(), problem.d);
+    std::cout << "D Input:";
+    WriteTensor(std::cout, d_in_h.data(), problem.c());
 
-    //std::cout << "C Result:";
-    //WriteTensor(std::cout, d_h.data(), problem.c);
+    std::cout << "D Reference:";
+    WriteTensor(std::cout, d_ref_h.data(), problem.d());
+
+    std::cout << "D Result:";
+    WriteTensor(std::cout, d_h.data(), problem.c());
+    */
 
     for(int i = 0; i < d_ref_h.size(); i++)
     {
@@ -301,8 +228,10 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
 {
     ContractionProblem problem = GetParam();
 
-    //auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>("configs/KernelsLite.yaml");
-    auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite");
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite/TensileLibrary.yaml").native());
+
+    hip::SolutionAdapter adapter(false);
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary.co").native());
 
     ASSERT_NE(library, nullptr);
 
@@ -313,10 +242,6 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
     std::cout << solution->name() << std::endl;
 
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
-
-    hip::SolutionAdapter adapter(false);
-    //adapter.loadCodeObjectFile("configs/KernelsLite.co");
-    adapter.loadEmbeddedCodeObjects("kernels_lite");
 
     adapter.launchKernels(result);
 
@@ -387,7 +312,8 @@ TEST_P(RunGEMMKernelTest, KernelsLiteMixedExhaustive)
         HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
 
         /*
-        std::cout << "alpha: " << inputs.alpha << ", beta: " << inputs.beta << std::endl;
+        std::cout << "alpha: " << inputs.alpha << ", beta: " << inputs.beta
+                  << ", transA: " << problem.transA() << ", transB: " << problem.transB() << std::endl;
         std::cout << "A:";
         WriteTensor(std::cout, a_h.data(), problem.a());
 
@@ -418,10 +344,10 @@ TEST_P(RunGEMMKernelTest, KernelsLiteExhaustive)
 {
     ContractionProblem problem = GetParam();
 
-    auto library = LoadLibraryFile<ContractionProblem>("configs/lite_library/Tensile/TensileLibrary.yaml");
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite/TensileLibrary.yaml").native());
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile("configs/lite_library/Tensile/TensileLibrary.co");
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary.co").native());
 
     ASSERT_NE(library, nullptr);
 

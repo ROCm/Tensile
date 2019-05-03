@@ -149,3 +149,31 @@ TEST(TensorDescriptor, CollapseDims2)
     }
 }
 
+TEST(TensorDescriptor, IncrementCoord2d)
+{
+    std::vector<size_t> dims{2,4};
+    std::vector<size_t> lastCoord{1,3};
+    std::vector<size_t> coordRef(2);
+    std::vector<size_t> coordRun(2);
+
+
+    for(coordRef[1] = 0; coordRef[1] < dims[1]; coordRef[1]++)
+    for(coordRef[0] = 0; coordRef[0] < dims[0]; coordRef[0]++)
+    {
+        EXPECT_EQ(coordRun, coordRef);
+
+        bool continueIteration = IncrementCoord(coordRun.begin(), coordRun.end(),
+                                                dims.begin(), dims.end());
+        if(coordRef == lastCoord)
+            EXPECT_EQ(continueIteration, false);
+        else
+            EXPECT_EQ(continueIteration, true);
+    }
+
+    coordRef = {0,0};
+    EXPECT_EQ(coordRun, coordRef);
+
+    EXPECT_EQ(IncrementCoord(coordRun.begin(), coordRun.end(),
+                             dims.begin(), dims.end()), true);
+}
+

@@ -998,13 +998,6 @@ def TensileCreateLibrary():
   kernelWriterAssembly = KernelWriterAssembly( \
       kernelMinNaming, kernelSerialNaming)
 
-  # write solutions and kernels
-  problemTypes = list(logicData.keys())
-  codeObjectFiles = writeSolutionsAndKernels(outputPath, problemTypes, solutions,
-                                             kernels, kernelsBetaOnly,
-                                             solutionWriter,
-                                             kernelWriterSource, kernelWriterAssembly)
-
   libraryStaticFiles = [
       "SolutionMapper.h",
       "TensileTypes.h",
@@ -1018,9 +1011,15 @@ def TensileCreateLibrary():
   clientName = "LibraryClient"
   writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName )
 
+  # write solutions and kernels
+  problemTypes = list(logicData.keys())
+  codeObjectFiles = writeSolutionsAndKernels(outputPath, problemTypes, solutions,
+                                             kernels, kernelsBetaOnly,
+                                             solutionWriter,
+                                             kernelWriterSource, kernelWriterAssembly)
+
   # write logic
   writeLogic(outputPath, logicData, solutionWriter)
-
 
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
   

@@ -14,14 +14,21 @@ TensileCreateLibraryFiles(
     )
 endif()
 
+file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite")
+file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite")
+
 TensileCreateLibraryFiles(
     "${TENSILE_ROOT}/lib/configs/lite_configs_mixed"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite_mixed
     EMBED_KEY     kernels_lite_mixed
-    VAR_PREFIX LITE
+    VAR_PREFIX LITE_MIXED
     )
+
+file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
+file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")
+
 
 if(true)
 # Link a second copy of the lite_configs library to test that there are no issues with duplicate symbols.
@@ -34,21 +41,21 @@ TensileCreateLibraryFiles(
     )
 endif()
 
-
-
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)
 add_custom_target(test_code_object
-                  COMMAND python ${tensile_script} ${test_yaml} code_object
-                  DEPENDS ${test_yaml})
+    COMMAND python ${TENSILE_ROOT}/Tensile/Tensile.py ${test_yaml} code_object
+    DEPENDS ${test_yaml})
 
 add_library(TensileHipTests STATIC
             HipSolutionAdapter_test.cpp
             RunGEMMKernel_test.cpp)
 
-message(${gtest_SOURCE_DIR}/include)
-
-target_link_libraries(TensileHipTests hip::host test_kernels_lite test_kernels_lite_2 test_kernels_lite_mixed)
+target_link_libraries(TensileHipTests hip::host
+                      test_kernels_lite
+                      test_kernels_lite_2
+                      test_kernels_lite_mixed
+                      TensileClient)
 
 target_include_directories(TensileHipTests
                            PRIVATE
@@ -56,12 +63,3 @@ target_include_directories(TensileHipTests
 
 #add_dependencies(test_code_object ${test_yaml})
 
-
-
-if(false)
-get_cmake_property(_variableNames VARIABLES)
-list (SORT _variableNames)
-foreach (_variableName ${_variableNames})
-    message(STATUS "${_variableName}=${${_variableName}}")
-endforeach()
-endif()

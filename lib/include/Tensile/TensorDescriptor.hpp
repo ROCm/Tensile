@@ -35,9 +35,66 @@
 
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/Macros.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
+    template <typename SizeIter>
+    inline size_t CoordCount(SizeIter sizeBegin, SizeIter sizeEnd)
+    {
+        size_t rv = 1;
+
+        while(sizeBegin != sizeEnd)
+        {
+            rv *= *sizeBegin;
+            sizeBegin++;
+        }
+
+        return rv;
+    }
+
+    template <typename CoordIter, typename SizeIter>
+    inline void CoordNumbered(size_t num,
+                              CoordIter coordBegin, CoordIter coordEnd,
+                              SizeIter sizeBegin, SizeIter sizeEnd)
+    {
+        auto coord = coordBegin;
+        auto size = sizeBegin;
+
+        while(coord != coordEnd && size != sizeEnd)
+        {
+            *coord = num % *size;
+            num /= *size;
+
+            coord++;
+            size++;
+        }
+
+        if(coord != coordEnd || size != sizeEnd)
+            throw std::runtime_error("Inconsistent size of coordinates.");
+    }
+
+    template <typename CoordIter, typename SizeIter>
+    inline bool IncrementCoord(CoordIter coordBegin, CoordIter coordEnd,
+                               SizeIter sizeBegin, SizeIter sizeEnd)
+    {
+        auto coord = coordBegin;
+        auto size = sizeBegin;
+
+        while(coord != coordEnd)
+        {
+            (*coord)++;
+            if(*coord < *size)
+                return true;
+
+            *coord = 0;
+
+            coord++;
+            size++;
+        }
+
+        return false;
+    }
 
     class TENSILE_API TensorDescriptor
     {
@@ -166,6 +223,18 @@ namespace Tensile
             return this->index({is...});
         }
 
+        inline bool incrementCoord(std::vector<size_t> & coord, size_t firstDimension = 0) const
+        {
+            if(coord.size() != dimensions())
+                throw std::runtime_error(concatenate("Invalid coordinate size ", coord.size(), " for ", dimensions(), "-tensor"));
+
+            if(firstDimension >= dimensions())
+                return false;
+
+            return IncrementCoord(coord.begin() + firstDimension, coord.end(),
+                                  m_sizes.begin(), m_sizes.end());
+        }
+
         bool operator==(const TensorDescriptor& rhs) const;
         bool operator!=(const TensorDescriptor& rhs) const;
 
@@ -184,6 +253,37 @@ namespace Tensile
     };
 
     std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
+
+    template <typename T>
+    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
+    {
+        if(desc.dimensions() != 3)
+            throw std::runtime_error("Fix this function to work with dimensions != 3");
+
+        std::vector<size_t> index3{0,0,0};
+
+        stream << "Tensor("
+            << desc.sizes()[0] << ", "
+            << desc.sizes()[1] << ", "
+            << desc.sizes()[2] << ")";
+
+       stream << std::endl;
+
+        for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
+        {
+            stream << "[" << std::endl;
+            for(index3[0] = 0; index3[0] < desc.sizes()[0]; index3[0]++)
+            {
+                for(index3[1] = 0; index3[1] < desc.sizes()[1]; index3[1]++)
+                {
+                    size_t idx = desc.index(index3);
+                    stream << data[idx] << " ";
+                }
+                stream << std::endl;
+            }
+            stream << "]" << std::endl;
+        }
+    }
 
 } // namespace
 

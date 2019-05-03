@@ -20,8 +20,8 @@ set(test_sources ${test_sources}
 
 if(USE_LLVM)
     set(test_sources ${test_sources}
-        llvm/LLVMYAMLContraction_test.cpp
         ContractionLibraryLoading_test.cpp
+        llvm/LLVMYAMLContraction_test.cpp
         llvm/LibraryPerformance_test.cpp
         )
 endif()
@@ -32,6 +32,7 @@ endif()
 
 include_directories("." ${GTEST_SOURCE_DIR}/include)
 
+find_package(Boost COMPONENTS filesystem)
 
 add_executable(TensileTests ${test_sources})
 
@@ -41,14 +42,18 @@ else()
     add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
-target_link_libraries(TensileTests gtest Tensile)
+target_link_libraries(TensileTests gtest Tensile Boost::filesystem)
 
 file(COPY sample_library.yaml DESTINATION .)
+
+set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
+file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
+file(COPY ${SOLUTION_LIBRARY_FILES} DESTINATION "${TEST_DATA_DIR}")
 
 if(HIP_FOUND)
     add_subdirectory(hip)
 
-    target_link_libraries(TensileTests TensileHipTests rocblas)
+    target_link_libraries(TensileTests TensileHipTests)
     target_link_libraries(TensileTests "--amdgpu-target=gfx900")
     # ${HIP_LIBRARIES}
 endif()
