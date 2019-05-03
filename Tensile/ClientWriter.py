@@ -998,12 +998,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           for scheduleName in schedulesForProblemType[problemType]:
             functionsForDataType.append([scheduleName, problemType])
         h += "template<>\n"
-        h += "inline %s generatedCallTo_%s<%s>(\n" \
-            % (returnName, functionName, typeName)
+        h += "inline %s generatedCallTo_%s<%s, %s, %s>(\n" \
+            % (returnName, functionName, typeName, destTypeName, computeTypeName)
         h += "    unsigned int *sizes,\n"
         h += "    unsigned int *minStrides,\n"
-        h += "    %s alpha,\n" % destTypeName
-        h += "    %s beta,\n" % destTypeName
+        h += "    %s alpha,\n" % computeTypeName
+        h += "    %s beta,\n" % computeTypeName
         h += "    unsigned int lda,\n"
         h += "    unsigned int ldb,\n"
         h += "    unsigned int ldc,\n"

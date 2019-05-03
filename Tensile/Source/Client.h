@@ -1655,7 +1655,7 @@ void printClientUsage(std::string executableName) {
   std::cout << "  " << keyStrideD << " [defaut is size of array D]" << std::endl;
 #if Tensile_CLIENT_LIBRARY
   std::cout << "  " << keyFunctionIdx << " [" << defaultFunctionIdx << "]" << std::endl;
-  std::cout << "  " << keySizes << " [" << defaultSize << " " << defaultSize << " " << defaultSize << "]" << std::endl;
+  std::cout << "  " << keySizes << " [" << defaultSize << " " << defaultSize << " 1 " << defaultSize << "]" << std::endl;
   std::cout << "FunctionIdx:" << std::endl;
   for (unsigned int i = 0; i < numFunctions; i++) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
