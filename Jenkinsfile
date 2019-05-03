@@ -193,6 +193,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
           cd ${paths.project_src_prefix}
           mkdir build
           cd build
+          export PATH=/opt/rocm/bin:$PATH
           cmake -D CMAKE_BUILD_TYPE=Debug ../lib
           make -j16
           ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes

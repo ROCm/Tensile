@@ -28,6 +28,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     python-yaml \
     libnuma1 \
     llvm-6.0-dev \
+    libboost-all-dev \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
