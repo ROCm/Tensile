@@ -118,7 +118,7 @@ class EmbeddedDataFile:
     """
 
     def get_lines(self, item):
-        if isinstance(item, str) or isinstance(item, unicode):
+        if isinstance(item, str):
             return item.split('\n')
 
         if hasattr(item, '__iter__'):

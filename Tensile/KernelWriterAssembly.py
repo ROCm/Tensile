@@ -2700,7 +2700,7 @@ class KernelWriterAssembly(KernelWriter):
     absWgm = abs(kernel["WorkGroupMapping"])
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       smallNumMagicShift = 31
-      magicNumberWgm = ((1L<<smallNumMagicShift) / absWgm + 1)
+      magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
       tmpSgpr = self.getTmpSgpr(4)
       blockId2  = tmpSgpr+0
