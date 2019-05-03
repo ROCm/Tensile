@@ -31,7 +31,13 @@
 #include <unistd.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/version.hpp>
+
+#if BOOST_VERSION >= 106100
 #include <boost/dll/runtime_symbol_info.hpp>
+#else
+#define TEST_DATA_USE_PROC_EXE
+#endif
 
 #include <Tensile/Singleton.hpp>
 
@@ -55,8 +61,18 @@ private:
     boost::filesystem::path m_executable;
     boost::filesystem::path m_dataDir;
 
+    static inline boost::filesystem::path ProgramLocation()
+    {
+#ifdef TEST_DATA_USE_PROC_EXE
+        return boost::filesystem::read_symlink("/proc/self/exe");
+#else
+        return boost::dll::program_location();
+#endif
+
+    }
+
     TestData()
-        : m_executable(boost::dll::program_location()),
+        : m_executable(ProgramLocation()),
           m_dataDir(m_executable.parent_path() / "data")
     {
     }
