@@ -25,6 +25,8 @@
 #include "MathTemplates.h"
 #include <vector>
 #include <type_traits>
+#include <stdexcept>
+#include <assert.h>
 
 
 /*******************************************************************************
@@ -46,7 +48,17 @@ void unpack_int8x4(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, 
   out_3 = x.byte[3];
 }
 
-template< typename Type, typename DestType >
+void unpack_int8x4(tensile_bfloat16 in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
+{
+#ifdef NDEBUG
+    throw std::logic_error( "Reached a supposed unreachable point" );
+#else
+    assert( "Reached a supposed unreachable point" && 0 );
+    throw 0;
+#endif
+}
+
+template< typename Type, typename DestType, typename ComputeType >
 TensileStatus tensileReferenceCPU(
     DestType *dataD,
     const DestType *dataC,
@@ -60,8 +72,8 @@ TensileStatus tensileReferenceCPU(
     const unsigned int stride_b,
     const unsigned int stride_c,
     const unsigned int stride_d,
-    DestType alpha,
-    DestType beta,
+    ComputeType alpha,
+    ComputeType beta,
     unsigned int totalIndices,
     const unsigned int *sizes,
     const unsigned int *minStrides,
@@ -210,7 +222,7 @@ TensileStatus tensileReferenceCPU(
          int32_t a_0, a_1, a_2, a_3, b_0, b_1, b_2, b_3;
          unpack_int8x4(valueA, a_0, a_1, a_2, a_3);
          unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
-         sumC += (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
+         sumC = sumC + (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
       }
       else
       {

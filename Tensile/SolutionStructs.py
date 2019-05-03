@@ -36,8 +36,9 @@ class DataType:
   half          = 4
   int8x4        = 5
   int32         = 6
-  num           = 7
-  none          = 8
+  bfloat16      = 7
+  num           = 8
+  none          = 9
 
   # data type properties
   idxChar    = 0
@@ -46,15 +47,16 @@ class DataType:
   idxHIP     = 3
   idxLibType = 4
   idxLibEnum = 5
-  #    char, reg,    ocl,       hip,       libType,                 libEnum
+  #    char, reg,       ocl,       hip,               libType,                 libEnum
   properties = [
-      ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
-      ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
-      ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
-      ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
-      ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
-      ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
+      ["S",    1,   "float",   "float",            "float",                "tensileDataTypeFloat"        ],
+      ["D",    2,   "double",  "double",           "double",               "tensileDataTypeDouble"       ],
+      ["C",    2,   "float2",  "float2",           "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
+      ["Z",    4,   "double2", "double2",          "TensileComplexDouble", "tensileDataTypeComplexDouble"],
+      ["H",    0.5, "ERROR",   "tensile_half",     "TensileHalf",          "tensileDataTypeHalf"         ],
+      ["4xi8", 1,   "ERROR",   "uint32_t",         "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
+      ["I",    1,   "ERROR",   "int32_t",          "TensileInt32",         "tensileDataTypeInt32"        ],
+      ["B",    0.5, "ERROR",   "tensile_bfloat16", "tensile_bfloat16",      "tensileDataTypeBFloat16"     ]
   ]
 
   ########################################
@@ -123,7 +125,7 @@ class DataType:
 
   ########################################
   def isReal(self):
-    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
+    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32 or self.value == self.bfloat16:
       return True
     else:
       return False
@@ -139,6 +141,8 @@ class DataType:
     return self.value == self.int32
   def isInt8x4(self):
     return self.value == self.int8x4
+  def isBFloat16(self):
+    return self.value == self.bfloat16
   def isNone(self):
     return self.value == self.none
 
@@ -212,6 +216,19 @@ class ProblemType:
       else:
         printExit("NO dest data type or data type specified")
         self["DataType"] = DataType(0)
+
+
+    if "ComputeDataType" in config:
+      self["ComputeDataType"] = DataType(config["ComputeDataType"])
+    else:
+      if "DestDataType" in config:
+        self["ComputeDataType"] = DataType(config["DestDataType"])
+      else:
+        if "DataType" in config:
+          self["ComputeDataType"] = DataType(config["DataType"])
+        else:
+          printExit("NO compute data type, or dest data type, or data type specified")
+          self["DataType"] = DataType(0)
 
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
@@ -730,6 +747,7 @@ class Solution:
       kernel["ProblemType"]["UseBeta"] = beta
       kernel["ProblemType"]["DataType"] = problemType["DataType"]
       kernel["ProblemType"]["DestDataType"] = problemType["DestDataType"]
+      kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \
