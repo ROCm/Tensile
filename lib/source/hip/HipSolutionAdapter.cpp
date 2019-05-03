@@ -170,7 +170,7 @@ namespace Tensile
                 HIP_LAUNCH_PARAM_END
             };
 
-            HIP_CHECK_EXC(hipHccModuleLaunchKernel(
+            HIP_CHECK_EXC(hipExtModuleLaunchKernel(
                         function,
                         kernel.numWorkItems.x, kernel.numWorkItems.y, kernel.numWorkItems.z,
                         kernel.workGroupSize.x, kernel.workGroupSize.y, kernel.workGroupSize.z,
