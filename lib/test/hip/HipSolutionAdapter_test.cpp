@@ -37,7 +37,8 @@
 #include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Utils.hpp>
 
-#include <TestUtils.hpp>
+#include "TestData.hpp"
+#include "TestUtils.hpp"
 
 #include <random>
 #include <rocblas.h>
@@ -82,9 +83,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
     k.args.append<unsigned int>("size2",    desc.sizes()[2]);
 
     hip::SolutionAdapter adapter(false);
-    //adapter.loadCodeObjectFile("test/hip/test.co");
-    //adapter.loadCodeObjectFile("test/hip/test_source_stripped.co");
-    adapter.loadCodeObjectFile("test/hip/test-000-gfx900.hsaco");
+    adapter.loadCodeObjectFile(TestData::File("test-000-gfx900.hsaco").native());
 
     adapter.launchKernel(k);
 
@@ -156,9 +155,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
 
     hip::SolutionAdapter adapter(false);
-    //adapter.loadCodeObjectFile("test/hip/test.co");
-    //adapter.loadCodeObjectFile("test/hip/test_source_stripped.co");
-    adapter.loadCodeObjectFile("test/hip/test-000-gfx900.hsaco");
+    adapter.loadCodeObjectFile(TestData::File("test-000-gfx900.hsaco").native());
 
     adapter.launchKernel(k);
 

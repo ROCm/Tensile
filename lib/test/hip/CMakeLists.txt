@@ -28,7 +28,7 @@ TensileCreateLibraryFiles(
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
 file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")
-
+file(COPY "test-000-gfx900.hsaco" DESTINATION "${TEST_DATA_DIR}")
 
 if(true)
 # Link a second copy of the lite_configs library to test that there are no issues with duplicate symbols.
