@@ -31,6 +31,8 @@
 #include <unistd.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/dll/runtime_symbol_info.hpp>
+
 #include <Tensile/Singleton.hpp>
 
 struct TestData: public Tensile::LazySingleton<TestData>
@@ -54,7 +56,7 @@ private:
     boost::filesystem::path m_dataDir;
 
     TestData()
-        : m_executable(boost::filesystem::read_symlink("/proc/self/exe")),
+        : m_executable(boost::dll::program_location()),
           m_dataDir(m_executable.parent_path() / "data")
     {
     }
