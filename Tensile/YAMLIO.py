@@ -62,6 +62,8 @@ def writeSolutions( filename, problemSizes, solutions ):
           solutionState["ProblemType"]["DataType"].value
       solutionState["ProblemType"]["DestDataType"] = \
           solutionState["ProblemType"]["DestDataType"].value
+      solutionState["ProblemType"]["ComputeDataType"] = \
+          solutionState["ProblemType"]["ComputeDataType"].value
       solutionStates.append(solutionState)
   # write dictionaries
   try:
@@ -142,6 +144,8 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
       problemTypeState["DataType"].value
   problemTypeState["DestDataType"] = \
       problemTypeState["DestDataType"].value
+  problemTypeState["ComputeDataType"] = \
+      problemTypeState["ComputeDataType"].value
   data.append(problemTypeState)
   # solutions
   solutionList = []
@@ -152,6 +156,8 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
         solutionState["ProblemType"]["DataType"].value
     solutionState["ProblemType"]["DestDataType"] = \
         solutionState["ProblemType"]["DestDataType"].value
+    solutionState["ProblemType"]["ComputeDataType"] = \
+        solutionState["ProblemType"]["ComputeDataType"].value
     solutionList.append(solutionState)
   data.append(solutionList)
   # index order

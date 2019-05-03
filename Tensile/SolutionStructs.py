@@ -27,156 +27,6 @@ import math
 from Utils import ceil_divide, roundUpToNearestMultiple
 from DataType import DataType
 
-# try:
-  # basestring
-# except NameError:
-  # basestring = str
-
-# ################################################################################
-# # Data Type
-# ################################################################################
-# class DataType:
-  # single        = 0
-  # double        = 1
-  # complexSingle = 2
-  # complexDouble = 3
-  # half          = 4
-  # int8x4        = 5
-  # int32         = 6
-  # num           = 7
-  # none          = 8
-
-  # # data type properties
-  # idxChar    = 0
-  # idxReg     = 1
-  # idxOpenCL  = 2
-  # idxHIP     = 3
-  # idxLibType = 4
-  # idxLibEnum = 5
-  # #    char, reg,    ocl,       hip,       libType,                 libEnum
-  # properties = [
-      # ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
-      # ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
-      # ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
-      # ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
-      # ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
-      # ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      # ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
-  # ]
-
-  # ########################################
-  # def __init__( self, value ):
-    # if isinstance(value, int):
-      # self.value = value
-    # elif isinstance(value, basestring):
-      # for propertiesIdx in range(0,6):
-        # for dataTypeIdx in range(0,self.num):
-          # import pdb
-          # pdb.set_trace()
-          # if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
-            # self.value = dataTypeIdx
-            # return
-    # elif isinstance(value, DataType):
-      # self.value = value.value
-    # else:
-      # printExit("initializing DataType to %s %s" % (str(type(value)), str(value)) )
-
-
-  # ########################################
-  # def toChar(self):
-    # return self.properties[self.value][self.idxChar]
-  # def toOpenCL(self):
-    # return self.properties[self.value][self.idxOpenCL]
-  # def toHIP(self):
-    # return self.properties[self.value][self.idxHIP]
-  # def toDevice(self, language):
-    # if language == "OCL":
-      # return self.toOpenCL()
-    # else:
-      # return self.toHIP()
-  # def toCpp(self):
-    # return self.properties[self.value][self.idxLibType]
-  # def getLibString(self):
-    # return self.properties[self.value][self.idxLibEnum]
-
-  # ########################################
-  # def zeroString(self, language, vectorWidth):
-    # if language == "HIP":
-      # if self.value == self.complexSingle:
-        # return "make_float2(0.f, 0.f)"
-      # if self.value == self.complexDouble:
-        # return "make_double2(0.0, 0.0)"
-
-    # zeroString = "("
-    # zeroString += self.toDevice(language)
-    # if vectorWidth > 1:
-      # zeroString += str(vectorWidth)
-    # zeroString += ")("
-
-    # """
-    # if self.value == self.half:
-      # single = "0"
-      # vectorWidth = 1
-    # elif self.value == self.single:
-      # single = "0.f"
-    # elif self.value == self.double:
-      # single = "0.0"
-    # elif self.value == self.complexSingle:
-      # single = "0.f, 0.f"
-    # elif self.value == self.complexDouble:
-      # single = "0.0, 0.0"
-    # """
-    # zeroString += "0"
-    # zeroString += ")"
-    # return zeroString
-
-  # ########################################
-  # def isReal(self):
-    # if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
-      # return True
-    # else:
-      # return False
-  # def isComplex(self):
-    # return not self.isReal()
-  # def isDouble(self):
-    # return self.value == self.double or self.value == self.complexDouble
-  # def isSingle(self):
-    # return self.value == self.single
-  # def isHalf(self):
-    # return self.value == self.half
-  # def isInt32(self):
-    # return self.value == self.int32
-  # def isInt8x4(self):
-    # return self.value == self.int8x4
-  # def isNone(self):
-    # return self.value == self.none
-
-  # ########################################
-  # def numRegisters( self ):
-    # return self.properties[self.value][self.idxReg]
-  # def numBytes( self ):
-    # return int(self.numRegisters() * 4)
-  # def flopsPerMac(self):
-    # return 2 if self.isReal() else 8
-
-  # def __str__(self):
-    # return self.toChar()
-
-  # def __repr__(self):
-    # return self.__str__()
-
-  # def getAttributes(self):
-    # return (self.value)
-  # def __hash__(self):
-    # return hash(self.getAttributes())
-  # def __eq__(self, other):
-    # return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
-  # def __ne__(self, other):
-    # result = self.__eq__(other)
-    # if result is NotImplemented:
-      # return result
-    # return not result
-
 ########################################
 # Print a reject message :
 def reject(state, *args):
@@ -221,6 +71,19 @@ class ProblemType:
       else:
         printExit("NO dest data type or data type specified")
         self["DataType"] = DataType(0)
+
+
+    if "ComputeDataType" in config:
+      self["ComputeDataType"] = DataType(config["ComputeDataType"])
+    else:
+      if "DestDataType" in config:
+        self["ComputeDataType"] = DataType(config["DestDataType"])
+      else:
+        if "DataType" in config:
+          self["ComputeDataType"] = DataType(config["DataType"])
+        else:
+          printExit("NO compute data type, or dest data type, or data type specified")
+          self["DataType"] = DataType(0)
 
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
@@ -738,6 +601,7 @@ class Solution:
       kernel["ProblemType"]["UseBeta"] = beta
       kernel["ProblemType"]["DataType"] = problemType["DataType"]
       kernel["ProblemType"]["DestDataType"] = problemType["DestDataType"]
+      kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \

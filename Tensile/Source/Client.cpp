@@ -78,13 +78,13 @@ int main( int argc, char *argv[] ) {
           deviceOnHostD, deviceOnHostC);
 #endif
 
-#define TENSILE_CLIENT_CALL_SETUP(Ti, To)                               \
+#define TENSILE_CLIENT_CALL_SETUP(Ti, To, Tc)                           \
     To *initialD;                                                       \
     To *initialC;                                                       \
     Ti *initialA;                                                       \
     Ti *initialB;                                                       \
-    To alpha;                                                           \
-    To beta;                                                            \
+    Tc alpha;                                                           \
+    Tc beta;                                                            \
     To *referenceD;                                                     \
     To *referenceC;                                                     \
     To *deviceOnHostD;                                                  \
@@ -100,43 +100,50 @@ int main( int argc, char *argv[] ) {
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
-    TENSILE_CLIENT_CALL_SETUP(float, float)
+    TENSILE_CLIENT_CALL_SETUP(float, float, float)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_DOUBLE
   case enum_double: {
-    TENSILE_CLIENT_CALL_SETUP(double, double)
+    TENSILE_CLIENT_CALL_SETUP(double, double, double)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXFLOAT
   case enum_TensileComplexFloat: {
-    TENSILE_CLIENT_CALL_SETUP(TensileComplexFloat, TensileComplexFloat)
+    TENSILE_CLIENT_CALL_SETUP(TensileComplexFloat, TensileComplexFloat, TensileComplexFloat)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXDOUBLE
   case enum_TensileComplexDouble: {
-    TENSILE_CLIENT_CALL_SETUP(TensileComplexDouble, TensileComplexDouble)
+    TENSILE_CLIENT_CALL_SETUP(TensileComplexDouble, TensileComplexDouble, TensileComplexDouble)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILEHALF
   case enum_TensileHalf: {
-    TENSILE_CLIENT_CALL_SETUP(TensileHalf, TensileHalf)
+    TENSILE_CLIENT_CALL_SETUP(TensileHalf, TensileHalf, TensileHalf)
     }
     break;
 #endif
 
 
-//TODO: define Tensile_DATA_TYPE_TENSILEINT
-//#ifdef Tensile_DATA_TYPE_TENSILEINT
+#ifdef Tensile_DATA_TYPE_TENSILEINT8X4
   case enum_TensileInt8x4: {
-    TENSILE_CLIENT_CALL_SETUP(TensileInt8x4, TensileInt32)
+    TENSILE_CLIENT_CALL_SETUP(TensileInt8x4, TensileInt32, TensileInt32)
     }
     break;
-//#endif
+#endif
+
+#ifdef Tensile_DATA_TYPE_TENSILE_BFLOAT16
+  case enum_tensile_bfloat16: {
+    TENSILE_CLIENT_CALL_SETUP(tensile_bfloat16, tensile_bfloat16, float)
+    }
+    break;
+#endif
+
 
 
   default:

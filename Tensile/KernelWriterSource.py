@@ -382,6 +382,9 @@ class KernelWriterSource(KernelWriter):
     kStr += "#define DEST_DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DestDataType"].toDevice(self.language), \
         self.endLine)
+    kStr += "#define COMPUTE_DATA_TYPE %s%s" \
+        % (kernel["ProblemType"]["ComputeDataType"].toDevice(self.language), \
+        self.endLine)
     #vecStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     #if kernel["VectorWidth"] > 1:
     #  vecStr += str(kernel["VectorWidth"])
@@ -485,6 +488,8 @@ class KernelWriterSource(KernelWriter):
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
+      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+        kStr += "#define MAC(A,B,DST) DST = static_cast<tensile_bfloat16>(1.0f);"
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
@@ -524,7 +529,10 @@ class KernelWriterSource(KernelWriter):
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
-          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
+          if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) DST = static_cast<tensile_bfloat16>(1.0f);" + self.endLine
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
               + "DST = 0 != (BETA) ? (ALPHA)*(REG) + (BETA)*(SRC) : (ALPHA)*(REG);" + self.endLine
         else:
           # dst = alpha*reg
@@ -785,10 +793,10 @@ class KernelWriterSource(KernelWriter):
 
     # alpha & beta
     s += "," + self.endLine + "  " \
-        + kernel["ProblemType"]["DestDataType"].toDevice(self.language) + " const alpha"
+        + kernel["ProblemType"]["ComputeDataType"].toDevice(self.language) + " const alpha"
     if kernel["ProblemType"]["UseBeta"]:
       s += "," + self.endLine + "  " \
-          + kernel["ProblemType"]["DestDataType"].toDevice(self.language) + " const beta"
+          + kernel["ProblemType"]["ComputeDataType"].toDevice(self.language) + " const beta"
 
     # strides
     firstStride = 1
@@ -867,6 +875,8 @@ class KernelWriterSource(KernelWriter):
       kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
       kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
       kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
+    elif kernel["ProblemType"]["DestDataType"].isBFloat16():
+      kStr += "#define SCALAR_ZERO static_cast<tensile_bfloat16>(0.0f)%s" % self.endLine
     else:
       kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, 1), \
@@ -2552,6 +2562,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
       kStr += "#undef DATA_TYPE%s" % (self.endLine)
       kStr += "#undef DEST_DATA_TYPE%s" % (self.endLine)
+      kStr += "#undef COMPUTE_DATA_TYPE%s" % (self.endLine)
       #kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
@@ -2728,7 +2739,7 @@ class KernelWriterSource(KernelWriter):
     # beta
     if kernel["ProblemType"]["UseBeta"]:
       kStr += "  %s const beta)%s" \
-          % (kernel["ProblemType"]["DestDataType"].toDevice(self.language), \
+          % (kernel["ProblemType"]["ComputeDataType"].toDevice(self.language), \
           self.endLine )
     return kStr
 

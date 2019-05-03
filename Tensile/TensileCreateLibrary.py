@@ -1001,6 +1001,7 @@ def TensileCreateLibrary():
   libraryStaticFiles = [
       "SolutionMapper.h",
       "TensileTypes.h",
+      "tensile_bfloat16.h",
       "KernelHeader.h",
       "SolutionHelper.cpp",
       "SolutionHelper.h",

@@ -301,6 +301,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "#endif\n"
   h += "    ,enum_TensileInt8x4\n"
   h += "    ,enum_TensileInt32\n"
+  h += "    ,enum_tensile_bfloat16\n"
   h += "} DataTypeEnum;\n"
   h += "\n"
 
@@ -334,6 +335,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   dataTypes = []
   problemTypes = []
   destDataTypes = {}
+  computeDataTypes = {}
   problemTypesForDataType = {} # for data type
   schedulesForProblemType = {} # for problem type
   functionInfo = [] # dataTypeIdx, problemTypeIdx, idxWithinDataType, idxWithinProblemType
@@ -341,9 +343,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     dataType = problemType["DataType"]
+
     destDataType = problemType["DestDataType"]
     destDataTypes[dataType] = destDataType
+
+    computeDataType = problemType["ComputeDataType"]
+    computeDataTypes[dataType] = computeDataType
+
     dataTypes.append(dataType)
+
     problemTypes.append(problemType)
     problemTypesForDataType[dataType] = [problemType]
     schedulesForProblemType[problemType] = solutions
@@ -357,9 +365,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       problemType = function[1]
       dataType = problemType["DataType"]
       destDataType = problemType["DestDataType"]
+      computeDataType = problemType["ComputeDataType"]
       if dataType not in dataTypes:
         dataTypes.append(dataType)
         destDataTypes[dataType] = destDataType
+        computeDataTypes[dataType] = computeDataType
         problemTypesForDataType[dataType] = []
       if problemType not in problemTypesForDataType[dataType]:
         problemTypesForDataType[dataType].append(problemType)
@@ -734,7 +744,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Generated Call to Reference
   ##############################################################################
   h += "/* generated call to reference */\n"
-  h += "template<typename DataType, typename DestDataType>\n"
+  h += "template<typename DataType, typename DestDataType, typename ComputeDataType>\n"
   h += "TensileStatus generatedCallToReferenceCPU(\n"
   h += "    const unsigned int *sizes,\n"
   h += "    const unsigned int *minStrides,\n"
@@ -750,8 +760,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "    const unsigned int stride_b,\n"
   h += "    const unsigned int stride_c,\n"
   h += "    const unsigned int stride_d,\n"
-  h += "    DestDataType alpha,\n"
-  h += "    DestDataType beta,\n"
+  h += "    ComputeDataType alpha,\n"
+  h += "    ComputeDataType beta,\n"
   h += "    bool useHighPrecisionAccumulate) {\n"
   h += "  return tensileReferenceCPU(\n"
   h += "      referenceD,\n"
@@ -919,6 +929,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     else:
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
+      computeTypeName = computeDataTypes[dataType].toCpp()
       h += "  return f(solutionLock, static_cast<%s *>(deviceD), static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (destTypeName, destTypeName, typeName, typeName)
     h += "      alpha,\n"
@@ -952,12 +963,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       functionName = "tensile" if enqueue else "tensileGetSolutionName"
       returnName = "TensileStatus" if enqueue else "const char *"
       h += "/* generated call to function */\n"
-      h += "template<typename DataType, typename DestDataType>\n"
+      h += "template<typename DataType, typename DestDataType, typename ComputeDataType>\n"
       h += "%s generatedCallTo_%s(\n" % (returnName, functionName)
       h += "    unsigned int *sizes,\n"
       h += "    unsigned int *minStrides,\n"
-      h += "    DestDataType alpha,\n"
-      h += "    DestDataType beta,\n"
+      h += "    ComputeDataType alpha,\n"
+      h += "    ComputeDataType beta,\n"
       h += "    unsigned int lda,\n"
       h += "    unsigned int ldb,\n"
       h += "    unsigned int ldc,\n"
@@ -981,6 +992,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         typeName = dataType.toCpp()
         destDataType = destDataTypes[dataType]
         destTypeName = destDataType.toCpp()
+        computeDataType = computeDataTypes[dataType]
+        computeTypeName = computeDataType.toCpp()
         functionsForDataType = []
         for problemType in problemTypesForDataType[dataType]:
           for scheduleName in schedulesForProblemType[problemType]:

@@ -261,7 +261,7 @@ void specializeData(
   std::vector<unsigned int> boundCoord( numIndicesSummation, 0);
   std::vector<unsigned int> coords( numIndicesAB, 0 );
 
-  DataType val = 0; // running initializer value
+  DataType val = static_cast<DataType>(0); // running initializer value
   bool moreIndicesC = true;
   while (moreIndicesC) { // iterate over entire free index range
     // reset summation indices
@@ -344,14 +344,14 @@ void specializeData(
  * return true if errors/invalids
  ******************************************************************************/
 #if Tensile_CLIENT_LIBRARY
-template<typename DataType, typename DestDataType>
+template<typename DataType, typename DestDataType, typename ComputeDataType>
 bool callLibrary(
     DestDataType *initialD,
     DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DestDataType alpha,
-    DestDataType beta,
+    ComputeDataType alpha,
+    ComputeDataType beta,
     unsigned int lda,
     unsigned int ldb,
     unsigned int ldc,
@@ -501,7 +501,7 @@ bool callLibrary(
         alpha, beta, useHighPrecisionAccumulate);
 
     // call device function
-    TensileStatus tensileCallStatus = generatedCallTo_tensile<DataType, DestDataType>(userSizes, minStrides,
+    TensileStatus tensileCallStatus = generatedCallTo_tensile<DataType, DestDataType, ComputeDataType>(userSizes, minStrides,
         alpha, beta, lda, ldb, ldc, ldd, strideA, strideB, strideC, strideD);
     if (tensileCallStatus != tensileStatusSuccess) {
       solutionIsValid = false;
@@ -621,7 +621,7 @@ bool callLibrary(
           strideA, strideB, strideC, strideD, 0, NULL,
           &l_outputEvent[syncIdx][enqIdx]);
 #else
-      generatedCallTo_tensile<DataType, DestDataType>(userSizes, minStrides, alpha, beta,
+      generatedCallTo_tensile<DataType, DestDataType, ComputeDataType>(userSizes, minStrides, alpha, beta,
           lda, ldb, ldc, ldd,
           strideA, strideB, strideC, strideD,
           numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx], &l_eventStop[syncIdx][enqIdx]);
@@ -725,7 +725,7 @@ bool callLibrary(
     }
   }
 
-  const char * solutionName = generatedCallTo_tensileGetSolutionName<DataType, DestDataType>(
+  const char * solutionName = generatedCallTo_tensileGetSolutionName<DataType, DestDataType, ComputeDataType>(
       userSizes, minStrides, alpha, beta,
       lda, ldb, ldc, ldd,
       strideA, strideB, strideC, strideD);
@@ -813,7 +813,7 @@ bool callLibrary(
  * - writes one index in solutionPerf[problemIdx]
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
-template<typename DataType, typename DestDataType>
+template<typename DataType, typename DestDataType, typename ComputeDataType>
 bool benchmarkAllSolutionsForSize(
     unsigned int problemIdx,
     //unsigned int *sizes,
@@ -821,8 +821,8 @@ bool benchmarkAllSolutionsForSize(
     DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DestDataType alpha,
-    DestDataType beta,
+    ComputeDataType alpha,
+    ComputeDataType beta,
     DestDataType *referenceD,
     DestDataType *referenceC,
     DestDataType *deviceOnHostD,
@@ -1299,14 +1299,14 @@ bool benchmarkAllSolutionsForSize(
  * Benchmark Problem Sizes
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
-template<typename DataType, typename DestDataType>
+template<typename DataType, typename DestDataType, typename ComputeDataType>
 bool benchmarkProblemSizes(
     DestDataType *initialD,
     DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DestDataType alpha,
-    DestDataType beta,
+    ComputeDataType alpha,
+    ComputeDataType beta,
     DestDataType *referenceD,
     DestDataType *referenceC,
     DestDataType *deviceOnHostD,
@@ -1404,12 +1404,10 @@ void initInput(
     std::cout << ".";
   } else if (dataInitType == 3) {
     for (size_t i = 0; i < maxSize; i++) {
-      auto v = tensileGetRandom<DataType>();
-      if (initOp == Abs) {
-        v = std::fabs(double(v));
-      } else if (initOp == AltSign) {
-        DataType s = (i&0x1) ? -1:1;
-        v = s*std::fabs(double(v));
+      DataType v = tensileGetRandom<DataType>();
+      v = (v >= static_cast<DataType>(0)) ? v : static_cast<DataType>(0) - v;
+      if (initOp == AltSign) {
+        v = ((i & 0x1) == 0) ? v : static_cast<DataType>(0) - v;
       }
       (*initial)[i] = v;
     }
@@ -1423,12 +1421,10 @@ void initInput(
     specializeAB = true;
   } else if (dataInitType == 6) {
     for (size_t i = 0; i < maxSize; i++) {
-      auto v = tensileGetTrig<DataType>(i);   // initialize with sin to get value between -1 and 1. 
-      if (initOp == Abs) {
-        v = std::fabs(double(v));
-      } else if (initOp == AltSign) {
-        DataType s = (i&0x1) ? -1:1;
-        v = s*std::fabs(double(v));
+      DataType v = tensileGetTrig<DataType>(i);   // initialize with sin to get value between -1 and 1. 
+      v = (v >= static_cast<DataType>(0)) ? v : static_cast<DataType>(0) - v;
+      if (initOp == AltSign) {
+        v = ((i & 0x1) == 0) ? v : static_cast<DataType>(0) - v;
       }
       (*initial)[i] = v;
     }
@@ -1443,14 +1439,14 @@ void initInput(
 /*******************************************************************************
  * initialize data
  ******************************************************************************/
-template<typename DataType, typename DestDataType>
+template<typename DataType, typename DestDataType, typename ComputeDataType>
 void initData(
     DestDataType **initialD,
     DestDataType **initialC,
     DataType **initialA,
     DataType **initialB,
-    DestDataType *alpha,
-    DestDataType *beta,
+    ComputeDataType *alpha,
+    ComputeDataType *beta,
     DestDataType **referenceD,
     DestDataType **referenceC,
     DestDataType **deviceOnHostD,
@@ -1461,32 +1457,32 @@ void initData(
 
   // initialize alpha
   if (initAlpha == 0) {
-    *alpha = tensileGetZero<DestDataType>();
+    *alpha = tensileGetZero<ComputeDataType>();
   } else if (initAlpha == 1) {
-    *alpha = tensileGetOne<DestDataType>();
+    *alpha = tensileGetOne<ComputeDataType>();
   } else if (initAlpha == 2) {
-    *alpha = tensileGetTypeForInt<DestDataType>(2);
+    *alpha = tensileGetTypeForInt<ComputeDataType>(2);
   } else if (initAlpha == 3) {
-    *alpha = tensileGetRandom<DestDataType>();
+    *alpha = tensileGetRandom<ComputeDataType>();
   } else {
-    *alpha = tensileGetNaN<DestDataType>();
+    *alpha = tensileGetNaN<ComputeDataType>();
   }
 
   // initialize beta
   if (useBeta[problemTypeIdx]) {
     if (initBeta == 0) {
-      *beta = tensileGetZero<DestDataType>();
+      *beta = tensileGetZero<ComputeDataType>();
     } else if (initBeta == 1) {
-      *beta = tensileGetOne<DestDataType>();
+      *beta = tensileGetOne<ComputeDataType>();
     } else if (initBeta == 2) {
-      *beta = tensileGetTypeForInt<DestDataType>(2);
+      *beta = tensileGetTypeForInt<ComputeDataType>(2);
     } else if (initBeta == 3) {
-      *beta = tensileGetRandom<DestDataType>();
+      *beta = tensileGetRandom<ComputeDataType>();
     } else {
-      *beta = tensileGetNaN<DestDataType>();
+      *beta = tensileGetNaN<ComputeDataType>();
     }
   } else {
-    *beta = tensileGetZero<DestDataType>();
+    *beta = tensileGetZero<ComputeDataType>();
   }
 
   size_t numElements = 3*maxSizeC+maxSizeA+maxSizeB;
