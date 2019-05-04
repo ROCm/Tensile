@@ -216,7 +216,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
           tox --version
           tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e lint
           tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py27
-          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py37
+          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py35
         """
       }
       junit "${paths.project_src_prefix}/*_tests.xml"
