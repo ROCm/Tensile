@@ -116,12 +116,17 @@ def buildSourceCodeObjectFile(kernelFile):
     subprocess.check_call(linkArgs)
 
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
-    print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
-    print(os.listdir(buildPath))
-    sys.stdout.flush()
 
-    return [soFilepath + '-000-gfx900.hsaco']
+    path900 = soFilepath + '-000-gfx900.hsaco'
+    path906 = soFilepath + '-000-gfx906.hsaco'
+
+    if os.path.exists(path900):
+        return [path900]
+    elif os.path.exists(path906):
+        return [path906]
+    raise RuntimeError("Could not create code object file.")
+
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels):
     cpus = Common.CPUThreadCount()
