@@ -186,21 +186,24 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
   build_image.inside( docker_args.docker_run_args )
   {
-    stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+    if(env.NODE_LABELS.contains('gfx900')) 
     {
-      timeout(time: 1, unit: 'HOURS') {
-        sh """#!/usr/bin/env bash
-          set -x
-          cd ${paths.project_src_prefix}
-          mkdir build
-          cd build
-          export PATH=/opt/rocm/bin:$PATH
-          cmake -D CMAKE_BUILD_TYPE=Debug ../lib
-          make -j16
-          ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-        """
+      stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+      {
+        timeout(time: 1, unit: 'HOURS') {
+          sh """#!/usr/bin/env bash
+            set -x
+            cd ${paths.project_src_prefix}
+            mkdir build
+            cd build
+            export PATH=/opt/rocm/bin:$PATH
+            cmake -D CMAKE_BUILD_TYPE=Debug ../lib
+            make -j16
+            ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+          """
+        }
+        junit "${project.paths.project_src_prefix}/build/host_test_output.xml"
       }
-      junit "${project.paths.project_src_prefix}/build/host_test_output.xml"
     }
 
     def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
