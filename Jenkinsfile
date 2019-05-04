@@ -140,7 +140,8 @@ void checkout_and_version( project_paths paths )
       $class: 'GitSCM',
       branches: scm.branches,
       doGenerateSubmoduleConfigurations: scm.doGenerateSubmoduleConfigurations,
-      extensions: scm.extensions + [[$class: 'CleanCheckout']],
+      extensions: scm.extensions + [[$class: 'CleanCheckout']]
+                                 + [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false]],
       userRemoteConfigs: scm.userRemoteConfigs
     ])
 
