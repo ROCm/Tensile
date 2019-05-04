@@ -116,8 +116,10 @@ def buildSourceCodeObjectFile(kernelFile):
     subprocess.check_call(linkArgs)
 
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
-    #print ' '.join(extractArgs)
+    print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
+    print(os.listdir(buildPath))
+    sys.stdout.flush()
 
     return [soFilepath + '-000-gfx900.hsaco']
 
