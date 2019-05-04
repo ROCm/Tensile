@@ -41,7 +41,6 @@
 #include "TestUtils.hpp"
 
 #include <random>
-#include <rocblas.h>
 
 using namespace Tensile;
 
