@@ -30,6 +30,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     llvm-6.0-dev \
     libboost-all-dev \
     zlib1g-dev \
+    libomp-dev \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
