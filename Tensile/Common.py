@@ -20,7 +20,7 @@
 ################################################################################
 from __future__ import print_function
 
-from __init__ import __version__
+from . import __version__
 from collections import OrderedDict
 from copy import deepcopy
 from subprocess import Popen, PIPE

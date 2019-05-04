@@ -20,11 +20,12 @@
 ################################################################################
 
 import itertools
-import Properties
-import Hardware
-import Contractions
-from SolutionStructs import Solution as OriginalSolution
-from Utils import *
+
+from . import Properties
+from . import Hardware
+from . import Contractions
+from .SolutionStructs import Solution as OriginalSolution
+from .Utils import *
 
 class SingleSolutionLibrary:
     Tag = 'Single'

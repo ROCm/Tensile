@@ -19,10 +19,10 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from Common import print1, print2, printExit, printWarning, versionIsCompatible
-from SolutionStructs import Solution, ProblemSizes, ProblemType
-from __init__ import __version__
-import SolutionLibrary
+from .Common import print1, print2, printExit, printWarning, versionIsCompatible
+from .SolutionStructs import Solution, ProblemSizes, ProblemType
+from . import __version__
+from . import SolutionLibrary
 import os
 
 try:

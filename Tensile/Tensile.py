@@ -22,13 +22,14 @@
 import os
 import sys
 import argparse
-from Common import globalParameters, print1, ensurePath, \
+print(sys.path)
+from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-import YAMLIO
-import BenchmarkProblems
-import LibraryLogic
-import ClientWriter
-from __init__ import __version__
+from . import YAMLIO
+from . import BenchmarkProblems
+from . import LibraryLogic
+from . import ClientWriter
+from . import __version__
 
 ###############################################################################
 # Execute Steps in Config

@@ -22,17 +22,17 @@
 
 from __future__ import print_function
 
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
+from . import Common
+from . import EmbeddedData
+from . import Utils
+from . import YAMLIO
+from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
                    CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, \
                    listToInitializer
-from KernelWriterAssembly import KernelWriterAssembly
-from KernelWriterSource import KernelWriterSource
-from SolutionStructs import Solution
-from SolutionWriter import SolutionWriter
-import Common
-import EmbeddedData
-import Utils
-import YAMLIO
+from .KernelWriterAssembly import KernelWriterAssembly
+from .KernelWriterSource import KernelWriterSource
+from .SolutionStructs import Solution
+from .SolutionWriter import SolutionWriter
 
 import argparse
 import itertools

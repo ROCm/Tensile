@@ -20,10 +20,11 @@
 ################################################################################
 
 from __future__ import print_function
-from DataType import DataType
-from SolutionStructs import isPackedIndex, DataType
-from Common import globalParameters, printExit
-from KernelWriter import KernelWriter
+
+from .DataType import DataType
+from .SolutionStructs import isPackedIndex, DataType
+from .Common import globalParameters, printExit
+from .KernelWriter import KernelWriter
 
 ################################################################################
 # Make OpenCL Kernel String

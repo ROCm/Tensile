@@ -19,15 +19,17 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from __future__ import print_function
-from DataType import DataType
-from SolutionStructs import isPackedIndex, DataType
-from Common import globalParameters, printExit, printWarning, roundUp
-from KernelWriter import KernelWriter
-from Utils import ceil_divide, roundUpToNearestMultiple
+
+from . import Code
+from .Common import globalParameters, printExit, printWarning, roundUp
+from .DataType import DataType
+from .KernelWriter import KernelWriter
+from .SolutionStructs import isPackedIndex, DataType
+from .Utils import ceil_divide, roundUpToNearestMultiple
+
 from math import log, ceil
 import collections
 import traceback
-import Code
 
 ################################################################################
 # Memory Instruction

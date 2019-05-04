@@ -24,10 +24,10 @@ import itertools
 import sys
 import time
 import yaml
-import Hardware
-import Properties
-from SolutionStructs import Solution as OriginalSolution
-from Utils import *
+from . import Hardware
+from . import Properties
+from .SolutionStructs import Solution as OriginalSolution
+from .Utils import *
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']

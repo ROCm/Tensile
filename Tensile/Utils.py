@@ -20,7 +20,7 @@
 ################################################################################
 
 from __future__ import unicode_literals
-from Common import ProgressBar
+from .Common import ProgressBar
 import sys
 
 try:

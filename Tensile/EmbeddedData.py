@@ -21,8 +21,8 @@
 
 from __future__ import print_function
 
-import Common
-import Utils
+from . import Common
+from . import Utils
 
 import itertools
 import os

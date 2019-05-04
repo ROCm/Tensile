@@ -20,17 +20,19 @@
 ################################################################################
 
 from __future__ import print_function
-from SolutionStructs import Solution
-from Common import globalParameters, CHeader
+
+from . import Code
+from .Common import globalParameters, CHeader
+from .SolutionStructs import Solution
+
 import abc
-import six
 import os
 import shutil
-from os import path, chmod
-from os import name as osname
-from subprocess import Popen
+import six
 import subprocess
-import Code
+from os import name as osname
+from os import path, chmod
+from subprocess import Popen
 
 ################################################################################
 # Kernel Writer

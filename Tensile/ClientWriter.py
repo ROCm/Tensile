@@ -19,10 +19,11 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from __future__ import print_function
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
-from SolutionStructs import Solution
-from SolutionWriter import SolutionWriter
-import YAMLIO
+
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
+from .SolutionStructs import Solution
+from .SolutionWriter import SolutionWriter
+from . import YAMLIO
 
 import os
 from subprocess import Popen

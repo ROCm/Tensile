@@ -20,16 +20,17 @@
 ################################################################################
 
 from __future__ import print_function
-import os
-import os.path
+
+from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+from .SolutionStructs import Solution
+from . import YAMLIO
+
+from copy import deepcopy
+from sys import stdout
 import array
 import csv
-from sys import stdout
+import os
 import time
-from copy import deepcopy
-from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
-from SolutionStructs import Solution
-import YAMLIO
 
 ################################################################################
 # Analyze Problem Type
