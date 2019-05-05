@@ -4222,6 +4222,8 @@ class KernelWriterAssembly(KernelWriter):
         loopCounter = "LoopCounters+%u"%loopIdx
       if kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
         unrollInc = kernel["InnerUnroll"]
+      else:
+        unrollInc = 1
 
       kStr += inst("s_add_u32", \
           sgpr(loopCounter), \
