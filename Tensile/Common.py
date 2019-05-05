@@ -95,7 +95,7 @@ globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
-globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
+globalParameters["CEqualD"] = True               # Set to true if testing for the case where the pointer to C is the same as D.
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
@@ -257,13 +257,22 @@ validParameters = {
     "ScheduleLocalWrite":         [0, 1],
 
     # Scheduling algorithm to use for each iteration:
-    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
+    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
     "ScheduleIterAlg":              [0, 1],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
     "LdcEqualsLdd":               [ False, True ],
+
+    # Interleave alpha scale calculation with beta loads and address calcs - rather
+    # than as a separate block of instructions
+    "InterleaveAlpha":              [0, 1],
+
+    # Prefetch across persistent kernel iterations - the no-load-loop computes the 
+    # tile assignment and next global read offset and launches the buffer loads for
+    # the next tile in the sequence.
+    "PrefetchAcrossPersistent":     [0, 1],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -495,7 +504,9 @@ validParameters = {
     #         this increases the switch time between work-groups but results in
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
-    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
+    #       - Host code will not launch more groups than tiles in the C space
+    # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
+    "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
@@ -656,14 +667,16 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"SuppressNoLoadLoop":        [ True ] },
-    {"ExpandPointerSwap":         [ True ] },
+    {"SuppressNoLoadLoop":        [ False ]},
+    {"ExpandPointerSwap":         [ True ]},
 
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
 
     {"LdcEqualsLdd":              [ True ] },
+    {"InterleaveAlpha":           [ 0 ] },
+    {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
