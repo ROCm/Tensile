@@ -868,7 +868,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadA instruction; no flat_load2_*
-    self.globalReadWidthA = tPA["nrcv"]*tPA["bpe"]//self.bpr
+    self.globalReadWidthA = float(tPA["nrcv"]*tPA["bpe"])/self.bpr
     self.globalRead2CoalescedA = kernel["NumLoadsCoalescedA"]>1 \
         or self.readCoalescedComponentsA
     self.globalRead2PerpendicularA = kernel["NumLoadsPerpendicularA"] > 1 \
@@ -879,7 +879,7 @@ class KernelWriterAssembly(KernelWriter):
         self.globalRead2CoalescedA, self.globalRead2PerpendicularA, [] )
     ########################################
     # globalReadB instruction; no flat_load2_
-    self.globalReadWidthB = tPB["nrcv"]*tPB["bpe"]//self.bpr
+    self.globalReadWidthB = float(tPB["nrcv"]*tPB["bpe"])/self.bpr
     self.globalRead2CoalescedB = kernel["NumLoadsCoalescedB"]>1 \
         or self.readCoalescedComponentsB
     self.globalRead2PerpendicularB = kernel["NumLoadsPerpendicularB"] > 1 \
@@ -6533,6 +6533,7 @@ class KernelWriterAssembly(KernelWriter):
             for t in tl:
               self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.available()
+            print(self.vgprPool.state())
 
         # set atomicW after we potentially resize GWVW
         atomicW = min(gwvw, kernel["VectorAtomicWidth"])

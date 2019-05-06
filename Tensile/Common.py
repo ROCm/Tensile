@@ -983,13 +983,13 @@ def assignGlobalParameters( config ):
     if process.returncode:
       printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
 
-    line = process.stdout.readline()
+    line = process.stdout.readline().decode()
     while line != "":
       packageIdx = line.find("hcc")
       if packageIdx >= 0:
         globalParameters["HccVersion"] = line.split()[2]
         break
-      line = process.stdout.readline()
+      line = process.stdout.readline().decode()
 
   for key in config:
     value = config[key]

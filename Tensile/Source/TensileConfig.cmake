@@ -38,9 +38,9 @@ function(TensileCreateLibrary
   if(PARSE_Tensile_ROOT)
     # python not pre-installed, use scripts downloaded to extern/Tensile
     include(FindPythonInterp)
-    set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE} "${Tensile_ROOT}/Tensile/TensileCreateLibrary.py")
+    set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE} "${Tensile_ROOT}/Tensile/bin/TensileCreateLibrary")
   else()
-    set(Tensile_CREATE_COMMAND TensileCreateLibrary)
+    set(Tensile_CREATE_COMMAND tensileCreateLibrary)
   endif()
 
 
@@ -151,9 +151,9 @@ function(TensileCreateLibraryFiles
   if(Tensile_TENSILE_ROOT)
     # python not pre-installed, use scripts downloaded to extern/Tensile
     include(FindPythonInterp)
-    set(Script ${PYTHON_EXECUTABLE} "${Tensile_TENSILE_ROOT}/TensileCreateLibrary.py")
+    set(Script ${PYTHON_EXECUTABLE} "${Tensile_TENSILE_ROOT}/bin/TensileCreateLibrary")
   else()
-      set(Script TensileCreateLibrary)
+      set(Script tensileCreateLibrary)
   endif()
 
   set(Options "")

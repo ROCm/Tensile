@@ -22,7 +22,6 @@
 import os
 import sys
 import argparse
-print(sys.path)
 from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
 from . import YAMLIO
@@ -222,4 +221,5 @@ def main():
 
 # script run from commandline
 if __name__ == "__main__":
-  main()
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
+    exit(1)
