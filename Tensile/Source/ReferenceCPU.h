@@ -224,6 +224,11 @@ TensileStatus tensileReferenceCPU(
          unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
          sumC = sumC + (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
       }
+      else if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
+      {
+        float product = static_cast<float>(valueA) * static_cast<float>(valueB);
+        sumCfloat = tensileAdd<float>(sumCfloat, product);
+      }
       else
       {
         Type product = tensileMultiply<Type>( valueA, valueB );
@@ -257,22 +262,41 @@ TensileStatus tensileReferenceCPU(
       serialIdxD += freeCoord[i]*stridesD[i];
       serialIdxC += freeCoord[i]*stridesC[i];
     }
-    if (localUseHighPrecisionAccumulate)
+    if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
+    {
+      sumCfloat = static_cast<float>(alpha) * sumCfloat;
+    }
+    else if (localUseHighPrecisionAccumulate)
+    {
       sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
+    }
     else
+    {
       sumC = tensileMultiply<Type>(alpha,sumC);
+    }
     if (!tensileIsZero(beta)) {
-      Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
-      if (localUseHighPrecisionAccumulate)
+      if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
+        float tmp = tensileMultiply<float>(beta, static_cast<float>(dataC[serialIdxC]));
         sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
-      else
-        sumC = tensileAdd<Type>(tmp,sumC);
+      }
+      else {
+        Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
+        if (localUseHighPrecisionAccumulate)
+          sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
+        else
+          sumC = tensileAdd<Type>(tmp,sumC);
+      }
     }
 
-    if (localUseHighPrecisionAccumulate)
+    if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
+      dataD[serialIdxD] = static_cast<ComputeType>(sumCfloat);
+    }
+    else if (localUseHighPrecisionAccumulate) {
       dataD[serialIdxD] = (Type)sumCfloat;
-    else
+    }
+    else {
       dataD[serialIdxD] = sumC;
+    }
 
     // increment free coord
     // skip = 1, validate everything

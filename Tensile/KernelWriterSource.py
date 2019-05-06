@@ -488,7 +488,7 @@ class KernelWriterSource(KernelWriter):
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
-        kStr += "#define MAC(A,B,DST) DST = static_cast<tensile_bfloat16>(1.0f);"
+        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B);"
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
@@ -529,7 +529,11 @@ class KernelWriterSource(KernelWriter):
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
           if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
-            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) DST = static_cast<tensile_bfloat16>(1.0f);" + self.endLine
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
+              + "DST = 0 != (BETA) ? " \
+              + "static_cast<tensile_bfloat16>((ALPHA)*(REG) + (BETA) * static_cast<float>(SRC)) : " \
+              + "static_cast<tensile_bfloat16>((ALPHA)*(REG));" + self.endLine
+
           else:
             kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
               + "DST = 0 != (BETA) ? (ALPHA)*(REG) + (BETA)*(SRC) : (ALPHA)*(REG);" + self.endLine
@@ -875,7 +879,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
       kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
     elif kernel["ProblemType"]["DestDataType"].isBFloat16():
-      kStr += "#define SCALAR_ZERO static_cast<tensile_bfloat16>(0.0f)%s" % self.endLine
+      kStr += "#define SCALAR_ZERO 0.0f%s" % self.endLine
     else:
       kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, 1), \
@@ -883,10 +887,15 @@ class KernelWriterSource(KernelWriter):
 
     # TODO - use a different value for OOB data
     #        Currently use zero since Tensile already has handy functions to create zero in different types
-    kStr += "#define SCALAR_OOB_DATA SCALAR_ZERO%s" % self.endLine
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+      kStr += "#define SCALAR_OOB_DATA static_cast<tensile_bfloat16>(0.0f)%s" % self.endLine
+    else:
+      kStr += "#define SCALAR_OOB_DATA SCALAR_ZERO%s" % self.endLine
 
     kStr += "  /* registers for MAC's */" + self.endLine
-    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+    # TODO: change to kStr += "  COMPUTE_DATA_TYPE rC[TT%s*TT%s];%s" \ % (self.tileChar0, self.tileChar1, self.endLine )
+    # with above there is no need for the if below
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
         kStr += "  float rC[TT%s*TT%s];%s" \
             % (self.tileChar0, self.tileChar1, self.endLine )
     else:
