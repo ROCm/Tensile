@@ -2759,7 +2759,7 @@ class KernelWriterAssembly(KernelWriter):
     absWgm = abs(kernel["WorkGroupMapping"])
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       smallNumMagicShift = 31
-      magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
+      magicNumberWgm = ((long(1)<<smallNumMagicShift) // absWgm + 1)
 
       tmpSgpr = self.getTmpSgpr(4)
       blockId2  = tmpSgpr+0
@@ -6693,7 +6693,7 @@ class KernelWriterAssembly(KernelWriter):
             # It might be possible to fix globalWriteBatch to handle this case but these
             # are likely to be low-performing so likely not worth optimizing.
             if shrinkDb:
-              print "WARNING: half requires at least two elements per batch"
+              print("WARNING: half requires at least two elements per batch")
             self.overflowedResources = 3
 
 
