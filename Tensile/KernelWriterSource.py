@@ -490,7 +490,7 @@ class KernelWriterSource(KernelWriter):
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
-        kStr += "#define MAC(A,B,DST) DST = static_cast<tensile_bfloat16>(1.0f);"
+        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B);"
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
@@ -531,7 +531,11 @@ class KernelWriterSource(KernelWriter):
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
           if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
-            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) DST = static_cast<tensile_bfloat16>(1.0f);" + self.endLine
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
+              + "DST = 0 != (BETA) ? " \
+              + "static_cast<tensile_bfloat16>((ALPHA)*(REG) + (BETA) * static_cast<float>(SRC)) : " \
+              + "static_cast<tensile_bfloat16>((ALPHA)*(REG));" + self.endLine
+
           else:
             kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
               + "DST = 0 != (BETA) ? (ALPHA)*(REG) + (BETA)*(SRC) : (ALPHA)*(REG);" + self.endLine
@@ -877,7 +881,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
       kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
     elif kernel["ProblemType"]["DestDataType"].isBFloat16():
-      kStr += "#define SCALAR_ZERO static_cast<tensile_bfloat16>(0.0f)%s" % self.endLine
+      kStr += "#define SCALAR_ZERO 0.0f%s" % self.endLine
     else:
       kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, 1), \
@@ -885,10 +889,15 @@ class KernelWriterSource(KernelWriter):
 
     # TODO - use a different value for OOB data
     #        Currently use zero since Tensile already has handy functions to create zero in different types
-    kStr += "#define SCALAR_OOB_DATA SCALAR_ZERO%s" % self.endLine
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+      kStr += "#define SCALAR_OOB_DATA static_cast<tensile_bfloat16>(0.0f)%s" % self.endLine
+    else:
+      kStr += "#define SCALAR_OOB_DATA SCALAR_ZERO%s" % self.endLine
 
     kStr += "  /* registers for MAC's */" + self.endLine
-    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+    # TODO: change to kStr += "  COMPUTE_DATA_TYPE rC[TT%s*TT%s];%s" \ % (self.tileChar0, self.tileChar1, self.endLine )
+    # with above there is no need for the if below
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
         kStr += "  float rC[TT%s*TT%s];%s" \
             % (self.tileChar0, self.tileChar1, self.endLine )
     else:
@@ -958,18 +967,14 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Work-Group
+  # Open Persistent Loop
+  # init iteration counter, define loop target
   ##############################################################################
-  def graWorkGroup(self, kernel):
+  def openPersistentLoop(self, kernel):
     kStr = ""
-
-    wg0 = "wg%s" % self.tileChar0
-    wg1 = "wg%s" % self.tileChar1
-    nwgg = kernel["WorkGroupMapping"] >= 0
-    n0 = 0 if nwgg else 1
-    n1 = 1 if nwgg else 0
-
     if kernel["PersistentKernel"]:
+      wg0 = "wg%s" % self.tileChar0
+      wg1 = "wg%s" % self.tileChar1
       kStr += "  %s serialWgIter = %s(0);%s" \
         % (self.uint64Str, self.getGroupIdStr, self.endLine)
       kStr += "  unsigned int n%s = problemNumGroupTiles0;%s" \
@@ -981,6 +986,26 @@ class KernelWriterSource(KernelWriter):
 
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
       kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
+      kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
+          % ( wg0, self.endLine)
+      kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
+          % ( wg1, self.endLine)
+    return kStr
+
+
+  ##############################################################################
+  # Global Read Addresses: Work-Group
+  ##############################################################################
+  def graWorkGroup(self, kernel, isPap):
+    kStr = ""
+
+    wg0 = "wg%s" % self.tileChar0
+    wg1 = "wg%s" % self.tileChar1
+    nwgg = kernel["WorkGroupMapping"] >= 0
+    n0 = 0 if nwgg else 1
+    n1 = 1 if nwgg else 0
+
+    if kernel["PersistentKernel"]:
       kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
           % ( wg0, self.endLine)
       kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
@@ -1064,6 +1089,7 @@ class KernelWriterSource(KernelWriter):
     #      % (wg0, wg1)+ self.endLine
 
     if kernel["PersistentKernel"]:
+      # could compare serialWgIter against problem nwg0*nwg1?
       kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
         % (wg1, wg1, wg0, wg0, self.endLine)
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  probNumWG=%%u_%%u\\n%s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s, problemNumGroupTiles0, problemNumGroupTiles1);" % (self.endLinePP, wg0, wg1)+ self.endLine
@@ -1378,7 +1404,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Tile Assignment A/B
   ##############################################################################
   def lwaTileAssignment(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: tile assignment %s"%tP["tensorChar"])
     kStr += "  unsigned int lw%s%s = (serial%s" \
         % (tP["tensorChar"], tP["tileChar"], ("%" if tP["grcg"] \
         == tP["tlu"] else "/") )
@@ -1396,7 +1422,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Unroll Assignment A/B
   ##############################################################################
   def lwaUnrollAssignment(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: unroll assignment %s"%tP["tensorChar"])
     kStr += "  unsigned int lw%s%s = (serial%s" \
         % (tP["tensorChar"], self.unrollChar, ("/" if tP["grcg"] \
         == tP["tlu"] else "%") )
@@ -1425,7 +1451,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Final Offsets A/B
   ##############################################################################
   def lwaFinalOffsets(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: final offsets %s" % tP["tensorChar"])
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
@@ -1448,7 +1474,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write Addresses: Declare Addresses A/B
   ##############################################################################
   def lwaDeclareAddresses(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write addresses: declare addresses %s" % tP["tensorChar"])
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
@@ -1658,7 +1684,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Calculate Loop Num Iterations
   ##############################################################################
-  def calculateLoopNumIter(self, kernel, loopIdx):
+  def calculateLoopNumIter(self, kernel, loopIdx, isPap):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -1744,6 +1770,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Close Loop
+  ##############################################################################
+  def openLoopCopy(self, kernel, lc):
+    return ""
+
+  ##############################################################################
   # End Summation
   ##############################################################################
   def endSummation(self,kernel):
@@ -1765,7 +1797,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # At Least 1 Unroll
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isPap):
     kStr = ""
     if kernel["GlobalSplitU"] > 1:
       kStr += "%sif (numIterMyWg >= 1) {%s" \
@@ -1943,7 +1975,7 @@ class KernelWriterSource(KernelWriter):
   # Local Write: Init Pointers A/B
   ##############################################################################
   def localWriteInitPointers(self, kernel, tP):
-    kStr = ""
+    kStr = self.comment("local write init pointers %s" % tP["tensorChar"])
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
@@ -2025,7 +2057,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   ##############################################################################
-  def localReadDo(self, kernel, black, iui, tP):
+  def localReadDo(self, kernel, black, iui, epsi, tP):
     kStr = ""
     for r in range(0, kernel[tP["tt"]]//kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):
@@ -2516,6 +2548,12 @@ class KernelWriterSource(KernelWriter):
               kStr += " } }"
             kStr += self.endLine
     return kStr
+
+  def openPrefetchAcrossPersistent(self, kernel):
+    return ""
+
+  def closePrefetchAcrossPersistent(self, kernel):
+    return ""
 
   ##############################################################################
   # Function End

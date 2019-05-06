@@ -719,7 +719,6 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
     problemSize = rule[0][:numSizes]
-    problemStrides = rule[0][numSizes:]
     solutionIdx = rule[1][0]
     solutionGFlops = rule[1][1]
     s += " { {"

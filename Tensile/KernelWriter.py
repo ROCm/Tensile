@@ -335,72 +335,25 @@ class KernelWriter:
       waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
-
     return iterCode
 
   ##############################################################################
-  # Kernel Body
+  # returns list of modules or text
+  # papIter indicates this is the setup for the "prefetchAcrossPersistent"
+  # (aka pap) iteration
   ##############################################################################
-  def kernelBody( self, kernel, tensorParametersA, tensorParametersB ):
-
-    ####################################
-    # Begin String
+  def setupNewTile(self, kernel, tensorParametersA, tensorParametersB, isPap):
     kl = []
-    kl.append(self.openString(kernel))
-
-    ####################################
-    # Function Prefix
-    kl.append(self.comment3("Function Prefix"))
-    kl.append(self.functionPrefix(kernel))
-
-    ####################################
-    # Function Signature
-    ####################################
-    kl.append(self.comment3("Begin Kernel"))
-    kl.append(self.functionSignaturePrefix(kernel))
-
-    beforeFunctionSignature = '\n'.join([str(x) for x in kl])
-    kl = []
-
-    kl.append(self.functionSignatureSuffix(kernel))
-    kl.append(self.functionBegin(kernel))
-
-    kl.append(self.comment3("Allocate Resources"))
-    kl.append(self.allocateResources(kernel))
 
     if self.enable["PreLoop"]:
       ####################################
-      # Local Read Addresses
-      ####################################
-      kl.append(self.comment3("Local Read Addresses"))
-
-      # tile assignments
-      kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
-
-
-      # final offsets
-      kl.append(self.comment("local read addresses: final offsets a"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: final offsets b"))
-      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
-
-      # declare addresses
-      kl.append(self.comment("local read addresses: declare addresses a"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: declare addresses b"))
-      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
-
-      ####################################
       # Global Read Addresses
       ####################################
-      kl.append(self.comment3("Global Read Addresses"))
+      kl.append(self.comment3("Begin setupNewTile"))
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
-      kl.append(self.graWorkGroup(kernel))
+      kl.append(self.graWorkGroup(kernel, isPap))
 
       # tile assignments
       kl.append(self.comment("global read addresses: tile offset assignment a"))
@@ -483,15 +436,11 @@ class KernelWriter:
       kl.append(self.comment3("Local Write Addresses"))
 
       # tile assignments
-      kl.append(self.comment("local write addresses: tile assignment a"))
       kl.append(self.lwaTileAssignment(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: tile assignment b"))
       kl.append(self.lwaTileAssignment(kernel, tensorParametersB))
 
       # unroll assignments
-      kl.append(self.comment("local write addresses: unroll assignment a"))
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: unroll assignment b"))
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
 
       # first offsets
@@ -501,21 +450,15 @@ class KernelWriter:
       kl.append(self.lwaFirstOffset(kernel, tensorParametersB))
 
       # final offsets
-      kl.append(self.comment("local write addresses: final offsets a"))
       kl.append(self.lwaFinalOffsets(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: final offsets b"))
       kl.append(self.lwaFinalOffsets(kernel, tensorParametersB))
 
       # declare addresses
-      kl.append(self.comment("local write addresses: declare addresses a"))
       kl.append(self.lwaDeclareAddresses(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: declare addresses b"))
       kl.append(self.lwaDeclareAddresses(kernel, tensorParametersB))
 
       # init pointers
-      kl.append(self.comment("local write addresses: init pointers a"))
       kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
-      kl.append(self.comment("local write addresses: init pointers b"))
       kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
 
     ###########################################################################
@@ -523,7 +466,7 @@ class KernelWriter:
     ###########################################################################
 
     # declare loop num iter
-    kl.append(self.comment("declare loop num iterations"))
+    kl.append(self.comment1("declare loop num iterations"))
     kl.append(self.declareLoopNumIter(kernel))
 
     # perform initC in the shadow of the prefetch
@@ -531,28 +474,29 @@ class KernelWriter:
     # If we have multiple summation indicies (unrollIdx>0),
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
-    shadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
 
-    if not shadowInit:
+    if not self.doShadowInit:
       kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
       kl.append(self.comment("summation loop %u"%i))
-      kl.append(self.calculateLoopNumIter(kernel, i))
+      kl.append(self.calculateLoopNumIter(kernel, i, isPap))
       kl.append(self.openLoop(kernel, i))
-    kl.append(self.calculateLoopNumIter(kernel, self.unrollIdx))
+    kl.append(self.calculateLoopNumIter(kernel, self.unrollIdx, isPap))
 
     if self.staggerU:
       kl.append(self.declareStaggerParms(kernel))
       kl.append(self.calculateStagger(kernel, tensorParametersA))
       kl.append(self.calculateStagger(kernel, tensorParametersB))
 
-    if self.enable["PreLoop"]:
+    # isPap don't init the read pointers - we want to continue to use the double-buffer
+    # LRO and LWA as assigned
+    if self.enable["PreLoop"] and not isPap:
       # init lds read pointers before each unrolled loop
-      kl.append(self.comment("local read addresses: init pointers a"))
+      kl.append(self.comment1("local read addresses: init pointers a"))
       kl.append(self.localReadInitPointers(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: init pointers b"))
+      kl.append(self.comment1("local read addresses: init pointers b"))
       kl.append(self.localReadInitPointers(kernel, tensorParametersB))
 
     ####################################
@@ -561,7 +505,7 @@ class KernelWriter:
     if kernel["PrefetchGlobalRead"]:
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
-      kl.append(self.openSumAtLeastUnroll(kernel, True))
+      kl.append(self.openSumAtLeastUnroll(kernel, True, isPap))
       if self.enable["GlobalRead"]:
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
@@ -569,7 +513,78 @@ class KernelWriter:
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
-      if shadowInit:
+    kl.append(self.comment3("End setupNewTile"))
+
+    return kl
+
+  ##############################################################################
+  # Kernel Body
+  ##############################################################################
+  def kernelBody( self, kernel, tensorParametersA, tensorParametersB ):
+
+    ####################################
+    # Begin String
+    kl = []
+    kl.append(self.openString(kernel))
+
+    ####################################
+    # Function Prefix
+    kl.append(self.comment3("Function Prefix"))
+    kl.append(self.functionPrefix(kernel))
+
+    ####################################
+    # Function Signature
+    ####################################
+    kl.append(self.comment3("Begin Kernel"))
+    kl.append(self.functionSignaturePrefix(kernel))
+
+    beforeFunctionSignature = '\n'.join([str(x) for x in kl])
+    kl = []
+
+    kl.append(self.functionSignatureSuffix(kernel))
+    kl.append(self.functionBegin(kernel))
+
+    kl.append(self.comment3("Allocate Resources"))
+    kl.append(self.allocateResources(kernel))
+
+    if self.enable["PreLoop"]:
+      ####################################
+      # Local Read Addresses
+      ####################################
+      kl.append(self.comment3("Local Read Addresses"))
+
+      # tile assignments
+      kl.append(self.comment("local read addresses: tile assignments a"))
+      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: tile assignments b"))
+      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
+
+
+      # final offsets
+      kl.append(self.comment("local read addresses: final offsets a"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: final offsets b"))
+      kl.append(self.lraFinalOffset(kernel, tensorParametersB))
+
+      # declare addresses
+      kl.append(self.comment("local read addresses: declare addresses a"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
+      kl.append(self.comment("local read addresses: declare addresses b"))
+      kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
+
+    self.doShadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+    if self.prefetchAcrossPersistent:
+      # first prefetch is outside persistent loop, subsequent prefetch will
+      # be integrated into no-load-loop
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
+      kl.append(self.openPersistentLoop(kernel))
+    else:
+      # prefetch is inside persistent loop
+      kl.append(self.openPersistentLoop(kernel))
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
+
+    if kernel["PrefetchGlobalRead"]:
+      if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
         kl.append(self.initC(kernel)) # initC while waiting for global reads
@@ -587,9 +602,7 @@ class KernelWriter:
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersA))
         kl.append(self.comment("local write swap b"))
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersB))
-        kl.append(self.comment("local write init pointers a"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
-        kl.append(self.comment("local write init pointers b"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
@@ -597,17 +610,20 @@ class KernelWriter:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
-        for iui in range(0,kernel["InnerUnroll"]):
-          if self.enable["LocalRead"]:
-            for plrIdx in range(0, kernel["PrefetchLocalRead"]):
-              kl.append(self.comment("local read prefetch a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
-              kl.append(self.comment("local read prefetch b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
-              kl.append(self.comment("local read inc a"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersA))
-              kl.append(self.comment("local read inc b"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersB))
+
+        # in some cases need an extra copy of the LDS read with appropriate double buffer offsets
+        for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
+          for iui in range(0,kernel["InnerUnroll"]):
+            if self.enable["LocalRead"]:
+              for plrIdx in range(0, kernel["PrefetchLocalRead"]):
+                kl.append(self.comment("local read prefetch a"))
+                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersA))
+                kl.append(self.comment("local read prefetch b"))
+                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersB))
+                kl.append(self.comment("local read inc a"))
+                kl.append(self.localReadInc(kernel, iui, tensorParametersA))
+                kl.append(self.comment("local read inc b"))
+                kl.append(self.localReadInc(kernel, iui, tensorParametersB))
       kl.append(self.closeSumAtLeastUnroll(kernel, True))
 
     # open unrolled summation loop
@@ -619,6 +635,7 @@ class KernelWriter:
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
+      kl.append(self.openLoopCopy(kernel, lc))
       if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
@@ -692,9 +709,9 @@ class KernelWriter:
           if self.enable["LocalRead"]:
             for plrIdx in range(0, kernel["PrefetchLocalRead"]):
               kl.append(self.comment("prefetch local a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
               kl.append(self.comment("prefetch local b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
               kl.append(self.comment1("local read increment a"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersA))
               kl.append(self.comment1("local read increment b"))
@@ -724,9 +741,9 @@ class KernelWriter:
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             localReads.addText(self.comment("local read a"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
 
             # Don't increment the LRO if we are going to reset them below:
             if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
@@ -746,9 +763,7 @@ class KernelWriter:
               pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersA))
               pointerCode.addText(self.comment("local write swap offsets b"))
               pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersB))
-              pointerCode.addText(self.comment("local write init pointers a"))
               pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersA))
-              pointerCode.addText(self.comment("local write init pointers b"))
               pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersB))
 
           if self.enable["LocalRead"]:
@@ -820,9 +835,9 @@ class KernelWriter:
             # local read
             plrIdx = (unrollIter+pf) % (kernel["PrefetchLocalRead"] + 1)
             localReads.addText(self.comment("local read a"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
             if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
               localReads.addText(self.comment("unroll increments:"))
               localReads.addText(self.comment("local read inc a"))
@@ -848,9 +863,7 @@ class KernelWriter:
           pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersA))
           pointerCode.addText(self.comment("local write swap offsets b"))
           pointerCode.addText(self.localWriteSwapOffsets(kernel, tensorParametersB))
-          pointerCode.addText(self.comment("local write init pointers a"))
           pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersA))
-          pointerCode.addText(self.comment("local write init pointers b"))
           pointerCode.addText(self.localWriteInitPointers(kernel, tensorParametersB))
         if self.enable["LocalRead"]:
           # swap read and write
@@ -903,8 +916,13 @@ class KernelWriter:
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
+      kl.append(self.comment3("No Load Loop - Begin"))
+      if self.prefetchAcrossPersistent:
+        kl.append(self.openPrefetchAcrossPersistent(kernel))
+        kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
+        kl.append(self.closePrefetchAcrossPersistent(kernel))
       kl.append(self.comment("prefetch: last unrolled iteration"))
-      kl.append(self.openSumAtLeastUnroll(kernel, False))
+      kl.append(self.openSumAtLeastUnroll(kernel, False, False))
       if not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
@@ -917,9 +935,9 @@ class KernelWriter:
           if self.enable["LocalRead"]:
             if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
               kl.append(self.comment("local read a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersA))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
               kl.append(self.comment("local read b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, tensorParametersB))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
               kl.append(self.comment("local read inc a"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersA))
               kl.append(self.comment("local read inc b"))
@@ -950,7 +968,7 @@ class KernelWriter:
 
       if self.enable["GlobalRead"]:
         # tail: global read
-        kl.append(self.calculateLoopNumIter(kernel, -1))
+        kl.append(self.calculateLoopNumIter(kernel, -1, False))
         if self.staggerU:
           kl.append(self.comment("remove stagger offsets for tail loop"))
           kl.append(self.removeStagger(kernel, tensorParametersA))
@@ -966,9 +984,7 @@ class KernelWriter:
         kl.append(self.syncThreads(kernel))
       if self.enable["LocalWrite"]:
         # tail: local write
-        kl.append(self.comment("local write init pointers a"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
-        kl.append(self.comment("local write init pointers b"))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
         kl.append(self.comment("local write a"))
         kl.append(self.localWriteDo(kernel, tensorParametersA))
@@ -1001,9 +1017,9 @@ class KernelWriter:
       for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
           kl.append(self.comment("local read a"))
-          kl.append(self.localReadDo(kernel, 0, iui, tensorParametersA))
+          kl.append(self.localReadDo(kernel, 0, iui, 0, tensorParametersA))
           kl.append(self.comment("local read b"))
-          kl.append(self.localReadDo(kernel, 0, iui, tensorParametersB))
+          kl.append(self.localReadDo(kernel, 0, iui, 0, tensorParametersB))
           kl.append(self.comment("local read inc a"))
           kl.append(self.localReadInc(kernel, iui, tensorParametersA))
           kl.append(self.comment("local read inc b"))
@@ -1026,7 +1042,7 @@ class KernelWriter:
 
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
-      if not shadowInit:
+      if not self.doShadowInit:
         kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
@@ -1189,6 +1205,16 @@ class KernelWriter:
     else:
       self.scheduleIterAlg = 0
 
+    self.prefetchAcrossPersistent = \
+        kernel["KernelLanguage"] == "Assembly" and \
+        kernel["PersistentKernel"] and \
+        kernel["PrefetchGlobalRead"] and \
+        not kernel["SuppressNoLoadLoop"] and \
+        kernel["PrefetchAcrossPersistent"]
+
+    # turn on parts of prefetchAcrossPersistent code for testing
+    self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
+    self.prefetchAcrossPersistent2 = 0 and self.prefetchAcrossPersistent
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
@@ -1579,11 +1605,21 @@ class KernelWriter:
   def allocateResources(self, kernel):
     return ""
 
+
+  ##############################################################################
+  # Open Persistent Loop
+  # init iteration counter, define loop target
+  ##############################################################################
+  @abc.abstractmethod
+  def openPersistentLoop(self, kernel):
+    return ""
+
+
   ##############################################################################
   # Global Read Addresses: Work-Group
   ##############################################################################
   @abc.abstractmethod
-  def graWorkGroup(self, kernel):
+  def graWorkGroup(self, kernel, isPap):
     return ""
 
   ##############################################################################
@@ -1868,7 +1904,7 @@ class KernelWriter:
   # Calculate Loop Num Iter
   ##############################################################################
   @abc.abstractmethod
-  def calculateLoopNumIter(self, kernel, loopIdx):
+  def calculateLoopNumIter(self, kernel, loopIdx, isPap):
     return ""
 
 
@@ -1901,6 +1937,13 @@ class KernelWriter:
   @abc.abstractmethod
   def closeLoop(self, kernel, loopIdx, finalLoop):
     return ""
+
+  ##############################################################################
+  # Open Loop Copy
+  ##############################################################################
+  @abc.abstractmethod
+  def openLoopCopy(self, kernel, lc):
+      return ""
 
   ##############################################################################
   # End Summation
@@ -2002,7 +2045,7 @@ class KernelWriter:
   # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, tP):
+  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, epsi, tP):
     return ""
 
   ##############################################################################
@@ -2074,6 +2117,14 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def notLocalSplitUGlobalWrite(self, kernel):
+    return ""
+
+  @abc.abstractmethod
+  def openPrefetchAcrossPersistent(self, kernel):
+    return ""
+
+  @abc.abstractmethod
+  def closePrefetchAcrossPersistent(self, kernel):
     return ""
 
   ##############################################################################
