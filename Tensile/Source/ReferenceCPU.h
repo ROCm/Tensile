@@ -275,7 +275,6 @@ TensileStatus tensileReferenceCPU(
       sumC = tensileMultiply<Type>(alpha,sumC);
     }
     if (!tensileIsZero(beta)) {
-      Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
       if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
         float tmp = tensileMultiply<float>(beta, static_cast<float>(dataC[serialIdxC]));
         sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
@@ -290,7 +289,7 @@ TensileStatus tensileReferenceCPU(
     }
 
     if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
-      dataD[serialIdxD] = static_cast<tensile_bfloat16>(sumCfloat);
+      dataD[serialIdxD] = static_cast<ComputeType>(sumCfloat);
     }
     else if (localUseHighPrecisionAccumulate) {
       dataD[serialIdxD] = (Type)sumCfloat;
