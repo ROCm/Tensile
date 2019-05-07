@@ -1685,6 +1685,9 @@ class Solution:
     if state["KernelLanguage"] == "Assembly":
       # Asm kernels only work if all dims are > 32
       state["AssertMinApproxSize"] = 1
+      if state["VectorWidth"] > 1:
+        # VW>1 kernels require dims>1
+        state["AssertMinApproxSize"] = 3
     elif state["VectorWidth"] > 1:
       # VW>1 kernels require dims>1
       state["AssertMinApproxSize"] = 2
