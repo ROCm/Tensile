@@ -49,12 +49,15 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     Generate source for a single kernel.
     Returns (error, source, header, kernelName).
     """
-    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
-    # get kernel name
-    kernelName = kernelWriter.getKernelName(kernel)
-    #sys.stderr.write("kernel:%s\n"% kernelName)
-    (err, src) = kernelWriter.getSourceFileString(kernel)
-    header = kernelWriter.getHeaderFileString(kernel)
+    try:
+        kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
+        # get kernel name
+        kernelName = kernelWriter.getKernelName(kernel)
+        #sys.stderr.write("kernel:%s\n"% kernelName)
+        (err, src) = kernelWriter.getSourceFileString(kernel)
+        header = kernelWriter.getHeaderFileString(kernel)
+    except RuntimeError as e:
+        return (1, "", "", kernelName)
 
     return (err, src, header, kernelName)
 
@@ -133,7 +136,7 @@ def buildSourceCodeObjectFiles(kernelFiles, kernels):
 
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
-    if cpus > 1:
+    if False and cpus > 1:
         print("# Launching source kernel compilation processes (cpus={}, kernels={})".format(cpus, len(sourceKernelFiles)))
         pool = multiprocessing.Pool(cpus)
         coFiles = pool.map(buildSourceCodeObjectFile, sourceKernelFiles)
@@ -280,7 +283,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   cpus = Common.CPUThreadCount()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  if cpus > 1:
+  if False and cpus > 1:
     print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))
 
     pool = multiprocessing.Pool(cpus)

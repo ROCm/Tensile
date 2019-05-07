@@ -112,7 +112,7 @@ def hash_objs(*objs, **kwargs):
     if len(objs) == 1:
         objs = objs[1]
 
-    return hash_combine(list(map(hash, objs)), shift=shift)
+    return hash(tuple(objs))
 
 def ceil_divide(numerator, denominator):
     # import pdb

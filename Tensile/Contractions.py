@@ -105,9 +105,11 @@ class ProblemType:
         
         try:
             assert d['DataType'] == 0
-            assert d['DestDataType'] == 0
+            if 'DestDataType' in d:
+                assert d['DestDataType'] == 0
         except AssertionError as Error:
-            print("DataType mismatch!")
+            pass
+            #print("DataType mismatch!")
         rv.aType = 'Float'
         rv.bType = 'Float'
         rv.cType = 'Float'
@@ -186,7 +188,7 @@ class ProblemType:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
 
         if includeType:
-            predicates.append(ProblemPredicate("TypesEqual", value=[self.aType, self.bType, self.cType, self.dType]))
+            predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
 
         if len(predicates) == 0:
             return None
@@ -248,10 +250,10 @@ class SizeMapping:
                    macroTile          = cls.ReadOriginalMacroTile(d),
                    threadTile         = d['ThreadTile'],
                    workGroupMapping   = d['WorkGroupMapping'],
-                   staggerU           = d['StaggerU'],
+                   staggerU           = d['StaggerU'] if 'StaggerU' in d else 0,
                    depthU             = d['DepthU'],
                    globalSplitU       = d['GlobalSplitU'],
-                   staggerStrideShift = d['_staggerStrideShift']
+                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0
                    )
 
     @classmethod
@@ -280,7 +282,8 @@ class Solution:
     def FromOriginalState(cls, d, deviceInfo):
         rv = cls()
 
-        rv.name = d['SolutionNameMin']
+        if 'SolutionNameMin' in d:
+            rv.name = d['SolutionNameMin']
 
         rv.problemType = ProblemType.FromOriginalState(d['ProblemType'])
 
@@ -290,7 +293,8 @@ class Solution:
         if 'DebugKernel' in d:
             rv.debugKernel = d['DebugKernel']
 
-        rv.index = d['SolutionIndex']
+        if 'SolutionIndex' in d:
+            rv.index = d['SolutionIndex']
 
         rv.info = cls.ReadOriginalInfo(d)
 

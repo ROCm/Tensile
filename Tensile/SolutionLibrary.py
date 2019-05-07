@@ -81,6 +81,13 @@ class MatchingLibrary:
     def tag(self):
         return self.__class__.Tag
 
+    def merge(self, other):
+        assert self.__class__ == other.__class__ \
+                and self.properties == other.properties \
+                and self.distance == other.distance
+
+        self.table += other.table
+
     def __init__(self, properties, table, distance):
         self.properties = properties
         self.table = table

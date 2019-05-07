@@ -208,7 +208,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
                 }
                 finally
                 {
-                    junit "${project.paths.project_src_prefix}/build/host_test_output.xml"
+                    junit "${paths.project_src_prefix}/build/host_test_output.xml"
                 }
             }
         }

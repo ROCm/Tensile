@@ -2206,8 +2206,8 @@ class KernelWriter:
         tensorParametersB )
 
 
-    #if error != 0:
-    #  raise RuntimeError("Generating kernel source resulted in error {}".format(error))
+    if error != 0:
+      raise RuntimeError("Generating kernel source resulted in error {}".format(error))
 
     return fileString
 
