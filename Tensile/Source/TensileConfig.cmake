@@ -155,6 +155,7 @@ function(TensileCreateLibraryFiles
   else()
       set(Script tensileCreateLibrary)
   endif()
+  message(STATUS "Tensile script: ${Script}")
 
   set(Options "")
 

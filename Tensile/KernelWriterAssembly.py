@@ -2759,7 +2759,7 @@ class KernelWriterAssembly(KernelWriter):
     absWgm = abs(kernel["WorkGroupMapping"])
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       smallNumMagicShift = 31
-      magicNumberWgm = ((long(1)<<smallNumMagicShift) // absWgm + 1)
+      magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
       tmpSgpr = self.getTmpSgpr(4)
       blockId2  = tmpSgpr+0
@@ -2767,7 +2767,7 @@ class KernelWriterAssembly(KernelWriter):
       wgmDivisor = tmpSgpr+2
       wgmDivisorMagicNumber = tmpSgpr+3
 
-      kStr += inst("s_mov_b32", sgpr(wgmDivisorMagicNumber), hex(magicNumberWgm), \
+      kStr += inst("s_mov_b32", sgpr(wgmDivisorMagicNumber), hex(magicNumberWgm)+'L', \
           "magic number for WGM==%u"%absWgm)
       # blockId and serial within block
 

@@ -181,49 +181,63 @@ def docker_build_image( docker_data docker_args, project_paths paths )
 // Leverages docker containers to encapsulate the build in a fixed environment
 def docker_build_inside_image( def build_image, compiler_data compiler_args, docker_data docker_args, project_paths paths )
 {
-  // Construct a relative path from build directory to src directory; used to invoke cmake
-  String rel_path_to_src = g_relativize( pwd( ), paths.project_src_prefix, paths.project_build_prefix )
+    // Construct a relative path from build directory to src directory; used to invoke cmake
+    String rel_path_to_src = g_relativize( pwd( ), paths.project_src_prefix, paths.project_build_prefix )
 
-  build_image.inside( docker_args.docker_run_args )
-  {
-    if(env.NODE_LABELS.contains('gfx900')) 
+    build_image.inside( docker_args.docker_run_args )
     {
-      stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
-      {
-        timeout(time: 1, unit: 'HOURS') {
-          sh """#!/usr/bin/env bash
-            set -x
-            cd ${paths.project_src_prefix}
-            mkdir build
-            cd build
-            export PATH=/opt/rocm/bin:$PATH
-            cmake -D CMAKE_BUILD_TYPE=Debug ../lib
-            make -j16
-            ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-          """
+        if(env.NODE_LABELS.contains('gfx900')) 
+        {
+            stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+            {
+                try
+                {
+                    timeout(time: 1, unit: 'HOURS')
+                    {
+                        sh """#!/usr/bin/env bash
+                           set -x
+                           cd ${paths.project_src_prefix}
+                           mkdir build
+                           cd build
+                           export PATH=/opt/rocm/bin:$PATH
+                           cmake -D CMAKE_BUILD_TYPE=Debug ../lib
+                           make -j16
+                           ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                           """
+                    }
+                }
+                finally
+                {
+                    junit "${project.paths.project_src_prefix}/build/host_test_output.xml"
+                }
+            }
         }
-        junit "${project.paths.project_src_prefix}/build/host_test_output.xml"
-      }
+
+        def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
+        stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+        {
+            try
+            {
+                timeout(time: 3, unit: 'HOURS')
+                {
+                    sh """#!/usr/bin/env bash
+                       set -x
+                       cd ${paths.project_src_prefix}
+                       tox --version
+                       tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e lint
+                       tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py27
+                       tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py35
+                       """
+                }
+            }
+            finally
+            {
+                junit "${paths.project_src_prefix}/*_tests.xml"
+            }
+        }
     }
 
-    def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
-    stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
-    {
-      timeout(time: 3, unit: 'HOURS') {
-        sh """#!/usr/bin/env bash
-          set -x
-          cd ${paths.project_src_prefix}
-          tox --version
-          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e lint
-          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py27
-          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py35
-        """
-      }
-      junit "${paths.project_src_prefix}/*_tests.xml"
-    }
-  }
-
-  return void
+    return void
 }
 
 // Docker related variables gathered together to reduce parameter bloat on function calls

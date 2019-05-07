@@ -133,7 +133,7 @@ def buildSourceCodeObjectFiles(kernelFiles, kernels):
 
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
-    if False and cpus > 1:
+    if cpus > 1:
         print("# Launching source kernel compilation processes (cpus={}, kernels={})".format(cpus, len(sourceKernelFiles)))
         pool = multiprocessing.Pool(cpus)
         coFiles = pool.map(buildSourceCodeObjectFile, sourceKernelFiles)
@@ -280,7 +280,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   cpus = Common.CPUThreadCount()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  if False and cpus > 1:
+  if cpus > 1:
     print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))
 
     pool = multiprocessing.Pool(cpus)
@@ -293,7 +293,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     if globalParameters['ShowProgressBar']:
       kIter = Utils.tqdm(kIter)
 
-    results = map(processKernelSourceWithArgs, kIter)
+    results = list(map(processKernelSourceWithArgs, kIter))
   
   print(len(results))
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
