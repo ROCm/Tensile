@@ -30,9 +30,7 @@ import os
 import shutil
 import six
 import subprocess
-from os import name as osname
 from os import path, chmod
-from subprocess import Popen
 
 ################################################################################
 # Kernel Writer
@@ -2302,7 +2300,6 @@ for codeObjectFileName in codeObjectFileNames:
     kernelName = self.getKernelName(kernel)
     fileBase = path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
-    codeObjectFileName = "%s.co" % fileBase
 
     replacementKernel = self.getReplacementKernelPath(kernel)
 
@@ -2415,6 +2412,7 @@ for codeObjectFileName in codeObjectFileNames:
         if self.language == "HIP":
           fileString += "#include <hip/hip_runtime.h>\n"
           fileString += "#include <hip/hip_fp16.h>\n"
+          fileString += "#include <KernelHeader.h>\n"
           fileString += "\n"
         else:
           fileString += "#include <string>\n"
@@ -2483,6 +2481,7 @@ for codeObjectFileName in codeObjectFileNames:
       fileString += CHeader
       fileString += "#pragma once\n\n"
       fileString += "\n"
+      fileString += "#include <KernelHeader.h>\n\n"
       if self.language == "HIP":
         fileString += "#include <hip/hip_runtime.h>\n"
         fileString += "#include <hip/hip_fp16.h>\n"

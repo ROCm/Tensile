@@ -46,10 +46,9 @@ class DataType:
     lookup = {}    
             
     def __init__(self, value):
-        if isinstance(value, int) and value >= DataType.single and value <= DataType.int32:
+        if isinstance(value, int):
             self.value = value
-        elif isinstance(value,int):
-            raise RunimeError("Index out of range") 
+            _ = DataType.properties[value]
         elif isinstance(value, basestring):
             self.value = DataType.lookup[value.lower()]
             return

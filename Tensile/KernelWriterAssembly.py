@@ -24,7 +24,7 @@ from . import Code
 from .Common import globalParameters, printExit, printWarning, roundUp
 from .DataType import DataType
 from .KernelWriter import KernelWriter
-from .SolutionStructs import isPackedIndex, DataType
+from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
 
 from math import log, ceil

@@ -25,6 +25,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from subprocess import Popen, PIPE
 
+import itertools
 import math
 import os.path
 import platform
@@ -1031,8 +1032,8 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
-def CPUThreadCount():
-  if globalParameters["CpuThreads"] == 0:
+def CPUThreadCount(enable=True):
+  if not enable or globalParameters["CpuThreads"] == 0:
     return 0
   else:
     import multiprocessing
@@ -1041,6 +1042,116 @@ def CPUThreadCount():
     if cpuThreads < 0:
         return cpu_count*abs(cpuThreads)
     return min(cpu_count, cpuThreads)
+
+processingPool = None
+dummyProcessingPool = None
+
+def starmap_apply(item):
+  func, item = item
+  return func(*item)
+
+def apply_print_exception(item, *args):
+  #print(item, args)
+  try:
+    if len(args) > 0:
+      func = item
+      args = args[0]
+      return func(*args)
+    else:
+      func, item = item
+      return func(item)
+  except Exception:
+    import traceback
+    traceback.print_exc()
+    raise
+  finally:
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+def ProcessingPool(enable=True):
+  # Python 2.7 does not have starmap in multiprocessing.Pool.
+  def fixStarmap(pool):
+    if not hasattr(pool, 'starmap'):
+      def pool_starmap_apply(self, func, item):
+        func(*item)
+
+      def pool_starmap(self, func, items, *args, **kwargs):
+        items = zip(itertools.repeat(func), items)
+        return self.map(starmap_apply, items, *args, **kwargs)
+      pool.__class__.starmap = pool_starmap
+
+  global processingPool, dummyProcessingPool
+  import multiprocessing
+  import multiprocessing.dummy
+
+  if dummyProcessingPool is None:
+    dummyProcessingPool = multiprocessing.dummy.Pool(1)
+    fixStarmap(dummyProcessingPool)
+
+  if not enable:
+    return dummyProcessingPool
+
+  if processingPool is None:
+    threadCount = CPUThreadCount()
+    if threadCount <= 1:
+      processingPool = dummyProcessingPool
+    else:
+      processingPool = multiprocessing.Pool(threadCount)
+      fixStarmap(processingPool)
+
+  return processingPool
+
+def ParallelMap(function, objects, message="", enable=True, method=None):
+  """
+  Generally equivalent to list(map(function, objects)), possibly executing in parallel.
+
+    message: A message describing the operation to be performed.
+    enable: May be set to false to disable parallelism.
+    method: A function which can fetch the mapping function from a processing pool object.
+        Leave blank to use .map(), other possiblities:
+           - `lambda x: x.starmap` - useful if `function` takes multiple parameters.
+           - `lambda x: x.imap` - lazy evaluation
+           - `lambda x: x.imap_unordered` - lazy evaluation, does not preserve order of return value.
+  """
+  threadCount = CPUThreadCount(enable)
+  pool = ProcessingPool(enable)
+
+  if threadCount <= 1 and globalParameters["ShowProgressBar"]:
+    # Provide a progress bar for single-threaded operation.
+    # This works for method=None, and for starmap.
+    mapFunc = map
+    if method is not None:
+      # itertools provides starmap which can fill in for pool.starmap.  It provides imap on Python 2.7.
+      # If this works, we will use it, otherwise we will fallback to the "dummy" pool for single threaded
+      # operation.
+      try:
+        mapFunc = method(itertools)
+      except NameError as e:
+        mapFunc = None
+
+    if mapFunc is not None:
+      import Utils
+      return list(mapFunc(function, Utils.tqdm(objects, message)))
+
+  mapFunc = pool.map
+  if method: mapFunc = method(pool)
+
+  objects = zip(itertools.repeat(function), objects)
+  function = apply_print_exception
+
+  countMessage = ""
+  try:
+    countMessage = " for {} tasks".format(len(objects))
+  except TypeError: pass
+
+  if message != "": message += ": "
+
+  print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
+  sys.stdout.flush()
+  rv = mapFunc(function, objects)
+  print("{0}Done.".format(message))
+  sys.stdout.flush()
+  return rv
 
 ################################################################################
 # Push / Pop Working Path
@@ -1056,8 +1167,10 @@ def popWorkingPath():
   globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
 def ensurePath( path ):
-  if not os.path.exists(path):
+  try:
     os.makedirs(path)
+  except OSError:
+    pass
   return path
 
 def roundUp(f):

@@ -36,7 +36,6 @@ from .SolutionWriter import SolutionWriter
 
 import argparse
 import itertools
-import multiprocessing
 import os
 import shutil
 import subprocess
@@ -56,16 +55,10 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         #sys.stderr.write("kernel:%s\n"% kernelName)
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
-    except RuntimeError as e:
+    except RuntimeError:
         return (1, "", "", kernelName)
 
     return (err, src, header, kernelName)
-
-def processKernelSourceWithArgs(args):
-    """
-    Multiprocessing aid.  Wraps up processKernelSource and takes only a single argument.
-    """
-    return processKernelSource(*args)
 
 def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
     assemblyKernels = list([kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly'])
@@ -94,7 +87,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, ker
         return newCOFiles
 
 
-def buildSourceCodeObjectFile(kernelFile):
+def buildSourceCodeObjectFile(outputPath, kernelFile):
     buildPath = ensurePath(os.path.join(globalParameters['WorkingPath'], 'code_object_tmp'))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
@@ -110,38 +103,38 @@ def buildSourceCodeObjectFile(kernelFile):
     hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags', '--shared']).decode().split(' ')
     hipLinkFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--ldflags', '--shared']).decode().split(' ')
 
+    hipFlags += ['-I', outputPath]
+
     compileArgs = ['/opt/rocm/bin/hcc'] + archFlags + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
+    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
+    extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
+
     #print(' '.join(compileArgs))
     subprocess.check_call(compileArgs)
 
-    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
-    #print ' '.join(linkArgs)
+    #print(' '.join(linkArgs))
     subprocess.check_call(linkArgs)
 
-    extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
+    #print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
 
     path900 = soFilepath + '-000-gfx900.hsaco'
     path906 = soFilepath + '-000-gfx906.hsaco'
 
     if os.path.exists(path900):
-        return [path900]
+	return [path900]
     elif os.path.exists(path906):
-        return [path906]
+	return [path906]
     raise RuntimeError("Could not create code object file.")
 
-
-def buildSourceCodeObjectFiles(kernelFiles, kernels):
+def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     cpus = Common.CPUThreadCount()
 
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
-    if False and cpus > 1:
-        print("# Launching source kernel compilation processes (cpus={}, kernels={})".format(cpus, len(sourceKernelFiles)))
-        pool = multiprocessing.Pool(cpus)
-        coFiles = pool.map(buildSourceCodeObjectFile, sourceKernelFiles)
-    else:
-        coFiles = map(buildSourceCodeObjectFile, Utils.tqdm(sourceKernelFiles))
+    sourceKernelFiles = zip(itertools.repeat(outputPath), sourceKernelFiles)
+
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels", method=lambda x: x.starmap)
 
     return itertools.chain(*coFiles)
 
@@ -249,29 +242,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
-      kernelHeaderFile.write("// Also set env var HCC_ENABLE_PRINTF=1 for printf\n")
-      kernelHeaderFile.write("#define HCC_ENABLE_ACCELERATOR_PRINTF\n\n")
-      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include \"TensileTypes.h\"\n")
-      kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
-      kernelHeaderFile.write("\n\n")
-      kernelHeaderFile.write("__device__ inline int GenDot4(int a, int b, int c) { \n")
-      kernelHeaderFile.write("#if (__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__\n")
-      kernelHeaderFile.write("  typedef union { int32_t i; char4 z; } PkInt8x4;\n")
-      kernelHeaderFile.write("#else\n")
-      kernelHeaderFile.write("  typedef struct { int c0:8,c1:8,c2:8,c3:8; } C4I8;\n")
-      kernelHeaderFile.write("  typedef union { int32_t i; C4I8 z; } PkInt8x4;\n")
-      kernelHeaderFile.write("#endif\n")
-      kernelHeaderFile.write("  PkInt8x4 va, vb; va.i = a; vb.i = b;\n")
-
-      kernelHeaderFile.write("#if (__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__\n")
-      kernelHeaderFile.write("      return amd_mixed_dot(va.z, vb.z, c, true); }\n")
-      kernelHeaderFile.write("#else\n")
-      kernelHeaderFile.write("      return c + (vb.z.c3*va.z.c3 + vb.z.c2*va.z.c2 + vb.z.c1*va.z.c1 + vb.z.c0*va.z.c0); }\n")
-      kernelHeaderFile.write("#endif\n")
-      kernelHeaderFile.write("\n\n")
-    else:
-      kernelHeaderFile.write("#include <string>\n")
+      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n\n")
   else:
     kernelSourceFile = None
     kernelHeaderFile = None
@@ -283,22 +254,9 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   cpus = Common.CPUThreadCount()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  if False and cpus > 1:
-    print("# Launching kernel compilation processes (cpus=%u kernels=%u)" % (cpus, len(kernels)))
-
-    pool = multiprocessing.Pool(cpus)
-
-    results = pool.map(processKernelSourceWithArgs, kIter)
-
-    pool.close()
-  else:
-    print("# Compiling kernels (no multiprocessing, kernels=%u)" % (len(kernels)))
-    if globalParameters['ShowProgressBar']:
-      kIter = Utils.tqdm(kIter)
-
-    results = list(map(processKernelSourceWithArgs, kIter))
-  
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
   print(len(results))
+
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if False:#len(kernelsWithBuildErrs) > 0:
@@ -338,7 +296,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     kernelHeaderFile.close()
 
   if globalParameters["BuildCodeObjects"]:
-    codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly)
+    codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly, outputPath)
     codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
@@ -359,15 +317,16 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   solutionSourceFile.write(CHeader)
   solutionHeaderFile.write(CHeader)
 
+  solutionSourceFile.write("#include \"Solutions.h\"\n")
+  solutionSourceFile.write("#include <algorithm>\n")
+
+  solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
+  solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
+  solutionHeaderFile.write("#include \"Tools.h\"\n")
+  if globalParameters["CodeFromFiles"]:
+    solutionHeaderFile.write("#include <unistd.h>\n")
   if globalParameters["MergeFiles"]:
-    solutionSourceFile.write("#include \"Solutions.h\"\n")
-    solutionSourceFile.write("#include <algorithm>\n")
-    solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
-    solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
-    solutionHeaderFile.write("#include \"Tools.h\"\n")
-    if globalParameters["CodeFromFiles"]:
-      solutionHeaderFile.write("#include <unistd.h>\n")
 
 
   # Write a solution pointer typedef for each problemType:
@@ -441,11 +400,14 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   ih += "#include \"Tensile.h\"\n"
 
   # Tensile.cpp
-  s = ""
-  s += "#include \"Solutions.h\"\n"
-  s += "#include \"Tensile.h\"\n"
-  s += "#include \"TensileInternal.h\"\n"
-  s += "#include \"SolutionMapper.h\"\n"
+
+  sourceIncludes = ""
+  sourceIncludes += "#include \"Solutions.h\"\n"
+  sourceIncludes += "#include \"Tensile.h\"\n"
+  sourceIncludes += "#include \"TensileInternal.h\"\n"
+  sourceIncludes += "#include \"SolutionMapper.h\"\n"
+
+  s = sourceIncludes
 
   ########################################
   # problemType
@@ -516,9 +478,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     # reset problemType source
     if not globalParameters["MergeFiles"]:
       filePrefix = "Tensile_%s" % (problemType)
-      s = "#include \"TensileTypes.h\"\n"
-      s = "#include \"Tensile.h\"\n"
-      s += "#include \"TensileInternal.h\"\n"
+      s = sourceIncludes
+
       for solutionName in solutionNamesForProblemType:
         s += "#include \"%s.h\"\n" % solutionName
 
@@ -959,10 +920,13 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
   newMasterLibrary = None
-  for logicFileName in Utils.tqdm(logicFiles, "Reading logic files"):
+
+  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
+
+  for logic in Utils.tqdm(libraries, "Processing logic data"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-        indexOrder, exactLogic, rangeLogic, newLibrary) \
-        = YAMLIO.readLibraryLogicForSchedule(logicFileName)
+       indexOrder, exactLogic, rangeLogic, newLibrary) = logic
+
     if problemType not in logicData:
       logicData[problemType] = []
     logicData[problemType].append((scheduleName, deviceNames, \

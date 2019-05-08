@@ -184,7 +184,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
 # Read Library Logic from YAML
 ################################################################################
 def readLibraryLogicForSchedule( filename ):
-  print1("# Reading Library Logic: %s" % ( filename ))
+  #print1("# Reading Library Logic: %s" % ( filename ))
   try:
     stream = open(filename, "r")
   except IOError:

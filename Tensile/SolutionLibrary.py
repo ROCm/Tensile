@@ -25,7 +25,7 @@ from . import Properties
 from . import Hardware
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
-from .Utils import *
+from .Utils import state
 
 class SingleSolutionLibrary:
     Tag = 'Single'
@@ -141,7 +141,7 @@ class MasterSolutionLibrary:
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
 
-        minVersion = d[0]
+        _ = d[0]
         deviceSection = d[1:4]
         origProblemType = d[4]
         origSolutions = d[5]

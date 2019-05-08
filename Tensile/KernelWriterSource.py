@@ -22,7 +22,7 @@
 from __future__ import print_function
 
 from .DataType import DataType
-from .SolutionStructs import isPackedIndex, DataType
+from .SolutionStructs import isPackedIndex
 from .Common import globalParameters, printExit
 from .KernelWriter import KernelWriter
 

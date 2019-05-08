@@ -168,5 +168,7 @@ def test_cmp():
     assert not DataType('int32') <= DataType('tensileDataTypeInt8x4')
 
 def test_bounds():
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(Exception):
         DataType(10)
+
+

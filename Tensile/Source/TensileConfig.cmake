@@ -77,12 +77,16 @@ function(TensileCreateLibrary
   message(STATUS "Tensile_CREATE_COMMAND: ${Tensile_CREATE_COMMAND}")
 
   # execute python command
-  execute_process(
-    COMMAND ${Tensile_CREATE_COMMAND}
-    RESULT_VARIABLE Tensile_CREATE_RESULT
-  )
-  if(Tensile_CREATE_RESULT)
-    message(SEND_ERROR "Error generating kernels")
+  if($ENV{TENSILE_SKIP_LIBRARY})
+    message(STATUS "Skipping build of ${Tensile_OUTPUT_PATH}")
+  else()
+    execute_process(
+      COMMAND ${Tensile_CREATE_COMMAND}
+      RESULT_VARIABLE Tensile_CREATE_RESULT
+    )
+    if(Tensile_CREATE_RESULT)
+      message(FATAL_ERROR "Error generating kernels")
+    endif()
   endif()
 
   # glob generated source files
@@ -189,7 +193,7 @@ function(TensileCreateLibraryFiles
   else()
       execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
       if(CommandResult)
-        message(SEND_ERROR "Error creating Tensile library: ${CommandResult}")
+        message(FATAL_ERROR "Error creating Tensile library: ${CommandResult}")
       endif()
   endif()
 

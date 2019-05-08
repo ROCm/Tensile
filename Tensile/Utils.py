@@ -71,7 +71,7 @@ def state(obj):
         return rv
 
     if isinstance(obj, dict):
-        return dict([(key, state(value)) for key,value in list(obj.items())])
+        return dict([(k, state(v)) for k,v in list(obj.items())])
 
     if any([isinstance(obj, cls) for cls in [str, int, float, unicode]]):
         return obj
@@ -105,13 +105,6 @@ def hash_combine(*objs, **kwargs):
     return rv
 
 def hash_objs(*objs, **kwargs):
-    shift = 1
-    if 'shift' in kwargs:
-        shift = kwargs['shift']
-
-    if len(objs) == 1:
-        objs = objs[1]
-
     return hash(tuple(objs))
 
 def ceil_divide(numerator, denominator):

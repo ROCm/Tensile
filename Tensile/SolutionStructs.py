@@ -24,7 +24,7 @@ import sys,traceback
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
 import math
-from .Utils import ceil_divide, roundUpToNearestMultiple
+from .Utils import roundUpToNearestMultiple
 from .DataType import DataType
 
 ########################################

@@ -20,42 +20,39 @@
 ################################################################################
 
 from __future__ import print_function
-import itertools
-import sys
-import time
-import yaml
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
-from .Utils import *
+from .Utils import state
+
+class FreeIndex:
+    StateKeys = ['a', 'b', 'ca', 'cb', 'da', 'db']
+
+    def __init__(self, a=None, b=None, ca=None, cb=None, da=None, db=None):
+	self.a = a
+	self.b = b
+	self.ca = ca
+	self.cb = cb
+	self.da = da
+	self.db = db
+
+class BatchIndex:
+    StateKeys = ['a', 'b', 'c', 'd']
+    def __init__(self, a=None, b=None, c=None, d=None):
+	self.a = a
+	self.b = b
+	self.c = c
+	self.d = d
+
+class BoundIndex:
+    StateKeys = ['a', 'b']
+    def __init__(self, a=None, b=None):
+	self.a = a
+	self.b = b
+
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']
-    class FreeIndex:
-        StateKeys = ['a', 'b', 'ca', 'cb', 'da', 'db']
-
-        def __init__(self, a=None, b=None, ca=None, cb=None, da=None, db=None):
-            self.a = a
-            self.b = b
-            self.ca = ca
-            self.cb = cb
-            self.da = da
-            self.db = db
-
-    class BatchIndex:
-        StateKeys = ['a', 'b', 'c', 'd']
-        def __init__(self, a=None, b=None, c=None, d=None):
-            self.a = a
-            self.b = b
-            self.c = c
-            self.d = d
-
-    class BoundIndex:
-        StateKeys = ['a', 'b']
-        def __init__(self, a=None, b=None):
-            self.a = a
-            self.b = b
-
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -64,19 +61,19 @@ class ProblemType:
         boundIndices = []
 
         for i in d['IndicesBatch']:
-            bi = cls.BatchIndex(c=i, d=i)
+            bi = BatchIndex(c=i, d=i)
             indices[i] = bi
             batchIndices.append(bi)
 
         for i in d['IndicesSummation']:
-            bi = cls.BoundIndex()
+            bi = BoundIndex()
             indices[i] = bi
             boundIndices.append(bi)
 
         for idx in range(0, len(d['IndicesFree']), 2):
             ia = d['IndicesFree'][idx]
             ib = d['IndicesFree'][idx+1]
-            fi = cls.FreeIndex(ca=ia, cb=ib, da=ia, db=ib)
+            fi = FreeIndex(ca=ia, cb=ib, da=ia, db=ib)
 
             indices[ia] = fi
             indices[ib] = fi
@@ -107,7 +104,7 @@ class ProblemType:
             assert d['DataType'] == 0
             if 'DestDataType' in d:
                 assert d['DestDataType'] == 0
-        except AssertionError as Error:
+        except AssertionError:
             pass
             #print("DataType mismatch!")
         rv.aType = 'Float'

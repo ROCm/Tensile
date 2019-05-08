@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Utils import *
+from .Utils import hash_objs, state
 
 class Property:
     def __init__(self, tag=None, index=None, value=None):
