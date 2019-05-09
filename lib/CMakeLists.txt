@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.5)
 
 project(Tensile)
 find_package(HIP CONFIG PATHS /opt/rocm/hip)
-#message(${HIP_HIPCC_EXECUTABLE})
-#set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
 option(USE_LLVM "Use LLVM for parsing config files." ON)
 option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library." ON)
@@ -47,9 +45,6 @@ endif()
 include("${TENSILE_SCRIPT_ROOT}/Source/TensileConfig.cmake")
 
 
-#set(HIP_FOUND 1)
-
-#set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror -ftemplate-backtrace-limit=0" )
 
 set(tensile_sources  ${tensile_sources}
@@ -83,7 +78,6 @@ target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/includ
 add_subdirectory(configs)
 
 if(USE_LLVM)
-    #target_link_libraries( Tensile PUBLIC LLVM )
     target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
 endif()
 

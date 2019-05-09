@@ -22,7 +22,6 @@
  */
 
 #include "Reference.hpp"
-//#include <ReferenceCPU.h>
 
 namespace Tensile
 {
