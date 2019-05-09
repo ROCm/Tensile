@@ -22,6 +22,7 @@
 from __future__ import print_function
 
 from . import Code
+from . import Common
 from .Common import globalParameters, CHeader
 from .SolutionStructs import Solution
 
