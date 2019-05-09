@@ -1126,7 +1126,7 @@ def ParallelMap(function, objects, message="", enable=True, method=None):
       # operation.
       try:
         mapFunc = method(itertools)
-      except NameError as e:
+      except NameError:
         mapFunc = None
 
     if mapFunc is not None:

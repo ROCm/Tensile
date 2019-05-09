@@ -128,8 +128,6 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     raise RuntimeError("Could not create code object file.")
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
-    cpus = Common.CPUThreadCount()
-
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
     sourceKernelFiles = zip(itertools.repeat(outputPath), sourceKernelFiles)
@@ -250,8 +248,6 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   kernelsWithBuildErrs = {}
 
   prepAsm()
-
-  cpus = Common.CPUThreadCount()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
@@ -1021,3 +1017,4 @@ def TensileCreateLibrary():
 if __name__ == "__main__":
     print("This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead.")
     exit(1)
+
