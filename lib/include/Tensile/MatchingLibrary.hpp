@@ -70,7 +70,7 @@ namespace Tensile
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            bool debug = Debug::Get().printPropertyEvaluation();
+            bool debug = Debug::Instance().printPropertyEvaluation();
 
             SolutionSet<MySolution> rv;
 

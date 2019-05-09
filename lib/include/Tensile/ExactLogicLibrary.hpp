@@ -119,7 +119,7 @@ namespace Tensile
         bool operator()(Any const& problem,
                         Hardware const& hardware) const
         {
-            bool debug = Debug::Get().printDeviceSelection();
+            bool debug = Debug::Instance().printDeviceSelection();
 
             if(debug)
             {
@@ -167,7 +167,7 @@ namespace Tensile
         bool operator()(MyProblem const& problem,
                         Hardware  const& hardware) const
         {
-            bool debug = Debug::Get().printPredicateEvaluation();
+            bool debug = Debug::Instance().printPredicateEvaluation();
 
             if(debug)
             {

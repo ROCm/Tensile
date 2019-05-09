@@ -31,13 +31,6 @@ namespace Tensile
 {
     std::once_flag debug_init;
 
-    Debug & Debug::Get()
-    {
-        std::call_once(debug_init, [](){ instance = new Debug(); });
-
-        return *instance;
-    }
-
     bool Debug::printPropertyEvaluation() const
     {
         return value & (0x2 | 0x4);
@@ -58,8 +51,6 @@ namespace Tensile
         return value & 0x20;
     }
 
-    int value;
-
     Debug::Debug()
         : value(DEBUG_SM)
     {
@@ -68,7 +59,5 @@ namespace Tensile
         if(db)
             value = strtol(db, nullptr, 0);
     }
-
-    Debug * Debug::instance = nullptr;
 
 }

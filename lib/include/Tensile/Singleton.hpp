@@ -36,26 +36,12 @@ namespace Tensile
     public:
         static Class & Instance()
         {
-            std::call_once(m_instanceConstructionFlag, Construct);
+            static Class instance;
 
-            return *m_instance;
+            return instance;
         }
 
     private:
-        static std::once_flag m_instanceConstructionFlag;
-        static std::unique_ptr<Class> m_instance;
-
-        static void Construct()
-        {
-            std::unique_ptr<Class> newInstance(new Class());
-            m_instance = std::move(newInstance);
-        }
     };
-
-    template <typename Class>
-    std::once_flag LazySingleton<Class>::m_instanceConstructionFlag;
-
-    template <typename Class>
-    std::unique_ptr<Class> LazySingleton<Class>::m_instance;
 }
 

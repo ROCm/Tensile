@@ -100,7 +100,7 @@ namespace Tensile
 
             if(embeddedData.size() == 0)
             {
-                if(Debug::Get().printCodeObjectInfo())
+                if(Debug::Instance().printCodeObjectInfo())
                 {
                     std::cerr << "Found no embedded code objects";
                     if(key != "")
