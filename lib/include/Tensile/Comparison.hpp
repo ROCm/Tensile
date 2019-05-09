@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 namespace Tensile
 {
     inline int LexicographicCompare()
@@ -41,7 +43,7 @@ namespace Tensile
         return 0;
     }
 
-    template<typename A, typename... Args>
+    template<typename A, typename... Args, typename = typename std::enable_if<sizeof...(Args) % 2 == 0>>
     inline int LexicographicCompare(A const& lhs, A const& rhs, Args const&... rest)
     {
         if(lhs < rhs) return -1;

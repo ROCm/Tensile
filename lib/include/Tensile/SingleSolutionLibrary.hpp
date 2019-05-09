@@ -63,7 +63,7 @@ namespace Tensile
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            bool debug = Debug::Get().printPredicateEvaluation();
+            bool debug = Debug::Instance().printPredicateEvaluation();
 
             if(solution)
             {
@@ -91,7 +91,7 @@ namespace Tensile
 
             auto result = findBestSolution(problem, hardware);
 
-            bool debug = Debug::Get().printPredicateEvaluation();
+            bool debug = Debug::Instance().printPredicateEvaluation();
             if(debug)
             {
                 if(result)

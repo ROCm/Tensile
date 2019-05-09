@@ -62,7 +62,7 @@ namespace Tensile
             auto key = (*property)(problem);
             auto iter = map.find(key);
 
-            bool debug = Debug::Get().printPropertyEvaluation();
+            bool debug = Debug::Instance().printPropertyEvaluation();
             if(debug)
             {
                 std::cout << type() << " Searching for " << key;

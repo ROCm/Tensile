@@ -134,7 +134,7 @@ namespace Tensile
 
             ReturnValue findBestKeyMatch(Key const& key, Transform transform) const
             {
-                const bool debug = Debug::Get().printPropertyEvaluation();
+                const bool debug = Debug::Instance().printPropertyEvaluation();
 
                 double bestDistance = std::numeric_limits<double>::max();
 
@@ -222,7 +222,7 @@ namespace Tensile
 
             Key keyForProblem(Object const& object) const
             {
-                bool debug = Debug::Get().printPropertyEvaluation();
+                bool debug = Debug::Instance().printPropertyEvaluation();
 
                 Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
 

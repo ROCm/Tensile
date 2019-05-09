@@ -24,13 +24,13 @@
 #include <cstdlib>
 #include <string>
 
+#include <Tensile/Singleton.hpp>
+
 namespace Tensile
 {
-    class Debug
+    class Debug: public LazySingleton<Debug>
     {
     public:
-        static Debug & Get();
-
         bool printPropertyEvaluation() const;
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
@@ -38,9 +38,10 @@ namespace Tensile
         bool printCodeObjectInfo() const;
 
     private:
+        friend LazySingleton<Debug>;
+
         int value;
 
-        static Debug * instance;
         Debug();
 
     };
