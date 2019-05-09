@@ -20,4 +20,4 @@
 ################################################################################
 
 # hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.9.4"
+__version__ = "4.9.5"
