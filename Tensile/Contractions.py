@@ -1,4 +1,4 @@
-################################################################################
+#################################################################################
 # Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,26 +29,26 @@ class FreeIndex:
     StateKeys = ['a', 'b', 'ca', 'cb', 'da', 'db']
 
     def __init__(self, a=None, b=None, ca=None, cb=None, da=None, db=None):
-	self.a = a
-	self.b = b
-	self.ca = ca
-	self.cb = cb
-	self.da = da
-	self.db = db
+        self.a = a
+        self.b = b
+        self.ca = ca
+        self.cb = cb
+        self.da = da
+        self.db = db
 
 class BatchIndex:
     StateKeys = ['a', 'b', 'c', 'd']
     def __init__(self, a=None, b=None, c=None, d=None):
-	self.a = a
-	self.b = b
-	self.c = c
-	self.d = d
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
 
 class BoundIndex:
     StateKeys = ['a', 'b']
     def __init__(self, a=None, b=None):
-	self.a = a
-	self.b = b
+        self.a = a
+        self.b = b
 
 
 class ProblemType:

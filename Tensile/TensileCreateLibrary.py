@@ -122,9 +122,9 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     path906 = soFilepath + '-000-gfx906.hsaco'
 
     if os.path.exists(path900):
-	return [path900]
+        return [path900]
     elif os.path.exists(path906):
-	return [path906]
+        return [path906]
     raise RuntimeError("Could not create code object file.")
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
@@ -241,6 +241,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n\n")
+    kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
   else:
     kernelSourceFile = None
     kernelHeaderFile = None
