@@ -22,6 +22,7 @@
 from __future__ import print_function
 
 from . import Code
+from . import Common
 from .Common import globalParameters, CHeader
 from .SolutionStructs import Solution
 
@@ -2210,7 +2211,7 @@ class KernelWriter:
     return fileString
 
   def getAssemblyDirectory(self):
-      return os.path.join(globalParameters["WorkingPath"], "assembly")
+      return Common.ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly"))
 
   def byteArrayScriptSource(self):
     return """
