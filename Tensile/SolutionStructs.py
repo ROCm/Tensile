@@ -679,9 +679,6 @@ class Solution:
     if totalVectors < state["NumThreads"]:
       # Try to reduce size of vector so every thread has a load to do
       pv = state["NumThreads"]//totalVectors
-      #state["NumThreads"] / totalVectors # partial vector
-      # import pdb
-      # pdb.set_trace()
       if not state["FractionalLoad"]:
         if state["NumThreads"] % totalVectors != 0:
           reject(None, "NumThreads %u %% totalVectors %u != 0" \

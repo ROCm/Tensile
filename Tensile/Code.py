@@ -222,15 +222,15 @@ class Inst(Item):
 
   def __str__(self):
     return self.text
-"""
- Construct a waitcnt from specified lgkmcnt and vmcnt:
- lgkmcnt, vmcnt:
-   if -1 then will not be added to the wait term.
-
- If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
- an instruction with a comment is returned.
-"""
 class WaitCnt (Inst):
+  """
+  Construct a waitcnt from specified lgkmcnt and vmcnt:
+  lgkmcnt, vmcnt:
+    if -1 then will not be added to the wait term.
+  
+  If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
+  an instruction with a comment is returned.
+  """
   def __init__(self,lgkmcnt=-1,vmcnt=-1,comment=""):
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt

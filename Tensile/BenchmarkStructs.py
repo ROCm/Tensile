@@ -29,10 +29,11 @@ from .Common import print1, print2, printWarning, defaultSolution, \
     validParameters
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
-""" Benchmark Process
-    steps in config need to be expanded and
-    missing elements need to be assigned a default"""
 class BenchmarkProcess:
+  """
+  Benchmark Process
+  Steps in config need to be expanded and missing elements need to be assigned a default.
+  """
 
   #def __init__(self, config):
   def __init__(self, problemTypeConfig, problemSizeGroupConfig ):

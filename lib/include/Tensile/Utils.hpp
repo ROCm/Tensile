@@ -111,12 +111,12 @@ namespace Tensile
 #define TENSILE_LINENO TENSILE_STR(__LINE__)
 #define TENSILE_LINEINFO __FILE__ ":" TENSILE_LINENO
 
-#define TENSILE_ASSERT_EXC(exp)                                             \
-    do                                                                      \
-    {                                                                       \
-        if(!(exp))                                                          \
-        {                                                                   \
-            throw std::runtime_error("Error in " TENSILE_LINEINFO ": " #exp);  \
-        }                                                                   \
+#define TENSILE_ASSERT_EXC(exp)                                               \
+    do                                                                        \
+    {                                                                         \
+        if(!(exp))                                                            \
+        {                                                                     \
+            throw std::runtime_error("Error in " TENSILE_LINEINFO ": " #exp); \
+        }                                                                     \
     } while(false)
 
