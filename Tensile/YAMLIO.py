@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,16 +18,17 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import print1, print2, printExit, printWarning, versionIsCompatible
-from SolutionStructs import Solution, ProblemSizes, ProblemType
-from __init__ import __version__
 
+from .Common import print2, printExit, printWarning, versionIsCompatible
+from .SolutionStructs import Solution, ProblemSizes, ProblemType
+from . import __version__
+from . import SolutionLibrary
 import os
+
 try:
   import yaml
 except ImportError:
   printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
-
 
 ################################################################################
 # Read Benchmark Config from YAML Files
@@ -41,6 +42,11 @@ def readConfig( filename ):
   stream.close()
   return config
 
+def write(filename, data):
+    """ Write data to a given file. """
+
+    with open(filename, 'w') as f:
+        yaml.dump(data, f, explicit_start=True, explicit_end=True)
 
 ################################################################################
 # Write List of Solutions to YAML File
@@ -178,7 +184,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
 # Read Library Logic from YAML
 ################################################################################
 def readLibraryLogicForSchedule( filename ):
-  print1("# Reading Library Logic: %s" % ( filename ))
+  #print1("# Reading Library Logic: %s" % ( filename ))
   try:
     stream = open(filename, "r")
   except IOError:
@@ -200,6 +206,8 @@ def readLibraryLogicForSchedule( filename ):
   indexOrder        = data[6]
   exactLogic        = data[7]
   rangeLogic        = data[8]
+
+  newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data)
 
   # does version match
   if not versionIsCompatible(versionString):
@@ -226,4 +234,4 @@ def readLibraryLogicForSchedule( filename ):
     solutions.append(solutionObject)
 
   return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-      exactLogic, rangeLogic )
+      exactLogic, rangeLogic, newLibrary)

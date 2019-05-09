@@ -38,6 +38,8 @@ int main( int argc, char *argv[] ) {
 
 #if Tensile_CLIENT_BENCHMARK
   solutionLocks = new SolutionLock[maxNumSolutions];
+#else
+  tensileInitialize();
 #endif
 
   // parse command line parameters

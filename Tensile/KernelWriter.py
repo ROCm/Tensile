@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,22 +19,26 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution
-from Common import globalParameters, CHeader
+from __future__ import print_function
+
+from . import Code
+from .Common import globalParameters, CHeader
+from .SolutionStructs import Solution
+
 import abc
 import os
 import shutil
+import six
+import subprocess
 from os import path, chmod
-from os import name as osname
-from subprocess import Popen
-import Code
 
 ################################################################################
 # Kernel Writer
 ################################################################################
+@six.add_metaclass(abc.ABCMeta)
 class KernelWriter:
-  __metaclass__=abc.ABCMeta
-
+  #__metaclass__=abc.ABCMeta
+  
   ##############################################################################
   # Init
   ##############################################################################
@@ -70,7 +74,6 @@ class KernelWriter:
   # blindly follows the plan set in unrollLoopHeaderCode and perIterCode
   ##############################################################################
   def makeSchedule(self, kernel, tensorParametersA, tensorParametersB, localWriteEndIter):
-
     # 0x2=print GR and LW code blocks, 0x1= print info messages
     schedDb = 0
 
@@ -81,7 +84,7 @@ class KernelWriter:
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
-
+    
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
       # put everything in the header:
@@ -108,13 +111,13 @@ class KernelWriter:
         firstStep = 1
 
       # Add all loads from middle as individual schedulable items
-      itemsToSched =  self.globalReadACode.middle.items() + \
-                      self.globalReadBCode.middle.items()
+      itemsToSched =  list(self.globalReadACode.middle.items()) + \
+                      list(self.globalReadBCode.middle.items())
       itemsToSched.append(self.globalReadIncACode)
       itemsToSched.append(self.globalReadIncBCode)
 
       if schedDb & 0x1:
-        print "makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter
+        print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
@@ -153,7 +156,7 @@ class KernelWriter:
         imod.addCode(self.localWriteBCode)
     else:
       # create a plan:
-      itemsToSched = self.localWriteACode.items() + self.localWriteBCode.items()
+      itemsToSched = list(self.localWriteACode.items()) + list(self.localWriteBCode.items())
       if 1:
         # This counts the number of modules which contain a ds_write
         # Scheduler below keeps all writes in the same module in same iteration
@@ -172,16 +175,16 @@ class KernelWriter:
         startIter = lastLoadIter
 
       if schedDb & 0x2:
-        print "gra=", self.globalReadACode.middle.prettyPrint()
-        print "lwa=", self.localWriteACode.prettyPrint()
+        print ("gra=", self.globalReadACode.middle.prettyPrint())
+        print ("lwa=", self.localWriteACode.prettyPrint())
 
-        print "grb=", self.globalReadBCode.middle.prettyPrint()
-        print "lwb=", self.localWriteBCode.prettyPrint()
+        print ("grb=", self.globalReadBCode.middle.prettyPrint())
+        print ("lwb=", self.localWriteBCode.prettyPrint())
       if schedDb & 0x1:
-        print "makeSchedule-lw: writesToSched=", writesToSched, "lastLoadIter=", lastLoadIter, \
-              "startIter=", startIter, "localWriteEndIter=", localWriteEndIter
+        print ("makeSchedule-lw: writesToSched=", writesToSched, "lastLoadIter=", lastLoadIter, \
+              "startIter=", startIter, "localWriteEndIter=", localWriteEndIter)
 
-      readsToWait = len(self.localWriteACode.items()) + len(self.localWriteBCode.items())
+      readsToWait = len(list(self.localWriteACode.items())) + len(list(self.localWriteBCode.items()))
       if self.scheduleGlobalRead:
         # Number of write blocks should match number of reads.
         # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
@@ -189,10 +192,10 @@ class KernelWriter:
         if 0:
             if not kernel["DirectToLdsA"]:
               assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
-                  len(self.localWriteACode.items())
+                  len(list(self.localWriteACode.items()))
             if not kernel["DirectToLdsB"]:
               assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
-                  len(self.localWriteBCode.items())
+                  len(list(self.localWriteBCode.items()))
       for u in range(startIter, localWriteEndIter+1):
         if u==(localWriteEndIter):
           itemPerIter = len(itemsToSched) # schedule all remaining activity
@@ -218,7 +221,7 @@ class KernelWriter:
               imod.addCode(Code.WaitCnt(-1, min(maxVmcnt, readsToWait), \
                   "wait for global read before writing to local"))
             else:
-              print "warning - scheduleLocalWrite adding conservative vmcnt(0)"
+              print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
               imod.addCode(Code.Waitcnt(-1, 0, "conservative waitcnt"))
           imod.addCode(item)
           self.perIterLocalWriteCode[u].addCode(imod)
@@ -308,7 +311,7 @@ class KernelWriter:
     if isinstance(waitCode, Code.WaitCnt):
       # Set the waitCount, based on the new iter schedule
       lgkmcnt = 0 # most conservative
-      for item in iterCode.items():
+      for item in list(iterCode.items()):
         localReads  = item.countType(Code.LocalReadInst)
         localWrites = item.countType(Code.LocalWriteInst)
         if kernel["PrefetchLocalRead"]:
@@ -1028,7 +1031,7 @@ class KernelWriter:
       kl.append(self.closeLoop(kernel, -1, True))
 
     # extra summation loops: global increment and close
-    for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
+    for i in reversed(list(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1))):
       kl.append(self.comment("global read inc a"))
       kl.append(self.globalReadIncrement(kernel, i, tensorParametersA, 0))
       kl.append(self.comment("global read inc b"))
@@ -1226,7 +1229,7 @@ class KernelWriter:
     self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
 
     if dkp:
-      print "\nKernelWriter enable:", self.enable
+      print ("\nKernelWriter enable:", self.enable)
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
@@ -2181,12 +2184,12 @@ class KernelWriter:
       kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     return kernelName
 
-
-  ##############################################################################
-  # source file string
-  ##############################################################################
-  def getSourceFileString(self, kernel):
-
+  def getKernelSource(self, kernel):
+    """
+    Returns the source of the kernel, either C++ or assembly.
+    """
+    
+    
     fileString = ""
     self.tPA = tensorParametersA = {}
     self.tPB = tensorParametersB = {}
@@ -2200,140 +2203,201 @@ class KernelWriter:
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
 
-    if kernel["KernelLanguage"] == "Assembly":
-      asmPath = os.path.join(globalParameters["WorkingPath"], "assembly")
-      # write assembly file to assembly directory
-      kernelName = self.getKernelName(kernel)
-      kernelFileName_txt = "%s.s.txt" % kernelName
-      fileBase = path.join(asmPath, kernelName )
-      assemblyFileName = "%s.s" % fileBase
-      SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
-      REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
-      REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
-      codeObjectFileName = "%s.co" % fileBase
 
-      if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
-        shutil.copyfile(REPLACEMENT_KERNEL_PATH, assemblyFileName)
-        if globalParameters["PrintLevel"] >= 1:
-          print "replacement_assemblyFilename %s" % assemblyFileName
+    if error != 0:
+      raise RuntimeError("Generating kernel source resulted in error {}".format(error))
+
+    return fileString
+
+  def getAssemblyDirectory(self):
+      return os.path.join(globalParameters["WorkingPath"], "assembly")
+
+  def byteArrayScriptSource(self):
+    return """
+#!/usr/bin/env python
+
+fileString = ""
+fileString += "/*******************************************************************************\\n"
+fileString += "* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\\n"
+fileString += "*\\n"
+fileString += "* Permission is hereby granted, free of charge, to any person obtaining a copy\\n"
+fileString += '* of this software and associated documentation files (the \"Software\"), to deal\\n'
+fileString += "* in the Software without restriction, including without limitation the rights\\n"
+fileString += "* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-\\n"
+fileString += "* ies of the Software, and to permit persons to whom the Software is furnished\\n"
+fileString += "* to do so, subject to the following conditions:\\n"
+fileString += "*\\n"
+fileString += "* The above copyright notice and this permission notice shall be included in all\\n"
+fileString += "* copies or substantial portions of the Software.\\n"
+fileString += "*\\n"
+fileString += '* THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-\\n'
+fileString += "* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS\\n"
+fileString += "* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\\n"
+fileString += "* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER\\n"
+fileString += "* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-\\n"
+fileString += "* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\\n"
+fileString += "*******************************************************************************/\\n\\n"
+fileString += "/**************************************************\\n"
+fileString += "* This file was generated by Tensile:             *\\n"
+fileString += "* https://github.com/ROCmSoftwarePlatform/Tensile *\\n"
+fileString += "**************************************************/\\n\\n\\n"
+
+import os.path
+
+fileString += '#include "Kernels.h"\\n\\n'
+fileString += "/* code object byte array */\\n\\n"
+codeObjectFileNames = [f for f in os.listdir(".") if (os.path.isfile(f) and f.endswith(".co"))]
+for codeObjectFileName in codeObjectFileNames:
+  print codeObjectFileName
+  print "\\n"
+
+  kernelName=os.path.splitext(codeObjectFileName)[0]
+
+  codeObjectFile = open(codeObjectFileName, "r")
+  codeObjectByteArray = bytearray(codeObjectFile.read())
+  codeObjectFile.close()
+
+# write code object byte array for asm
+  fileString += "const unsigned char %s_coba[%u] = {\\n" % (kernelName, len(codeObjectByteArray))
+  for byteIdx in range(0, len(codeObjectByteArray)):
+    byte = codeObjectByteArray[byteIdx]
+    fileString += "0x%02x" % byte
+    if byteIdx < len(codeObjectByteArray)-1:
+      fileString += ","
+    else:
+      fileString += "};\\n"
+    if byteIdx % 16 == 15:
+      fileString += "\\n"
+
+  text_file = open("Kernels.cpp", "w")
+  text_file.write("%s" % fileString)
+  text_file.close()
+"""
+
+  def writeByteArrayScript(self):
+    asmPath = self.getAssemblyDirectory()
+
+    bytearrayFileName = path.join(asmPath,"insert_byte_array.py")
+    if not path.isfile(bytearrayFileName):
+      with open(bytearrayFileName, 'w') as bytearrayFile:
+        bytearrayFile.write(self.byteArrayScriptSource())
+      chmod(bytearrayFileName, 0o777)
+    return bytearrayFileName
+
+  def getReplacementKernelPath(self, kernel):
+    kernelName = self.getKernelName(kernel)
+    kernelFileName_txt = "%s.s.txt" % kernelName
+    SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
+    REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
+    REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
+
+    if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
+      return REPLACEMENT_KERNEL_PATH
+
+  def getKernelObjectAssemblyFile(self, kernel):
+    asmPath = self.getAssemblyDirectory()
+    # write assembly file to assembly directory
+    kernelName = self.getKernelName(kernel)
+    fileBase = path.join(asmPath, kernelName )
+    assemblyFileName = "%s.s" % fileBase
+
+    replacementKernel = self.getReplacementKernelPath(kernel)
+
+    if replacementKernel is not None:
+      shutil.copyfile(replacementKernel, assemblyFileName)
+      if globalParameters["PrintLevel"] >= 1:
+        print("replacement_assemblyFilename %s" % assemblyFileName)
+    else:
+      kernelSource = self.getKernelSource(kernel)
+
+      if globalParameters["PrintLevel"] >= 2:
+        print("write_assemblyFilename %s" % assemblyFileName)
+
+      with open(assemblyFileName, 'w') as assemblyFile:
+        assemblyFile.write(kernelSource)
+
+    return assemblyFileName
+
+  def getAssembledKernelObjectFile(self, kernel):
+    assemblyFileName = self.getKernelObjectAssemblyFile(kernel)
+
+    base, ext = path.splitext(assemblyFileName)
+    objectFileName = base + '.o'
+
+    args = self.getCompileArgs(assemblyFileName, objectFileName)
+    subprocess.check_call(args, cwd=self.getAssemblyDirectory())
+
+    return objectFileName
+
+  def getSingleCodeObjectFile(self, kernel):
+    objectFileName = self.getAssembledKernelObjectFile(kernel)
+
+    base, ext = path.splitext(objectFileName)
+    coFileName = base + '.co'
+
+    args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
+    subprocess.check_call(args, cwd=self.getAssemblyDirectory())
+
+    return coFileName
+
+  def getByteArrayCobaDefinition(self, varName, byteArray):
+    s = self.comment("code object byte array")
+    s += "const unsigned char %s_coba[%u] = {\n" % (varName, len(byteArray))
+
+    if len(byteArray) != 0:
+      s += "0x%02x" % byteArray[0]
+      for byteIdx, byte in enumerate(byteArray[1:]):
+        if byteIdx % 16 == 15:
+          s += ",\n0x%02x" % byte
+        else:
+          s += ",0x%02x" % byte
+
+    s += '};\n'
+    return s
+
+  def getFileCobaDefinition(self, varName, fileName):
+    with open(fileName, 'rb') as f:
+      byteArray = bytearray(f.read())
+    return self.getByteArrayCobaDefinition(varName, byteArray)
+
+  ##############################################################################
+  def getSourceFileString(self, kernel):
+    """
+    Returns a string suitable for placing in Kernels.cpp.  This means the actual kernel source in the case 
+    of a source kernel, or an assembled code object byte array definition in the case of an assembly kernel,
+    or an empty string in the case that CodeFromFiles is true.
+    
+    In the case of an assembly kernel, this function has the side effect of creating the following files:
+     * An assembly source file
+     * An object file
+     * A code object file
+     * A Python script which can create byte array variable definitions.
+    """
+
+    try:
+      if kernel["KernelLanguage"] == "Assembly":
+        self.writeByteArrayScript()
+
+        asmPath = self.getAssemblyDirectory()
+        coFile = self.getSingleCodeObjectFile(kernel)
+        kernelName = self.getKernelName(kernel)
+
+        if globalParameters["CodeFromFiles"]:
+          # I guess in this case we are making sure that the code object file exists by executing the code 
+          # above but we aren't placing it into the source.
+          return (0, "")
+
+        return (0, self.getFileCobaDefinition(kernelName, os.path.join(asmPath, coFile)))
+
       else:
-        if globalParameters["PrintLevel"] >= 2:
-          print "write_assemblyFilename %s" % assemblyFileName
-        assemblyFile = open(assemblyFileName, "w")
-        assemblyFile.write(fileString)
-        assemblyFile.close()
-        #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
-
-      if not globalParameters["CodeFromFiles"]:
-        # bytearray script
-        bytearrayFileName = path.join(asmPath,"insert_byte_array.py")
-        if not path.isfile(bytearrayFileName):
-          bytearrayFile = open(bytearrayFileName, "w")
-          bytearrayFile.write('#!/usr/bin/env python\n\n')
-
-          bytearrayFile.write('fileString = ""\n')
-          bytearrayFile.write('fileString += "/*******************************************************************************\\n"\n')
-          bytearrayFile.write('fileString += "* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\\n"\n')
-
-          bytearrayFile.write('fileString += "*\\n"\n')
-          bytearrayFile.write('fileString += "* Permission is hereby granted, free of charge, to any person obtaining a copy\\n"\n')
-          bytearrayFile.write("fileString += '* of this software and associated documentation files (the \"Software\"), to deal\\n'\n")
-          bytearrayFile.write('fileString += "* in the Software without restriction, including without limitation the rights\\n"\n')
-          bytearrayFile.write('fileString += "* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-\\n"\n')
-          bytearrayFile.write('fileString += "* ies of the Software, and to permit persons to whom the Software is furnished\\n"\n')
-          bytearrayFile.write('fileString += "* to do so, subject to the following conditions:\\n"\n')
-          bytearrayFile.write('fileString += "*\\n"\n')
-          bytearrayFile.write('fileString += "* The above copyright notice and this permission notice shall be included in all\\n"\n')
-          bytearrayFile.write('fileString += "* copies or substantial portions of the Software.\\n"\n')
-          bytearrayFile.write('fileString += "*\\n"\n')
-          bytearrayFile.write("fileString += '* THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-\\n'\n")
-          bytearrayFile.write('fileString += "* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS\\n"\n')
-          bytearrayFile.write('fileString += "* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\\n"\n')
-          bytearrayFile.write('fileString += "* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER\\n"\n')
-          bytearrayFile.write('fileString += "* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-\\n"\n')
-          bytearrayFile.write('fileString += "* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\\n"\n')
-          bytearrayFile.write('fileString += "*******************************************************************************/\\n\\n"\n')
-
-          bytearrayFile.write('fileString += "/**************************************************\\n"\n')
-          bytearrayFile.write('fileString += "* This file was generated by Tensile:             *\\n"\n')
-          bytearrayFile.write('fileString += "* https://github.com/ROCmSoftwarePlatform/Tensile *\\n"\n')
-          bytearrayFile.write('fileString += "**************************************************/\\n\\n\\n"\n')
-
-          bytearrayFile.write('import os.path\n\n')
-
-          bytearrayFile.write('''fileString += '#include "Kernels.h"\\n\\n'\n''')
-          bytearrayFile.write('fileString += "/* code object byte array */\\n\\n"\n\n')
-
-          bytearrayFile.write('codeObjectFileNames = [f for f in os.listdir(".") if (os.path.isfile(f) and f.endswith(".co"))]\n')
-          bytearrayFile.write('for codeObjectFileName in codeObjectFileNames:\n')
-          bytearrayFile.write('  print codeObjectFileName\n')
-          bytearrayFile.write('  print "\\n"\n\n')
-          bytearrayFile.write('  kernelName=os.path.splitext(codeObjectFileName)[0]\n\n')
-          bytearrayFile.write('  codeObjectFile = open(codeObjectFileName, "r")\n')
-          bytearrayFile.write('  codeObjectByteArray = bytearray(codeObjectFile.read())\n')
-          bytearrayFile.write('  codeObjectFile.close()\n\n')
-
-          bytearrayFile.write('# write code object byte array for asm\n')
-          bytearrayFile.write('  fileString += "const unsigned char %s_coba[%u] = {\\n" % (kernelName, len(codeObjectByteArray))\n')
-          bytearrayFile.write('  for byteIdx in range(0, len(codeObjectByteArray)):\n')
-          bytearrayFile.write('    byte = codeObjectByteArray[byteIdx]\n')
-
-
-          bytearrayFile.write('    fileString += "0x%02x" % byte\n')
-          bytearrayFile.write('    if byteIdx < len(codeObjectByteArray)-1:\n')
-          bytearrayFile.write('      fileString += ","\n')
-          bytearrayFile.write('    else:\n')
-          bytearrayFile.write('      fileString += "};\\n"\n')
-          bytearrayFile.write('    if byteIdx % 16 == 15:\n')
-          bytearrayFile.write('      fileString += "\\n"\n\n')
-
-          bytearrayFile.write('  text_file = open("Kernels.cpp", "w")\n')
-          bytearrayFile.write('  text_file.write("%s" % fileString)\n')
-          bytearrayFile.write('  text_file.close()\n')
-
-          bytearrayFile.close()
-          chmod(bytearrayFileName, 0777)
-
-      # assembler script
-      assemblerFileName = path.join(asmPath, \
-          "asm.%s"%("bat" if osname=="nt" else "sh"))
-      asmOptions = "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])
-
-      # run assembler
-      assemblerCommand = [assemblerFileName, kernelName, asmOptions]
-      #print("# Assembling %s: %s" % (kernelName, assemblerCommand) )
-      assemblerProcess = Popen(assemblerCommand, \
-          cwd=asmPath )
-      assemblerProcess.communicate()
-
-      fileString = ""
-      if assemblerProcess.returncode:
-        error = -1
-      else:
-        # read code object file
-        if not globalParameters["CodeFromFiles"]:
-          codeObjectFile = open(codeObjectFileName, "r")
-          codeObjectByteArray = bytearray(codeObjectFile.read())
-          codeObjectFile.close()
-
-          # write code object byte array
-          fileString += self.comment("code object byte array")
-          fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
-          for byteIdx in range(0, len(codeObjectByteArray)):
-            byte = codeObjectByteArray[byteIdx]
-            fileString += "0x%02x" % byte
-            if byteIdx < len(codeObjectByteArray)-1:
-              fileString += ","
-            else:
-              fileString += "};\n"
-            if byteIdx % 16 == 15:
-              fileString += "\n"
-
-
-    # read code-object file and convert to c++ representable uchar*
-    # return string of code-object byte array
-    return (error, fileString)
-
+        return (0, self.getKernelSource(kernel))
+      
+    except subprocess.CalledProcessError as exc:
+      print(exc)
+      return (-1, "")
+    except RuntimeError as exc:
+      print(exc)
+      return (-1, "")
 
   ##############################################################################
   # header file string
@@ -2348,6 +2412,7 @@ class KernelWriter:
         if self.language == "HIP":
           fileString += "#include <hip/hip_runtime.h>\n"
           fileString += "#include <hip/hip_fp16.h>\n"
+          fileString += "#include <KernelHeader.h>\n"
           fileString += "\n"
         else:
           fileString += "#include <string>\n"
@@ -2416,6 +2481,7 @@ class KernelWriter:
       fileString += CHeader
       fileString += "#pragma once\n\n"
       fileString += "\n"
+      fileString += "#include <KernelHeader.h>\n\n"
       if self.language == "HIP":
         fileString += "#include <hip/hip_runtime.h>\n"
         fileString += "#include <hip/hip_fp16.h>\n"

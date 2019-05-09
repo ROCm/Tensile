@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,10 +19,12 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+from __future__ import print_function
 
-from SolutionStructs import DataType, isPackedIndex
-from Common import globalParameters, printExit
-from KernelWriter import KernelWriter
+from .DataType import DataType
+from .SolutionStructs import isPackedIndex
+from .Common import globalParameters, printExit
+from .KernelWriter import KernelWriter
 
 ################################################################################
 # Make OpenCL Kernel String
@@ -1143,7 +1145,7 @@ class KernelWriterSource(KernelWriter):
   def graOtherFreeAssignments(self, kernel):
     kStr = ""
     # packed free dims don't use 'wg' level vars for dims
-    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
@@ -1152,7 +1154,7 @@ class KernelWriterSource(KernelWriter):
         continue
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
+      for j in reversed(list(range( i+1, len(nonTileFreeIndices)))):
         index2 = nonTileFreeIndices[j]
         kStr += " / size" + self.indexChars[index2]
       kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
@@ -2057,7 +2059,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadDo(self, kernel, black, iui, epsi, tP):
     kStr = ""
-    for r in range(0, kernel[tP["tt"]]/kernel["VectorWidth"]):
+    for r in range(0, kernel[tP["tt"]]//kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):
         kStr += "%sr%s[%u*VECTOR_WIDTH+%u%s] = localRead%s[%u*SG%s*VECTOR_WIDTH + %u]; %s" \
             % (self.indent, tP["tensorChar"], r, s, \
@@ -2093,7 +2095,7 @@ class KernelWriterSource(KernelWriter):
 
     for r in range(1, tP["glvw"]):
       kStr += "    if (r%s == %u) {%s" % (tP["tileChar"], r, self.endLine)
-      numVectors = kernel["ThreadTile%s"%tP["tileIdx"]]/tP["glvw"]
+      numVectors = kernel["ThreadTile%s"%tP["tileIdx"]]//tP["glvw"]
       for vIdx in range(0, numVectors):
         if vIdx == 0:
           kStr += "      "
@@ -2149,19 +2151,19 @@ class KernelWriterSource(KernelWriter):
           kStr += "      "
         else:
           kStr += " else "
-        if vIdx < numVectors-1:
+        if vIdx < numVectors - 1:
           kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
         kStr += "{%s" % self.endLine
 
         for s in range(0, r1):
           for tt0 in range(0, kernel["ThreadTile0"]):
             kStr += "        rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s] = rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s];%s" \
-              % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
-              tt0, vIdx, self.tileChar0, \
-              s+tP["glvw"]-r1, self.tileChar0, self.endLine)
+                % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
+                tt0, vIdx, self.tileChar0, \
+                s+tP["glvw"]-r1, self.tileChar0, self.endLine)
 
         kStr += "      }"
-        if vIdx == numVectors-1:
+        if vIdx == numVectors - 1:
           kStr += self.endLine
 
       kStr += "    }%s" % self.endLine
@@ -2179,25 +2181,25 @@ class KernelWriterSource(KernelWriter):
       kStr += "  double type_mac_tmp;" + self.endLine
     return kStr
 
-
   ##############################################################################
   # LocalSplitU: Local Write
   ##############################################################################
   def localSplitULocalWrite(self, kernel):
     kStr = ""
     kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
-        % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-    for j in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+      % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
+    for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
+      for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
         for s in range(0, kernel["VectorWidth"]):
           for vc in range(0, kernel["VectorWidth"]):
             kStr += "%slocalLocalSplitU[%u + (lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId)*VECTOR_WIDTH] = rC[%u + (%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s)*VECTOR_WIDTH];%s" \
-                % (self.indent, vc, self.tileChar0, i, self.tileChar0, \
+              % (self.indent, vc, self.tileChar0, i, self.tileChar0, \
                 self.tileChar0, self.tileChar1, \
                 s, self.tileChar1, j, self.tileChar0, self.tileChar1, vc, i, s, \
                 self.tileChar0, j, self.tileChar0, self.endLine)
     kStr += self.indent + self.syncStr + self.endLine
     """
+
     kStr += "    /* print Local state */" + self.endLine
     kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*LOCAL_SPLITU; i+=NUM_THREADS) {%s" % self.endLine
     kStr += "      printf(\\\"localLocalSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, localLocalSplitU[i], localLocalSplitU[i]);%s" \
@@ -2444,8 +2446,8 @@ class KernelWriterSource(KernelWriter):
     packGranularity = kernel["PackGranularity"]
     addTensorDimCheck0 = addTensorDimCheck1 = 0
 
-    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+    for b in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
+      for a in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
         if packGranularity==2:
           addTensorDimCheck0 = 1
           base0 = " %u*SG%s*VECTOR_WIDTH" % (a,self.tileChar0)
@@ -2833,14 +2835,14 @@ class KernelWriterSource(KernelWriter):
     #    + self.getGroupIdStr + "(1);" + self.endLine
     ########################################
     # wg other
-    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
+      for j in reversed(list(range(i+1, len(nonTileFreeIndices)))):
         index2 = nonTileFreeIndices[j]
         kStr += " / size" + self.indexChars[index2]
       kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
