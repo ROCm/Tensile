@@ -57,7 +57,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [1, 2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -87,7 +87,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -132,7 +132,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [1, 2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -162,7 +162,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -207,7 +207,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [1, 2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -237,7 +237,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -282,7 +282,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [1, 2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -312,7 +312,7 @@ BenchmarkProblems:
         #- GlobalSplitU: [2, 4, 8]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:

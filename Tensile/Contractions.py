@@ -205,6 +205,8 @@ class ProblemPredicate(Properties.Predicate):
                 return None
             elif value == 2:
                 return cls('MaxProblemSizeGreaterThan', value=32)
+            elif value == 3:
+                return None
             else:
                 raise RuntimeError("Unknown Approx size: {}".format(value))
 
@@ -227,7 +229,10 @@ class ProblemPredicate(Properties.Predicate):
                 return rv
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
-        
+
+        #if key == 'VectorWidth' and value > 1:
+        #    return cls('LeadingSizesGreaterOrEqual', value=value)
+
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
