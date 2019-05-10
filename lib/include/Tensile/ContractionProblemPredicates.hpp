@@ -48,7 +48,6 @@ namespace Tensile
                 FreeSizeAMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "FreeSizeAMultiple"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -66,7 +65,6 @@ namespace Tensile
                 FreeSizeBMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "FreeSizeBMultiple"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -84,7 +82,6 @@ namespace Tensile
                 BatchSizeMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "BatchSizeMultiple"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -102,7 +99,6 @@ namespace Tensile
                 BoundSizeMultiple(size_t index, size_t value): index(index), value(value) {}
 
                 static std::string Type() { return "BoundSizeMultiple"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -119,7 +115,6 @@ namespace Tensile
                 MaxProblemSizeGreaterThan(size_t value): value(value) {}
 
                 static std::string Type() { return "MaxProblemSizeGreaterThan"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -127,11 +122,29 @@ namespace Tensile
                 }
             };
 
+            struct LeadingSizesGreaterOrEqual: public Predicate_CRTP<LeadingSizesGreaterOrEqual, ContractionProblem>
+            {
+                enum { HasIndex = false, HasValue = true };
+                size_t value;
+
+                LeadingSizesGreaterOrEqual() = default;
+                LeadingSizesGreaterOrEqual(size_t value): value(value) {}
+
+                static std::string Type() { return "LeadingSizesGreaterOrEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.a().sizes()[0] >= value
+                        && problem.b().sizes()[0] >= value
+                        && problem.c().sizes()[0] >= value
+                        && problem.d().sizes()[0] >= value;
+                }
+            };
+
             struct CDStridesEqual: public Predicate_CRTP<CDStridesEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = false };
                 static std::string Type() { return "CDStridesEqual"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -143,7 +156,6 @@ namespace Tensile
             {
                 enum { HasIndex = false, HasValue = false };
                 static std::string Type() { return "LDCEqualsLDD"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -157,7 +169,6 @@ namespace Tensile
                 BetaZero() = default;
 
                 static std::string Type() { return "BetaZero"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -171,7 +182,6 @@ namespace Tensile
                 BetaOne() = default;
 
                 static std::string Type() { return "BetaOne"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -187,7 +197,6 @@ namespace Tensile
                 std::array<DataType, 4> value;
 
                 static std::string Type() { return "TypesEqual"; }
-                virtual std::string type() const override { return Type(); }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -199,7 +208,7 @@ namespace Tensile
 
                 virtual std::string toString() const override
                 {
-                    return concatenate(type(),
+                    return concatenate(this->type(),
                                        "(a:",  value[0],
                                        ", b:", value[1],
                                        ", c:", value[2],
@@ -211,7 +220,7 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << type()
+                    stream << this->type()
                            <<   "(a:" << problem.a().dataType() << " == " << value[0]
                            << "&& b:" << problem.b().dataType() << " == " << value[1]
                            << "&& c:" << problem.c().dataType() << " == " << value[2]

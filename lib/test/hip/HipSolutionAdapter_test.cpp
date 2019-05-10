@@ -75,6 +75,8 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 
     k.args.append<float      *>("D", d_d);
     k.args.append<float const*>("C", c_d);
+    k.args.append<unsigned int>("strideD1", desc.strides()[1]);
+    k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
     k.args.append<unsigned int>("strideC2", desc.strides()[2]);
     k.args.append<unsigned int>("size0",    desc.sizes()[0]);
@@ -82,7 +84,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
     k.args.append<unsigned int>("size2",    desc.sizes()[2]);
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(TestData::File("test-000-gfx900.hsaco").native());
+    adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
     adapter.launchKernel(k);
 
@@ -145,6 +147,8 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
     k.args.append<float      *>("D", d_d);
     k.args.append<float const*>("C", c_d);
+    k.args.append<unsigned int>("strideD1", desc.strides()[1]);
+    k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
     k.args.append<unsigned int>("strideC2", desc.strides()[2]);
     k.args.append<unsigned int>("size0",    desc.sizes()[0]);
@@ -154,7 +158,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(TestData::File("test-000-gfx900.hsaco").native());
+    adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
     adapter.launchKernel(k);
 
@@ -174,7 +178,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
     for(int i = 0; i < d_ref_h.size(); i++)
     {
-        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]);
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
 
