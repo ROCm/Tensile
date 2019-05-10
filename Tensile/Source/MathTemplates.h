@@ -74,8 +74,8 @@ template< typename T> T tensileGetTypeForInt( size_t s );
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
-template< typename Type >
-Type tensileMultiply( Type a, Type b );
+template< typename Type_return, typename Type_a, typename Type_b >
+Type_return tensileMultiply( Type_a a, Type_b b );
 
 
 /*******************************************************************************

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,14 +22,13 @@
 import os
 import sys
 import argparse
-
-from Common import globalParameters, print1, ensurePath, \
+from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-import YAMLIO
-import BenchmarkProblems
-import LibraryLogic
-import ClientWriter
-from __init__ import __version__
+from . import YAMLIO
+from . import BenchmarkProblems
+from . import LibraryLogic
+from . import ClientWriter
+from . import __version__
 
 ###############################################################################
 # Execute Steps in Config
@@ -107,6 +106,8 @@ def Tensile(userArgs):
       help="override which OpenCL platform to benchmark")
   argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
       choices=["HIP", "OCL"], help="override which runtime language to use")
+  argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
+      choices=["V2", "V3"], help="HSA code-object version")
   argParser.add_argument("-v", "--verbose", action="store_true", \
       help="set PrintLevel=2")
   argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -155,6 +156,9 @@ def Tensile(userArgs):
   if args.RuntimeLanguage:
     print1("# Command-line override: RuntimeLanguage")
     globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
+  if args.CodeObjectVersion:
+    print1("# Command-line override: CodeObjectVersion")
+    globalParameters["CodeObjectVersion"] = args.CodeObjectVersion
   if args.verbose:
     print1("# Command-line override: PrintLevel")
     globalParameters["PrintLevel"] = 2
@@ -217,4 +221,5 @@ def main():
 
 # script run from commandline
 if __name__ == "__main__":
-  main()
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
+    exit(1)

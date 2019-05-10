@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import sys, argparse, re
 
 verbose = 1
@@ -43,13 +44,13 @@ class TensileExactParser:
       return (1,g)
     except AttributeError:
       if verbose:
-        print "inparser ignored: ", l,
+        print("inparser ignored: ", l,)
       return (0, None)
 
   def emit(self, g):
     # ignores GemmConfig
-    print "          - Exact: [ %u , %u , %u, %u ]" % \
-        (g.m, g.n, g.batchCnt, g.k)
+    print("          - Exact: [ %u , %u , %u, %u ]" % \
+        (g.m, g.n, g.batchCnt, g.k))
 
 #---
 class DeepBenchGemmParser :
@@ -57,7 +58,7 @@ class DeepBenchGemmParser :
   # Example: std::make_tuple(4224, 1, 128, false, false)
 
   def printHeader(self):
-    print "// m, n, k, a_t, b_t"
+    print("// m, n, k, a_t, b_t")
 
   def parse(self,line):
     line = line.lstrip()
@@ -79,13 +80,13 @@ class DeepBenchGemmParser :
 
   def emit(self, g):
     assert (g.batchCnt==1)
-    print "std::make_tuple(%u, %u, %u, %s, %s)" % \
-      (g.m, g.n, g.k, "true" if g.tA else"false", "true" if g.tB else "false")
+    print("std::make_tuple(%u, %u, %u, %s, %s)" % \
+      (g.m, g.n, g.k, "true" if g.tA else"false", "true" if g.tB else "false"))
 
 #---
 class CsvParser :
   def printHeader(self):
-    print "tA, tB, m, n, k, batchCnt"
+    print("tA, tB, m, n, k, batchCnt")
 
   def parse(self,line):
     line = line.lstrip()
@@ -102,8 +103,8 @@ class CsvParser :
       return (0, None)
 
   def emit(self, g):
-    print "%s, %s, %u, %u, %u, %u" % \
-      ("T" if g.tA else "N", "T" if g.tB else "N", g.m, g.n, g.k, g.batchCnt)
+    print("%s, %s, %u, %u, %u, %u" % \
+      ("T" if g.tA else "N", "T" if g.tB else "N", g.m, g.n, g.k, g.batchCnt))
 
 
 

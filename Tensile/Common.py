@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,16 +18,21 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import os.path
-import sys
-from __init__ import __version__
+from __future__ import print_function
+
+from . import __version__
 from collections import OrderedDict
-import subprocess
-from subprocess import Popen, PIPE
-import time
-import platform
-import math
 from copy import deepcopy
+from subprocess import Popen, PIPE
+
+import itertools
+import math
+import os.path
+import platform
+import subprocess
+import sys
+import time
+
 
 startTime = time.time()
 
@@ -95,7 +100,7 @@ globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
-globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
+globalParameters["CEqualD"] = True               # Set to true if testing for the case where the pointer to C is the same as D.
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
@@ -124,6 +129,7 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
+globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
@@ -147,6 +153,8 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
+globalParameters["CodeObjectVersion"] = "V2"
+
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
@@ -160,8 +168,8 @@ defaultGlobalParameters = deepcopy(globalParameters)
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
   for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
-    for sg0 in range(1, numThreads/nsg+1):
-      sg1 = numThreads/nsg/sg0
+    for sg0 in range(1, numThreads//nsg+1):
+      sg1 = numThreads//nsg//sg0
       if sg0*sg1*nsg == numThreads:
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
@@ -177,8 +185,8 @@ validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 4
 validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
-depthUs = range(-16, 0)
-depthUs.extend(range(2,512+1,1))
+depthUs = list(range(-16, 0))
+depthUs.extend(list(range(2,512+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -216,7 +224,7 @@ validParameters = {
     # GSUWGMRR=False means workgroup 0,1,2,3 will all work on the same tile; =True means workgroup 0, N-1, 2N-1, 3N-1 will all work on the same tile
     # GSUSARR=False means the 4 workgroups do whole chunks of the summation: k=0 -> K/4-1, k=K/4 -> 2K/4-1, k=2K/4 -> 3K/4-1, k=3K/4 -> 4K/4-1
     # GSUSARR=True means the 4 workgroups round robin split up the chunks of the summation: k=0 -> DU-1, 4DU -> 5DU-1, ...; k=1DU -> 2DU-1, 5DU -> 6DU-1...; ...
-    "GlobalSplitU":               range(1, 1024+1),
+    "GlobalSplitU":               list(range(1, 1024+1)),
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
@@ -254,11 +262,23 @@ validParameters = {
     # Can reduce pressure on local read instruction dispatch queue
     "ScheduleLocalWrite":         [0, 1],
 
-
     # Scheduling algorithm to use for each iteration:
-    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads, 
+    # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
     "ScheduleIterAlg":              [0, 1],
+
+    # LDD Support
+    # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
+    "LdcEqualsLdd":               [ False, True ],
+
+    # Interleave alpha scale calculation with beta loads and address calcs - rather
+    # than as a separate block of instructions
+    "InterleaveAlpha":              [0, 1],
+
+    # Prefetch across persistent kernel iterations - the no-load-loop computes the 
+    # tile assignment and next global read offset and launches the buffer loads for
+    # the next tile in the sequence.
+    "PrefetchAcrossPersistent":     [0, 1],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -272,7 +292,7 @@ validParameters = {
     # G2L registers used to stage data.  Also replaces the
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
-    "DirectToLds":                [ False, True],
+    "DirectToLds":                [ False, True ],
 
     # Load options:
     # (GRO = Global Read Offset)
@@ -455,9 +475,9 @@ validParameters = {
     #
     # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
-    "WorkGroupMapping":           range(0,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
+    "WorkGroupMapping":           list(range(0,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
-    "MaxOccupancy":               range(1, 40+1),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
+    "MaxOccupancy":               list(range(1, 40+1)),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
     "WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
 
     #ThreadTile: ( tt0 x tt1 ) dimensions of the C tile that each thread works on,
@@ -481,7 +501,7 @@ validParameters = {
     # 9= NullKernel
     # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
-    "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
+    "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -490,7 +510,9 @@ validParameters = {
     #         this increases the switch time between work-groups but results in
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
-    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
+    #       - Host code will not launch more groups than tiles in the C space
+    # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
+    "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
@@ -546,8 +568,8 @@ validParameters = {
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
-    "MacroTileShapeMin":          range(1, 256+1),
-    "MacroTileShapeMax":          range(1, 256+1),
+    "MacroTileShapeMin":          list(range(1, 256+1)),
+    "MacroTileShapeMax":          list(range(1, 256+1)),
 
     # when loading all the data from global into lds requires multiple load instructions, these parameters govern which
     # loads will pull which rectangle of data from global into lds
@@ -555,8 +577,8 @@ validParameters = {
     # NLC=-1 looks for the largest number of reads along the coalesced dimension which results in the least ammount of coalescing;
     # however in this case the stride between one load and another is a static value, therefore buffer loads only need one set of registers
     # whereas the =1 case has a stride which is a multiple of a kernel argument and therefore needs one address per load in the perpendicular dimension
-    "NumLoadsCoalescedA":         range(-1, 64+1),
-    "NumLoadsCoalescedB":         range(-1, 64+1),
+    "NumLoadsCoalescedA":         list(range(-1, 64+1)),
+    "NumLoadsCoalescedB":         list(range(-1, 64+1)),
 
     # DepthU, LocalSplitU (which is the 3rd number in WorkGroup), and LoopUnroll are closely related
     # LoopUnroll=4 means there are 4 subiterations within the loop, 4 actual iterations written in the code.
@@ -578,14 +600,14 @@ validParameters = {
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
-    "PerformanceSyncLocation":    range(-1, 16*16+1),
-    "PerformanceWaitLocation":    range(-1, 16*16+1),
-    "PerformanceWaitCount":       range(-1, 16),
+    "PerformanceSyncLocation":    list(range(-1, 16*16+1)),
+    "PerformanceWaitLocation":    list(range(-1, 16*16+1)),
+    "PerformanceWaitCount":       list(range(-1, 16)),
 
     # add gls or slc after global memory read/writes to change cacheing, not cacheing the writes is promising and improved performance a tiny bit
-    "NonTemporalC":               range(0,4),
-    "NonTemporalA":               range(0,4),
-    "NonTemporalB":               range(0,4),
+    "NonTemporalC":               list(range(0,4)),
+    "NonTemporalA":               list(range(0,4)),
+    "NonTemporalB":               list(range(0,4)),
 
     # guard against out of bounds reads
     # None: don't guard
@@ -651,12 +673,16 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"SuppressNoLoadLoop":       [ True ]},
+    {"SuppressNoLoadLoop":        [ False ]},
     {"ExpandPointerSwap":         [ True ]},
 
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
+
+    {"LdcEqualsLdd":              [ True ] },
+    {"InterleaveAlpha":           [ 0 ] },
+    {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
@@ -711,7 +737,7 @@ defaultSolution = {}
 for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
     defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
   for paramDict in paramList:
-    for key, value in paramDict.iteritems():
+    for key, value in paramDict.items():
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
@@ -725,6 +751,7 @@ defaultProblemType = {
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "ComputeDataType":             0,             # compute data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "UseBeta":                  True,             # =True use beta parameter (asm will check for B=0 and optimize the write for that), =False don't use beta parameter
     "HighPrecisionAccumulate":  False,            # f32 += f16*f16
     "SilentHighPrecisionAccumulate": False,       # Keep kernel names the same for HPA mode.  Useful for testing.
@@ -743,6 +770,9 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    # for LD description
+    "NumIndiciesLD":            4,
+    "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [
@@ -817,18 +847,18 @@ def getParamValues( name, structure ):
 ################################################################################
 def print1(message):
   if globalParameters["PrintLevel"] >= 1:
-    print message
+    print(message)
     sys.stdout.flush()
 def print2(message):
   if globalParameters["PrintLevel"] >= 2:
-    print message
+    print(message)
     sys.stdout.flush()
 
 def printWarning(message):
-  print "Tensile::WARNING: %s" % message
+  print("Tensile::WARNING: %s" % message)
   sys.stdout.flush()
 def printExit(message):
-  print "Tensile::FATAL: %s" % message
+  print("Tensile::FATAL: %s" % message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -859,15 +889,15 @@ def tryAssembler(isaVersion, options, asmString):
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
 
   try:
-    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT)
+    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
     if globalParameters["PrintLevel"] >=2:
-        print "asm_cmd: ", asmCmd
-        print "output :", result
+        print("asm_cmd: ", asmCmd)
+        print("output :", result)
     if result != "":
       return 0 # stdout and stderr must be empty
-  except subprocess.CalledProcessError, e:
+  except subprocess.CalledProcessError as e:
     if globalParameters["PrintLevel"] >=2:
-        print "CalledProcessError", e
+        print("CalledProcessError", e)
     return 0 # error, not supported
 
   return 1 # syntax works
@@ -911,11 +941,12 @@ def assignGlobalParameters( config ):
   if globalParameters["AssemblerPath"] is None:
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc");
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+  globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
 
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline()
+    line = process.stdout.readline().decode()
     while line != "":
       gfxIdx = line.find("gfx")
       if gfxIdx >= 0:
@@ -925,7 +956,7 @@ def assignGlobalParameters( config ):
         if (major,minor,step) in globalParameters["SupportedISA"]:
           print1("# Detected local GPU with ISA: gfx%u%u%u"%(major, minor, step))
           globalParameters["CurrentISA"] = (major, minor, step)
-        line = process.stdout.readline()
+        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
@@ -938,8 +969,8 @@ def assignGlobalParameters( config ):
     globalParameters["AsmCaps"][v] = {}
     globalParameters["ArchCaps"][v] = {}
     isaVersion = "gfx" + "".join(map(str,v))
-    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "", "")
-    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,v0")
+    globalParameters["AsmCaps"][v]["SupportedISA"] = tryAssembler(isaVersion, "", "")
+    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
     globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
@@ -967,13 +998,13 @@ def assignGlobalParameters( config ):
     if process.returncode:
       printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
 
-    line = process.stdout.readline()
+    line = process.stdout.readline().decode()
     while line != "":
       packageIdx = line.find("hcc")
       if packageIdx >= 0:
         globalParameters["HccVersion"] = line.split()[2]
         break
-      line = process.stdout.readline()
+      line = process.stdout.readline().decode()
 
   for key in config:
     value = config[key]
@@ -1001,6 +1032,126 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
+def CPUThreadCount(enable=True):
+  if not enable or globalParameters["CpuThreads"] == 0:
+    return 0
+  else:
+    import multiprocessing
+    cpu_count = multiprocessing.cpu_count()
+    cpuThreads = globalParameters["CpuThreads"]
+    if cpuThreads < 0:
+        return cpu_count*abs(cpuThreads)
+    return min(cpu_count, cpuThreads)
+
+processingPool = None
+dummyProcessingPool = None
+
+def starmap_apply(item):
+  func, item = item
+  return func(*item)
+
+def apply_print_exception(item, *args):
+  #print(item, args)
+  try:
+    if len(args) > 0:
+      func = item
+      args = args[0]
+      return func(*args)
+    else:
+      func, item = item
+      return func(item)
+  except Exception:
+    import traceback
+    traceback.print_exc()
+    raise
+  finally:
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+def ProcessingPool(enable=True):
+  # Python 2.7 does not have starmap in multiprocessing.Pool.
+  def fixStarmap(pool):
+    if not hasattr(pool, 'starmap'):
+      def pool_starmap_apply(self, func, item):
+        func(*item)
+
+      def pool_starmap(self, func, items, *args, **kwargs):
+        items = zip(itertools.repeat(func), items)
+        return self.map(starmap_apply, items, *args, **kwargs)
+      pool.__class__.starmap = pool_starmap
+
+  global processingPool, dummyProcessingPool
+  import multiprocessing
+  import multiprocessing.dummy
+
+  if dummyProcessingPool is None:
+    dummyProcessingPool = multiprocessing.dummy.Pool(1)
+    fixStarmap(dummyProcessingPool)
+
+  if not enable:
+    return dummyProcessingPool
+
+  if processingPool is None:
+    threadCount = CPUThreadCount()
+    if threadCount <= 1:
+      processingPool = dummyProcessingPool
+    else:
+      processingPool = multiprocessing.Pool(threadCount)
+      fixStarmap(processingPool)
+
+  return processingPool
+
+def ParallelMap(function, objects, message="", enable=True, method=None):
+  """
+  Generally equivalent to list(map(function, objects)), possibly executing in parallel.
+
+    message: A message describing the operation to be performed.
+    enable: May be set to false to disable parallelism.
+    method: A function which can fetch the mapping function from a processing pool object.
+        Leave blank to use .map(), other possiblities:
+           - `lambda x: x.starmap` - useful if `function` takes multiple parameters.
+           - `lambda x: x.imap` - lazy evaluation
+           - `lambda x: x.imap_unordered` - lazy evaluation, does not preserve order of return value.
+  """
+  threadCount = CPUThreadCount(enable)
+  pool = ProcessingPool(enable)
+
+  if threadCount <= 1 and globalParameters["ShowProgressBar"]:
+    # Provide a progress bar for single-threaded operation.
+    # This works for method=None, and for starmap.
+    mapFunc = map
+    if method is not None:
+      # itertools provides starmap which can fill in for pool.starmap.  It provides imap on Python 2.7.
+      # If this works, we will use it, otherwise we will fallback to the "dummy" pool for single threaded
+      # operation.
+      try:
+        mapFunc = method(itertools)
+      except NameError:
+        mapFunc = None
+
+    if mapFunc is not None:
+      import Utils
+      return list(mapFunc(function, Utils.tqdm(objects, message)))
+
+  mapFunc = pool.map
+  if method: mapFunc = method(pool)
+
+  objects = zip(itertools.repeat(function), objects)
+  function = apply_print_exception
+
+  countMessage = ""
+  try:
+    countMessage = " for {} tasks".format(len(objects))
+  except TypeError: pass
+
+  if message != "": message += ": "
+
+  print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
+  sys.stdout.flush()
+  rv = mapFunc(function, objects)
+  print("{0}Done.".format(message))
+  sys.stdout.flush()
+  return rv
 
 ################################################################################
 # Push / Pop Working Path
@@ -1016,8 +1167,10 @@ def popWorkingPath():
   globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
 def ensurePath( path ):
-  if not os.path.exists(path):
+  try:
     os.makedirs(path)
+  except OSError:
+    pass
   return path
 
 def roundUp(f):
@@ -1046,14 +1199,7 @@ def versionIsCompatible(queryVersionString):
 
 # convert python list to C++ initializer style syntax
 def listToInitializer(l):
-  s = "{"
-  first = 1
-  for i in l:
-    if not first: s += ","
-    s += str(i)
-    first = 0
-  s += "}"
-  return s;
+  return "{" + ','.join(map(str, l)) + "}"
 
 ################################################################################
 # Progress Bar Printing
@@ -1093,9 +1239,11 @@ class ProgressBar:
       sys.stdout.write(" (%-.1f secs elapsed)\n"%(stopTime-self.createTime))
     sys.stdout.flush()
 
+  def finish(self): pass
+
 # Append copyrights to all files generated by tensile since they belong to Tensile intellectual property
 CMakeHeader = """################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1124,7 +1272,7 @@ CMakeHeader = """###############################################################
 """
 
 CHeader = """/*******************************************************************************
-* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+* Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal

@@ -140,7 +140,8 @@ void checkout_and_version( project_paths paths )
       $class: 'GitSCM',
       branches: scm.branches,
       doGenerateSubmoduleConfigurations: scm.doGenerateSubmoduleConfigurations,
-      extensions: scm.extensions + [[$class: 'CleanCheckout']],
+      extensions: scm.extensions + [[$class: 'CleanCheckout']]
+                                 + [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false]],
       userRemoteConfigs: scm.userRemoteConfigs
     ])
 
@@ -180,27 +181,63 @@ def docker_build_image( docker_data docker_args, project_paths paths )
 // Leverages docker containers to encapsulate the build in a fixed environment
 def docker_build_inside_image( def build_image, compiler_data compiler_args, docker_data docker_args, project_paths paths )
 {
-  // Construct a relative path from build directory to src directory; used to invoke cmake
-  String rel_path_to_src = g_relativize( pwd( ), paths.project_src_prefix, paths.project_build_prefix )
+    // Construct a relative path from build directory to src directory; used to invoke cmake
+    String rel_path_to_src = g_relativize( pwd( ), paths.project_src_prefix, paths.project_build_prefix )
 
-  build_image.inside( docker_args.docker_run_args )
-  {
-    def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
-    stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+    build_image.inside( docker_args.docker_run_args )
     {
-      timeout(time: 3, unit: 'HOURS') {
-        sh """#!/usr/bin/env bash
-          set -x
-          cd ${paths.project_src_prefix}
-          tox --version
-          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e lint
-          tox -vv --workdir /tmp/.tensile-tox ${tox_file} -e py27
-        """
-      }
-    }
-  }
+        if(env.NODE_LABELS.contains('gfx900')) 
+        {
+            stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+            {
+                try
+                {
+                    timeout(time: 1, unit: 'HOURS')
+                    {
+                        sh """#!/usr/bin/env bash
+                           set -x
+                           cd ${paths.project_src_prefix}
+                           mkdir build
+                           cd build
+                           export PATH=/opt/rocm/bin:$PATH
+                           cmake -D CMAKE_BUILD_TYPE=Debug ../lib
+                           make -j16
+                           ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                           """
+                    }
+                }
+                finally
+                {
+                    junit "${paths.project_src_prefix}/build/host_test_output.xml"
+                }
+            }
+        }
 
-  return void
+        def test_dir = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
+        stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+        {
+            try
+            {
+                timeout(time: 3, unit: 'HOURS')
+                {
+                    sh """#!/usr/bin/env bash
+                       set -x
+                       cd ${paths.project_src_prefix}
+                       tox --version
+                       tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
+                       tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py27
+                       tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
+                       """
+                }
+            }
+            finally
+            {
+                junit "${paths.project_src_prefix}/*_tests.xml"
+            }
+        }
+    }
+
+    return void
 }
 
 // Docker related variables gathered together to reduce parameter bloat on function calls
@@ -316,19 +353,19 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
 //    currentBuild.result = 'UNSTABLE'
 //  }
 //},
-parallel rocm22_ubuntu_gfx900:
+parallel rocm23_ubuntu_gfx900:
 {
-  node( 'docker && rocm22 && gfx900')
+  node( 'docker && rocm23 && gfx900')
   {
     def hcc_docker_args = new docker_data(
-        from_image:'rocm/dev-ubuntu-16.04:2.2',
+        from_image:'rocm/dev-ubuntu-16.04:2.3',
         build_docker_file:'dockerfile-build-rocm-terminal',
         install_docker_file:'dockerfile-install-ubuntu',
         docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
         docker_build_args:' --pull' )
 
     def hcc_compiler_args = new compiler_data(
-        compiler_name:'hcc-rocm22-ubuntu',
+        compiler_name:'hcc-rocm23-ubuntu',
         build_config:'Release',
         compiler_path:'/opt/rocm/bin/hcc' )
 
@@ -349,21 +386,21 @@ parallel rocm22_ubuntu_gfx900:
   }
 },
 
-rocm22_ubuntu_gfx906:
+rocm23_ubuntu_gfx906:
 {
     try
     {
-        node( 'docker && rocm22 && gfx906')
+        node( 'docker && rocm23 && gfx906')
         {
             def hcc_docker_args = new docker_data(
-                from_image:'rocm/dev-ubuntu-16.04:2.2',
+                from_image:'rocm/dev-ubuntu-16.04:2.3',
                 build_docker_file:'dockerfile-build-rocm-terminal',
                 install_docker_file:'dockerfile-install-ubuntu',
                 docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
                 docker_build_args:' --pull' )
 
             def hcc_compiler_args = new compiler_data(
-                compiler_name:'hcc-rocm22-ubuntu',
+                compiler_name:'hcc-rocm23-ubuntu',
                 build_config:'Release',
                 compiler_path:'/opt/rocm/bin/hcc' )
 

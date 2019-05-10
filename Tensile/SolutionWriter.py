@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,9 +19,9 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution
-from KernelWriterSource import KernelWriterSource
-from Common import globalParameters
+from .SolutionStructs import Solution
+from .KernelWriterSource import KernelWriterSource
+from .Common import globalParameters
 
 ################################################################################
 # SolutionWriter
@@ -75,7 +75,7 @@ class SolutionWriter:
     tt1 = solution["ThreadTile1"]
     sg0 = solution["SubGroup0"]
     sg1 = solution["SubGroup1"]
-    nt  =  solution["NumThreads"]
+    nt  = solution["NumThreads"]
 
     kernels = solution.getKernels()
     kernelNames = []
@@ -283,13 +283,19 @@ class SolutionWriter:
     s += "%sunsigned int problemNumGroupTiles1 = totalWorkGroups1;\n" % (t)
     s += "%sconst unsigned smallNumMagicShift = 31; // bozo, review\n" % (t)
     s += "%sunsigned magicNumberProblemNumGroupTiles0 = (1L<<smallNumMagicShift) / problemNumGroupTiles0 + 1; // bozo, review\n"  % (t)
-    s += "%sunsigned numFullBlocks =  problemNumGroupTiles1 / %u; // divide by WorkGroupMapping\n" \
-            % (t, abs(kernel["WorkGroupMapping"]) if abs(kernel["WorkGroupMapping"])>0 else 1)
-    s += "%sunsigned wgmRemainder1 =  %u ? (problemNumGroupTiles1 %% %u) : 0;\n" % \
-            (t, abs(kernel["WorkGroupMapping"]), abs(kernel["WorkGroupMapping"]))
-    s += "%sif (wgmRemainder1 == 0) wgmRemainder1 = %u;\n" % (t, abs(kernel["WorkGroupMapping"]))
-    s += "%sunsigned magicNumberWgmRemainder1 = ((1L<<smallNumMagicShift) / wgmRemainder1 + 1);\n"  % (t)
-    #s += '  printf ("wgmRemainder1=%u \\n", wgmRemainder1);'
+
+    if kernel["WorkGroupMapping"] > 0:
+        s += "%sunsigned numFullBlocks =  problemNumGroupTiles1 / %u; // divide by WorkGroupMapping\n" % (t, kernel["WorkGroupMapping"])
+        s += "%sunsigned wgmRemainder1 =  problemNumGroupTiles1 %% %u;\n" % (t, kernel["WorkGroupMapping"])
+        s += "%sif (wgmRemainder1 == 0) wgmRemainder1 = %u;\n" % (t, kernel["WorkGroupMapping"])
+        s += "%sunsigned magicNumberWgmRemainder1 = ((1L<<smallNumMagicShift) / wgmRemainder1 + 1);\n"  % (t)
+    else:
+        s += "%sunsigned numFullBlocks =  problemNumGroupTiles1; // divide by WorkGroupMapping\n" % (t)
+        s += "%sunsigned wgmRemainder1 =  0;\n" % (t)
+        s += "%sunsigned magicNumberWgmRemainder1 = 0;\n"  % (t)
+
+    #s += '  printf ("wgmRemainder1=%u \\n", wgmRemainder1);\n'
+    #s += '  printf ("magicNumberWgmRemainder1=%u \\n", magicNumberWgmRemainder1);\n'
 
     if gsu> 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, gsu)
@@ -517,7 +523,7 @@ class SolutionWriter:
         s += "%sdataD,\n" % (t)
         s += "%sdataC,\n" % (t)
         # strides
-        for i in range(0,numStridesC):
+        for i in range(0,numStridesC*2):
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
         for i in range(0, problemType["NumIndicesC"]):
@@ -539,7 +545,7 @@ class SolutionWriter:
           s += "%sdataD,\n" % (t)
           s += "%sdataC,\n" % (t)
           # strides
-          for i in range(0,numStridesC):
+          for i in range(0,numStridesC*2):
             s += "%s%s,\n" % (t, self.strideList[i])
           # sizes
           for i in range(0, problemType["NumIndicesC"]):
@@ -599,6 +605,7 @@ class SolutionWriter:
         # sizes
         for i in range(0, problemType["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
+        s += "%sprintf(\"  staggerUIter == %%u\\n\", staggerUIter );\n" % (t)
         s += "%sprintf(\"  problemNumGroupTiles0== %%u\\n\", problemNumGroupTiles0 );\n" % (t)
         s += "%sprintf(\"  problemNumGroupTiles1== %%u\\n\", problemNumGroupTiles1 );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
@@ -610,6 +617,7 @@ class SolutionWriter:
         for idxChar in solution["PackedC1Indices"][:-1]:
           s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
               % (t, idxChar, idxChar, idxChar, idxChar)
+        s += "%sprintf(\"  magicNumberProblemNumGroupTiles0==%%u\\n\", magicNumberProblemNumGroupTiles0);\n" % t
 
       ########################################
       # OpenCL Runtime
@@ -647,6 +655,7 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
+
         if not globalParameters["PreciseKernelTime"] or kernelLanguage == "Source":
           s += "%sif( inputEvents != NULL )\n" % (t)
           t += "  "
@@ -765,9 +774,21 @@ class SolutionWriter:
           for idxChar in solution["PackedC1Indices"][:-1]:
             s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
+          if globalParameters["LibraryPrintDebug"]:
+            s += """
+            std::vector<char> tmp(hipFunctionArgsSize);
+            memcpy(tmp.data(), &hipFunctionArgs, hipFunctionArgsSize);
+            for(int i = 0; i < hipFunctionArgsSize; i++)
+            {
+                if(i % 8 == 0) printf("\\n");
+
+                printf("%02hhx", tmp[i]);
+            }
+            printf("\\n");
+            """
 
           s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipHccModuleLaunchKernel(\n" % (t)
+          s += "%shipExtModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)
@@ -875,6 +896,7 @@ class SolutionWriter:
     if includeData:
       typeName = problemType["DataType"].toCpp()
       destTypeName = problemType["DestDataType"].toCpp()
+      computeTypeName = problemType["ComputeDataType"].toCpp()
       if self.language == "HIP":
         argList.append(("%s *"%destTypeName, "dataD"))
         argList.append(("const %s *"%destTypeName, "dataC"))
@@ -885,9 +907,9 @@ class SolutionWriter:
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))
-      argList.append((destTypeName, "alpha"))
+      argList.append((computeTypeName, "alpha"))
       if problemType["UseBeta"]:
-        argList.append((destTypeName, "beta"))
+        argList.append((computeTypeName, "beta"))
 
     # initial strides ?
     firstStride = 1
@@ -896,6 +918,9 @@ class SolutionWriter:
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
+    # d strides
+    for i in range(firstStride,lastStrideC):
+      self.strideList.append("strideD%u%s" % (i, self.indexChars[i]))
     # c strides
     for i in range(firstStride,lastStrideC):
       self.strideList.append("strideC%u%s" % (i, self.indexChars[i]))

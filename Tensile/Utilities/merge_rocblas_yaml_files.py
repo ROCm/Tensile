@@ -1,5 +1,4 @@
-
-
+from __future__ import print_function
 import os
 import sys
 import argparse
@@ -11,11 +10,11 @@ HR = "##########################################################################
 ################################################################################
 
 def printWarning(message):
-  print "Tensile::WARNING: %s" % message
+  print("Tensile::WARNING: %s" % message)
   sys.stdout.flush()
 
 def printExit(message):
-  print "Tensile::FATAL: %s" % message
+  print("Tensile::FATAL: %s" % message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -84,7 +83,16 @@ class LibraryLogic:
           self.__set_indexOrder(None)
 
         if (length > 7):
-          self.__set_exactLogic(data[7])
+          exactData = data[7]
+          exactList = list()
+          for exact in exactData:
+            size = exact[0]
+            if (len(size) > 4):
+              exactOut = [size[:4],exact[1]]
+              exactList.append(exactOut)
+            else:
+              exactList.append(exact)
+          self.__set_exactLogic(exactList)
         else:
           self.__set_exactLogic(None)
 
@@ -326,11 +334,11 @@ def ProcessMergeLogicFile(exactFileName, origionalFileName, outputFileName):
 
 def RunMergeTensileLogicFiles():
 
-  print ""
-  print HR
-  print "# Merge Library Logic"
-  print HR
-  print ""
+  print("")
+  print(HR)
+  print("# Merge Library Logic")
+  print(HR)
+  print("")
   
   ##############################################################################
   # Parse Command Line Arguments
@@ -350,7 +358,7 @@ def RunMergeTensileLogicFiles():
   print ("Exact Logic Path: " + exactLogicPath)
   print ("OutputPath: " + outputPath)
 
-  print ""
+  print("")
   ensurePath(outputPath)
   if not os.path.exists(exactLogicPath):
     printExit("LogicPath %s doesn't exist" % exactLogicPath)

@@ -25,6 +25,8 @@
 #include "MathTemplates.h"
 #include <vector>
 #include <type_traits>
+#include <stdexcept>
+#include <assert.h>
 
 
 /*******************************************************************************
@@ -46,16 +48,32 @@ void unpack_int8x4(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, 
   out_3 = x.byte[3];
 }
 
-template< typename Type, typename DestType >
+void unpack_int8x4(tensile_bfloat16 in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
+{
+#ifdef NDEBUG
+    throw std::logic_error( "Reached a supposed unreachable point" );
+#else
+    assert( "Reached a supposed unreachable point" && 0 );
+    throw 0;
+#endif
+}
+
+template< typename Type, typename DestType, typename ComputeType >
 TensileStatus tensileReferenceCPU(
-    DestType *dataC,
+    DestType *dataD,
+    const DestType *dataC,
     const Type *dataA,
     const Type *dataB,
+    const unsigned int lda,
+    const unsigned int ldb,
+    const unsigned int ldc,
+    const unsigned int ldd,
     const unsigned int stride_a,
     const unsigned int stride_b,
     const unsigned int stride_c,
-    DestType alpha,
-    DestType beta,
+    const unsigned int stride_d,
+    ComputeType alpha,
+    ComputeType beta,
     unsigned int totalIndices,
     const unsigned int *sizes,
     const unsigned int *minStrides,
@@ -68,7 +86,6 @@ TensileStatus tensileReferenceCPU(
     size_t validationStride, // = 1 means do all
     bool useHighPrecisionAccumulate
   ) {
-
   // Only allow high precision accumulate if Type is half
   bool localUseHighPrecisionAccumulate = useHighPrecisionAccumulate && std::is_same<Type, TensileHalf>::value;
 
@@ -77,11 +94,13 @@ TensileStatus tensileReferenceCPU(
   unsigned int *sizesB = new unsigned int[numIndicesAB];
 
   // Stride in each index
-  std::vector<unsigned int> strides(totalIndices);
+  unsigned int *strides = new unsigned int[totalIndices];
 
+  unsigned int *stridesD = new unsigned int[numIndicesC];
   unsigned int *stridesC = new unsigned int[numIndicesC];
   unsigned int *stridesA = new unsigned int[numIndicesAB];
   unsigned int *stridesB = new unsigned int[numIndicesAB];
+
   for (unsigned int i = 0; i < totalIndices; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
   }
@@ -90,20 +109,31 @@ TensileStatus tensileReferenceCPU(
     sizesA[i] = sizes[indexAssignmentsA[i]];
     sizesB[i] = sizes[indexAssignmentsB[i]];
   }
+
   // strides
+  stridesD[0] = 1;
   stridesC[0] = 1;
   stridesA[0] = 1;
   stridesB[0] = 1;
-  for (unsigned int i = 1; i < numIndicesAB; i++) {
+
+  stridesD[1] = (ldd != std::numeric_limits<unsigned int>::max()) ? ldd : strides[0];
+  stridesC[1] = (ldc != std::numeric_limits<unsigned int>::max()) ? ldc : strides[0];
+  stridesA[1] = (lda != std::numeric_limits<unsigned int>::max()) ? lda : strides[indexAssignmentsA[0]];
+  stridesB[1] = (ldb != std::numeric_limits<unsigned int>::max()) ? ldb : strides[indexAssignmentsB[0]];
+
+  for (unsigned int i = 2; i < numIndicesAB; i++) {
     stridesA[i] = stridesA[i-1] * strides[indexAssignmentsA[i-1]];
     stridesB[i] = stridesB[i-1] * strides[indexAssignmentsB[i-1]];
   }
-  for (unsigned int i = 1; i < numIndicesC; i++) {
+  for (unsigned int i = 2; i < numIndicesC; i++) {
+    stridesD[i] = stridesD[i-1] * strides[i-1];
     stridesC[i] = stridesC[i-1] * strides[i-1];
   }
+
   if (stride_a != std::numeric_limits<unsigned int>::max())  stridesA[2] = stride_a;
   if (stride_b != std::numeric_limits<unsigned int>::max())  stridesB[2] = stride_b;
   if (stride_c != std::numeric_limits<unsigned int>::max())  stridesC[2] = stride_c;
+  if (stride_d != std::numeric_limits<unsigned int>::max())  stridesD[2] = stride_d;
 
   unsigned int numIndicesSummation = totalIndices - numIndicesC;
 
@@ -192,7 +222,12 @@ TensileStatus tensileReferenceCPU(
          int32_t a_0, a_1, a_2, a_3, b_0, b_1, b_2, b_3;
          unpack_int8x4(valueA, a_0, a_1, a_2, a_3);
          unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
-         sumC += (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
+         sumC = sumC + (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
+      }
+      else if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
+      {
+        float product = static_cast<float>(valueA) * static_cast<float>(valueB);
+        sumCfloat = tensileAdd<float>(sumCfloat, product);
       }
       else
       {
@@ -221,26 +256,47 @@ TensileStatus tensileReferenceCPU(
     } // bound range
 
 
+    size_t serialIdxD = 0;
     size_t serialIdxC = 0;
     for (unsigned int i = 0; i < numIndicesC; i++) {
+      serialIdxD += freeCoord[i]*stridesD[i];
       serialIdxC += freeCoord[i]*stridesC[i];
     }
-    if (localUseHighPrecisionAccumulate)
+    if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
+    {
+      sumCfloat = static_cast<float>(alpha) * sumCfloat;
+    }
+    else if (localUseHighPrecisionAccumulate)
+    {
       sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
+    }
     else
+    {
       sumC = tensileMultiply<Type>(alpha,sumC);
+    }
     if (!tensileIsZero(beta)) {
-      Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
-      if (localUseHighPrecisionAccumulate)
+      if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
+        float tmp = tensileMultiply<float>(beta, static_cast<float>(dataC[serialIdxC]));
         sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
-      else
-        sumC = tensileAdd<Type>(tmp,sumC);
+      }
+      else {
+        Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
+        if (localUseHighPrecisionAccumulate)
+          sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
+        else
+          sumC = tensileAdd<Type>(tmp,sumC);
+      }
     }
 
-    if (localUseHighPrecisionAccumulate)
-      dataC[serialIdxC] = (Type)sumCfloat;
-    else
-      dataC[serialIdxC] = sumC;
+    if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
+      dataD[serialIdxD] = static_cast<ComputeType>(sumCfloat);
+    }
+    else if (localUseHighPrecisionAccumulate) {
+      dataD[serialIdxD] = (Type)sumCfloat;
+    }
+    else {
+      dataD[serialIdxD] = sumC;
+    }
 
     // increment free coord
     // skip = 1, validate everything
@@ -261,6 +317,12 @@ TensileStatus tensileReferenceCPU(
   } // free range
   delete[] sizesA;
   delete[] sizesB;
+
+  delete[] strides;
+  delete[] stridesD;
+  delete[] stridesC;
+  delete[] stridesA;
+  delete[] stridesB;
 
   return tensileStatusSuccess;
 } // referenceTensorContraction
