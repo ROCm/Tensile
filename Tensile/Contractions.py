@@ -230,8 +230,8 @@ class ProblemPredicate(Properties.Predicate):
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
 
-        #if key == 'VectorWidth' and value > 1:
-        #    return cls('LeadingSizesGreaterOrEqual', value=value)
+        if key == 'VectorWidth' and value > 1:
+            return cls('LeadingSizesGreaterOrEqual', value=value)
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
