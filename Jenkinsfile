@@ -186,30 +186,27 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
     build_image.inside( docker_args.docker_run_args )
     {
-        if(env.NODE_LABELS.contains('gfx900')) 
+        stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
         {
-            stage( "Host test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+            try
             {
-                try
+                timeout(time: 1, unit: 'HOURS')
                 {
-                    timeout(time: 1, unit: 'HOURS')
-                    {
-                        sh """#!/usr/bin/env bash
-                           set -x
-                           cd ${paths.project_src_prefix}
-                           mkdir build
-                           cd build
-                           export PATH=/opt/rocm/bin:$PATH
-                           cmake -D CMAKE_BUILD_TYPE=Debug ../lib
-                           make -j16
-                           ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-                           """
-                    }
+                    sh """#!/usr/bin/env bash
+                       set -x
+                       cd ${paths.project_src_prefix}
+                       mkdir build
+                       cd build
+                       export PATH=/opt/rocm/bin:$PATH
+                       cmake -D CMAKE_BUILD_TYPE=Debug ../lib
+                       make -j16
+                       ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                       """
                 }
-                finally
-                {
-                    junit "${paths.project_src_prefix}/build/host_test_output.xml"
-                }
+            }
+            finally
+            {
+                junit "${paths.project_src_prefix}/build/host_test_output.xml"
             }
         }
 
