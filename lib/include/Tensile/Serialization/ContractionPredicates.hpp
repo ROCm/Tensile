@@ -55,16 +55,17 @@ namespace Tensile
             {
                 SubclassMap rv(
                 {
-                    Base::template Pair<Predicates::Contraction::FreeSizeAMultiple        >(),
-                    Base::template Pair<Predicates::Contraction::FreeSizeBMultiple        >(),
-                    Base::template Pair<Predicates::Contraction::BatchSizeMultiple        >(),
-                    Base::template Pair<Predicates::Contraction::BoundSizeMultiple        >(),
-                    Base::template Pair<Predicates::Contraction::MaxProblemSizeGreaterThan>(),
-                    Base::template Pair<Predicates::Contraction::CDStridesEqual           >(),
-                    Base::template Pair<Predicates::Contraction::LDCEqualsLDD             >(),
-                    Base::template Pair<Predicates::Contraction::BetaZero                 >(),
-                    Base::template Pair<Predicates::Contraction::BetaOne                  >(),
-                    Base::template Pair<Predicates::Contraction::TypesEqual               >(),
+                    Base::template Pair<Predicates::Contraction::FreeSizeAMultiple         >(),
+                    Base::template Pair<Predicates::Contraction::FreeSizeBMultiple         >(),
+                    Base::template Pair<Predicates::Contraction::BatchSizeMultiple         >(),
+                    Base::template Pair<Predicates::Contraction::BoundSizeMultiple         >(),
+                    Base::template Pair<Predicates::Contraction::MaxProblemSizeGreaterThan >(),
+                    Base::template Pair<Predicates::Contraction::LeadingSizesGreaterOrEqual>(),
+                    Base::template Pair<Predicates::Contraction::CDStridesEqual            >(),
+                    Base::template Pair<Predicates::Contraction::LDCEqualsLDD              >(),
+                    Base::template Pair<Predicates::Contraction::BetaZero                  >(),
+                    Base::template Pair<Predicates::Contraction::BetaOne                   >(),
+                    Base::template Pair<Predicates::Contraction::TypesEqual                >(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -101,6 +102,10 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::MaxProblemSizeGreaterThan, IO>:
         public AutoMappingTraits<Predicates::Contraction::MaxProblemSizeGreaterThan, IO> {};
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::LeadingSizesGreaterOrEqual, IO>:
+        public AutoMappingTraits<Predicates::Contraction::LeadingSizesGreaterOrEqual, IO> {};
 
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::CDStridesEqual, IO>:

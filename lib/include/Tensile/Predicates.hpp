@@ -49,7 +49,6 @@ namespace Tensile
         public:
             enum { HasIndex = false, HasValue = false };
             static std::string Type() { return "TruePred"; }
-            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const&) const
             {
@@ -63,7 +62,6 @@ namespace Tensile
         public:
             enum { HasIndex = false, HasValue = false };
             static std::string Type() { return "FalsePred"; }
-            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const&) const
             {
@@ -83,7 +81,6 @@ namespace Tensile
             And(std::vector<std::shared_ptr<Predicate<Object>>>    const& init) : value(init) { }
 
             static std::string Type() { return "And"; }
-            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const& obj) const
             {
@@ -95,7 +92,7 @@ namespace Tensile
             {
                 bool rv = (*this)(obj);
 
-                stream << type() << "(";
+                stream << this->type() << "(";
 
                 bool first = true;
                 for(auto const& term: value)
@@ -124,7 +121,6 @@ namespace Tensile
             Or(std::vector<std::shared_ptr<Predicate<Object>>>    const& init) : value(init) { }
 
             static std::string Type() { return "Or"; }
-            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const& obj) const
             {
@@ -136,7 +132,7 @@ namespace Tensile
             {
                 bool rv = (*this)(obj);
 
-                stream << type() << "(";
+                stream << this->type() << "(";
 
                 bool first = true;
                 for(auto const& term: value)
@@ -163,7 +159,6 @@ namespace Tensile
             Not(std::shared_ptr<Predicate<Object>> init) : value(init) { }
 
             static std::string Type() { return "Not"; }
-            virtual std::string type() const { return Type(); } 
 
             virtual bool operator()(Object const& obj) const
             {
@@ -174,7 +169,7 @@ namespace Tensile
             {
                 bool rv = (*this)(obj);
 
-                stream << type() << "(";
+                stream << this->type() << "(";
                 value->debugEval(obj, stream);
                 stream << "): " << rv;
 
@@ -195,7 +190,6 @@ namespace Tensile
             IsSubclass(std::shared_ptr<Predicate<Subclass>> init) : value(init) { }
 
             static std::string Type() { return Subclass::Type(); }
-            virtual std::string type() const override { return Type(); }
 
             virtual bool operator()(Object const& obj) const override
             {
@@ -209,7 +203,7 @@ namespace Tensile
             {
                 bool rv = (*this)(obj);
 
-                stream << type() << "(";
+                stream << this->type() << "(";
 
                 auto const* sc = dynamic_cast<Subclass const*>(&obj);
 
