@@ -30,7 +30,7 @@ TensileCI:
 {
     def tensile = new rocProject('Tensile')
     // customize for project
-    tensile.paths.build_command = cmake -D CMAKE_BUILD_TYPE=Debug ../lib && make -j16
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib && make -j16'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx906'], tensile)
 
