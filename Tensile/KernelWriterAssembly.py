@@ -1547,6 +1547,8 @@ class KernelWriterAssembly(KernelWriter):
       macIdx = 0
       # half precision
       if kernel["ProblemType"]["DataType"].isHalf():
+        doOnce = False
+        beAggressive = kernel["AggressivePerfMode"]
         for blockB in range(0, kernel["ThreadTile1"]//2):
           for blockA in range(0, kernel["ThreadTile0"]//2):
             if self.version == (8,0,3):
@@ -1560,6 +1562,9 @@ class KernelWriterAssembly(KernelWriter):
                     bStr = "v[%s+%u]" \
                         % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                     kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
+                    if beAggressive and not doOnce:
+                      kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                      doOnce = True
             elif self.version == (9,0,0):
               if kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 # we treat HighPrecisionAccumulate as expanded packed math
@@ -1573,6 +1578,9 @@ class KernelWriterAssembly(KernelWriter):
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I0"%m, blockB)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  if beAggressive and not doOnce:
+                    kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                    doOnce = True
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                   aStr = "v[%s+%u]" \
@@ -1615,6 +1623,9 @@ class KernelWriterAssembly(KernelWriter):
                     bStr = "v[%s+%u]" \
                         % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                     kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] iui=%u%s" % (cStr, aStr, bStr, cStr, cidx, iui, self.endLine)
+                    if beAggressive and not doOnce:
+                      kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                      doOnce = True
                     cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                     cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                     kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
@@ -1641,7 +1652,9 @@ class KernelWriterAssembly(KernelWriter):
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                   kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-
+                  if beAggressive and not doOnce:
+                    kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                    doOnce = True
                   cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
                   kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                   """
@@ -1663,6 +1676,9 @@ class KernelWriterAssembly(KernelWriter):
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I0"%m, blockB)
                   kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  if beAggressive and not doOnce:
+                    kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                    doOnce = True
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I1"%m, blockA)
@@ -1701,6 +1717,9 @@ class KernelWriterAssembly(KernelWriter):
                     bStr = "v[%s+%u]" \
                         % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                     kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] iui=%u%s" % (cStr, aStr, bStr, cStr, cidx, iui, self.endLine)
+                    if beAggressive and not doOnce:
+                      kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                      doOnce = True
                     cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                     cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                     kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
@@ -1728,7 +1747,9 @@ class KernelWriterAssembly(KernelWriter):
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                   kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-
+                  if beAggressive and not doOnce:
+                    kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                    doOnce = True
                   cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
                   kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                   """
@@ -1739,9 +1760,13 @@ class KernelWriterAssembly(KernelWriter):
                   """
             else:
               printExit("Half-precision not supported for arch=%u" % self.version )
+        if beAggressive:
+          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
       # integer i8
       elif kernel["ProblemType"]["DataType"].isInt8x4():
+        doOnce = False
+        beAggressive = kernel["AggressivePerfMode"]
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             if self.version == (8,0,3):
@@ -1755,9 +1780,16 @@ class KernelWriterAssembly(KernelWriter):
                 aStr = "v[%s+%u]"       % ("vgprValuA_X%u_I%u"%(m,iui), a)
                 bStr = "v[%s+%u]"       % ("vgprValuB_X%u_I%u"%(m,iui), b)
                 kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                if beAggressive and not doOnce:
+                  kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                  doOnce = True
+        if beAggressive:
+          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
       # single precision
       elif kernel["ProblemType"]["DataType"].isSingle():
+        doOnce = False
+        beAggressive = kernel["AggressivePerfMode"]
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             for iui in range(0, innerUnroll):
@@ -1769,6 +1801,9 @@ class KernelWriterAssembly(KernelWriter):
               #if a==0 and b==0:
               #  kStr += dump(aStr)
               kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+              if beAggressive and not doOnce:
+                kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                doOnce = True
               if macIdx == kernel["PerformanceWaitLocation"]:
                   kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
                       % (kernel["PerformanceWaitCount"], self.endLine)
@@ -1776,6 +1811,8 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += "s_barrier // extra barrier for performance%s" \
                       % (self.endLine)
               macIdx += 1
+        if beAggressive:
+          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
       # double precision
       elif kernel["ProblemType"]["DataType"].isDouble():
