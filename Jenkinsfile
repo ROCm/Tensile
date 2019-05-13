@@ -29,8 +29,6 @@ import java.nio.file.Path;
 TensileCI:
 {
     def tensile = new rocProject('tensile')
-    // customize for project
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib && make -j16'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx906'], tensile)
 
@@ -38,24 +36,22 @@ TensileCI:
     
     try
     {
-        timeout(time: 1, unit: 'HOURS')
+        def compileCommand =
         {
-            def compileCommand =
-            {
-                platform, project->
+            platform, project->
 
-                project.paths.construct_build_prefix()
-                def command = """#!/usr/bin/env bash
-                        set -x
-                        cd ${project.paths.project_build_prefix}
-                        mkdir build && cd build
-                        export PATH=/opt/rocm/bin:$PATH
-                        ${project.paths.build_command}
-                        ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-                        """
+            project.paths.construct_build_prefix()
+            def command = """#!/usr/bin/env bash
+                    set -x
+                    cd ${project.paths.project_build_prefix}
+                    mkdir build && cd build
+                    export PATH=/opt/rocm/bin:$PATH
+                    cmake -D CMAKE_BUILD_TYPE=Debug ../lib 
+                    make -j16
+                    ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                    """
 
-                platform.runCommand(this, command)
-            }
+            platform.runCommand(this, command)
         }
     }
     finally
@@ -66,23 +62,20 @@ TensileCI:
     def test_dir = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
     try
     {
-        timeout(time: 3, unit: 'HOURS')
+        def testCommand =
         {
-            def testCommand =
-            {
-                platform, project->
+            platform, project->
 
-                def command = """#!/usr/bin/env bash
-                        set -x
-                        cd ${project.paths.project_build_prefix}
-                        tox --version
-                        tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
-                        tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py27
-                        tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
-                        """
+            def command = """#!/usr/bin/env bash
+                    set -x
+                    cd ${project.paths.project_build_prefix}
+                    tox --version
+                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
+                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py27
+                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
+                    """
 
-                platform.runCommand(this, command)
-            }
+            platform.runCommand(this, command)
         }
     }
     finally
