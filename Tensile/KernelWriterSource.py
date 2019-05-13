@@ -2618,6 +2618,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
       # zero
       kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
+      kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):
@@ -2918,4 +2919,5 @@ class KernelWriterSource(KernelWriter):
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
     if kernel["ProblemType"]["DataType"].isReal():
       kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
+      kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
     return kStr
