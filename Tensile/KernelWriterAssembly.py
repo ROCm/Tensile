@@ -671,6 +671,10 @@ class KernelWriterAssembly(KernelWriter):
     self.tPA = tPA
     self.tPB = tPB
 
+    # init these here in case some kernel pieces are disabled for performance exploration:
+    tPA["localReadOffset"] = 0
+    tPB["localReadOffset"] = 0
+
     self.sgprs=collections.OrderedDict()
     self.sgprIdx = 0
 

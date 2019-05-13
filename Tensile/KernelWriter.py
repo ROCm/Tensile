@@ -235,7 +235,7 @@ class KernelWriter:
   ##############################################################################
   # Schedule work into the each unroll loop iteration
   # localReadCode is the local reads for this loop iteration
-  #  (returned by doLocalRead). The instructions in localReadCode
+  #  (returned by localReadDo). The instructions in localReadCode
   #  will retain their relative order, but may be interleaved
   #  with instructions from otherCode.
 
@@ -1229,8 +1229,8 @@ class KernelWriter:
     self.enable["MAC"]            = True and not (dkp>0 and dkp >= 6) and not dkp == -6
     self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
 
-    if dkp:
-      print ("\nKernelWriter enable:", self.enable)
+    #if dkp:
+    #  print "\nKernelWriter enable:", self.enable
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
