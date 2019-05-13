@@ -9,29 +9,6 @@ import com.amd.project.*
 import com.amd.docker.*
 
 ////////////////////////////////////////////////////////////////////////
-// Check whether job was started by a timer
-@NonCPS
-def isJobStartedByTimer() {
-    def startedByTimer = false
-    try {
-	def buildCauses = currentBuild.rawBuild.getCauses()
-	for ( buildCause in buildCauses ) {
-	    if (buildCause != null) {
-		def causeDescription = buildCause.getShortDescription()
-		echo "shortDescription: ${causeDescription}"
-		if (causeDescription.contains("Started by timer")) {
-		    startedByTimer = true
-		}
-	    }
-	}
-    } catch(theError) {
-	echo "Error getting build cause"
-    }
-
-    return startedByTimer
-}
-
-////////////////////////////////////////////////////////////////////////
 // Mostly generated from snippet generator 'properties; set job properties'
 // Time-based triggers added to execute nightly tests, eg '30 2 * * *' means 2:30 AM
 properties([
@@ -83,7 +60,7 @@ tensileCI:
         }
     }
     
-    def test_dir = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
+    def test_dir = auxiliary.isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
     def testCommand =
     {
         platform, project->
