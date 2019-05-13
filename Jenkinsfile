@@ -9,6 +9,29 @@ import com.amd.project.*
 import com.amd.docker.*
 
 ////////////////////////////////////////////////////////////////////////
+// Check whether job was started by a timer
+@NonCPS
+def isJobStartedByTimer() {
+    def startedByTimer = false
+    try {
+	def buildCauses = currentBuild.rawBuild.getCauses()
+	for ( buildCause in buildCauses ) {
+	    if (buildCause != null) {
+		def causeDescription = buildCause.getShortDescription()
+		echo "shortDescription: ${causeDescription}"
+		if (causeDescription.contains("Started by timer")) {
+		    startedByTimer = true
+		}
+	    }
+	}
+    } catch(theError) {
+	echo "Error getting build cause"
+    }
+
+    return startedByTimer
+}
+
+////////////////////////////////////////////////////////////////////////
 // Mostly generated from snippet generator 'properties; set job properties'
 // Time-based triggers added to execute nightly tests, eg '30 2 * * *' means 2:30 AM
 properties([
@@ -26,46 +49,46 @@ properties([
 ////////////////////////////////////////////////////////////////////////
 import java.nio.file.Path;
 
-TensileCI:
+tensileCI:
 {
     def tensile = new rocProject('tensile')
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx906'], tensile)
 
     boolean formatCheck = false
     
-    try
+    def compileCommand =
     {
-        def compileCommand =
-        {
-            platform, project->
-
+        platform, project->
+        try
+        {    
             project.paths.construct_build_prefix()
+
             def command = """#!/usr/bin/env bash
                     set -x
                     cd ${project.paths.project_build_prefix}
                     mkdir build && cd build
                     export PATH=/opt/rocm/bin:$PATH
-                    cmake -D CMAKE_BUILD_TYPE=Debug ../lib 
+                    ${project.paths.build_command}
                     make -j16
                     ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
                     """
 
             platform.runCommand(this, command)
         }
-    }
-    finally
-    {
-        junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-    }
-   
-    def test_dir = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
-    try
-    {
-        def testCommand =
+        finally
         {
-            platform, project->
-
+            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+        }
+    }
+    
+    def test_dir = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
+    def testCommand =
+    {
+        platform, project->
+        try
+        {
             def command = """#!/usr/bin/env bash
                     set -x
                     cd ${project.paths.project_build_prefix}
@@ -74,15 +97,13 @@ TensileCI:
                     tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py27
                     tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
                     """
-
             platform.runCommand(this, command)
         }
+        finally
+        {
+            junit "${project.paths.project_build_prefix}/*_tests.xml"
+        }
     }
-    finally
-    {
-        junit "${project.paths.project_build_prefix}/*_tests.xml"
-    }
-    
     def packageCommand =
     {
         platform, project->
