@@ -151,8 +151,22 @@ class MasterSolutionLibrary:
 
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
 
+        # fix missing and duplicate solution indices.
+        maxSolutionIdx = max([s.index for s in allSolutions])
+        if maxSolutionIdx is None: maxSolutionIdx = 0
+        solutionsSoFar = set()
+        for solution in allSolutions:
+            if solution.index is None or solution.index in solutionsSoFar:
+                maxSolutionIdx += 1
+                solution.index = maxSolutionIdx
+            else:
+                solutionsSoFar.add(solution.index)
+
         asmSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] != 'Source'])
         sourceSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] == 'Source'])
+
+        assert len(allSolutions) == len(asmSolutions) + len(sourceSolutions), \
+            "Solution split not consistent: {0} != {1} + {2}".format(len(allSolutions), len(asmSolutions), len(sourceSolutions))
 
         matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
 
@@ -206,6 +220,8 @@ class MasterSolutionLibrary:
         assert self.__class__ == other.__class__
 
         allIndices = itertools.chain(self.solutions, self.sourceSolutions)
+        #import pdb
+        #pdb.set_trace()
         curIndex = max(allIndices) + 1
 
         for k,s in list(other.solutions.items()):
