@@ -28,7 +28,7 @@ import java.nio.file.Path;
 
 TensileCI:
 {
-    def tensile = new rocProject('Tensile')
+    def tensile = new rocProject('tensile')
     // customize for project
     tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib && make -j16'
     // Define test architectures, optional rocm version argument is available
