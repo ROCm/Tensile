@@ -1533,6 +1533,7 @@ class KernelWriterAssembly(KernelWriter):
     # Create a macro version that processes just one U iter
     # (used in tail loop in some cases)
     oneIUI = kernel["InnerUnroll"] > 1 and innerUnroll==1
+    beAggressive = kernel["AggressivePerfMode"]
 
     ########################################
     # MACs
@@ -1540,6 +1541,7 @@ class KernelWriterAssembly(KernelWriter):
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
     for m in range(0, 1+kernel["PrefetchLocalRead"]):
       # Create a special macro that does one K iter if needed:
+      doOnce = False
       ext = "_OneIUI" if oneIUI else ""
       kStr += ".macro MAC_%ux%u_X%u%s" \
           % (kernel["ThreadTile0"], kernel["ThreadTile1"], m, ext)
@@ -1547,8 +1549,6 @@ class KernelWriterAssembly(KernelWriter):
       macIdx = 0
       # half precision
       if kernel["ProblemType"]["DataType"].isHalf():
-        doOnce = False
-        beAggressive = kernel["AggressivePerfMode"]
         for blockB in range(0, kernel["ThreadTile1"]//2):
           for blockA in range(0, kernel["ThreadTile0"]//2):
             if self.version == (8,0,3):
@@ -1765,8 +1765,6 @@ class KernelWriterAssembly(KernelWriter):
 
       # integer i8
       elif kernel["ProblemType"]["DataType"].isInt8x4():
-        doOnce = False
-        beAggressive = kernel["AggressivePerfMode"]
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             if self.version == (8,0,3):
@@ -1788,8 +1786,6 @@ class KernelWriterAssembly(KernelWriter):
 
       # single precision
       elif kernel["ProblemType"]["DataType"].isSingle():
-        doOnce = False
-        beAggressive = kernel["AggressivePerfMode"]
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             for iui in range(0, innerUnroll):
@@ -1816,8 +1812,6 @@ class KernelWriterAssembly(KernelWriter):
 
       # double precision
       elif kernel["ProblemType"]["DataType"].isDouble():
-        doOnce = False
-        beAggressive = kernel["AggressivePerfMode"]
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             for iui in range(0, innerUnroll):
