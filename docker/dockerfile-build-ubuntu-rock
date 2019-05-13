@@ -1,35 +1,43 @@
+# This Dockerfile provides a starting point for a ROCm installation of hipCaffe.
+
 # Parameters related to building hip
 ARG base_image
 
 FROM ${base_image}
 LABEL maintainer="kent.knox@amd"
 
+USER root
 ARG user_uid
 
 # Install dependent packages
 # Dependencies:
 # * hcc-config.cmake: pkg-config
-# * tensile: python2.7, python-yaml
+# * tensile: python2.7, python-pip
 # * rocblas-test: gfortran, googletest
 # * rocblas-bench: libboost-program-options-dev
-# * libhsakmt.so: libnuma1
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    rock-dkms \
-    sudo \
+    cmake \
     ca-certificates \
     git \
-    make \
-    cmake \
-    clang-format-3.8 \
     pkg-config \
     python2.7 \
+    python2.7-dev \
+    python3 \
+    python3-dev \
+    python-pip \
+    python-pytest \
+    python-setuptools \
     python-yaml \
-    gfortran \
-    libboost-program-options-dev \
     libnuma1 \
+    llvm-6.0-dev \
+    libboost-all-dev \
+    zlib1g-dev \
+    libomp-dev \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+RUN pip install wheel && pip install tox pyyaml
 
 # docker pipeline runs containers with particular uid
 # create a jenkins user with this specific uid so it can use sudo priviledges
