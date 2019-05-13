@@ -46,7 +46,6 @@ namespace Tensile
                 ProcessorEqual(AMDGPU::Processor p) : value(p) {}
 
                 static std::string Type() { return "Processor"; }
-                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
@@ -63,7 +62,6 @@ namespace Tensile
                 RunsKernelTargeting(AMDGPU::Processor p) : value(p) {}
 
                 static std::string Type() { return "TargetProcessor"; }
-                virtual std::string type() const { return Type(); }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {

@@ -35,6 +35,7 @@ from .SolutionStructs import Solution
 from .SolutionWriter import SolutionWriter
 
 import argparse
+import collections
 import itertools
 import os
 import shutil
@@ -61,24 +62,34 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     return (err, src, header, kernelName)
 
 def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
-    assemblyKernels = list([kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly'])
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
 
-    if len(assemblyKernels) == 0:
-        return []
-
     if globalParameters["MergeFiles"]:
-        objectFiles = [os.path.join(asmDir, k + '.o') for k in assemblyKernels]
+        archs = collections.defaultdict(list)
+        for k in kernels:
+            archs[k['ISA']].append(k)
 
-        coFile = os.path.join(destDir, 'TensileLibrary.co')
+        coFiles = []
+        for arch, archKernels in archs.items():
+            objectFiles = list([os.path.join(asmDir, kernelWriterAssembly.getKernelName(k) + '.o') \
+                                for k in archKernels \
+                                if k['KernelLanguage'] == 'Assembly'])
+            if len(objectFiles) == 0:
+                continue
 
-        args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-        subprocess.check_call(args)
+            archName = 'gfx'+''.join(map(str,arch))
+            coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
+            args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
+            subprocess.check_call(args)
+            coFiles.append(coFile)
 
-        return [coFile]
+        return coFiles
 
     else:
+        assemblyKernels = list([kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly'])
+        if len(assemblyKernels) == 0:
+            return []
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernels]
         newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernels]
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
@@ -98,7 +109,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     soFilename = base + '.so'
     soFilepath = os.path.join(buildPath, soFilename)
 
-    archFlags = ['--amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
+    archFlags = ['-amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
 
     hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags', '--shared']).decode().split(' ')
     hipLinkFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--ldflags', '--shared']).decode().split(' ')

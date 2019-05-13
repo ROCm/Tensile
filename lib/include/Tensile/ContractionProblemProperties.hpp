@@ -34,7 +34,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "FreeSizeA"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -48,7 +47,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "FreeSizeB"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -62,7 +60,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "BatchSize"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -76,7 +73,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "BoundSize"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -90,7 +86,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "AStride"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -104,7 +99,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "BStride"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -118,7 +112,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "CStride"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -132,7 +125,6 @@ namespace Tensile
             size_t index;
 
             static std::string Type() { return "DStride"; }
-            virtual std::string type() const { return Type(); }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -145,7 +137,6 @@ namespace Tensile
             enum { HasIndex = false, HasValue = false };
 
             static std::string Type() { return "OperationIdentifier"; }
-            virtual std::string type() const { return Type(); }
 
             virtual std::string operator()(ContractionProblem const& problem) const
             {

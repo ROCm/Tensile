@@ -231,7 +231,8 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
     auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite/TensileLibrary.yaml").native());
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx900.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx906.co").native());
 
     ASSERT_NE(library, nullptr);
 
@@ -274,11 +275,9 @@ TEST_P(RunGEMMKernelTest, KernelsLiteMixedExhaustive)
 {
     ContractionProblem problem = GetParam();
 
-    //auto library = LoadLibraryFile<ContractionProblem>("configs/lite_library/Tensile/TensileLibrary.yaml");
     auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite_mixed");
 
     hip::SolutionAdapter adapter(false);
-    //adapter.loadCodeObjectFile("configs/lite_library/Tensile/TensileLibrary.co");
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
     ASSERT_NE(library, nullptr);
@@ -347,7 +346,8 @@ TEST_P(RunGEMMKernelTest, KernelsLiteExhaustive)
     auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite/TensileLibrary.yaml").native());
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx900.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx906.co").native());
 
     ASSERT_NE(library, nullptr);
 
@@ -427,6 +427,25 @@ INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, RunGEMMKernelTest,
                           RandomGEMM(),
                           RandomGEMM(),
                           RandomGEMM()
+                        //ContractionProblem::GEMM(false, false,    1,    4,    6,    1,    6,    1, 1.5, false,  1),
+                        //ContractionProblem::GEMM(false, false,    4,    1,    6,    4,    6,    4, 1.5, false,  1),
+                        //ContractionProblem::GEMM(false, false,    4,    4,    1,    4,    1,    4, 1.5, false,  1),
+
+                        //ContractionProblem::GEMM(false,  true,    1,    4,    6,    1,    4,    1, 1.5, false,  1),
+                        //ContractionProblem::GEMM(false,  true,    4,    1,    6,    4,    1,    4, 1.5, false,  1),
+                        //ContractionProblem::GEMM(false,  true,    4,    4,    1,    4,    4,    4, 1.5, false,  1),
+
+                        //ContractionProblem::GEMM( true, false,    1,    4,    6,    6,    6,    1, 1.5, false,  1),
+                        //ContractionProblem::GEMM( true, false,    4,    1,    6,    6,    6,    4, 1.5, false,  1),
+                        //ContractionProblem::GEMM( true, false,    4,    4,    1,    1,    1,    4, 1.5, false,  1),
+
+                        //ContractionProblem::GEMM( true,  true,    1,    4,    6,    6,    4,    1, 1.5, false,  1),
+                        //ContractionProblem::GEMM( true,  true,    4,    1,    6,    6,    1,    4, 1.5, false,  1),
+                        //ContractionProblem::GEMM( true,  true,    4,    4,    1,    1,    4,    4, 1.5, false,  1),
+
+                        //ContractionProblem::GEMM(false,  true,    1,  128,  256,    1,  270, 49928, 1.5, false, 1),
+                        //ContractionProblem::GEMM(false,  true,  384,    1,  384,  384,  270, 49928, 1.5, false, 1),
+                        //ContractionProblem::GEMM( true,  true,    4,    4,    1,    1,    4,     4, 1.5, false, 1)
                           ));
 
 

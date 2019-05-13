@@ -1130,7 +1130,7 @@ def ParallelMap(function, objects, message="", enable=True, method=None):
         mapFunc = None
 
     if mapFunc is not None:
-      import Utils
+      from . import Utils
       return list(mapFunc(function, Utils.tqdm(objects, message)))
 
   mapFunc = pool.map

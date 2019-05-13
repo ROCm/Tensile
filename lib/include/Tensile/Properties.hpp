@@ -89,6 +89,8 @@ namespace Tensile
     class Property_CRTP: public Property<Object, Value>
     {
     public:
+        virtual std::string type() const final { return Class::Type(); }
+
         virtual std::string toString() const
         {
             Class const& this_typed = dynamic_cast<Class const&>(*this);
