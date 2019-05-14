@@ -25,5 +25,5 @@ class HardwarePredicate(Properties.Predicate):
     @classmethod
     def FromOriginalDeviceSection(cls, d):
         gfxArch = d[1]
-        return cls("AMDGPU", value=cls("TargetProcessor", value=gfxArch))
+        return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 

@@ -459,7 +459,7 @@ class KernelWriterAssembly(KernelWriter):
 
     rv = [globalParameters['AssemblerPath'],
           '-x', 'assembler',
-          '-target', 'amdgcn--amdhsa']
+          '-target', 'amdgcn-amd-amdhsa']
 
     if archHasV3:
       rv += ['-mno-code-object-v3']
@@ -474,7 +474,7 @@ class KernelWriterAssembly(KernelWriter):
 
   def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
     rv = [globalParameters['AssemblerPath'],
-          '-target', 'amdgcn--amdhsa']
+          '-target', 'amdgcn-amd-amdhsa']
 
     rv += moreArgs
 
