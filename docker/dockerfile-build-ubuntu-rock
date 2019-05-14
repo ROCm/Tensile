@@ -16,6 +16,7 @@ ARG user_uid
 # * rocblas-test: gfortran, googletest
 # * rocblas-bench: libboost-program-options-dev
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    rock-dkms \
     cmake \
     ca-certificates \
     git \
