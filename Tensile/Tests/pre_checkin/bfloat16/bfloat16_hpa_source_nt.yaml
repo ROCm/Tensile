@@ -12,8 +12,8 @@ BenchmarkProblems:
       DestDataType: B
       ComputeDataType: s
       HighPrecisionAccumulate: True
-      TransposeA: True
-      TransposeB: False
+      TransposeA: False
+      TransposeB: True
       UseBeta: True
       Batched: True
 
