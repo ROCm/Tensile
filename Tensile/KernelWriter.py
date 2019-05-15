@@ -19,8 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
-
 from . import Code
 from . import Common
 from .Common import globalParameters, CHeader
@@ -29,15 +27,13 @@ from .SolutionStructs import Solution
 import abc
 import os
 import shutil
-import six
 import subprocess
 from os import path, chmod
 
 ################################################################################
 # Kernel Writer
 ################################################################################
-@six.add_metaclass(abc.ABCMeta)
-class KernelWriter:
+class KernelWriter(metaclass=abc.ABCMeta):
   #__metaclass__=abc.ABCMeta
   
   ##############################################################################

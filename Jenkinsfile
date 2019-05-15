@@ -222,7 +222,6 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
                        cd ${paths.project_src_prefix}
                        tox --version
                        tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
-                       tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py27
                        tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
                        """
                 }

@@ -20,8 +20,6 @@
 ################################################################################
 # This script only gets called by CMake
 
-from __future__ import print_function
-
 from . import Common
 from . import EmbeddedData
 from . import Utils
@@ -143,9 +141,10 @@ def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
 
     sourceKernelFiles = zip(itertools.repeat(outputPath), sourceKernelFiles)
 
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels", method=lambda x: x.starmap)
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels",
+                                 method=lambda x: x.starmap)
 
-    return itertools.chain(*coFiles)
+    return itertools.chain.from_iterable(coFiles)
 
 ################################################################################
 def prepAsm():
