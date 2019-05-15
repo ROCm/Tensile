@@ -10,13 +10,14 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite
     EMBED_KEY     kernels_lite
-    VAR_PREFIX LITE
+    VAR_PREFIX LITE NO_MERGE_FILES
     )
 endif()
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite")
 file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite")
 
+if(true)
 TensileCreateLibraryFiles(
     "${TENSILE_ROOT}/lib/configs/lite_configs_mixed"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
@@ -25,6 +26,7 @@ TensileCreateLibraryFiles(
     EMBED_KEY     kernels_lite_mixed
     VAR_PREFIX LITE_MIXED
     )
+endif()
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
 file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")

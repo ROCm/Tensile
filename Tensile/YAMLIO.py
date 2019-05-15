@@ -22,6 +22,7 @@
 from .Common import print2, printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
+from . import Common
 from . import SolutionLibrary
 import os
 
@@ -224,7 +225,7 @@ def readLibraryLogicForSchedule( filename ):
       isa0 = int(architectureName[3])
       isa1 = int(architectureName[4])
       isa2 = int(architectureName[5])
-      solutionState["ISA"] = (isa0, isa1, isa2)
+      solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
       solutionState["ISA"] = (0, 0, 0)
     solutionObject = Solution(solutionState)

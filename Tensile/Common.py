@@ -130,7 +130,7 @@ globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -140,7 +140,7 @@ globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/bin/hcc
+globalParameters["AssemblerPath"] = os.path.expanduser("~/WORKSPACE/installs/opencl/bin/x86_64/clang")                # /opt/rocm/bin/hcc
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
@@ -882,7 +882,11 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
 
 # Try to assemble the asmString for the specified target processor
 # Success is defined as assembler returning no error code or stderr/stdout
+
 def tryAssembler(isaVersion, options, asmString):
+  if isaVersion == 'gfx1010':
+    options += ' -mwavefrontsize64'
+
   asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
              % (globalParameters["AssemblerPath"], isaVersion, options)
 
@@ -891,6 +895,7 @@ def tryAssembler(isaVersion, options, asmString):
   try:
     result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
     if globalParameters["PrintLevel"] >=2:
+        print("isaVersion: ", isaVersion)
         print("asm_cmd: ", asmCmd)
         print("output :", result)
     if result != "":
@@ -902,6 +907,22 @@ def tryAssembler(isaVersion, options, asmString):
 
   return 1 # syntax works
 
+def gfxArch(name):
+    import re
+    match = re.search(r'gfx(\d{3,})', name)
+    if not match: return None
+
+    ipart = match.group(1)
+
+    step = int(ipart[-1])
+    ipart = ipart[:-1]
+
+    minor = int(ipart[-1])
+    ipart = ipart[:-1]
+
+    major = int(ipart)
+
+    return (major, minor, step)
 
 ################################################################################
 # Assign Global Parameters
@@ -937,7 +958,8 @@ def assignGlobalParameters( config ):
 
   # ROCm Agent Enumerator Path
   globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
-  globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH");
+  if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
+    globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   if globalParameters["AssemblerPath"] is None:
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc");
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
@@ -948,14 +970,11 @@ def assignGlobalParameters( config ):
     process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
     line = process.stdout.readline().decode()
     while line != "":
-      gfxIdx = line.find("gfx")
-      if gfxIdx >= 0:
-        major = int(line[gfxIdx+3:gfxIdx+4])
-        minor = int(line[gfxIdx+4:gfxIdx+5])
-        step  = int(line[gfxIdx+5:gfxIdx+6])
-        if (major,minor,step) in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: gfx%u%u%u"%(major, minor, step))
-          globalParameters["CurrentISA"] = (major, minor, step)
+      arch = gfxArch(line.strip())
+      if arch is not None:
+        if arch in globalParameters["SupportedISA"]:
+          print1("# Detected local GPU with ISA: gfx%u%u%u"%arch)
+          globalParameters["CurrentISA"] = arch
         line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])

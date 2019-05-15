@@ -27,7 +27,7 @@ from . import EmbeddedData
 from . import Utils
 from . import YAMLIO
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-                   CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, \
+                   CHeader, CMakeHeader, assignGlobalParameters, \
                    listToInitializer
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
@@ -117,7 +117,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     hipFlags += ['-I', outputPath]
 
     compileArgs = ['/opt/rocm/bin/hcc'] + archFlags + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
-    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
+    linkArgs = ['/opt/rocm/bin/hcc'] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
     #print(' '.join(compileArgs))
@@ -311,8 +311,6 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
   print1("# Writing Solutions")
-  if globalParameters["ShowProgressBar"]:
-    progressBar = ProgressBar(len(solutions))
   ##############################################################################
   # Write Solutions
   ##############################################################################
@@ -352,7 +350,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
   solutionHeaderFile.write(h)
 #
-  for solution in solutions:
+  for solution in Utils.tqdm(solutions):
     # get solution name
     if not globalParameters["MergeFiles"]:
       solutionFileName = solutionWriter.getSolutionName(solution)
@@ -376,8 +374,6 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
         solutionWriter.getHeaderFileString(solution))
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
-    if globalParameters["ShowProgressBar"]:
-      progressBar.increment()
   # close merged
   if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
@@ -419,7 +415,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
   ########################################
   # problemType
-  for problemType in logicData:
+  for problemType in Utils.tqdm(logicData):
 
     # function argument list
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)

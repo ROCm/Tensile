@@ -31,7 +31,6 @@ import os
 import shutil
 import six
 import subprocess
-from os import path, chmod
 
 ################################################################################
 # Kernel Writer
@@ -2278,11 +2277,11 @@ for codeObjectFileName in codeObjectFileNames:
   def writeByteArrayScript(self):
     asmPath = self.getAssemblyDirectory()
 
-    bytearrayFileName = path.join(asmPath,"insert_byte_array.py")
-    if not path.isfile(bytearrayFileName):
+    bytearrayFileName = os.path.join(asmPath,"insert_byte_array.py")
+    if not os.path.isfile(bytearrayFileName):
       with open(bytearrayFileName, 'w') as bytearrayFile:
         bytearrayFile.write(self.byteArrayScriptSource())
-      chmod(bytearrayFileName, 0o777)
+      os.chmod(bytearrayFileName, 0o777)
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
@@ -2299,7 +2298,7 @@ for codeObjectFileName in codeObjectFileNames:
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
     kernelName = self.getKernelName(kernel)
-    fileBase = path.join(asmPath, kernelName )
+    fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
     replacementKernel = self.getReplacementKernelPath(kernel)
@@ -2322,7 +2321,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getAssembledKernelObjectFile(self, kernel):
     assemblyFileName = self.getKernelObjectAssemblyFile(kernel)
 
-    base, ext = path.splitext(assemblyFileName)
+    base, ext = os.path.splitext(assemblyFileName)
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
@@ -2333,7 +2332,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getSingleCodeObjectFile(self, kernel):
     objectFileName = self.getAssembledKernelObjectFile(kernel)
 
-    base, ext = path.splitext(objectFileName)
+    base, ext = os.path.splitext(objectFileName)
     coFileName = base + '.co'
 
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)

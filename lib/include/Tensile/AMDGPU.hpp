@@ -37,9 +37,10 @@ namespace Tensile
 
         enum class Processor: int
         {
-            gfx803 = 803,
-            gfx900 = 900,
-            gfx906 = 906
+            gfx803  =  803,
+            gfx900  =  900,
+            gfx906  =  906,
+            gfx1010 = 1010
         };
 
         AMDGPU();
