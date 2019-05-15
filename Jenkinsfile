@@ -80,17 +80,7 @@ tensileCI:
             junit "${project.paths.project_build_prefix}/*_tests.xml"
         }
     }
-    def packageCommand =
-    {
-        platform, project->
-
-        def command = """
-                      echo "No packaging available for Tensile"
-                      """
-
-        platform.runCommand(this, command)
-        platform.archiveArtifacts(this, """${project.paths.project_build_prefix}/build/package/*.deb""")
-    }
+    def packageCommand = NULL
 
     buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
     
