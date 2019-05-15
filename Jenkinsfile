@@ -71,7 +71,6 @@ tensileCI:
                     cd ${project.paths.project_build_prefix}
                     tox --version
                     tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
-                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py27
                     tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
                     """
             platform.runCommand(this, command)
@@ -86,12 +85,7 @@ tensileCI:
         platform, project->
 
         def command = """
-                      set -x
-                      cd ${project.paths.project_build_prefix}/build
-                      make package
-                      rm -rf package && mkdir -p package
-                      mv *.deb package/
-                      dpkg -c package/*.deb
+                      echo "No packaging available for Tensile"
                       """
 
         platform.runCommand(this, command)
