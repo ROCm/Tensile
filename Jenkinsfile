@@ -12,7 +12,7 @@ import com.amd.docker.*
 // Mostly generated from snippet generator 'properties; set job properties'
 // Time-based triggers added to execute nightly tests, eg '30 2 * * *' means 2:30 AM
 properties([
-    pipelineTriggers([cron('0 1 * * *'), [$class: 'PeriodicFolderTrigger', interval: '5m']]),
+    pipelineTriggers([cron('0 3 * * *'), [$class: 'PeriodicFolderTrigger', interval: '5m']]),
     buildDiscarder(logRotator(
       artifactDaysToKeepStr: '',
       artifactNumToKeepStr: '',
@@ -31,7 +31,7 @@ tensileCI:
     def tensile = new rocProject('tensile')
     tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib'
     // Define test architectures, optional rocm version argument is available
-    def nodes = new dockerNodes(['gfx906'], tensile)
+    def nodes = new dockerNodes(['gfx900','gfx906'], tensile)
 
     boolean formatCheck = false
     
@@ -80,7 +80,7 @@ tensileCI:
             junit "${project.paths.project_build_prefix}/*_tests.xml"
         }
     }
-    def packageCommand = NULL
+    def packageCommand = null
 
     buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
     
