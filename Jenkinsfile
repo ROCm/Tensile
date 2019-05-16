@@ -2,7 +2,7 @@
 // This shared library is available at https://github.com/ROCmSoftwarePlatform/rocJENKINS/
 @Library('rocJenkins') _
 
-// This is file for internal AMD use.
+// This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
 
 import com.amd.project.*

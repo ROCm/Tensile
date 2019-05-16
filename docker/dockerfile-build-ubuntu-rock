@@ -1,10 +1,10 @@
-# This Dockerfile provides a starting point for a ROCm installation of hipCaffe.
+# This Dockerfile provides a starting point for a ROCm installation of Tensile.
 
 # Parameters related to building hip
 ARG base_image
 
 FROM ${base_image}
-LABEL maintainer="kent.knox@amd"
+LABEL maintainer="saad.rahim@amd"
 
 USER root
 ARG user_uid
