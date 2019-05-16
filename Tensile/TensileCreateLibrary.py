@@ -114,8 +114,8 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
 
     hipFlags += ['-I', outputPath]
 
-    compileArgs = ['/opt/rocm/bin/hcc'] + archFlags + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
-    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
+    compileArgs = ['/opt/rocm/bin/hcc'] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
+    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
     #print(' '.join(compileArgs))
