@@ -37,7 +37,7 @@ function(TensileCreateLibrary
 
   if(PARSE_Tensile_ROOT)
     # python not pre-installed, use scripts downloaded to extern/Tensile
-    set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/Tensile/bin/TensileCreateLibrary")
+    set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/TensileCreateLibrary")
   else()
     set(Tensile_CREATE_COMMAND tensileCreateLibrary)
   endif()
