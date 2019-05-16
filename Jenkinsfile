@@ -59,7 +59,7 @@ tensileCI:
             junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
     }
-    
+  
     def test_dir = auxiliary.isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
     def testCommand =
     {
