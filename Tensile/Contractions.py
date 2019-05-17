@@ -19,7 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
@@ -213,22 +212,20 @@ class ProblemPredicate(Properties.Predicate):
         if key.endswith('Multiple'):
             if value == 1:
                 return None
-            rv = cls(None, index=None, value=value)
             
             if key == "AssertFree0ElementMultiple":
-                rv.tag = "FreeSizeAMultiple"
-                rv.index = 0
-                return rv
+                tag = "FreeSizeAMultiple"
+                index = 0
             elif key == "AssertFree1ElementMultiple":
-                rv.tag = "FreeSizeBMultiple"
-                rv.index = 0
-                return rv
+                tag = "FreeSizeBMultiple"
+                index = 0
             elif key == "AssertSummationElementMultiple":
-                rv.tag = "BoundSizeMultiple"
-                rv.index = 0
-                return rv
+                tag = "BoundSizeMultiple"
+                index = 0
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
+
+            return cls(tag, index=index, value=value)
 
         if key == 'VectorWidth' and value > 1:
             return cls('LeadingSizesGreaterOrEqual', value=value)

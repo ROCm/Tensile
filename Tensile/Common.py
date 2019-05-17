@@ -18,7 +18,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from __future__ import print_function
 
 from . import __version__
 from collections import OrderedDict
@@ -1066,27 +1065,15 @@ def apply_print_exception(item, *args):
     sys.stderr.flush()
 
 def ProcessingPool(enable=True):
-  # Python 2.7 does not have starmap in multiprocessing.Pool.
-  def fixStarmap(pool):
-    if not hasattr(pool, 'starmap'):
-      def pool_starmap_apply(self, func, item):
-        func(*item)
-
-      def pool_starmap(self, func, items, *args, **kwargs):
-        items = zip(itertools.repeat(func), items)
-        return self.map(starmap_apply, items, *args, **kwargs)
-      pool.__class__.starmap = pool_starmap
-    return pool
-
   import multiprocessing
   import multiprocessing.dummy
 
   threadCount = CPUThreadCount()
 
   if (not enable) or threadCount <= 1:
-    return fixStarmap(multiprocessing.dummy.Pool(1))
+    return multiprocessing.dummy.Pool(1)
 
-  return fixStarmap(multiprocessing.Pool(threadCount))
+  return multiprocessing.Pool(threadCount)
 
 def ParallelMap(function, objects, message="", enable=True, method=None):
   """

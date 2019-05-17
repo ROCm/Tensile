@@ -1094,7 +1094,7 @@ bool benchmarkAllSolutionsForSize(
 #else
         if(callStatus == hipErrorFileNotFound)
         {
-            printf("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
+            printf("Kernel file not found; exiting.\n");
             exit(1);
         }
 #endif
@@ -1127,7 +1127,7 @@ bool benchmarkAllSolutionsForSize(
 
         if(status == hipErrorFileNotFound)
         {
-            printf("Kernel file not found; exiting.");
+            printf("Kernel file not found; exiting.\n");
             exit(1);
         }
 #endif

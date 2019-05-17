@@ -19,8 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
-
 # Global to print module names around strings
 printModuleNames = 0
 

@@ -18,7 +18,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from __future__ import print_function
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
 from .SolutionStructs import Solution
@@ -160,7 +159,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   else:
     # for library client
     runScriptFile.write(" -DTensile_ROOT=%s" \
-        % os.path.join(globalParameters["ScriptPath"], "..") )
+        % os.path.join(globalParameters["ScriptPath"], "bin") )
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
     runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \

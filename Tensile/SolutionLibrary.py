@@ -152,8 +152,11 @@ class MasterSolutionLibrary:
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
 
         # fix missing and duplicate solution indices.
-        maxSolutionIdx = max([s.index for s in allSolutions])
-        if maxSolutionIdx is None: maxSolutionIdx = 0
+        try:
+            maxSolutionIdx = max([s.index for s in allSolutions if s.index is not None])
+        except ValueError:
+            maxSolutionIdx = 0
+
         solutionsSoFar = set()
         for solution in allSolutions:
             if solution.index is None or solution.index in solutionsSoFar:
