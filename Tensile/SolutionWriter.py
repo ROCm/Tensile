@@ -788,7 +788,7 @@ class SolutionWriter:
             """
 
           s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipExtModuleLaunchKernel(\n" % (t)
+          s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)
