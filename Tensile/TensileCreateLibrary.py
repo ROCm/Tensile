@@ -127,14 +127,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     #print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
 
-    path900 = soFilepath + '-000-gfx900.hsaco'
-    path906 = soFilepath + '-000-gfx906.hsaco'
-
-    if os.path.exists(path900):
-        return [path900]
-    elif os.path.exists(path906):
-        return [path906]
-    raise RuntimeError("Could not create code object file.")
+    return ["{0}-000-gfx{1}.hsaco".format(soFilepath,''.join(map(str,arch))) for arch in globalParameters["SupportedISA"]]
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
