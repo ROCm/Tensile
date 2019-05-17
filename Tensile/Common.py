@@ -1042,9 +1042,6 @@ def CPUThreadCount(enable=True):
         return cpu_count*abs(cpuThreads)
     return min(cpu_count, cpuThreads)
 
-processingPool = None
-dummyProcessingPool = None
-
 def starmap_apply(item):
   func, item = item
   return func(*item)
@@ -1068,24 +1065,15 @@ def apply_print_exception(item, *args):
     sys.stderr.flush()
 
 def ProcessingPool(enable=True):
-  global processingPool, dummyProcessingPool
   import multiprocessing
   import multiprocessing.dummy
 
-  if dummyProcessingPool is None:
-    dummyProcessingPool = multiprocessing.dummy.Pool(1)
+  threadCount = CPUThreadCount()
 
-  if not enable:
-    return dummyProcessingPool
+  if (not enable) or threadCount <= 1:
+    return multiprocessing.dummy.Pool(1)
 
-  if processingPool is None:
-    threadCount = CPUThreadCount()
-    if threadCount <= 1:
-      processingPool = dummyProcessingPool
-    else:
-      processingPool = multiprocessing.Pool(threadCount)
-
-  return processingPool
+  return multiprocessing.Pool(threadCount)
 
 def ParallelMap(function, objects, message="", enable=True, method=None):
   """
@@ -1137,6 +1125,7 @@ def ParallelMap(function, objects, message="", enable=True, method=None):
   rv = mapFunc(function, objects)
   print("{0}Done.".format(message))
   sys.stdout.flush()
+  pool.close()
   return rv
 
 ################################################################################
