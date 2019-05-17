@@ -1,21 +1,17 @@
-# This Dockerfile provides a starting point for a ROCm installation of hipCaffe.
+# This Dockerfile provides a starting point for a ROCm installation of Tensile.
 
 # Parameters related to building hip
 ARG base_image
 
 FROM ${base_image}
-LABEL maintainer="kent.knox@amd"
+LABEL maintainer="saad.rahim@amd"
 
 USER root
 ARG user_uid
 
 # Install dependent packages
-# Dependencies:
-# * hcc-config.cmake: pkg-config
-# * tensile: python2.7, python-pip
-# * rocblas-test: gfortran, googletest
-# * rocblas-bench: libboost-program-options-dev
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    rock-dkms \
     cmake \
     ca-certificates \
     git \
