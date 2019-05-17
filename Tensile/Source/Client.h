@@ -1088,6 +1088,17 @@ bool benchmarkAllSolutionsForSize(
           solutionIsValid = false;
         }
       } // if callStatus == success
+      else
+      {
+#if Tensile_RUNTIME_LANGUAGE_OCL
+#else
+        if(callStatus == hipErrorFileNotFound)
+        {
+            printf("Kernel file not found; exiting.\n");
+            exit(1);
+        }
+#endif
+      }
     } // if numElementsToValidate > 0
 
 
@@ -1113,6 +1124,12 @@ bool benchmarkAllSolutionsForSize(
             sizes, minStrides, lda, ldb, ldc, ldd, strideA, strideB, strideC, strideD, alpha, beta,
             numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
             &l_eventStop[syncIdx][enqIdx] );
+
+        if(status == hipErrorFileNotFound)
+        {
+            printf("Kernel file not found; exiting.\n");
+            exit(1);
+        }
 #endif
         if (status != tensileStatusSuccess) {
           solutionIsValid = false;
