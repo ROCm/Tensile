@@ -19,7 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
 import os, sys
 from copy import deepcopy
 from copy import copy as shallowcopy

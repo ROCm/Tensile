@@ -28,6 +28,7 @@ setup(
   author="Advanced Micro Devices",
   license="MIT",
   install_requires=readRequirementsFromTxt(),
+  python_requires='>=3.5',
   packages=["Tensile"],
   package_data={ "Tensile": ["Tensile/Source/*", "Tensile/Configs/*"] },
   data_files=[ ("cmake", ["Tensile/Source/TensileConfig.cmake", "Tensile/Source/TensileConfigVersion.cmake"]) ],
