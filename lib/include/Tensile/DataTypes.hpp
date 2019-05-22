@@ -27,15 +27,19 @@
 #pragma once
 
 #include <cstdlib>
+#include <complex>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
 #include <Tensile/Comparison.hpp>
 
+#include <Tensile/DataTypes_BFloat16.hpp>
+#include <Tensile/DataTypes_Half.hpp>
+#include <Tensile/DataTypes_Int8x4.hpp>
+
 namespace Tensile
 {
-
     enum class DataType: int
     {
         Float,
@@ -43,28 +47,11 @@ namespace Tensile
         ComplexFloat,
         ComplexDouble,
         Half,
-        Int8,
+        Int8x4,
         Int32,
+        BFloat16,
         Count
     };
-
-    inline size_t TypeSize(DataType d)
-    {
-        switch(d)
-        {
-            case DataType::ComplexDouble: return 16;
-            case DataType::ComplexFloat:
-            case DataType::Double: return 8;
-            case DataType::Int32:
-            case DataType::Float: return 4;
-            case DataType::Half: return 2;
-            case DataType::Int8: return 1;
-            
-            case DataType::Count:
-                throw std::runtime_error("Unknown data type");
-        }
-        throw std::runtime_error("Unknown data type");
-    }
 
     template <typename T>
     DataType GetDataType();
@@ -76,67 +63,99 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
     std::istream& operator>>(std::istream& stream, DataType      & t);
 
-    template <typename T, DataType D>
-    struct DistinctType
+    struct DataTypeInfo
     {
-        using Value = T;
+        static DataTypeInfo const& Get(int index);
+        static DataTypeInfo const& Get(DataType t);
+        static DataTypeInfo const& Get(std::string const& str);
 
-        DistinctType() = default;
-        DistinctType(DistinctType const& other) = default;
+        DataType dataType;
+        std::string name;
 
-        DistinctType(T const& v) : value(v) { }
+        size_t elementSize;
+        size_t packing;
+        size_t segmentSize;
 
-        DistinctType & operator=(DistinctType const& other) = default;
-        DistinctType & operator=(T const& other)
-        {
-            value = other;
-            return *this;
-        }
+        bool isComplex;
+        bool isIntegral;
 
-        operator const T &() const { return value; }
+    private:
+        static void registerAllTypeInfo();
 
-        T value;
+        template <typename T>
+        static void registerTypeInfo();
+
+        static void addInfoObject(DataTypeInfo const& info);
+
+        static std::map<DataType, DataTypeInfo> data;
+        static std::map<std::string, DataType>  typeNames;
     };
-
-    template <typename T, DataType D>
-    struct Comparison<DistinctType<T, D>>
-    {
-        enum { implemented = true };
-
-        static int compare(DistinctType<T, D> const& lhs, DistinctType<T, D> const& rhs)
-        {
-            return LexicographicCompare(lhs.value, rhs.value);
-        }
-    };
-
-    template <typename T, DataType D>
-    struct Comparison<DistinctType<T, D>, T>
-    {
-        enum { implemented = true };
-
-        static int compare(DistinctType<T, D> const& lhs, T const& rhs)
-        {
-            return LexicographicCompare(lhs.value, rhs);
-        }
-    };
-
-    using Int8 = DistinctType<uint32_t, DataType::Int8>;
 
     template <typename T>
     struct TypeInfo
     { };
 
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    struct BaseTypeInfo
+    {
+        constexpr static DataType Enum = T_Enum;
+
+        /// Bytes of one element.  May contain multiple segments.
+        constexpr static size_t ElementSize = sizeof(T);
+        /// Segments per element.
+        constexpr static size_t Packing = T_Packing;
+        /// Bytes per segment.
+        constexpr static size_t SegmentSize = ElementSize / Packing;
+
+        constexpr static bool IsComplex = T_IsComplex;
+        constexpr static bool IsIntegral = T_IsIntegral;
+
+        static inline std::string Name() { return ToString(Enum); }
+    };
+
+    template<> struct TypeInfo<float >: public BaseTypeInfo<float,  DataType::Float,  1, false, false> {};
+    template<> struct TypeInfo<double>: public BaseTypeInfo<double, DataType::Double, 1, false, false> {};
+    template<> struct TypeInfo<std::complex<float >>: public BaseTypeInfo<std::complex<float >, DataType::ComplexFloat,  1, true, false> {};
+    template<> struct TypeInfo<std::complex<double>>: public BaseTypeInfo<std::complex<double>, DataType::ComplexDouble, 1, true, false> {};
+
+    template<> struct TypeInfo<Half>:     public BaseTypeInfo<Half, DataType::Half,  1, false, false> {};
+    template<> struct TypeInfo<Int8x4>:   public BaseTypeInfo<Int8x4, DataType::Int8x4,  4, false, true>  {};
+
+    template<> struct TypeInfo<int32_t>:  public BaseTypeInfo<int32_t,  DataType::Int32,    1, false, true>  {};
+    template<> struct TypeInfo<BFloat16>: public BaseTypeInfo<BFloat16, DataType::BFloat16, 1, false, false>  {};
+
+
+#if 0
     template <>
     struct TypeInfo<float>
     {
         const static DataType Enum = DataType::Float;
 
-        const static size_t ElementSize = 4;
+        const static size_t ElementSize = sizeof(float);
 
         static inline size_t dataBytes(size_t elements)
         {
             return elements * ElementSize;
         }
     };
+
+    template <>
+    struct TypeInfo<double>
+    {
+        const static DataType Enum = DataType::Double;
+
+        const static size_t ElementSize = 8;
+
+        static inline size_t dataBytes(size_t elements)
+        {
+            return elements * ElementSize;
+        }
+    };
+
+    template <>
+    struct TypeInfo<std::complex<float>>
+    {
+    };
+#endif
 }
 

@@ -10,7 +10,7 @@ find_package(Boost COMPONENTS program_options)
 
 add_library(TensileClient STATIC ${client_sources})
 
-target_include_directories(TensileClient PUBLIC .)
+target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(TensileClient Tensile Boost::program_options)
 

@@ -336,10 +336,11 @@ namespace Tensile
 
             static void enumeration(IO & io, DataType & value)
             {
-                iot::enumCase(io, value, "Half",  DataType::Half);
-                iot::enumCase(io, value, "Float", DataType::Float);
-                iot::enumCase(io, value, "Int32", DataType::Int32);
-                iot::enumCase(io, value, "Int8",  DataType::Int8);
+                for(int i = 0; i < static_cast<int>(DataType::Count); i++)
+                {
+                    auto const& info = DataTypeInfo::Get(i);
+                    iot::enumCase(io, value, info.name.c_str(), info.dataType);
+                }
             }
         };
     }

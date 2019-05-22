@@ -109,12 +109,12 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
 
     archFlags = ['-amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
 
-    hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags', '--shared']).decode().split(' ')
+    hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags']).decode().split(' ')
     hipLinkFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--ldflags', '--shared']).decode().split(' ')
 
-    hipFlags += ['-I', outputPath]
+    hipFlags += ['-fPIC', '-I', outputPath]
 
-    compileArgs = ['/opt/rocm/bin/hcc'] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
+    compileArgs = ['/opt/rocm/bin/hcc'] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
     linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 

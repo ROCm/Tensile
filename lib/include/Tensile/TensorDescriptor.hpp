@@ -178,7 +178,7 @@ namespace Tensile
         size_t totalAllocatedElements() const { return m_totalAllocatedElements; }
         size_t totalAllocatedBytes()    const { return totalAllocatedElements() * elementBytes(); }
 
-        size_t elementBytes() const { return TypeSize(m_dataType); }
+        size_t elementBytes() const { return DataTypeInfo::Get(m_dataType).elementSize; }
 
         DataType dataType() const { return m_dataType; }
 

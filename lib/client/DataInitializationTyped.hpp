@@ -183,13 +183,13 @@ namespace Tensile
                 }
                 else
                 {
-                    a = std::shared_ptr<AType>((AType *)std::malloc(TypeInfo<AType>::dataBytes(m_aMaxElements)), std::free);
-                    b = std::shared_ptr<BType>((BType *)std::malloc(TypeInfo<BType>::dataBytes(m_bMaxElements)), std::free);
+                    a = std::shared_ptr<AType>((AType *)std::malloc(TypeInfo<AType>::ElementSize * m_aMaxElements), std::free);
+                    b = std::shared_ptr<BType>((BType *)std::malloc(TypeInfo<BType>::ElementSize * m_bMaxElements), std::free);
                 }
 
                 if(m_cEqualsD || !pristine)
                 {
-                    c = std::shared_ptr<CType>((CType *)std::malloc(TypeInfo<CType>::dataBytes(m_cMaxElements)), std::free);
+                    c = std::shared_ptr<CType>((CType *)std::malloc(TypeInfo<CType>::ElementSize * m_cMaxElements), std::free);
                 }
                 else
                 {
@@ -206,7 +206,7 @@ namespace Tensile
                 }
                 else
                 {
-                    d = std::shared_ptr<DType>((DType *)std::malloc(TypeInfo<DType>::dataBytes(m_dMaxElements)), std::free);
+                    d = std::shared_ptr<DType>((DType *)std::malloc(TypeInfo<DType>::ElementSize * m_dMaxElements), std::free);
                 }
 
                 auto rv = std::make_shared<ManagedInputs>(a, b, c, d, 0, 0, false);
@@ -232,18 +232,18 @@ namespace Tensile
                 else
                 {
                     AType * aPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&aPtr, TypeInfo<AType>::dataBytes(m_aMaxElements)));
+                    HIP_CHECK_EXC(hipMalloc(&aPtr, TypeInfo<AType>::ElementSize * m_aMaxElements));
                     a = std::shared_ptr<AType>(aPtr, hipFree);
 
                     BType * bPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&bPtr, TypeInfo<BType>::dataBytes(m_bMaxElements)));
+                    HIP_CHECK_EXC(hipMalloc(&bPtr, TypeInfo<BType>::ElementSize * m_bMaxElements));
                     b = std::shared_ptr<BType>(bPtr, hipFree);
                 }
 
                 if(m_cEqualsD || !pristine)
                 {
                     CType * cPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&cPtr, TypeInfo<CType>::dataBytes(m_cMaxElements)));
+                    HIP_CHECK_EXC(hipMalloc(&cPtr, TypeInfo<CType>::ElementSize * m_cMaxElements));
                     c = std::shared_ptr<CType>(cPtr, hipFree);
                 }
                 else
@@ -262,7 +262,7 @@ namespace Tensile
                 else
                 {
                     DType * dPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&dPtr, TypeInfo<DType>::dataBytes(m_dMaxElements)));
+                    HIP_CHECK_EXC(hipMalloc(&dPtr, TypeInfo<DType>::ElementSize * m_dMaxElements));
                     d = std::shared_ptr<DType>(dPtr, hipFree);
                 }
 
@@ -315,19 +315,19 @@ namespace Tensile
             {
                 hipMemcpyKind kind = copyKind(dst, src);
 
-                HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::dataBytes(m_aMaxElements), kind));
-                HIP_CHECK_EXC(hipMemcpy(dst->managedB.get(), src->managedB.get(), TypeInfo<BType>::dataBytes(m_bMaxElements), kind));
-                HIP_CHECK_EXC(hipMemcpy(dst->managedC.get(), src->managedC.get(), TypeInfo<CType>::dataBytes(m_cMaxElements), kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::ElementSize * m_aMaxElements, kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedB.get(), src->managedB.get(), TypeInfo<BType>::ElementSize * m_bMaxElements, kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedC.get(), src->managedC.get(), TypeInfo<CType>::ElementSize * m_cMaxElements, kind));
                 if(!m_cEqualsD)
                 {
-                    HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::dataBytes(m_dMaxElements), kind));
+                    HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
                 }
             }
             void copyD(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
                 hipMemcpyKind kind = copyKind(dst, src);
 
-                HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::dataBytes(m_dMaxElements), kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
             }
 
         private:

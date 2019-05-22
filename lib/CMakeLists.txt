@@ -1,28 +1,11 @@
 
+#if(NOT DEFINED TENSILE_CXX_COMPILER)
+#    set(TENSILE_CXX_COMPILER ${CMAKE_CXX_COMPILER})
+#endif()
+#
+#set(CMAKE_CXX_COMPILER ${TENSILE_CXX_COMPILER})
+
 cmake_minimum_required(VERSION 3.5)
-
-project(Tensile)
-find_package(HIP CONFIG PATHS /opt/rocm/hip)
-
-option(USE_LLVM "Use LLVM for parsing config files." ON)
-option(TENSILE_STATIC_ONLY "Disable exposing Tensile symbols in a shared library." ON)
-option(TENSILE_DISABLE_TESTS "Disable ctest integration." OFF)
-
-find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-if(USE_LLVM)
-    find_package(LLVM REQUIRED CONFIG)
-    add_definitions(-DTENSILE_DEFAULT_SERIALIZATION)
-endif()
-
-if(TENSILE_STATIC_ONLY)
-    add_definitions(-DTENSILE_STATIC_ONLY)
-endif()
 
 if(NOT TENSILE_DISABLE_TESTS)
     enable_testing()
@@ -61,12 +44,20 @@ set(tensile_sources  ${tensile_sources}
     source/Utils.cpp
     )
 
-if(USE_LLVM)
+if(TENSILE_USE_LLVM)
+    find_package(LLVM REQUIRED CONFIG)
     set(tensile_sources ${tensile_sources}
         source/llvm/YAML.cpp
         source/llvm/Loading.cpp
     )
-include_directories (${LLVM_INCLUDE_DIRS})
+    include_directories (${LLVM_INCLUDE_DIRS})
+endif()
+
+if(TENSILE_USE_HIP)
+    set(tensile_sources ${tensile_sources}
+        source/hip/HipSolutionAdapter.cpp
+        source/hip/HipHardware.cpp
+        )
 endif()
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -77,17 +68,31 @@ target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/includ
 
 add_subdirectory(configs)
 
-if(USE_LLVM)
+if(TENSILE_USE_LLVM)
+    target_compile_definitions(Tensile PUBLIC TENSILE_DEFAULT_SERIALIZATION)
     target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
 endif()
 
+if(TENSILE_STATIC_ONLY)
+    target_compile_definitions(Tensile PUBLIC TENSILE_STATIC_ONLY)
+endif()
+
 if(HIP_FOUND)
+    target_compile_definitions(Tensile PUBLIC TENSILE_USE_HIP)
+
     add_subdirectory(client)
-    add_subdirectory(source/hip)
-    target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} TensileHip )
+    target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} hip::host )
 endif()
 
 if(NOT TENSILE_DISABLE_TESTS)
     add_subdirectory(test)
+endif()
+
+if(true)
+get_cmake_property(_variableNames VARIABLES)
+list (SORT _variableNames)
+foreach (_variableName ${_variableNames})
+    message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
 endif()
 

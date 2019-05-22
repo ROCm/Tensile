@@ -31,21 +31,93 @@
 
 namespace Tensile
 {
+    std::map<DataType, DataTypeInfo> DataTypeInfo::data;
+    std::map<std::string, DataType>  DataTypeInfo::typeNames;
+
     std::string ToString(DataType d)
     {
         switch(d)
         {
-            case DataType::Float        : return "Float";
-            case DataType::Double       : return "Double";
-            case DataType::ComplexFloat : return "ComplexFloat";
-            case DataType::ComplexDouble: return "ComplexDouble";
-            case DataType::Half         : return "Half";
-            case DataType::Int8         : return "Int8";
-            case DataType::Int32        : return "Int32";
+            case DataType::Float         : return "Float";
+            case DataType::Double        : return "Double";
+            case DataType::ComplexFloat  : return "ComplexFloat";
+            case DataType::ComplexDouble : return "ComplexDouble";
+            case DataType::Half          : return "Half";
+            case DataType::Int8x4        : return "Int8x4";
+            case DataType::Int32         : return "Int32";
+            case DataType::BFloat16      : return "BFloat16";
 
             case DataType::Count:;
         }
         return "Invalid";
+    }
+
+    template <typename T>
+    void DataTypeInfo::registerTypeInfo()
+    {
+        using T_Info = TypeInfo<T>;
+
+        DataTypeInfo info;
+
+        info.dataType = T_Info::Enum;
+        info.name = T_Info::Name();
+
+        info.packing  = T_Info::Packing;
+        info.elementSize = T_Info::ElementSize;
+        info.segmentSize = T_Info::SegmentSize;
+
+        info.isComplex = T_Info::IsComplex;
+        info.isIntegral = T_Info::IsIntegral;
+
+        addInfoObject(info);
+    }
+
+
+    void DataTypeInfo::registerAllTypeInfo()
+    {
+        registerTypeInfo<float>();
+        registerTypeInfo<double>();
+        registerTypeInfo<std::complex<float>>();
+        registerTypeInfo<std::complex<double>>();
+        registerTypeInfo<Half>();
+        registerTypeInfo<Int8x4>();
+        registerTypeInfo<int32_t>();
+        registerTypeInfo<BFloat16>();
+    }
+
+    std::once_flag typeInfoFlag;
+
+    void DataTypeInfo::addInfoObject(DataTypeInfo const& info)
+    {
+        data[info.dataType] = info;
+        typeNames[info.name] = info.dataType;
+    }
+
+    DataTypeInfo const& DataTypeInfo::Get(int index)
+    {
+        return Get(static_cast<DataType>(index));
+    }
+
+    DataTypeInfo const& DataTypeInfo::Get(DataType t)
+    {
+        std::call_once(typeInfoFlag, registerAllTypeInfo);
+
+        auto iter = data.find(t);
+        if(iter == data.end())
+            throw std::runtime_error(concatenate("Invalid data type: ", static_cast<int>(t)));
+
+        return iter->second;
+    }
+
+    DataTypeInfo const& DataTypeInfo::Get(std::string const& str)
+    {
+        std::call_once(typeInfoFlag, registerAllTypeInfo);
+
+        auto iter = typeNames.find(str);
+        if(iter == typeNames.end())
+            throw std::runtime_error(concatenate("Invalid data type: ", str));
+
+        return Get(iter->second);
     }
 
     std::ostream& operator<<(std::ostream& stream, const DataType& t)
@@ -58,12 +130,17 @@ namespace Tensile
         std::string strValue;
         stream >> strValue;
 
+#if 1
+        t = DataTypeInfo::Get(strValue).dataType;
+
+#else
+
         if(     strValue == ToString(DataType::Float        )) t = DataType::Float;
         else if(strValue == ToString(DataType::Double       )) t = DataType::Double;
         else if(strValue == ToString(DataType::ComplexFloat )) t = DataType::ComplexFloat;
         else if(strValue == ToString(DataType::ComplexDouble)) t = DataType::ComplexDouble;
         else if(strValue == ToString(DataType::Half         )) t = DataType::Half;
-        else if(strValue == ToString(DataType::Int8         )) t = DataType::Int8;
+        else if(strValue == ToString(DataType::Int8x4       )) t = DataType::Int8x4;
         else if(strValue == ToString(DataType::Int32        )) t = DataType::Int32;
         else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
         {
@@ -77,6 +154,7 @@ namespace Tensile
         {
             throw std::runtime_error(concatenate("Can't convert ", strValue, " to DataType."));
         }
+#endif
 
         return stream;
     }

@@ -24,6 +24,7 @@ TensileCreateLibraryFiles(
     EMBED_LIBRARY test_kernels_lite_mixed
     EMBED_KEY     kernels_lite_mixed
     VAR_PREFIX LITE_MIXED
+    NO_MERGE_FILES
     )
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
