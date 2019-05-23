@@ -85,6 +85,44 @@ BenchmarkProblems:
           - Range: [ [128, 128, 44800],  [32], [1],  [32], [44928], [44928], [44928], [128] ]
           - Range: [ [128, 128, 44800],  [16], [1],  [16], [44928], [44928], [44928], [128] ]
 
+    - # BenchmarkProblemSizeGroup - May 13 part2 small sizes
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - BufferLoad: [True]
+        - BufferStore: [True]
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+      ForkParameters:
+        - FractionalLoad: [True]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True, False]
+        - PersistentKernel: [0]
+        - SuppressNoLoadLoop: [True, False] 
+        - StaggerU: [0,32]
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 6, 4 ]
+          - [ 4, 6 ]
+          - [ 6, 6 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+        - WorkGroup:
+          - [ 32, 16,  1 ]
+          - [ 16,  8,  1 ]
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
+          - [ 16, 32,  1 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 4, 8 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [48, 256, 43568], [128], [1], [128], [43824], [43824], [43824], [256] ] 
+
 LibraryLogic:
     ScheduleName: "vega20"
     DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
