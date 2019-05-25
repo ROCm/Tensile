@@ -188,6 +188,154 @@ namespace Tensile
         return ContractionProblem(a, aOps, b, bOps, c, cOps, d, cOps, freeIndices, batchIndices, boundIndices, beta);
     }
 
+    void ContractionProblem::IdentifierToIndices(std::string  const& identifier, 
+                                                 FreeIndices       & freeIndices,
+                                                 BatchIndices      & batchIndices,
+                                                 BoundIndices      & boundIndices)
+    {
+        FreeIndices  free;
+        BatchIndices batch;
+        BoundIndices bound;
+
+        std::string prefix = "Contraction_";
+        if(identifier.find(prefix) != 0)
+            throw std::runtime_error(concatenate("Contraction identifier (", identifier, ") must start with '", prefix, "'."));
+
+        size_t begin = prefix.size();
+        size_t end = identifier.find("_", begin);
+
+        std::string boundStr = identifier.substr(begin, end-begin);
+
+        begin = end+1;
+        end = identifier.find("_", begin);
+
+        if(identifier.at(begin) != 'A')
+            throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
+
+        begin++;
+        std::string a = identifier.substr(begin, end-begin);
+
+        begin = end+1;
+        end = identifier.find("_", begin);
+
+        if(identifier.at(begin) != 'B')
+            throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
+
+        begin++;
+        std::string b = identifier.substr(begin, end-begin);
+
+        begin = end+1;
+        end = identifier.find("_", begin);
+
+        if(identifier.at(begin) != 'C')
+            throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
+
+        begin++;
+        std::string c = identifier.substr(begin, end-begin);
+
+        begin = end+1;
+        end = identifier.find("_", begin);
+
+        if(identifier.at(begin) != 'D')
+            throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
+
+        begin++;
+        std::string d = identifier.substr(begin, end-begin);
+
+        std::set<char> allIndices(a.begin(), a.end());
+        allIndices.insert(b.begin(), b.end());
+        allIndices.insert(c.begin(), c.end());
+        allIndices.insert(d.begin(), d.end());
+
+        bool freeHasA = true;
+        bool freeHasB = true;
+
+        for(char index: allIndices)
+        {
+            size_t aIndex = a.find(index);
+            size_t bIndex = b.find(index);
+            size_t cIndex = c.find(index);
+            size_t dIndex = d.find(index);
+
+            if(aIndex != std::string::npos && bIndex != std::string::npos
+            && cIndex != std::string::npos && dIndex != std::string::npos)
+            {
+                batch.push_back(BatchIndex{aIndex, bIndex, cIndex, dIndex});
+            }
+            else if(aIndex != std::string::npos && bIndex != std::string::npos
+                 && cIndex == std::string::npos && dIndex == std::string::npos)
+            {
+                bound.push_back(BoundIndex{aIndex, bIndex});
+            }
+            else if(aIndex != std::string::npos && bIndex == std::string::npos
+                 && cIndex != std::string::npos && dIndex != std::string::npos)
+            {
+                if(freeHasA && freeHasB)
+                {
+                    free.resize(free.size()+1);
+                    freeHasB = false;
+                }
+                else if(freeHasA)
+                {
+                    throw std::runtime_error(concatenate("Inconsistent free index pairing: ", identifier));
+                }
+
+                free.back().a = aIndex;
+                free.back().ca = cIndex;
+                free.back().da = dIndex;
+                freeHasA = true;
+            }
+            else if(aIndex == std::string::npos && bIndex != std::string::npos
+                 && cIndex != std::string::npos && dIndex != std::string::npos)
+            {
+                if(freeHasA && freeHasB)
+                {
+                    free.resize(free.size()+1);
+                    freeHasA = false;
+                }
+                else if(freeHasB)
+                {
+                    throw std::runtime_error(concatenate("Inconsistent free index pairing: ", identifier));
+                }
+
+                free.back().b = bIndex;
+                free.back().cb = cIndex;
+                free.back().db = dIndex;
+                freeHasB = true;
+            }
+        }
+        freeIndices  = std::move(free);
+        batchIndices = std::move(batch);
+        boundIndices = std::move(bound);
+    }
+
+    ContractionProblem ContractionProblem::FromIndexSizes(
+            std::string const& operationIdentifier,
+            std::vector<size_t> const& indexSizes,
+            DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
+            DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
+            DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
+            DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
+            double beta)
+    {
+        FreeIndices freeIndices;
+        BatchIndices batchIndices;
+        BoundIndices boundIndices;
+
+        IdentifierToIndices(operationIdentifier, 
+                            freeIndices,
+                            batchIndices,
+                            boundIndices);
+
+        return FromIndexSizes(freeIndices, batchIndices, boundIndices,
+                              indexSizes,
+                              aType, aStrides, aOps,
+                              bType, bStrides, bOps,
+                              cType, cStrides, cOps,
+                              dType, dStrides, dOps,
+                              beta);
+    }
+
     ContractionProblem ContractionProblem::FromIndexSizes(
             FreeIndices const& freeIndices,
             BatchIndices const& batchIndices,
@@ -232,8 +380,8 @@ namespace Tensile
 
         for(auto const& free: freeIndices)
         {
-            size_t indexSizeA = indexSizes[free.da];
-            size_t indexSizeB = indexSizes[free.db];
+            size_t indexSizeA = indexSizes.at(free.da);
+            size_t indexSizeB = indexSizes.at(free.db);
 
             aSizes[free.a] = indexSizeA;
             bSizes[free.b] = indexSizeB;
@@ -247,7 +395,7 @@ namespace Tensile
 
         for(auto const& batch: batchIndices)
         {
-            size_t indexSize = indexSizes[batch.d];
+            size_t indexSize = indexSizes.at(batch.d);
 
             aSizes[batch.a] = indexSize;
             bSizes[batch.b] = indexSize;
@@ -257,8 +405,8 @@ namespace Tensile
 
         for(auto const& bound: boundIndices)
         {
-            size_t indexIdx = dSizes.size() + bound.a;
-            size_t indexSize = indexSizes[indexIdx];
+            size_t indexIdx = dSizes.size() + bound.a - 1;
+            size_t indexSize = indexSizes.at(indexIdx);
             
             aSizes[bound.a] = indexSize;
             bSizes[bound.b] = indexSize;

@@ -26,9 +26,11 @@
 
 #pragma once
 
+#include <array>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
-#include <array>
+#include <type_traits>
 
 namespace Tensile
 {
@@ -42,6 +44,31 @@ namespace Tensile
     T RoundUpToMultiple(T val, T den)
     {
         return CeilDivide(val, den) * den;
+    }
+
+    template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>>
+    T IsPrime(T val)
+    {
+        if(val < 2)
+            return false;
+        if(val < 4)
+            return true;
+
+        T end = sqrt(val);
+
+        for(T i = 2; i <= end; i++)
+            if(val % i == 0)
+                return false;
+        return true;
+    }
+
+    template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>>
+    T NextPrime(T val)
+    {
+        if(val < 2)
+            return 2;
+        while(!IsPrime(val)) val++;
+        return val;
     }
 
     template <typename Container, typename Joiner>

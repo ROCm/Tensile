@@ -26,9 +26,16 @@
 
 #include <Tensile/Tensile.hpp>
 #include <Tensile/Contractions.hpp>
+#include <Tensile/EmbeddedLibrary.hpp>
+#include <Tensile/hip/HipSolutionAdapter.hpp>
+#include <Tensile/hip/HipHardware.hpp>
+#include <Tensile/hip/HipUtils.hpp>
 
 #include "ClientProblemFactory.hpp"
 #include "DataInitialization.hpp"
+#include "MetaRunListener.hpp"
+#include "ReferenceValidator.hpp"
+#include "ResultReporter.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -36,128 +43,222 @@
 
 namespace po = boost::program_options;
 
-po::options_description all_options()
+namespace Tensile
 {
-    po::options_description options("Tensile client options");
-
-    options.add_options()
-        ("help,h", "Show help message.")
-
-        ("library-file",             po::value<std::string>(), "Load a (YAML) solution library.  If not specified, we will use "
-                                                               "the embedded library, if available.")
-        ("code-object,c",            po::value<std::vector<std::string>>(), "Code object file with kernel(s).  If none are "
-                                                                            "specified, we will use the embedded code "
-                                                                            "object(s) if available.")
-
-        ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
-                                                               "this or free/batch/bound must be specified.")
-        ("free",                     po::value<Tensile::ContractionProblem::FreeIndices>(),  "Free index. Order: a,b,ca,cb,da,db")
-        ("batch",                    po::value<Tensile::ContractionProblem::BatchIndices>(), "Batch index. Order: a,b,c,d")
-        ("bound",                    po::value<Tensile::ContractionProblem::BoundIndices>(), "Bound/summation index. Order: a,b")
-
-        ("type",                     po::value<Tensile::DataType>(), "Data type")
-        ("a-type",                   po::value<Tensile::DataType>(), "A data type")
-        ("b-type",                   po::value<Tensile::DataType>(), "B data type")
-        ("c-type",                   po::value<Tensile::DataType>(), "C data type")
-        ("d-type",                   po::value<Tensile::DataType>(), "D data type")
-        ("alpha-type",               po::value<Tensile::DataType>(), "alpha data type")
-        ("beta-type",                po::value<Tensile::DataType>(), "beta data type")
-
-        ("init-a",                   po::value<int>()->default_value(3), "Initialization for A")
-        ("init-b",                   po::value<int>()->default_value(3), "Initialization for B")
-        ("init-c",                   po::value<int>()->default_value(3), "Initialization for C")
-        ("init-d",                   po::value<int>()->default_value(0), "Initialization for D")
-        ("init-alpha",               po::value<int>()->default_value(2), "Initialization for alpha")
-        ("init-beta",                po::value<int>()->default_value(2), "Initialization for beta")
-        ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
-
-        ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")
-        ("print-max",                po::value<int>()->default_value(0), "Max number of values to print")
-        ("num-elements-to-validate", po::value<int>()->default_value(0), "Number of elements to validate")
-
-        ("device-idx",               po::value<int>()->default_value(0), "Device index")
-        ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
-
-        ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run") 
-        ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync")
-        ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
-        ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
-        ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
-
-        ("problem-size,p",           po::value<std::vector<std::string>>(), "Specify a problem size.  Comma-separated list of "
-                                                                            "sizes, in the order of the Einstein notation.")
-
-        ("a-strides",                po::value<std::vector<std::string>>(), "A strides. Unspecified means no padding, "
-                                                                            "specifying once applies to all problem sizes, "
-                                                                            "otherwise specify once per problem size.")
-
-        ("b-strides",                po::value<std::vector<std::string>>(), "B strides. Unspecified means no padding, "
-                                                                            "specifying once applies to all problem sizes, "
-                                                                            "otherwise specify once per problem size.")
-
-        ("c-strides",                po::value<std::vector<std::string>>(), "C strides. Unspecified means no padding, "
-                                                                            "specifying once applies to all problem sizes, "
-                                                                            "otherwise specify once per problem size.")
-
-        ("d-strides",                po::value<std::vector<std::string>>(), "D strides. Unspecified means no padding, "
-                                                                            "specifying once applies to all problem sizes, "
-                                                                            "otherwise specify once per problem size.")
-
-        ("solution-start-idx",       po::value<int>()->default_value(0),  "First solution to run")
-        ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run");
-
-    return options;
-}
-
-std::vector<int> split_ints(std::string const& value)
-{
-    std::vector<std::string> parts;
-    boost::split(parts, value, boost::algorithm::is_any_of(","));
-
-    std::vector<int> rv;
-    rv.reserve(parts.size());
-
-    for(auto const& part: parts)
-        rv.push_back(boost::lexical_cast<int>(part));
-
-    return rv;
-}
-
-void parse_arg_ints(po::variables_map & args, std::string const& name)
-{
-    auto const& inValue = args[name].as<std::vector<std::string>>();
-
-    std::vector<std::vector<int>> outValue;
-    outValue.reserve(inValue.size());
-    for(auto const& str: inValue)
-        outValue.push_back(split_ints(str));
-
-    boost::any v(outValue);
-
-    args.at(name).value() = v;
-}
-
-po::variables_map parse_args(int argc, const char * argv[])
-{
-    auto options = all_options();
-
-    po::variables_map args;
-    po::store(po::parse_command_line(argc, argv, options), args);
-    po::notify(args);
-
-    if(args.count("help"))
+    namespace Client
     {
-        std::cout << options << std::endl;
-        exit(1);
+
+        template <typename T>
+        po::typed_value<T> * value_default(std::string const& desc)
+        {
+            return po::value<T>()->default_value(T(), desc);
+        }
+
+        template <typename T>
+        po::typed_value<T> * value_default()
+        {
+            return po::value<T>()->default_value(T());
+        }
+
+        template <typename T>
+        po::typed_value<std::vector<T>> * vector_default_empty()
+        {
+            return value_default<std::vector<T>>("[]");
+        }
+
+        po::options_description all_options()
+        {
+            po::options_description options("Tensile client options");
+
+            options.add_options()
+                ("help,h", "Show help message.")
+
+                ("library-file",             po::value<std::string>(), "Load a (YAML) solution library.  If not specified, we will use "
+                                                                       "the embedded library, if available.")
+                ("code-object,c",            vector_default_empty<std::string>(), "Code object file with kernel(s).  If none are "
+                                                                                  "specified, we will use the embedded code "
+                                                                                  "object(s) if available.")
+
+                ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
+                                                                       "this or free/batch/bound must be specified.")
+                ("free",                     value_default<ContractionProblem::FreeIndices>("[]"),  "Free index. Order: a,b,ca,cb,da,db")
+                ("batch",                    value_default<ContractionProblem::BatchIndices>("[]"), "Batch index. Order: a,b,c,d")
+                ("bound",                    value_default<ContractionProblem::BoundIndices>("[]"), "Bound/summation index. Order: a,b")
+
+                ("type",                     po::value<DataType>()->default_value(DataType::Count), "Data type")
+                ("a-type",                   po::value<DataType>()->default_value(DataType::Count), "A data type")
+                ("b-type",                   po::value<DataType>()->default_value(DataType::Count), "B data type")
+                ("c-type",                   po::value<DataType>()->default_value(DataType::Count), "C data type")
+                ("d-type",                   po::value<DataType>()->default_value(DataType::Count), "D data type")
+                ("alpha-type",               po::value<DataType>()->default_value(DataType::Count), "alpha data type")
+                ("beta-type",                po::value<DataType>()->default_value(DataType::Count), "beta data type")
+
+                ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
+                ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")
+                ("init-c",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for C")
+                ("init-d",                   po::value<InitMode>()->default_value(InitMode::Zero), "Initialization for D")
+                ("init-alpha",               po::value<InitMode>()->default_value(InitMode::Two), "Initialization for alpha")
+                ("init-beta",                po::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
+                ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
+
+                ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")
+                ("print-max",                po::value<int>()->default_value(-1), "Max number of values to print")
+                ("num-elements-to-validate", po::value<int>()->default_value(0), "Number of elements to validate")
+
+                ("print-tensor-a",           po::value<bool>()->default_value(false), "Print tensor A.")
+                ("print-tensor-b",           po::value<bool>()->default_value(false), "Print tensor B.")
+                ("print-tensor-c",           po::value<bool>()->default_value(false), "Print tensor C.")
+                ("print-tensor-d",           po::value<bool>()->default_value(false), "Print tensor D.")
+
+                ("device-idx",               po::value<int>()->default_value(0), "Device index")
+                ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
+
+                ("num-warmups",              po::value<int>()->default_value(1), "Number of benchmarks to run") 
+                ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run") 
+                ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync")
+                ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
+                ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
+                ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
+
+                ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
+                                                                                  "sizes, in the order of the Einstein notation.")
+
+                ("a-strides",                vector_default_empty<std::string>(), "A strides. Unspecified means no padding, "
+                                                                                  "specifying once applies to all problem sizes, "
+                                                                                  "otherwise specify once per problem size.")
+
+                ("b-strides",                vector_default_empty<std::string>(), "B strides. Unspecified means no padding, "
+                                                                                  "specifying once applies to all problem sizes, "
+                                                                                  "otherwise specify once per problem size.")
+
+                ("c-strides",                vector_default_empty<std::string>(), "C strides. Unspecified means no padding, "
+                                                                                  "specifying once applies to all problem sizes, "
+                                                                                  "otherwise specify once per problem size.")
+
+                ("d-strides",                vector_default_empty<std::string>(), "D strides. Unspecified means no padding, "
+                                                                                  "specifying once applies to all problem sizes, "
+                                                                                  "otherwise specify once per problem size.")
+
+                ("solution-start-idx",       po::value<int>()->default_value(0),  "First solution to run")
+                ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run");
+
+            return options;
+        }
+
+        std::shared_ptr<Hardware> GetHardware(po::variables_map const& args)
+        {
+            HIP_CHECK_EXC(hipSetDevice(args["device-idx"].as<int>()));
+
+            return hip::GetCurrentDevice();
+        }
+
+        std::shared_ptr<SolutionLibrary<ContractionProblem>>
+        LoadSolutionLibrary(po::variables_map const& args)
+        {
+            auto filename = args["library-file"];
+            if(!filename.empty())
+            {
+                return LoadLibraryFile<ContractionProblem>(filename.as<std::string>());
+            }
+
+            return EmbeddedLibrary<ContractionProblem>::Get();
+        }
+
+        void LoadCodeObjects(po::variables_map const& args, hip::SolutionAdapter & adapter)
+        {
+            auto const& filenames = args["code-object"].as<std::vector<std::string>>();
+
+            if(filenames.empty())
+            {
+                adapter.loadEmbeddedCodeObjects();
+            }
+            else
+            {
+                for(auto const& filename: filenames)
+                {
+                    std::cout << "Loading " << filename << std::endl;
+                    adapter.loadCodeObjectFile(filename);
+                }
+            }
+        }
+
+        std::vector<size_t> split_ints(std::string const& value)
+        {
+            std::vector<std::string> parts;
+            boost::split(parts, value, boost::algorithm::is_any_of(","));
+
+            std::vector<size_t> rv;
+            rv.reserve(parts.size());
+
+            for(auto const& part: parts)
+                rv.push_back(boost::lexical_cast<size_t>(part));
+
+            return rv;
+        }
+
+        void parse_arg_ints(po::variables_map & args, std::string const& name)
+        {
+            //if(args[name].empty())
+            //    return;
+
+            auto inValue = args[name].as<std::vector<std::string>>();
+
+            std::vector<std::vector<size_t>> outValue;
+            outValue.reserve(inValue.size());
+            for(auto const& str: inValue)
+                outValue.push_back(split_ints(str));
+
+            boost::any v(outValue);
+
+            args.at(name).value() = v;
+        }
+
+        void fix_data_types(po::variables_map & args)
+        {
+            auto type = args["type"].as<DataType>();
+
+            // These types use the same data type for all inputs/outputs, so we allow using the overarching 'type' parameter.
+            if(type == DataType::Float
+            || type == DataType::Double
+            || type == DataType::ComplexFloat
+            || type == DataType::ComplexDouble
+            || type == DataType::Int32)
+            {
+                args.at("a-type").value()     = boost::any(type);
+                args.at("b-type").value()     = boost::any(type);
+                args.at("c-type").value()     = boost::any(type);
+                args.at("d-type").value()     = boost::any(type);
+                args.at("alpha-type").value() = boost::any(type);
+                args.at("beta-type").value()  = boost::any(type);
+            }
+        }
+
+        po::variables_map parse_args(int argc, const char * argv[])
+        {
+            auto options = all_options();
+
+            po::variables_map args;
+            po::store(po::parse_command_line(argc, argv, options), args);
+            po::notify(args);
+
+            if(args.count("help"))
+            {
+                std::cout << options << std::endl;
+                exit(1);
+            }
+
+            fix_data_types(args);
+
+            parse_arg_ints(args, "problem-size");
+            parse_arg_ints(args, "a-strides");
+            parse_arg_ints(args, "b-strides");
+            parse_arg_ints(args, "c-strides");
+            parse_arg_ints(args, "d-strides");
+
+            return args;
+        }
+
     }
-
-    parse_arg_ints(args, "problem_size");
-    parse_arg_ints(args, "a-strides");
-    parse_arg_ints(args, "b-strides");
-    parse_arg_ints(args, "c-strides");
-    parse_arg_ints(args, "d-strides");
-
-    return args;
 }
 
 int main(int argc, const char * argv[])
@@ -169,10 +270,63 @@ int main(int argc, const char * argv[])
 
     ClientProblemFactory problemFactory(args);
 
+    auto hardware = GetHardware(args);
+
+    auto library = LoadSolutionLibrary(args);
+    Tensile::hip::SolutionAdapter adapter;
+    LoadCodeObjects(args, adapter);
+
     auto dataInit = DataInitialization::Get(args, problemFactory);
 
-    auto gpuInputs = dataInit->prepareGPUInputs();
+    MetaRunListener listeners;
+    listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
 
-    return 0;
+    auto reporter = std::make_shared<MetaResultReporter>();
+    reporter->addReporter(std::shared_ptr<LogReporter>(new LogReporter(LogLevel::Debug, {"operation", "solution", "validation"}, std::cout)));
+    
+    listeners.setReporter(reporter);
+
+    //ReferenceValidator validator(args, dataInit);
+    //BenchmarkTimer timer(args);
+
+    for(auto const& problem: problemFactory.problems())
+    {
+        std::cout << "Problem: " << problem.operationDescription() << std::endl;
+        std::cout << "a: " << problem.a() << std::endl;
+        std::cout << "b: " << problem.b() << std::endl;
+        std::cout << "c: " << problem.c() << std::endl;
+        std::cout << "d: " << problem.d() << std::endl;
+
+        listeners.setUpProblem(problem);
+        
+        auto solutions = library->findAllSolutions(problem, *hardware);
+        for(auto solution: solutions)
+        {
+            auto inputs = dataInit->prepareGPUInputs();
+
+            listeners.setUpSolution(*solution);
+
+            while(listeners.needsMoreRunsInSolution())
+            {
+                bool isWarmup = listeners.isWarmupRun();
+
+                auto kernels = solution->solve(problem, *inputs, *hardware);
+
+                listeners.setUpRun(isWarmup);
+                adapter.launchKernels(kernels);
+                listeners.tearDownRun();
+
+                listeners.validate(inputs);
+            }
+
+            listeners.tearDownSolution();
+        }
+
+        listeners.tearDownProblem();
+    }
+
+    listeners.report();
+
+    return listeners.error();
 }
 

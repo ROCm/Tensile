@@ -121,8 +121,8 @@ namespace Tensile
             }
 
             throw std::runtime_error(concatenate("Invalid combination of data types: ",
-                                                 "a: ", aType, "b: ", bType, "c: ", cType, "d: ", dType,
-                                                 "alpha: ", alphaType, "beta: ", betaType));
+                                                 "a: ", aType, ", b: ", bType, ", c: ", cType, ", d: ", dType,
+                                                 ", alpha: ", alphaType, ", beta: ", betaType));
         }
 
         DataInitialization::DataInitialization(po::variables_map const& args, ClientProblemFactory const& problemFactory)

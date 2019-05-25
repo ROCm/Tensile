@@ -2,9 +2,11 @@
 set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
 set(client_sources
-    Reference.cpp
+    ClientProblemFactory.cpp
     DataInitialization.cpp
-    ClientProblemFactory.cpp)
+    Reference.cpp
+    ReferenceValidator.cpp
+    )
 
 find_package(Boost COMPONENTS program_options)
 

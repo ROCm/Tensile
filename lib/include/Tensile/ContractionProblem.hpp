@@ -98,9 +98,22 @@ namespace Tensile
                                        TensorDescriptor const& d, TensorOps const& dOps,
                                        double beta);
 
+        static void IdentifierToIndices(std::string  const& identifier, 
+                                        FreeIndices       & freeIndices,
+                                        BatchIndices      & batchIndices,
+                                        BoundIndices      & boundIndices);
+
         static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
                                                  BatchIndices const& batchIndices,
                                                  BoundIndices const& boundIndices,
+                                                 std::vector<size_t> const& indexSizes,
+                                                 DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
+                                                 DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
+                                                 DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
+                                                 DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
+                                                 double beta);
+
+        static ContractionProblem FromIndexSizes(std::string const& operationIdentifier,
                                                  std::vector<size_t> const& indexSizes,
                                                  DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
                                                  DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,

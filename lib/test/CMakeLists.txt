@@ -16,6 +16,7 @@ set(test_sources ${test_sources}
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     TensorDescriptor_test.cpp
+    Utils_test.cpp
 )
 
 if(USE_LLVM)

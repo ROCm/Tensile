@@ -46,6 +46,10 @@ namespace Tensile
               m_cStrides(args["c-strides"].as<std::vector<std::vector<size_t>>>()),
               m_dStrides(args["d-strides"].as<std::vector<std::vector<size_t>>>())
         {
+            if(args.count("problem-identifier"))
+                ContractionProblem::IdentifierToIndices(args["problem-identifier"].as<std::string>(),
+                                                        m_freeIndices, m_batchIndices, m_boundIndices);
+
             if(args.count("type"))
             {
                 m_aType = m_bType = m_cType = m_dType = m_alphaType = m_betaType = args["type"].as<DataType>();

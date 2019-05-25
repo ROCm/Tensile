@@ -25,10 +25,66 @@
 
 #include <Tensile/ContractionProblem.hpp>
 
+#include <Tensile/DataTypes.hpp>
+
 namespace Tensile
 {
     namespace Client
     {
+        template <typename T>
+        inline bool AlmostEqual(T a, T b);
+
+        template<>
+        inline bool AlmostEqual(Half a, Half b)
+        {
+            Half absA = (a > 0) ? a : -a;
+            Half absB = (b > 0) ? b : -b;
+            Half absDiff = (a-b > 0) ? a-b : b-a;
+            return absDiff/(absA+absB+1) < 0.01;
+        }
+
+        template<>
+        inline bool AlmostEqual(BFloat16 a, BFloat16 b)
+        {
+            BFloat16 absA = (a > static_cast<BFloat16>(0.0f)) ? a : static_cast<BFloat16>(0.0f) - a;
+            BFloat16 absB = (b > static_cast<BFloat16>(0.0f)) ? b : static_cast<BFloat16>(0.0f) - b;
+            BFloat16 absDiff = (a-b > static_cast<BFloat16>(0.0f)) ? a-b : b-a;
+            return absDiff/(absA+absB+static_cast<BFloat16>(1.0f)) < static_cast<BFloat16>(0.1f);
+        }
+
+        template<>
+        inline bool AlmostEqual(float a, float b)
+        {
+            return std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.0001; // 7 digits of precision - 2
+        }
+
+        template<>
+        inline bool AlmostEqual(double a, double b)
+        {
+            return std::fabs(a - b) / ( std::fabs(a) + std::fabs(b)+1 ) < 0.000000000001; // 15 digits of precision - 2
+        }
+        template<>
+        inline bool AlmostEqual(int a, int b)
+        {
+            return a == b;
+        }
+        template<>
+        inline bool AlmostEqual(unsigned int a, unsigned int b)
+        {
+            return a == b;
+        }
+        template<>
+        inline bool AlmostEqual( std::complex<float> a, std::complex<float> b)
+        {
+            return AlmostEqual(a.real(), b.real()) && AlmostEqual(a.imag(), b.imag());
+        }
+
+        template<>
+        inline bool AlmostEqual( std::complex<double> a, std::complex<double> b)
+        {
+            return AlmostEqual(a.real(), b.real()) && AlmostEqual(a.imag(), b.imag());
+        }
+
         template <typename Inputs>
         struct ReferenceSolution
         {
