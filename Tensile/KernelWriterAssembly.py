@@ -2790,7 +2790,7 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += dump(vgpr(tmp)) # numerator
 
         kStr += scalarStaticDivideAndRemainder("WorkGroup1", "GSUSumIdx", \
-            divisor, kernel["GlobalSplitU"], tmpSgpr, True)
+            divisor, kernel["GlobalSplitU"], tmpSgpr, 1)
 
         #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup1"), "wg1")
         #kStr += dump(vgpr(tmp)) # quotient
@@ -4117,7 +4117,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       # size % DepthU
-      kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounter, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, True)
+      kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounter, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
 
 
       if kernel["LocalSplitU"] > 1:
@@ -4125,7 +4125,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", sgpr(loopCounter), hex(kernel["LocalSplitU"]-1), sgpr(loopCounter), "(size % DepthU) + LSU - 1" )
         dividend = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
-        kStr += scalarStaticDivideAndRemainder( loopCounter, None, dividend, kernel["LocalSplitU"], tmpSgpr, False)
+        kStr += scalarStaticDivideAndRemainder( loopCounter, None, dividend, kernel["LocalSplitU"], tmpSgpr, 0)
 
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:
@@ -4153,7 +4153,7 @@ class KernelWriterAssembly(KernelWriter):
       quotient = loopCounter
       dividend = "SizesSum+%u"%loopIdx
       divisor = kernel["DepthU"]
-      kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, False)
+      kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
@@ -4163,7 +4163,7 @@ class KernelWriterAssembly(KernelWriter):
         dividend = tmpSgpr+2 # numIterMyWg
         divisor = kernel["GlobalSplitU"]
         kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
-        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, True)
+        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
 
         # if gsuSumIdx < numIterPerWgRemainder
         kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
@@ -6534,7 +6534,7 @@ class KernelWriterAssembly(KernelWriter):
       #--
       kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
       kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+0", \
-          kernel["MacroTile0"], tmpS45, True)
+          kernel["MacroTile0"], tmpS45, 2)
       # s23 = nwg0-1
       kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
       kStr += inst("s_cmp_ge_u32", sgpr(wg0), sgpr(tmpS23), "wg0 >= nwg0-1 ?")
@@ -6556,7 +6556,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # s23 = rMT1 = Size1 % MT1
       kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+1", \
-          kernel["MacroTile1"], tmpS45, True)
+          kernel["MacroTile1"], tmpS45, 2)
       # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
 
       # s23 = nwg1-1
@@ -8384,16 +8384,19 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
   return kStr
 
 # only used for loop unroll and GlobalSplitU
+# doRemainder==1 : compute remainder
+# doRemainder==2 : only compute remainder (not quotient unless required for remainder)
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
-    doRemainder=True):
+    doRemainder=1):
 
   assert (qReg != tmpSgpr)
 
   kStr = ""
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
-    kStr += inst("s_lshr_b32", sgpr(qReg), sgpr(dReg), divisor_log2, \
-        "%s = %s / %u"%(sgpr(qReg), sgpr(dReg), divisor) )
+    if doRemainder != 2:
+      kStr += inst("s_lshr_b32", sgpr(qReg), sgpr(dReg), divisor_log2, \
+          "%s = %s / %u"%(sgpr(qReg), sgpr(dReg), divisor) )
     if doRemainder:
       kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), sgpr(dReg), \
           "%s = %s %% %u"%(sgpr(rReg), sgpr(dReg), divisor) )
