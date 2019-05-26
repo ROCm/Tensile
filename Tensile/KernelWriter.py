@@ -799,7 +799,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
-          macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"] ))
+          macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
         subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                           self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
@@ -891,7 +891,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # which waited for this ds_read
       if self.enable["MAC"]:
         luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
-        macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"]))
+        macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True))
 
       subIterCode = self.makeSubIterSchedule(kernel, localReads,
                             self.perIterGlobalReadCode[unrollIter],
@@ -943,7 +943,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               "7wait for local read"))
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
-          kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"] ))
+          kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], False ))
       kl.append(self.closeSumAtLeastUnroll(kernel, False))
 
 
@@ -1022,7 +1022,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
       if self.enable["MAC"]:
-        kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll))
+        kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
 
       # tail: close
       kl.append(self.closeLoop(kernel, -1, True))
@@ -1949,9 +1949,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
   ##############################################################################
   # MAC Iteration
+  # useMacro : if true, call the MAC* macro. If False, inline the MACs 
   ##############################################################################
   @abc.abstractmethod
-  def macIter(self, kernel, bufferIdx, iuiCount):
+  def macIter(self, kernel, bufferIdx, iuiCount, useMacro):
     return ""
 
   ##############################################################################

@@ -1782,7 +1782,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, black, iuiCount):
+  def macIter(self, kernel, black, iuiCount, useMacro):
     kStr = ""
     for iui in range(0,iuiCount):
         kStr += "%sMAC_%ux%u" % (self.indent, \
