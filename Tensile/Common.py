@@ -274,6 +274,13 @@ validParameters = {
     # than as a separate block of instructions
     "InterleaveAlpha":              [0, 1],
 
+    # Create a copy of NoLoadLoop which interleaves the stores with the final mac
+    # calculation.
+    # 0 = no interleave
+    # 1 = interleave one stores after required macs have completed execution
+    # 2 = interleave two stores after required macs have completed execution
+    "InterleaveStoresInNoLoadLoop": [0, 1, 2],
+
     # Prefetch across persistent kernel iterations - the no-load-loop computes the 
     # tile assignment and next global read offset and launches the buffer loads for
     # the next tile in the sequence.
@@ -681,6 +688,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
+    {"InterleaveStoresInNoLoadLoop": [ 0 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
