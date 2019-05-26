@@ -6523,15 +6523,6 @@ class KernelWriterAssembly(KernelWriter):
 
       # check edge0 ###
 
-      # s01 = rMT0
-      if 1: # TODO - not needed, but seems to help performance:
-        kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT0=0" )
-
-      # s23 = nwg0-1
-      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
-      kStr += inst("s_cmp_lt_u32", sgpr(wg0), sgpr(tmpS23), "wg0 < nwg0-1")
-      kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck0"], \
-          "wg0 < nwg0-1 so skip rMT0 = Size0 % MT0")
 
       # s23 = rMT0 = Size0 % MT0
       # TODO-packed #
@@ -6544,7 +6535,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
       kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+0", \
           kernel["MacroTile0"], tmpS45, True)
-      kStr += "label_%04u:%s"%(writeLabels[beta]["EdgeCheck0"], self.endLine)
+      # s23 = nwg0-1
+      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
+      kStr += inst("s_cmp_ge_u32", sgpr(wg0), sgpr(tmpS23), "wg0 >= nwg0-1 ?")
+      kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT0")
       # s01 now = myMT0 = wg0 < nwg0-1 ? MT0 : rMT0
 
       # if rMT0 > 0 goto label_B?_E1
@@ -6560,20 +6554,15 @@ class KernelWriterAssembly(KernelWriter):
       # change would be similar to above - multiply by product of packed sizes in C1
       # --
 
-      # s01 = rMT1
-      kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT1=0" )
-
-      # s23 = nwg1-1
-      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
-      kStr += inst("s_cmp_lt_u32", sgpr(wg1), sgpr(tmpS23), "wg1 < nwg1-1")
-      kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck1"], \
-          "wg1 < nwg1-1 so skip rMT1 = Size1 % MT1")
-
       # s23 = rMT1 = Size1 % MT1
       kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+1", \
           kernel["MacroTile1"], tmpS45, True)
-      kStr += "label_%04u:%s"%(writeLabels[beta]["EdgeCheck1"], self.endLine)
       # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
+
+      # s23 = nwg1-1
+      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
+      kStr += inst("s_cmp_ge_u32", sgpr(wg1), sgpr(tmpS23), "wg1 >= nwg1-1")
+      kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT1")
 
       # if rMT1 > 0 goto label_B?_E1
       if self.do["EdgeWrite"]:
