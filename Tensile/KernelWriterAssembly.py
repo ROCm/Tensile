@@ -4484,8 +4484,10 @@ class KernelWriterAssembly(KernelWriter):
             "skip prefetch loads since numIter==0")
     elif isOptNLL:
       skipOptNLL = self.getLabelName("OptNLL_End")
-
       tmpSgpr = self.getTmpSgpr(6)
+
+      kStr += self.checkIsBetaZero(kernel, tmpSgpr, skipOptNLL)
+
       kStr += self.checkIsEdge(kernel, tmpSgpr, skipOptNLL)
 
 
@@ -6449,6 +6451,25 @@ class KernelWriterAssembly(KernelWriter):
 
       return kStr
 
+  ##############################################################################
+  # checkIsBetaZero
+  # tmpSgpr is one temp sgpr
+  # betaLabel is label to branch to if beta != 0
+  ##############################################################################
+  def checkIsBetaZero(self, kernel, tmpSgpr, betaLabel):
+    kStr = ""
+    if kernel["ProblemType"]["UseBeta"]:
+      if self.bpeCinternal <= self.bpr: # 1 register to check for Beta==0
+        kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
+      else: # multiple registers to check for Beta==0
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("Beta+0"), "tmp = Beta[0]")
+        for i in range(1, self.bpeCinternal//self.bpr):
+          kStr += inst("s_or_b32", sgpr(tmpSgpr), sgpr("Beta+%u"%i), sgpr(tmpSgpr), "tmp |= Beta[%u] " % i)
+        kStr += inst("s_cmpk_eq_u32", sgpr(tmpSgpr), hex(0), "Beta == 0")
+      kStr += inst("s_cbranch_scc0 %s" % betaLabel, \
+          "Branch if Beta is not zero")
+      kStr += "\n"
+    return kStr
 
   ##############################################################################
   # checkIsEdge
@@ -6542,7 +6563,7 @@ class KernelWriterAssembly(KernelWriter):
         writeLabels[beta]["EdgeCheck1"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
         writeLabels[beta][edge] = self.getLabelNum("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
       if not beta:
-        betaLabel = self.getLabelNum("GW_Beta")
+        betaLabel = self.getLabelName("GW_Beta")
     endLabel = self.getLabelNum("GW_End")
 
     # Layout
@@ -6600,23 +6621,13 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(6)
 
     # branch B1 or B0
-    if kernel["ProblemType"]["UseBeta"]:
-      betaLabel = self.getLabelNum("GW_Beta")
-      if self.bpeCinternal <= self.bpr: # 1 register to check for Beta==0
-        kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
-      else: # multiple registers to check for Beta==0
-        kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("Beta+0"), "tmp = Beta[0]")
-        for i in range(1, self.bpeCinternal//self.bpr):
-          kStr += inst("s_or_b32", sgpr(tmpSgpr), sgpr("Beta+%u"%i), sgpr(tmpSgpr), "tmp |= Beta[%u] " % i)
-        kStr += inst("s_cmpk_eq_u32", sgpr(tmpSgpr), hex(0), "Beta == 0")
-      kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
-          "Beta is not zero; so jump to B nonzero")
-      kStr += "\n"
+    betaLabel = self.getLabelName("GW_Beta")
+    kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
 
     for beta in betas:
       # start B1
       if beta:
-        kStr += "label_%04u:%s"%(betaLabel, self.endLine)
+        kStr += "%s:\n"%(betaLabel)
 
       ########################################
       # branch if Edge0 or Edge1
