@@ -1795,7 +1795,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # At Least 1 Unroll
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch, isPap):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
     kStr = ""
     if kernel["GlobalSplitU"] > 1:
       kStr += "%sif (numIterMyWg >= 1) {%s" \
@@ -1806,7 +1806,7 @@ class KernelWriterSource(KernelWriter):
     self.indent += "  "
     return kStr
 
-  def closeSumAtLeastUnroll(self, kernel, prefetch):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s} // end %s%s" % \

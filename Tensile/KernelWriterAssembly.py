@@ -4464,9 +4464,10 @@ class KernelWriterAssembly(KernelWriter):
   # At Least 1 Unroll
   # prefetch means this is in the prefetch code, either before unroll loop
   # or in the PAP code.
-  # isPap means this is the PAP iteration, need to adjust the loop exit 
+  # isPap means this is the PAP iteration, need to adjust the loop exit
+  # isOptNLL : this is for the store-interleaved NLL optimization
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch, isPap):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
     kStr = ""
     if prefetch:
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
@@ -4479,15 +4480,22 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cbranch_scc1 label_%04u"\
             % self.getLabelNum("SkipPrefetchAcrossPersistent"), \
             "skip prefetch loads since numIter==0")
+    elif isOptNLL:
+      label = self.getLabelName("OptNLL_End")
+      kStr += inst("s_branch %s"%label, "skip the OptNLL")
     return kStr
 
   ##############################################################################
   ##############################################################################
-  def closeSumAtLeastUnroll(self, kernel, prefetch):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
     kStr = ""
     if not prefetch:
-      label = self.getLabelNum("PrefetchGlobalLastIterEnd")
-      kStr += "label_%04u:%s" % (label, self.endLine)
+      if isOptNLL:
+        label = self.getLabelName("OptNLL_End")
+        kStr += "%s:%s" % (label, self.endLine)
+      else:
+        label = self.getLabelNum("PrefetchGlobalLastIterEnd")
+        kStr += "label_%04u:%s" % (label, self.endLine)
     return kStr
 
 
@@ -5352,6 +5360,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Local Read: Reset Offsets A/B
   # x % n == n & (n-1) for n power of 2
+  # tP[localReadOffset] maintains running count of offsets
   ##############################################################################
   def localReadResetOffsets(self, kernel, tP):
     tc=tP["tensorChar"]
@@ -5481,6 +5490,24 @@ class KernelWriterAssembly(KernelWriter):
       localReadCode.append(self.bomb(self.localReadDoCnt + 10, tmpVgpr+1))
       self.vgprPool.checkIn(tmpVgpr)
     return imod
+
+  ##############################################################################
+  # Save the local read pointers, for example when creating a duplicated
+  # optimized path (like optNLL)
+  ##############################################################################
+  def saveLocalPointers(self, kernel):
+    self.tPA["savedLocalReadOffset"] = self.tPA["localReadOffset"]
+    self.tPB["savedLocalReadOffset"] = self.tPB["localReadOffset"]
+
+  ##############################################################################
+  # Restore the saved local read pointers
+  # Must be paired with an earlier call to savePointers
+  ##############################################################################
+  def restoreLocalPointers(self, kernel):
+    self.tPA["localReadOffset"] = self.tPA["savedLocalReadOffset"]
+    self.tPB["localReadOffset"] = self.tPB["savedLocalReadOffset"]
+    del self.tPA["savedLocalReadOffset"]
+    del self.tPB["savedLocalReadOffset"]
 
   ##############################################################################
   # Shift Vector Components d0,1

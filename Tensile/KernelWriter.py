@@ -500,7 +500,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["PrefetchGlobalRead"]:
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
-      kl.append(self.openSumAtLeastUnroll(kernel, True, isPap))
+      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=False))
       if self.enable["GlobalRead"]:
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
@@ -510,6 +510,53 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     kl.append(self.comment3("End setupNewTile"))
 
+    return kl
+
+  ##############################################################################
+  # noLoadLoop
+  # Create the no load loop (NLL)
+  #
+  # isOptNLL : the NLL is to be optimized for the alpha=1 and non-edge case
+  ##############################################################################
+  def noLoadLoop( self, kernel, tensorParametersA, tensorParametersB, isOptNLL ):
+    kl = []
+    pflr     = kernel["PrefetchLocalRead"]
+
+    kl.append(self.comment3("No Load Loop - Begin"))
+    if self.prefetchAcrossPersistent:
+      kl.append(self.openPrefetchAcrossPersistent(kernel))
+      kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
+      kl.append(self.closePrefetchAcrossPersistent(kernel))
+
+    kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isPap=False, \
+        isOptNLL=isOptNLL))
+    if not kernel["PrefetchLocalRead"]:
+      if self.enable["Wait"]:
+        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
+      if self.enable["Sync"]:
+        kl.append(self.syncThreads(kernel))
+    for u in range(0, kernel["LoopUnroll"]):
+      kl.append(self.comment("iter %u"%u))
+      plrIdx = (u+pflr) % (kernel["PrefetchLocalRead"] + 1)
+      for iui in range(0,kernel["InnerUnroll"]):
+        if self.enable["LocalRead"]:
+          if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+            kl.append(self.comment("local read a"))
+            kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
+            kl.append(self.comment("local read b"))
+            kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
+            kl.append(self.comment("local read inc a"))
+            kl.append(self.localReadInc(kernel, iui, tensorParametersA))
+            kl.append(self.comment("local read inc b"))
+            kl.append(self.localReadInc(kernel, iui, tensorParametersB))
+      if self.enable["Wait"]:
+        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
+            1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, \
+            "7wait for local read"))
+      if self.enable["MAC"]:
+        luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
+        kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], useMacro=not isOptNLL ))
+    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
     return kl
 
   ##############################################################################
@@ -619,7 +666,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 kl.append(self.localReadInc(kernel, iui, tensorParametersA))
                 kl.append(self.comment("local read inc b"))
                 kl.append(self.localReadInc(kernel, iui, tensorParametersB))
-      kl.append(self.closeSumAtLeastUnroll(kernel, True))
+      kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=False))
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
@@ -715,7 +762,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.closeString(kernel))
       kl.append(self.openString(kernel))
 
-      pf     = kernel["PrefetchLocalRead"]  # how many pf already done above
+      pflr     = kernel["PrefetchLocalRead"]  # how many pf already done above
 
       ############################################################################
       # unrolled loop: mac iterations
@@ -729,7 +776,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if isResetLroIter:
           extraComment = " (localWrite + swap local pointers iteration)"
         kl.append(self.comment("iter %u%s"%(u,extraComment)))
-        plrIdx = (u+pf) % (kernel["PrefetchLocalRead"]+1)
+        plrIdx = (u+pflr) % (kernel["PrefetchLocalRead"]+1)
 
 
         localReads = Code.Module()
@@ -828,7 +875,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             # local read
-            plrIdx = (unrollIter+pf) % (kernel["PrefetchLocalRead"] + 1)
+            plrIdx = (unrollIter+pflr) % (kernel["PrefetchLocalRead"] + 1)
             localReads.addText(self.comment("local read a"))
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
@@ -909,42 +956,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment3("Unrolled Loop - End"))
       kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop))
 
+
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
-      kl.append(self.comment3("No Load Loop - Begin"))
-      if self.prefetchAcrossPersistent:
-        kl.append(self.openPrefetchAcrossPersistent(kernel))
-        kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
-        kl.append(self.closePrefetchAcrossPersistent(kernel))
-      kl.append(self.comment("prefetch: last unrolled iteration"))
-      kl.append(self.openSumAtLeastUnroll(kernel, False, False))
-      if not kernel["PrefetchLocalRead"]:
-        if self.enable["Wait"]:
-          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
-        if self.enable["Sync"]:
-          kl.append(self.syncThreads(kernel))
-      for u in range(0, kernel["LoopUnroll"]):
-        kl.append(self.comment("iter %u"%u))
-        plrIdx = (u+pf) % (kernel["PrefetchLocalRead"] + 1)
-        for iui in range(0,kernel["InnerUnroll"]):
-          if self.enable["LocalRead"]:
-            if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
-              kl.append(self.comment("local read a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
-              kl.append(self.comment("local read b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
-              kl.append(self.comment("local read inc a"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersA))
-              kl.append(self.comment("local read inc b"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersB))
-        if self.enable["Wait"]:
-          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
-              1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, \
-              "7wait for local read"))
-        if self.enable["MAC"]:
-          luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
-          kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], False ))
-      kl.append(self.closeSumAtLeastUnroll(kernel, False))
+      if kernel["InterleaveStoresInNoLoadLoop"]:
+        self.saveLocalPointers(kernel)
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, True)
+        self.restoreLocalPointers(kernel)
+
+      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, False)
 
 
     ########################################
@@ -1959,11 +1979,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # At Least 1 Unroll
   ##############################################################################
   @abc.abstractmethod
-  def openSumAtLeastUnroll(self, kernel, prefetch):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
     return ""
 
   @abc.abstractmethod
-  def closeSumAtLeastUnroll(self, kernel, prefetch):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
     return ""
 
   ##############################################################################
