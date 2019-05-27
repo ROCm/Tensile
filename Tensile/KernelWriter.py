@@ -959,7 +959,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
-      if kernel["InterleaveStoresInNoLoadLoop"]:
+      if kernel["KernelLanguage"] == "Assembly" and kernel["OptNoLoadLoop"]:
         self.saveLocalPointers(kernel)
         kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, True)
         self.restoreLocalPointers(kernel)
