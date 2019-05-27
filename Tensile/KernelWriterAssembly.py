@@ -4409,6 +4409,8 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self, kernel):
     kStr = ""
 
+    kStr += "%s:\n" % self.getLabelName("Summation_End")
+
     kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
             (self.startVgprValuA, self.lastVgprForReads))
 
@@ -4481,8 +4483,12 @@ class KernelWriterAssembly(KernelWriter):
             % self.getLabelNum("SkipPrefetchAcrossPersistent"), \
             "skip prefetch loads since numIter==0")
     elif isOptNLL:
-      label = self.getLabelName("OptNLL_End")
-      kStr += inst("s_branch %s"%label, "skip the OptNLL")
+      skipOptNLL = self.getLabelName("OptNLL_End")
+
+      tmpSgpr = self.getTmpSgpr(6)
+      kStr += self.checkIsEdge(kernel, tmpSgpr, skipOptNLL)
+
+
     return kStr
 
   ##############################################################################
@@ -4491,6 +4497,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if not prefetch:
       if isOptNLL:
+        summationEnd = self.getLabelName("Summation_End")
+        kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
+
         label = self.getLabelName("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
       else:
@@ -6440,6 +6449,73 @@ class KernelWriterAssembly(KernelWriter):
 
       return kStr
 
+
+  ##############################################################################
+  # checkIsEdge
+  # tmpSgpr must have at least 6 free SGPR
+  # isEdgeTarget is the branch target if edges are required
+  ##############################################################################
+  def checkIsEdge(self, kernel, tmpSgpr, isEdgeTarget):
+    kStr = ""
+    tmpS01 = tmpSgpr
+    tmpS23 = tmpS01 + 2
+    tmpS45 = tmpS23 + 2
+
+    if self.prefetchAcrossPersistent:
+      wg0="PrevWorkGroup0"
+      wg1="PrevWorkGroup1"
+    else:
+      wg0="WorkGroup0"
+      wg1="WorkGroup1"
+
+    # check edge0 ###
+    # s23 = rMT0 = Size0 % MT0
+    # TODO-packed #
+    # something like:
+    # for idxChar in kernel["PackedC0Indices"]:
+    #   sizesFreeIndex = ord(idcChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
+    #   packedSize *= sgpr[SizedFree+%u"%sizesFreeIndex]
+    # May want to allocate an SGPR to save this value
+    #--
+    kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
+    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+0", \
+        kernel["MacroTile0"], tmpS45, 2)
+    # s23 = nwg0-1
+    kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
+    kStr += inst("s_cmp_ge_u32", sgpr(wg0), sgpr(tmpS23), "wg0 >= nwg0-1 ?")
+    kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT0")
+    # s01 now = myMT0 = wg0 < nwg0-1 ? MT0 : rMT0
+
+    # if rMT0 > 0 goto label_B?_E1
+    if self.do["EdgeWrite"]:
+      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT0 > 0")
+      if self.db["ForceEdgeStores"]:
+        kStr += inst("s_cmp_eq_u32", sgpr(tmpS01), sgpr(tmpS01), "ForceEdgeStores!")
+      kStr += inst("s_cbranch_scc1 %s" % isEdgeTarget, "jump if edges required")
+
+    # check edge1 ###
+    # TODO-packed - this only needs to change to handle packing into C1 index
+    # change would be similar to above - multiply by product of packed sizes in C1
+    # --
+
+    # s23 = rMT1 = Size1 % MT1
+    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+1", \
+        kernel["MacroTile1"], tmpS45, 2)
+    # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
+
+    # s23 = nwg1-1
+    kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
+    kStr += inst("s_cmp_ge_u32", sgpr(wg1), sgpr(tmpS23), "wg1 >= nwg1-1")
+    kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT1")
+
+    # if rMT1 > 0 goto label_B?_E1
+    if self.do["EdgeWrite"]:
+      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT1 > 0")
+      kStr += inst("s_cbranch_scc1 %s" % isEdgeTarget, "jump if edges required")
+
+    return kStr
+
+
   ##############################################################################
   # Global Write Elements
   ##############################################################################
@@ -6541,61 +6617,10 @@ class KernelWriterAssembly(KernelWriter):
       # start B1
       if beta:
         kStr += "label_%04u:%s"%(betaLabel, self.endLine)
-      tmpS01 = tmpSgpr
-      tmpS23 = tmpS01 + 2
-      tmpS45 = tmpS23 + 2
 
       ########################################
-      # branch E1 or E0
-
-      # check edge0 ###
-
-
-      # s23 = rMT0 = Size0 % MT0
-      # TODO-packed #
-      # something like:
-      # for idxChar in kernel["PackedC0Indices"]:
-      #   sizesFreeIndex = ord(idcChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
-      #   packedSize *= sgpr[SizedFree+%u"%sizesFreeIndex]
-      # May want to allocate an SGPR to save this value
-      #--
-      kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
-      kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+0", \
-          kernel["MacroTile0"], tmpS45, 2)
-      # s23 = nwg0-1
-      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
-      kStr += inst("s_cmp_ge_u32", sgpr(wg0), sgpr(tmpS23), "wg0 >= nwg0-1 ?")
-      kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT0")
-      # s01 now = myMT0 = wg0 < nwg0-1 ? MT0 : rMT0
-
-      # if rMT0 > 0 goto label_B?_E1
-      if self.do["EdgeWrite"]:
-        kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT0 > 0")
-        if self.db["ForceEdgeStores"]:
-          kStr += inst("s_cmp_eq_u32", sgpr(tmpS01), sgpr(tmpS01), "ForceEdgeStores!")
-        kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
-            "edges required so jump to E1")
-
-      # check edge1 ###
-      # TODO-packed - this only needs to change to handle packing into C1 index
-      # change would be similar to above - multiply by product of packed sizes in C1
-      # --
-
-      # s23 = rMT1 = Size1 % MT1
-      kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+1", \
-          kernel["MacroTile1"], tmpS45, 2)
-      # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
-
-      # s23 = nwg1-1
-      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
-      kStr += inst("s_cmp_ge_u32", sgpr(wg1), sgpr(tmpS23), "wg1 >= nwg1-1")
-      kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT1")
-
-      # if rMT1 > 0 goto label_B?_E1
-      if self.do["EdgeWrite"]:
-        kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT1 > 0")
-        kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
-            "edges required so jump to E1")
+      # branch if Edge0 or Edge1
+      kStr += self.checkIsEdge(kernel, tmpSgpr, "label_%04u" % writeLabels[beta][True])
 
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
