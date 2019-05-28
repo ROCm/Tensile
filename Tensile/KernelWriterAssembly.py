@@ -4488,7 +4488,40 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += self.checkIsBetaZero(kernel, tmpSgpr, skipOptNLL)
 
+      # check alpha
+      if self.do["ApplyAlpha"]:
+        if kernel["ProblemType"]["DataType"].isHalf():
+          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            kStr += inst("TODO", "packed f16 alpha")
+          else: # HPA
+            kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+        elif kernel["ProblemType"]["DataType"].isInt8x4():
+          kStr += inst("TODO", "packed int8 alpha")
+
+        elif kernel["ProblemType"]["DataType"].isSingle():
+            #kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
+          kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += inst("TODO", "double alpha")
+
+        kStr += inst("s_cbranch_scc0 %s"%skipOptNLL, "branch if alpha != 1")
+        kStr += "\n"
+
       kStr += self.checkIsEdge(kernel, tmpSgpr, skipOptNLL)
+      kStr += "\n"
+
+      # Check tail loop required:
+      loopCounter = "LoopCounters+%u"%self.unrollIdx
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+      kStr += scalarStaticDivideAndRemainder(tmpSgpr, tmpSgpr+1, "SizesSum+%u"%self.unrollIdx, \
+                kernel["DepthU"], tmpSgpr+2, 2)
+      kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+1), \
+          hex(0), "numIter%s == 0"%loopChar )
+      kStr += inst("s_cbranch_scc0 %s"%skipOptNLL, \
+          "skip if tail loop required")
+
 
 
     return kStr
