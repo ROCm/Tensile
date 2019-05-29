@@ -228,11 +228,11 @@ TEST_P(RunGEMMKernelTest, KernelsLite)
 {
     ContractionProblem problem = GetParam();
 
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite/TensileLibrary.yaml").native());
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite_2/TensileLibrary.yaml").native());
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx900.co").native());
-    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx906.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite_2/TensileLibrary_gfx900.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite_2/TensileLibrary_gfx906.co").native());
 
     ASSERT_NE(library, nullptr);
 
@@ -343,11 +343,11 @@ TEST_P(RunGEMMKernelTest, KernelsLiteExhaustive)
 {
     ContractionProblem problem = GetParam();
 
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite/TensileLibrary.yaml").native());
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("kernels_lite_2/TensileLibrary.yaml").native());
 
     hip::SolutionAdapter adapter(false);
-    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx900.co").native());
-    adapter.loadCodeObjectFile(TestData::File("kernels_lite/TensileLibrary_gfx906.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite_2/TensileLibrary_gfx900.co").native());
+    adapter.loadCodeObjectFile(TestData::File("kernels_lite_2/TensileLibrary_gfx906.co").native());
 
     ASSERT_NE(library, nullptr);
 

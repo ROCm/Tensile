@@ -39,8 +39,12 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite_2
     EMBED_KEY     kernels_lite_2
+    VAR_PREFIX LITE_2
     )
 endif()
+
+file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_2")
+file(COPY ${LITE_2_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_2")
 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)
