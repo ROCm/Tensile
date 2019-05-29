@@ -100,6 +100,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, ker
 
 def buildSourceCodeObjectFile(outputPath, kernelFile):
     buildPath = ensurePath(os.path.join(globalParameters['WorkingPath'], 'code_object_tmp'))
+    destDir = ensurePath(os.path.join(outputPath, 'library'))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
@@ -109,15 +110,17 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     soFilename = base + '.so'
     soFilepath = os.path.join(buildPath, soFilename)
 
-    archFlags = ['-amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
+    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
 
-    hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags', '--shared']).decode().split(' ')
+    archFlags = ['-amdgpu-target=' + arch for arch in archs]
+
+    hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags']).decode().split(' ')
     hipLinkFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--ldflags', '--shared']).decode().split(' ')
 
     hipFlags += ['-I', outputPath]
 
-    compileArgs = ['/opt/rocm/bin/hcc'] + archFlags + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
-    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
+    compileArgs = ['/opt/rocm/bin/hcc'] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
+    linkArgs = [globalParameters['AssemblerPath']] + archFlags + hipLinkFlags + [objectFilepath, '-shared', '-o', soFilepath]
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
     #print(' '.join(compileArgs))
@@ -129,14 +132,14 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     #print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
 
-    path900 = soFilepath + '-000-gfx900.hsaco'
-    path906 = soFilepath + '-000-gfx906.hsaco'
+    coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
+    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
+    destCOs = [os.path.join(destDir, name) for name in coFilenames]
 
-    if os.path.exists(path900):
-        return [path900]
-    elif os.path.exists(path906):
-        return [path906]
-    raise RuntimeError("Could not create code object file.")
+    for (src, dst) in zip(extractedCOs, destCOs):
+        shutil.copyfile(src, dst)
+
+    return destCOs
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
