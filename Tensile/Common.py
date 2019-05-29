@@ -264,7 +264,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":              [0, 1],
+    "ScheduleIterAlg":             [0, 1],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -272,12 +272,19 @@ validParameters = {
 
     # Interleave alpha scale calculation with beta loads and address calcs - rather
     # than as a separate block of instructions
-    "InterleaveAlpha":              [0, 1],
+    "InterleaveAlpha":             [0, 1],
+
+    # Create a copy of NoLoadLoop which interleaves the stores with the final mac
+    # calculation and may perform other optimizations
+    # 0 = no interleave
+    # 1 = interleave one stores after required macs have completed execution
+    # 2 = interleave two stores after required macs have completed execution
+    "OptNoLoadLoop":               [0, 1, 2],
 
     # Prefetch across persistent kernel iterations - the no-load-loop computes the 
     # tile assignment and next global read offset and launches the buffer loads for
     # the next tile in the sequence.
-    "PrefetchAcrossPersistent":     [0, 1],
+    "PrefetchAcrossPersistent":    [0, 1],
 
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
@@ -681,6 +688,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
+    {"OptNoLoadLoop":             [ 0 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
