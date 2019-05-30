@@ -10,6 +10,10 @@ if(HIP_FOUND)
 set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 endif()
 
+set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
+file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
+file(COPY ${SOLUTION_LIBRARY_FILES} DESTINATION "${TEST_DATA_DIR}")
+
 add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
@@ -32,6 +36,11 @@ if(USE_LLVM)
         )
 endif()
 
+if(HIP_FOUND)
+    add_subdirectory(hip)
+endif()
+
+message(STATUS "Test sources: ${test_sources}")
 add_executable(TensileTests ${test_sources})
 
 if(GTEST_INTEGRATION)
@@ -40,18 +49,11 @@ else()
     add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
-target_link_libraries(TensileTests PUBLIC gtest Tensile TensileTestLib Boost::filesystem)
-
-file(COPY sample_library.yaml DESTINATION .)
-
-set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
-file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
-file(COPY ${SOLUTION_LIBRARY_FILES} DESTINATION "${TEST_DATA_DIR}")
+target_link_libraries(TensileTests gtest Tensile TensileTestLib Boost::filesystem)
 
 if(HIP_FOUND)
-    add_subdirectory(hip)
 
-    target_link_libraries(TensileTests TensileHipTests)
+    target_link_libraries(TensileTests ${HIP_TEST_LIBRARIES})
     target_link_libraries(TensileTests "--amdgpu-target=gfx900")
 endif()
 
