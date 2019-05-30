@@ -41,6 +41,8 @@ typedef struct
 
 #else // __cplusplus
 
+#include <hip/hip_runtime.h>
+
 #include <cinttypes>
 #include <cmath>
 #include <iostream>
@@ -50,13 +52,15 @@ struct tensile_bfloat16
 {
     uint16_t data;
 
-    constexpr tensile_bfloat16() : data(0) {}
+    // Don't initialize `data` in purpose so that it could be used with
+    // `__shared__`, which forbid any initializer.
+    __host__ __device__ tensile_bfloat16() {}
 
     // round upper 16 bits of IEEE float to convert to bfloat16
-    explicit constexpr tensile_bfloat16(float f) : data(float_to_bfloat16(f)) {}
+    explicit __host__ __device__ constexpr tensile_bfloat16(float f) : data(float_to_bfloat16(f)) {}
 
     // zero extend lower 16 bits of bfloat16 to convert to IEEE float
-    explicit constexpr operator float() const
+    explicit __host__ __device__ constexpr operator float() const
     {
         union
         {
@@ -67,7 +71,7 @@ struct tensile_bfloat16
     }
 
     private:
-    static constexpr uint16_t float_to_bfloat16(float f)
+    static __host__ __device__ constexpr uint16_t float_to_bfloat16(float f)
     {
         union
         {
@@ -122,70 +126,70 @@ inline std::ostream& operator<<(std::ostream& os, const tensile_bfloat16& bf16)
 {
     return os << float(bf16);
 }
-inline tensile_bfloat16 operator+(tensile_bfloat16 a) { return a; }
-inline tensile_bfloat16 operator-(tensile_bfloat16 a)
+inline __host__ __device__ tensile_bfloat16 operator+(tensile_bfloat16 a) { return a; }
+inline __host__ __device__ tensile_bfloat16 operator-(tensile_bfloat16 a)
 {
     a.data ^= 0x8000;
     return a;
 }
-inline tensile_bfloat16 operator+(tensile_bfloat16 a, tensile_bfloat16 b)
+inline __host__ __device__ tensile_bfloat16 operator+(tensile_bfloat16 a, tensile_bfloat16 b)
 {
     return tensile_bfloat16(float(a) + float(b));
 }
-inline tensile_bfloat16 operator+(int a, tensile_bfloat16 b) 
-{ 
-    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b)); 
+inline __host__ __device__ tensile_bfloat16 operator+(int a, tensile_bfloat16 b)
+{
+    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b));
 }
-inline tensile_bfloat16 operator+(tensile_bfloat16 a, int b)
-{ 
-    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b)); 
+inline __host__ __device__ tensile_bfloat16 operator+(tensile_bfloat16 a, int b)
+{
+    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b));
 }
-inline tensile_bfloat16 operator-(tensile_bfloat16 a, tensile_bfloat16 b)
+inline __host__ __device__ tensile_bfloat16 operator-(tensile_bfloat16 a, tensile_bfloat16 b)
 {
     return tensile_bfloat16(float(a) - float(b));
 }
-inline tensile_bfloat16 operator*(tensile_bfloat16 a, tensile_bfloat16 b)
+inline __host__ __device__ tensile_bfloat16 operator*(tensile_bfloat16 a, tensile_bfloat16 b)
 {
     return tensile_bfloat16(float(a) * float(b));
 }
-inline tensile_bfloat16 operator/(tensile_bfloat16 a, tensile_bfloat16 b)
+inline __host__ __device__ tensile_bfloat16 operator/(tensile_bfloat16 a, tensile_bfloat16 b)
 {
     return tensile_bfloat16(float(a) / float(b));
 }
-inline bool operator<(tensile_bfloat16 a, tensile_bfloat16 b) { return float(a) < float(b); }
-inline bool operator==(tensile_bfloat16 a, tensile_bfloat16 b) { return float(a) == float(b); }
-inline bool operator>(tensile_bfloat16 a, tensile_bfloat16 b) { return b < a; }
-inline bool operator<=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a > b); }
-inline bool operator!=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a == b); }
-inline bool operator>=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a < b); }
-inline tensile_bfloat16& operator+=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a + b; }
-inline tensile_bfloat16& operator-=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a - b; }
-inline tensile_bfloat16& operator*=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a * b; }
-inline tensile_bfloat16& operator/=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a / b; }
-inline tensile_bfloat16& operator++(tensile_bfloat16& a) { return a += tensile_bfloat16(1.0f); }
-inline tensile_bfloat16& operator--(tensile_bfloat16& a) { return a -= tensile_bfloat16(1.0f); }
-inline tensile_bfloat16 operator++(tensile_bfloat16& a, int)
+inline __host__ __device__ bool operator<(tensile_bfloat16 a, tensile_bfloat16 b) { return float(a) < float(b); }
+inline __host__ __device__ bool operator==(tensile_bfloat16 a, tensile_bfloat16 b) { return float(a) == float(b); }
+inline __host__ __device__ bool operator>(tensile_bfloat16 a, tensile_bfloat16 b) { return b < a; }
+inline __host__ __device__ bool operator<=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a > b); }
+inline __host__ __device__ bool operator!=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a == b); }
+inline __host__ __device__ bool operator>=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a < b); }
+inline __host__ __device__ tensile_bfloat16& operator+=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a + b; }
+inline __host__ __device__ tensile_bfloat16& operator-=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a - b; }
+inline __host__ __device__ tensile_bfloat16& operator*=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a * b; }
+inline __host__ __device__ tensile_bfloat16& operator/=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a / b; }
+inline __host__ __device__ tensile_bfloat16& operator++(tensile_bfloat16& a) { return a += tensile_bfloat16(1.0f); }
+inline __host__ __device__ tensile_bfloat16& operator--(tensile_bfloat16& a) { return a -= tensile_bfloat16(1.0f); }
+inline __host__ __device__ tensile_bfloat16 operator++(tensile_bfloat16& a, int)
 {
     tensile_bfloat16 orig = a;
     ++a;
     return orig;
 }
-inline tensile_bfloat16 operator--(tensile_bfloat16& a, int)
+inline __host__ __device__ tensile_bfloat16 operator--(tensile_bfloat16& a, int)
 {
     tensile_bfloat16 orig = a;
     --a;
     return orig;
 }
-inline bool isinf(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && !(a.data & 0x7f); }
-inline bool isnan(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && +(a.data & 0x7f); }
-inline bool iszero(tensile_bfloat16 a) { return !(a.data & 0x7fff); }
-inline tensile_bfloat16 abs(tensile_bfloat16 a)
+inline __host__ __device__ bool isinf(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && !(a.data & 0x7f); }
+inline __host__ __device__ bool isnan(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && +(a.data & 0x7f); }
+inline __host__ __device__ bool iszero(tensile_bfloat16 a) { return !(a.data & 0x7fff); }
+inline __host__ __device__ tensile_bfloat16 abs(tensile_bfloat16 a)
 {
     a.data &= 0x7fff;
     return a;
 }
-inline tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
-inline tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
+inline __host__ __device__ tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
+inline __host__ __device__ tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
 
 #endif // __cplusplus
 
