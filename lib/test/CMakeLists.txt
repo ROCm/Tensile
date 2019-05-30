@@ -6,11 +6,13 @@ if(HIP_FOUND)
 set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 endif()
 
-set(tensile_test_source
+set(tensile_test_main
     test.cpp)
 
 set(test_sources ${test_sources}
-    test.cpp
+    #test.cpp
+    TestData.cpp
+
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     EmbeddedData_test.cpp
@@ -26,7 +28,7 @@ if(USE_LLVM)
         )
 endif()
 
-#add_library(TensileCommonTests STATIC ${test_sources})
+add_library(TensileCommonTests STATIC ${test_sources})
 
 #target_include_directories (tests PUBLIC "/opt/rocm/rocblas/include" ".")
 
@@ -34,7 +36,7 @@ include_directories("." ${GTEST_SOURCE_DIR}/include)
 
 find_package(Boost COMPONENTS filesystem)
 
-add_executable(TensileTests ${test_sources})
+add_executable(TensileTests ${tensile_test_main})
 
 if(GTEST_INTEGRATION)
     gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -42,7 +44,7 @@ else()
     add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
-target_link_libraries(TensileTests gtest Tensile Boost::filesystem)
+target_link_libraries(TensileTests gtest Tensile Boost::filesystem TensileCommonTests)
 
 file(COPY sample_library.yaml DESTINATION .)
 
