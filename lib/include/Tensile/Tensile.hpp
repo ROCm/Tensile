@@ -32,8 +32,8 @@
 #include <vector>
 
 #include <Tensile/Macros.hpp>
-#include <Tensile/Tensile_fwd.hpp>
 #include <Tensile/SolutionLibrary_fwd.hpp>
+#include <Tensile/Tensile_fwd.hpp>
 
 #include <Tensile/KernelArguments.hpp>
 #include <Tensile/geom.hpp>
@@ -52,7 +52,6 @@ namespace Tensile
     {
     public:
         virtual ~ProblemInputs();
-
     };
 
     struct TENSILE_API KernelInvocation
@@ -60,9 +59,9 @@ namespace Tensile
     public:
         std::string kernelName;
 
-        dim3 workGroupSize;
-        dim3 numWorkGroups;
-        dim3 numWorkItems;
+        dim3   workGroupSize;
+        dim3   numWorkGroups;
+        dim3   numWorkItems;
         size_t sharedMemBytes = 0;
 
         KernelArguments args;
@@ -83,9 +82,8 @@ namespace Tensile
     public:
         virtual ~Solution();
 
-        virtual std::string name() const = 0;
+        virtual std::string name() const        = 0;
         virtual std::string description() const = 0;
-
     };
 
     class TENSILE_API SolutionAdapter
@@ -98,7 +96,7 @@ namespace Tensile
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename);
+    TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+                LoadLibraryFile(std::string const& filename);
 #endif
 }
-

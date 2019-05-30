@@ -25,4 +25,3 @@ namespace Tensile
 {
     class ContractionSolution;
 }
-

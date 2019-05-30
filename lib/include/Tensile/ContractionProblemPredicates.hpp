@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Predicates.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/Predicates.hpp>
 
 #include <array>
 #include <vector>
@@ -38,16 +38,27 @@ namespace Tensile
     {
         namespace Contraction
         {
-            struct FreeSizeAMultiple: public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
+            struct FreeSizeAMultiple : public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
             {
-                enum { HasIndex = true, HasValue = true };
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
                 size_t index;
                 size_t value;
 
                 FreeSizeAMultiple() = default;
-                FreeSizeAMultiple(size_t index, size_t value): index(index), value(value) {}
+                FreeSizeAMultiple(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
 
-                static std::string Type() { return "FreeSizeAMultiple"; }
+                static std::string Type()
+                {
+                    return "FreeSizeAMultiple";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -55,16 +66,27 @@ namespace Tensile
                 }
             };
 
-            struct FreeSizeBMultiple: public Predicate_CRTP<FreeSizeBMultiple, ContractionProblem>
+            struct FreeSizeBMultiple : public Predicate_CRTP<FreeSizeBMultiple, ContractionProblem>
             {
-                enum { HasIndex = true, HasValue = true };
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
                 size_t index;
                 size_t value;
 
                 FreeSizeBMultiple() = default;
-                FreeSizeBMultiple(size_t index, size_t value): index(index), value(value) {}
+                FreeSizeBMultiple(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
 
-                static std::string Type() { return "FreeSizeBMultiple"; }
+                static std::string Type()
+                {
+                    return "FreeSizeBMultiple";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -72,16 +94,27 @@ namespace Tensile
                 }
             };
 
-            struct BatchSizeMultiple: public Predicate_CRTP<BatchSizeMultiple, ContractionProblem>
+            struct BatchSizeMultiple : public Predicate_CRTP<BatchSizeMultiple, ContractionProblem>
             {
-                enum { HasIndex = true, HasValue = true };
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
                 size_t index;
                 size_t value;
 
                 BatchSizeMultiple() = default;
-                BatchSizeMultiple(size_t index, size_t value): index(index), value(value) {}
+                BatchSizeMultiple(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
 
-                static std::string Type() { return "BatchSizeMultiple"; }
+                static std::string Type()
+                {
+                    return "BatchSizeMultiple";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -89,16 +122,27 @@ namespace Tensile
                 }
             };
 
-            struct BoundSizeMultiple: public Predicate_CRTP<BoundSizeMultiple, ContractionProblem>
+            struct BoundSizeMultiple : public Predicate_CRTP<BoundSizeMultiple, ContractionProblem>
             {
-                enum { HasIndex = true, HasValue = true };
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
                 size_t index;
                 size_t value;
 
                 BoundSizeMultiple() = default;
-                BoundSizeMultiple(size_t index, size_t value): index(index), value(value) {}
+                BoundSizeMultiple(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
 
-                static std::string Type() { return "BoundSizeMultiple"; }
+                static std::string Type()
+                {
+                    return "BoundSizeMultiple";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -106,15 +150,26 @@ namespace Tensile
                 }
             };
 
-            struct MaxProblemSizeGreaterThan: public Predicate_CRTP<MaxProblemSizeGreaterThan, ContractionProblem>
+            struct MaxProblemSizeGreaterThan
+                : public Predicate_CRTP<MaxProblemSizeGreaterThan, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 size_t value;
 
                 MaxProblemSizeGreaterThan() = default;
-                MaxProblemSizeGreaterThan(size_t value): value(value) {}
+                MaxProblemSizeGreaterThan(size_t value)
+                    : value(value)
+                {
+                }
 
-                static std::string Type() { return "MaxProblemSizeGreaterThan"; }
+                static std::string Type()
+                {
+                    return "MaxProblemSizeGreaterThan";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -122,29 +177,45 @@ namespace Tensile
                 }
             };
 
-            struct LeadingSizesGreaterOrEqual: public Predicate_CRTP<LeadingSizesGreaterOrEqual, ContractionProblem>
+            struct LeadingSizesGreaterOrEqual
+                : public Predicate_CRTP<LeadingSizesGreaterOrEqual, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 size_t value;
 
                 LeadingSizesGreaterOrEqual() = default;
-                LeadingSizesGreaterOrEqual(size_t value): value(value) {}
+                LeadingSizesGreaterOrEqual(size_t value)
+                    : value(value)
+                {
+                }
 
-                static std::string Type() { return "LeadingSizesGreaterOrEqual"; }
+                static std::string Type()
+                {
+                    return "LeadingSizesGreaterOrEqual";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.a().sizes()[0] >= value
-                        && problem.b().sizes()[0] >= value
-                        && problem.c().sizes()[0] >= value
-                        && problem.d().sizes()[0] >= value;
+                    return problem.a().sizes()[0] >= value && problem.b().sizes()[0] >= value
+                           && problem.c().sizes()[0] >= value && problem.d().sizes()[0] >= value;
                 }
             };
 
-            struct CDStridesEqual: public Predicate_CRTP<CDStridesEqual, ContractionProblem>
+            struct CDStridesEqual : public Predicate_CRTP<CDStridesEqual, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = false };
-                static std::string Type() { return "CDStridesEqual"; }
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+                static std::string Type()
+                {
+                    return "CDStridesEqual";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -152,10 +223,17 @@ namespace Tensile
                 }
             };
 
-            struct LDCEqualsLDD: public Predicate_CRTP<LDCEqualsLDD, ContractionProblem>
+            struct LDCEqualsLDD : public Predicate_CRTP<LDCEqualsLDD, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = false };
-                static std::string Type() { return "LDCEqualsLDD"; }
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+                static std::string Type()
+                {
+                    return "LDCEqualsLDD";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -163,12 +241,19 @@ namespace Tensile
                 }
             };
 
-            struct BetaZero: public Predicate_CRTP<BetaZero, ContractionProblem>
+            struct BetaZero : public Predicate_CRTP<BetaZero, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = false };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
                 BetaZero() = default;
 
-                static std::string Type() { return "BetaZero"; }
+                static std::string Type()
+                {
+                    return "BetaZero";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -176,12 +261,19 @@ namespace Tensile
                 }
             };
 
-            struct BetaOne: public Predicate_CRTP<BetaOne, ContractionProblem>
+            struct BetaOne : public Predicate_CRTP<BetaOne, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = false };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
                 BetaOne() = default;
 
-                static std::string Type() { return "BetaOne"; }
+                static std::string Type()
+                {
+                    return "BetaOne";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
@@ -189,39 +281,49 @@ namespace Tensile
                 }
             };
 
-            struct TypesEqual: public Predicate_CRTP<TypesEqual, ContractionProblem>
+            struct TypesEqual : public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 TypesEqual() = default;
 
                 std::array<DataType, 4> value;
 
-                static std::string Type() { return "TypesEqual"; }
+                static std::string Type()
+                {
+                    return "TypesEqual";
+                }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.a().dataType() == value[0]
-                        && problem.b().dataType() == value[1]
-                        && problem.c().dataType() == value[2]
-                        && problem.d().dataType() == value[3];
+                    return problem.a().dataType() == value[0] && problem.b().dataType() == value[1]
+                           && problem.c().dataType() == value[2]
+                           && problem.d().dataType() == value[3];
                 }
 
                 virtual std::string toString() const override
                 {
                     return concatenate(this->type(),
-                                       "(a:",  value[0],
-                                       ", b:", value[1],
-                                       ", c:", value[2],
-                                       ", d:", value[3],
+                                       "(a:",
+                                       value[0],
+                                       ", b:",
+                                       value[1],
+                                       ", c:",
+                                       value[2],
+                                       ", d:",
+                                       value[3],
                                        ")");
                 }
 
-                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
                 {
                     bool rv = (*this)(problem);
 
-                    stream << this->type()
-                           <<   "(a:" << problem.a().dataType() << " == " << value[0]
+                    stream << this->type() << "(a:" << problem.a().dataType() << " == " << value[0]
                            << "&& b:" << problem.b().dataType() << " == " << value[1]
                            << "&& c:" << problem.c().dataType() << " == " << value[2]
                            << "&& d:" << problem.d().dataType() << " == " << value[3]
@@ -234,4 +336,3 @@ namespace Tensile
         }
     }
 }
-

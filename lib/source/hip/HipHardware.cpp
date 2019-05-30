@@ -24,19 +24,19 @@
  *
  *******************************************************************************/
 
+#include <Tensile/AMDGPU.hpp>
 #include <Tensile/hip/HipHardware.hpp>
 #include <Tensile/hip/HipUtils.hpp>
-#include <Tensile/AMDGPU.hpp>
 
 namespace Tensile
 {
     namespace hip
     {
         HipAMDGPU::HipAMDGPU(hipDeviceProp_t const& prop)
-            :AMDGPU(static_cast<AMDGPU::Processor>(prop.gcnArch),
-                    prop.multiProcessorCount,
-                    std::string(prop.name)),
-             properties(prop)
+            : AMDGPU(static_cast<AMDGPU::Processor>(prop.gcnArch),
+                     prop.multiProcessorCount,
+                     std::string(prop.name))
+            , properties(prop)
         {
         }
 
@@ -61,5 +61,3 @@ namespace Tensile
         }
     }
 }
-
-

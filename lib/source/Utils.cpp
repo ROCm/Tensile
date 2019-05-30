@@ -29,7 +29,9 @@
 namespace Tensile
 {
     StreamRead::StreamRead(std::string const& value, bool except)
-        : m_value(value), m_except(except), m_success(false)
+        : m_value(value)
+        , m_except(except)
+        , m_success(false)
     {
     }
 
@@ -37,7 +39,7 @@ namespace Tensile
 
     //bool StreamRead::operator bool() const { return m_success; }
 
-    bool StreamRead::read(std::istream & stream)
+    bool StreamRead::read(std::istream& stream)
     {
         m_success = false;
         char ch;
@@ -46,10 +48,12 @@ namespace Tensile
         {
             if((ch = stream.get()) != m_value[i])
             {
-                for(int j = 0; j <= i; j++) stream.unget();
+                for(int j = 0; j <= i; j++)
+                    stream.unget();
 
                 if(m_except)
-                    throw std::runtime_error(concatenate("Expected '", m_value[i], "', found '", ch, "'."));
+                    throw std::runtime_error(
+                        concatenate("Expected '", m_value[i], "', found '", ch, "'."));
 
                 return false;
             }
@@ -60,4 +64,3 @@ namespace Tensile
     }
 
 }
-

@@ -28,16 +28,17 @@
 
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/AMDGPUPredicates.hpp>
-#include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ContractionProblemProperties.hpp>
+#include <Tensile/ExactLogicLibrary.hpp>
 
 using namespace Tensile;
 
 TEST(ContractionSelectionLibraryTest, Single)
 {
-    std::shared_ptr<Hardware> hardware = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
+    std::shared_ptr<Hardware> hardware = std::make_shared<AMDGPU>(
+        AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
 
     SingleContractionLibrary lib;
 
@@ -50,22 +51,25 @@ TEST(ContractionSelectionLibraryTest, Single)
 
 TEST(ContractionSelectionLibraryTest, GPUSelection)
 {
-    std::shared_ptr<Hardware> v10 = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
-    std::shared_ptr<Hardware> v20 = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 60, "AMD Radeon Vega 7");
+    std::shared_ptr<Hardware> v10 = std::make_shared<AMDGPU>(
+        AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
+    std::shared_ptr<Hardware> v20
+        = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 60, "AMD Radeon Vega 7");
 
-    auto v20Solution = std::make_shared<ContractionSolution>();
+    auto v20Solution     = std::make_shared<ContractionSolution>();
     auto genericSolution = std::make_shared<ContractionSolution>();
 
-    std::shared_ptr<ContractionLibrary> v20Lib = std::make_shared<SingleContractionLibrary>(v20Solution);
+    std::shared_ptr<ContractionLibrary> v20Lib
+        = std::make_shared<SingleContractionLibrary>(v20Solution);
     auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
 
     auto isV20 = std::make_shared<Predicates::GPU::ProcessorEqual>(AMDGPU::Processor::gfx906);
-    std::shared_ptr<Predicates::Predicate<Hardware>> isAMDGPUV20 =
-        std::make_shared<Predicates::IsSubclass<Hardware, AMDGPU>>(isV20);
+    std::shared_ptr<Predicates::Predicate<Hardware>> isAMDGPUV20
+        = std::make_shared<Predicates::IsSubclass<Hardware, AMDGPU>>(isV20);
     HardwarePredicate hardwareIsAMDGPUV20(isAMDGPUV20);
 
     ContractionHardwareSelectionLibrary::Row v20Row(hardwareIsAMDGPUV20, v20Lib);
-    ContractionHardwareSelectionLibrary lib({v20Row});
+    ContractionHardwareSelectionLibrary      lib({v20Row});
 
     auto problem = std::make_shared<ContractionProblem>();
 
@@ -91,12 +95,17 @@ TEST(ContractionSelectionLibraryTest, TransposeSelection)
     TNSolution->index = 2;
     TTSolution->index = 3;
 
-    SolutionMap<ContractionSolution> map({{0, NNSolution}, {1, NTSolution}, {2, TNSolution}, {3, TTSolution}});
+    SolutionMap<ContractionSolution> map(
+        {{0, NNSolution}, {1, NTSolution}, {2, TNSolution}, {3, TTSolution}});
 
-    std::shared_ptr<ContractionLibrary> NNLibrary = std::make_shared<SingleContractionLibrary>(NNSolution);
-    std::shared_ptr<ContractionLibrary> NTLibrary = std::make_shared<SingleContractionLibrary>(NTSolution);
-    std::shared_ptr<ContractionLibrary> TNLibrary = std::make_shared<SingleContractionLibrary>(TNSolution);
-    std::shared_ptr<ContractionLibrary> TTLibrary = std::make_shared<SingleContractionLibrary>(TTSolution);
+    std::shared_ptr<ContractionLibrary> NNLibrary
+        = std::make_shared<SingleContractionLibrary>(NNSolution);
+    std::shared_ptr<ContractionLibrary> NTLibrary
+        = std::make_shared<SingleContractionLibrary>(NTSolution);
+    std::shared_ptr<ContractionLibrary> TNLibrary
+        = std::make_shared<SingleContractionLibrary>(TNSolution);
+    std::shared_ptr<ContractionLibrary> TTLibrary
+        = std::make_shared<SingleContractionLibrary>(TTSolution);
 
     auto lib = std::make_shared<ContractionProblemMapLibrary>();
 
@@ -108,10 +117,10 @@ TEST(ContractionSelectionLibraryTest, TransposeSelection)
 
     AMDGPU gpu;
 
-    auto NNProblem = ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4, 1.2, false, 1);
-    auto NTProblem = ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4, 1.2, false, 1);
-    auto TNProblem = ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4, 1.2, false, 1);
-    auto TTProblem = ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4, 1.2, false, 1);
+    auto NNProblem = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.2, false, 1);
+    auto NTProblem = ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 1.2, false, 1);
+    auto TNProblem = ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 1.2, false, 1);
+    auto TTProblem = ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 1.2, false, 1);
 
     //auto WeirdProblemC = ContractionProblem::FromBLAS( true,  true, 4,4,4, 4,4,4, false, false, 1);
     //WeirdProblemC.c.transpose(0,1);
@@ -129,6 +138,5 @@ TEST(ContractionSelectionLibraryTest, TransposeSelection)
 
     MasterContractionLibrary mlib;
     mlib.solutions = map;
-    mlib.library = lib;
+    mlib.library   = lib;
 }
-

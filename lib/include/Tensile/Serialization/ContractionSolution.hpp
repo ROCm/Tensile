@@ -38,7 +38,7 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<std::shared_ptr<ContractionSolution>, IO>
         {
-            static void mapping(IO & io, std::shared_ptr<ContractionSolution> & p)
+            static void mapping(IO& io, std::shared_ptr<ContractionSolution>& p)
             {
                 PointerMappingTraits<ContractionSolution, IO>::mapping(io, p);
             }
@@ -50,9 +50,9 @@ namespace Tensile
         struct MappingTraits<ContractionSolution, IO>
         {
             using iot = IOTraits<IO>;
-            static void mapping(IO & io, ContractionSolution & s)
+            static void mapping(IO& io, ContractionSolution& s)
             {
-                iot::mapRequired(io, "name",  s.kernelName);
+                iot::mapRequired(io, "name", s.kernelName);
                 iot::mapRequired(io, "index", s.index);
 
                 iot::mapRequired(io, "hardwarePredicate", s.hardwarePredicate);
@@ -63,7 +63,6 @@ namespace Tensile
 
                 iot::mapRequired(io, "sizeMapping", s.sizeMapping);
                 iot::mapRequired(io, "problemType", s.problemType);
-
             }
 
             const static bool flow = false;
@@ -73,17 +72,17 @@ namespace Tensile
         struct MappingTraits<ContractionSolution::SizeMapping, IO>
         {
             using iot = IOTraits<IO>;
-            static void mapping(IO & io, ContractionSolution::SizeMapping & s)
+            static void mapping(IO& io, ContractionSolution::SizeMapping& s)
             {
-                iot::mapRequired(io, "workGroup",  s.workGroupSize);
+                iot::mapRequired(io, "workGroup", s.workGroupSize);
                 iot::mapRequired(io, "threadTile", s.threadTile);
-                iot::mapRequired(io, "macroTile",  s.macroTile);
+                iot::mapRequired(io, "macroTile", s.macroTile);
 
-                iot::mapRequired(io, "staggerU",            s.staggerU);
-                iot::mapRequired(io, "depthU",              s.depthU);
-                iot::mapRequired(io, "globalSplitU",        s.globalSplitU);
-                iot::mapRequired(io, "staggerStrideShift",  s.staggerStrideShift);
-                iot::mapRequired(io, "workGroupMapping",    s.workGroupMapping);
+                iot::mapRequired(io, "staggerU", s.staggerU);
+                iot::mapRequired(io, "depthU", s.depthU);
+                iot::mapRequired(io, "globalSplitU", s.globalSplitU);
+                iot::mapRequired(io, "staggerStrideShift", s.staggerStrideShift);
+                iot::mapRequired(io, "workGroupMapping", s.workGroupMapping);
             }
 
             const static bool flow = false;
@@ -93,7 +92,7 @@ namespace Tensile
         struct MappingTraits<ContractionSolution::ProblemType, IO>
         {
             using iot = IOTraits<IO>;
-            static void mapping(IO & io, ContractionSolution::ProblemType & s)
+            static void mapping(IO& io, ContractionSolution::ProblemType& s)
             {
                 iot::mapRequired(io, "operationIdentifier", s.operationIdentifier);
 
@@ -107,4 +106,3 @@ namespace Tensile
         };
     }
 }
-

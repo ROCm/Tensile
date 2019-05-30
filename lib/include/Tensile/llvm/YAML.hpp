@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Serialization.hpp>
 #include <Tensile/ContractionLibrary.hpp>
+#include <Tensile/Serialization.hpp>
 
 #include <llvm/ObjectYAML/YAML.h>
 
@@ -40,12 +40,17 @@ namespace llvm
         template <typename T>
         struct Hide
         {
-            T & _value;
+            T& _value;
 
-            Hide(T & value) :_value(value) {}
+            Hide(T& value)
+                : _value(value)
+            {
+            }
 
-            T & operator*() { return _value; }
-
+            T& operator*()
+            {
+                return _value;
+            }
         };
 
         template <typename T>
@@ -74,20 +79,19 @@ namespace llvm
 
         template <typename T>
         struct missingTraits<T, EmptyContext>
-            : public std::integral_constant<bool,
-                                            !has_ScalarEnumerationTraits<T>::value &&
-                                                !has_ScalarBitSetTraits<T>::value &&
-                                                !has_ScalarTraits<T>::value &&
-                                                !has_BlockScalarTraits<T>::value &&
-                                                !has_MappingTraits<T, EmptyContext>::value &&
-                                                !has_SequenceTraits<T>::value &&
-                                                !has_CustomMappingTraits<T>::value &&
-                                                !has_DocumentListTraits<T>::value &&
-                                                !sn::has_SerializationTraits<T, IO>::value> {};
+            : public std::integral_constant<
+                  bool,
+                  !has_ScalarEnumerationTraits<T>::value && !has_ScalarBitSetTraits<T>::value
+                      && !has_ScalarTraits<T>::value && !has_BlockScalarTraits<T>::value
+                      && !has_MappingTraits<T, EmptyContext>::value && !has_SequenceTraits<T>::value
+                      && !has_CustomMappingTraits<T>::value && !has_DocumentListTraits<T>::value
+                      && !sn::has_SerializationTraits<T, IO>::value>
+        {
+        };
 
         template <typename T>
         typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, void>::type
-        yamlize(IO & io, T &Val, bool b, EmptyContext & ctx)
+            yamlize(IO& io, T& Val, bool b, EmptyContext& ctx)
         {
             Hide<T> hide(Val);
 
@@ -95,8 +99,8 @@ namespace llvm
         }
 
         template <typename T>
-        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, Input &>::type
-        operator>>(Input & input, T &Val)
+        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, Input&>::type
+            operator>>(Input& input, T& Val)
         {
             Hide<T> hide(Val);
 
@@ -104,8 +108,8 @@ namespace llvm
         }
 
         template <typename T>
-        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, Output &>::type
-        operator<<(Output & output, T &Val)
+        typename std::enable_if<sn::has_SerializationTraits<T, IO>::value, Output&>::type
+            operator<<(Output& output, T& Val)
         {
             Hide<T> hide(Val);
 
@@ -124,40 +128,40 @@ namespace Tensile
             using IO = llvm::yaml::IO;
 
             template <typename T>
-            static void mapRequired(IO & io, const char* key, T & obj)
+            static void mapRequired(IO& io, const char* key, T& obj)
             {
                 io.mapRequired(key, obj);
             }
 
             template <typename T, typename Context>
-            static void mapRequired(IO & io, const char* key, T & obj, Context & ctx)
+            static void mapRequired(IO& io, const char* key, T& obj, Context& ctx)
             {
                 io.mapRequired(key, obj, ctx);
             }
 
-            static bool outputting(IO & io)
+            static bool outputting(IO& io)
             {
                 return io.outputting();
             }
 
-            static void setError(IO & io, std::string const& msg)
+            static void setError(IO& io, std::string const& msg)
             {
                 //throw std::runtime_error(msg);
                 return io.setError(msg);
             }
 
-            static void setContext(IO & io, void * ctx)
+            static void setContext(IO& io, void* ctx)
             {
                 io.setContext(ctx);
             }
 
-            static void * getContext(IO & io)
+            static void* getContext(IO& io)
             {
                 return io.getContext();
             }
 
             template <typename T>
-            static void enumCase(IO & io, T & member, const char * key, T value)
+            static void enumCase(IO& io, T& member, const char* key, T value)
             {
                 io.enumCase(member, key, value);
             }
@@ -172,31 +176,36 @@ namespace llvm
     {
         LLVM_YAML_STRONG_TYPEDEF(size_t, FooType);
 
-        using mysize_t = std::conditional<std::is_same<size_t, uint64_t>::value, FooType, size_t>::type;
+        using mysize_t
+            = std::conditional<std::is_same<size_t, uint64_t>::value, FooType, size_t>::type;
 
-        template<>
-        struct ScalarTraits<mysize_t> {
-          static void output(const mysize_t &value, void * ctx, raw_ostream & stream)
-          {
-              uint64_t tmp = value;
-              ScalarTraits<uint64_t>::output(tmp, ctx, stream);
-          }
+        template <>
+        struct ScalarTraits<mysize_t>
+        {
+            static void output(const mysize_t& value, void* ctx, raw_ostream& stream)
+            {
+                uint64_t tmp = value;
+                ScalarTraits<uint64_t>::output(tmp, ctx, stream);
+            }
 
-          static StringRef input(StringRef str, void * ctx, mysize_t & value)
-          {
-              uint64_t tmp;
-              auto rv = ScalarTraits<uint64_t>::input(str, ctx, tmp);
-              value = tmp;
-              return rv;
-          }
+            static StringRef input(StringRef str, void* ctx, mysize_t& value)
+            {
+                uint64_t tmp;
+                auto     rv = ScalarTraits<uint64_t>::input(str, ctx, tmp);
+                value       = tmp;
+                return rv;
+            }
 
-          static bool mustQuote(StringRef) { return false; }
+            static bool mustQuote(StringRef)
+            {
+                return false;
+            }
         };
 
         template <typename T>
         struct MappingTraits<Hide<T>>
         {
-            static void mapping(IO & io, Hide<T> & value)
+            static void mapping(IO& io, Hide<T>& value)
             {
                 sn::MappingTraits<T, IO>::mapping(io, *value);
             }
@@ -207,11 +216,17 @@ namespace llvm
         template <typename T>
         struct SequenceTraits<Hide<T>>
         {
-            using Impl = sn::SequenceTraits<T, IO>;
+            using Impl  = sn::SequenceTraits<T, IO>;
             using Value = typename Impl::Value;
 
-            static size_t size(IO & io, Hide<T> & t)                   { return Impl::size(io, *t); }
-            static Value & element(IO & io, Hide<T> & t, size_t index) { return Impl::element(io, *t, index); }
+            static size_t size(IO& io, Hide<T>& t)
+            {
+                return Impl::size(io, *t);
+            }
+            static Value& element(IO& io, Hide<T>& t, size_t index)
+            {
+                return Impl::element(io, *t, index);
+            }
 
             static const bool flow = Impl::flow;
         };
@@ -219,7 +234,7 @@ namespace llvm
         template <typename T>
         struct ScalarEnumerationTraits<Hide<T>>
         {
-            static void enumeration(IO & io, Hide<T> & value)
+            static void enumeration(IO& io, Hide<T>& value)
             {
                 sn::EnumTraits<T, IO>::enumeration(io, *value);
             }
@@ -230,12 +245,12 @@ namespace llvm
         {
             using Impl = sn::CustomMappingTraits<T, IO>;
 
-            static void inputOne(IO & io, StringRef key, Hide<T> & value)
+            static void inputOne(IO& io, StringRef key, Hide<T>& value)
             {
                 Impl::inputOne(io, key, *value);
             }
 
-            static void output(IO & io, Hide<T> & value)
+            static void output(IO& io, Hide<T>& value)
             {
                 Impl::output(io, *value);
             }
@@ -246,29 +261,36 @@ namespace llvm
         {
             using obj = Tensile::MasterContractionLibrary;
 
-            static void mapping(IO & io, std::shared_ptr<obj> & o)
+            static void mapping(IO& io, std::shared_ptr<obj>& o)
             {
                 sn::PointerMappingTraits<obj, IO>::mapping(io, o);
             }
         };
 
-        static_assert(sn::has_EmptyMappingTraits<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>,
-                                            IO>::value,
-                                            "asdf2");
+        static_assert(sn::has_EmptyMappingTraits<
+                          std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>,
+                          IO>::value,
+                      "asdf2");
 
-        static_assert(sn::has_SerializationTraits<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>,
-                                                  IO>::value,
-                                                  "asdf");
+        static_assert(sn::has_SerializationTraits<
+                          std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>,
+                          IO>::value,
+                      "asdf");
 
-        static_assert(!has_SequenceTraits<Hide<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>>::value, "fdsa");
-        static_assert(has_MappingTraits<
+        static_assert(
+            !has_SequenceTraits<Hide<
+                std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>>::value,
+            "fdsa");
+        static_assert(
+            has_MappingTraits<
                 Hide<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>,
-                EmptyContext>::value, "fdsa");
+                EmptyContext>::value,
+            "fdsa");
 
-        static_assert(!missingTraits<
+        static_assert(
+            !missingTraits<
                 Hide<std::shared_ptr<Tensile::SolutionLibrary<Tensile::ContractionProblem>>>,
-                EmptyContext>::value, "fdsa");
+                EmptyContext>::value,
+            "fdsa");
     }
 }
-
-

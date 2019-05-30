@@ -34,7 +34,7 @@ namespace Tensile
     class LazySingleton
     {
     public:
-        static Class & Instance()
+        static Class& Instance()
         {
             static Class instance;
 
@@ -44,4 +44,3 @@ namespace Tensile
     private:
     };
 }
-

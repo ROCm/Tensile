@@ -36,7 +36,7 @@
 namespace Tensile
 {
 
-    enum class DataType: int
+    enum class DataType : int
     {
         Float,
         Double,
@@ -52,16 +52,21 @@ namespace Tensile
     {
         switch(d)
         {
-            case DataType::ComplexDouble: return 16;
-            case DataType::ComplexFloat:
-            case DataType::Double: return 8;
-            case DataType::Int32:
-            case DataType::Float: return 4;
-            case DataType::Half: return 2;
-            case DataType::Int8: return 1;
-            
-            case DataType::Count:
-                throw std::runtime_error("Unknown data type");
+        case DataType::ComplexDouble:
+            return 16;
+        case DataType::ComplexFloat:
+        case DataType::Double:
+            return 8;
+        case DataType::Int32:
+        case DataType::Float:
+            return 4;
+        case DataType::Half:
+            return 2;
+        case DataType::Int8:
+            return 1;
+
+        case DataType::Count:
+            throw std::runtime_error("Unknown data type");
         }
         throw std::runtime_error("Unknown data type");
     }
@@ -70,30 +75,39 @@ namespace Tensile
     DataType GetDataType();
 
     template <>
-    inline DataType GetDataType<float>() { return DataType::Float; }
+    inline DataType GetDataType<float>()
+    {
+        return DataType::Float;
+    }
 
-    std::string ToString(DataType d);
+    std::string   ToString(DataType d);
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
-    std::istream& operator>>(std::istream& stream, DataType      & t);
+    std::istream& operator>>(std::istream& stream, DataType& t);
 
     template <typename T, DataType D>
     struct DistinctType
     {
         using Value = T;
 
-        DistinctType() = default;
+        DistinctType()                          = default;
         DistinctType(DistinctType const& other) = default;
 
-        DistinctType(T const& v) : value(v) { }
+        DistinctType(T const& v)
+            : value(v)
+        {
+        }
 
-        DistinctType & operator=(DistinctType const& other) = default;
-        DistinctType & operator=(T const& other)
+        DistinctType& operator=(DistinctType const& other) = default;
+        DistinctType& operator                             =(T const& other)
         {
             value = other;
             return *this;
         }
 
-        operator const T &() const { return value; }
+        operator const T&() const
+        {
+            return value;
+        }
 
         T value;
     };
@@ -101,7 +115,10 @@ namespace Tensile
     template <typename T, DataType D>
     struct Comparison<DistinctType<T, D>>
     {
-        enum { implemented = true };
+        enum
+        {
+            implemented = true
+        };
 
         static int compare(DistinctType<T, D> const& lhs, DistinctType<T, D> const& rhs)
         {
@@ -112,7 +129,10 @@ namespace Tensile
     template <typename T, DataType D>
     struct Comparison<DistinctType<T, D>, T>
     {
-        enum { implemented = true };
+        enum
+        {
+            implemented = true
+        };
 
         static int compare(DistinctType<T, D> const& lhs, T const& rhs)
         {
@@ -124,7 +144,8 @@ namespace Tensile
 
     template <typename T>
     struct TypeInfo
-    { };
+    {
+    };
 
     template <>
     struct TypeInfo<float>
@@ -139,4 +160,3 @@ namespace Tensile
         }
     };
 }
-

@@ -32,8 +32,15 @@ namespace Tensile
     struct TENSILE_API vector2
     {
         vector2() = default;
-        vector2(T _x, T _y) : x(_x), y(_y) {}
-        enum { count = 2 };
+        vector2(T _x, T _y)
+            : x(_x)
+            , y(_y)
+        {
+        }
+        enum
+        {
+            count = 2
+        };
 
         T x;
         T y;
@@ -46,7 +53,7 @@ namespace Tensile
     }
 
     template <typename T>
-    TENSILE_API inline std::ostream & operator<<(std::ostream & stream, vector2<T> const& v)
+    TENSILE_API inline std::ostream& operator<<(std::ostream& stream, vector2<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ")";
     }
@@ -55,9 +62,17 @@ namespace Tensile
     struct TENSILE_API vector3
     {
         vector3() = default;
-        vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
+        vector3(T _x, T _y, T _z)
+            : x(_x)
+            , y(_y)
+            , z(_z)
+        {
+        }
 
-        enum { count = 3 };
+        enum
+        {
+            count = 3
+        };
 
         T x;
         T y;
@@ -71,7 +86,7 @@ namespace Tensile
     }
 
     template <typename T>
-    inline TENSILE_API std::ostream & operator<<(std::ostream & stream, vector3<T> const& v)
+    inline TENSILE_API std::ostream& operator<<(std::ostream& stream, vector3<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     }
@@ -80,9 +95,18 @@ namespace Tensile
     struct TENSILE_API vector4
     {
         vector4() = default;
-        vector4(T _x, T _y, T _z, T _w) : x(_x), y(_y), z(_z), w(_w) {}
+        vector4(T _x, T _y, T _z, T _w)
+            : x(_x)
+            , y(_y)
+            , z(_z)
+            , w(_w)
+        {
+        }
 
-        enum { count = 4 };
+        enum
+        {
+            count = 4
+        };
 
         T x;
         T y;
@@ -97,7 +121,7 @@ namespace Tensile
     }
 
     template <typename T>
-    inline TENSILE_API std::ostream & operator<<(std::ostream & stream, vector4<T> const& v)
+    inline TENSILE_API std::ostream& operator<<(std::ostream& stream, vector4<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
     }
@@ -105,4 +129,3 @@ namespace Tensile
     using dim3 = vector3<size_t>;
     using int3 = vector3<int>;
 }
-

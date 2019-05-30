@@ -26,8 +26,8 @@
 #include <tuple>
 #include <vector>
 
-#include <Tensile/Properties.hpp>
 #include <Tensile/Debug.hpp>
+#include <Tensile/Properties.hpp>
 #include <Tensile/Utils.hpp>
 
 namespace Tensile
@@ -39,7 +39,7 @@ namespace Tensile
         {
         public:
             virtual std::string type() const = 0;
-            virtual ~Distance() = default;
+            virtual ~Distance()              = default;
 
             virtual double operator()(Key const& a, Key const& b) const = 0;
         };
@@ -56,7 +56,7 @@ namespace Tensile
         struct MatchingTable
         {
             using Properties = std::vector<std::shared_ptr<Property<Object>>>;
-            using Transform = std::function<ReturnValue(Value)>;
+            using Transform  = std::function<ReturnValue(Value)>;
 
             MatchingTable() = default;
             MatchingTable(Properties const& properties)
@@ -103,7 +103,7 @@ namespace Tensile
         };
 
         template <typename Key, typename Object, typename Value, typename ReturnValue>
-        class DistanceMatchingTable: public MatchingTable<Object, Value, ReturnValue>
+        class DistanceMatchingTable : public MatchingTable<Object, Value, ReturnValue>
         {
         public:
             using Base       = MatchingTable<Object, Value, ReturnValue>;
@@ -117,18 +117,18 @@ namespace Tensile
             }
 
             DistanceMatchingTable(Properties const& properties,
-                                  ReturnValue nullValue = ReturnValue())
-                : Base(properties),
-                  nullValue(nullValue)
+                                  ReturnValue       nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
             {
             }
 
             DistanceMatchingTable(std::shared_ptr<Distance<Key>> distance,
-                                  Properties const& properties,
-                                  ReturnValue nullValue = ReturnValue())
-                : Base(properties),
-                  nullValue(nullValue),
-                  distance(distance)
+                                  Properties const&              properties,
+                                  ReturnValue                    nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
+                , distance(distance)
             {
             }
 
@@ -163,7 +163,7 @@ namespace Tensile
                 while(iter != this->table.end())
                 {
                     auto myDistance = (*distance)(key, iter->key);
-                    bool thisMatch = false;
+                    bool thisMatch  = false;
 
                     if(myDistance < bestDistance)
                     {
@@ -172,10 +172,9 @@ namespace Tensile
                         if(myMatch)
                         {
                             bestDistance = myDistance;
-                            bestMatch = myMatch;
-                            thisMatch = true;
+                            bestMatch    = myMatch;
+                            thisMatch    = true;
                         }
-
                     }
 
                     if(debug)
@@ -186,11 +185,10 @@ namespace Tensile
                         {
                             std::cout << " <-- Best so far";
 
-                        if(thisMatch)
-                            std::cout << " (has a matching solution)";
-                        else
-                            std::cout << " (no match)";
-
+                            if(thisMatch)
+                                std::cout << " (has a matching solution)";
+                            else
+                                std::cout << " (no match)";
                         }
 
                         std::cout << std::endl;
@@ -214,7 +212,7 @@ namespace Tensile
                 std::vector<Value> result;
                 result.reserve(this->table.size());
 
-                for(auto const& entry: indices)
+                for(auto const& entry : indices)
                     result.push_back(this->table[entry.second].value);
 
                 return result;
@@ -239,7 +237,8 @@ namespace Tensile
                 return myKey;
             }
 
-            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const override
+            virtual ReturnValue findBestMatch(Object const& object,
+                                              Transform     transform) const override
             {
                 return findBestKeyMatch(keyForProblem(object), transform);
             }
@@ -251,7 +250,8 @@ namespace Tensile
 
             virtual std::string description() const override
             {
-                std::string rv = concatenate("Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
+                std::string rv = concatenate(
+                    "Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
 
                 if(distance != nullptr)
                     rv += concatenate("Distance: ", distance->type());
@@ -261,7 +261,7 @@ namespace Tensile
                 return rv;
             }
 
-            std::vector<Entry> table;
+            std::vector<Entry>             table;
             std::shared_ptr<Distance<Key>> distance;
 
         protected:
@@ -269,4 +269,3 @@ namespace Tensile
         };
     }
 }
-

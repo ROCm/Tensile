@@ -32,15 +32,16 @@ namespace Tensile
 {
     namespace Serialization
     {
-        template <typename T, T> struct SameType;
+        template <typename T, T>
+        struct SameType;
 
         template <typename T, typename IO, typename Context>
         class has_MappingTraits
         {
-            using mapping = void (*) (IO &, T &, Context &);
+            using mapping = void (*)(IO&, T&, Context&);
 
             template <typename U>
-            static uint8_t test(SameType<mapping, &U::mapping> *);
+            static uint8_t test(SameType<mapping, &U::mapping>*);
 
             template <typename U>
             static uint32_t test(...);
@@ -52,10 +53,10 @@ namespace Tensile
         template <typename T, typename IO, typename Context = EmptyContext>
         class has_EmptyMappingTraits
         {
-            using mapping = void (*) (IO &, T &);
+            using mapping = void (*)(IO&, T&);
 
             template <typename U>
-            static uint8_t test(SameType<mapping, &U::mapping> *);
+            static uint8_t test(SameType<mapping, &U::mapping>*);
 
             template <typename U>
             static uint32_t test(...);
@@ -67,10 +68,10 @@ namespace Tensile
         template <typename T, typename IO>
         class has_EnumTraits
         {
-            using enumeration = void (*) (IO &, T &);
+            using enumeration = void (*)(IO&, T&);
 
             template <typename U>
-            static uint8_t test(SameType<enumeration, &U::enumeration> *);
+            static uint8_t test(SameType<enumeration, &U::enumeration>*);
 
             template <typename U>
             static uint32_t test(...);
@@ -82,10 +83,10 @@ namespace Tensile
         template <typename T, typename IO>
         class has_SequenceTraits
         {
-            using size = size_t (*)(IO &, T &);
+            using size = size_t (*)(IO&, T&);
 
             template <typename U>
-            static uint8_t test(SameType<size, &U::size> *);
+            static uint8_t test(SameType<size, &U::size>*);
 
             template <typename u>
             static uint32_t test(...);
@@ -97,17 +98,18 @@ namespace Tensile
         template <typename T, typename IO>
         class has_CustomMappingTraits
         {
-            using inputOne = void (*)(IO &, std::string const&, T &);
-            using output   = void (*)(IO &, T &);
+            using inputOne = void (*)(IO&, std::string const&, T&);
+            using output   = void (*)(IO&, T&);
 
             template <typename U>
-            static uint8_t test(SameType<inputOne, &U::inputOne> *, SameType<output, &U::output> *);
+            static uint8_t test(SameType<inputOne, &U::inputOne>*, SameType<output, &U::output>*);
 
             template <typename u>
             static uint32_t test(...);
 
         public:
-            static const bool value = sizeof(test<CustomMappingTraits<T, IO>>(nullptr, nullptr)) == 1;
+            static const bool value
+                = sizeof(test<CustomMappingTraits<T, IO>>(nullptr, nullptr)) == 1;
         };
 
         template <typename T, typename IO>
@@ -127,4 +129,3 @@ namespace Tensile
 
     }
 }
-

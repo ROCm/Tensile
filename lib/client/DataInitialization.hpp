@@ -40,13 +40,18 @@ namespace Tensile
     {
         enum class InitMode
         {
-            Zero = 0, One, Two, Random, NaN, Count
+            Zero = 0,
+            One,
+            Two,
+            Random,
+            NaN,
+            Count
         };
 
         std::string ToString(InitMode mode);
 
-        std::ostream & operator<<(std::ostream & stream, InitMode const& mode);
-        std::istream & operator>>(std::istream & stream, InitMode      & mode);
+        std::ostream& operator<<(std::ostream& stream, InitMode const& mode);
+        std::istream& operator>>(std::istream& stream, InitMode& mode);
 
         template <typename TypedInputs>
         class TypedDataInitialization;
@@ -56,14 +61,15 @@ namespace Tensile
         public:
             static double GetRepresentativeBetaValue(po::variables_map const& args);
 
-            static std::shared_ptr<DataInitialization> Get(
-                    po::variables_map const& args, ClientProblemFactory const& problemFactory);
+            static std::shared_ptr<DataInitialization>
+                Get(po::variables_map const& args, ClientProblemFactory const& problemFactory);
 
             template <typename TypedInputs>
-            static std::shared_ptr<TypedDataInitialization<TypedInputs>> GetTyped(
-                    po::variables_map const& args, ClientProblemFactory const& problemFactory);
+            static std::shared_ptr<TypedDataInitialization<TypedInputs>>
+                GetTyped(po::variables_map const& args, ClientProblemFactory const& problemFactory);
 
-            DataInitialization(po::variables_map const& args, ClientProblemFactory const& problemFactory);
+            DataInitialization(po::variables_map const&    args,
+                               ClientProblemFactory const& problemFactory);
             ~DataInitialization();
 
             virtual std::shared_ptr<ContractionInputs> prepareCPUInputs() = 0;
@@ -74,12 +80,18 @@ namespace Tensile
             {
                 switch(mode)
                 {
-                    case InitMode::Zero:   return getValue<T, InitMode::Zero>();
-                    case InitMode::One:    return getValue<T, InitMode::One>();
-                    case InitMode::Two:    return getValue<T, InitMode::Two>();
-                    case InitMode::Random: return getValue<T, InitMode::Random>();
-                    case InitMode::NaN:    return getValue<T, InitMode::NaN>();
-                    case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
+                case InitMode::Zero:
+                    return getValue<T, InitMode::Zero>();
+                case InitMode::One:
+                    return getValue<T, InitMode::One>();
+                case InitMode::Two:
+                    return getValue<T, InitMode::Two>();
+                case InitMode::Random:
+                    return getValue<T, InitMode::Random>();
+                case InitMode::NaN:
+                    return getValue<T, InitMode::NaN>();
+                case InitMode::Count:
+                    throw std::runtime_error("Invalid InitMode.");
                 }
             }
 
@@ -87,21 +99,32 @@ namespace Tensile
             inline T getValue();
 
             template <typename T>
-            void initArray(InitMode mode, T * array, size_t elements)
+            void initArray(InitMode mode, T* array, size_t elements)
             {
                 switch(mode)
                 {
-                    case InitMode::Zero:   initArray<T, InitMode::Zero  >(array, elements); break;
-                    case InitMode::One:    initArray<T, InitMode::One   >(array, elements); break;
-                    case InitMode::Two:    initArray<T, InitMode::Two   >(array, elements); break;
-                    case InitMode::Random: initArray<T, InitMode::Random>(array, elements); break;
-                    case InitMode::NaN:    initArray<T, InitMode::NaN   >(array, elements); break;
-                    case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
+                case InitMode::Zero:
+                    initArray<T, InitMode::Zero>(array, elements);
+                    break;
+                case InitMode::One:
+                    initArray<T, InitMode::One>(array, elements);
+                    break;
+                case InitMode::Two:
+                    initArray<T, InitMode::Two>(array, elements);
+                    break;
+                case InitMode::Random:
+                    initArray<T, InitMode::Random>(array, elements);
+                    break;
+                case InitMode::NaN:
+                    initArray<T, InitMode::NaN>(array, elements);
+                    break;
+                case InitMode::Count:
+                    throw std::runtime_error("Invalid InitMode.");
                 }
             }
 
             template <typename T, InitMode Mode>
-            void initArray(T * array, size_t elements)
+            void initArray(T* array, size_t elements)
             {
                 for(int i = 0; i < elements; i++)
                 {
@@ -126,26 +149,59 @@ namespace Tensile
             bool m_keepPristineCopyOnGPU;
         };
 
-        template <> inline float  DataInitialization::getValue<float,  InitMode::Zero>() { return 0.0f; }
-        template <> inline float  DataInitialization::getValue<float,  InitMode::One>()  { return 1.0f; }
-        template <> inline float  DataInitialization::getValue<float,  InitMode::Two>()  { return 2.0f; }
-        template <> inline float  DataInitialization::getValue<float,  InitMode::NaN>()  { return std::numeric_limits<float>::quiet_NaN(); }
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::Zero>()
+        {
+            return 0.0f;
+        }
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::One>()
+        {
+            return 1.0f;
+        }
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::Two>()
+        {
+            return 2.0f;
+        }
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::NaN>()
+        {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
 
-        template <> inline double DataInitialization::getValue<double, InitMode::Zero>() { return 0.0; }
-        template <> inline double DataInitialization::getValue<double, InitMode::One>()  { return 1.0; }
-        template <> inline double DataInitialization::getValue<double, InitMode::Two>()  { return 2.0; }
-        template <> inline double DataInitialization::getValue<double, InitMode::NaN>()  { return std::numeric_limits<double>::quiet_NaN(); }
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::Zero>()
+        {
+            return 0.0;
+        }
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::One>()
+        {
+            return 1.0;
+        }
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::Two>()
+        {
+            return 2.0;
+        }
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::NaN>()
+        {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
 
-        template <> inline float  DataInitialization::getValue<float, InitMode::Random>()
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::Random>()
         {
             return static_cast<float>((rand() % 201) - 100);
         }
 
-        template <> inline double DataInitialization::getValue<double, InitMode::Random>()
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::Random>()
         {
             return static_cast<double>((rand() % 2001) - 1000);
         }
 
     }
 }
-

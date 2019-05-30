@@ -37,13 +37,15 @@
 
 namespace Tensile
 {
-    using ContractionLibrary                  = SolutionLibrary<ContractionProblem>;
-    using MasterContractionLibrary            = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using SingleContractionLibrary            = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionHardwareSelectionLibrary = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemSelectionLibrary  = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMatchingLibrary   = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMapLibrary        = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemPredicate         = ProblemPredicate<ContractionProblem>;
+    using ContractionLibrary       = SolutionLibrary<ContractionProblem>;
+    using MasterContractionLibrary = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
+    using SingleContractionLibrary = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionHardwareSelectionLibrary
+        = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemSelectionLibrary
+        = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemMatchingLibrary
+        = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemMapLibrary = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemPredicate  = ProblemPredicate<ContractionProblem>;
 }
-

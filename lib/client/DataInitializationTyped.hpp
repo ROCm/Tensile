@@ -37,25 +37,35 @@ namespace Tensile
 {
     namespace Client
     {
-        template <typename A, typename B = A, typename C = B, typename D = C, typename Alpha = D, typename Beta = Alpha>
-        struct ManagedContractionInputs: public TypedContractionInputs<A, B, C, B, Alpha, Beta>
+        template <typename A,
+                  typename B     = A,
+                  typename C     = B,
+                  typename D     = C,
+                  typename Alpha = D,
+                  typename Beta  = Alpha>
+        struct ManagedContractionInputs : public TypedContractionInputs<A, B, C, B, Alpha, Beta>
         {
-            using Base = TypedContractionInputs<A, B, C, B, Alpha, Beta>;
-            using AType = A;
-            using BType = B;
-            using CType = C;
-            using DType = D;
+            using Base      = TypedContractionInputs<A, B, C, B, Alpha, Beta>;
+            using AType     = A;
+            using BType     = B;
+            using CType     = C;
+            using DType     = D;
             using AlphaType = Alpha;
-            using BetaType = Beta;
+            using BetaType  = Beta;
 
-            ManagedContractionInputs(std::shared_ptr<A> _a, std::shared_ptr<B> _b, std::shared_ptr<C> _c, std::shared_ptr<D> _d,
-                                     Alpha _alpha, Beta _beta, bool _gpu)
-                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta),
-                  managedA(_a),
-                  managedB(_b),
-                  managedC(_c),
-                  managedD(_d),
-                  gpu(_gpu)
+            ManagedContractionInputs(std::shared_ptr<A> _a,
+                                     std::shared_ptr<B> _b,
+                                     std::shared_ptr<C> _c,
+                                     std::shared_ptr<D> _d,
+                                     Alpha              _alpha,
+                                     Beta               _beta,
+                                     bool               _gpu)
+                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta)
+                , managedA(_a)
+                , managedB(_b)
+                , managedC(_c)
+                , managedD(_d)
+                , gpu(_gpu)
             {
             }
 
@@ -67,11 +77,10 @@ namespace Tensile
             std::shared_ptr<D> managedD;
 
             bool gpu;
-
         };
 
         template <typename TypedInputs>
-        class TypedDataInitialization: public DataInitialization
+        class TypedDataInitialization : public DataInitialization
         {
         public:
             using AType     = typename TypedInputs::AType;
@@ -80,9 +89,11 @@ namespace Tensile
             using DType     = typename TypedInputs::DType;
             using AlphaType = typename TypedInputs::AlphaType;
             using BetaType  = typename TypedInputs::BetaType;
-            using ManagedInputs = ManagedContractionInputs<AType, BType, CType, DType, AlphaType, BetaType>;
+            using ManagedInputs
+                = ManagedContractionInputs<AType, BType, CType, DType, AlphaType, BetaType>;
 
-            TypedDataInitialization(po::variables_map const& args, ClientProblemFactory const& problemFactory)
+            TypedDataInitialization(po::variables_map const&    args,
+                                    ClientProblemFactory const& problemFactory)
                 : DataInitialization(args, problemFactory)
             {
             }
@@ -157,7 +168,7 @@ namespace Tensile
 
             std::shared_ptr<ManagedInputs> createNewGPUInputs()
             {
-                auto rv = allocNewGPUInputs();
+                auto                           rv = allocNewGPUInputs();
                 std::shared_ptr<ManagedInputs> source;
                 if(m_cpuInputsPristine)
                     source = m_cpuInputsPristine;
@@ -169,7 +180,8 @@ namespace Tensile
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr)
+            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine
+                                                             = nullptr)
             {
                 std::shared_ptr<AType> a;
                 std::shared_ptr<BType> b;
@@ -183,13 +195,16 @@ namespace Tensile
                 }
                 else
                 {
-                    a = std::shared_ptr<AType>((AType *)std::malloc(TypeInfo<AType>::dataBytes(m_aMaxElements)), std::free);
-                    b = std::shared_ptr<BType>((BType *)std::malloc(TypeInfo<BType>::dataBytes(m_bMaxElements)), std::free);
+                    a = std::shared_ptr<AType>(
+                        (AType*)std::malloc(TypeInfo<AType>::dataBytes(m_aMaxElements)), std::free);
+                    b = std::shared_ptr<BType>(
+                        (BType*)std::malloc(TypeInfo<BType>::dataBytes(m_bMaxElements)), std::free);
                 }
 
                 if(m_cEqualsD || !pristine)
                 {
-                    c = std::shared_ptr<CType>((CType *)std::malloc(TypeInfo<CType>::dataBytes(m_cMaxElements)), std::free);
+                    c = std::shared_ptr<CType>(
+                        (CType*)std::malloc(TypeInfo<CType>::dataBytes(m_cMaxElements)), std::free);
                 }
                 else
                 {
@@ -206,7 +221,8 @@ namespace Tensile
                 }
                 else
                 {
-                    d = std::shared_ptr<DType>((DType *)std::malloc(TypeInfo<DType>::dataBytes(m_dMaxElements)), std::free);
+                    d = std::shared_ptr<DType>(
+                        (DType*)std::malloc(TypeInfo<DType>::dataBytes(m_dMaxElements)), std::free);
                 }
 
                 auto rv = std::make_shared<ManagedInputs>(a, b, c, d, 0, 0, false);
@@ -214,7 +230,8 @@ namespace Tensile
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> allocNewGPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr)
+            std::shared_ptr<ManagedInputs> allocNewGPUInputs(std::shared_ptr<ManagedInputs> pristine
+                                                             = nullptr)
             {
                 if(pristine && !pristine->gpu)
                     pristine = nullptr;
@@ -231,18 +248,18 @@ namespace Tensile
                 }
                 else
                 {
-                    AType * aPtr = nullptr;
+                    AType* aPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&aPtr, TypeInfo<AType>::dataBytes(m_aMaxElements)));
                     a = std::shared_ptr<AType>(aPtr, hipFree);
 
-                    BType * bPtr = nullptr;
+                    BType* bPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&bPtr, TypeInfo<BType>::dataBytes(m_bMaxElements)));
                     b = std::shared_ptr<BType>(bPtr, hipFree);
                 }
 
                 if(m_cEqualsD || !pristine)
                 {
-                    CType * cPtr = nullptr;
+                    CType* cPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&cPtr, TypeInfo<CType>::dataBytes(m_cMaxElements)));
                     c = std::shared_ptr<CType>(cPtr, hipFree);
                 }
@@ -261,7 +278,7 @@ namespace Tensile
                 }
                 else
                 {
-                    DType * dPtr = nullptr;
+                    DType* dPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&dPtr, TypeInfo<DType>::dataBytes(m_dMaxElements)));
                     d = std::shared_ptr<DType>(dPtr, hipFree);
                 }
@@ -270,7 +287,7 @@ namespace Tensile
                 return rv;
             }
 
-            void initializeCPUInputs(ManagedInputs & inputs)
+            void initializeCPUInputs(ManagedInputs& inputs)
             {
                 if(inputs.gpu)
                     throw std::runtime_error("Initializing GPU inputs as CPU.");
@@ -282,10 +299,11 @@ namespace Tensile
                     initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
 
                 inputs.alpha = getValue<AlphaType>(m_alphaInit);
-                inputs.beta = getValue<BetaType>(m_betaInit);
+                inputs.beta  = getValue<BetaType>(m_betaInit);
             }
 
-            hipMemcpyKind copyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
+            hipMemcpyKind copyKind(std::shared_ptr<ManagedInputs> dst,
+                                   std::shared_ptr<ManagedInputs> src)
             {
                 if(src->gpu)
                 {
@@ -315,27 +333,39 @@ namespace Tensile
             {
                 hipMemcpyKind kind = copyKind(dst, src);
 
-                HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::dataBytes(m_aMaxElements), kind));
-                HIP_CHECK_EXC(hipMemcpy(dst->managedB.get(), src->managedB.get(), TypeInfo<BType>::dataBytes(m_bMaxElements), kind));
-                HIP_CHECK_EXC(hipMemcpy(dst->managedC.get(), src->managedC.get(), TypeInfo<CType>::dataBytes(m_cMaxElements), kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(),
+                                        src->managedA.get(),
+                                        TypeInfo<AType>::dataBytes(m_aMaxElements),
+                                        kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedB.get(),
+                                        src->managedB.get(),
+                                        TypeInfo<BType>::dataBytes(m_bMaxElements),
+                                        kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedC.get(),
+                                        src->managedC.get(),
+                                        TypeInfo<CType>::dataBytes(m_cMaxElements),
+                                        kind));
                 if(!m_cEqualsD)
                 {
-                    HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::dataBytes(m_dMaxElements), kind));
+                    HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(),
+                                            src->managedD.get(),
+                                            TypeInfo<DType>::dataBytes(m_dMaxElements),
+                                            kind));
                 }
             }
             void copyD(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
                 hipMemcpyKind kind = copyKind(dst, src);
 
-                HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::dataBytes(m_dMaxElements), kind));
+                HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(),
+                                        src->managedD.get(),
+                                        TypeInfo<DType>::dataBytes(m_dMaxElements),
+                                        kind));
             }
 
         private:
-
             std::shared_ptr<ManagedInputs> m_cpuInputs, m_cpuInputsPristine;
             std::shared_ptr<ManagedInputs> m_gpuInputs, m_gpuInputsPristine;
-
         };
     }
 }
-

@@ -34,70 +34,60 @@ thread_local KernelMap kernelMap;
  * Compile OpenCL kernels
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
-void tensileGetCompiledOpenCLKernel(
-  cl_kernel *kernel,
-  const char *kernelSource,
-  cl_command_queue queue,
-  const char *sourceBuildOptions) {
+void tensileGetCompiledOpenCLKernel(cl_kernel*       kernel,
+                                    const char*      kernelSource,
+                                    cl_command_queue queue,
+                                    const char*      sourceBuildOptions)
+{
 
-  // is kernel already compiled?
-  KernelMapKey key = std::make_tuple(queue, kernelSource);
-  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
-  if (idx != kernelMap.end()) {
-    *kernel = idx->second;
-    return;
-  }
+    // is kernel already compiled?
+    KernelMapKey        key = std::make_tuple(queue, kernelSource);
+    KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
+    if(idx != kernelMap.end())
+    {
+        *kernel = idx->second;
+        return;
+    }
 
-  // need to compile kernel
-  cl_int status;
-  cl_context clContext;
-  cl_device_id clDevice;
-  status = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT,
-      sizeof(clContext), &clContext, NULL);
-  tensileStatusCheck(status)
-    status = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE,
-        sizeof(clDevice), &clDevice, NULL);
-  tensileStatusCheck(status)
+    // need to compile kernel
+    cl_int       status;
+    cl_context   clContext;
+    cl_device_id clDevice;
+    status = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(clContext), &clContext, NULL);
+    tensileStatusCheck(status) status
+        = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(clDevice), &clDevice, NULL);
+    tensileStatusCheck(status)
 
-  cl_program clProgram;
-  clProgram = clCreateProgramWithSource(
-    clContext,
-    1, &kernelSource,
-    NULL, &status );
-  tensileStatusCheck(status)
-  status = clBuildProgram(
-    clProgram,
-    1, &clDevice,
-    sourceBuildOptions, NULL, NULL );
-  tensileStatusCheck(status)
+        cl_program clProgram;
+    clProgram = clCreateProgramWithSource(clContext, 1, &kernelSource, NULL, &status);
+    tensileStatusCheck(status) status
+        = clBuildProgram(clProgram, 1, &clDevice, sourceBuildOptions, NULL, NULL);
+    tensileStatusCheck(status)
 
-  // print build failure
-  if (status != CL_SUCCESS) {
-    printf("clBuildProgram Failed with status = %d\n", status);
+        // print build failure
+        if(status != CL_SUCCESS)
+    {
+        printf("clBuildProgram Failed with status = %d\n", status);
 
-    size_t len = 0;
-    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG,
-        0, NULL, &len);
-    char* buildLog = new char[len];
-    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG,
-        len*sizeof(char), buildLog, 0);
-    printf("\n\n\nBuild Log:\n\n");
-    printf("%s\n", buildLog);
-    printf("\n");
-    printf("\nKernel Source:\n\n");
-    printf("%s\n", kernelSource);
-    delete[] buildLog;
-  }
-  status = clCreateKernelsInProgram(
-    clProgram,
-    1, kernel,
-    NULL );
-  tensileStatusCheck(status)
-  status = clReleaseProgram(clProgram);
-  tensileStatusCheck(status)
+        size_t len = 0;
+        clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+        char* buildLog = new char[len];
+        clGetProgramBuildInfo(
+            clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len * sizeof(char), buildLog, 0);
+        printf("\n\n\nBuild Log:\n\n");
+        printf("%s\n", buildLog);
+        printf("\n");
+        printf("\nKernel Source:\n\n");
+        printf("%s\n", kernelSource);
+        delete[] buildLog;
+    }
+    status                            = clCreateKernelsInProgram(clProgram, 1, kernel, NULL);
+    tensileStatusCheck(status) status = clReleaseProgram(clProgram);
+    tensileStatusCheck(status)
 
-  // put kernel in map
-  kernelMap[key] = *kernel;
+        // put kernel in map
+        kernelMap[key]
+        = *kernel;
 }
 #endif
 
@@ -105,53 +95,71 @@ void tensileGetCompiledOpenCLKernel(
  * Get Assembly Kernels for HIP
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_HIP
-TensileStatus SolutionLock::getFunction(hipFunction_t *f, int deviceId,
-                                     const std::string &kernelName,
-                                     const unsigned char *codeFromExe)
+TensileStatus SolutionLock::getFunction(hipFunction_t*       f,
+                                        int                  deviceId,
+                                        const std::string&   kernelName,
+                                        const unsigned char* codeFromExe)
 {
-  hipError_t e = hipSuccess;
-  *f = nullptr;
+    hipError_t e = hipSuccess;
+    *f           = nullptr;
 
-  auto t = _deviceFunctions.load(std::memory_order_relaxed);
-  std::atomic_thread_fence(std::memory_order_acquire);
-  if (t == nullptr) {
-    std::lock_guard<std::mutex> initFunctionsLock(_initFunctionsMutex);
     auto t = _deviceFunctions.load(std::memory_order_relaxed);
-    if (t == nullptr) {
-      int numDevices = -1;
-      e = hipGetDeviceCount( &numDevices );
-      if (e) { return e; };
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if(t == nullptr)
+    {
+        std::lock_guard<std::mutex> initFunctionsLock(_initFunctionsMutex);
+        auto                        t = _deviceFunctions.load(std::memory_order_relaxed);
+        if(t == nullptr)
+        {
+            int numDevices = -1;
+            e              = hipGetDeviceCount(&numDevices);
+            if(e)
+            {
+                return e;
+            };
 
-      t = new hipFunction_t[numDevices];
-      for ( int i = 0; i < numDevices; i++) {
-        t[i] = nullptr;
-      }
-      std::atomic_thread_fence(std::memory_order_release);
-      _deviceFunctions.store(t, std::memory_order_relaxed);
+            t = new hipFunction_t[numDevices];
+            for(int i = 0; i < numDevices; i++)
+            {
+                t[i] = nullptr;
+            }
+            std::atomic_thread_fence(std::memory_order_release);
+            _deviceFunctions.store(t, std::memory_order_relaxed);
+        }
     }
-  }
 
-  if ( !_deviceFunctions[deviceId] ) {
-    std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
-    hipModule_t module = nullptr;
-    if (!_deviceFunctions[deviceId]) {
-      if (codeFromExe == nullptr) {
-        std::string pk1 = "assembly/" + kernelName + ".co";
-        std::string pk2 = "../source/assembly/" + kernelName + ".co";
-        if (access(pk2.c_str(), R_OK) != 0)
-          e = hipModuleLoad(&module, pk1.c_str());
-        else
-          e = hipModuleLoad(&module, pk2.c_str());
-      } else {
-        e = hipModuleLoadData(&module, codeFromExe);
-      }
-      if (e) { return e; };
-      e = hipModuleGetFunction(&_deviceFunctions[deviceId], module, kernelName.c_str());
-      if (e) { return e; };
+    if(!_deviceFunctions[deviceId])
+    {
+        std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
+        hipModule_t                 module = nullptr;
+        if(!_deviceFunctions[deviceId])
+        {
+            if(codeFromExe == nullptr)
+            {
+                std::string pk1 = "assembly/" + kernelName + ".co";
+                std::string pk2 = "../source/assembly/" + kernelName + ".co";
+                if(access(pk2.c_str(), R_OK) != 0)
+                    e = hipModuleLoad(&module, pk1.c_str());
+                else
+                    e = hipModuleLoad(&module, pk2.c_str());
+            }
+            else
+            {
+                e = hipModuleLoadData(&module, codeFromExe);
+            }
+            if(e)
+            {
+                return e;
+            };
+            e = hipModuleGetFunction(&_deviceFunctions[deviceId], module, kernelName.c_str());
+            if(e)
+            {
+                return e;
+            };
+        }
     }
-  }
-  *f = _deviceFunctions[deviceId];
-  return e;
+    *f = _deviceFunctions[deviceId];
+    return e;
 }
 
 #endif

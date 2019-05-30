@@ -26,9 +26,9 @@
 
 #include <gtest/gtest.h>
 
+#include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/Serialization.hpp>
 #include <Tensile/llvm/YAML.hpp>
-#include <Tensile/ContractionLibrary.hpp>
 #include <TestUtils.hpp>
 
 #include "TestData.hpp"
@@ -43,12 +43,14 @@ TEST(LibraryPerformanceTest, CreateProblem)
 
 TEST(LibraryPerformanceTest, LoadLibrary)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLiteMixed.yaml").native());
+    auto library
+        = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLiteMixed.yaml").native());
 }
 
 TEST(LibraryPerformanceTest, FindSolution)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLiteMixed.yaml").native());
+    auto library
+        = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLiteMixed.yaml").native());
     AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
 
     for(int i = 0; i < 10000; i++)

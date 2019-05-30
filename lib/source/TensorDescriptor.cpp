@@ -26,13 +26,14 @@
 
 #include <algorithm>
 #include <numeric>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/Utils.hpp>
 
-namespace Tensile {
+namespace Tensile
+{
 
     TensorDescriptor::TensorDescriptor()
     {
@@ -43,8 +44,8 @@ namespace Tensile {
     {
         if(m_sizes.empty())
         {
-            m_strides = m_sizes;
-            m_totalLogicalElements = 0;
+            m_strides                = m_sizes;
+            m_totalLogicalElements   = 0;
             m_totalAllocatedElements = 0;
             return;
         }
@@ -73,7 +74,7 @@ namespace Tensile {
         {
             m_totalLogicalElements *= m_sizes[i];
 
-            auto minStride = m_strides[i-1] * m_sizes[i-1];
+            auto minStride = m_strides[i - 1] * m_sizes[i - 1];
 
             if(calculateStride)
             {
@@ -90,12 +91,13 @@ namespace Tensile {
 
     bool TensorDescriptor::operator==(const TensorDescriptor& rhs) const
     {
-        return m_dataType == rhs.m_dataType
-            && m_sizes    == rhs.m_sizes
-            && m_strides  == rhs.m_strides;
+        return m_dataType == rhs.m_dataType && m_sizes == rhs.m_sizes && m_strides == rhs.m_strides;
     }
 
-    bool TensorDescriptor::operator!=(const TensorDescriptor& rhs) const { return !(*this == rhs); }
+    bool TensorDescriptor::operator!=(const TensorDescriptor& rhs) const
+    {
+        return !(*this == rhs);
+    }
 
     void TensorDescriptor::appendDim(size_t size)
     {
@@ -117,7 +119,7 @@ namespace Tensile {
         if(dim == 0)
             return m_strides[0] - 1;
 
-        return m_strides[dim] - (m_strides[dim-1] * m_sizes[dim-1]);
+        return m_strides[dim] - (m_strides[dim - 1] * m_sizes[dim - 1]);
     }
 
     void TensorDescriptor::collapseDims(size_t begin, size_t end)
@@ -126,10 +128,10 @@ namespace Tensile {
         TENSILE_ASSERT_EXC(begin < dimensions());
         TENSILE_ASSERT_EXC(end <= dimensions());
 
-        if(end <= (begin+1))
+        if(end <= (begin + 1))
             return;
 
-        for(size_t i = begin+1; i < end; i++)
+        for(size_t i = begin + 1; i < end; i++)
             TENSILE_ASSERT_EXC(dimensionPadding(i) == 0);
 
         size_t newDimensionSize = 1;
@@ -148,8 +150,7 @@ namespace Tensile {
     {
         std::ostringstream result;
 
-        result << dimensions()
-               << "-tensor<" << dataType() << ">"
+        result << dimensions() << "-tensor<" << dataType() << ">"
                << "( sizes(";
         streamJoin(result, m_sizes, ", ");
 
@@ -166,11 +167,9 @@ namespace Tensile {
         return stream << t.ToString();
     }
 
-
     //std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t)
     //{
     //    return LogRange(stream, t.lens, ", ");
     //}
 
 }
-

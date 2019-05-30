@@ -42,15 +42,14 @@ namespace Tensile
      * Encapsulates the storage of binary data stored in the executable.
      */
     template <typename Object>
-    class TENSILE_API EmbeddedData: public LazySingleton<EmbeddedData<Object>>
+    class TENSILE_API EmbeddedData : public LazySingleton<EmbeddedData<Object>>
     {
     public:
         using Base = LazySingleton<EmbeddedData<Object>>;
 
-
-        using Item = std::vector<uint8_t>;
+        using Item  = std::vector<uint8_t>;
         using Items = std::vector<Item>;
-        using Map = std::unordered_map<std::string, Items>;
+        using Map   = std::unordered_map<std::string, Items>;
 
         static Items const& Get()
         {
@@ -60,7 +59,7 @@ namespace Tensile
         static Items const& Get(std::string const& key)
         {
             auto const& items = Base::Instance().items;
-            auto iter = items.find(key);
+            auto        iter  = items.find(key);
             if(iter == items.end())
                 return Base::Instance().empty;
 
@@ -71,19 +70,19 @@ namespace Tensile
         friend Base;
         friend struct EmbedData<Object>;
 
-        static Items & GetMutable()
+        static Items& GetMutable()
         {
             return GetMutable("");
         }
 
-        static Items & GetMutable(std::string const& key)
+        static Items& GetMutable(std::string const& key)
         {
             return Base::Instance().items[key];
         }
 
         EmbeddedData() = default;
 
-        Map items;
+        Map         items;
         const Items empty;
     };
 
@@ -113,10 +112,8 @@ namespace Tensile
 
 }
 
-#define TENSILE_CONCATENATE_SYMBOLS(a, b) TENSILE_CONCATENATE_SYMBOLS1(a, b) 
-#define TENSILE_CONCATENATE_SYMBOLS1(a, b) TENSILE_CONCATENATE_SYMBOLS2(a, b) 
-#define TENSILE_CONCATENATE_SYMBOLS2(a, b) a ## b
+#define TENSILE_CONCATENATE_SYMBOLS(a, b) TENSILE_CONCATENATE_SYMBOLS1(a, b)
+#define TENSILE_CONCATENATE_SYMBOLS1(a, b) TENSILE_CONCATENATE_SYMBOLS2(a, b)
+#define TENSILE_CONCATENATE_SYMBOLS2(a, b) a##b
 
 #define TENSILE_EMBED_SYMBOL_NAME TENSILE_CONCATENATE_SYMBOLS(TensileEmbeddedData, __LINE__)
-
-

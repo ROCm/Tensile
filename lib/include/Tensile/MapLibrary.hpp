@@ -32,7 +32,7 @@
 
 namespace Tensile
 {
-    template<typename MyProblem, typename MySolution, typename MyKey>
+    template <typename MyProblem, typename MySolution, typename MyKey>
     using LibraryMap = std::unordered_map<MyKey, LibraryEntry<MyProblem, MySolution>>;
 
     /**
@@ -40,10 +40,16 @@ namespace Tensile
      * Examples are number of dimensions, transposes, etc.
      */
     template <typename MyProblem, typename MySolution, typename Key = std::string>
-    struct ProblemMapLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct ProblemMapLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        static std::string Type() { return "ProblemMap"; }
-        virtual std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "ProblemMap";
+        }
+        virtual std::string type() const override
+        {
+            return Type();
+        }
         virtual std::string description() const override
         {
             if(property == nullptr)
@@ -52,14 +58,15 @@ namespace Tensile
             }
             else
             {
-                return concatenate(type(), " (property: ", property->toString(), ", ", map.size(), " rows)");
+                return concatenate(
+                    type(), " (property: ", property->toString(), ", ", map.size(), " rows)");
             }
         }
 
         LibraryEntry<MyProblem, MySolution> lookup(MyProblem const& problem,
-                                                   Hardware  const& hardware) const
+                                                   Hardware const&  hardware) const
         {
-            auto key = (*property)(problem);
+            auto key  = (*property)(problem);
             auto iter = map.find(key);
 
             bool debug = Debug::Instance().printPropertyEvaluation();
@@ -70,7 +77,7 @@ namespace Tensile
                 if(iter == map.end())
                 {
                     std::cout << " (not found).  Available keys:" << std::endl;
-                    for(auto const& pair: map)
+                    for(auto const& pair : map)
                     {
                         std::cout << "  " << pair.first << std::endl;
                     }
@@ -90,8 +97,7 @@ namespace Tensile
         }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             auto library = lookup(problem, hardware);
 
@@ -101,9 +107,8 @@ namespace Tensile
             return library->findBestSolution(problem, hardware);
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
             auto library = lookup(problem, hardware);
 
@@ -114,7 +119,6 @@ namespace Tensile
         }
 
         std::shared_ptr<Property<MyProblem, Key>> property;
-        LibraryMap<MyProblem, MySolution, Key> map;
+        LibraryMap<MyProblem, MySolution, Key>    map;
     };
 }
-

@@ -30,29 +30,29 @@
 
 namespace Tensile
 {
-    template <typename T, typename RNG=std::mt19937>
+    template <typename T, typename RNG = std::mt19937>
     struct RandomInt
     {
-        RandomInt(RNG & _rng)
+        RandomInt(RNG& _rng)
             : rng(_rng)
         {
         }
 
-        RNG & rng;
-        std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(1,10);
+        RNG&                               rng;
+        std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(1, 10);
         template <typename... Args>
-        T operator()(Args &&...)
+        T operator()(Args&&...)
         {
             return dist(rng);
         }
     };
 
-    template <typename T, typename RNG=std::mt19937>
+    template <typename T, typename RNG = std::mt19937>
     struct RandomAlternatingInt
     {
         RandomInt<T, RNG> parent;
 
-        RandomAlternatingInt(RNG & _rng)
+        RandomAlternatingInt(RNG& _rng)
             : parent(_rng)
         {
         }
@@ -68,14 +68,21 @@ namespace Tensile
     struct Iota
     {
         int value = 0;
-        int inc = 1;
+        int inc   = 1;
 
         Iota() = default;
-        Iota(int initial) : value(initial) {}
-        Iota(int initial, int increment) : value(initial), inc(increment) {}
+        Iota(int initial)
+            : value(initial)
+        {
+        }
+        Iota(int initial, int increment)
+            : value(initial)
+            , inc(increment)
+        {
+        }
 
         template <typename... Args>
-        T operator()(Args &&...)
+        T operator()(Args&&...)
         {
             T rv = value;
             value += inc;
@@ -84,18 +91,18 @@ namespace Tensile
     };
 
     template <typename T, typename Generator>
-    void InitTensor(T * data, TensorDescriptor const& desc, Generator g)
+    void InitTensor(T* data, TensorDescriptor const& desc, Generator g)
     {
         if(desc.dimensions() != 3)
             throw std::runtime_error("Fix this function to work with dimensions != 3");
 
-        std::vector<size_t> index3{0,0,0};
+        std::vector<size_t> index3 {0, 0, 0};
 
         for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
         {
             for(index3[1] = 0; index3[1] < desc.sizes()[1]; index3[1]++)
             {
-                index3[0] = 0;
+                index3[0]      = 0;
                 size_t baseIdx = desc.index(index3);
 
                 for(; index3[0] < desc.sizes()[0]; index3[0]++)
@@ -105,7 +112,10 @@ namespace Tensile
     }
 
     template <typename T>
-    void CopyTensor(T * dst, T const* src, TensorDescriptor const& dstDesc, TensorDescriptor const& srcDesc)
+    void CopyTensor(T*                      dst,
+                    T const*                src,
+                    TensorDescriptor const& dstDesc,
+                    TensorDescriptor const& srcDesc)
     {
         if(dstDesc.dimensions() != 3 || srcDesc.dimensions() != 3)
             throw std::runtime_error("Fix this function to work with dimensions != 3");
@@ -116,24 +126,24 @@ namespace Tensile
         size_t bytes = dstDesc.sizes()[0] * sizeof(T);
 
         for(int k = 0; k < dstDesc.sizes()[2]; k++)
-        for(int j = 0; j < dstDesc.sizes()[1]; j++)
-        {
-            T      * dst_col = dst + dstDesc.index(0, j, k);
-            T const* src_col = src + srcDesc.index(0, j, k);
+            for(int j = 0; j < dstDesc.sizes()[1]; j++)
+            {
+                T*       dst_col = dst + dstDesc.index(0, j, k);
+                T const* src_col = src + srcDesc.index(0, j, k);
 
-            memcpy(dst_col, src_col, bytes);
-        }
+                memcpy(dst_col, src_col, bytes);
+            }
     }
 
     inline ContractionProblem RandomGEMM()
     {
         static std::mt19937 rng;
 
-        std::uniform_int_distribution<int> random_bool(0,1);
+        std::uniform_int_distribution<int> random_bool(0, 1);
         //std::uniform_int_distribution<int> random_size(2,8192);
-        std::uniform_int_distribution<int> random_padding(0,32);
-        std::uniform_int_distribution<int> random_batch(1,10);
-        std::uniform_int_distribution<int> random_beta(0,2);
+        std::uniform_int_distribution<int> random_padding(0, 32);
+        std::uniform_int_distribution<int> random_batch(1, 10);
+        std::uniform_int_distribution<int> random_beta(0, 2);
 
         std::uniform_real_distribution<double> random_size(1.0, std::log(8192.0));
 
@@ -144,7 +154,7 @@ namespace Tensile
         size_t n = std::exp(random_size(rng)) + 1;
         size_t k = std::exp(random_size(rng)) + 1;
 
-        int beta_category = random_beta(rng);
+        int    beta_category = random_beta(rng);
         double beta;
         if(beta_category == 0)
             beta = 0.0;
@@ -153,8 +163,7 @@ namespace Tensile
         else
             beta = 1.2;
 
-        auto random_pad = [&](size_t cols, size_t rows, size_t &ld, size_t & stride)
-        {
+        auto random_pad = [&](size_t cols, size_t rows, size_t& ld, size_t& stride) {
             ld = cols;
 
             bool pad_ld = random_bool(rng);
@@ -199,19 +208,30 @@ namespace Tensile
         random_pad(m, n, ldc, strideC);
 
         // ldd support not yet merged in.
-        ldd = ldc;
+        ldd     = ldc;
         strideD = strideC;
         //random_pad(m, n, ldd, strideD);
 
         size_t batchCount = random_batch(rng);
 
-        return ContractionProblem::GEMM_Strides(transA, transB,
-                                                DataType::Float, DataType::Float, DataType::Float, DataType::Float,
-                                                m, n, k, batchCount,
-                                                lda, strideA,
-                                                ldb, strideB,
-                                                ldc, strideC,
-                                                ldd, strideD,
+        return ContractionProblem::GEMM_Strides(transA,
+                                                transB,
+                                                DataType::Float,
+                                                DataType::Float,
+                                                DataType::Float,
+                                                DataType::Float,
+                                                m,
+                                                n,
+                                                k,
+                                                batchCount,
+                                                lda,
+                                                strideA,
+                                                ldb,
+                                                strideB,
+                                                ldc,
+                                                strideC,
+                                                ldd,
+                                                strideD,
                                                 beta);
     }
 }

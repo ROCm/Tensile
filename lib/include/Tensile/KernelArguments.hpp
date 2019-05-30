@@ -50,14 +50,22 @@ namespace Tensile
         bool isFullyBound() const;
 
         void const* data() const;
-        size_t size() const;
+        size_t      size() const;
 
         friend std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
 
     private:
-        enum { ArgOffset, ArgSize, ArgBound, ArgString, NumArgFields };
+        enum
+        {
+            ArgOffset,
+            ArgSize,
+            ArgBound,
+            ArgString,
+            NumArgFields
+        };
         using Arg = std::tuple<size_t, size_t, bool, std::string>;
-        static_assert(std::tuple_size<Arg>::value == NumArgFields, "Enum for fields of Arg tuple doesn't match size of tuple.");
+        static_assert(std::tuple_size<Arg>::value == NumArgFields,
+                      "Enum for fields of Arg tuple doesn't match size of tuple.");
 
         void alignTo(size_t alignment);
 
@@ -74,7 +82,7 @@ namespace Tensile
 
         std::vector<uint8_t> m_data;
 
-        std::vector<std::string> m_names;
+        std::vector<std::string>             m_names;
         std::unordered_map<std::string, Arg> m_argRecords;
 
         bool m_log;
@@ -103,7 +111,7 @@ namespace Tensile
             throw std::runtime_error("Attempt to bind unknown argument " + name);
         }
 
-        auto & record = it->second;
+        auto& record = it->second;
 
         if(std::get<ArgBound>(record))
         {
@@ -125,7 +133,7 @@ namespace Tensile
         writeValue(offset, value);
 
         std::get<ArgString>(record) = stringForValue(value, true);
-        std::get<ArgBound>(record) = true;
+        std::get<ArgBound>(record)  = true;
     }
 
     template <typename T>
@@ -136,7 +144,6 @@ namespace Tensile
 
         if(!bound)
             return "<unbound>";
-
 
         std::ostringstream msg;
         msg << value;
@@ -151,7 +158,7 @@ namespace Tensile
         alignTo(alignof(T));
 
         size_t offset = m_data.size();
-        size_t size = sizeof(T);
+        size_t size   = sizeof(T);
 
         appendRecord(name, Arg(offset, size, bound, valueString));
 
@@ -170,4 +177,3 @@ namespace Tensile
         std::memcpy(&m_data[offset], &value, sizeof(T));
     }
 }
-

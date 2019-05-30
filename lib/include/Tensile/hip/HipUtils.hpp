@@ -27,26 +27,24 @@
 #pragma once
 
 #include <hip/hip_runtime.h>
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
 
 #include <Tensile/Utils.hpp>
 
-#define HIP_CHECK_EXC(expr) \
-    do \
-    { \
-        hipError_t e = (expr); \
-        if(e) \
-        { \
-            const char * errName = hipGetErrorName(e); \
-            const char * errMsg = hipGetErrorString(e); \
-            std::ostringstream msg; \
-            msg << "Error " << e << "(" << errName << ") " \
-                          << __FILE__ << ":" << __LINE__ << ": " << std::endl \
-                      << #expr << std::endl \
-                      << errMsg << std::endl; \
-            throw std::runtime_error(msg.str()); \
-        } \
+#define HIP_CHECK_EXC(expr)                                                                       \
+    do                                                                                            \
+    {                                                                                             \
+        hipError_t e = (expr);                                                                    \
+        if(e)                                                                                     \
+        {                                                                                         \
+            const char*        errName = hipGetErrorName(e);                                      \
+            const char*        errMsg  = hipGetErrorString(e);                                    \
+            std::ostringstream msg;                                                               \
+            msg << "Error " << e << "(" << errName << ") " << __FILE__ << ":" << __LINE__ << ": " \
+                << std::endl                                                                      \
+                << #expr << std::endl                                                             \
+                << errMsg << std::endl;                                                           \
+            throw std::runtime_error(msg.str());                                                  \
+        }                                                                                         \
     } while(0)
-
-

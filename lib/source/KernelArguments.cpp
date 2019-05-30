@@ -26,7 +26,7 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, const KernelArguments& t)
     {
         size_t prevOffset = 0;
-        for(auto const& name: t.m_names)
+        for(auto const& name : t.m_names)
         {
             auto const& iter = t.m_argRecords.find(name);
 
@@ -40,11 +40,10 @@ namespace Tensile
 
             if(prevOffset != offset)
             {
-                stream << "[" << prevOffset << ".." << offset-1 << "] <padding>" << std::endl;
+                stream << "[" << prevOffset << ".." << offset - 1 << "] <padding>" << std::endl;
             }
 
-            stream << "["  << offset << ".." << offset + size-1 << "] " << name << ":";
-
+            stream << "[" << offset << ".." << offset + size - 1 << "] " << name << ":";
 
             if(std::get<KernelArguments::ArgBound>(record))
             {
@@ -76,13 +75,11 @@ namespace Tensile
     {
     }
 
-    KernelArguments::~KernelArguments()
-    {
-    }
+    KernelArguments::~KernelArguments() {}
 
     bool KernelArguments::isFullyBound() const
     {
-        for(auto& record: m_argRecords)
+        for(auto& record : m_argRecords)
         {
             if(!std::get<ArgBound>(record.second))
                 return false;
@@ -96,7 +93,7 @@ namespace Tensile
         if(!isFullyBound())
             throw std::runtime_error("Arguments not fully bound.");
 
-        return reinterpret_cast<void const *>(m_data.data());
+        return reinterpret_cast<void const*>(m_data.data());
     }
 
     size_t KernelArguments::size() const
@@ -107,7 +104,7 @@ namespace Tensile
     void KernelArguments::alignTo(size_t alignment)
     {
         size_t extraElements = m_data.size() % alignment;
-        size_t padding = (alignment - extraElements) % alignment;
+        size_t padding       = (alignment - extraElements) % alignment;
 
         m_data.insert(m_data.end(), padding, 0);
     }
@@ -124,4 +121,3 @@ namespace Tensile
         m_names.push_back(name);
     }
 }
-

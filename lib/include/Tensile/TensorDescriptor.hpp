@@ -54,12 +54,11 @@ namespace Tensile
     }
 
     template <typename CoordIter, typename SizeIter>
-    inline void CoordNumbered(size_t num,
-                              CoordIter coordBegin, CoordIter coordEnd,
-                              SizeIter sizeBegin, SizeIter sizeEnd)
+    inline void CoordNumbered(
+        size_t num, CoordIter coordBegin, CoordIter coordEnd, SizeIter sizeBegin, SizeIter sizeEnd)
     {
         auto coord = coordBegin;
-        auto size = sizeBegin;
+        auto size  = sizeBegin;
 
         while(coord != coordEnd && size != sizeEnd)
         {
@@ -75,11 +74,13 @@ namespace Tensile
     }
 
     template <typename CoordIter, typename SizeIter>
-    inline bool IncrementCoord(CoordIter coordBegin, CoordIter coordEnd,
-                               SizeIter sizeBegin, SizeIter sizeEnd)
+    inline bool IncrementCoord(CoordIter coordBegin,
+                               CoordIter coordEnd,
+                               SizeIter  sizeBegin,
+                               SizeIter  sizeEnd)
     {
         auto coord = coordBegin;
-        auto size = sizeBegin;
+        auto size  = sizeBegin;
 
         while(coord != coordEnd)
         {
@@ -99,55 +100,59 @@ namespace Tensile
     class TENSILE_API TensorDescriptor
     {
     public:
-
         TensorDescriptor();
 
-        template <typename IterA,
-                  typename IterB>
-        TensorDescriptor(DataType t,
-                         IterA sizesBegin,   IterA sizesEnd,
-                         IterB stridesBegin, IterB stridesEnd)
-            : m_sizes(sizesBegin, sizesEnd),
-              m_strides(stridesBegin, stridesEnd),
-              m_dataType(t)
+        template <typename IterA, typename IterB>
+        TensorDescriptor(
+            DataType t, IterA sizesBegin, IterA sizesEnd, IterB stridesBegin, IterB stridesEnd)
+            : m_sizes(sizesBegin, sizesEnd)
+            , m_strides(stridesBegin, stridesEnd)
+            , m_dataType(t)
         {
             this->calculate();
         }
 
         template <typename Iter>
-        TensorDescriptor(DataType t,
-                         Iter sizesBegin, Iter sizesEnd)
-            : m_sizes(sizesBegin, sizesEnd),
-              m_dataType(t)
+        TensorDescriptor(DataType t, Iter sizesBegin, Iter sizesEnd)
+            : m_sizes(sizesBegin, sizesEnd)
+            , m_dataType(t)
         {
             this->calculate();
         }
 
-        TensorDescriptor(DataType t,
-                         std::initializer_list<size_t> sizes)
-            : m_sizes(sizes),
-              m_dataType(t)
-        
+        TensorDescriptor(DataType t, std::initializer_list<size_t> sizes)
+            : m_sizes(sizes)
+            , m_dataType(t)
+
         {
             this->calculate();
         }
 
-        TensorDescriptor(DataType t,
+        TensorDescriptor(DataType                      t,
                          std::initializer_list<size_t> sizes,
                          std::initializer_list<size_t> strides)
-            : m_sizes(sizes),
-              m_strides(strides),
-              m_dataType(t)
+            : m_sizes(sizes)
+            , m_strides(strides)
+            , m_dataType(t)
         {
             this->calculate();
         }
 
         void calculate();
 
-        const std::vector<size_t>& sizes() const { return m_sizes; }
-        const std::vector<size_t>& strides() const { return m_strides; }
+        const std::vector<size_t>& sizes() const
+        {
+            return m_sizes;
+        }
+        const std::vector<size_t>& strides() const
+        {
+            return m_strides;
+        }
 
-        bool empty() const { return m_sizes.empty(); }
+        bool empty() const
+        {
+            return m_sizes.empty();
+        }
 
         void appendDim(size_t logicalCount);
         void appendDim(size_t logicalCount, size_t allocatedCount);
@@ -173,14 +178,32 @@ namespace Tensile
          */
         void collapseDims(size_t begin, size_t end);
 
-        size_t dimensions()             const { return m_sizes.size(); }
-        size_t totalLogicalElements()   const { return m_totalLogicalElements; }
-        size_t totalAllocatedElements() const { return m_totalAllocatedElements; }
-        size_t totalAllocatedBytes()    const { return totalAllocatedElements() * elementBytes(); }
+        size_t dimensions() const
+        {
+            return m_sizes.size();
+        }
+        size_t totalLogicalElements() const
+        {
+            return m_totalLogicalElements;
+        }
+        size_t totalAllocatedElements() const
+        {
+            return m_totalAllocatedElements;
+        }
+        size_t totalAllocatedBytes() const
+        {
+            return totalAllocatedElements() * elementBytes();
+        }
 
-        size_t elementBytes() const { return TypeSize(m_dataType); }
+        size_t elementBytes() const
+        {
+            return TypeSize(m_dataType);
+        }
 
-        DataType dataType() const { return m_dataType; }
+        DataType dataType() const
+        {
+            return m_dataType;
+        }
 
         template <typename Container>
         inline size_t index(Container const& indices) const
@@ -201,38 +224,33 @@ namespace Tensile
             if(indices.size() != dimensions())
                 throw std::runtime_error("Incorrect number of indices.");
 
-            for(auto i = std::make_pair(indices.begin(), m_sizes.begin()); i.first != indices.end(); i.first++, i.second++)
+            for(auto i = std::make_pair(indices.begin(), m_sizes.begin()); i.first != indices.end();
+                i.first++, i.second++)
                 if(*i.first >= *i.second)
                     throw std::runtime_error("Index out of bounds.");
 
             return std::inner_product(indices.begin(), indices.end(), m_strides.begin(), size_t(0));
         }
 
-
         template <class... Ts,
-                    typename = typename std::enable_if
-                    <
-                        std::is_integral
-                        <
-                            typename std::common_type<Ts...>::type
-                        >::value
-                    >::type
-                >
+                  typename = typename std::enable_if<
+                      std::is_integral<typename std::common_type<Ts...>::type>::value>::type>
         inline size_t index(Ts... is) const
         {
             return this->index({is...});
         }
 
-        inline bool incrementCoord(std::vector<size_t> & coord, size_t firstDimension = 0) const
+        inline bool incrementCoord(std::vector<size_t>& coord, size_t firstDimension = 0) const
         {
             if(coord.size() != dimensions())
-                throw std::runtime_error(concatenate("Invalid coordinate size ", coord.size(), " for ", dimensions(), "-tensor"));
+                throw std::runtime_error(concatenate(
+                    "Invalid coordinate size ", coord.size(), " for ", dimensions(), "-tensor"));
 
             if(firstDimension >= dimensions())
                 return false;
 
-            return IncrementCoord(coord.begin() + firstDimension, coord.end(),
-                                  m_sizes.begin(), m_sizes.end());
+            return IncrementCoord(
+                coord.begin() + firstDimension, coord.end(), m_sizes.begin(), m_sizes.end());
         }
 
         bool operator==(const TensorDescriptor& rhs) const;
@@ -246,7 +264,7 @@ namespace Tensile
         std::vector<size_t> m_sizes;
         std::vector<size_t> m_strides;
 
-        size_t m_totalLogicalElements = 0;
+        size_t m_totalLogicalElements   = 0;
         size_t m_totalAllocatedElements = 0;
 
         DataType m_dataType = DataType::Float;
@@ -255,19 +273,17 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
     template <typename T>
-    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
+    void WriteTensor(std::ostream& stream, T* data, TensorDescriptor const& desc)
     {
         if(desc.dimensions() != 3)
             throw std::runtime_error("Fix this function to work with dimensions != 3");
 
-        std::vector<size_t> index3{0,0,0};
+        std::vector<size_t> index3 {0, 0, 0};
 
-        stream << "Tensor("
-            << desc.sizes()[0] << ", "
-            << desc.sizes()[1] << ", "
-            << desc.sizes()[2] << ")";
+        stream << "Tensor(" << desc.sizes()[0] << ", " << desc.sizes()[1] << ", " << desc.sizes()[2]
+               << ")";
 
-       stream << std::endl;
+        stream << std::endl;
 
         for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
         {
@@ -286,4 +302,3 @@ namespace Tensile
     }
 
 } // namespace
-

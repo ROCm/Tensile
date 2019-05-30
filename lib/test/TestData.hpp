@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <boost/filesystem.hpp>
@@ -41,7 +41,7 @@
 
 #include <Tensile/Singleton.hpp>
 
-struct TestData: public Tensile::LazySingleton<TestData>
+struct TestData : public Tensile::LazySingleton<TestData>
 {
     using Base = Tensile::LazySingleton<TestData>;
 
@@ -68,14 +68,11 @@ private:
 #else
         return boost::dll::program_location();
 #endif
-
     }
 
     TestData()
-        : m_executable(ProgramLocation()),
-          m_dataDir(m_executable.parent_path() / "data")
+        : m_executable(ProgramLocation())
+        , m_dataDir(m_executable.parent_path() / "data")
     {
     }
 };
-
-

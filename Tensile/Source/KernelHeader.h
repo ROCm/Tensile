@@ -25,22 +25,38 @@
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include <string>
 #else
-#include <hip/hip_runtime.h>
 #include "TensileTypes.h"
+#include <hip/hip_runtime.h>
 
-__device__ inline int GenDot4(int a, int b, int c) { 
-#if (__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__
-  typedef union { int32_t i; char4 z; } PkInt8x4;
+__device__ inline int GenDot4(int a, int b, int c)
+{
+#if(__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__
+    typedef union
+    {
+        int32_t i;
+        char4   z;
+    } PkInt8x4;
 #else
-  typedef struct { int c0:8,c1:8,c2:8,c3:8; } C4I8;
-  typedef union { int32_t i; C4I8 z; } PkInt8x4;
+    typedef struct
+    {
+        int c0 : 8, c1 : 8, c2 : 8, c3 : 8;
+    } C4I8;
+    typedef union
+    {
+        int32_t i;
+        C4I8    z;
+    } PkInt8x4;
 #endif
-  PkInt8x4 va, vb; va.i = a; vb.i = b;
+    PkInt8x4 va, vb;
+    va.i = a;
+    vb.i = b;
 
-#if (__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__
-      return amd_mixed_dot(va.z, vb.z, c, true); }
+#if(__hcc_workweek__ >= 19092) || __HIP_CLANG_ONLY__
+    return amd_mixed_dot(va.z, vb.z, c, true);
+}
 #else
-      return c + (vb.z.c3*va.z.c3 + vb.z.c2*va.z.c2 + vb.z.c1*va.z.c1 + vb.z.c0*va.z.c0); }
+    return c + (vb.z.c3 * va.z.c3 + vb.z.c2 * va.z.c2 + vb.z.c1 * va.z.c1 + vb.z.c0 * va.z.c0);
+}
 #endif
 
 #endif // HIP
@@ -48,15 +64,16 @@ __device__ inline int GenDot4(int a, int b, int c) {
 typedef _Float16 tensile_half2 __attribute__((ext_vector_type(2)));
 typedef _Float16 tensile_half;
 
-extern "C" __device__ tensile_half2 llvm_fma_v2f16(tensile_half2, tensile_half2, tensile_half2) __asm("llvm.fma.v2f16");
+extern "C" __device__ tensile_half2 llvm_fma_v2f16(tensile_half2,
+                                                   tensile_half2,
+                                                   tensile_half2) __asm("llvm.fma.v2f16");
 
-__device__ inline tensile_half2 tensile_fmadd_half2(tensile_half2 multiplier, tensile_half2 multiplicand, tensile_half2 addend)
+__device__ inline tensile_half2
+    tensile_fmadd_half2(tensile_half2 multiplier, tensile_half2 multiplicand, tensile_half2 addend)
 {
     tensile_half2 result;
     result = llvm_fma_v2f16(multiplier, multiplicand, addend);
     return result;
 };
 
-
 #endif
-

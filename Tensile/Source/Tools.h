@@ -32,36 +32,35 @@
 /*******************************************************************************
  * Timer
  ******************************************************************************/
-class TensileTimer {
+class TensileTimer
+{
 public:
-  TensileTimer();
-  void start();
-  double elapsed_sec();
-  double elapsed_ms();
-  double elapsed_us();
-  double elapsed_ns();
+    TensileTimer();
+    void   start();
+    double elapsed_sec();
+    double elapsed_ms();
+    double elapsed_us();
+    double elapsed_ns();
 
-  static const double billion;
-  static const double million;
-  static const double thousand;
-  static const double reciprical_billion;
-  static const double reciprical_million;
-  static const double reciprical_thousand;
+    static const double billion;
+    static const double million;
+    static const double thousand;
+    static const double reciprical_billion;
+    static const double reciprical_million;
+    static const double reciprical_thousand;
 
 private:
 #ifdef WIN32
-  LARGE_INTEGER startTime;
-  LARGE_INTEGER frequency; 
+    LARGE_INTEGER startTime;
+    LARGE_INTEGER frequency;
 #else
     const clockid_t clock_type = CLOCK_MONOTONIC;
     //const clockid_t clock_type = CLOCK_MONOTONIC_RAW;
-  timespec startTime;
+    timespec startTime;
 #endif
 };
 
-
-#define tensileMin(a,b) (((a) < (b)) ? (a) : (b))
-#define tensileMax(a,b) (((a) > (b)) ? (a) : (b))
+#define tensileMin(a, b) (((a) < (b)) ? (a) : (b))
+#define tensileMax(a, b) (((a) > (b)) ? (a) : (b))
 
 #endif
-

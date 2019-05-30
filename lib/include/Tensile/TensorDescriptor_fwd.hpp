@@ -28,9 +28,8 @@
 
 namespace Tensile
 {
-    enum class DataType: int;
+    enum class DataType : int;
 
-    class  TensorDescriptor;
+    class TensorDescriptor;
 
 } // namespace
-

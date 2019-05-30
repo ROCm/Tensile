@@ -22,8 +22,8 @@
 #pragma once
 
 #include <Tensile/Tensile.hpp>
-#include <Tensile/TensorOps_fwd.hpp>
 #include <Tensile/TensorDescriptor_fwd.hpp>
+#include <Tensile/TensorOps_fwd.hpp>
 
 namespace Tensile
 {
@@ -38,8 +38,7 @@ namespace Tensile
     class TENSILE_API TensorOp
     {
     public:
-
-        enum class Type: int
+        enum class Type : int
         {
             None,
             ComplexConjugate,
@@ -51,18 +50,39 @@ namespace Tensile
         TensorOp();
         TensorOp(Type type);
 
-        static TensorOp ComplexConjugate() { return TensorOp(Type::ComplexConjugate); }
+        static TensorOp ComplexConjugate()
+        {
+            return TensorOp(Type::ComplexConjugate);
+        }
 
         // static TensorOp ReLU();
         // static TensorOp LeakyReLU(float alpha);
         // ...
 
-        bool operator==(TensorOp const& rhs) const { return this->type == rhs.type; }
-        bool operator< (TensorOp const& rhs) const { return this->type < rhs.type; }
+        bool operator==(TensorOp const& rhs) const
+        {
+            return this->type == rhs.type;
+        }
+        bool operator<(TensorOp const& rhs) const
+        {
+            return this->type < rhs.type;
+        }
 
-        bool operator> (TensorOp const& rhs) const { return rhs < *this; }
-        bool operator!=(TensorOp const& rhs) const { return !(*this == rhs); }
-        bool operator<=(TensorOp const& rhs) const { return !(*this > rhs); }
-        bool operator>=(TensorOp const& rhs) const { return !(*this < rhs); }
+        bool operator>(TensorOp const& rhs) const
+        {
+            return rhs < *this;
+        }
+        bool operator!=(TensorOp const& rhs) const
+        {
+            return !(*this == rhs);
+        }
+        bool operator<=(TensorOp const& rhs) const
+        {
+            return !(*this > rhs);
+        }
+        bool operator>=(TensorOp const& rhs) const
+        {
+            return !(*this < rhs);
+        }
     };
 }

@@ -28,16 +28,17 @@
 
 namespace Tensile
 {
-    TENSILE_API std::string AMDGPU::type() const { return Type(); }
-
-    TENSILE_API AMDGPU::AMDGPU()
+    TENSILE_API std::string AMDGPU::type() const
     {
+        return Type();
     }
 
+    TENSILE_API AMDGPU::AMDGPU() {}
+
     TENSILE_API AMDGPU::AMDGPU(AMDGPU::Processor p, int cus, std::string const& name)
-        : processor(p),
-          computeUnitCount(cus),
-          deviceName(name)
+        : processor(p)
+        , computeUnitCount(cus)
+        , deviceName(name)
     {
     }
 
@@ -59,13 +60,16 @@ namespace Tensile
         return false;
     }
 
-    std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p)
+    std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p)
     {
         switch(p)
         {
-            case AMDGPU::Processor::gfx803: return stream << "gfx803";
-            case AMDGPU::Processor::gfx900: return stream << "gfx900";
-            case AMDGPU::Processor::gfx906: return stream << "gfx906";
+        case AMDGPU::Processor::gfx803:
+            return stream << "gfx803";
+        case AMDGPU::Processor::gfx900:
+            return stream << "gfx900";
+        case AMDGPU::Processor::gfx906:
+            return stream << "gfx906";
         }
         return stream;
     }

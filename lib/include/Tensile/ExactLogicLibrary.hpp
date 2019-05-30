@@ -26,9 +26,9 @@
 
 #pragma once
 
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/Predicates.hpp>
 #include <Tensile/Debug.hpp>
+#include <Tensile/Predicates.hpp>
+#include <Tensile/SolutionLibrary.hpp>
 
 namespace Tensile
 {
@@ -46,29 +46,28 @@ namespace Tensile
      * particular size is a multiple of something, etc.
      */
     template <typename MyProblem, typename MySolution, typename MyPredicate>
-    struct ExactLogicLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct ExactLogicLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         using Row = LibraryRow<MyProblem, MySolution, MyPredicate>;
         std::vector<Row> rows;
 
         ExactLogicLibrary() = default;
         ExactLogicLibrary(std::initializer_list<Row> init)
-            :rows(init)
+            : rows(init)
         {
         }
 
         ExactLogicLibrary(std::vector<Row> const& init)
-            :rows(init)
+            : rows(init)
         {
         }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             std::shared_ptr<MySolution> rv;
 
-            for(auto const& row: rows)
+            for(auto const& row : rows)
             {
                 if(row.first(problem, hardware))
                 {
@@ -81,13 +80,12 @@ namespace Tensile
             return rv;
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
             SolutionSet<MySolution> rv;
 
-            for(auto const& row: rows)
+            for(auto const& row : rows)
             {
                 if(row.first(problem, hardware))
                 {
@@ -116,8 +114,7 @@ namespace Tensile
         }
 
         template <typename Any>
-        bool operator()(Any const& problem,
-                        Hardware const& hardware) const
+        bool operator()(Any const& problem, Hardware const& hardware) const
         {
             bool debug = Debug::Instance().printDeviceSelection();
 
@@ -131,26 +128,31 @@ namespace Tensile
         }
     };
 
-    template <typename MyProblem,
-              typename MySolution>
-    struct HardwareSelectionLibrary:
-        public ExactLogicLibrary<MyProblem, MySolution, HardwarePredicate>
+    template <typename MyProblem, typename MySolution>
+    struct HardwareSelectionLibrary
+        : public ExactLogicLibrary<MyProblem, MySolution, HardwarePredicate>
     {
         using Base = ExactLogicLibrary<MyProblem, MySolution, HardwarePredicate>;
 
         HardwareSelectionLibrary() = default;
         HardwareSelectionLibrary(std::initializer_list<typename Base::Row> init)
-            :Base(init)
+            : Base(init)
         {
         }
 
         HardwareSelectionLibrary(std::vector<typename Base::Row> const& init)
-            :Base(init)
+            : Base(init)
         {
         }
 
-        static std::string Type() { return "Hardware"; }
-        virtual std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "Hardware";
+        }
+        virtual std::string type() const override
+        {
+            return Type();
+        }
     };
 
     template <typename MyProblem>
@@ -164,8 +166,7 @@ namespace Tensile
         {
         }
 
-        bool operator()(MyProblem const& problem,
-                        Hardware  const& hardware) const
+        bool operator()(MyProblem const& problem, Hardware const& hardware) const
         {
             bool debug = Debug::Instance().printPredicateEvaluation();
 
@@ -179,29 +180,31 @@ namespace Tensile
         }
     };
 
-    template <typename MyProblem,
-              typename MySolution>
-    struct ProblemSelectionLibrary:
-        public ExactLogicLibrary<MyProblem,
-                                 MySolution,
-                                 ProblemPredicate<MyProblem>>
+    template <typename MyProblem, typename MySolution>
+    struct ProblemSelectionLibrary
+        : public ExactLogicLibrary<MyProblem, MySolution, ProblemPredicate<MyProblem>>
     {
         using Base = ExactLogicLibrary<MyProblem, MySolution, ProblemPredicate<MyProblem>>;
 
         ProblemSelectionLibrary() = default;
         ProblemSelectionLibrary(std::initializer_list<typename Base::Row> init)
-            :Base(init)
+            : Base(init)
         {
         }
 
         ProblemSelectionLibrary(std::vector<typename Base::Row> const& init)
-            :Base(init)
+            : Base(init)
         {
         }
 
-        static std::string Type() { return "Problem"; }
-        virtual std::string type() const { return Type(); }
+        static std::string Type()
+        {
+            return "Problem";
+        }
+        virtual std::string type() const
+        {
+            return Type();
+        }
     };
 
 }
-

@@ -26,6 +26,6 @@ namespace Tensile
     TensorOp::TensorOp() = default;
     TensorOp::TensorOp(Type type)
         : type(type)
-    {}
+    {
+    }
 }
-

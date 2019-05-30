@@ -30,9 +30,8 @@
 
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution, typename >
-    class SolutionMapLibrary: public SolutionLibrary<MyProblem, MySolution>
+    template <typename MyProblem, typename MySolution, typename>
+    class SolutionMapLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
     };
 }
-

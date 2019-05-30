@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Predicates.hpp>
 #include <Tensile/AMDGPU.hpp>
+#include <Tensile/Predicates.hpp>
 
 #include <vector>
 
@@ -37,15 +37,25 @@ namespace Tensile
     {
         namespace GPU
         {
-            struct ProcessorEqual: public Predicate_CRTP<ProcessorEqual, AMDGPU>
+            struct ProcessorEqual : public Predicate_CRTP<ProcessorEqual, AMDGPU>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 AMDGPU::Processor value;
 
                 ProcessorEqual() = default;
-                ProcessorEqual(AMDGPU::Processor p) : value(p) {}
+                ProcessorEqual(AMDGPU::Processor p)
+                    : value(p)
+                {
+                }
 
-                static std::string Type() { return "Processor"; }
+                static std::string Type()
+                {
+                    return "Processor";
+                }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
@@ -53,15 +63,25 @@ namespace Tensile
                 }
             };
 
-            struct RunsKernelTargeting: public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
+            struct RunsKernelTargeting : public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 AMDGPU::Processor value;
 
                 RunsKernelTargeting() = default;
-                RunsKernelTargeting(AMDGPU::Processor p) : value(p) {}
+                RunsKernelTargeting(AMDGPU::Processor p)
+                    : value(p)
+                {
+                }
 
-                static std::string Type() { return "TargetProcessor"; }
+                static std::string Type()
+                {
+                    return "TargetProcessor";
+                }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
@@ -71,4 +91,3 @@ namespace Tensile
         }
     }
 }
-

@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/Tensile.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -46,8 +46,8 @@ namespace Tensile
 
             std::vector<ContractionProblem> const& problems() const;
 
-
             std::vector<ContractionProblem> createProblems();
+
         private:
             std::vector<ContractionProblem> m_problems;
 
@@ -73,5 +73,3 @@ namespace Tensile
 
     }
 }
-
-

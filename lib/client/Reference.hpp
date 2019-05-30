@@ -38,4 +38,3 @@ namespace Tensile
         void SolveCPU(ContractionProblem const& contraction, ContractionInputs const& inputs);
     }
 }
-

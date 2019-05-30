@@ -26,16 +26,16 @@
 
 #pragma once
 
+#include <array>
 #include <iostream>
 #include <sstream>
-#include <array>
 
 namespace Tensile
 {
     template <typename T>
     T CeilDivide(T num, T den)
     {
-        return (num + (den-1))/den;
+        return (num + (den - 1)) / den;
     }
 
     template <typename T>
@@ -45,25 +45,26 @@ namespace Tensile
     }
 
     template <typename Container, typename Joiner>
-    void streamJoin(std::ostream & stream, Container const& c, Joiner const& j)
+    void streamJoin(std::ostream& stream, Container const& c, Joiner const& j)
     {
         bool first = true;
-        for(auto const& item: c)
+        for(auto const& item : c)
         {
-            if(!first) stream << j;
+            if(!first)
+                stream << j;
             stream << item;
             first = false;
         }
     }
 
     template <typename T>
-    inline std::ostream & stream_write(std::ostream & stream, T const& val)
+    inline std::ostream& stream_write(std::ostream& stream, T const& val)
     {
         return stream << val;
     }
 
     template <typename T, typename... Ts>
-    inline std::ostream & stream_write(std::ostream & stream, T const& val, Ts const&... vals)
+    inline std::ostream& stream_write(std::ostream& stream, T const& val, Ts const&... vals)
     {
         return stream_write(stream << val, vals...);
     }
@@ -78,7 +79,7 @@ namespace Tensile
     }
 
     template <typename T, size_t N>
-    inline std::ostream & operator<<(std::ostream & stream, std::array<T, N> const& array)
+    inline std::ostream& operator<<(std::ostream& stream, std::array<T, N> const& array)
     {
         streamJoin(stream, array, ", ");
         return stream;
@@ -87,19 +88,19 @@ namespace Tensile
     class StreamRead
     {
     public:
-        StreamRead(std::string const& value, bool except=true);
+        StreamRead(std::string const& value, bool except = true);
         ~StreamRead();
 
-        bool read(std::istream & stream);
+        bool read(std::istream& stream);
 
     private:
         std::string const& m_value;
-        bool m_except;
-        bool m_success = false;
+        bool               m_except;
+        bool               m_success = false;
     };
 
     //inline std::istream & operator>>(std::istream & stream, StreamRead & value);
-    inline std::istream & operator>>(std::istream & stream, StreamRead & value)
+    inline std::istream& operator>>(std::istream& stream, StreamRead& value)
     {
         value.read(stream);
         return stream;
@@ -119,4 +120,3 @@ namespace Tensile
             throw std::runtime_error("Error in " TENSILE_LINEINFO ": " #exp); \
         }                                                                     \
     } while(false)
-

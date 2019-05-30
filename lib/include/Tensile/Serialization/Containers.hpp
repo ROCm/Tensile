@@ -42,31 +42,31 @@ namespace Tensile
         template <typename Map, typename IO, bool Sort, bool Flow>
         struct DefaultCustomMappingTraits
         {
-            using iot = IOTraits<IO>;
-            using key_type = typename Map::key_type;
+            using iot         = IOTraits<IO>;
+            using key_type    = typename Map::key_type;
             using mapped_type = typename Map::mapped_type;
 
-            static void inputOne(IO & io, std::string const& key, Map & value)
+            static void inputOne(IO& io, std::string const& key, Map& value)
             {
                 iot::mapRequired(io, key.c_str(), value[key]);
             }
 
-            static void output(IO & io, Map & value)
+            static void output(IO& io, Map& value)
             {
                 if(Sort)
                 {
                     std::vector<key_type> keys;
                     keys.reserve(value.size());
-                    for(auto const& pair: value)
+                    for(auto const& pair : value)
                         keys.push_back(pair.first);
                     std::sort(keys.begin(), keys.end());
 
-                    for(auto const& key: keys)
+                    for(auto const& key : keys)
                         iot::mapRequired(io, key.c_str(), value.find(key)->second);
                 }
                 else
                 {
-                    for(auto & pair: value)
+                    for(auto& pair : value)
                     {
                         iot::mapRequired(io, pair.first.c_str(), pair.second);
                     }
@@ -76,9 +76,9 @@ namespace Tensile
             static const bool flow = Flow;
         };
 
-        template<typename IO>
-        struct CustomMappingTraits<std::map<std::string, std::string>, IO>:
-        public DefaultCustomMappingTraits<std::map<std::string, std::string>, IO, false, true>
+        template <typename IO>
+        struct CustomMappingTraits<std::map<std::string, std::string>, IO>
+            : public DefaultCustomMappingTraits<std::map<std::string, std::string>, IO, false, true>
         {
         };
 
@@ -87,8 +87,11 @@ namespace Tensile
         {
             using Value = typename Seq::value_type;
 
-            static size_t size(IO & io, Seq & s) { return s.size(); }
-            static Value & element(IO & io, Seq & s, size_t index)
+            static size_t size(IO& io, Seq& s)
+            {
+                return s.size();
+            }
+            static Value& element(IO& io, Seq& s, size_t index)
             {
                 if(index >= s.size())
                 {
@@ -102,32 +105,41 @@ namespace Tensile
             const static bool flow = Flow;
         };
 
-#define TENSILE_SERIALIZE_VECTOR(flow, ...) \
-        template <typename IO> \
-        struct SequenceTraits<std::vector<__VA_ARGS__>, IO>: \
-        public DefaultSequenceTraits<std::vector<__VA_ARGS__>, IO, flow> \
-        { }
+#define TENSILE_SERIALIZE_VECTOR(flow, ...)                                \
+    template <typename IO>                                                 \
+    struct SequenceTraits<std::vector<__VA_ARGS__>, IO>                    \
+        : public DefaultSequenceTraits<std::vector<__VA_ARGS__>, IO, flow> \
+    {                                                                      \
+    }
 
         TENSILE_SERIALIZE_VECTOR(true,
-                Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
-                                           Tensile::ContractionSolution,
-                                           Tensile::HardwarePredicate>::Row);
+                                 Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
+                                                            Tensile::ContractionSolution,
+                                                            Tensile::HardwarePredicate>::Row);
 
+        TENSILE_SERIALIZE_VECTOR(
+            true,
+            Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
+                                       Tensile::ContractionSolution,
+                                       Tensile::ProblemPredicate<ContractionProblem>>::Row);
+
+        TENSILE_SERIALIZE_VECTOR(
+            true, std::shared_ptr<Tensile::Predicates::Predicate<Tensile::ContractionProblem>>);
+        TENSILE_SERIALIZE_VECTOR(
+            true, std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Hardware>>);
         TENSILE_SERIALIZE_VECTOR(true,
-                Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
-                                           Tensile::ContractionSolution,
-                                           Tensile::ProblemPredicate<ContractionProblem>>::Row);
-
-        TENSILE_SERIALIZE_VECTOR(true,  std::shared_ptr<Tensile::Predicates::Predicate<Tensile::ContractionProblem>>);
-        TENSILE_SERIALIZE_VECTOR(true,  std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Hardware>>);
-        TENSILE_SERIALIZE_VECTOR(true,  std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
-        TENSILE_SERIALIZE_VECTOR(true,  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
+                                 std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
+        TENSILE_SERIALIZE_VECTOR(true,
+                                 std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
 
         TENSILE_SERIALIZE_VECTOR(false, std::shared_ptr<Tensile::ContractionSolution>);
 
         template <typename Key, typename Value, typename IO>
-        struct SequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO>:
-        public DefaultSequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO, false>
+        struct SequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO>
+            : public DefaultSequenceTraits<
+                  std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>,
+                  IO,
+                  false>
         {
         };
 
@@ -135,12 +147,16 @@ namespace Tensile
         struct SequenceTraits<std::array<T, N>, IO>
         {
             using Value = T;
-            static size_t size(IO & io, std::array<T, N> & v) { return N; }
-            static T & element(IO & io, std::array<T, N> & v, size_t index)
+            static size_t size(IO& io, std::array<T, N>& v)
+            {
+                return N;
+            }
+            static T& element(IO& io, std::array<T, N>& v, size_t index)
             {
                 if(index >= N)
                 {
-                    IOTraits<IO>::setError(io, concatenate("invalid array<T, ", N, "> index ", index));
+                    IOTraits<IO>::setError(io,
+                                           concatenate("invalid array<T, ", N, "> index ", index));
                 }
 
                 return v[index];
@@ -150,4 +166,3 @@ namespace Tensile
         };
     }
 }
-

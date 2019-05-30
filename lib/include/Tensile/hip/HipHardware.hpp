@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/AMDGPU.hpp>
+#include <Tensile/Tensile.hpp>
 
 #include <hip/hip_runtime.h>
 
@@ -35,7 +35,7 @@ namespace Tensile
 {
     namespace hip
     {
-        struct HipAMDGPU: public AMDGPU
+        struct HipAMDGPU : public AMDGPU
         {
             HipAMDGPU() = default;
             HipAMDGPU(hipDeviceProp_t const& prop);
@@ -48,4 +48,3 @@ namespace Tensile
         std::shared_ptr<Hardware> GetDevice(hipDeviceProp_t const& prop);
     }
 }
-

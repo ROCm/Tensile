@@ -34,46 +34,58 @@
 namespace Tensile
 {
 
-    class ContractionSolution: public Solution
+    class ContractionSolution : public Solution
     {
     public:
         using Problem = ContractionProblem;
         using Inputs  = ContractionInputs;
 
-        static std::string Type() { return "Contraction"; }
-        virtual std::string type() const { return Type(); }
+        static std::string Type()
+        {
+            return "Contraction";
+        }
+        virtual std::string type() const
+        {
+            return Type();
+        }
 
-        virtual std::string KernelName() const { return kernelName; }
-        virtual std::string name() const { return kernelName; }
-        virtual std::string description() const { return kernelName; }
+        virtual std::string KernelName() const
+        {
+            return kernelName;
+        }
+        virtual std::string name() const
+        {
+            return kernelName;
+        }
+        virtual std::string description() const
+        {
+            return kernelName;
+        }
 
-        bool solves(Problem const& problem,
-                    Problem  const& inputs,
-                    Hardware    const& hardware) const;
+        bool solves(Problem const& problem, Problem const& inputs, Hardware const& hardware) const;
 
-        virtual std::vector<KernelInvocation> solve(Problem  const& problem,
-                                                    Inputs   const& inputs,
-                                                    Hardware const& hardware) const;
+        virtual std::vector<KernelInvocation>
+            solve(Problem const& problem, Inputs const& inputs, Hardware const& hardware) const;
 
         template <typename TypedInputs>
-        std::vector<KernelInvocation> solveTyped(Problem     const& problem,
+        std::vector<KernelInvocation> solveTyped(Problem const&     problem,
                                                  TypedInputs const& inputs,
-                                                 Hardware    const& hardware) const;
-    
+                                                 Hardware const&    hardware) const;
+
         template <typename TypedInputs>
-        KernelInvocation generateSingleCall(Problem     const& problem,
+        KernelInvocation generateSingleCall(Problem const&     problem,
                                             TypedInputs const& inputs,
-                                            Hardware    const& hardware) const;
+                                            Hardware const&    hardware) const;
 
         template <typename TypedInputs>
-        KernelInvocation generateBetaOnlyCall(Problem     const& problem,
+        KernelInvocation generateBetaOnlyCall(Problem const&     problem,
                                               TypedInputs const& inputs,
-                                              Hardware    const& hardware) const;
+                                              Hardware const&    hardware) const;
 
         template <typename TypedInputs>
-        std::string betaOnlyKernelName(Problem     const& problem,
+        std::string betaOnlyKernelName(Problem const&     problem,
                                        TypedInputs const& inputs,
-                                       Hardware    const& hardware) const;
+                                       Hardware const&    hardware) const;
 
         struct SizeMapping
         {
@@ -85,26 +97,26 @@ namespace Tensile
             size_t depthU;
             size_t globalSplitU;
             size_t staggerStrideShift;
-            int workGroupMapping;
+            int    workGroupMapping;
         };
 
         struct ProblemType
         {
             std::string operationIdentifier;
-            DataType aType = DataType::Float;
-            DataType bType = DataType::Float;
-            DataType cType = DataType::Float;
-            DataType dType = DataType::Float;
+            DataType    aType = DataType::Float;
+            DataType    bType = DataType::Float;
+            DataType    cType = DataType::Float;
+            DataType    dType = DataType::Float;
         };
 
-        int index;
+        int         index;
         std::string kernelName;
-        bool debugKernel = false;
+        bool        debugKernel = false;
 
-        std::shared_ptr<Predicates::Predicate<Problem>>  problemPredicate =
-            std::make_shared<Predicates::True<Problem>>();
-        std::shared_ptr<Predicates::Predicate<Hardware>> hardwarePredicate =
-            std::make_shared<Predicates::True<Hardware>>();
+        std::shared_ptr<Predicates::Predicate<Problem>> problemPredicate
+            = std::make_shared<Predicates::True<Problem>>();
+        std::shared_ptr<Predicates::Predicate<Hardware>> hardwarePredicate
+            = std::make_shared<Predicates::True<Hardware>>();
 
         SizeMapping sizeMapping;
 
@@ -113,12 +125,11 @@ namespace Tensile
         /// Debugging purposes.  Shouldn't contain any vital information that isn't somewhere else.
         std::map<std::string, std::string> info;
 
-        int32_t staggerUIter(Problem  const& problem,
-                             Inputs   const& inputs,
+        int32_t staggerUIter(Problem const&  problem,
+                             Inputs const&   inputs,
                              Hardware const& hardware) const;
 
         uint32_t magicNumber(uint32_t x) const;
     };
 
 }
-

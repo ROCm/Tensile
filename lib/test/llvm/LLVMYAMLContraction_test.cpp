@@ -26,36 +26,35 @@
 
 #include <gtest/gtest.h>
 
+#include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/Serialization.hpp>
 #include <Tensile/llvm/YAML.hpp>
-#include <Tensile/ContractionLibrary.hpp>
 
 using namespace Tensile;
 
 TEST(LLVMYAMLContractionTest, Simple)
 {
-    std::string mydoc =
-        "name: foo\n"
-        "sizeMapping:\n"
-        "  workGroup: [1,2,3]\n"
-        "  macroTile: [2,4,6]\n"
-        "  threadTile: [2,2,2]\n"
-        "  depthU: 8\n"
-        "  globalSplitU: 1\n"
-        "  staggerStrideShift: 3\n"
-        "  staggerU: 32\n"
-        "  workGroupMapping: 8\n"
-        "index: 0\n"
-        "hardwarePredicate: { type: TruePred }\n"
-        "problemPredicate:  { type: TruePred }\n"
-        "info: {}\n"
-        "debugKernel: false\n"
-        "problemType:\n"
-        "  operationIdentifier: foo\n"
-        "  aType: Float\n"
-        "  bType: Float\n"
-        "  cType: Float\n"
-        "  dType: Float\n";
+    std::string mydoc = "name: foo\n"
+                        "sizeMapping:\n"
+                        "  workGroup: [1,2,3]\n"
+                        "  macroTile: [2,4,6]\n"
+                        "  threadTile: [2,2,2]\n"
+                        "  depthU: 8\n"
+                        "  globalSplitU: 1\n"
+                        "  staggerStrideShift: 3\n"
+                        "  staggerU: 32\n"
+                        "  workGroupMapping: 8\n"
+                        "index: 0\n"
+                        "hardwarePredicate: { type: TruePred }\n"
+                        "problemPredicate:  { type: TruePred }\n"
+                        "info: {}\n"
+                        "debugKernel: false\n"
+                        "problemType:\n"
+                        "  operationIdentifier: foo\n"
+                        "  aType: Float\n"
+                        "  bType: Float\n"
+                        "  cType: Float\n"
+                        "  dType: Float\n";
     llvm::yaml::Input yin(mydoc);
 
     ContractionSolution s;
@@ -64,9 +63,8 @@ TEST(LLVMYAMLContractionTest, Simple)
     ASSERT_FALSE(yin.error());
 
     EXPECT_EQ(s.name(), "foo");
-    EXPECT_EQ(s.sizeMapping.workGroupSize, dim3(1,2,3));
-    EXPECT_EQ(s.sizeMapping.macroTile, dim3(2,4,6));
-
+    EXPECT_EQ(s.sizeMapping.workGroupSize, dim3(1, 2, 3));
+    EXPECT_EQ(s.sizeMapping.macroTile, dim3(2, 4, 6));
 }
 
 TEST(LLVMYAMLContractionTest, Predicate)
@@ -82,7 +80,7 @@ TEST(LLVMYAMLContractionTest, Predicate)
     yin >> p;
     ASSERT_FALSE(yin.error());
 
-    ContractionProblem prob = ContractionProblem::GEMM(false, false, 4,4,4,4,4,4,1,false,1);
+    ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
 
     EXPECT_NE(p, nullptr);
 
@@ -93,44 +91,43 @@ TEST(LLVMYAMLContractionTest, Predicate)
     //EXPECT_EQ(s.name(), "foo");
     //EXPECT_EQ(s.workGroupSize, dim3(1,2,3));
     //EXPECT_EQ(s.macroTile, dim3(2,4,6));
-
 }
 
 TEST(LLVMYAMLContractionTest, ContractionLibrary)
 {
-    std::string mydoc =
-        "solutions:\n"
-        "  - name: foo\n"
-        "    sizeMapping:\n"
-        "      workGroup: [1,2,3]\n"
-        "      macroTile: [1,2,3]\n"
-        "      threadTile: [1,2,3]\n"
-        "      depthU: 8\n"
-        "      globalSplitU: 1\n"
-        "      staggerStrideShift: 3\n"
-        "      staggerU: 32\n"
-        "      workGroupMapping: 8\n"
-        "    index: 0\n"
-        "    hardwarePredicate: { type: TruePred }\n"
-        "    problemPredicate:  { type: TruePred }\n"
-        "    info: {}\n"
-        "    debugKernel: false\n"
-        "    problemType:\n"
-        "      operationIdentifier: foo\n"
-        "      aType: Float\n"
-        "      bType: Float\n"
-        "      cType: Float\n"
-        "      dType: Float\n"
-        "library:\n"
-        "  type: Hardware\n"
-        "  rows:\n"
-        "      - predicate: { type: AMDGPU, value: { type: Processor, value: gfx900 } }\n"
-        "        library:\n"
-        "          type: Problem\n"
-        "          rows:\n"
-        "              - predicate: { type: FreeSizeAMultiple, index: 0, value: 2 }\n"
-        "                library: { type: Single, index: 0 }\n"
-        "";
+    std::string mydoc
+        = "solutions:\n"
+          "  - name: foo\n"
+          "    sizeMapping:\n"
+          "      workGroup: [1,2,3]\n"
+          "      macroTile: [1,2,3]\n"
+          "      threadTile: [1,2,3]\n"
+          "      depthU: 8\n"
+          "      globalSplitU: 1\n"
+          "      staggerStrideShift: 3\n"
+          "      staggerU: 32\n"
+          "      workGroupMapping: 8\n"
+          "    index: 0\n"
+          "    hardwarePredicate: { type: TruePred }\n"
+          "    problemPredicate:  { type: TruePred }\n"
+          "    info: {}\n"
+          "    debugKernel: false\n"
+          "    problemType:\n"
+          "      operationIdentifier: foo\n"
+          "      aType: Float\n"
+          "      bType: Float\n"
+          "      cType: Float\n"
+          "      dType: Float\n"
+          "library:\n"
+          "  type: Hardware\n"
+          "  rows:\n"
+          "      - predicate: { type: AMDGPU, value: { type: Processor, value: gfx900 } }\n"
+          "        library:\n"
+          "          type: Problem\n"
+          "          rows:\n"
+          "              - predicate: { type: FreeSizeAMultiple, index: 0, value: 2 }\n"
+          "                library: { type: Single, index: 0 }\n"
+          "";
 
     llvm::yaml::Input yin(mydoc);
 
@@ -143,5 +140,3 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
     llvm::yaml::Output yout(llvm::outs());
     yout << l;
 }
-
-

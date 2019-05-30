@@ -35,18 +35,21 @@ namespace Tensile
 {
     namespace hip
     {
-        class SolutionAdapter: public Tensile::SolutionAdapter
+        class SolutionAdapter : public Tensile::SolutionAdapter
         {
         public:
             SolutionAdapter() = default;
             SolutionAdapter(bool debug);
             ~SolutionAdapter();
 
-            virtual std::string name() const { return "HipSolutionAdapter"; }
+            virtual std::string name() const
+            {
+                return "HipSolutionAdapter";
+            }
 
             void loadCodeObjectFile(std::string const& path);
 
-            void loadCodeObject(const void * image);
+            void loadCodeObject(const void* image);
 
             void loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
 
@@ -61,9 +64,9 @@ namespace Tensile
 
             std::mutex m_access;
 
-            std::vector<hipModule_t> m_modules;
+            std::vector<hipModule_t>                       m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
-            bool m_debug = false;
+            bool                                           m_debug = false;
         };
     }
 }

@@ -28,7 +28,7 @@
 
 namespace Tensile
 {
-    class Debug: public LazySingleton<Debug>
+    class Debug : public LazySingleton<Debug>
     {
     public:
         bool printPropertyEvaluation() const;
@@ -43,7 +43,5 @@ namespace Tensile
         int value;
 
         Debug();
-
     };
 }
-

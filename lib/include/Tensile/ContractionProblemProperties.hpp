@@ -21,19 +21,26 @@
 
 #pragma once
 
-#include <Tensile/PropertyMatching.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/PropertyMatching.hpp>
 
 namespace Tensile
 {
     namespace Contraction
     {
-        struct FreeSizeA: public Property_CRTP<FreeSizeA, ContractionProblem>
+        struct FreeSizeA : public Property_CRTP<FreeSizeA, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "FreeSizeA"; }
+            static std::string Type()
+            {
+                return "FreeSizeA";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -41,12 +48,19 @@ namespace Tensile
             }
         };
 
-        struct FreeSizeB: public Property_CRTP<FreeSizeB, ContractionProblem>
+        struct FreeSizeB : public Property_CRTP<FreeSizeB, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "FreeSizeB"; }
+            static std::string Type()
+            {
+                return "FreeSizeB";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -54,12 +68,19 @@ namespace Tensile
             }
         };
 
-        struct BatchSize: public Property_CRTP<BatchSize, ContractionProblem>
+        struct BatchSize : public Property_CRTP<BatchSize, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "BatchSize"; }
+            static std::string Type()
+            {
+                return "BatchSize";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -67,12 +88,19 @@ namespace Tensile
             }
         };
 
-        struct BoundSize: public Property_CRTP<BoundSize, ContractionProblem>
+        struct BoundSize : public Property_CRTP<BoundSize, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "BoundSize"; }
+            static std::string Type()
+            {
+                return "BoundSize";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -80,12 +108,19 @@ namespace Tensile
             }
         };
 
-        struct AStride: public Property_CRTP<AStride, ContractionProblem>
+        struct AStride : public Property_CRTP<AStride, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "AStride"; }
+            static std::string Type()
+            {
+                return "AStride";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -93,12 +128,19 @@ namespace Tensile
             }
         };
 
-        struct BStride: public Property_CRTP<BStride, ContractionProblem>
+        struct BStride : public Property_CRTP<BStride, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "BStride"; }
+            static std::string Type()
+            {
+                return "BStride";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -106,12 +148,19 @@ namespace Tensile
             }
         };
 
-        struct CStride: public Property_CRTP<CStride, ContractionProblem>
+        struct CStride : public Property_CRTP<CStride, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "CStride"; }
+            static std::string Type()
+            {
+                return "CStride";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -119,12 +168,19 @@ namespace Tensile
             }
         };
 
-        struct DStride: public Property_CRTP<DStride, ContractionProblem>
+        struct DStride : public Property_CRTP<DStride, ContractionProblem>
         {
-            enum { HasIndex = true, HasValue = false };
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
             size_t index;
 
-            static std::string Type() { return "DStride"; }
+            static std::string Type()
+            {
+                return "DStride";
+            }
 
             virtual size_t operator()(ContractionProblem const& problem) const
             {
@@ -132,11 +188,19 @@ namespace Tensile
             }
         };
 
-        struct OperationIdentifier: public Property_CRTP<OperationIdentifier, ContractionProblem, std::string>
+        struct OperationIdentifier
+            : public Property_CRTP<OperationIdentifier, ContractionProblem, std::string>
         {
-            enum { HasIndex = false, HasValue = false };
+            enum
+            {
+                HasIndex = false,
+                HasValue = false
+            };
 
-            static std::string Type() { return "OperationIdentifier"; }
+            static std::string Type()
+            {
+                return "OperationIdentifier";
+            }
 
             virtual std::string operator()(ContractionProblem const& problem) const
             {
@@ -145,4 +209,3 @@ namespace Tensile
         };
     }
 }
-

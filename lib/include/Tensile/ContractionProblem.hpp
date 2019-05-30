@@ -25,8 +25,8 @@
 
 #include <Tensile/Tensile.hpp>
 
-#include <Tensile/ContractionSolution_fwd.hpp>
 #include <Tensile/ContractionProblem_fwd.hpp>
+#include <Tensile/ContractionSolution_fwd.hpp>
 
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/TensorOps.hpp>
@@ -35,7 +35,7 @@
 namespace Tensile
 {
 
-    class TENSILE_API ContractionProblem: public Problem
+    class TENSILE_API ContractionProblem : public Problem
     {
     public:
         using Solution = ContractionSolution;
@@ -48,8 +48,8 @@ namespace Tensile
          */
         struct FreeIndex
         {
-            size_t a;  //< Dimension of A for this index.
-            size_t b;  //< Dimension of B for this index.
+            size_t a; //< Dimension of A for this index.
+            size_t b; //< Dimension of B for this index.
             size_t ca; //< Dimension of C which corresponds to A in this index.
             size_t cb; //< Dimension of C which corresponds to B in this index.
             size_t da; //< Dimension of D which corresponds to A in this index.
@@ -77,45 +77,80 @@ namespace Tensile
 
         virtual std::string description() const;
 
-        static ContractionProblem GEMM_Strides(bool transA, bool transB,
-                                               DataType aType, DataType bType, DataType cType, DataType dType,
-                                               size_t m, size_t n, size_t k, size_t batchSize,
-                                               size_t lda, size_t aStride,
-                                               size_t ldb, size_t bStride,
-                                               size_t ldc, size_t cStride,
-                                               size_t ldd, size_t dStride,
-                                               double beta);
+        static ContractionProblem GEMM_Strides(bool     transA,
+                                               bool     transB,
+                                               DataType aType,
+                                               DataType bType,
+                                               DataType cType,
+                                               DataType dType,
+                                               size_t   m,
+                                               size_t   n,
+                                               size_t   k,
+                                               size_t   batchSize,
+                                               size_t   lda,
+                                               size_t   aStride,
+                                               size_t   ldb,
+                                               size_t   bStride,
+                                               size_t   ldc,
+                                               size_t   cStride,
+                                               size_t   ldd,
+                                               size_t   dStride,
+                                               double   beta);
 
-        static ContractionProblem GEMM(bool transA, bool transB,
-                                       size_t m, size_t n, size_t k,
-                                       size_t lda, size_t ldb, size_t ldc,
-                                       double beta, bool colMajor, size_t batchCount);
+        static ContractionProblem GEMM(bool   transA,
+                                       bool   transB,
+                                       size_t m,
+                                       size_t n,
+                                       size_t k,
+                                       size_t lda,
+                                       size_t ldb,
+                                       size_t ldc,
+                                       double beta,
+                                       bool   colMajor,
+                                       size_t batchCount);
 
-        static ContractionProblem GEMM(bool transA, bool transB,
-                                       TensorDescriptor const& a, TensorOps const& aOps,
-                                       TensorDescriptor const& b, TensorOps const& bOps,
-                                       TensorDescriptor const& c, TensorOps const& cOps,
-                                       TensorDescriptor const& d, TensorOps const& dOps,
-                                       double beta);
+        static ContractionProblem GEMM(bool                    transA,
+                                       bool                    transB,
+                                       TensorDescriptor const& a,
+                                       TensorOps const&        aOps,
+                                       TensorDescriptor const& b,
+                                       TensorOps const&        bOps,
+                                       TensorDescriptor const& c,
+                                       TensorOps const&        cOps,
+                                       TensorDescriptor const& d,
+                                       TensorOps const&        dOps,
+                                       double                  beta);
 
-        static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
-                                                 BatchIndices const& batchIndices,
-                                                 BoundIndices const& boundIndices,
+        static ContractionProblem FromIndexSizes(FreeIndices const&         freeIndices,
+                                                 BatchIndices const&        batchIndices,
+                                                 BoundIndices const&        boundIndices,
                                                  std::vector<size_t> const& indexSizes,
-                                                 DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
-                                                 DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
-                                                 DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
-                                                 DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
-                                                 double beta);
+                                                 DataType                   aType,
+                                                 std::vector<size_t> const& aStrides,
+                                                 TensorOps const&           aOps,
+                                                 DataType                   bType,
+                                                 std::vector<size_t> const& bStrides,
+                                                 TensorOps const&           bOps,
+                                                 DataType                   cType,
+                                                 std::vector<size_t> const& cStrides,
+                                                 TensorOps const&           cOps,
+                                                 DataType                   dType,
+                                                 std::vector<size_t> const& dStrides,
+                                                 TensorOps const&           dOps,
+                                                 double                     beta);
 
-        ContractionProblem(TensorDescriptor const& a, TensorOps const& aOps,
-                           TensorDescriptor const& b, TensorOps const& bOps,
-                           TensorDescriptor const& c, TensorOps const& cOps,
-                           TensorDescriptor const& d, TensorOps const& dOps,
-                           FreeIndices  const& freeIndices,
-                           BatchIndices const& batchIndices,
-                           BoundIndices const& boundIndices,
-                           double beta);
+        ContractionProblem(TensorDescriptor const& a,
+                           TensorOps const&        aOps,
+                           TensorDescriptor const& b,
+                           TensorOps const&        bOps,
+                           TensorDescriptor const& c,
+                           TensorOps const&        cOps,
+                           TensorDescriptor const& d,
+                           TensorOps const&        dOps,
+                           FreeIndices const&      freeIndices,
+                           BatchIndices const&     batchIndices,
+                           BoundIndices const&     boundIndices,
+                           double                  beta);
 
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
@@ -123,46 +158,112 @@ namespace Tensile
         size_t boundSize(size_t idx) const;
 
         /// Largest of the free and bound indices.  Does not include batch size.
-        size_t maxProblemSize() const { return m_maxProblemSize; }
+        size_t maxProblemSize() const
+        {
+            return m_maxProblemSize;
+        }
 
-        TensorDescriptor const& a() const { return m_a; }
-        TensorDescriptor const& b() const { return m_b; }
-        TensorDescriptor const& c() const { return m_c; }
-        TensorDescriptor const& d() const { return m_d; }
+        TensorDescriptor const& a() const
+        {
+            return m_a;
+        }
+        TensorDescriptor const& b() const
+        {
+            return m_b;
+        }
+        TensorDescriptor const& c() const
+        {
+            return m_c;
+        }
+        TensorDescriptor const& d() const
+        {
+            return m_d;
+        }
 
-        TensorOps const& aOps() const { return m_aOps; }
-        TensorOps const& bOps() const { return m_bOps; }
-        TensorOps const& cOps() const { return m_cOps; }
-        TensorOps const& dOps() const { return m_dOps; }
+        TensorOps const& aOps() const
+        {
+            return m_aOps;
+        }
+        TensorOps const& bOps() const
+        {
+            return m_bOps;
+        }
+        TensorOps const& cOps() const
+        {
+            return m_cOps;
+        }
+        TensorOps const& dOps() const
+        {
+            return m_dOps;
+        }
 
-        FreeIndices  const&  freeIndices() const { return m_freeIndices; }
-        BatchIndices const& batchIndices() const { return m_batchIndices; }
-        BoundIndices const& boundIndices() const { return m_boundIndices; }
+        FreeIndices const& freeIndices() const
+        {
+            return m_freeIndices;
+        }
+        BatchIndices const& batchIndices() const
+        {
+            return m_batchIndices;
+        }
+        BoundIndices const& boundIndices() const
+        {
+            return m_boundIndices;
+        }
 
-        double beta() const { return m_beta; }
+        double beta() const
+        {
+            return m_beta;
+        }
 
-        std::string const& aNames()   const { return m_aNames; }
-        std::string const& bNames()   const { return m_bNames; }
-        std::string const& cNames()   const { return m_cNames; }
-        std::string const& dNames()   const { return m_dNames; }
-        std::string const& sumNames() const { return m_sumNames; }
+        std::string const& aNames() const
+        {
+            return m_aNames;
+        }
+        std::string const& bNames() const
+        {
+            return m_bNames;
+        }
+        std::string const& cNames() const
+        {
+            return m_cNames;
+        }
+        std::string const& dNames() const
+        {
+            return m_dNames;
+        }
+        std::string const& sumNames() const
+        {
+            return m_sumNames;
+        }
 
-        bool transA() const { return m_transA; }
-        bool transB() const { return m_transB; }
+        bool transA() const
+        {
+            return m_transA;
+        }
+        bool transB() const
+        {
+            return m_transB;
+        }
 
-        std::string operationName() const;
-        std::string const& operationIdentifier()   const { return m_operationIdentifier; }
-        std::string        operationDescription() const { return getOperationDescription(); }
+        std::string        operationName() const;
+        std::string const& operationIdentifier() const
+        {
+            return m_operationIdentifier;
+        }
+        std::string operationDescription() const
+        {
+            return getOperationDescription();
+        }
 
     private:
         TensorDescriptor m_a;
         TensorDescriptor m_b;
         TensorDescriptor m_c;
         TensorDescriptor m_d;
-        TensorOps m_aOps;
-        TensorOps m_bOps;
-        TensorOps m_cOps;
-        TensorOps m_dOps;
+        TensorOps        m_aOps;
+        TensorOps        m_bOps;
+        TensorOps        m_cOps;
+        TensorOps        m_dOps;
 
         std::string m_aNames;
         std::string m_bNames;
@@ -174,7 +275,7 @@ namespace Tensile
         bool m_transA;
         bool m_transB;
 
-        FreeIndices m_freeIndices;
+        FreeIndices  m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
 
@@ -190,54 +291,59 @@ namespace Tensile
         void normalize();
         void consistencyCheck() const;
 
-        void getIndexNames(std::string & aNames,
-                           std::string & bNames,
-                           std::string & cNames,
-                           std::string & dNames,
-                           std::string & sumNames) const;
+        void getIndexNames(std::string& aNames,
+                           std::string& bNames,
+                           std::string& cNames,
+                           std::string& dNames,
+                           std::string& sumNames) const;
 
         std::string getOperationIdentifier() const;
         std::string getOperationDescription() const;
     };
 
-    struct TENSILE_API ContractionInputs: public ProblemInputs
+    struct TENSILE_API ContractionInputs : public ProblemInputs
     {
         ContractionInputs();
         ~ContractionInputs();
     };
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    struct TENSILE_API TypedContractionInputs: public ContractionInputs
+    struct TENSILE_API TypedContractionInputs : public ContractionInputs
     {
-        using AType = A;
-        using BType = B;
-        using CType = C;
-        using DType = D;
+        using AType     = A;
+        using BType     = B;
+        using CType     = C;
+        using DType     = D;
         using AlphaType = Alpha;
-        using BetaType = Beta;
+        using BetaType  = Beta;
 
         TypedContractionInputs();
-        TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
-                               Alpha _alpha, Beta _beta);
+        TypedContractionInputs(
+            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
         ~TypedContractionInputs();
-        
+
         A const* a = nullptr;
         B const* b = nullptr;
         C const* c = nullptr;
-        D      * d = nullptr;
+        D*       d = nullptr;
 
         Alpha alpha = 0;
-        Beta beta   = 0;
+        Beta  beta  = 0;
     };
 
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem const& contraction);
+    TENSILE_API std::ostream& operator<<(std::ostream&             stream,
+                                         ContractionProblem const& contraction);
 
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch);
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::BoundIndex const& bound);
+    TENSILE_API std::ostream& operator<<(std::ostream&                        stream,
+                                         ContractionProblem::FreeIndex const& free);
+    TENSILE_API std::ostream& operator<<(std::ostream&                         stream,
+                                         ContractionProblem::BatchIndex const& batch);
+    TENSILE_API std::ostream& operator<<(std::ostream&                         stream,
+                                         ContractionProblem::BoundIndex const& bound);
 
-    TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::FreeIndex       & free);
-    TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::BatchIndex      & batch);
-    TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::BoundIndex      & bound);
+    TENSILE_API std::istream& operator>>(std::istream& stream, ContractionProblem::FreeIndex& free);
+    TENSILE_API std::istream& operator>>(std::istream&                   stream,
+                                         ContractionProblem::BatchIndex& batch);
+    TENSILE_API std::istream& operator>>(std::istream&                   stream,
+                                         ContractionProblem::BoundIndex& bound);
 }
-

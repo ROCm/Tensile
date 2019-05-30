@@ -35,42 +35,56 @@ namespace Tensile
     template <>
     struct Comparison<ContractionProblem::FreeIndex>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::FreeIndex const& lhs, ContractionProblem::FreeIndex const& rhs)
+        enum
         {
-            return LexicographicCompare(lhs.da, rhs.da,
-                                        lhs.db, rhs.db,
-                                        lhs.ca, rhs.ca,
-                                        lhs.cb, rhs.cb,
-                                        lhs.a,  rhs.a,
-                                        lhs.b,  rhs.b);
+            implemented = true
+        };
+
+        static int compare(ContractionProblem::FreeIndex const& lhs,
+                           ContractionProblem::FreeIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.da,
+                                        rhs.da,
+                                        lhs.db,
+                                        rhs.db,
+                                        lhs.ca,
+                                        rhs.ca,
+                                        lhs.cb,
+                                        rhs.cb,
+                                        lhs.a,
+                                        rhs.a,
+                                        lhs.b,
+                                        rhs.b);
         }
     };
 
     template <>
     struct Comparison<ContractionProblem::BatchIndex>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::BatchIndex const& lhs, ContractionProblem::BatchIndex const& rhs)
+        enum
         {
-            return LexicographicCompare(lhs.d, rhs.d,
-                                        lhs.c, rhs.c,
-                                        lhs.a, rhs.a,
-                                        lhs.b, rhs.b);
+            implemented = true
+        };
+
+        static int compare(ContractionProblem::BatchIndex const& lhs,
+                           ContractionProblem::BatchIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.d, rhs.d, lhs.c, rhs.c, lhs.a, rhs.a, lhs.b, rhs.b);
         }
     };
 
     template <>
     struct Comparison<ContractionProblem::BoundIndex>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::BoundIndex const& lhs, ContractionProblem::BoundIndex const& rhs)
+        enum
         {
-            return LexicographicCompare(lhs.a, rhs.a,
-                                        lhs.b, rhs.b);
+            implemented = true
+        };
+
+        static int compare(ContractionProblem::BoundIndex const& lhs,
+                           ContractionProblem::BoundIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.a, rhs.a, lhs.b, rhs.b);
         }
     };
 }

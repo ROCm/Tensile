@@ -23,12 +23,11 @@
 
 namespace Tensile
 {
-    class  Problem;
-    class  ProblemInputs;
-    class  KernelArguments;
+    class Problem;
+    class ProblemInputs;
+    class KernelArguments;
     struct KernelInvocation;
-    class  Hardware;
-    class  Solution;
-    class  SolutionAdapter;
+    class Hardware;
+    class Solution;
+    class SolutionAdapter;
 }
-

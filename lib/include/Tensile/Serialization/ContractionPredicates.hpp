@@ -29,23 +29,25 @@
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
 
-#include <Tensile/Predicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
+#include <Tensile/Predicates.hpp>
 
 namespace Tensile
 {
     namespace Serialization
     {
         template <typename IO>
-        struct SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>,
-                                                Predicates::Predicate<ContractionProblem>,
-                                                IO>
+        struct SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>
+            : public DefaultSubclassMappingTraits<
+                  SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>,
+                  Predicates::Predicate<ContractionProblem>,
+                  IO>
         {
             using Self = SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>;
-            using Base = DefaultSubclassMappingTraits<SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>,
-                                                      Predicates::Predicate<ContractionProblem>,
-                                                      IO>;
+            using Base = DefaultSubclassMappingTraits<
+                SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>,
+                Predicates::Predicate<ContractionProblem>,
+                IO>;
             using SubclassMap = typename Base::SubclassMap;
             const static SubclassMap subclasses;
 
@@ -53,19 +55,18 @@ namespace Tensile
 
             static SubclassMap GetSubclasses()
             {
-                SubclassMap rv(
-                {
-                    Base::template Pair<Predicates::Contraction::FreeSizeAMultiple         >(),
-                    Base::template Pair<Predicates::Contraction::FreeSizeBMultiple         >(),
-                    Base::template Pair<Predicates::Contraction::BatchSizeMultiple         >(),
-                    Base::template Pair<Predicates::Contraction::BoundSizeMultiple         >(),
-                    Base::template Pair<Predicates::Contraction::MaxProblemSizeGreaterThan >(),
+                SubclassMap rv({
+                    Base::template Pair<Predicates::Contraction::FreeSizeAMultiple>(),
+                    Base::template Pair<Predicates::Contraction::FreeSizeBMultiple>(),
+                    Base::template Pair<Predicates::Contraction::BatchSizeMultiple>(),
+                    Base::template Pair<Predicates::Contraction::BoundSizeMultiple>(),
+                    Base::template Pair<Predicates::Contraction::MaxProblemSizeGreaterThan>(),
                     Base::template Pair<Predicates::Contraction::LeadingSizesGreaterOrEqual>(),
-                    Base::template Pair<Predicates::Contraction::CDStridesEqual            >(),
-                    Base::template Pair<Predicates::Contraction::LDCEqualsLDD              >(),
-                    Base::template Pair<Predicates::Contraction::BetaZero                  >(),
-                    Base::template Pair<Predicates::Contraction::BetaOne                   >(),
-                    Base::template Pair<Predicates::Contraction::TypesEqual                >(),
+                    Base::template Pair<Predicates::Contraction::CDStridesEqual>(),
+                    Base::template Pair<Predicates::Contraction::LDCEqualsLDD>(),
+                    Base::template Pair<Predicates::Contraction::BetaZero>(),
+                    Base::template Pair<Predicates::Contraction::BetaOne>(),
+                    Base::template Pair<Predicates::Contraction::TypesEqual>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -73,60 +74,81 @@ namespace Tensile
 
                 return rv;
             }
-
         };
 
         template <typename IO>
-        using ContractionProblemPredicateSMT = SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>;
+        using ContractionProblemPredicateSMT
+            = SubclassMappingTraits<Predicates::Predicate<ContractionProblem>, IO>;
 
         template <typename IO>
         const typename ContractionProblemPredicateSMT<IO>::SubclassMap
-        ContractionProblemPredicateSMT<IO>::subclasses = ContractionProblemPredicateSMT<IO>::GetSubclasses();
+            ContractionProblemPredicateSMT<IO>::subclasses
+            = ContractionProblemPredicateSMT<IO>::GetSubclasses();
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::FreeSizeAMultiple, IO>:
-        public AutoMappingTraits<Predicates::Contraction::FreeSizeAMultiple, IO> {};
+        struct MappingTraits<Predicates::Contraction::FreeSizeAMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::FreeSizeAMultiple, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::FreeSizeBMultiple, IO>:
-        public AutoMappingTraits<Predicates::Contraction::FreeSizeBMultiple, IO> {};
+        struct MappingTraits<Predicates::Contraction::FreeSizeBMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::FreeSizeBMultiple, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::BatchSizeMultiple, IO>:
-        public AutoMappingTraits<Predicates::Contraction::BatchSizeMultiple, IO> {};
+        struct MappingTraits<Predicates::Contraction::BatchSizeMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::BatchSizeMultiple, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::BoundSizeMultiple, IO>:
-        public AutoMappingTraits<Predicates::Contraction::BoundSizeMultiple, IO> {};
+        struct MappingTraits<Predicates::Contraction::BoundSizeMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::BoundSizeMultiple, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::MaxProblemSizeGreaterThan, IO>:
-        public AutoMappingTraits<Predicates::Contraction::MaxProblemSizeGreaterThan, IO> {};
+        struct MappingTraits<Predicates::Contraction::MaxProblemSizeGreaterThan, IO>
+            : public AutoMappingTraits<Predicates::Contraction::MaxProblemSizeGreaterThan, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::LeadingSizesGreaterOrEqual, IO>:
-        public AutoMappingTraits<Predicates::Contraction::LeadingSizesGreaterOrEqual, IO> {};
+        struct MappingTraits<Predicates::Contraction::LeadingSizesGreaterOrEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::LeadingSizesGreaterOrEqual, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::CDStridesEqual, IO>:
-        public AutoMappingTraits<Predicates::Contraction::CDStridesEqual, IO> {};
+        struct MappingTraits<Predicates::Contraction::CDStridesEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::CDStridesEqual, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::LDCEqualsLDD, IO>:
-        public AutoMappingTraits<Predicates::Contraction::LDCEqualsLDD, IO> {};
+        struct MappingTraits<Predicates::Contraction::LDCEqualsLDD, IO>
+            : public AutoMappingTraits<Predicates::Contraction::LDCEqualsLDD, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::BetaZero, IO>:
-        public AutoMappingTraits<Predicates::Contraction::BetaZero, IO> {};
+        struct MappingTraits<Predicates::Contraction::BetaZero, IO>
+            : public AutoMappingTraits<Predicates::Contraction::BetaZero, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::BetaOne, IO>:
-        public AutoMappingTraits<Predicates::Contraction::BetaOne, IO> {};
+        struct MappingTraits<Predicates::Contraction::BetaOne, IO>
+            : public AutoMappingTraits<Predicates::Contraction::BetaOne, IO>
+        {
+        };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::TypesEqual, IO>:
-        public AutoMappingTraits<Predicates::Contraction::TypesEqual, IO> {};
+        struct MappingTraits<Predicates::Contraction::TypesEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::TypesEqual, IO>
+        {
+        };
     }
 }
-
-

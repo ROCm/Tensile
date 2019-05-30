@@ -37,7 +37,7 @@ namespace Tensile
 {
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-    EmbeddedLibrary<MyProblem, MySolution>::NewLibrary(std::string const& key)
+        EmbeddedLibrary<MyProblem, MySolution>::NewLibrary(std::string const& key)
     {
         auto const& data = EmbeddedData<SolutionLibrary<MyProblem, MySolution>>::Get(key);
         if(data.size() != 1)
@@ -46,10 +46,8 @@ namespace Tensile
         return LLVMLoadLibraryData<MyProblem, MySolution>(data[0]);
     }
 
-    template
-    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-    EmbeddedLibrary<ContractionProblem, ContractionSolution>::NewLibrary(std::string const&);
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        EmbeddedLibrary<ContractionProblem, ContractionSolution>::NewLibrary(std::string const&);
 }
 
 #endif
-

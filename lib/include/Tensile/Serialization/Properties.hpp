@@ -28,8 +28,8 @@
 
 #include <Tensile/Serialization/Base.hpp>
 
-#include <Tensile/PropertyMatching.hpp>
 #include <Tensile/ContractionProblemProperties.hpp>
+#include <Tensile/PropertyMatching.hpp>
 
 namespace Tensile
 {
@@ -37,59 +37,57 @@ namespace Tensile
     {
 
         template <typename Object, typename Value, typename IO>
-        struct MappingTraits<std::shared_ptr<Property<Object, Value>>, IO>:
-        public BaseClassMappingTraits<Property<Object, Value>, IO, true>
+        struct MappingTraits<std::shared_ptr<Property<Object, Value>>, IO>
+            : public BaseClassMappingTraits<Property<Object, Value>, IO, true>
         {
         };
 
         template <typename IO>
-        struct SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>,
-                                                Property<ContractionProblem, size_t>,
-                                                IO>
+        struct SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>
+            : public DefaultSubclassMappingTraits<
+                  SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>,
+                  Property<ContractionProblem, size_t>,
+                  IO>
         {
             using Self = SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>;
-            using Base = DefaultSubclassMappingTraits<SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>,
-                                                      Property<ContractionProblem, size_t>,
-                                                      IO>;
+            using Base = DefaultSubclassMappingTraits<
+                SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>,
+                Property<ContractionProblem, size_t>,
+                IO>;
             using SubclassMap = typename Base::SubclassMap;
             const static SubclassMap subclasses;
 
             static SubclassMap GetSubclasses()
             {
-                return SubclassMap(
-                {
-                    Base::template Pair<Contraction::FreeSizeA>(),
-                    Base::template Pair<Contraction::FreeSizeB>(),
-                    Base::template Pair<Contraction::BatchSize>(),
-                    Base::template Pair<Contraction::BoundSize>(),
-                    Base::template Pair<Contraction::AStride>(),
-                    Base::template Pair<Contraction::BStride>(),
-                    Base::template Pair<Contraction::CStride>(),
-                    Base::template Pair<Contraction::DStride>()
-                });
+                return SubclassMap({Base::template Pair<Contraction::FreeSizeA>(),
+                                    Base::template Pair<Contraction::FreeSizeB>(),
+                                    Base::template Pair<Contraction::BatchSize>(),
+                                    Base::template Pair<Contraction::BoundSize>(),
+                                    Base::template Pair<Contraction::AStride>(),
+                                    Base::template Pair<Contraction::BStride>(),
+                                    Base::template Pair<Contraction::CStride>(),
+                                    Base::template Pair<Contraction::DStride>()});
             }
         };
 
         template <typename IO>
-        struct SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>,
-                                                Property<ContractionProblem, std::string>,
-                                                IO>
+        struct SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>
+            : public DefaultSubclassMappingTraits<
+                  SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>,
+                  Property<ContractionProblem, std::string>,
+                  IO>
         {
             using Self = SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>;
-            using Base = DefaultSubclassMappingTraits<SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>,
-                                                      Property<ContractionProblem, std::string>,
-                                                      IO>;
+            using Base = DefaultSubclassMappingTraits<
+                SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>,
+                Property<ContractionProblem, std::string>,
+                IO>;
             using SubclassMap = typename Base::SubclassMap;
             const static SubclassMap subclasses;
 
             static SubclassMap GetSubclasses()
             {
-                return SubclassMap(
-                {
-                    Base::template Pair<Contraction::OperationIdentifier>()
-                });
+                return SubclassMap({Base::template Pair<Contraction::OperationIdentifier>()});
             }
         };
 
@@ -98,41 +96,67 @@ namespace Tensile
 
         template <typename IO>
         const typename PropertySMT<ContractionProblem, size_t, IO>::SubclassMap
-            PropertySMT<ContractionProblem, size_t, IO>::subclasses =
-                PropertySMT<ContractionProblem, size_t, IO>::GetSubclasses();
+            PropertySMT<ContractionProblem, size_t, IO>::subclasses
+            = PropertySMT<ContractionProblem, size_t, IO>::GetSubclasses();
 
         template <typename IO>
         const typename PropertySMT<ContractionProblem, std::string, IO>::SubclassMap
-            PropertySMT<ContractionProblem, std::string, IO>::subclasses =
-                PropertySMT<ContractionProblem, std::string, IO>::GetSubclasses();
+            PropertySMT<ContractionProblem, std::string, IO>::subclasses
+            = PropertySMT<ContractionProblem, std::string, IO>::GetSubclasses();
 
-        template <typename IO> struct MappingTraits<Contraction::FreeSizeA,           IO>:
-                           public AutoMappingTraits<Contraction::FreeSizeA,           IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::FreeSizeA, IO>
+            : public AutoMappingTraits<Contraction::FreeSizeA, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::FreeSizeB,           IO>:
-                           public AutoMappingTraits<Contraction::FreeSizeB,           IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::FreeSizeB, IO>
+            : public AutoMappingTraits<Contraction::FreeSizeB, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::BatchSize,           IO>:
-                           public AutoMappingTraits<Contraction::BatchSize,           IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::BatchSize, IO>
+            : public AutoMappingTraits<Contraction::BatchSize, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::BoundSize,           IO>:
-                           public AutoMappingTraits<Contraction::BoundSize,           IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::BoundSize, IO>
+            : public AutoMappingTraits<Contraction::BoundSize, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::AStride,             IO>:
-                           public AutoMappingTraits<Contraction::AStride,             IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::AStride, IO>
+            : public AutoMappingTraits<Contraction::AStride, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::BStride,             IO>:
-                           public AutoMappingTraits<Contraction::BStride,             IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::BStride, IO>
+            : public AutoMappingTraits<Contraction::BStride, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::CStride,             IO>:
-                           public AutoMappingTraits<Contraction::CStride,             IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::CStride, IO>
+            : public AutoMappingTraits<Contraction::CStride, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::DStride,             IO>:
-                           public AutoMappingTraits<Contraction::DStride,             IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::DStride, IO>
+            : public AutoMappingTraits<Contraction::DStride, IO>
+        {
+        };
 
-        template <typename IO> struct MappingTraits<Contraction::OperationIdentifier, IO>:
-                           public AutoMappingTraits<Contraction::OperationIdentifier, IO> {};
+        template <typename IO>
+        struct MappingTraits<Contraction::OperationIdentifier, IO>
+            : public AutoMappingTraits<Contraction::OperationIdentifier, IO>
+        {
+        };
 
     }
 }
-

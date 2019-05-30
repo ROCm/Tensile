@@ -26,22 +26,28 @@
 
 #pragma once
 
-#include <vector>
 #include <set>
+#include <vector>
 
 #include <Tensile/PropertyMatching.hpp>
 
 namespace Tensile
 {
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct ProblemMatchingLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
+        using Table   = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
         std::shared_ptr<Table> table;
 
-        static std::string Type() { return "Matching"; }
-        virtual std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "Matching";
+        }
+        virtual std::string type() const override
+        {
+            return Type();
+        }
         virtual std::string description() const override
         {
             if(table == nullptr)
@@ -50,25 +56,21 @@ namespace Tensile
                 return concatenate(type(), ": ", table->description());
         }
 
-        
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
-            typename Table::Transform transform =
-                [&](Element library) -> std::shared_ptr<MySolution>
-                {
-                    return library->findBestSolution(problem, hardware);
-                };
+            typename Table::Transform transform
+                = [&](Element library) -> std::shared_ptr<MySolution> {
+                return library->findBestSolution(problem, hardware);
+            };
 
             auto closestEntry = table->findBestMatch(problem, transform);
 
             return closestEntry;
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
             bool debug = Debug::Instance().printPropertyEvaluation();
 
@@ -76,7 +78,7 @@ namespace Tensile
 
             auto matches = table->matchesInOrder(problem);
 
-            for(auto const& row: matches)
+            for(auto const& row : matches)
             {
                 if(debug)
                     std::cout << row->description() << std::endl;
@@ -93,4 +95,3 @@ namespace Tensile
     };
 
 }
-

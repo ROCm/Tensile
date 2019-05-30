@@ -39,9 +39,9 @@ namespace Tensile
         struct MappingTraits<HardwareSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = HardwareSelectionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
                 iot::mapRequired(io, "rows", lib.rows);
             }
@@ -53,9 +53,9 @@ namespace Tensile
         struct MappingTraits<ProblemSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = ProblemSelectionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
                 iot::mapRequired(io, "rows", lib.rows);
             }
@@ -69,7 +69,7 @@ namespace Tensile
             using Row = typename ExactLogicLibrary<MyProblem, MySolution, MyPredicate>::Row;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Row & row)
+            static void mapping(IO& io, Row& row)
             {
                 iot::mapRequired(io, "predicate", row.first.value);
                 iot::mapRequired(io, "library", row.second);
@@ -79,4 +79,3 @@ namespace Tensile
         };
     }
 }
-

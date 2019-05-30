@@ -33,33 +33,43 @@ namespace Tensile
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
     template <typename MyProblem, typename MySolution>
-    struct MasterSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct MasterSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        static std::string Type() { return "Master"; }
-        std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "Master";
+        }
+        std::string type() const override
+        {
+            return Type();
+        }
         std::string description() const override
         {
             if(library == nullptr)
-                return concatenate(type(), " (", solutions.size(), " solutions, next level: nullptr)");
+                return concatenate(
+                    type(), " (", solutions.size(), " solutions, next level: nullptr)");
             else
-                return concatenate(type(), " (", solutions.size(), " solutions, next level: ", library->type(), ")");
+                return concatenate(type(),
+                                   " (",
+                                   solutions.size(),
+                                   " solutions, next level: ",
+                                   library->type(),
+                                   ")");
         }
 
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
-        SolutionMap<MySolution> solutions;
+        SolutionMap<MySolution>                                 solutions;
 
         MasterSolutionLibrary() = default;
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             return library->findBestSolution(problem, hardware);
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
             return library->findAllSolutions(problem, hardware);
         }

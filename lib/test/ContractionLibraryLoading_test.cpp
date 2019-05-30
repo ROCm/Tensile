@@ -26,9 +26,9 @@
 
 #include <gtest/gtest.h>
 
-#include <Tensile/Tensile.hpp>
-#include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/AMDGPU.hpp>
+#include <Tensile/ContractionLibrary.hpp>
+#include <Tensile/Tensile.hpp>
 
 #include "TestData.hpp"
 
@@ -36,51 +36,52 @@ using namespace Tensile;
 
 TEST(ContractionLibraryLoadingTest, MultipleKernels)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File("SampleTensileKernels.yaml").native());
+    auto library
+        = LoadLibraryFile<ContractionProblem>(TestData::File("SampleTensileKernels.yaml").native());
     ASSERT_NE(library, nullptr);
 
     AMDGPU hardware;
 
     {
-        ContractionProblem p = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
+        ContractionProblem p
+            = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
         ASSERT_NE(solution, nullptr);
         EXPECT_EQ(solution->name(), "Cijk_Ailk_Bljk_SB_MT128x128x08_K1");
-
     }
 
     return;
 
     {
-        ContractionProblem p = ContractionProblem::GEMM(false,  true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
+        ContractionProblem p
+            = ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
         ASSERT_NE(solution, nullptr);
         EXPECT_EQ(solution->name(), "Cijk_Ailk_Bjlk_SB_MT128x128x08_K1");
-
     }
 
     {
-        ContractionProblem p = ContractionProblem::GEMM( true, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
+        ContractionProblem p
+            = ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
         ASSERT_NE(solution, nullptr);
         EXPECT_EQ(solution->name(), "Cijk_Alik_Bljk_SB_MT128x128x08_K1");
-
     }
 
     {
-        ContractionProblem p = ContractionProblem::GEMM( true,  true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
+        ContractionProblem p
+            = ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);
 
         auto solution = library->findBestSolution(p, hardware);
 
         ASSERT_NE(solution, nullptr);
         EXPECT_EQ(solution->name(), "Cijk_Alik_Bjlk_SB_MT128x128x08_K1");
-
     }
 }
 
@@ -89,4 +90,3 @@ TEST(ContractionLibraryLoadingTest, SGEMM_Kernels_Lite)
     auto library = LoadLibraryFile<ContractionProblem>(TestData::File("KernelsLite.yaml").native());
     ASSERT_NE(library, nullptr);
 }
-

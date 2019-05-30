@@ -34,11 +34,12 @@ namespace Tensile
 {
 
     template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryFile(std::string const& filename)
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LLVMLoadLibraryFile(std::string const& filename)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-        auto inputFile = llvm::MemoryBuffer::getFile(filename);
+        auto              inputFile = llvm::MemoryBuffer::getFile(filename);
         llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
 
         yin >> rv;
@@ -52,11 +53,12 @@ namespace Tensile
     }
 
     template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LLVMLoadLibraryData(std::vector<uint8_t> const& data)
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LLVMLoadLibraryData(std::vector<uint8_t> const& data)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-        llvm::StringRef dataRef((const char *) data.data(), data.size());
+        llvm::StringRef   dataRef((const char*)data.data(), data.size());
         llvm::yaml::Input yin(dataRef);
 
         yin >> rv;
@@ -69,13 +71,10 @@ namespace Tensile
         return rv;
     }
 
-    template
-    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-    LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 
-    template
-    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-    LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(
+            std::vector<uint8_t> const& data);
 }
-
-

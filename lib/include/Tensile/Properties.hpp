@@ -29,7 +29,8 @@ namespace Tensile
 {
     template <typename Class, bool HasIndex = Class::HasIndex, bool HasValue = Class::HasValue>
     struct PropertyHelper
-    { };
+    {
+    };
 
     template <typename Class>
     struct PropertyHelper<Class, false, false>
@@ -67,17 +68,17 @@ namespace Tensile
         }
     };
 
-    template<typename Object, typename Value = size_t>
+    template <typename Object, typename Value = size_t>
     class Property
     {
     public:
-        virtual std::string type() const = 0;
-        virtual ~Property() = default;
+        virtual std::string type() const                     = 0;
+        virtual ~Property()                                  = default;
         virtual Value operator()(Object const& object) const = 0;
 
         virtual std::string toString() const = 0;
 
-        virtual Value debugEval(Object const& object, std::ostream & stream) const
+        virtual Value debugEval(Object const& object, std::ostream& stream) const
         {
             Value rv = (*this)(object);
             stream << *this << ": " << rv;
@@ -85,11 +86,14 @@ namespace Tensile
         }
     };
 
-    template<typename Class, typename Object, typename Value = size_t>
-    class Property_CRTP: public Property<Object, Value>
+    template <typename Class, typename Object, typename Value = size_t>
+    class Property_CRTP : public Property<Object, Value>
     {
     public:
-        virtual std::string type() const final { return Class::Type(); }
+        virtual std::string type() const final
+        {
+            return Class::Type();
+        }
 
         virtual std::string toString() const
         {
@@ -99,18 +103,20 @@ namespace Tensile
     };
 
     template <typename Object, typename Value>
-    inline std::ostream & operator<<(std::ostream & stream, Property<Object, Value> const& prop)
+    inline std::ostream& operator<<(std::ostream& stream, Property<Object, Value> const& prop)
     {
         return stream << prop.toString();
     }
 
     template <typename Object, typename Value>
-    inline std::ostream & operator<<(std::ostream & stream, std::vector<std::shared_ptr<Property<Object, Value>>> const& props)
+    inline std::ostream&
+        operator<<(std::ostream&                                                stream,
+                   std::vector<std::shared_ptr<Property<Object, Value>>> const& props)
     {
         stream << "(";
 
         bool first = true;
-        for(auto const& v: props)
+        for(auto const& v : props)
         {
             if(!first)
                 stream << ", ";
@@ -118,10 +124,9 @@ namespace Tensile
 
             stream << *v;
         }
-                
+
         stream << ")";
 
         return stream;
     }
 }
-

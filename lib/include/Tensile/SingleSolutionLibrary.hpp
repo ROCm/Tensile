@@ -31,10 +31,16 @@
 namespace Tensile
 {
     template <typename MyProblem, typename MySolution>
-    struct SingleSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct SingleSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        static std::string Type() { return "Single"; }
-        std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "Single";
+        }
+        std::string type() const override
+        {
+            return Type();
+        }
         std::string description() const override
         {
             std::string rv = type();
@@ -60,8 +66,7 @@ namespace Tensile
         }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             bool debug = Debug::Instance().printPredicateEvaluation();
 
@@ -73,7 +78,8 @@ namespace Tensile
                     solution->problemPredicate->debugEval(problem, std::cout);
                 }
 
-                if((*solution->hardwarePredicate)(hardware) && (*solution->problemPredicate)(problem))
+                if((*solution->hardwarePredicate)(hardware)
+                   && (*solution->problemPredicate)(problem))
                     return solution;
             }
             else if(debug)
@@ -84,9 +90,8 @@ namespace Tensile
             return std::shared_ptr<MySolution>();
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
 
             auto result = findBestSolution(problem, hardware);
@@ -100,10 +105,10 @@ namespace Tensile
                     std::cout << " (no match)";
             }
 
-            if(result) return SolutionSet<MySolution>({result});
+            if(result)
+                return SolutionSet<MySolution>({result});
 
             return SolutionSet<MySolution>();
         }
     };
 }
-

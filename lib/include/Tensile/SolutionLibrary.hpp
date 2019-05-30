@@ -42,17 +42,14 @@ namespace Tensile
     {
         virtual ~SolutionLibrary() = default;
 
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const = 0;
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware) const = 0;
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const = 0;
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const = 0;
 
-        virtual std::string type() const = 0;
+        virtual std::string type() const        = 0;
         virtual std::string description() const = 0;
     };
 
 }
-

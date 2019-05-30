@@ -38,28 +38,28 @@ TEST(KernelArguments, Simple)
 
     struct
     {
-        void * d;
-        const void * c;
-        const void * a;
-        const void * b;
+        void*       d;
+        const void* c;
+        const void* a;
+        const void* b;
 
-        int x;
+        int    x;
         double y;
-        float z;
-        char t;
+        float  z;
+        char   t;
 
         size_t k;
 
     } ref;
 
     // Padding bytes would be left uninitialized in the struct but will be zero-filled by
-    // the KernelArguments class.  Set them to zero to prevent a test failure. 
+    // the KernelArguments class.  Set them to zero to prevent a test failure.
     memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
-    ref.c = array.data()+1;
-    ref.a = array.data()+2;
-    ref.b = array.data()+3;
+    ref.c = array.data() + 1;
+    ref.a = array.data() + 2;
+    ref.b = array.data() + 3;
     ref.x = 23;
     ref.y = 90.2;
     ref.z = 16.0f;
@@ -88,13 +88,11 @@ TEST(KernelArguments, Simple)
     EXPECT_EQ(result.size(), reference.size());
     for(int i = 0; i < std::min(result.size(), reference.size()); i++)
     {
-        EXPECT_EQ(static_cast<uint32_t>(result[i]),
-                  static_cast<uint32_t>(reference[i]))
+        EXPECT_EQ(static_cast<uint32_t>(result[i]), static_cast<uint32_t>(reference[i]))
             << "(" << i << ")";
     }
 
     //std::cout << args << std::endl;
-
 }
 
 TEST(KernelArguments, Binding)
@@ -105,28 +103,28 @@ TEST(KernelArguments, Binding)
 
     struct
     {
-        void * d;
-        const void * c;
-        const void * a;
-        const void * b;
+        void*       d;
+        const void* c;
+        const void* a;
+        const void* b;
 
-        int x;
+        int    x;
         double y;
-        float z;
-        char t;
+        float  z;
+        char   t;
 
         size_t k;
 
     } ref;
 
     // Padding bytes would be left uninitialized in the struct but will be zero-filled by
-    // the KernelArguments class.  Set them to zero to prevent a test failure. 
+    // the KernelArguments class.  Set them to zero to prevent a test failure.
     memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
-    ref.c = array.data()+1;
-    ref.a = array.data()+2;
-    ref.b = array.data()+3;
+    ref.c = array.data() + 1;
+    ref.a = array.data() + 2;
+    ref.b = array.data() + 3;
     ref.x = 23;
     ref.y = 90.2;
     ref.z = 16.0f;
@@ -161,12 +159,9 @@ TEST(KernelArguments, Binding)
     EXPECT_EQ(result.size(), reference.size());
     for(int i = 0; i < std::min(result.size(), reference.size()); i++)
     {
-        EXPECT_EQ(static_cast<uint32_t>(result[i]),
-                  static_cast<uint32_t>(reference[i]))
+        EXPECT_EQ(static_cast<uint32_t>(result[i]), static_cast<uint32_t>(reference[i]))
             << "(" << i << ")";
     }
 
     //std::cout << args << std::endl;
-
 }
-

@@ -50,10 +50,16 @@ struct tensile_bfloat16
 {
     uint16_t data;
 
-    constexpr tensile_bfloat16() : data(0) {}
+    constexpr tensile_bfloat16()
+        : data(0)
+    {
+    }
 
     // round upper 16 bits of IEEE float to convert to bfloat16
-    explicit constexpr tensile_bfloat16(float f) : data(float_to_bfloat16(f)) {}
+    explicit constexpr tensile_bfloat16(float f)
+        : data(float_to_bfloat16(f))
+    {
+    }
 
     // zero extend lower 16 bits of bfloat16 to convert to IEEE float
     explicit constexpr operator float() const
@@ -61,17 +67,17 @@ struct tensile_bfloat16
         union
         {
             uint32_t int32;
-            float fp32;
+            float    fp32;
         } u = {uint32_t(data) << 16};
         return u.fp32;
     }
 
-    private:
+private:
     static constexpr uint16_t float_to_bfloat16(float f)
     {
         union
         {
-            float fp32;
+            float    fp32;
             uint32_t int32;
         } u = {f};
         if(~u.int32 & 0x7f800000)
@@ -110,11 +116,11 @@ struct tensile_bfloat16
     }
 };
 
-static_assert(std::is_standard_layout<tensile_bfloat16>{},
+static_assert(std::is_standard_layout<tensile_bfloat16> {},
               "tensile_bfloat16 is not a standard layout type, and thus is "
               "incompatible with C.");
 
-static_assert(std::is_trivially_copyable<tensile_bfloat16>{},
+static_assert(std::is_trivially_copyable<tensile_bfloat16> {},
               "tensile_bfloat16 is not trivially copyable, and thus is "
               "incompatible with C.");
 
@@ -122,7 +128,10 @@ inline std::ostream& operator<<(std::ostream& os, const tensile_bfloat16& bf16)
 {
     return os << float(bf16);
 }
-inline tensile_bfloat16 operator+(tensile_bfloat16 a) { return a; }
+inline tensile_bfloat16 operator+(tensile_bfloat16 a)
+{
+    return a;
+}
 inline tensile_bfloat16 operator-(tensile_bfloat16 a)
 {
     a.data ^= 0x8000;
@@ -132,13 +141,13 @@ inline tensile_bfloat16 operator+(tensile_bfloat16 a, tensile_bfloat16 b)
 {
     return tensile_bfloat16(float(a) + float(b));
 }
-inline tensile_bfloat16 operator+(int a, tensile_bfloat16 b) 
-{ 
-    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b)); 
+inline tensile_bfloat16 operator+(int a, tensile_bfloat16 b)
+{
+    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b));
 }
 inline tensile_bfloat16 operator+(tensile_bfloat16 a, int b)
-{ 
-    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b)); 
+{
+    return static_cast<tensile_bfloat16>(static_cast<float>(a) + static_cast<float>(b));
 }
 inline tensile_bfloat16 operator-(tensile_bfloat16 a, tensile_bfloat16 b)
 {
@@ -152,18 +161,54 @@ inline tensile_bfloat16 operator/(tensile_bfloat16 a, tensile_bfloat16 b)
 {
     return tensile_bfloat16(float(a) / float(b));
 }
-inline bool operator<(tensile_bfloat16 a, tensile_bfloat16 b) { return float(a) < float(b); }
-inline bool operator==(tensile_bfloat16 a, tensile_bfloat16 b) { return float(a) == float(b); }
-inline bool operator>(tensile_bfloat16 a, tensile_bfloat16 b) { return b < a; }
-inline bool operator<=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a > b); }
-inline bool operator!=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a == b); }
-inline bool operator>=(tensile_bfloat16 a, tensile_bfloat16 b) { return !(a < b); }
-inline tensile_bfloat16& operator+=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a + b; }
-inline tensile_bfloat16& operator-=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a - b; }
-inline tensile_bfloat16& operator*=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a * b; }
-inline tensile_bfloat16& operator/=(tensile_bfloat16& a, tensile_bfloat16 b) { return a = a / b; }
-inline tensile_bfloat16& operator++(tensile_bfloat16& a) { return a += tensile_bfloat16(1.0f); }
-inline tensile_bfloat16& operator--(tensile_bfloat16& a) { return a -= tensile_bfloat16(1.0f); }
+inline bool operator<(tensile_bfloat16 a, tensile_bfloat16 b)
+{
+    return float(a) < float(b);
+}
+inline bool operator==(tensile_bfloat16 a, tensile_bfloat16 b)
+{
+    return float(a) == float(b);
+}
+inline bool operator>(tensile_bfloat16 a, tensile_bfloat16 b)
+{
+    return b < a;
+}
+inline bool operator<=(tensile_bfloat16 a, tensile_bfloat16 b)
+{
+    return !(a > b);
+}
+inline bool operator!=(tensile_bfloat16 a, tensile_bfloat16 b)
+{
+    return !(a == b);
+}
+inline bool operator>=(tensile_bfloat16 a, tensile_bfloat16 b)
+{
+    return !(a < b);
+}
+inline tensile_bfloat16& operator+=(tensile_bfloat16& a, tensile_bfloat16 b)
+{
+    return a = a + b;
+}
+inline tensile_bfloat16& operator-=(tensile_bfloat16& a, tensile_bfloat16 b)
+{
+    return a = a - b;
+}
+inline tensile_bfloat16& operator*=(tensile_bfloat16& a, tensile_bfloat16 b)
+{
+    return a = a * b;
+}
+inline tensile_bfloat16& operator/=(tensile_bfloat16& a, tensile_bfloat16 b)
+{
+    return a = a / b;
+}
+inline tensile_bfloat16& operator++(tensile_bfloat16& a)
+{
+    return a += tensile_bfloat16(1.0f);
+}
+inline tensile_bfloat16& operator--(tensile_bfloat16& a)
+{
+    return a -= tensile_bfloat16(1.0f);
+}
 inline tensile_bfloat16 operator++(tensile_bfloat16& a, int)
 {
     tensile_bfloat16 orig = a;
@@ -176,16 +221,31 @@ inline tensile_bfloat16 operator--(tensile_bfloat16& a, int)
     --a;
     return orig;
 }
-inline bool isinf(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && !(a.data & 0x7f); }
-inline bool isnan(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && +(a.data & 0x7f); }
-inline bool iszero(tensile_bfloat16 a) { return !(a.data & 0x7fff); }
+inline bool isinf(tensile_bfloat16 a)
+{
+    return !(~a.data & 0x7f80) && !(a.data & 0x7f);
+}
+inline bool isnan(tensile_bfloat16 a)
+{
+    return !(~a.data & 0x7f80) && +(a.data & 0x7f);
+}
+inline bool iszero(tensile_bfloat16 a)
+{
+    return !(a.data & 0x7fff);
+}
 inline tensile_bfloat16 abs(tensile_bfloat16 a)
 {
     a.data &= 0x7fff;
     return a;
 }
-inline tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
-inline tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
+inline tensile_bfloat16 sin(tensile_bfloat16 a)
+{
+    return tensile_bfloat16(sinf(float(a)));
+}
+inline tensile_bfloat16 cos(tensile_bfloat16 a)
+{
+    return tensile_bfloat16(cosf(float(a)));
+}
 
 #endif // __cplusplus
 

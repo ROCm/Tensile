@@ -54,7 +54,7 @@ namespace Tensile
     Debug::Debug()
         : value(DEBUG_SM)
     {
-        const char * db = std::getenv("TENSILE_DB");
+        const char* db = std::getenv("TENSILE_DB");
 
         if(db)
             value = strtol(db, nullptr, 0);

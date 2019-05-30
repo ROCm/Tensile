@@ -28,14 +28,14 @@
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/Singleton.hpp>
+#include <Tensile/Tensile.hpp>
 
 namespace Tensile
 {
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    class TENSILE_API EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
+    class TENSILE_API EmbeddedLibrary : public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
     {
     public:
         using Singleton = LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>;
@@ -48,7 +48,8 @@ namespace Tensile
         /**
          * Constructs and returns a new SolutionLibrary instance from the static data for the specified key.
          */
-        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> NewLibrary(std::string const& key);
+        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+            NewLibrary(std::string const& key);
 
         /**
          * Constructs (if necessary) and returns the shared SolutionLibrary for this problem type.
@@ -70,7 +71,7 @@ namespace Tensile
         {
             std::lock_guard<std::mutex> lock(m_mutex);
 
-            auto & ptr = m_libraries[key];
+            auto& ptr = m_libraries[key];
 
             if(!ptr)
                 ptr = NewLibrary(key);
@@ -83,8 +84,8 @@ namespace Tensile
         EmbeddedLibrary() = default;
 
         std::mutex m_mutex;
-        std::unordered_map<std::string,
-                           std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>> m_libraries;
+        std::unordered_map<std::string, std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>>
+            m_libraries;
     };
 
 }

@@ -31,4 +31,3 @@ namespace Tensile
     template <typename MyProblem, typename MySolution>
     struct SolutionLibrary;
 }
-

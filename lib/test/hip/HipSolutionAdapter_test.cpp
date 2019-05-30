@@ -44,13 +44,12 @@
 
 using namespace Tensile;
 
-
 TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 {
-    TensorDescriptor desc(DataType::Float, {43, 13, 65}, {1, 50, 50*16});
-    
-    float *d_d = nullptr;
-    float *c_d = nullptr;
+    TensorDescriptor desc(DataType::Float, {43, 13, 65}, {1, 50, 50 * 16});
+
+    float* d_d = nullptr;
+    float* c_d = nullptr;
 
     HIP_CHECK_EXC(hipMalloc(&c_d, desc.totalAllocatedBytes()));
     HIP_CHECK_EXC(hipMemset(c_d, 0x33, desc.totalAllocatedBytes()));
@@ -60,28 +59,28 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 
     KernelInvocation k;
 
-    k.kernelName = "Cijk_S";
+    k.kernelName      = "Cijk_S";
     k.workGroupSize.x = 8;
     k.workGroupSize.y = 8;
     k.workGroupSize.z = 1;
 
     k.numWorkGroups.x = CeilDivide(desc.sizes()[0], k.workGroupSize.x);
     k.numWorkGroups.y = CeilDivide(desc.sizes()[1], k.workGroupSize.y);
-    k.numWorkGroups.z =            desc.sizes()[2];
+    k.numWorkGroups.z = desc.sizes()[2];
 
     k.numWorkItems.x = k.workGroupSize.x * k.numWorkGroups.x;
     k.numWorkItems.y = k.workGroupSize.y * k.numWorkGroups.y;
     k.numWorkItems.z = k.workGroupSize.z * k.numWorkGroups.z;
 
-    k.args.append<float      *>("D", d_d);
+    k.args.append<float*>("D", d_d);
     k.args.append<float const*>("C", c_d);
     k.args.append<unsigned int>("strideD1", desc.strides()[1]);
     k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
     k.args.append<unsigned int>("strideC2", desc.strides()[2]);
-    k.args.append<unsigned int>("size0",    desc.sizes()[0]);
-    k.args.append<unsigned int>("size1",    desc.sizes()[1]);
-    k.args.append<unsigned int>("size2",    desc.sizes()[2]);
+    k.args.append<unsigned int>("size0", desc.sizes()[0]);
+    k.args.append<unsigned int>("size1", desc.sizes()[1]);
+    k.args.append<unsigned int>("size2", desc.sizes()[2]);
 
     hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
@@ -99,11 +98,11 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 
     memset(d_ref_h.data(), 0x22, desc.totalAllocatedBytes());
     for(int k = 0; k < desc.sizes()[2]; k++)
-    for(int j = 0; j < desc.sizes()[1]; j++)
-    for(int i = 0; i < desc.sizes()[0]; i++)
-    {
-        d_ref_h[desc.index(i,j,k)] = 0.0f;
-    }
+        for(int j = 0; j < desc.sizes()[1]; j++)
+            for(int i = 0; i < desc.sizes()[0]; i++)
+            {
+                d_ref_h[desc.index(i, j, k)] = 0.0f;
+            }
 
     for(int i = 0; i < d_ref_h.size(); i++)
     {
@@ -113,12 +112,12 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 
 TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 {
-    TensorDescriptor desc(DataType::Float, {43, 13, 65}, {1, 50, 50*16});
+    TensorDescriptor desc(DataType::Float, {43, 13, 65}, {1, 50, 50 * 16});
 
     float beta = 1.9f;
-    
-    float *c_d = nullptr;
-    float *d_d = nullptr;
+
+    float* c_d = nullptr;
+    float* d_d = nullptr;
 
     HIP_CHECK_EXC(hipMalloc(&c_d, desc.totalAllocatedBytes()));
     HIP_CHECK_EXC(hipMalloc(&d_d, desc.totalAllocatedBytes()));
@@ -132,30 +131,29 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
     KernelInvocation k;
 
-    k.kernelName = "Cijk_SB";
+    k.kernelName      = "Cijk_SB";
     k.workGroupSize.x = 8;
     k.workGroupSize.y = 8;
     k.workGroupSize.z = 1;
 
     k.numWorkGroups.x = CeilDivide(desc.sizes()[0], k.workGroupSize.x);
     k.numWorkGroups.y = CeilDivide(desc.sizes()[1], k.workGroupSize.y);
-    k.numWorkGroups.z =            desc.sizes()[2];
+    k.numWorkGroups.z = desc.sizes()[2];
 
     k.numWorkItems.x = k.workGroupSize.x * k.numWorkGroups.x;
     k.numWorkItems.y = k.workGroupSize.y * k.numWorkGroups.y;
     k.numWorkItems.z = k.workGroupSize.z * k.numWorkGroups.z;
 
-    k.args.append<float      *>("D", d_d);
+    k.args.append<float*>("D", d_d);
     k.args.append<float const*>("C", c_d);
     k.args.append<unsigned int>("strideD1", desc.strides()[1]);
     k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
     k.args.append<unsigned int>("strideC2", desc.strides()[2]);
-    k.args.append<unsigned int>("size0",    desc.sizes()[0]);
-    k.args.append<unsigned int>("size1",    desc.sizes()[1]);
-    k.args.append<unsigned int>("size2",    desc.sizes()[2]);
-    k.args.append<float       >("beta",     beta);
-
+    k.args.append<unsigned int>("size0", desc.sizes()[0]);
+    k.args.append<unsigned int>("size1", desc.sizes()[1]);
+    k.args.append<unsigned int>("size2", desc.sizes()[2]);
+    k.args.append<float>("beta", beta);
 
     hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
@@ -170,15 +168,14 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
     memset(d_ref_h.data(), 0x33, desc.totalAllocatedBytes());
     for(int k = 0; k < desc.sizes()[2]; k++)
-    for(int j = 0; j < desc.sizes()[1]; j++)
-    for(int i = 0; i < desc.sizes()[0]; i++)
-    {
-        d_ref_h[desc.index(i,j,k)] = d_final_value;
-    }
+        for(int j = 0; j < desc.sizes()[1]; j++)
+            for(int i = 0; i < desc.sizes()[0]; i++)
+            {
+                d_ref_h[desc.index(i, j, k)] = d_final_value;
+            }
 
     for(int i = 0; i < d_ref_h.size(); i++)
     {
         ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
-

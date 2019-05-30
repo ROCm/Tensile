@@ -31,36 +31,42 @@ namespace Tensile
     namespace Client
     {
         ClientProblemFactory::ClientProblemFactory(po::variables_map const& args)
-            : m_freeIndices( args["free"].as<ContractionProblem::FreeIndices>()),
-              m_batchIndices(args["batch"].as<ContractionProblem::BatchIndices>()),
-              m_boundIndices(args["bound"].as<ContractionProblem::BoundIndices>()),
-              m_problemSizes(args["problem-size"].as<std::vector<std::vector<size_t>>>()),
-              m_aType(DataType::Float),
-              m_bType(DataType::Float),
-              m_cType(DataType::Float),
-              m_dType(DataType::Float),
-              m_alphaType(DataType::Float),
-              m_betaType(DataType::Float),
-              m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>()),
-              m_bStrides(args["b-strides"].as<std::vector<std::vector<size_t>>>()),
-              m_cStrides(args["c-strides"].as<std::vector<std::vector<size_t>>>()),
-              m_dStrides(args["d-strides"].as<std::vector<std::vector<size_t>>>())
+            : m_freeIndices(args["free"].as<ContractionProblem::FreeIndices>())
+            , m_batchIndices(args["batch"].as<ContractionProblem::BatchIndices>())
+            , m_boundIndices(args["bound"].as<ContractionProblem::BoundIndices>())
+            , m_problemSizes(args["problem-size"].as<std::vector<std::vector<size_t>>>())
+            , m_aType(DataType::Float)
+            , m_bType(DataType::Float)
+            , m_cType(DataType::Float)
+            , m_dType(DataType::Float)
+            , m_alphaType(DataType::Float)
+            , m_betaType(DataType::Float)
+            , m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>())
+            , m_bStrides(args["b-strides"].as<std::vector<std::vector<size_t>>>())
+            , m_cStrides(args["c-strides"].as<std::vector<std::vector<size_t>>>())
+            , m_dStrides(args["d-strides"].as<std::vector<std::vector<size_t>>>())
         {
             if(args.count("type"))
             {
-                m_aType = m_bType = m_cType = m_dType = m_alphaType = m_betaType = args["type"].as<DataType>();
+                m_aType = m_bType = m_cType = m_dType = m_alphaType = m_betaType
+                    = args["type"].as<DataType>();
             }
 
-            if(args.count("a-type")    ) m_aType     = args["a-type"].as<DataType>();
-            if(args.count("b-type")    ) m_bType     = args["b-type"].as<DataType>();
-            if(args.count("c-type")    ) m_cType     = args["c-type"].as<DataType>();
-            if(args.count("d-type")    ) m_dType     = args["d-type"].as<DataType>();
-            if(args.count("alpha-type")) m_alphaType = args["alpha-type"].as<DataType>();
-            if(args.count("beta-type") ) m_betaType  = args["beta-type"].as<DataType>();
+            if(args.count("a-type"))
+                m_aType = args["a-type"].as<DataType>();
+            if(args.count("b-type"))
+                m_bType = args["b-type"].as<DataType>();
+            if(args.count("c-type"))
+                m_cType = args["c-type"].as<DataType>();
+            if(args.count("d-type"))
+                m_dType = args["d-type"].as<DataType>();
+            if(args.count("alpha-type"))
+                m_alphaType = args["alpha-type"].as<DataType>();
+            if(args.count("beta-type"))
+                m_betaType = args["beta-type"].as<DataType>();
 
             m_problems = createProblems();
         }
-
 
         ClientProblemFactory::~ClientProblemFactory() = default;
 
@@ -76,33 +82,48 @@ namespace Tensile
 
             std::vector<size_t> aStrides, bStrides, cStrides, dStrides;
 
-            if(m_aStrides.size() == 1) aStrides = m_aStrides[0];
-            if(m_bStrides.size() == 1) bStrides = m_bStrides[0];
-            if(m_cStrides.size() == 1) cStrides = m_cStrides[0];
-            if(m_dStrides.size() == 1) dStrides = m_dStrides[0];
+            if(m_aStrides.size() == 1)
+                aStrides = m_aStrides[0];
+            if(m_bStrides.size() == 1)
+                bStrides = m_bStrides[0];
+            if(m_cStrides.size() == 1)
+                cStrides = m_cStrides[0];
+            if(m_dStrides.size() == 1)
+                dStrides = m_dStrides[0];
 
             TensorOps nop;
 
             for(int i = 0; i < m_problemSizes.size(); i++)
             {
-                if(m_aStrides.size() == m_problemSizes.size()) aStrides = m_aStrides[i];
-                if(m_bStrides.size() == m_problemSizes.size()) bStrides = m_bStrides[i];
-                if(m_cStrides.size() == m_problemSizes.size()) cStrides = m_cStrides[i];
-                if(m_dStrides.size() == m_problemSizes.size()) dStrides = m_dStrides[i];
+                if(m_aStrides.size() == m_problemSizes.size())
+                    aStrides = m_aStrides[i];
+                if(m_bStrides.size() == m_problemSizes.size())
+                    bStrides = m_bStrides[i];
+                if(m_cStrides.size() == m_problemSizes.size())
+                    cStrides = m_cStrides[i];
+                if(m_dStrides.size() == m_problemSizes.size())
+                    dStrides = m_dStrides[i];
 
-                rv.push_back(ContractionProblem::FromIndexSizes(
-                             m_freeIndices, m_batchIndices, m_boundIndices,
-                             m_problemSizes[i],
-                             m_aType, aStrides, nop,
-                             m_bType, bStrides, nop,
-                             m_cType, cStrides, nop,
-                             m_dType, dStrides, nop,
-                             m_beta));
-
+                rv.push_back(ContractionProblem::FromIndexSizes(m_freeIndices,
+                                                                m_batchIndices,
+                                                                m_boundIndices,
+                                                                m_problemSizes[i],
+                                                                m_aType,
+                                                                aStrides,
+                                                                nop,
+                                                                m_bType,
+                                                                bStrides,
+                                                                nop,
+                                                                m_cType,
+                                                                cStrides,
+                                                                nop,
+                                                                m_dType,
+                                                                dStrides,
+                                                                nop,
+                                                                m_beta));
             }
 
             return rv;
         }
     }
 }
-

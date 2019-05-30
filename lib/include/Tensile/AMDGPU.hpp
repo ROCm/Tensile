@@ -30,12 +30,15 @@
 
 namespace Tensile
 {
-    struct TENSILE_API AMDGPU: public Hardware
+    struct TENSILE_API AMDGPU : public Hardware
     {
-        static std::string Type() { return "AMDGPU"; }
+        static std::string Type()
+        {
+            return "AMDGPU";
+        }
         virtual std::string type() const;
 
-        enum class Processor: int
+        enum class Processor : int
         {
             gfx803 = 803,
             gfx900 = 900,
@@ -46,11 +49,11 @@ namespace Tensile
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
         ~AMDGPU();
 
-        Processor   processor = Processor::gfx900;
+        Processor   processor        = Processor::gfx900;
         int         computeUnitCount = 0;
         std::string deviceName;
 
-        virtual bool runsKernelTargeting(Processor p) const;
+        virtual bool        runsKernelTargeting(Processor p) const;
         virtual std::string description() const;
     };
 
@@ -74,7 +77,5 @@ namespace Tensile
         return static_cast<int>(l) >= static_cast<int>(r);
     }
 
-    std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
+    std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p);
 }
-
-
