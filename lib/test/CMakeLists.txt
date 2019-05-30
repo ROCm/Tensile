@@ -10,17 +10,18 @@ if(HIP_FOUND)
 set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 endif()
 
-set(tensile_test_main
-    test.cpp)
+add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
-    TestData.cpp
+
+    test.cpp
 
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     TensorDescriptor_test.cpp
+    TestData_test.cpp
 )
 
 if(USE_LLVM)
@@ -31,9 +32,7 @@ if(USE_LLVM)
         )
 endif()
 
-add_library(TensileCommonTests STATIC ${test_sources})
-
-add_executable(TensileTests ${tensile_test_main})
+add_executable(TensileTests ${test_sources})
 
 if(GTEST_INTEGRATION)
     gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -41,8 +40,7 @@ else()
     add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
-target_link_libraries(TensileCommonTests PUBLIC gtest Tensile Boost::filesystem)
-target_link_libraries(TensileTests TensileCommonTests)
+target_link_libraries(TensileTests PUBLIC gtest Tensile TensileTestLib Boost::filesystem)
 
 file(COPY sample_library.yaml DESTINATION .)
 

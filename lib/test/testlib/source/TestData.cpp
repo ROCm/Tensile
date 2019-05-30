@@ -37,8 +37,6 @@
 #define TEST_DATA_USE_PROC_EXE
 #endif
 
-#include <gtest/gtest.h>
-
 #include <Tensile/Utils.hpp>
 
 TestData::operator bool() const
@@ -118,25 +116,5 @@ TestData::TestData(std::string const& dataDir)
 
 TestData::TestData(invalid_data)
 {
-}
-
-TEST(TestData, Simple)
-{
-    auto data = TestData::Instance();
-
-    EXPECT_TRUE(static_cast<bool>(data));
-
-    auto is_regular_file = static_cast<bool (*)(boost::filesystem::path const&)>(boost::filesystem::is_regular_file);
-
-    EXPECT_PRED1(is_regular_file, data.file("KernelsLite.yaml"));
-    EXPECT_FALSE(is_regular_file( data.file("fjdlksljfjldskj")));
-
-    auto files = data.glob("*.yaml");
-    EXPECT_EQ(files.size(), 3);
-    for(auto file: files)
-        EXPECT_PRED1(is_regular_file, file);
-
-    if(TestData::Env("TENSILE_NEVER_SET_THIS_AKDJFLKDSJ"))
-        FAIL() << "TestData object constructed with unset environment variable should convert to false!";
 }
 
