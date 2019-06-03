@@ -2026,10 +2026,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "    LanguageVersion: [ 2, 0 ]\n"
       kStr += "    Args:\n"
 
-      kStr += self.v2Argument(                               'D', dstSize, dstAlign, "GlobalBuffer", dstValueType, "Generic")
-      kStr += self.v2Argument(                               'C', dstSize, dstAlign, "GlobalBuffer", dstValueType, "Generic")
-      kStr += self.v2Argument(                               'A', srcSize, srcAlign, "GlobalBuffer", srcValueType, "Generic")
-      kStr += self.v2Argument(                               'B', srcSize, srcAlign, "GlobalBuffer", srcValueType, "Generic")
+      kStr += self.v2Argument(                               'D',     '8',      '8', "GlobalBuffer", dstValueType, "Generic")
+      kStr += self.v2Argument(                               'C',     '8',      '8', "GlobalBuffer", dstValueType, "Generic")
+      kStr += self.v2Argument(                               'A',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
+      kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
       kStr += self.v2Argument(                           "alpha", cptSize, cptAlign,      "ByValue", cptValueType)
       kStr += self.v2Argument(                            "beta", cptSize, cptAlign,      "ByValue", cptValueType)
       kStr += self.v2Argument(                       "strideC1J",     '4',      '4',      "ByValue",        "I32")
@@ -2077,13 +2077,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "    .max_flat_workgroup_size: %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], self.endLine )
       kStr += "    .args:\n"
       offset = 0;
-      kStr += self.v3Argument(                               'D', dstSize, offset, "GlobalBuffer", dstValueType)
+      kStr += self.v3Argument(                               'D',     '8',    '8', "GlobalBuffer", dstValueType)
       offset = offset + int(dstSize)
-      kStr += self.v3Argument(                               'C', dstSize, offset, "GlobalBuffer", dstValueType)
+      kStr += self.v3Argument(                               'C',     '8',    '8', "GlobalBuffer", dstValueType)
       offset = offset + int(dstSize)
-      kStr += self.v3Argument(                               'A', srcSize, offset, "GlobalBuffer", srcValueType)
+      kStr += self.v3Argument(                               'A',     '8',    '8', "GlobalBuffer", srcValueType)
       offset = offset + int(srcSize)
-      kStr += self.v3Argument(                               'B', srcSize, offset, "GlobalBuffer", srcValueType)
+      kStr += self.v3Argument(                               'B',     '8',    '8', "GlobalBuffer", srcValueType)
       offset = offset + int(srcSize)
       kStr += self.v3Argument(                           "alpha", cptSize, offset,      "ByValue", cptValueType)
       offset = offset + int(cptSize)
