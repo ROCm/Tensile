@@ -80,6 +80,12 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
 ########################################
+# optimization knob controls 
+########################################
+
+globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&LDS in each unroll iteration into n smaller groups..
+
+########################################
 # less common
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
