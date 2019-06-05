@@ -95,6 +95,16 @@ def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, ker
 
         return newCOFiles
 
+def which(p):
+    exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
+    for dirname in system_path+['/opt/rocm/bin']:
+        for exe in exes:
+            candidate = os.path.join(os.path.expanduser(dirname), exe)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
 
 def buildSourceCodeObjectFile(outputPath, kernelFile):
     buildPath = ensurePath(os.path.join(globalParameters['WorkingPath'], 'code_object_tmp'))
@@ -109,12 +119,12 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
 
     archFlags = ['-amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
 
-    hipFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--cxxflags', '--shared']).decode().split(' ')
-    hipLinkFlags = subprocess.check_output(['/opt/rocm/bin/hcc-config', '--ldflags', '--shared']).decode().split(' ')
+    hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags', '--shared']).decode().split(' ')
+    hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
 
     hipFlags += ['-I', outputPath]
 
-    compileArgs = ['/opt/rocm/bin/hcc'] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
+    compileArgs = [which('hcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
     linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
     extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
