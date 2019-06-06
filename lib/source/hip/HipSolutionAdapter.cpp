@@ -151,6 +151,14 @@ namespace Tensile
 
         void SolutionAdapter::launchKernel(KernelInvocation const& kernel)
         {
+            launchKernel(kernel, nullptr, nullptr, nullptr);
+        }
+
+        void SolutionAdapter::launchKernel(KernelInvocation const& kernel,
+                                           hipStream_t stream,
+                                           hipEvent_t startEvent,
+                                           hipEvent_t stopEvent)
+        {
             if(m_debug)
             {
                 std::cout << "Kernel " << kernel.kernelName << std::endl;
@@ -171,21 +179,59 @@ namespace Tensile
             };
 
             HIP_CHECK_EXC(hipExtModuleLaunchKernel(
-                        function,
-                        kernel.numWorkItems.x, kernel.numWorkItems.y, kernel.numWorkItems.z,
-                        kernel.workGroupSize.x, kernel.workGroupSize.y, kernel.workGroupSize.z,
-                        kernel.sharedMemBytes, // sharedMem
-                        0, // stream
-                        nullptr,
-                        (void **)&hipLaunchParams,
-                        nullptr, // event
-                        nullptr  // event
-                        ));
+                          function,
+                          kernel.numWorkItems.x, kernel.numWorkItems.y, kernel.numWorkItems.z,
+                          kernel.workGroupSize.x, kernel.workGroupSize.y, kernel.workGroupSize.z,
+                          kernel.sharedMemBytes, // sharedMem
+                          stream, // stream
+                          nullptr,
+                          (void **)&hipLaunchParams,
+                          startEvent, // event
+                          stopEvent  // event
+                          ));
         }
 
         void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels)
         {
             for(auto const& k: kernels) launchKernel(k);
+        }
+
+        void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
+                                            hipStream_t stream,
+                                            hipEvent_t startEvent,
+                                            hipEvent_t stopEvent)
+        {
+            auto first = kernels.begin();
+            auto last = kernels.end()-1;
+
+            for(auto iter = kernels.begin(); iter != kernels.end(); iter++)
+            {
+                hipEvent_t kStart = nullptr;
+                hipEvent_t kStop  = nullptr;
+
+                if(iter == first)
+                    kStart = startEvent;
+                if(iter == last)
+                    kStop  = stopEvent;
+
+                launchKernel(*iter, stream, kStart, kStop);
+            }
+        }
+
+        void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
+                                            hipStream_t stream,
+                                            std::vector<hipEvent_t> const& startEvents,
+                                            std::vector<hipEvent_t> const& stopEvents)
+        {
+            if(kernels.size() != startEvents.size() || kernels.size() != stopEvents.size())
+                throw std::runtime_error(concatenate("Must have an equal number of kernels (", kernels.size(),
+                                                     "), start events (", startEvents.size(),
+                                                     "), and stop events. (", stopEvents.size(), ")"));
+
+            for(size_t i = 0; i < kernels.size(); i++)
+            {
+                launchKernel(kernels[i], stream, startEvents[i], stopEvents[i]);
+            }
         }
     }
 }

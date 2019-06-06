@@ -30,6 +30,7 @@
 #include <Tensile/ContractionSolution.hpp>
 
 #include "ResultReporter_fwd.hpp"
+#include "TimingEvents.hpp"
 
 namespace Tensile
 {
@@ -45,40 +46,79 @@ namespace Tensile
                 m_reporter = reporter;
             }
 
+            /**********************************
+             * Benchmark run - Outermost loop.
+             **********************************/
+
+            /// A benchmark run is a loop over all the problems.
+            /// Return true if we need to loop once more.
+            /// Note that it's not guaranteed that each listener gets this call.
+            virtual bool needMoreBenchmarkRuns() const = 0;
+
+            /// Called at the beginning of each benchmark run.
+            virtual void preBenchmarkRun() = 0;
+
+            /// Called at the end of each benchmark run.
+            virtual void postBenchmarkRun() = 0;
+
+            /**********
+             * Problem
+             **********/
+
             /// Called at the beginning of each problem.
-            virtual void setUpProblem(ContractionProblem const& problem)    {}
-
-            /// Called at the beginning of each solution.
-            virtual void setUpSolution(ContractionSolution const& solution) {}
-
-            /// Loop condition.  Return true if we need another run for this solution.
-            virtual bool needsMoreRunsInSolution() { return false; }
-            /// Return true if we need another warmup run for this solution.
-            virtual bool isWarmupRun() { return false; }
-
-            /// Called before invoking a kernel.  If isWarmup is true, this is a 
-            /// warmup run (even if this listener returned false).
-            virtual void setUpRun(bool isWarmup) {}
-
-            /// Called after invoking a kernel.
-            virtual void tearDownRun() {}
-
-            /// Called after tearDownRun(), if this is a warmup run.
-            virtual void validate(std::shared_ptr<ContractionInputs> inputs) {}
-
-            /// Called at end of each solution. Returns a summary of the results,
-            /// although this is intended for internal use between the various listeners.
-            virtual void tearDownSolution() = 0;
+            virtual void preProblem(ContractionProblem const& problem) = 0;
 
             /// Called at end of each problem.
-            virtual void tearDownProblem() {}
+            virtual void postProblem() = 0;
+
+            /***********
+             * Solution
+             ***********/
+
+            /// Called at the beginning of each solution.
+            virtual void preSolution(ContractionSolution const& solution) = 0;
+
+            /// Called at end of each solution.
+            virtual void postSolution() = 0;
+
+            /// Loop condition.  Return true if we need another run for this solution.
+            /// Note that it's not guaranteed that each listener gets this call.
+            virtual bool needMoreRunsInSolution() const = 0;
+
+            /***********************************************************************
+             * Kernel invocation run - Innermost loop.
+             *
+             * Within a solution, we will have zero or more warmup runs followed by
+             * zero or more benchmark runs.
+             ***********************************************************************/
+
+            virtual size_t numWarmupRuns() = 0;
+            virtual void   setNumWarmupRuns(size_t count) = 0;
+            virtual void   preWarmup() = 0;
+            virtual void   postWarmup() = 0;
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) = 0;
+
+            virtual size_t numSyncs() = 0;
+            virtual void   setNumSyncs(size_t count) = 0;
+            virtual void   preSyncs() = 0;
+            virtual void   postSyncs() = 0;
+
+            virtual size_t numEnqueuesPerSync() = 0;
+            virtual void   setNumEnqueuesPerSync(size_t count) = 0;
+            virtual void   preEnqueues() = 0;
+            virtual void   postEnqueues() = 0;
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) = 0;
 
             /// Called at end of program execution.  Print out a summary of the runs.
-            virtual void report() const {}
+            virtual void finalizeReport() const = 0;
 
             /// Called at end of program execution.  Return a non-zero value if a
             /// non-fatal error was previously recorded.
-            virtual int error() const { return 0; }
+            virtual int error() const = 0;
 
         protected:
             std::shared_ptr<ResultReporter> m_reporter;

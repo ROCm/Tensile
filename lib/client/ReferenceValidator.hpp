@@ -34,7 +34,6 @@
 #include <Tensile/ContractionSolution.hpp>
 
 #include "DataInitialization.hpp"
-#include "RunListener.hpp"
 
 namespace Tensile
 {
@@ -47,19 +46,39 @@ namespace Tensile
         public:
             ReferenceValidator(po::variables_map const& args, std::shared_ptr<DataInitialization> dataInit);
 
-            virtual void setUpProblem(ContractionProblem const& problem);
-            virtual void setUpSolution(ContractionSolution const& solution);
+            virtual bool needMoreBenchmarkRuns() const override;
+            virtual void preBenchmarkRun() override;
+            virtual void postBenchmarkRun() override;
 
-            virtual bool needsMoreRunsInSolution();
-            virtual bool isWarmupRun();
+            virtual void preProblem(ContractionProblem const& problem) override;
+            virtual void postProblem() override;
 
-            virtual void setUpRun(bool isWarmup);
-            virtual void tearDownRun();
+            virtual void preSolution(ContractionSolution const& solution) override;
+            virtual void postSolution() override;
 
-            virtual void tearDownSolution();
-            virtual void tearDownProblem();
+            virtual bool needMoreRunsInSolution() const override;
 
-            virtual void validate(std::shared_ptr<ContractionInputs> inputs);
+            virtual size_t numWarmupRuns() override;
+            virtual void   setNumWarmupRuns(size_t count) override;
+            virtual void   preWarmup() override;
+            virtual void   postWarmup() override;
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) override;
+
+            virtual size_t numSyncs() override { return 0; }
+            virtual void   setNumSyncs(size_t count) override {}
+            virtual void   preSyncs() override {}
+            virtual void   postSyncs() override {}
+
+            virtual size_t numEnqueuesPerSync() { return 0; }
+            virtual void   setNumEnqueuesPerSync(size_t count) override {}
+            virtual void   preEnqueues() override {}
+            virtual void   postEnqueues() override {}
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) override {}
+
             template <typename TypedInputs>
             void validateTyped(TypedInputs const& reference, TypedInputs const& result);
 
@@ -69,8 +88,9 @@ namespace Tensile
             template <typename TypedInputs>
             void printTensorsTyped(TypedInputs const& reference, TypedInputs const& result);
 
-            virtual void report();
-            virtual int error();
+            virtual void finalizeReport() const override;
+
+            virtual int error() const override;
 
         private:
             std::shared_ptr<DataInitialization> m_dataInit;
@@ -81,6 +101,7 @@ namespace Tensile
             ContractionProblem m_problem;
 
             bool m_enabled;
+
             int  m_elementsToValidate;
             bool m_printValids;
             int  m_printMax;
@@ -89,6 +110,8 @@ namespace Tensile
             bool m_printTensorB;
             bool m_printTensorC;
             bool m_printTensorD;
+
+            int m_numBenchmarkRuns = 0;
 
             bool m_validatedSolution = false;
             bool m_errorInSolution = false;

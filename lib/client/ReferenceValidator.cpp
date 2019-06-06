@@ -54,7 +54,24 @@ namespace Tensile
                      || m_printTensorD;
         }
 
-        void ReferenceValidator::setUpProblem(ContractionProblem const& problem)
+        bool ReferenceValidator::needMoreBenchmarkRuns() const override
+        {
+            if(m_enabled && m_numBenchmarkRuns == 0)
+                return true;
+
+            return false;
+        }
+
+        void ReferenceValidator::preBenchmarkRun() override
+        {
+        }
+
+        void ReferenceValidator::postBenchmarkRun() override
+        {
+            m_numBenchmarkRuns++;
+        }
+
+        void ReferenceValidator::preProblem(ContractionProblem const& problem)
         {
             if(m_enabled)
             {
@@ -64,13 +81,13 @@ namespace Tensile
             }
         }
 
-        void ReferenceValidator::setUpSolution(ContractionSolution const& solution)
+        void ReferenceValidator::preSolution(ContractionSolution const& solution)
         {
             m_validatedSolution = false;
             m_errorInSolution = false;
         }
 
-        bool ReferenceValidator::needsMoreRunsInSolution()
+        bool ReferenceValidator::needMoreRunsInSolution() const
         {
             if(m_enabled && !m_validatedSolution)
                 return true;
@@ -78,23 +95,29 @@ namespace Tensile
             return false;
         }
 
-        bool ReferenceValidator::isWarmupRun()
+        size_t ReferenceValidator::numWarmupRuns()
         {
             if(m_enabled && !m_validatedSolution)
-                return true;
+                return 1;
 
-            return false;
+            return 0;
         }
 
-        void ReferenceValidator::setUpRun(bool isWarmup)
+        void ReferenceValidator::setNumWarmupRuns(size_t count)
         {
         }
 
-        void ReferenceValidator::tearDownRun()
+        void ReferenceValidator::preWarmup()
         {
         }
 
-        void ReferenceValidator::validate(std::shared_ptr<ContractionInputs> inputs)
+        void ReferenceValidator::postWarmup()
+        {
+        }
+
+        void ReferenceValidator::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                                 TimingEvents const& startEvents,
+                                                 TimingEvents const&  stopEvents) override
         {
             if(m_enabled && !m_validatedSolution)
             {
@@ -273,7 +296,7 @@ namespace Tensile
             }
         }
 
-        void ReferenceValidator::tearDownSolution()
+        void ReferenceValidator::postSolution()
         {
             if(m_enabled && !m_validatedSolution)
                 throw std::runtime_error("Did not validate solution!");
@@ -293,15 +316,15 @@ namespace Tensile
             m_errorInSolution = false;
         }
 
-        void ReferenceValidator::tearDownProblem()
+        void ReferenceValidator::postProblem()
         {
         }
 
-        void ReferenceValidator::report()
+        void ReferenceValidator::finalizeReport() const
         {
         }
 
-        int  ReferenceValidator::error()
+        int  ReferenceValidator::error() const
         {
             return 0;
         }

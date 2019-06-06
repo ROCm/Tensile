@@ -27,6 +27,11 @@
 #pragma once
 
 #include <unordered_set>
+#include <string>
+
+#include <boost/lexical_cast.hpp>
+
+#include "RunListener.hpp"
 
 namespace Tensile
 {
@@ -76,24 +81,47 @@ namespace Tensile
 
             /// RunListener interface functions
 
-            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) {}
+            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override {}
 
-            virtual void setUpProblem(ContractionProblem const& problem) {}
-            virtual void setUpSolution(ContractionSolution const& solution) {}
+            virtual bool needMoreBenchmarkRuns() const override { return false; }
+            virtual void preBenchmarkRun() override {}
+            virtual void postBenchmarkRun() override {}
 
-            virtual bool needsMoreRunsInSolution() { return false; }
-            virtual bool isWarmupRun() { return false; }
+            virtual void preProblem(ContractionProblem const& problem) override {}
+            virtual void postProblem() override {}
 
-            virtual void setUpRun(bool isWarmup) {}
-            virtual void tearDownRun() {}
-            virtual void validate(std::shared_ptr<ContractionInputs> inputs) {}
+            virtual void preSolution(ContractionSolution const& solution) override {}
+            virtual void postSolution() override {}
 
-            virtual void tearDownSolution() {}
-            virtual void tearDownProblem() {}
+            virtual bool needMoreRunsInSolution() const override { return false; }
 
-            virtual void report() const {}
+            virtual size_t numWarmupRuns() override { return 0; }
+            virtual void   setNumWarmupRuns(size_t count) override {}
+            virtual void   preWarmup() override {}
+            virtual void   postWarmup() override {}
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) override {}
 
-            virtual int error() const { return 0; }
+            virtual size_t numSyncs() override { return 0; }
+            virtual void   setNumSyncs(size_t count) override {}
+            virtual void   preSyncs() override {}
+            virtual void   postSyncs() override {}
+
+            virtual size_t numEnqueuesPerSync() override { return 0; }
+            virtual void   setNumEnqueuesPerSync(size_t count) override {}
+            virtual void   preEnqueues() override {}
+            virtual void   postEnqueues() override {}
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) override {}
+
+            // finalizeReport() deliberately left out of here to force it to be implemented in subclasses.
+
+            virtual int error() const override
+            {
+                return 0;
+            }
         };
 
         class MetaResultReporter: public ResultReporter
@@ -132,73 +160,148 @@ namespace Tensile
 
             /// RunListener interface functions
 
-            virtual void setUpProblem(ContractionProblem const& problem)
+            virtual bool needMoreBenchmarkRuns() const override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    (*iter)->setUpProblem(problem);
-            }
-
-            virtual void setUpSolution(ContractionSolution const& solution)
-            {
-                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    (*iter)->setUpSolution(solution);
-            }
-
-            virtual bool needsMoreRunsInSolution()
-            {
-                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    if((*iter)->needsMoreRunsInSolution())
+                    if((*iter)->needMoreBenchmarkRuns())
                         return true;
 
                 return false;
             }
 
-            virtual bool isWarmupRun()
+            virtual void preBenchmarkRun() override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    if((*iter)->isWarmupRun())
+                    (*iter)->preBenchmarkRun();
+            }
+
+            virtual void postBenchmarkRun() override
+            {
+                for(auto iter = m_reporters.rbegin(); iter != m_reporters.rend(); iter++)
+                    (*iter)->postBenchmarkRun();
+            }
+
+            virtual void preProblem(ContractionProblem const& problem) override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->preProblem(problem);
+            }
+
+            virtual void postProblem() override
+            {
+                for(auto iter = m_reporters.rbegin(); iter != m_reporters.rend(); iter++)
+                    (*iter)->postProblem();
+            }
+
+            virtual void preSolution(ContractionSolution const& solution) override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->preSolution(solution);
+            }
+
+            virtual void postSolution() override
+            {
+                for(auto iter = m_reporters.rbegin(); iter != m_reporters.rend(); iter++)
+                    (*iter)->postSolution();
+            }
+
+            virtual bool needMoreRunsInSolution() const override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    if((*iter)->needMoreRunsInSolution())
                         return true;
 
                 return false;
             }
 
-            virtual void setUpRun(bool isWarmup)
+            virtual size_t numWarmupRuns() override { return 0; }
+            virtual void   setNumWarmupRuns(size_t count) override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    (*iter)->setUpRun(isWarmup);
+                    (*iter)->setNumWarmupRuns(count);
             }
 
-            virtual void tearDownRun()
-            {
-                for(auto iter = m_reporters.rbegin(); iter != m_reporters.rend(); iter++)
-                    (*iter)->tearDownRun();
-            }
-
-            virtual void tearDownProblem()
-            {
-                for(auto iter = m_reporters.rbegin(); iter != m_reporters.rend(); iter++)
-                    (*iter)->tearDownProblem();
-            }
-
-            virtual void tearDownSolution()
-            {
-                for(auto iter = m_reporters.rbegin(); iter != m_reporters.rend(); iter++)
-                    (*iter)->tearDownSolution();
-            }
-
-            virtual void validate(std::shared_ptr<ContractionInputs> inputs)
+            virtual void   preWarmup() override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    (*iter)->validate(inputs);
+                    (*iter)->preWarmup();
             }
 
-            virtual void report() const
+            virtual void   postWarmup() override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    (*iter)->report();
+                    (*iter)->postWarmup();
             }
 
-            virtual int error() const
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) override 
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->validateWarmups(inputs, startEvents, stopEvents);
+            }
+
+            virtual size_t numSyncs() override
+            {
+                return 0;
+            }
+
+            virtual void   setNumSyncs(size_t count) override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->setNumSyncs(count);
+            }
+
+            virtual void   preSyncs() override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->preSyncs();
+            }
+
+            virtual void   postSyncs() override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->postSyncs();
+            }
+
+            virtual size_t numEnqueuesPerSync() override
+            {
+                return 0;
+            }
+
+            virtual void   setNumEnqueuesPerSync(size_t count) override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->setNumEnqueuesPerSync(count);
+            }
+
+            virtual void   preEnqueues() override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->preEnqueues();
+            }
+            virtual void   postEnqueues() override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->postEnqueues();
+            }
+
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->validateEnqueues(inputs, startEvents, stopEvents);
+            }
+
+
+            virtual void finalizeReport() const override
+            {
+                for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
+                    (*iter)->finalizeReport();
+            }
+
+            virtual int error() const override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
                 {
@@ -246,7 +349,7 @@ namespace Tensile
             {
             }
 
-            virtual void reportValue(std::string const& key, std::string const& value)
+            virtual void reportValue(std::string const& key, std::string const& value) override
             {
                 if(m_keySet.find(key) != m_keySet.end())
                 {
@@ -257,9 +360,12 @@ namespace Tensile
                 }
             }
 
-            virtual bool logAtLevel(LogLevel level) { return level <= m_level; };
+            virtual bool logAtLevel(LogLevel level) override
+            {
+                return level <= m_level;
+            }
 
-            virtual void logMessage(LogLevel level, std::string const& message)
+            virtual void logMessage(LogLevel level, std::string const& message) override
             {
                 if(logAtLevel(level))
                 {
@@ -278,7 +384,7 @@ namespace Tensile
                 }
             }
 
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor)
+            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor) override
             {
                 if(logAtLevel(level))
                 {
@@ -291,9 +397,10 @@ namespace Tensile
 
             /// RunListener interface functions
 
-            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) {}
+            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override
+            {}
 
-            virtual void setUpProblem(ContractionProblem const& problem)
+            virtual void preProblem(ContractionProblem const& problem) override
             {
                 m_inSolution = false;
 
@@ -308,14 +415,14 @@ namespace Tensile
                 report("operation", problem.operationIdentifier());
             }
 
-            virtual void setUpSolution(ContractionSolution const& solution)
+            virtual void preSolution(ContractionSolution const& solution) override
             {
                 m_inSolution = true;
 
                 report("solution", solution.name());
             }
 
-            virtual void tearDownSolution()
+            virtual void postSolution() override
             {
                 bool first = true;
 
@@ -349,9 +456,13 @@ namespace Tensile
                 m_currentSolutionRow.clear();
             }
 
-            virtual void tearDownProblem()
+            virtual void postProblem() override
             {
                 m_currentProblemRow.clear();
+            }
+
+            virtual void finalizeReport() const
+            {
             }
 
         private:

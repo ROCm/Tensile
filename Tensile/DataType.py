@@ -142,14 +142,14 @@ class DataType:
     def __init__(self, value):
         if isinstance(value, int):
             self.value = value
-            self.properties = DataType.properties[value]
         elif isinstance(value, str):
             self.value = DataType.lookup[value.lower()]
-            return
         elif isinstance(value, DataType):
             self.value = value.value
         else:
             raise RuntimeError("initializing DataType to {0} {1}".format(str(type(value)), str(value)))
+
+        self.properties = DataType.properties[self.value]
    
     def toChar(self):
         return self.properties['char']

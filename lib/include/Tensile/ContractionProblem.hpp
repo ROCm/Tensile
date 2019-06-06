@@ -138,6 +138,9 @@ namespace Tensile
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const { return m_maxProblemSize; }
 
+        size_t flopsPerMac() const;
+        size_t flopCount() const;
+
         TensorDescriptor const& a() const { return m_a; }
         TensorDescriptor const& b() const { return m_b; }
         TensorDescriptor const& c() const { return m_c; }

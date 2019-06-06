@@ -2,10 +2,13 @@
 set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
 set(client_sources
+    BenchmarkTimer.cpp
     ClientProblemFactory.cpp
     DataInitialization.cpp
+    MetaRunListener.cpp
     Reference.cpp
     ReferenceValidator.cpp
+    TimingEvents.cpp
     )
 
 find_package(Boost COMPONENTS program_options)

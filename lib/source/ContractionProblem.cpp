@@ -601,6 +601,30 @@ namespace Tensile
         return m_boundSizes[idx];
     }
 
+    size_t ContractionProblem::flopsPerMac() const
+    {
+        return 2;
+    }
+
+    size_t ContractionProblem::flopCount() const
+    {
+        size_t rv = flopsPerMac();
+
+        for(auto size: m_freeSizeA)
+            rv *= size;
+
+        for(auto size: m_freeSizeB)
+            rv *= size;
+
+        for(auto size: m_batchSizes)
+            rv *= size;
+
+        for(auto size: m_boundSizes)
+            rv *= size;
+
+        return rv;
+    }
+
     void ContractionProblem::getIndexNames(std::string & aNames,
                                            std::string & bNames,
                                            std::string & cNames,

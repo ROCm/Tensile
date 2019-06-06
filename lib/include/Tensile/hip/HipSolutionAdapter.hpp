@@ -54,7 +54,22 @@ namespace Tensile
             void loadEmbeddedCodeObjects(std::string const& key);
 
             void launchKernel(KernelInvocation const& kernel);
+            void launchKernel(KernelInvocation const& kernel,
+                              hipStream_t stream,
+                              hipEvent_t startEvent,
+                              hipEvent_t stopEvent);
+
             void launchKernels(std::vector<KernelInvocation> const& kernels);
+
+            void launchKernels(std::vector<KernelInvocation> const& kernels,
+                               hipStream_t stream,
+                               hipEvent_t startEvent,
+                               hipEvent_t stopEvent);
+
+            void launchKernels(std::vector<KernelInvocation> const& kernels,
+                               hipStream_t stream,
+                               std::vector<hipEvent_t> const& startEvents,
+                               std::vector<hipEvent_t> const& stopEvents);
 
         private:
             hipFunction_t getKernel(std::string const& name);

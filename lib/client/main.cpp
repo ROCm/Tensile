@@ -31,11 +31,13 @@
 #include <Tensile/hip/HipHardware.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
+#include "BenchmarkTimer.hpp"
 #include "ClientProblemFactory.hpp"
 #include "DataInitialization.hpp"
 #include "MetaRunListener.hpp"
 #include "ReferenceValidator.hpp"
 #include "ResultReporter.hpp"
+#include "TimingEvents.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -73,7 +75,7 @@ namespace Tensile
             options.add_options()
                 ("help,h", "Show help message.")
 
-                ("library-file",             po::value<std::string>(), "Load a (YAML) solution library.  If not specified, we will use "
+                ("library-file,l",             po::value<std::string>(), "Load a (YAML) solution library.  If not specified, we will use "
                                                                        "the embedded library, if available.")
                 ("code-object,c",            vector_default_empty<std::string>(), "Code object file with kernel(s).  If none are "
                                                                                   "specified, we will use the embedded code "
@@ -111,6 +113,7 @@ namespace Tensile
                 ("print-tensor-d",           po::value<bool>()->default_value(false), "Print tensor D.")
 
                 ("device-idx",               po::value<int>()->default_value(0), "Device index")
+                ("use-default-stream",       po::value<bool>()->default_value(false), "Use default Hip stream to run kernels.")
                 ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
 
                 ("num-warmups",              po::value<int>()->default_value(1), "Number of benchmarks to run") 
@@ -152,6 +155,16 @@ namespace Tensile
             return hip::GetCurrentDevice();
         }
 
+        hipStream_t GetStream(po::variables_map const& args)
+        {
+            if(args["use-default-stream"].as<bool>())
+                return 0;
+
+            hipStream_t stream;
+            HIP_CHECK_EXC(hipStreamCreate(&stream));
+            return stream;
+        }
+
         std::shared_ptr<SolutionLibrary<ContractionProblem>>
         LoadSolutionLibrary(po::variables_map const& args)
         {
@@ -161,7 +174,13 @@ namespace Tensile
                 return LoadLibraryFile<ContractionProblem>(filename.as<std::string>());
             }
 
-            return EmbeddedLibrary<ContractionProblem>::Get();
+            auto embeddedLibrary = EmbeddedLibrary<ContractionProblem>::Get();
+
+            if(embeddedLibrary != nullptr)
+                return embeddedLibrary;
+
+            throw std::runtime_error("Client must be linked with an embedded library or a library must be specified at runtime.");
+
         }
 
         void LoadCodeObjects(po::variables_map const& args, hip::SolutionAdapter & adapter)
@@ -271,6 +290,7 @@ int main(int argc, const char * argv[])
     ClientProblemFactory problemFactory(args);
 
     auto hardware = GetHardware(args);
+    hipStream_t stream = GetStream(args);
 
     auto library = LoadSolutionLibrary(args);
     Tensile::hip::SolutionAdapter adapter;
@@ -280,52 +300,96 @@ int main(int argc, const char * argv[])
 
     MetaRunListener listeners;
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
+    listeners.addListener(std::make_shared<BenchmarkTimer>(args));
 
     auto reporter = std::make_shared<MetaResultReporter>();
-    reporter->addReporter(std::shared_ptr<LogReporter>(new LogReporter(LogLevel::Debug, {"operation", "solution", "validation"}, std::cout)));
+    reporter->addReporter(
+            std::shared_ptr<LogReporter>(
+                new LogReporter(LogLevel::Debug,
+                                {"operation", "solution", "validation", "time_ns", "gflops"},
+                                std::cout)));
     
     listeners.setReporter(reporter);
 
     //ReferenceValidator validator(args, dataInit);
     //BenchmarkTimer timer(args);
 
-    for(auto const& problem: problemFactory.problems())
+    while(listeners.needMoreBenchmarkRuns())
     {
-        std::cout << "Problem: " << problem.operationDescription() << std::endl;
-        std::cout << "a: " << problem.a() << std::endl;
-        std::cout << "b: " << problem.b() << std::endl;
-        std::cout << "c: " << problem.c() << std::endl;
-        std::cout << "d: " << problem.d() << std::endl;
+        listeners.preBenchmarkRun();
 
-        listeners.setUpProblem(problem);
-        
-        auto solutions = library->findAllSolutions(problem, *hardware);
-        for(auto solution: solutions)
+        for(auto const& problem: problemFactory.problems())
         {
-            auto inputs = dataInit->prepareGPUInputs();
+            //std::cout << "Problem: " << problem.operationDescription() << std::endl;
+            //std::cout << "a: " << problem.a() << std::endl;
+            //std::cout << "b: " << problem.b() << std::endl;
+            //std::cout << "c: " << problem.c() << std::endl;
+            //std::cout << "d: " << problem.d() << std::endl;
 
-            listeners.setUpSolution(*solution);
-
-            while(listeners.needsMoreRunsInSolution())
+            listeners.preProblem(problem);
+            
+            auto solutions = library->findAllSolutions(problem, *hardware);
+            for(auto solution: solutions)
             {
-                bool isWarmup = listeners.isWarmupRun();
+                listeners.preSolution(*solution);
 
-                auto kernels = solution->solve(problem, *inputs, *hardware);
+                while(listeners.needMoreRunsInSolution())
+                {
+                    auto inputs = dataInit->prepareGPUInputs();
 
-                listeners.setUpRun(isWarmup);
-                adapter.launchKernels(kernels);
-                listeners.tearDownRun();
+                    auto kernels = solution->solve(problem, *inputs, *hardware);
 
-                listeners.validate(inputs);
+                    size_t warmupInvocations = listeners.numWarmupRuns();
+                    TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
+                    TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
+
+                    for(int i = 0; i < warmupInvocations; i++)
+                    {
+                        listeners.preWarmup();
+                        adapter.launchKernels(kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                        listeners.postWarmup();
+                    }
+
+                    listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
+
+                    size_t syncs = listeners.numSyncs();
+                    size_t enq   = listeners.numEnqueuesPerSync();
+
+                    for(int i = 0; i < syncs; i++)
+                    {
+                        listeners.preSyncs();
+
+                        TimingEvents startEvents(enq, kernels.size());
+                        TimingEvents  stopEvents(enq, kernels.size());
+
+                        listeners.preEnqueues();
+
+                        for(int j = 0; j < enq; j++)
+                        {
+                            adapter.launchKernels(kernels, stream, startEvents[j], stopEvents[j]);
+                            std::cout << ".";
+                            std::cout.flush();
+                        }
+
+                        std::cout << std::endl;
+
+                        listeners.postEnqueues();
+                        listeners.validateEnqueues(inputs, startEvents, stopEvents);
+
+                        listeners.postSyncs();
+                    }
+                }
+
+                listeners.postSolution();
             }
 
-            listeners.tearDownSolution();
+            listeners.postProblem();
         }
 
-        listeners.tearDownProblem();
+        listeners.postBenchmarkRun();
     }
 
-    listeners.report();
+    listeners.finalizeReport();
 
     return listeners.error();
 }

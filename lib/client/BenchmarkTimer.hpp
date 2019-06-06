@@ -26,22 +26,23 @@
 
 #pragma once
 
+#include "RunListener.hpp"
+
+#include <boost/program_options.hpp>
+
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
-
-#include "RunListener.hpp"
-#include "ResultReporter.hpp"
 
 namespace Tensile
 {
     namespace Client
     {
-        class MetaRunListener: public RunListener
+        namespace po = boost::program_options;
+
+        class BenchmarkTimer: public RunListener
         {
         public:
-            void addListener(std::shared_ptr<RunListener> listener);
-
-            void setReporter(std::shared_ptr<ResultReporter> reporter);
+            BenchmarkTimer(po::variables_map const& args);
 
             virtual bool needMoreBenchmarkRuns() const override;
             virtual void preBenchmarkRun() override;
@@ -52,6 +53,7 @@ namespace Tensile
 
             virtual void preSolution(ContractionSolution const& solution) override;
             virtual void postSolution() override;
+
             virtual bool needMoreRunsInSolution() const override;
 
             virtual size_t numWarmupRuns() override;
@@ -59,8 +61,8 @@ namespace Tensile
             virtual void   preWarmup() override;
             virtual void   postWarmup() override;
             virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                            TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) override;
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) override;
 
             virtual size_t numSyncs() override;
             virtual void   setNumSyncs(size_t count) override;
@@ -80,13 +82,27 @@ namespace Tensile
             virtual int error() const override;
 
         private:
+            const int m_numWarmups;
+            const int m_numBenchmarks;
+            const int m_numEnqueuesPerSync;
+            const int m_numSyncsPerBenchmark;
+            const int m_numEnqueuesPerSolution;
 
-            bool m_firstProblem = true;
+            const bool m_useGPUTimer;
+            const int m_sleepPercent;
 
-            std::vector<std::shared_ptr<RunListener>> m_listeners;
-            std::vector<std::shared_ptr<ResultReporter>> m_reporters;
+            int m_numBenchmarksRun = 0;
+
+            ContractionProblem m_problem;
+
+            int m_numEnqueuesInSolution = 0;
+            int m_numSyncsInBenchmark = 0;
+            int m_curNumEnqueuesPerSync = 0;
+
+            double m_timeInSolution_ms = 0.0;
+
+            double m_totalGPUTime_ms = 0.0;
         };
-
     }
 }
 
