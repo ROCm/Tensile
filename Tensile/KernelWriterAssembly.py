@@ -4463,6 +4463,65 @@ class KernelWriterAssembly(KernelWriter):
     return imod
 
   ##############################################################################
+  # MAC Iteration -alternate version
+  ##############################################################################
+  def macCode(self, kernel, bufferIdx, iuiCount):
+    if not self.do["MAC"]: return ""
+    imod = Code.Module("macIter_X%u_I%u"%(bufferIdx, iuiCount))
+
+    if kernel["ProblemType"]["DataType"].isHalf():
+      imod.addInst(".align32 8, 0xbf800001", "align v_pk_fma")   # Align v_pk_fma instructions used in MAC_ blocks
+
+    doOnce = False
+    beAggressive = kernel["AggressivePerfMode"]
+    macIdx = 0
+
+    if kernel["ProblemType"]["DataType"].isHalf():
+      for blockB in range(0, kernel["ThreadTile1"]//2):
+        for blockA in range(0, kernel["ThreadTile0"]//2):
+          imod.addCode(Code.MacInst(kernel,blockA,blockB,bufferIdx,iuiCount))
+          if beAggressive and not doOnce:
+            imod.addInst("s_setprio ","1","Raise priority while processing macs")
+            doOnce = True
+    # integer i8
+    elif kernel["ProblemType"]["DataType"].isInt8x4():
+      for blockB in range(0, kernel["ThreadTile1"]):
+        for blockA in range(0, kernel["ThreadTile0"]):
+          imod.addCode(Code.MacInst(kernel,blockA,blockB,bufferIdx,iuiCount))
+          if beAggressive and not doOnce:
+            imod.addInst("s_setprio ","1","Raise priority while processing macs")
+            doOnce = True
+    # single precision
+    elif kernel["ProblemType"]["DataType"].isSingle():
+      for blockB in range(0, kernel["ThreadTile1"]):
+        for blockA in range(0, kernel["ThreadTile0"]):
+          imod.addCode(Code.MacInst(kernel,blockA,blockB,bufferIdx,iuiCount))
+          if beAggressive and not doOnce:
+            imod.addInst("s_setprio ","1","Raise priority while processing macs")
+            doOnce = True
+          if macIdx == kernel["PerformanceWaitLocation"]:
+            imod.addCode(Code.WaitCnt(kernel["PerformanceWaitCount"],"extra wait for performance"))
+          if macIdx == kernel["PerformanceSyncLocation"]:
+            imod.addInst("s_barrier ","extra barrier for performance")
+          macIdx += 1
+    
+    # double precision
+    elif kernel["ProblemType"]["DataType"].isDouble():
+      for blockB in range(0, kernel["ThreadTile1"]):
+        for blockA in range(0, kernel["ThreadTile0"]):
+          imod.addCode(Code.MacInst(kernel,blockA,blockB,bufferIdx,iuiCount))
+          if beAggressive and not doOnce:
+            imod.addInst("s_setprio ","1","Raise priority while processing macs")
+            doOnce = True
+    else:
+      printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
+
+    if beAggressive and doOnce:
+      imod.addInst("s_setprio ","0","Reset priority after macs")
+
+    return imod
+    
+  ##############################################################################
   # At Least 1 Unroll
   # prefetch means this is in the prefetch code, either before unroll loop
   # or in the PAP code.
