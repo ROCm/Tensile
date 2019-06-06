@@ -24,39 +24,27 @@
  *
  *******************************************************************************/
 
+#include <TestData.hpp>
+
 #include <gtest/gtest.h>
 
-#include <Tensile/Serialization.hpp>
-#include <Tensile/llvm/YAML.hpp>
-#include <Tensile/ContractionLibrary.hpp>
-#include <TestUtils.hpp>
-
-#include "TestData.hpp"
-
-using namespace Tensile;
-
-TEST(LibraryPerformanceTest, CreateProblem)
+TEST(TestData, Simple)
 {
-    for(int i = 0; i < 1000; i++)
-        RandomGEMM();
+    auto data = TestData::Instance();
+
+    EXPECT_TRUE(static_cast<bool>(data));
+
+    auto is_regular_file = static_cast<bool (*)(boost::filesystem::path const&)>(boost::filesystem::is_regular_file);
+
+    EXPECT_PRED1(is_regular_file, data.file("KernelsLite.yaml"));
+    EXPECT_FALSE(is_regular_file( data.file("fjdlksljfjldskj")));
+
+    auto files = data.glob("*.yaml");
+    EXPECT_EQ(files.size(), 3);
+    for(auto file: files)
+        EXPECT_PRED1(is_regular_file, file);
+
+    if(TestData::Env("TENSILE_NEVER_SET_THIS_AKDJFLKDSJ"))
+        FAIL() << "TestData object constructed with unset environment variable should convert to false!";
 }
 
-TEST(LibraryPerformanceTest, LoadLibrary)
-{
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("KernelsLiteMixed.yaml").native());
-}
-
-TEST(LibraryPerformanceTest, FindSolution)
-{
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("KernelsLiteMixed.yaml").native());
-    AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
-
-    for(int i = 0; i < 10000; i++)
-    {
-        auto problem = RandomGEMM();
-
-        auto solution = library->findBestSolution(problem, hardware);
-
-        //ASSERT_NE(solution, nullptr);
-    }
-}

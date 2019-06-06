@@ -1,8 +1,4 @@
 
-#find_package(ROCM REQUIRED CONFIG PATHS /opt/rocm)
-
-#set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
-
 if(true)
 TensileCreateLibraryFiles(
     "${TENSILE_ROOT}/lib/configs/lite_configs"
@@ -47,19 +43,14 @@ add_custom_target(test_code_object
     COMMAND python ${TENSILE_ROOT}/Tensile/Tensile.py ${test_yaml} code_object
     DEPENDS ${test_yaml})
 
-add_library(TensileHipTests STATIC
-            HipSolutionAdapter_test.cpp
-            RunGEMMKernel_test.cpp)
+set(test_sources ${test_sources}
+    hip/HipSolutionAdapter_test.cpp
+    hip/RunGEMMKernel_test.cpp PARENT_SCOPE)
 
-target_link_libraries(TensileHipTests hip::host
-                      test_kernels_lite
-                      test_kernels_lite_2
-                      test_kernels_lite_mixed
-                      TensileClient)
-
-target_include_directories(TensileHipTests
-                           PRIVATE
-                           ${gtest_SOURCE_DIR}/include)
-
-#add_dependencies(test_code_object ${test_yaml})
+set(HIP_TEST_LIBRARIES
+    hip::host
+    test_kernels_lite
+    test_kernels_lite_2
+    test_kernels_lite_mixed
+    TensileClient PARENT_SCOPE)
 

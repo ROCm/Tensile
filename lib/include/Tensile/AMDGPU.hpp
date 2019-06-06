@@ -74,7 +74,7 @@ namespace Tensile
         return static_cast<int>(l) >= static_cast<int>(r);
     }
 
-    std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
 }
 
 
