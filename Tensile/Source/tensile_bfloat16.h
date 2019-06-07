@@ -188,8 +188,8 @@ inline __host__ __device__ tensile_bfloat16 abs(tensile_bfloat16 a)
     a.data &= 0x7fff;
     return a;
 }
-inline __host__ __device__ tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
-inline __host__ __device__ tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
+inline tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
+inline tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
 
 #endif // __cplusplus
 
