@@ -20,6 +20,7 @@
 ################################################################################
 
 from __future__ import print_function
+from . import Common
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
@@ -303,8 +304,7 @@ class Solution:
         rv.sizeMapping = SizeMapping.FromOriginalState(d)
 
         if d['KernelLanguage'] == 'Assembly':
-            d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
-            #print(d['ISA'])
+            d['ISA'] = Common.gfxArch(deviceInfo[1])
         else:
             d['ISA'] = (0,0,0)
 

@@ -973,7 +973,7 @@ def assignGlobalParameters( config ):
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: gfx%u%u%u"%arch)
+          print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
           globalParameters["CurrentISA"] = arch
         line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):

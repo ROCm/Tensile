@@ -222,9 +222,6 @@ def readLibraryLogicForSchedule( filename ):
   for i in range(0, len(solutionStates)):
     solutionState = solutionStates[i]
     if solutionState["KernelLanguage"] == "Assembly":
-      isa0 = int(architectureName[3])
-      isa1 = int(architectureName[4])
-      isa2 = int(architectureName[5])
       solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
       solutionState["ISA"] = (0, 0, 0)
