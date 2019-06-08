@@ -34,6 +34,7 @@
 #include "BenchmarkTimer.hpp"
 #include "ClientProblemFactory.hpp"
 #include "DataInitialization.hpp"
+#include "HardwareMonitor.hpp"
 #include "MetaRunListener.hpp"
 #include "ReferenceValidator.hpp"
 #include "ResultReporter.hpp"
@@ -116,8 +117,8 @@ namespace Tensile
                 ("use-default-stream",       po::value<bool>()->default_value(false), "Use default Hip stream to run kernels.")
                 ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
 
-                ("num-warmups",              po::value<int>()->default_value(1), "Number of benchmarks to run") 
-                ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run") 
+                ("num-warmups",              po::value<int>()->default_value(1), "Number of benchmarks to run")
+                ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run")
                 ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync")
                 ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
@@ -301,14 +302,18 @@ int main(int argc, const char * argv[])
     MetaRunListener listeners;
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
     listeners.addListener(std::make_shared<BenchmarkTimer>(args));
+    listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporter = std::make_shared<MetaResultReporter>();
     reporter->addReporter(
             std::shared_ptr<LogReporter>(
                 new LogReporter(LogLevel::Debug,
-                                {"operation", "solution", "validation", "time_ns", "gflops"},
+                                {"operation", "solution", "validation", "time_ns", "gflops",
+                                 "temp-edge",
+                                 "clock-sys", "clock-soc", "clock-mem",
+                                 "fan", "hardware-samples"},
                                 std::cout)));
-    
+
     listeners.setReporter(reporter);
 
     //ReferenceValidator validator(args, dataInit);
@@ -327,7 +332,7 @@ int main(int argc, const char * argv[])
             //std::cout << "d: " << problem.d() << std::endl;
 
             listeners.preProblem(problem);
-            
+
             auto solutions = library->findAllSolutions(problem, *hardware);
             for(auto solution: solutions)
             {
@@ -373,7 +378,7 @@ int main(int argc, const char * argv[])
 
                         std::cout << std::endl;
 
-                        listeners.postEnqueues();
+                        listeners.postEnqueues(startEvents, stopEvents);
                         listeners.validateEnqueues(inputs, startEvents, stopEvents);
 
                         listeners.postSyncs();

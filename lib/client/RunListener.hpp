@@ -108,7 +108,8 @@ namespace Tensile
             virtual size_t numEnqueuesPerSync() = 0;
             virtual void   setNumEnqueuesPerSync(size_t count) = 0;
             virtual void   preEnqueues() = 0;
-            virtual void   postEnqueues() = 0;
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) = 0;
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
                                             TimingEvents const& startEvents,
                                             TimingEvents const&  stopEvents) = 0;

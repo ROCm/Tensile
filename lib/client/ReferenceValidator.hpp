@@ -74,7 +74,8 @@ namespace Tensile
             virtual size_t numEnqueuesPerSync() { return 0; }
             virtual void   setNumEnqueuesPerSync(size_t count) override {}
             virtual void   preEnqueues() override {}
-            virtual void   postEnqueues() override {}
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) override {}
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
                                             TimingEvents const& startEvents,
                                             TimingEvents const&  stopEvents) override {}

@@ -153,7 +153,8 @@ namespace Tensile
             }
         }
 
-        void   BenchmarkTimer::postEnqueues()
+        void   BenchmarkTimer::postEnqueues(TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents)
         {
             if(!m_useGPUTimer)
             {

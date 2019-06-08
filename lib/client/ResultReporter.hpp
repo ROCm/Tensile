@@ -111,7 +111,8 @@ namespace Tensile
             virtual size_t numEnqueuesPerSync() override { return 0; }
             virtual void   setNumEnqueuesPerSync(size_t count) override {}
             virtual void   preEnqueues() override {}
-            virtual void   postEnqueues() override {}
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) override {}
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
                                             TimingEvents const& startEvents,
                                             TimingEvents const&  stopEvents) override {}
@@ -280,10 +281,11 @@ namespace Tensile
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
                     (*iter)->preEnqueues();
             }
-            virtual void   postEnqueues() override
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
-                    (*iter)->postEnqueues();
+                    (*iter)->postEnqueues(startEvents, stopEvents);
             }
 
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,

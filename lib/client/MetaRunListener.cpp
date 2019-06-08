@@ -139,7 +139,7 @@ namespace Tensile
 
         void MetaRunListener::postWarmup()
         {
-            for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
+            for(auto iter = m_listeners.rbegin(); iter != m_listeners.rend(); iter++)
                 (*iter)->postWarmup();
         }
 
@@ -176,7 +176,7 @@ namespace Tensile
 
         void MetaRunListener::postSyncs()
         {
-            for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
+            for(auto iter = m_listeners.rbegin(); iter != m_listeners.rend(); iter++)
                 (*iter)->postSyncs();
         }
 
@@ -203,10 +203,11 @@ namespace Tensile
                 (*iter)->preEnqueues();
         }
 
-        void MetaRunListener::postEnqueues()
+        void MetaRunListener::postEnqueues(TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents)
         {
-            for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
-                (*iter)->postEnqueues();
+            for(auto iter = m_listeners.rbegin(); iter != m_listeners.rend(); iter++)
+                (*iter)->postEnqueues(startEvents, stopEvents);
         }
 
         void MetaRunListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
