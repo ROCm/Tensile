@@ -27,6 +27,7 @@ from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
 
 from math import log, ceil
+from copy import deepcopy
 import collections
 import traceback
 
@@ -1442,6 +1443,7 @@ class KernelWriterAssembly(KernelWriter):
     #print "TotalVgprs", self.totalVgprs
     self.vgprPool = RegisterPool(self.totalVgprs, 'v', reservedAtEnd=1, printRP=self.db["PrintRP"])
     #print self.vgprPool.state()
+    self.savedVgprPool = None
 
     # C regs are not used during initialization so mark them as available - 
     # we will claim then just before the start of the unroll loop:
@@ -4418,6 +4420,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
             (self.startVgprValuA, self.lastVgprForReads))
 
+    if self.savedVgprPool != None:
+      self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
     self.vgprPool.add(self.startVgprValuA, \
         self.lastVgprForReads - self.startVgprValuA, "endSummation")
 
@@ -4585,7 +4589,23 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 %s"%skipOptNLL, \
           "skip if tail loop required")
 
+      # OptNLL has no tail loop so can reclaim some regs here -
+      # we need these to do the address calcs for the stores, etc
+      # save the vgprPool for generating the normal path.
+      self.savedVgprPool = deepcopy(self.vgprPool)
 
+      added = [] # track registers added to pool
+      if kernel["PrefetchGlobalRead"]:
+        added.append(self.vgprPool.addRange(self.startVgprG2LA, \
+            self.startVgprG2LA+self.numVgprG2LA-1, "startOptNLL"))
+        added.append(self.vgprPool.addRange(self.startVgprG2LB, \
+            self.startVgprG2LB+self.numVgprG2LB-1, "startOptNLL"))
+
+      added.append(self.vgprPool.addRange(self.startVgprLocalWriteAddressesA, \
+          self.startVgprLocalWriteAddressesB, "startOptNLL"))
+      added.append(self.vgprPool.addRange(self.startVgprGlobalReadOffsetA, \
+          self.startVgprGlobalReadOffsetB, "startOptNLL"))
+      kStr += self.comment("reclaim VGPRS: " + ", ".join(added))
 
     return kStr
 
