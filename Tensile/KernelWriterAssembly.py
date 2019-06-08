@@ -108,6 +108,13 @@ class RegisterPool:
 
   ########################################
   # Adds registers to the pool so they can be used as temps
+  # Convenience function that takes a range and returns it in string form
+  def addRange(self, start, stop, tag=""):
+    self.add(start, stop-start+1, tag)
+    return "%d-%d" % (start, stop)
+
+  ########################################
+  # Adds registers to the pool so they can be used as temps
   # Add
   def add(self, start, size, tag=""):
     # reserve space
@@ -1088,10 +1095,10 @@ class KernelWriterAssembly(KernelWriter):
     ####################################
     # num vgprs: global -> local elements
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
-      numVgprG2LA = roundUp((kernel["NumLoadsCoalescedA"] * kernel["NumLoadsPerpendicularA"] *\
+      self.numVgprG2LA = roundUp((kernel["NumLoadsCoalescedA"] * kernel["NumLoadsPerpendicularA"] *\
         kernel["GlobalLoadVectorWidthA"] * tPA["bpe"])/(float)(self.bpr))
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
-      numVgprG2LB = roundUp((kernel["NumLoadsCoalescedB"]*kernel["NumLoadsPerpendicularB"]* \
+      self.numVgprG2LB = roundUp((kernel["NumLoadsCoalescedB"]*kernel["NumLoadsPerpendicularB"]* \
         kernel["GlobalLoadVectorWidthB"] * tPB["bpe"])/(float)(self.bpr))
 
     ####################################
@@ -1162,38 +1169,33 @@ class KernelWriterAssembly(KernelWriter):
     ####################################
     vgprIdx = 0
 
-
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
 
-
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
-
-
 
     valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
-        self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
+        self.startVgprG2LA = vgprIdx; vgprIdx += self.numVgprG2LA
       else: # g2l can overlap valu
         self.startVgprG2LA = self.startVgprValuA
         vgprIdx = self.startVgprValuA \
-            + max(self.numVgprValuAPerBlock*valuBlocks, numVgprG2LA)
+            + max(self.numVgprValuAPerBlock*valuBlocks, self.numVgprG2LA)
 
     self.startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
-        self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
+        self.startVgprG2LB = vgprIdx; vgprIdx += self.numVgprG2LB
       else: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
-            + max(self.numVgprValuBPerBlock*valuBlocks, numVgprG2LB)
+            + max(self.numVgprValuBPerBlock*valuBlocks, self.numVgprG2LB)
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
     # code
     self.lastValuAB = vgprIdx
     #----------------------------------
-
 
     if not kernel["LocalWriteUseSgprA"]:
       if self.combineLocalAddresses:
@@ -4307,6 +4309,7 @@ class KernelWriterAssembly(KernelWriter):
         unrollInc = kernel["InnerUnroll"]
       else:
         unrollInc = 1
+      kStr += self.comment("closeLoop loopIdx=%d finalLoop=%d tailLoop=%d" % (loopIdx, finalLoop, tailLoop))
 
       kStr += inst("s_add_u32", \
           sgpr(loopCounter), \
@@ -4330,6 +4333,7 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
       loopCounter = "LoopCounters+%u"%loopIdx
       unrollInc = 1
+      kStr += self.comment("closeLoop loopIdx=%d finalLoop=%d tailLoop=%d" % (loopIdx, finalLoop, tailLoop))
 
       kStr += inst("s_add_u32", \
           sgpr("LoopCounters+%u"%loopIdx), \
@@ -4600,7 +4604,6 @@ class KernelWriterAssembly(KernelWriter):
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
     return kStr
-
 
   ##############################################################################
   ##############################################################################

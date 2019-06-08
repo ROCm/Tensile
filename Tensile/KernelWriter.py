@@ -528,7 +528,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     kl = []
     pflr     = kernel["PrefetchLocalRead"]
 
-    kl.append(self.comment3("%s No Load Loop - Begin") % "Opt" if isOptNLL else "")
+    kl.append(self.comment3("%s NoLoadLoop - Begin") % "Opt" if isOptNLL else "")
     if self.prefetchAcrossPersistent:
       kl.append(self.openPrefetchAcrossPersistent(kernel))
       kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
