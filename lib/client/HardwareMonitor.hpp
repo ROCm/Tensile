@@ -88,12 +88,9 @@ namespace Tensile
             clock::time_point m_nextCollection;
             clock::duration   m_minPeriod;
 
-            bool m_active;
-            bool m_isActive;
-            bool m_exit;
-            //std::atomic<bool> m_active;
-            //std::atomic<bool> m_isActive;
-            //std::atomic<bool> m_exit;
+            std::atomic<bool> m_active;
+            std::atomic<bool> m_isActive;
+            std::atomic<bool> m_exit;
             hipEvent_t m_startEvent = nullptr;
             hipEvent_t m_stopEvent = nullptr;
 

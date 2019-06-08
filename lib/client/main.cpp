@@ -372,11 +372,7 @@ int main(int argc, const char * argv[])
                         for(int j = 0; j < enq; j++)
                         {
                             adapter.launchKernels(kernels, stream, startEvents[j], stopEvents[j]);
-                            std::cout << ".";
-                            std::cout.flush();
                         }
-
-                        std::cout << std::endl;
 
                         listeners.postEnqueues(startEvents, stopEvents);
                         listeners.validateEnqueues(inputs, startEvents, stopEvents);
