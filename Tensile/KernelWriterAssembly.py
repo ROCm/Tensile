@@ -6521,6 +6521,20 @@ class KernelWriterAssembly(KernelWriter):
 
         self.gwvw = gwvw
 
+        if ss.optStoreAddrVgpr:
+          self.numSgprsPerElement = 0
+          self.fixedSgprsPerBatch = 0
+          self.numElementsPerBatchLimitedBySgprs = 9999
+        else:
+          self.numSgprsPerElement = 2
+          self.fixedSgprsPerBatch = 6
+          self.numElementsPerBatchLimitedBySgprs = (kernelWriter.maxSgprs - kernelWriter.startSgprTmpPool - self.fixedSgprsPerBatch - 1) // self.numSgprsPerElement
+          if self.numElementsPerBatchLimitedBySgprs<=0:
+            kernelWriter.overflowedResources = 2
+            self.numElementsPerBatchLimitedBySgprs = 1 # dummy value
+            #assert self.numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
+
+
         self.numVgprsPerAddr = kernelWriter.rpgo if kernel["BufferStore"] else kernelWriter.rpga
         if ss.optStoreAddrVgpr:
         # use one vgpr (allocated in ss.addrVgpr) for all addressing
@@ -6542,6 +6556,7 @@ class KernelWriterAssembly(KernelWriter):
         # changes vgpr allocation so two elements share a data vgpr
         # Really only used if gwvw=1 - edge cases
         self.halfDataRegPerVI = True if gwvw*self.numVgprsPerDataPerVI < 1.0 else False
+
 
 
     def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic):
@@ -6820,14 +6835,8 @@ class KernelWriterAssembly(KernelWriter):
         # Calculate Vgprs for Write Batching
         ########################################
 
-        # TODO - could tune these for store mode (BufferStore, edge, etc):
-        fixedSgprsPerBatch = 6 # What are these used for?
-        numSgprsPerElement = 2
-        numElementsPerBatchLimitedBySgprs = (self.maxSgprs - self.startSgprTmpPool - fixedSgprsPerBatch - 1) // numSgprsPerElement
-        if numElementsPerBatchLimitedBySgprs<=0:
-          self.overflowedResources = 2
-          numElementsPerBatchLimitedBySgprs = 1 # dummy value
-          #assert numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
+        self.ss = self.StoreState(self, kernel, gwvw, edge, beta, atomic)
+
 
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
@@ -6839,7 +6848,6 @@ class KernelWriterAssembly(KernelWriter):
         #  - 3 for GLOBAL_OFFSET_C calculation (can overlap below, therefore max)
         #  - if beta gwvw*rpe for new value
         #  - if atomic 2*rpe for old and cmp values
-        self.ss = self.StoreState(self, kernel, gwvw, edge, beta, atomic)
 
         numVgprsPerElement = self.ss.cfg.numVgprsPerAddr + int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw))
 
@@ -6921,9 +6929,10 @@ class KernelWriterAssembly(KernelWriter):
           numElementsPerBatch = len(elements[edgeI]) # max, do 'em all
 
         if shrinkDb:
-          print("NumElementsPerBatch=", numElementsPerBatch, "LimitedBySgprs=", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay")
-        if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
-          numElementsPerBatch = numElementsPerBatchLimitedBySgprs
+          print("NumElementsPerBatch=", numElementsPerBatch, "LimitedBySgprs=", ss.cfg.numElementsPerBatchLimitedBySgprs, \
+              "WARNING" if ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay")
+        if self.ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
+          numElementsPerBatch = self.ss.cfg.numElementsPerBatchLimitedBySgprs
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves - since these share hi/lo pieces of some registers?
@@ -6950,8 +6959,8 @@ class KernelWriterAssembly(KernelWriter):
         numBatches = max(1, ceil_divide(len(elements[edgeI]),numElementsPerBatch))
         #print("NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch, "numVgprsPerElement", numVgprsPerElement, "len(elements[edgeI])", len(elements[edgeI]))
 
-        tmpSgpr = self.getTmpSgpr(fixedSgprsPerBatch+numSgprsPerElement*numElementsPerBatch)
-        elementSgprs = tmpSgpr + fixedSgprsPerBatch
+        tmpSgpr = self.getTmpSgpr(self.ss.cfg.fixedSgprsPerBatch+self.ss.cfg.numSgprsPerElement*numElementsPerBatch)
+        elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
 
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
@@ -6964,7 +6973,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
               tmpVgpr, \
-              elementSgprs, numSgprsPerElement, tmpSgpr)
+              elementSgprs, tmpSgpr)
 
         # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
@@ -7133,8 +7142,7 @@ class KernelWriterAssembly(KernelWriter):
   # batchElementSgprs is SGPRs to use for mask.  If None, elementMask is
   #  not initialized.
   ##############################################################################
-  def setupStoreElements(self, kernel, batchElements, ss, gwvw, \
-        batchElementSgprs, numSgprsPerElement):
+  def setupStoreElements(self, kernel, batchElements, ss, batchElementSgprs):
 
     elementAddr = []
     elementData = []  # VGPR to use for element data, needed for atomic or beta
@@ -7157,21 +7165,21 @@ class KernelWriterAssembly(KernelWriter):
         if ss.cfg.halfDataRegPerVI:
           if elementIdx%2 == 0:
             # allocate for two elements:
-            data = self.vgprPool.checkOut(int(2*ss.cfg.numVgprsPerDataPerVI*gwvw), \
+            data = self.vgprPool.checkOut(int(2*ss.cfg.numVgprsPerDataPerVI*ss.cfg.gwvw), \
                     "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
             lastData = data
           else:
             data = lastData
             del lastData
         else:
-          data = self.vgprPool.checkOut(int(ss.cfg.numVgprsPerDataPerVI*gwvw), \
+          data = self.vgprPool.checkOut(int(ss.cfg.numVgprsPerDataPerVI*ss.cfg.gwvw), \
                 "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
       else:
         data = 0
 
       elementData.append(data)
       if batchElementSgprs != None:
-        mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
+        mask = batchElementSgprs + elementIdx * ss.cfg.numSgprsPerElement # elementSgprs+0
         elementMask.append(mask)
 
       element = batchElements[elementIdx]
@@ -7193,8 +7201,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalWriteBatch(self, kernel, ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
       batchElements, coord0, coord1, addrD, addrC,  \
-      tmpVgpr, \
-      batchElementSgprs, numSgprsPerElement, tmpSgpr):
+      tmpVgpr, batchElementSgprs, tmpSgpr):
     kStr = ""
 
     if atomic:
@@ -7226,8 +7233,8 @@ class KernelWriterAssembly(KernelWriter):
 
     (elementAddr, elementData, elementMask, elementSumIdx) = \
         self.setupStoreElements( \
-          kernel, batchElements, self.ss, gwvw, \
-          batchElementSgprs, numSgprsPerElement)
+          kernel, batchElements, self.ss, \
+          batchElementSgprs)
 
     loadsIssued = 0
     storesIssued = 0
