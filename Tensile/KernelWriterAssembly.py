@@ -4607,6 +4607,10 @@ class KernelWriterAssembly(KernelWriter):
           self.startVgprGlobalReadOffsetB, "startOptNLL"))
       kStr += self.comment("reclaim VGPRS: " + ", ".join(added))
 
+      # perhaps could work with LSU>1 by adding other indices here, but not tested
+      assert (kernel["LocalSplitU"] == 1)
+      kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
+
     return kStr
 
   ##############################################################################
@@ -4616,6 +4620,11 @@ class KernelWriterAssembly(KernelWriter):
     if not prefetch:
       if isOptNLL:
         summationEnd = self.getLabelName("Summation_End")
+
+        # add stores for opt NLL
+        (fullVw, elements) = self.notLocalFullTileElements(kernel)
+        for elementIdx in range(0, len(elements)):
+          kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
         kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
 
         label = self.getLabelName("OptNLL_End")
@@ -6411,6 +6420,22 @@ class KernelWriterAssembly(KernelWriter):
       else:
         return 1000  # no limit
 
+  ##############################################################################
+  ##############################################################################
+  def notLocalFullTileElements(self, kernel):
+    elements = []
+    fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    fullVw = min(fullVw, self.maxGwvw(kernel))
+
+    # Full tile loop:
+    for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
+      for vc1 in range(0, kernel["VectorWidth"]):
+        for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
+          for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
+            element = (tt1, tt0, vc1, vc0)
+            elements.append(element)
+
+    return (fullVw, elements)
 
   ##############################################################################
   # Not LocalSplitU: Global Write
@@ -6421,23 +6446,12 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
-    lsu = False
-
-
-    fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
-    fullVw = min(fullVw, self.maxGwvw(kernel))
     elements = [[] for y in range(2)] # 2D array for Full, Edge
 
-    # Full tile loop:
-    for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
-      for vc1 in range(0, kernel["VectorWidth"]):
-        for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
-          for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
-            element = (tt1, tt0, vc1, vc0)
-            elements[False].append(element)
+    (fullVw, elements[False]) = self.notLocalFullTileElements(kernel)
 
     # Edge tile loop - note if we know AF0EM we can can use a larger vector
-    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
+    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee
     # then use a conservative 1
     edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
@@ -6450,7 +6464,7 @@ class KernelWriterAssembly(KernelWriter):
             elements[True].append(element)
 
     vectorWidths = [fullVw, edgeVw]
-    kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
+    kStr =  self.globalWriteElements(kernel, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
 
@@ -6459,7 +6473,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
-    lsu = True
 
     fullVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
@@ -6473,7 +6486,7 @@ class KernelWriterAssembly(KernelWriter):
             elements[False].append(element)
 
     # Edge tile loop - note if we know AF0EM we can can use a larger vector
-    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
+    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee
     # then use a conservative 1
     edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
@@ -6486,7 +6499,7 @@ class KernelWriterAssembly(KernelWriter):
             elements[True].append(element)
 
     vectorWidths = [fullVw, edgeVw]
-    kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
+    kStr =  self.globalWriteElements(kernel, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
 
@@ -6655,7 +6668,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Write Elements
   ##############################################################################
-  def globalWriteElements(self, kernel, lsu, vectorWidths, elements):
+  def globalWriteElements(self, kernel, vectorWidths, elements):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
@@ -6807,14 +6820,14 @@ class KernelWriterAssembly(KernelWriter):
           numVgprsPerDataPerVI = (1.0*regsPerElement*self.bpeCexternal)/self.bpr
         elif beta:
           numVgprsPerDataPerVI = (1.0*self.bpeCexternal)/self.bpr
-          
+
         numVgprsPerElement = numVgprsPerAddr + int(ceil(numVgprsPerDataPerVI * gwvw))
 
         # indicates each vector element is actually half -
         # changes vgpr allocation so two elements share a data vgpr
         # Really only used if gwvw=1 - edge cases
         halfDataRegPerVI = True if gwvw*numVgprsPerDataPerVI < 1.0 else False
-        
+
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
         #numVgprAvailable = self.getMaxRegsForOccupancy(self.vgprPool.available())
@@ -6896,7 +6909,6 @@ class KernelWriterAssembly(KernelWriter):
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = numElementsPerBatchLimitedBySgprs
 
-
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves - since these share hi/lo pieces of some registers?
           if numElementsPerBatch > 1:
@@ -6911,7 +6923,6 @@ class KernelWriterAssembly(KernelWriter):
             if shrinkDb:
               print("WARNING: half requires at least two elements per batch")
             self.overflowedResources = 3
-
 
         assert numElementsPerBatch > 0, "numElementsPerBatch=0 for %s"%self.kernelName
 
@@ -6934,7 +6945,7 @@ class KernelWriterAssembly(KernelWriter):
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
-          kStr += self.globalWriteBatch(kernel, batchIdx, beta, edge, optStoreAddrVgpr, lsu, atomic, gwvw, atomicW, \
+          kStr += self.globalWriteBatch(kernel, batchIdx, beta, edge, optStoreAddrVgpr, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
               numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
               elementSgprs, numSgprsPerElement, tmpSgpr)
@@ -7100,12 +7111,72 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mul_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), sgpr("Alpha",2), vgpr("ValuC+%u"%(sumIdxV*2),2), "*= alpha")
     return kStr
 
+  ##############################################################################
+  # Setup data structures to feed store loops
+  # batchElements is a list of (d0,d1,v0,v1) for which stores to perform
+  # batchElementSgprs is SGPRs to use for mask.  If None, elementMask is
+  #  not initialized.
+  ##############################################################################
+  def setupStoreElements(self, kernel, batchElements, ss, gwvw, numVgprsPerAddr, \
+        numVgprsPerDataPerVI, halfDataRegPerVI, batchElementSgprs, numSgprsPerElement):
+
+    elementAddr = []
+    elementData = []  # VGPR to use for element data, needed for atomic or beta
+    elementMask = []  # SGPR to use for element mask
+    elementSumIdx = []
+
+    lastData = 0
+    for elementIdx in range(0, len(batchElements)):
+      # gpr assignments for element
+      if ss.addrVgpr != None: #optStoreAddrVgpr:
+        # use same address vgpr for all
+        elementAddr.append(self.AddrCalc(self, self.ss.addrVgpr))
+      else:
+        addr = self.vgprPool.checkOut(numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
+        elementAddr.append(self.AddrCalc(self, addr))
+      # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
+      # should have same data pointer, next should move.
+
+      if numVgprsPerDataPerVI > 0:
+        if halfDataRegPerVI:
+          if elementIdx%2 == 0:
+            # allocate for two elements:
+            data = self.vgprPool.checkOut(int(2*numVgprsPerDataPerVI*gwvw), \
+                    "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
+            lastData = data
+          else:
+            data = lastData
+            del lastData
+        else:
+          data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
+                "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
+      else:
+        data = 0
+
+      elementData.append(data)
+      if batchElementSgprs != None:
+        mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
+        elementMask.append(mask)
+
+      element = batchElements[elementIdx]
+      d1 = element[0]
+      d0 = element[1]
+      vc1 = element[2]
+      vc0 = element[3]
+      #print "Edge=", edge, element
+      if kernel["LocalSplitU"] > 1:
+        sumIdx = self.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
+      else:
+        sumIdx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+      elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
+
+    return (elementAddr, elementData, elementMask, elementSumIdx)
 
   ##############################################################################
   # Global Write Batch
   # numVgprsPerDataPerVI : Uses bpeCinternal
   ##############################################################################
-  def globalWriteBatch(self, kernel, batchIdx, beta, edge, optStoreAddrVgpr, lsu, atomic, gwvw, atomicW, \
+  def globalWriteBatch(self, kernel, batchIdx, beta, edge, optStoreAddrVgpr, atomic, gwvw, atomicW, \
       batchElements, coord0, coord1, addrD, addrC,  \
       numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
       batchElementSgprs, numSgprsPerElement, tmpSgpr):
@@ -7134,57 +7205,18 @@ class KernelWriterAssembly(KernelWriter):
     # allocate per-element resources
     #numVgprsPerData = numVgprsPerElement - numVgprsPerAddr # might be decimal for half
     elementAddr = []
-    elementData = []
-    elementMask = []
+    elementData = []  # VGPR to use for element data, needed for atomic or beta
+    elementMask = []  # SGPR to use for element mask
     elementSumIdx = []
-    lastData = 0
-    addr = 0
 
-    for elementIdx in range(0, len(batchElements)):
-      loadsIssued = 0
-      storesIssued = 0
-      # gpr assignments for element
-      if optStoreAddrVgpr:
-        # optStoreAddrVgpr uses same address vgpr for all
-        elementAddr.append(self.AddrCalc(self, self.ss.addrVgpr))
-      else:
-        addr = self.vgprPool.checkOut(numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
-        elementAddr.append(self.AddrCalc(self, addr))
-      # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
-      # should have same data pointer, next should move.
+    (elementAddr, elementData, elementMask, elementSumIdx) = \
+        self.setupStoreElements( \
+          kernel, batchElements, self.ss, gwvw, \
+          numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, \
+          batchElementSgprs, numSgprsPerElement)
 
-      if numVgprsPerDataPerVI > 0:
-        if halfDataRegPerVI:
-          if elementIdx%2 == 0:
-            # allocate for two elements:
-            data = self.vgprPool.checkOut(int(2*numVgprsPerDataPerVI*gwvw), \
-                    "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
-            lastData = data
-          else:
-            data = lastData
-            del lastData
-        else:
-          data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
-                "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
-      else:
-        data = 0
-
-      elementData.append(data)
-      mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
-      elementMask.append(mask)
-
-      element = batchElements[elementIdx]
-      d1 = element[0]
-      d0 = element[1]
-      vc1 = element[2]
-      vc0 = element[3]
-      #print "Edge=", edge, element
-      if lsu:
-        sumIdx = self.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
-      else:
-        sumIdx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
-      elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
-
+    loadsIssued = 0
+    storesIssued = 0
     tmpS01 = tmpSgpr # scratch sgprs
     tmpS23 = tmpS01+2
 
@@ -7220,6 +7252,7 @@ class KernelWriterAssembly(KernelWriter):
       #----
       #d0 always equals 0 for lsu
       #strideD0 = 0 # never used for lsu
+      lsu = kernel["LocalSplitU"] > 1
       strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
 
       # Compute scaled offset requires 2 SGPR
@@ -7790,7 +7823,7 @@ class KernelWriterAssembly(KernelWriter):
                   "finalSum = sum*alpha + C*beta")
 
 
-       # pack stores:
+        # pack stores, beta and non-beta reach here:
         for vi in range(0, gwvw):
           sumIdxV = elementSumIdx[elementIdx] + vi
           if kernel["ProblemType"]["DataType"].isHalf():
