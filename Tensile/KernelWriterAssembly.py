@@ -4622,11 +4622,36 @@ class KernelWriterAssembly(KernelWriter):
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
         # optimized NLL has edge=beta=atomic=False by design
         ss = self.StoreState(self, kernel, fullVw, edge=False, beta=False, atomic=False)
+        tmpSgpr = self.getTmpSgpr(1)
         ss.setupStoreElements(kernel, elements, None)
 
+        kStr += inst("_v_add_lshl_u32", \
+            vgpr(ss.addrVgpr), \
+            vgpr(self.cinRowStart), \
+            vgpr(self.coord0), \
+            hex(log2(self.bpeCexternal)), \
+            "NLL: init cb addr <-  cinRowStart + coord0, scaled by BPE")
+
+        lastCoordOffset1 = 0
         for elementIdx in range(0, len(elements)):
+          addrCalc = ss.elementAddr[elementIdx]
+          sumIdx = ss.elementSumIdx[elementIdx]
           kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
-        kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
+          #import pdb; pdb.set_trace() 
+
+          lsu = kernel["LocalSplitU"] > 1
+          strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
+          d1 = elements[elementIdx][0]
+          vc1 = elements[elementIdx][2]
+          coordOffset1 = d1*strideD1 + vc1
+          ss.elementAddr[elementIdx].rowInc = coordOffset1 - lastCoordOffset1
+
+          kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr)
+          lastCoordOffset1 = coordOffset1
+
+        kStr += "\n"
+        kStr += inst("s_endpgm", "endpgm after opt NLL")
+        #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
 
         label = self.getLabelName("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
@@ -6561,8 +6586,37 @@ class KernelWriterAssembly(KernelWriter):
         # Really only used if gwvw=1 - edge cases
         self.halfDataRegPerVI = True if gwvw*self.numVgprsPerDataPerVI < 1.0 else False
 
+    def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic):
+      self.kernelWriter = kernelWriter
+
+      #--
+      # optStoreAddrVgpr works in cases where the data is written row by row to memory.A
+      # In this case we can use a single vgpr for addressing:
+      #  - the horizontal addresses are fixed offsets from the base
+      #  - as we move to a new row, increment the appropriate SRDs
+      self.optStoreAddrVgpr = 1 and kernel["BufferStore"] and not edge and not atomic
+
+      self.cfg = self.StoreConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
+
+      # Use to detect new rows:
+      self.lastCoordOffset1 = 0
+
+      # vgpr holding current coord, setup initial state
+      self.coordVgpr1 = kernelWriter.coord1
+
+      # used for optStoreAddrVgpr mode - only need one address VGPR
+      if self.optStoreAddrVgpr:
+        self.addrVgpr = kernelWriter.vgprPool.checkOut(1, "addrVgpr")
+      else:
+        self.addrVgpr = None
+
+      # For detecting when we are running first batch
+      self.firstBatch = True
+
+
     ##############################################################################
-    # Setup data structures to feed store loops
+    # Setup data structures to feed store loops:
+    #   self.elementAddr, self.elementData, self.elementMask, self.elementSumIdx
     # batchElements is a list of (d0,d1,v0,v1) for which stores to perform
     # batchElementSgprs is SGPRs to use for mask.  If None, elementMask is
     #  not initialized.
@@ -6621,33 +6675,6 @@ class KernelWriterAssembly(KernelWriter):
           sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
 
-
-    def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic):
-      self.kernelWriter = kernelWriter
-
-      #--
-      # optStoreAddrVgpr works in cases where the data is written row by row to memory.A
-      # In this case we can use a single vgpr for addressing:
-      #  - the horizontal addresses are fixed offsets from the base
-      #  - as we move to a new row, increment the appropriate SRDs
-      self.optStoreAddrVgpr = 1 and kernel["BufferStore"] and not edge and not atomic
-
-      self.cfg = self.StoreConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
-
-      # Use to detect new rows:
-      self.lastCoordOffset1 = 0
-
-      # vgpr holding current coord, setup initial state
-      self.coordVgpr1 = kernelWriter.coord1
-
-      # used for optStoreAddrVgpr mode - only need one address VGPR
-      if self.optStoreAddrVgpr:
-        self.addrVgpr = kernelWriter.vgprPool.checkOut(1, "addrVgpr")
-      else:
-        self.addrVgpr = None
-
-      # For detecting when we are running first batch
-      self.firstBatch = True
 
     def __del__(self):
       if (self.addrVgpr != None):
@@ -7139,7 +7166,11 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
 
-  def addStores(self, kernel, ss, addrCalc, sumIdx, tmpS01):
+  ##############################################################################
+  # Add stores for the element with addrCalc and sumIdx.
+  # tmpS01 is a single :temp sGPR
+  ##############################################################################
+  def addStore(self, kernel, ss, addrCalc, sumIdx, tmpS01):
     kStr = ""
     if self.do["GlobalWrite"]:
       # perform vector stores here, so no VI indexing.
@@ -7890,7 +7921,7 @@ class KernelWriterAssembly(KernelWriter):
                 kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
 
         addrCalc = ss.elementAddr[elementIdx]
-        kStr += self.addStores(kernel, ss, addrCalc, sumIdx, tmpS01)
+        kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01)
 
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:

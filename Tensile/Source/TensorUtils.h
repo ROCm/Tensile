@@ -156,7 +156,7 @@ static const unsigned PrintElementValueHex  = 0x20;  // Print hex value of eleme
 /*******************************************************************************
  * Print Tensor.
  * Elements from index[0] should appear on one row.
- * Index[0] is the fastest moving and elements in the printed row are 
+ * Index[0] is the fastest moving and elements in the printed row are
  * adjacent in memory.
  * Matrix start "[" and stop "]" markers are printed at appropriate points,
  * when the indexing crosses a dimension boundary.  The markers are indented
