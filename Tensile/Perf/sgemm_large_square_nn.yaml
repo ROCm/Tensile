@@ -7,6 +7,7 @@ GlobalParameters:
   #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
+  DataInitTypeAB: 0
   PrintSolutionRejectionReason: 1
 
 BenchmarkProblems:
@@ -54,6 +55,7 @@ BenchmarkProblems:
           - Range: [ [5760], [5760], [1], [4096] ]
           - Range: [ [5760], [5760], [1], [5760] ]
           - Range: [ [7744], [7744], [1], [7744] ]
+          - Range: [ [5760], [5760], [1], [50000] ]
 
   ########################################
 
