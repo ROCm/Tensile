@@ -4525,7 +4525,7 @@ class KernelWriterAssembly(KernelWriter):
       imod.addInst("s_setprio ","0","Reset priority after macs")
 
     return imod
-    
+ 
   ##############################################################################
   # At Least 1 Unroll
   # prefetch means this is in the prefetch code, either before unroll loop
