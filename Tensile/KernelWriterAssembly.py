@@ -4600,12 +4600,12 @@ class KernelWriterAssembly(KernelWriter):
           added.append(self.vgprPool.addRange(self.startVgprG2LA, \
               self.startVgprG2LA+self.numVgprG2LA-1, "startOptNLL"))
           added.append(self.vgprPool.addRange(self.startVgprLocalWriteAddressesA, \
-                       self.startVgprLocalWriteAddressesA+1, "startOptNLL"))
+                       self.startVgprLocalWriteAddressesA, "startOptNLL"))
         if not kernel["DirectToLdsB"]:
           added.append(self.vgprPool.addRange(self.startVgprG2LB, \
               self.startVgprG2LB+self.numVgprG2LB-1, "startOptNLL"))
           added.append(self.vgprPool.addRange(self.startVgprLocalWriteAddressesB, \
-                       self.startVgprLocalWriteAddressesB+1, "startOptNLL"))
+                       self.startVgprLocalWriteAddressesB, "startOptNLL"))
 
       if kernel["BufferLoad"]:
         added.append(self.vgprPool.addRange(self.startVgprGlobalReadOffsetA, \
