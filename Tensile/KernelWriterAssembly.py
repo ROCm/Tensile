@@ -2032,7 +2032,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
       kStr += self.v2Argument(                           "alpha", cptSize, cptAlign,      "ByValue", cptValueType)
       kStr += self.v2Argument(                            "beta", cptSize, cptAlign,      "ByValue", cptValueType)
-      kStr += self.v2Argument(                       "strideC1J",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideDJ",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideDK",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                        "strideCJ",     '4',      '4',      "ByValue",        "I32")
       kStr += self.v2Argument(                        "strideCK",     '4',      '4',      "ByValue",        "I32")
       kStr += self.v2Argument(                        "strideAL",     '4',      '4',      "ByValue",        "I32")
       kStr += self.v2Argument(                        "strideAK",     '4',      '4',      "ByValue",        "I32")
@@ -2089,7 +2091,11 @@ class KernelWriterAssembly(KernelWriter):
       offset = offset + int(cptSize)
       kStr += self.v3Argument(                            "beta", cptSize, offset,      "ByValue", cptValueType)
       offset = offset + int(cptSize)
-      kStr += self.v3Argument(                       "strideC1J",     '4', offset,      "ByValue",        "I32")
+      kStr += self.v3Argument(                        "strideDJ",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideDK",     '4', offset,      "ByValue",        "I32")
+      offset = offset + 4
+      kStr += self.v3Argument(                        "strideCJ",     '4', offset,      "ByValue",        "I32")
       offset = offset + 4
       kStr += self.v3Argument(                        "strideCK",     '4', offset,      "ByValue",        "I32")
       offset = offset + 4
