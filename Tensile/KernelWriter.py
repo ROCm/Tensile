@@ -2488,6 +2488,10 @@ for codeObjectFileName in codeObjectFileNames:
     replacementKernel = self.getReplacementKernelPath(kernel)
 
     if replacementKernel is not None:
+      self.tPA = tensorParametersA = {}
+      self.tPB = tensorParametersB = {}
+      self.initKernel(kernel, tensorParametersA, tensorParametersB )
+
       shutil.copyfile(replacementKernel, assemblyFileName)
       if globalParameters["PrintLevel"] >= 1:
         print("replacement_assemblyFilename %s" % assemblyFileName)
