@@ -4556,11 +4556,12 @@ class KernelWriterAssembly(KernelWriter):
       if self.do["ApplyAlpha"]:
         if kernel["ProblemType"]["DataType"].isHalf():
           if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            kStr += inst("TODO", "packed f16 alpha")
+            kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0x3c003c00", "Packed alpha==1.0")
+            kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), sgpr(tmpSgpr), "alpha == 1.0?")
           else: # HPA
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
         elif kernel["ProblemType"]["DataType"].isInt8x4():
-          kStr += inst("TODO", "packed int8 alpha")
+          kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
 
         elif kernel["ProblemType"]["DataType"].isSingle():
             #kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
@@ -4595,15 +4596,23 @@ class KernelWriterAssembly(KernelWriter):
 
       added = [] # track registers added to pool
       if kernel["PrefetchGlobalRead"]:
-        added.append(self.vgprPool.addRange(self.startVgprG2LA, \
-            self.startVgprG2LA+self.numVgprG2LA-1, "startOptNLL"))
-        added.append(self.vgprPool.addRange(self.startVgprG2LB, \
-            self.startVgprG2LB+self.numVgprG2LB-1, "startOptNLL"))
+        if not kernel["DirectToLdsA"]:
+          added.append(self.vgprPool.addRange(self.startVgprG2LA, \
+              self.startVgprG2LA+self.numVgprG2LA-1, "startOptNLL"))
+          added.append(self.vgprPool.addRange(self.startVgprLocalWriteAddressesA, \
+                       self.startVgprLocalWriteAddressesA+1, "startOptNLL"))
+        if not kernel["DirectToLdsB"]:
+          added.append(self.vgprPool.addRange(self.startVgprG2LB, \
+              self.startVgprG2LB+self.numVgprG2LB-1, "startOptNLL"))
+          added.append(self.vgprPool.addRange(self.startVgprLocalWriteAddressesB, \
+                       self.startVgprLocalWriteAddressesB+1, "startOptNLL"))
 
-      added.append(self.vgprPool.addRange(self.startVgprLocalWriteAddressesA, \
-          self.startVgprLocalWriteAddressesB, "startOptNLL"))
-      added.append(self.vgprPool.addRange(self.startVgprGlobalReadOffsetA, \
-          self.startVgprGlobalReadOffsetB, "startOptNLL"))
+      if kernel["BufferLoad"]:
+        added.append(self.vgprPool.addRange(self.startVgprGlobalReadOffsetA, \
+            self.startVgprGlobalReadOffsetB, "startOptNLL"))
+      else:
+        added.append(self.vgprPool.addRange(self.startVgprGlobalReadAddressesA, \
+            self.startVgprGlobalReadAddressesB, "startOptNLL"))
       kStr += self.comment("reclaim VGPRS: " + ", ".join(added))
 
       # perhaps could work with LSU>1 by adding other indices here, but not tested
@@ -5152,7 +5161,7 @@ class KernelWriterAssembly(KernelWriter):
                 # is moving at NumThreads*4.  This should already be guaranteed since
                 # we only use direct-to-lds for non-transpose cases but double-check here.
                 ldsInc = kernel["NumThreads"]*4
-                print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
+                #print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
 
 
                 if directToLdsLoads != 0:
@@ -7164,6 +7173,11 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Set fields (rowInc, globalOffset, instOffset) for each addrCalc in the ss.elementAddress
+  # TODO - someday make this a one-stop shop to also save the coord0 and coord1
+  # offset information as a first pass; then second pass the AddrCalc
+  # class can generate the code necessary to set up the next store.
+  # This could work for all addressing modes (flat, buffer), LDD/LDC, etc
+  # Should result in more cleanly partitioned code with less interleaved if/else
   ##############################################################################
   def computeStoreAddrCalcs(self, kernel, ss, batchElements):
 
@@ -7355,6 +7369,7 @@ class KernelWriterAssembly(KernelWriter):
       element = batchElements[elementIdx]
       addr = ss.elementAddr[elementIdx].addr
       data = ss.elementData[elementIdx]
+      mask = ss.elementMask[elementIdx]
       sumIdx = ss.elementSumIdx[elementIdx]
       d1 = element[0]
       d0 = element[1]
@@ -7504,7 +7519,6 @@ class KernelWriterAssembly(KernelWriter):
           # compare against product-of-packed sizes, see other code
           # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
           #--
-          mask = ss.elementMask[elementIdx]
           kStr += self.comment1("TODO-packed: compare against product of packed sizes")
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.ss.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
