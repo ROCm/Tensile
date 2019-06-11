@@ -1813,8 +1813,8 @@ class KernelWriterAssembly(KernelWriter):
             if beAggressive and not doOnce:
               kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
               doOnce = True
-        if beAggressive:
-          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
+      if beAggressive:
+        kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
       # other precision
     else:
       printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
