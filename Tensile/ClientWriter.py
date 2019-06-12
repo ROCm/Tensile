@@ -153,6 +153,10 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
       % globalParameters["RuntimeLanguage"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+  else:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
   if forBenchmark:
     # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")

@@ -1337,16 +1337,31 @@ bool benchmarkProblemSizes(
     std::cout << "(" << sIdx << ") " << solutions[sIdx]._name << std::endl;
   }
   //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
-  file.open(resultsFileName);
-  file << "GFlops";
-  for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-    file << ", Size" << indexChars[i];
+  unsigned int problemIdx = 0;
+#ifdef Tensile_RESUME_BENCHMARK
+  unsigned int resultsFileLines = countFileLines(resultsFileName);
+  if(resultsFileLines < 2){
+#endif
+    file.open(resultsFileName, std::ios::trunc);
+    file << "GFlops";
+    for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+      file << ", Size" << indexChars[i];
+    }
+    file << ", LDD, LDC, LDA, LDB, TotalFlops";
+    for ( unsigned int s = 0; s < numSolutions; s++) {
+      file << ", " << solutions[s]._name;
+    }
+    file << std::endl;
+
+#ifdef Tensile_RESUME_BENCHMARK
+    std::cout << "Generate a new [ " << resultsFileName << " ], problemIdx start from " << problemIdx << std::endl; 
   }
-  file << ", LDD, LDC, LDA, LDB, TotalFlops";
-  for ( unsigned int s = 0; s < numSolutions; s++) {
-    file << ", " << solutions[s]._name;
+  else{
+    problemIdx = resultsFileLines - 1;
+    file.open(resultsFileName, std::ios::app);
+    std::cout << "The file [ " << resultsFileName << " ] has already exists, problemIdx start from " << problemIdx << std::endl;
   }
-  file << std::endl;
+#endif
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
   if (!numElementsToValidate) {
@@ -1363,11 +1378,11 @@ bool benchmarkProblemSizes(
 #endif // opencl
   std::cout << std::endl;
 
-	TensileTimer totalKernelTimer;
+  TensileTimer totalKernelTimer;
   totalKernelTimer.start();
   // iterate over all problem sizes
   double gpu_time_ms = 0;
-  for (unsigned int problemIdx = 0; problemIdx < numProblems; problemIdx++ ) {
+  for (; problemIdx < numProblems; problemIdx++ ) {
 
     // print size
     std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << problemSizes[problemIdx][0];
