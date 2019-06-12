@@ -619,8 +619,10 @@ class KernelWriterAssembly(KernelWriter):
     pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
     if self.startSgprTmpPool+num+pad > self.totalSgprs:
       self.totalSgprs = self.startSgprTmpPool + num + pad
-      #print "startSgprTmpPool=", self.startSgprTmpPool
-      #print "warning: growing SGPR pool to ", self.totalSgprs
+      if 0:
+        print("startSgprTmpPool=", self.startSgprTmpPool,
+              "warning: growing SGPR pool to ", self.totalSgprs)
+        import pdb ; pdb.set_trace()
 
     return self.startSgprTmpPool + pad
 
@@ -4548,7 +4550,7 @@ class KernelWriterAssembly(KernelWriter):
             "skip prefetch loads since numIter==0")
     elif isOptNLL:
       skipOptNLL = self.getLabelName("OptNLL_End")
-      tmpSgpr = self.getTmpSgpr(6)
+      tmpSgpr = self.getTmpSgpr(2)
 
       kStr += self.checkIsBetaZero(kernel, tmpSgpr, skipOptNLL)
 
