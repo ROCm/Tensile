@@ -694,7 +694,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
-    {"OptNoLoadLoop":             [ 0 ] },
+    {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
