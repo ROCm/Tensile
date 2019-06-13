@@ -784,7 +784,7 @@ defaultProblemType = {
     "UseInitialStrides":        False,
 
     # for LD description
-    "NumIndiciesLD":            4,
+    "NumIndicesLD":            4,
     "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

@@ -472,7 +472,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # perform initC in the shadow of the prefetch
     # Prefetch occurs at start of unroll loop
-    # If we have multiple summation indicies (unrollIdx>0),
+    # If we have multiple summation indices (unrollIdx>0),
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
 
