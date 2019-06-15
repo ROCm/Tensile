@@ -26,6 +26,7 @@
 #include <vector>
 #include <algorithm>
 #include <math.h>
+#include "tensile_bfloat8.h"
 #include "tensile_bfloat16.h"
 
 // OpenCL

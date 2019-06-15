@@ -137,6 +137,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         "MathTemplates.cpp",
         "MathTemplates.h",
         "TensileTypes.h",
+        "tensile_bfloat8.h",
         "tensile_bfloat16.h",
         "KernelHeader.h",
         "ReferenceCPU.h",

@@ -39,6 +39,7 @@ class DataType:
         {'char': 'H', 'name': 'half', 'enum': 'Half', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_half', 'libType': 'TensileHalf', 'libEnum': 'tensileDataTypeHalf'},
         {'char': '4xi8', 'name': 'int8x4', 'enum': 'Int8', 'reg': 1, 'ocl': 'ERROR', 'hip': 'uint32_t', 'libType': 'TensileInt8x4', 'libEnum': 'tensileDataTypeInt8x4'},
         {'char': 'I', 'name': 'int32', 'enum': 'Int32', 'reg': 1, 'ocl': 'ERROR', 'hip': 'int32_t', 'libType': 'TensileInt32', 'libEnum': 'tensileDataTypeInt32'},
+        {'char': 'bf8', 'name': 'bfloat8', 'enum': 'BFloat8', 'reg': 0.25, 'ocl': 'ERROR', 'hip': 'tensile_bfloat8', 'libType': 'tensile_bfloat8', 'libEnum': 'tensileDataTypeBFloat8'},
         {'char': 'B', 'name': 'bfloat16', 'enum': 'BFloat16', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_bfloat16', 'libType': 'tensile_bfloat16', 'libEnum': 'tensileDataTypeBFloat16'},
         ]
     lookup = {}    
@@ -111,7 +112,7 @@ class DataType:
         return zeroString
 
     def isReal(self):
-        if self.value == DataType.half or self.value == DataType.single or self.value == DataType.double or self.value == DataType.int8x4 or self.value == DataType.int32 or self.value == DataType.bfloat16:
+        if self.value == DataType.half or self.value == DataType.single or self.value == DataType.double or self.value == DataType.int8x4 or self.value == DataType.int32 or self.value == DataType.bfloat8 or self.value == DataType.bfloat16:
             return True
         else:
             return False
@@ -127,6 +128,8 @@ class DataType:
         return self.value == DataType.int32
     def isInt8x4(self):
         return self.value == DataType.int8x4
+    def isBFloat8(self):
+        return self.value == DataType.bfloat8
     def isBFloat16(self):
         return self.value == DataType.bfloat16
     def isNone(self):

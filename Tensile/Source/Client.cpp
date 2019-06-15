@@ -137,6 +137,13 @@ int main( int argc, char *argv[] ) {
     break;
 #endif
 
+#ifdef Tensile_DATA_TYPE_TENSILE_BFLOAT8
+  case enum_tensile_bfloat8: {
+    TENSILE_CLIENT_CALL_SETUP(tensile_bfloat8, tensile_bfloat8, TensileHalf)
+    }
+    break;
+#endif
+
 #ifdef Tensile_DATA_TYPE_TENSILE_BFLOAT16
   case enum_tensile_bfloat16: {
     TENSILE_CLIENT_CALL_SETUP(tensile_bfloat16, tensile_bfloat16, float)

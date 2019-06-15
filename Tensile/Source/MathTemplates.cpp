@@ -37,6 +37,9 @@ template<> TensileHalf tensileGetZero<TensileHalf>() { return 0.; }
 #endif
 template<> uint32_t tensileGetZero<uint32_t>() { return 0; }
 template<> int32_t tensileGetZero<int32_t>() { return 0; }
+#ifdef Tensile_ENABLE_HALF
+template<> tensile_bfloat8 tensileGetZero<tensile_bfloat8>() { return static_cast<tensile_bfloat8>(0.f); }
+#endif
 template<> tensile_bfloat16 tensileGetZero<tensile_bfloat16>() { return static_cast<tensile_bfloat16>(0.f); }
 template<> float tensileGetZero<float>() { return 0.f; }
 template<> double tensileGetZero<double>() { return 0.0; }
@@ -62,6 +65,9 @@ template<> TensileHalf tensileGetOne<TensileHalf>() { return 1.; }
 #endif
 template<> uint32_t tensileGetOne<uint32_t>() { return 0x01010101; }
 template<> int32_t tensileGetOne<int32_t>() { return 1; }
+#ifdef Tensile_ENABLE_HALF
+template<> tensile_bfloat8 tensileGetOne<tensile_bfloat8>() { return static_cast<tensile_bfloat8>(1.f); }
+#endif
 template<> tensile_bfloat16 tensileGetOne<tensile_bfloat16>() { return static_cast<tensile_bfloat16>(1.f); }
 template<> float tensileGetOne<float>() { return 1.f; }
 template<> double tensileGetOne<double>() { return 1.0; }
@@ -97,6 +103,9 @@ template<> uint32_t tensileGetRandom<uint32_t>() {
 }
 template<> int32_t tensileGetRandom<int32_t>() { return static_cast<int32_t>((rand()%7) - 3); }
 template<> float tensileGetRandom<float>() { return static_cast<float>((rand()%201) - 100); }
+#ifdef Tensile_ENABLE_HALF
+template<> tensile_bfloat8 tensileGetRandom<tensile_bfloat8>() { return static_cast<tensile_bfloat8>(static_cast<TensileHalf>((rand()%7) - 3)); }
+#endif
 template<> tensile_bfloat16 tensileGetRandom<tensile_bfloat16>() { return static_cast<tensile_bfloat16>(static_cast<float>((rand()%7) - 3)); }
 template<> double tensileGetRandom<double>() { return static_cast<double>((rand()%2001) - 1000); }
 template<> TensileComplexFloat tensileGetRandom<TensileComplexFloat>() {
@@ -115,6 +124,9 @@ template<> TensileComplexDouble tensileGetRandom<TensileComplexDouble>() {
 
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetTypeForInt<TensileHalf>( size_t s ) { return static_cast<TensileHalf>(s); }
+#endif
+#ifdef Tensile_ENABLE_HALF
+template<> tensile_bfloat8 tensileGetTypeForInt<tensile_bfloat8>( size_t s ) { return static_cast<tensile_bfloat8>(static_cast<TensileHalf>(s)); }
 #endif
 template<> tensile_bfloat16 tensileGetTypeForInt<tensile_bfloat16>( size_t s ) { return static_cast<tensile_bfloat16>(static_cast<float>(s)); }
 template<> float tensileGetTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
@@ -153,6 +165,9 @@ template<> uint32_t tensileGetTrig<uint32_t>(int i) {
 }
 template<> int32_t tensileGetTrig<int32_t>(int i) { return static_cast<int32_t>((rand()%7) - 3); }
 template<> float tensileGetTrig<float>(int i) { return static_cast<float>(sin(i)); }
+#ifdef Tensile_ENABLE_HALF
+template<> tensile_bfloat8 tensileGetTrig<tensile_bfloat8>(int i) { return sin(static_cast<tensile_bfloat8>(i)); }
+#endif
 template<> tensile_bfloat16 tensileGetTrig<tensile_bfloat16>(int i) { return sin(static_cast<tensile_bfloat16>(i)); }
 template<> double tensileGetTrig<double>(int i) { return static_cast<double>(sin(i)); }
 template<> TensileComplexFloat tensileGetTrig<TensileComplexFloat>(int i) {
@@ -174,6 +189,9 @@ template<> TensileComplexDouble tensileGetTrig<TensileComplexDouble>(int i) {
  ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetNaN<TensileHalf>() { return std::numeric_limits<TensileHalf>::quiet_NaN(); }
+#endif
+#ifdef Tensile_ENABLE_HALF
+template<> tensile_bfloat8 tensileGetNaN<tensile_bfloat8>() { return static_cast<tensile_bfloat8>(std::numeric_limits<TensileHalf>::quiet_NaN()); }
 #endif
 template<> tensile_bfloat16 tensileGetNaN<tensile_bfloat16>() { return static_cast<tensile_bfloat16>(std::numeric_limits<float>::quiet_NaN()); }
 template<> float tensileGetNaN<float>() { return std::numeric_limits<float>::quiet_NaN(); }
@@ -225,6 +243,33 @@ template< >
 unsigned int tensileMultiply( unsigned int a, unsigned int b ) {
   return a*b;
 }
+// mixed tensile_bfloat8 half
+#ifdef Tensile_ENABLE_HALF
+template< >
+tensile_bfloat8 tensileMultiply( tensile_bfloat8 a, tensile_bfloat8 b ) {
+  return a * b;
+}
+template< >
+tensile_bfloat8 tensileMultiply( TensileHalf a, tensile_bfloat8 b ) {
+  return static_cast<tensile_bfloat8>(a) * b;
+}
+template< >
+tensile_bfloat8 tensileMultiply( tensile_bfloat8 a, TensileHalf b) {
+  return a * static_cast<tensile_bfloat8>(b);
+}
+template< >
+TensileHalf tensileMultiply( tensile_bfloat8 a, tensile_bfloat8 b ) {
+  return static_cast<TensileHalf>(a) * static_cast<TensileHalf>(b);
+}
+template< >
+TensileHalf tensileMultiply( TensileHalf a, tensile_bfloat8 b ) {
+  return a * static_cast<TensileHalf>(b);
+}
+template< >
+TensileHalf tensileMultiply( tensile_bfloat8 a, TensileHalf b ) {
+  return static_cast<TensileHalf>(a) * b;
+}
+#endif
 // mixed tensile_bfloat16 float
 template< >
 tensile_bfloat16 tensileMultiply( tensile_bfloat16 a, tensile_bfloat16 b ) {
@@ -283,6 +328,12 @@ TensileHalf tensileAdd( TensileHalf a, TensileHalf b ) {
   return a+b;
 }
 #endif
+#ifdef Tensile_ENABLE_HALF
+template< >
+tensile_bfloat8 tensileAdd( tensile_bfloat8 a, tensile_bfloat8 b ) {
+  return a+b;
+}
+#endif
 template< >
 tensile_bfloat16 tensileAdd( tensile_bfloat16 a, tensile_bfloat16 b ) {
   return a+b;
@@ -334,6 +385,15 @@ bool tensileAlmostEqual(TensileHalf a, TensileHalf b) {
   TensileHalf absB = (b > 0) ? b : -b;
   TensileHalf absDiff = (a-b > 0) ? a-b : b-a;
   return absDiff/(absA+absB+1) < 0.01;
+}
+#endif
+#ifdef Tensile_ENABLE_HALF
+template< >
+bool tensileAlmostEqual(tensile_bfloat8 a, tensile_bfloat8 b) {
+  tensile_bfloat8 absA = (a > static_cast<tensile_bfloat8>(0.0f)) ? a : static_cast<tensile_bfloat8>(0.0f) - a;
+  tensile_bfloat8 absB = (b > static_cast<tensile_bfloat8>(0.0f)) ? b : static_cast<tensile_bfloat8>(0.0f) - b;
+  tensile_bfloat8 absDiff = (a-b > static_cast<tensile_bfloat8>(0.0f)) ? a-b : b-a;
+  return absDiff/(absA+absB+static_cast<tensile_bfloat8>(1.0f)) < static_cast<tensile_bfloat8>(0.1f);
 }
 #endif
 template< >
@@ -483,6 +543,10 @@ template<> std::string tensileToString(TensileComplexDouble v){
 }
 #ifdef Tensile_ENABLE_HALF
 template<> std::string tensileToString(TensileHalf v){
+  return tensileToString(static_cast<float>(v)); }
+#endif
+#ifdef Tensile_ENABLE_HALF
+template<> std::string tensileToString(tensile_bfloat8 v){
   return tensileToString(static_cast<float>(v)); }
 #endif
 template<> std::string tensileToString(tensile_bfloat16 v){

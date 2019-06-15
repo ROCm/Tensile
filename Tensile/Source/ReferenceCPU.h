@@ -162,6 +162,9 @@ TensileStatus tensileReferenceCPU(
   while (moreIndicesC) { // iterate over entire free index range
 
     Type sumC = tensileGetZero<Type>();
+#ifdef Tensile_ENABLE_HALF
+    TensileHalf sumChalf = tensileGetZero<TensileHalf>();
+#endif
     float sumCfloat = 0.0f;
     // reset summation indices
     for (unsigned int b = 0; b < numIndicesSummation; b++) {
@@ -224,6 +227,13 @@ TensileStatus tensileReferenceCPU(
          unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
          sumC = sumC + (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
       }
+#ifdef Tensile_ENABLE_HALF
+      else if(std::is_same<Type, tensile_bfloat8>() && std::is_same<DestType, tensile_bfloat8>())
+      {
+        TensileHalf product = static_cast<TensileHalf>(valueA) * static_cast<TensileHalf>(valueB);
+        sumChalf = tensileAdd<TensileHalf>(sumChalf, product);
+      }
+#endif
       else if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
       {
         float product = static_cast<float>(valueA) * static_cast<float>(valueB);
@@ -266,6 +276,12 @@ TensileStatus tensileReferenceCPU(
     {
       sumCfloat = static_cast<float>(alpha) * sumCfloat;
     }
+#ifdef Tensile_ENABLE_HALF
+    else if(std::is_same<Type, tensile_bfloat8>() && std::is_same<DestType, tensile_bfloat8>())
+    {
+      sumChalf = static_cast<TensileHalf>(alpha) * sumChalf;
+    }
+#endif
     else if (localUseHighPrecisionAccumulate)
     {
       sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
@@ -280,6 +296,12 @@ TensileStatus tensileReferenceCPU(
         float tmp = tensileMultiply<float>(beta, static_cast<float>(dataC[serialIdxC]));
         sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
       }
+#ifdef Tensile_ENABLE_HALF
+      else if(std::is_same<Type, tensile_bfloat8>() && std::is_same<DestType, tensile_bfloat8>()) {
+        TensileHalf tmp = tensileMultiply<TensileHalf>(beta, static_cast<TensileHalf>(dataC[serialIdxC]));
+        sumChalf = tensileAdd<TensileHalf>(static_cast<TensileHalf>(tmp),sumChalf);
+      }
+#endif
       else {
         Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
         if (localUseHighPrecisionAccumulate)
@@ -292,6 +314,11 @@ TensileStatus tensileReferenceCPU(
     if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
       dataD[serialIdxD] = static_cast<DestType>(sumCfloat);
     }
+#ifdef Tensile_ENABLE_HALF
+    else if(std::is_same<Type, tensile_bfloat8>() && std::is_same<DestType, tensile_bfloat8>()) {
+      dataD[serialIdxD] = static_cast<DestType>(sumChalf);
+    }
+#endif
     else if (localUseHighPrecisionAccumulate) {
       dataD[serialIdxD] = (Type)sumCfloat;
     }
