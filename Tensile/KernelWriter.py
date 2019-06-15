@@ -1290,7 +1290,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.notLocalSplitUGlobalWrite(kernel))
 
     # function suffix
-    kl.append(self.functionEnd(kernel))
+    kl.append(self.functionEnd(kernel, True))
     kl.append(self.functionSuffix(kernel))
 
     kl.append(self.closeString(kernel))
@@ -2314,7 +2314,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Function End
   ##############################################################################
   @abc.abstractmethod
-  def functionEnd(self, kernel):
+  def functionEnd(self, kernel, addLabel=True):
     return ""
 
   ##############################################################################
