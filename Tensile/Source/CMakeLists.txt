@@ -74,7 +74,7 @@ endif()
 
 if (UNIX)
   # the Tensile library doesn't require c++11, but client/ReferenceCPU does
-  # with addition of bfloat16 library requires c++14
+  # with addition of bfloat8 and bfloat16 libraries require c++14
   #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14"  )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wno-deprecated-declarations" )
 endif()

@@ -2036,6 +2036,23 @@ class KernelWriterAssembly(KernelWriter):
       cptAlign = "8"
       cptByte  = 8
       cptValueType = "F64"
+
+    elif kernel["ProblemType"]["DataType"].isBFloat8():
+      srcSize = "1"
+      srcAlign = "1"
+      srcByte  = 1
+      if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "Struct"
+      if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "struct"
+      dstSize = "1"
+      dstAlign = "1"
+      dstByte  = 1
+      if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "Struct"
+      if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "struct"
+      cptSize = "2"
+      cptAlign = "2"
+      cptByte  = 2
+      cptValueType = "F16"
+
     elif kernel["ProblemType"]["DataType"].isBFloat16():
       srcSize = "2"
       srcAlign = "2"
