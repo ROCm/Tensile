@@ -4768,7 +4768,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr)
 
         kStr += "\n"
-        kStr += inst("s_endpgm", "endpgm after opt NLL")
+        kStr += str(self.functionEnd(kernel, False))
         #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
 
         label = self.getLabelName("OptNLL_End")
@@ -8175,7 +8175,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Function End
   ##############################################################################
-  def functionEnd(self, kernel):
+  def functionEnd(self, kernel, addLabel=True):
     imod = Code.Module()
     if kernel["PersistentKernel"]:
       # Persistent may generate a SerialWorkGroupIter which is OOB, only loop back if we are in a valid WG:
@@ -8183,7 +8183,8 @@ class KernelWriterAssembly(KernelWriter):
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG")
       imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
       imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
-    imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
+    if addLabel:
+      imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")
     return imod
 

@@ -2556,7 +2556,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Function End
   ##############################################################################
-  def functionEnd(self, kernel):
+  def functionEnd(self, kernel, addLabel):
     kStr = ""
 
     if kernel["PersistentKernel"]:
