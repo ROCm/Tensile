@@ -419,8 +419,6 @@ namespace Tensile
               m_monitor(args["device-idx"].as<int>())
         {
             m_monitor.addTempMonitor(0);
-            //m_monitor.addTempMonitor(1);
-            //m_monitor.addTempMonitor(2);
 
             m_monitor.addClockMonitor(RSMI_CLK_TYPE_SYS);
             m_monitor.addClockMonitor(RSMI_CLK_TYPE_SOC);
@@ -454,16 +452,14 @@ namespace Tensile
         {
             m_monitor.wait();
 
-            m_reporter->report("temp-edge",     m_monitor.getAverageTemp(0));
-            //m_reporter->report("temp-junction", m_monitor.getAverageTemp(1));
-            //m_reporter->report("temp-memory",   m_monitor.getAverageTemp(2));
+            m_reporter->report(ResultKey::TempEdge,            m_monitor.getAverageTemp(0));
 
-            m_reporter->report("clock-sys",     m_monitor.getAverageClock(RSMI_CLK_TYPE_SYS));
-            m_reporter->report("clock-soc",     m_monitor.getAverageClock(RSMI_CLK_TYPE_SOC));
-            m_reporter->report("clock-mem",     m_monitor.getAverageClock(RSMI_CLK_TYPE_MEM));
+            m_reporter->report(ResultKey::ClockRateSys,        m_monitor.getAverageClock(RSMI_CLK_TYPE_SYS));
+            m_reporter->report(ResultKey::ClockRateSOC,        m_monitor.getAverageClock(RSMI_CLK_TYPE_SOC));
+            m_reporter->report(ResultKey::ClockRateMem,        m_monitor.getAverageClock(RSMI_CLK_TYPE_MEM));
 
-            m_reporter->report("fan",           m_monitor.getAverageFanSpeed());
-            m_reporter->report("hardware-samples", m_monitor.getSamples());
+            m_reporter->report(ResultKey::FanSpeedRPMs,        m_monitor.getAverageFanSpeed());
+            m_reporter->report(ResultKey::HardwareSampleCount, m_monitor.getSamples());
         }
     }
 }

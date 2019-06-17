@@ -304,13 +304,13 @@ namespace Tensile
             if(m_elementsToValidate != 0)
             {
                 if(m_errorInSolution)
-                    m_reporter->report("validation", "FAILED");
+                    m_reporter->report(ResultKey::Validation, "FAILED");
                 else
-                    m_reporter->report("validation", "PASSED");
+                    m_reporter->report(ResultKey::Validation, "PASSED");
             }
             else
             {
-                m_reporter->report("validation", "NO_CHECK");
+                m_reporter->report(ResultKey::Validation, "NO_CHECK");
             }
 
             m_errorInSolution = false;

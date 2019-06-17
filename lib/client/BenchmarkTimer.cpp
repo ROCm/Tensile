@@ -80,8 +80,8 @@ namespace Tensile
 
             double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns);
 
-            m_reporter->report("time_ns", timePerEnqueue_ns);
-            m_reporter->report("gflops", gflops);
+            m_reporter->report(ResultKey::TimeNS,      timePerEnqueue_ns);
+            m_reporter->report(ResultKey::SpeedGFlops, gflops);
 
             m_timeInSolution_ms = 0;
             m_numEnqueuesInSolution = 0;

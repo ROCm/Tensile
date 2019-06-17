@@ -305,14 +305,7 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporter = std::make_shared<MetaResultReporter>();
-    reporter->addReporter(
-            std::shared_ptr<LogReporter>(
-                new LogReporter(LogLevel::Debug,
-                                {"operation", "solution", "validation", "time_ns", "gflops",
-                                 "temp-edge",
-                                 "clock-sys", "clock-soc", "clock-mem",
-                                 "fan", "hardware-samples"},
-                                std::cout)));
+    reporter->addReporter(LogReporter::Default(args));
 
     listeners.setReporter(reporter);
 

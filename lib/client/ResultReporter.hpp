@@ -26,12 +26,15 @@
 
 #pragma once
 
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/program_options.hpp>
 
 #include "RunListener.hpp"
+
+namespace po = boost::program_options;
 
 namespace Tensile
 {
@@ -46,19 +49,58 @@ namespace Tensile
             Count
         };
 
+        namespace ResultKey
+        {
+            // Problem definition
+            const std::string OperationIdentifier = "operation";
+
+            // Solution information
+            const std::string SolutionName = "solution";
+
+            // Performance-related
+            const std::string Validation  = "validation";
+            const std::string TimeNS      = "time-ns";
+            const std::string SpeedGFlops = "gflops";
+
+            // Hardware monitoring
+            const std::string TempEdge            = "temp-edge";
+            const std::string ClockRateSys        = "clock-sys";
+            const std::string ClockRateSOC        = "clock-soc";
+            const std::string ClockRateMem        = "clock-mem";
+            const std::string FanSpeedRPMs        = "fan-rpm";
+            const std::string HardwareSampleCount = "hardware-samples";
+        };
+
         class ResultReporter: public RunListener
         {
         public:
             /**
-             * Reports the value for a key, related to this run.
+             * Reports the value for a key, related to the current state of the run.
              */
-            template <typename T>
-            void report(std::string const& key, T const& value)
+            void report(std::string const& key, std::string const& value)
             {
-                reportValue(key, boost::lexical_cast<std::string>(value));
+                reportValue_string(key, value);
             }
 
-            virtual void reportValue(std::string const& key, std::string const& value) {}
+            void report(std::string const& key, uint64_t value)
+            {
+                reportValue_uint(key, value);
+            }
+
+            void report(std::string const& key, int64_t value)
+            {
+                reportValue_int(key, value);
+            }
+
+            void report(std::string const& key, double value)
+            {
+                reportValue_double(key, value);
+            }
+
+            virtual void reportValue_string(std::string const& key, std::string const& value) = 0;
+            virtual void reportValue_uint(  std::string const& key, uint64_t value) = 0;
+            virtual void reportValue_int(   std::string const& key, int64_t value) = 0;
+            virtual void reportValue_double(std::string const& key, double value) = 0;
 
             virtual bool logAtLevel(LogLevel level) { return false; };
 
@@ -133,10 +175,28 @@ namespace Tensile
                 m_reporters.push_back(reporter);
             }
 
-            virtual void reportValue(std::string const& key, std::string const& value)
+            virtual void reportValue_string(std::string const& key, std::string const& value)
             {
                 for(auto r: m_reporters)
-                    r->reportValue(key, value);
+                    r->reportValue_string(key, value);
+            }
+
+            virtual void reportValue_uint(std::string const& key, uint64_t value)
+            {
+                for(auto r: m_reporters)
+                    r->reportValue_uint(key, value);
+            }
+
+            virtual void reportValue_int(std::string const& key, int64_t value)
+            {
+                for(auto r: m_reporters)
+                    r->reportValue_int(key, value);
+            }
+
+            virtual void reportValue_double(std::string const& key, double value)
+            {
+                for(auto r: m_reporters)
+                    r->reportValue_double(key, value);
             }
 
             virtual bool logAtLevel(LogLevel level)
@@ -351,7 +411,19 @@ namespace Tensile
             {
             }
 
-            virtual void reportValue(std::string const& key, std::string const& value) override
+            static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
+            {
+                using namespace ResultKey;
+                return std::shared_ptr<LogReporter>(
+                        new LogReporter(LogLevel::Debug,
+                                        {OperationIdentifier, SolutionName,
+                                         Validation, TimeNS, SpeedGFlops,
+                                         TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
+                                         FanSpeedRPMs, HardwareSampleCount},
+                                        std::cout));
+            }
+
+            virtual void reportValue_string(std::string const& key, std::string const& value) override
             {
                 if(m_keySet.find(key) != m_keySet.end())
                 {
@@ -360,6 +432,21 @@ namespace Tensile
                     else
                         m_currentProblemRow[key] = value;
                 }
+            }
+
+            virtual void reportValue_uint(std::string const& key, uint64_t value) override
+            {
+                reportValue_string(key, boost::lexical_cast<std::string>(value));
+            }
+
+            virtual void reportValue_int(std::string const& key, int64_t value) override
+            {
+                reportValue_string(key, boost::lexical_cast<std::string>(value));
+            }
+
+            virtual void reportValue_double(std::string const& key, double value) override
+            {
+                reportValue_string(key, boost::lexical_cast<std::string>(value));
             }
 
             virtual bool logAtLevel(LogLevel level) override
@@ -414,14 +501,14 @@ namespace Tensile
                     m_firstRun = false;
                 }
 
-                report("operation", problem.operationIdentifier());
+                report(ResultKey::OperationIdentifier, problem.operationIdentifier());
             }
 
             virtual void preSolution(ContractionSolution const& solution) override
             {
                 m_inSolution = true;
 
-                report("solution", solution.name());
+                report(ResultKey::SolutionName, solution.name());
             }
 
             virtual void postSolution() override
