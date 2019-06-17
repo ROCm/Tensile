@@ -2,14 +2,14 @@
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
 set(client_sources
-    BenchmarkTimer.cpp
-    ClientProblemFactory.cpp
-    DataInitialization.cpp
-    HardwareMonitor.cpp
-    MetaRunListener.cpp
-    Reference.cpp
-    ReferenceValidator.cpp
-    TimingEvents.cpp
+    source/BenchmarkTimer.cpp
+    source/ClientProblemFactory.cpp
+    source/DataInitialization.cpp
+    source/HardwareMonitor.cpp
+    source/MetaRunListener.cpp
+    source/Reference.cpp
+    source/ReferenceValidator.cpp
+    source/TimingEvents.cpp
     )
 
 find_package(Boost COMPONENTS program_options)
@@ -18,7 +18,7 @@ add_library(TensileClient STATIC ${client_sources})
 
 set(rocm_smi_root "${hip_LIB_INSTALL_DIR}/../rocm_smi")
 
-target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${rocm_smi_root}/include")
+target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${rocm_smi_root}/include")
 
 target_link_libraries(TensileClient Tensile Boost::program_options "${rocm_smi_root}/lib/librocm_smi64.so")
 
