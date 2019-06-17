@@ -37,8 +37,11 @@
 #include "HardwareMonitor.hpp"
 #include "MetaRunListener.hpp"
 #include "ReferenceValidator.hpp"
-#include "ResultReporter.hpp"
 #include "TimingEvents.hpp"
+
+#include "LogReporter.hpp"
+#include "MetaResultReporter.hpp"
+#include "ResultReporter.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string/split.hpp>
