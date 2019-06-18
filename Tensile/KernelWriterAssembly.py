@@ -2064,72 +2064,71 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "    Args:\n"
 
       if globalParameters["DebugKernel"]:
-        kStr += self.v2Argument(                      'AddressDbg',     '8',      '8', "GlobalBuffer",     "Struct", "Generic")
+        kStr += self.v2Argument(                    'AddressDbg',     '8',      '8', "GlobalBuffer",     "Struct", "Generic")
 
-      kStr += self.v2Argument(                             'sizeC',     '8',      '8',      "ByValue",        "I64")
-      kStr += self.v2Argument(                             'sizeA',     '8',      '8',      "ByValue",        "I64")
-      kStr += self.v2Argument(                             'sizeB',     '8',      '8',      "ByValue",        "I64")
+      kStr += self.v2Argument(                           'sizeC',     '8',      '8',      "ByValue",        "I64")
+      kStr += self.v2Argument(                           'sizeA',     '8',      '8',      "ByValue",        "I64")
+      kStr += self.v2Argument(                           'sizeB',     '8',      '8',      "ByValue",        "I64")
 
-      kStr += self.v2Argument(                                 'D',     '8',      '8', "GlobalBuffer", dstValueType, "Generic")
-      kStr += self.v2Argument(                                 'C',     '8',      '8', "GlobalBuffer", dstValueType, "Generic")
-      kStr += self.v2Argument(                                 'A',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
-      kStr += self.v2Argument(                                 'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
+      kStr += self.v2Argument(                               'D',     '8',      '8', "GlobalBuffer", dstValueType, "Generic")
+      kStr += self.v2Argument(                               'C',     '8',      '8', "GlobalBuffer", dstValueType, "Generic")
+      kStr += self.v2Argument(                               'A',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
+      kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic")
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += self.v2Argument(                           "alpha",     '4',      '4',      "ByValue", cptValueType)
+        kStr += self.v2Argument(                         "alpha",     '4',      '4',      "ByValue", cptValueType)
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v2Argument(                           "alpha", cptSize, cptAlign,      "ByValue", cptValueType)
+        kStr += self.v2Argument(                         "alpha", cptSize, cptAlign,      "ByValue", cptValueType)
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
-          kStr += self.v2Argument(                          "beta",     '4',      '4',      "ByValue", cptValueType)
+          kStr += self.v2Argument(                        "beta",     '4',      '4',      "ByValue", cptValueType)
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v2Argument(                            "beta", cptSize, cptAlign,      "ByValue", cptValueType)
+        kStr += self.v2Argument(                          "beta", cptSize, cptAlign,      "ByValue", cptValueType)
 
       for i in range(0, self.numSgprStridesD):
-        kStr += self.v2Argument(                     "strideD%u"%i,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(                   "strideD%u"%i,     '4',      '4',      "ByValue",        "U32")
 
       for i in range(0, self.numSgprStridesC):
-        kStr += self.v2Argument(                     "strideC%u"%i,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(                   "strideC%u"%i,     '4',      '4',      "ByValue",        "U32")
 
       for i in range(0, self.numSgprStridesA):
-        kStr += self.v2Argument(                     "strideA%u"%i,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(                   "strideA%u"%i,     '4',      '4',      "ByValue",        "U32")
 
       for i in range(0, self.numSgprStridesB):
-        kStr += self.v2Argument(                     "strideB%u"%i,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(                   "strideB%u"%i,     '4',      '4',      "ByValue",        "U32")
 
 
       for i in range(0, self.numSgprSizesFree):
-        kStr += self.v2Argument(                   "SizesFree%u"%i,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(                 "SizesFree%u"%i,     '4',      '4',      "ByValue",        "U32")
 
       for i in range(0, self.numSgprSizesSum):
-        kStr += self.v2Argument(                    "SizesSum%u"%i,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(                  "SizesSum%u"%i,     '4',      '4',      "ByValue",        "U32")
 
       for idxChar in kernel["PackedC0Indices"][:-1]:
-        kStr += self.v2Argument(       "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
-        kStr += self.v2Argument(        "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(     "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(      "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
 
       for idxChar in kernel["PackedC1Indices"][:-1]:
-        kStr += self.v2Argument(       "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
-        kStr += self.v2Argument(        "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(     "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
+        kStr += self.v2Argument(      "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32")
 
-      if self.staggerU:
-        kStr += self.v2Argument(                "OrigStaggerUIter",     '4',      '4',      "ByValue",        "I32")
+      kStr += self.v2Argument(                "OrigStaggerUIter",     '4',      '4',      "ByValue",        "I32")
 
-      kStr += self.v2Argument(                    "NumWorkGroups0",     '4',      '4',      "ByValue",        "U32")
-      kStr += self.v2Argument(                    "NumWorkGroups1",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(                  "NumWorkGroups0",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(                  "NumWorkGroups1",     '4',      '4',      "ByValue",        "U32")
 
-      if kernel["PersistentKernel"]:
-        kStr += self.v2Argument("MagicNumberProblemNumGroupTiles0",     '4',      '4',      "ByValue",        "U32")
-        kStr += self.v2Argument(              "GridNumWorkGroups0",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument("MagicNumberProblemNumGroupTiles0",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(              "GridNumWorkGroups0",     '4',      '4',      "ByValue",        "U32")
 
-      kStr += self.v2Argument(                     "NumFullBlocks",     '4',      '4',      "ByValue",        "U32")
-      kStr += self.v2Argument(                     "WgmRemainder1",     '4',      '4',      "ByValue",        "U32")
-      kStr += self.v2Argument(          "MagicNumberWgmRemainder1",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(                   "NumFullBlocks",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(                   "WgmRemainder1",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(        "MagicNumberWgmRemainder1",     '4',      '4',      "ByValue",        "U32")
+      kStr += self.v2Argument(                         "padding",     '4',      '4',      "ByValue",        "U32")
 
       kStr += "    CodeProps:\n"
       kStr += "      KernargSegmentSize: %u%s" % (kernArgBytes, self.endLine)
@@ -2163,73 +2162,72 @@ class KernelWriterAssembly(KernelWriter):
       offset = 0;
 
       if globalParameters["DebugKernel"]:
-        kStr += self.v3Argument(                      'AddressDbg',     '8', offset, "global_buffer","struct", "generic"); offset += 8
+        kStr += self.v3Argument(                    'AddressDbg',     '8', offset, "global_buffer","struct", "generic"); offset += 8
 
-      kStr += self.v3Argument(                             'sizeC',     '8', offset,      "by_value",        "U64"); offset += 8
-      kStr += self.v3Argument(                             'sizeA',     '8', offset,      "by_value",        "U64"); offset += 8
-      kStr += self.v3Argument(                             'sizeB',     '8', offset,      "by_value",        "U64"); offset += 8
+      kStr += self.v3Argument(                           'sizeC',     '8', offset,      "by_value",        "U64"); offset += 8
+      kStr += self.v3Argument(                           'sizeA',     '8', offset,      "by_value",        "U64"); offset += 8
+      kStr += self.v3Argument(                           'sizeB',     '8', offset,      "by_value",        "U64"); offset += 8
 
-
-      kStr += self.v3Argument(                                 'D',     '8', offset, "global_buffer","struct", dstValueType); offset += 8
-      kStr += self.v3Argument(                                 'C',     '8', offset, "global_buffer","struct", dstValueType); offset += 8
-      kStr += self.v3Argument(                                 'A',     '8', offset, "global_buffer","struct", srcValueType); offset += 8
-      kStr += self.v3Argument(                                 'B',     '8', offset, "global_buffer","struct", srcValueType); offset += 8
+      kStr += self.v3Argument(                               'D',     '8', offset, "global_buffer","struct", dstValueType); offset += 8
+      kStr += self.v3Argument(                               'C',     '8', offset, "global_buffer","struct", dstValueType); offset += 8
+      kStr += self.v3Argument(                               'A',     '8', offset, "global_buffer","struct", srcValueType); offset += 8
+      kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer","struct", srcValueType); offset += 8
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += self.v3Argument(                           "alpha",       4, offset,      "by_value", cptValueType); offset += 4
+        kStr += self.v3Argument(                         "alpha",       4, offset,      "by_value", cptValueType); offset += 4
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v3Argument(                           "alpha", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+        kStr += self.v3Argument(                         "alpha", cptSize, offset,      "by_value", cptValueType); offset += cptByte
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
-          kStr += self.v3Argument(                          "beta",       4, offset,      "by_value", cptValueType); offset += 4
+          kStr += self.v3Argument(                        "beta",       4, offset,      "by_value", cptValueType); offset += 4
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v3Argument(                            "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+        kStr += self.v3Argument(                          "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
 
       for i in range(0, self.numSgprStridesD):
-        kStr += self.v3Argument(                     "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(                   "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for i in range(0, self.numSgprStridesC):
-        kStr += self.v3Argument(                     "strideC%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(                   "strideC%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for i in range(0, self.numSgprStridesA):
-        kStr += self.v3Argument(                     "strideA%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(                   "strideA%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for i in range(0, self.numSgprStridesB):
-        kStr += self.v3Argument(                     "strideB%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(                   "strideB%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
 
       for i in range(0, self.numSgprSizesFree):
-        kStr += self.v3Argument(                   "SizesFree%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(                 "SizesFree%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for i in range(0, self.numSgprSizesSum):
-        kStr += self.v3Argument(                    "SizesSum%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(                  "SizesSum%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for idxChar in kernel["PackedC0Indices"][:-1]:
-        kStr += self.v3Argument(       "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.v3Argument(        "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for idxChar in kernel["PackedC1Indices"][:-1]:
-        kStr += self.v3Argument(       "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.v3Argument(        "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
 
-      if self.staggerU:
-        kStr += self.v3Argument(                "OrigStaggerUIter",     '4', offset,      "by_value",        "i32"); offset += 4
+      kStr += self.v3Argument(              "OrigStaggerUIter",     '4', offset,      "by_value",        "i32"); offset += 4
 
-      kStr += self.v3Argument(                    "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
-      kStr += self.v3Argument(                    "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += self.v3Argument(                  "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += self.v3Argument(                  "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
 
-      if kernel["PersistentKernel"]:
-        kStr += self.v3Argument("MagicNumberProblemNumGroupTiles0",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.v3Argument(              "GridNumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += self.v3Argument("MagicNumberProblemNumGroupTiles0",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += self.v3Argument(              "GridNumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
 
-      kStr += self.v3Argument(                     "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
-      kStr += self.v3Argument(                     "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
-      kStr += self.v3Argument(          "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32")
+      kStr += self.v3Argument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += self.v3Argument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += self.v3Argument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+
+      kStr += self.v3Argument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
 
       kStr += "...\n"
 
