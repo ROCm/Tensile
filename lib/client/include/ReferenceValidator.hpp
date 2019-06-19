@@ -89,7 +89,7 @@ namespace Tensile
             template <typename TypedInputs>
             void printTensorsTyped(TypedInputs const& reference, TypedInputs const& result);
 
-            virtual void finalizeReport() const override;
+            virtual void finalizeReport() override;
 
             virtual int error() const override;
 

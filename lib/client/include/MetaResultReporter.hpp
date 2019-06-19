@@ -64,6 +64,12 @@ namespace Tensile
                     r->reportValue_double(key, value);
             }
 
+            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value)
+            {
+                for(auto r: m_reporters)
+                    r->reportValue_sizes(key, value);
+            }
+
             virtual bool logAtLevel(LogLevel level)
             {
                 for(auto r: m_reporters)
@@ -222,7 +228,7 @@ namespace Tensile
             }
 
 
-            virtual void finalizeReport() const override
+            virtual void finalizeReport() override
             {
                 for(auto iter = m_reporters.begin(); iter != m_reporters.end(); iter++)
                     (*iter)->finalizeReport();

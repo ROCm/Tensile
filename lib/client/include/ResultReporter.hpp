@@ -29,7 +29,6 @@
 #include "RunListener.hpp"
 
 #include <string>
-#include <unordered_set>
 
 namespace Tensile
 {
@@ -46,11 +45,33 @@ namespace Tensile
 
         namespace ResultKey
         {
+            const std::string BenchmarkRunNumber = "run";
+
             // Problem definition
+            const std::string ProblemIndex = "problem-index";
             const std::string OperationIdentifier = "operation";
+
+            const std::string ASizes = "a-sizes";
+            const std::string BSizes = "b-sizes";
+            const std::string CSizes = "c-sizes";
+            const std::string DSizes = "d-sizes";
+
+            const std::string AStrides = "a-strides";
+            const std::string BStrides = "b-strides";
+            const std::string CStrides = "c-strides";
+            const std::string DStrides = "d-strides";
+
+            const std::string LDA = "lda";
+            const std::string LDB = "ldb";
+            const std::string LDC = "ldc";
+            const std::string LDD = "ldd";
+
+            const std::string TotalFlops   = "total-flops";
+            const std::string ProblemSizes = "problem-sizes";
 
             // Solution information
             const std::string SolutionName = "solution";
+            const std::string SolutionIndex = "solution-index";
 
             // Performance-related
             const std::string Validation  = "validation";
@@ -82,6 +103,11 @@ namespace Tensile
                 reportValue_uint(key, value);
             }
 
+            void report(std::string const& key, int value)
+            {
+                reportValue_int(key, value);
+            }
+
             void report(std::string const& key, int64_t value)
             {
                 reportValue_int(key, value);
@@ -92,10 +118,16 @@ namespace Tensile
                 reportValue_double(key, value);
             }
 
+            void report(std::string const& key, std::vector<size_t> const& value)
+            {
+                reportValue_sizes(key, value);
+            }
+
             virtual void reportValue_string(std::string const& key, std::string const& value) = 0;
             virtual void reportValue_uint(  std::string const& key, uint64_t value) = 0;
             virtual void reportValue_int(   std::string const& key, int64_t value) = 0;
             virtual void reportValue_double(std::string const& key, double value) = 0;
+            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) = 0;
 
             virtual bool logAtLevel(LogLevel level) { return false; };
 

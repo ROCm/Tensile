@@ -78,7 +78,7 @@ namespace Tensile
                                             TimingEvents const& startEvents,
                                             TimingEvents const&  stopEvents) override;
 
-            virtual void finalizeReport() const override;
+            virtual void finalizeReport() override;
 
             virtual int error() const override;
 

@@ -36,12 +36,14 @@
 #include "DataInitialization.hpp"
 #include "HardwareMonitor.hpp"
 #include "MetaRunListener.hpp"
+#include "ProgressListener.hpp"
 #include "ReferenceValidator.hpp"
 #include "TimingEvents.hpp"
 
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "ResultReporter.hpp"
+#include "ResultFileReporter.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -147,7 +149,9 @@ namespace Tensile
                                                                                   "otherwise specify once per problem size.")
 
                 ("solution-start-idx",       po::value<int>()->default_value(0),  "First solution to run")
-                ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run");
+                ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
+                
+                ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.");
 
             return options;
         }
@@ -304,11 +308,14 @@ int main(int argc, const char * argv[])
 
     MetaRunListener listeners;
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
+    listeners.addListener(std::make_shared<ProgressListener>());
+
     listeners.addListener(std::make_shared<BenchmarkTimer>(args));
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporter = std::make_shared<MetaResultReporter>();
     reporter->addReporter(LogReporter::Default(args));
+    reporter->addReporter(ResultFileReporter::Default(args));
 
     listeners.setReporter(reporter);
 

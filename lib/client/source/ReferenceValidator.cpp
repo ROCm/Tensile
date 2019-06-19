@@ -320,7 +320,7 @@ namespace Tensile
         {
         }
 
-        void ReferenceValidator::finalizeReport() const
+        void ReferenceValidator::finalizeReport()
         {
         }
 

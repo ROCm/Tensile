@@ -27,6 +27,7 @@
 #pragma once
 
 #include "ResultReporter.hpp"
+#include "CSVStackFile.hpp"
 
 #include <string>
 #include <unordered_set>
@@ -45,31 +46,30 @@ namespace Tensile
         public:
             LogReporter(LogLevel level, std::initializer_list<const char *> keys, std::ostream & stream)
                 : m_level(level),
-                  m_stream(stream)
+                  m_stream(stream),
+                  m_csvOutput(stream)
             {
-                m_keys.reserve(keys.size());
-                for(const char * key: keys)
-                {
-                    m_keys.push_back(key);
-                    m_keySet.insert(key);
-                }
+                for(auto const& key: keys)
+                    m_csvOutput.setHeaderForKey(key, key);
             }
 
             LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::ostream & stream)
                 : m_level(level),
-                  m_keys(keys),
-                  m_keySet(keys),
-                  m_stream(stream)
+                  m_stream(stream),
+                  m_csvOutput(stream)
             {
+                for(auto const& key: keys)
+                    m_csvOutput.setHeaderForKey(key, key);
             }
 
             LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::shared_ptr<std::ostream> stream)
                 : m_level(level),
-                  m_keys(keys),
-                  m_keySet(keys),
                   m_stream(*stream),
-                  m_ownedStream(stream)
+                  m_ownedStream(stream),
+                  m_csvOutput(stream)
             {
+                for(auto const& key: keys)
+                    m_csvOutput.setHeaderForKey(key, key);
             }
 
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
@@ -77,7 +77,7 @@ namespace Tensile
                 using namespace ResultKey;
                 return std::shared_ptr<LogReporter>(
                         new LogReporter(LogLevel::Debug,
-                                        {OperationIdentifier, SolutionName,
+                                        {BenchmarkRunNumber, OperationIdentifier, ProblemSizes, SolutionName, SolutionIndex,
                                          Validation, TimeNS, SpeedGFlops,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount},
@@ -86,28 +86,31 @@ namespace Tensile
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override
             {
-                if(m_keySet.find(key) != m_keySet.end())
-                {
-                    if(m_inSolution)
-                        m_currentSolutionRow[key] = value;
-                    else
-                        m_currentProblemRow[key] = value;
-                }
+                m_csvOutput.setValueForKey(key, value);
             }
 
             virtual void reportValue_uint(std::string const& key, uint64_t value) override
             {
-                reportValue_string(key, boost::lexical_cast<std::string>(value));
+                m_csvOutput.setValueForKey(key, value);
             }
 
             virtual void reportValue_int(std::string const& key, int64_t value) override
             {
-                reportValue_string(key, boost::lexical_cast<std::string>(value));
+                m_csvOutput.setValueForKey(key, value);
             }
 
             virtual void reportValue_double(std::string const& key, double value) override
             {
-                reportValue_string(key, boost::lexical_cast<std::string>(value));
+                m_csvOutput.setValueForKey(key, value);
+            }
+
+            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override
+            {
+                std::ostringstream msg;
+                msg << "(";
+                streamJoin(msg, value, ",");
+                msg << ")";
+                reportValue_string(key, msg.str());
             }
 
             virtual bool logAtLevel(LogLevel level) override
@@ -152,82 +155,39 @@ namespace Tensile
 
             virtual void preProblem(ContractionProblem const& problem) override
             {
-                m_inSolution = false;
-
-                if(m_firstRun)
-                {
-                    streamJoin(m_stream, m_keys, ", ");
-                    m_stream << std::endl;
-
-                    m_firstRun = false;
-                }
-
-                report(ResultKey::OperationIdentifier, problem.operationIdentifier());
+                m_csvOutput.push();
             }
 
             virtual void preSolution(ContractionSolution const& solution) override
             {
-                m_inSolution = true;
-
-                report(ResultKey::SolutionName, solution.name());
+                m_csvOutput.push();
             }
 
             virtual void postSolution() override
             {
-                bool first = true;
-
-                for(auto key: m_keys)
-                {
-                    if(!first)
-                        m_stream << ", ";
-                    first = false;
-
-                    auto fromSolution = m_currentSolutionRow.find(key);
-                    auto fromProblem = m_currentProblemRow.find(key);
-
-                    if(fromSolution != m_currentSolutionRow.end())
-                    {
-                        m_stream << boost::lexical_cast<std::string>(fromSolution->second);
-                    }
-                    else if(fromProblem != m_currentProblemRow.end())
-                    {
-                        m_stream << boost::lexical_cast<std::string>(fromProblem->second);
-                    }
-                    else
-                    {
-                        throw std::runtime_error(concatenate("Value not reported for key ", key));
-                    }
-                }
-
-                m_stream << std::endl;
-
-                m_inSolution = false;
-
-                m_currentSolutionRow.clear();
+                m_csvOutput.writeCurrentRow();
+                m_csvOutput.pop();
             }
 
             virtual void postProblem() override
             {
-                m_currentProblemRow.clear();
+                m_csvOutput.pop();
             }
 
-            virtual void finalizeReport() const
+            virtual void finalizeReport()
             {
             }
 
         private:
             LogLevel m_level;
-            std::vector<std::string> m_keys;
-            std::unordered_set<std::string> m_keySet;
-
-            std::unordered_map<std::string, std::string> m_currentProblemRow;
-            std::unordered_map<std::string, std::string> m_currentSolutionRow;
 
             std::ostream & m_stream;
             std::shared_ptr<std::ostream> m_ownedStream;
 
             bool m_firstRun = true;
             bool m_inSolution = false;
+
+            CSVStackFile m_csvOutput;
         };
     }
 }

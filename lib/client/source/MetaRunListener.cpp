@@ -218,7 +218,7 @@ namespace Tensile
                 (*iter)->validateEnqueues(inputs, startEvents, stopEvents);
         }
 
-        void MetaRunListener::finalizeReport() const
+        void MetaRunListener::finalizeReport()
         {
             for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
                 (*iter)->finalizeReport();

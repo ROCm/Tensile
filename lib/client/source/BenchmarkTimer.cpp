@@ -203,7 +203,7 @@ namespace Tensile
             }
         }
 
-        void BenchmarkTimer::finalizeReport() const
+        void BenchmarkTimer::finalizeReport()
         {
         }
 

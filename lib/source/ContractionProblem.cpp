@@ -495,6 +495,12 @@ namespace Tensile
 
         m_transA = m_aNames == "lik";
         m_transB = m_bNames == "jlk";
+
+        m_problemSizes.resize(0);
+        m_problemSizes.reserve(m_c.dimensions() + m_boundSizes.size());
+
+        m_problemSizes.insert(m_problemSizes.end(), m_c.sizes().begin(), m_c.sizes().end());
+        m_problemSizes.insert(m_problemSizes.end(), m_boundSizes.begin(), m_boundSizes.end());
     }
 
     void ContractionProblem::consistencyCheck() const

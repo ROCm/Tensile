@@ -135,6 +135,8 @@ namespace Tensile
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
 
+        std::vector<size_t> const& problemSizes() const { return m_problemSizes; }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const { return m_maxProblemSize; }
 
@@ -198,6 +200,8 @@ namespace Tensile
         std::vector<size_t> m_freeSizeB;
         std::vector<size_t> m_batchSizes;
         std::vector<size_t> m_boundSizes;
+
+        std::vector<size_t> m_problemSizes;
 
         double m_beta;
 

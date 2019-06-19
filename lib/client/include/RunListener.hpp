@@ -115,7 +115,7 @@ namespace Tensile
                                             TimingEvents const&  stopEvents) = 0;
 
             /// Called at end of program execution.  Print out a summary of the runs.
-            virtual void finalizeReport() const = 0;
+            virtual void finalizeReport() = 0;
 
             /// Called at end of program execution.  Return a non-zero value if a
             /// non-fatal error was previously recorded.
