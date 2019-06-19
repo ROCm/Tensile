@@ -184,11 +184,12 @@ class MasterSolutionLibrary:
                 library = newLib
 
             elif libName == 'Predicates':
-                pred = problemType.predicate(includeType=True)
-                if pred is not None:
-                    newLib = PredicateLibrary(tag='Problem', rows=[])
-                    newLib.rows.append({'predicate': pred, 'library': library})
-                    library = newLib
+                predicates = problemType.predicates(includeBatch=True, includeType=True)
+                predicate = Contractions.ProblemPredicate.And(predicates)
+
+                newLib = PredicateLibrary(tag='Problem', rows=[])
+                newLib.rows.append({'predicate': predicate, 'library': library})
+                library = newLib
 
             elif libName == 'OperationIdentifier':
                 operationID = problemType.operationIdentifier

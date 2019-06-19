@@ -231,6 +231,21 @@ namespace Tensile
                 }
             };
 
+            struct OperationIdentifierEqual: public Predicate_CRTP<OperationIdentifierEqual, ContractionProblem>
+            {
+                enum { HasIndex = false, HasValue = true };
+                OperationIdentifierEqual() = default;
+
+                std::string value;
+
+                static std::string Type() { return "OperationIdentifierEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.operationIdentifier() == value;
+                }
+            };
+
         }
     }
 }

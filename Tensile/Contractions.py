@@ -174,10 +174,10 @@ class ProblemType:
                          'C'+cNames,
                          'D'+dNames])
 
-    def predicate(self, includeOperation=False, includeType=False):
+    def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
 
-        if not self.batched:
+        if includeBatch and not self.batched:
             predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
 
         if includeOperation:
@@ -186,14 +186,7 @@ class ProblemType:
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
 
-        if len(predicates) == 0:
-            return None
-
-        if len(predicates) == 1:
-            return predicates[0]
-
-        return ProblemPredicate('And', value=predicates)
-
+        return predicates
 
 class ProblemPredicate(Properties.Predicate):
     @classmethod
@@ -232,6 +225,12 @@ class ProblemPredicate(Properties.Predicate):
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
+
+    @classmethod
+    def FromOriginalState(cls, d, problemType, morePreds=[]):
+        problemTypePreds = problemType.predicates(True, True, True)
+
+        return super().FromOriginalState(d, problemTypePreds + morePreds)
 
 class SizeMapping:
     StateKeys = ['workGroup',
@@ -286,8 +285,7 @@ class Solution:
 
         rv.problemType = ProblemType.FromOriginalState(d['ProblemType'])
 
-
-        rv.problemPredicate = ProblemPredicate.FromOriginalState(d)
+        rv.problemPredicate = ProblemPredicate.FromOriginalState(d, rv.problemType)
 
         if 'DebugKernel' in d:
             rv.debugKernel = d['DebugKernel']
@@ -302,6 +300,8 @@ class Solution:
         if d['KernelLanguage'] == 'Assembly':
             d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
             #print(d['ISA'])
+
+            rv.hardwarePredicate = Hardware.HardwarePredicate.FromOriginalDeviceSection(deviceInfo)
         else:
             d['ISA'] = (0,0,0)
 
