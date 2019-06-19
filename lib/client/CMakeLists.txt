@@ -3,11 +3,12 @@
 
 set(client_sources
     source/BenchmarkTimer.cpp
-    source/ClientProblemFactory.cpp
     source/CSVStackFile.cpp
+    source/ClientProblemFactory.cpp
     source/DataInitialization.cpp
     source/HardwareMonitor.cpp
     source/MetaRunListener.cpp
+    source/ProgressListener.cpp
     source/Reference.cpp
     source/ReferenceValidator.cpp
     source/ResultFileReporter.cpp

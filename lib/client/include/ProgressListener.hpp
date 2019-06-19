@@ -37,86 +37,50 @@ namespace Tensile
         class ProgressListener: public RunListener
         {
         public:
-            ProgressListener() {}
+            ProgressListener();
 
-            virtual bool needMoreBenchmarkRuns() const override { return false; }
+            virtual bool needMoreBenchmarkRuns() const override;
 
-            virtual void preBenchmarkRun() override
-            {
-                m_reporter->report(ResultKey::BenchmarkRunNumber, m_benchmarkRun);
-            }
+            virtual void preBenchmarkRun() override;
 
-            virtual void postBenchmarkRun() override
-            {
-                m_benchmarkRun++;
-                m_problemIndex = 0;
-            }
+            virtual void postBenchmarkRun() override;
 
-            virtual void preProblem(ContractionProblem const& problem) override
-            {
-                m_reporter->report(ResultKey::ProblemIndex, m_problemIndex);
+            virtual void preProblem(ContractionProblem const& problem) override;
 
-                m_reporter->report(ResultKey::OperationIdentifier, problem.operationIdentifier());
+            virtual void postProblem() override;
 
-                m_reporter->report(ResultKey::TotalFlops, problem.flopCount());
+            virtual void preSolution(ContractionSolution const& solution) override;
 
-                m_reporter->report(ResultKey::ASizes,   problem.a().sizes());
-                m_reporter->report(ResultKey::BSizes,   problem.b().sizes());
-                m_reporter->report(ResultKey::CSizes,   problem.c().sizes());
-                m_reporter->report(ResultKey::DSizes,   problem.d().sizes());
+            virtual void postSolution() override;
 
-                m_reporter->report(ResultKey::AStrides, problem.a().strides());
-                m_reporter->report(ResultKey::BStrides, problem.b().strides());
-                m_reporter->report(ResultKey::CStrides, problem.c().strides());
-                m_reporter->report(ResultKey::DStrides, problem.d().strides());
+            virtual bool needMoreRunsInSolution() const override;
 
-                m_reporter->report(ResultKey::LDA, problem.a().strides()[1]);
-                m_reporter->report(ResultKey::LDB, problem.b().strides()[1]);
-                m_reporter->report(ResultKey::LDC, problem.c().strides()[1]);
-                m_reporter->report(ResultKey::LDD, problem.d().strides()[1]);
+            virtual size_t numWarmupRuns() override;
+            virtual void   setNumWarmupRuns(size_t count) override;
+            virtual void   preWarmup() override;
 
-                m_reporter->report(ResultKey::ProblemSizes,   problem.problemSizes());
-
-            }
-
-            virtual void postProblem() override {}
-
-            virtual void preSolution(ContractionSolution const& solution) override
-            {
-                m_reporter->report(ResultKey::SolutionName, solution.name());
-                m_reporter->report(ResultKey::SolutionIndex, solution.index);
-            }
-
-            virtual void postSolution() override {}
-
-            virtual bool needMoreRunsInSolution() const override { return false; }
-
-            virtual size_t numWarmupRuns() override { return 0; }
-            virtual void   setNumWarmupRuns(size_t count) override {}
-            virtual void   preWarmup() override {}
-
-            virtual void   postWarmup() override {}
+            virtual void   postWarmup() override;
             virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
                                            TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents) override {}
+                                           TimingEvents const&  stopEvents) override;
 
-            virtual size_t numSyncs() override { return 0; }
-            virtual void   setNumSyncs(size_t count) override {}
-            virtual void   preSyncs() override {}
-            virtual void   postSyncs() override {}
+            virtual size_t numSyncs() override;
+            virtual void   setNumSyncs(size_t count) override;
+            virtual void   preSyncs() override;
+            virtual void   postSyncs() override;
 
-            virtual size_t numEnqueuesPerSync() override { return 0; }
-            virtual void   setNumEnqueuesPerSync(size_t count) override {}
-            virtual void   preEnqueues() override {}
+            virtual size_t numEnqueuesPerSync() override;
+            virtual void   setNumEnqueuesPerSync(size_t count) override;
+            virtual void   preEnqueues() override;
             virtual void   postEnqueues(TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents) override {}
+                                        TimingEvents const&  stopEvents) override;
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
                                             TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) override {}
+                                            TimingEvents const&  stopEvents) override;
 
-            virtual void finalizeReport() override {}
+            virtual void finalizeReport() override;
 
-            virtual int error() const override { return 0; }
+            virtual int error() const override;
 
         private:
             size_t m_benchmarkRun = 0;
