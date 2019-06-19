@@ -57,26 +57,26 @@ struct tensile_bfloat8
     __host__ __device__ tensile_bfloat8() {}
 
     // round upper 8 bits of IEEE half to convert to bfloat8
-    explicit __host__ __device__ constexpr tensile_bfloat8(TensileHalf f) : data(half_to_bfloat8(f)) {}
+    explicit __host__ __device__ constexpr tensile_bfloat8(_Float16 f) : data(half_to_bfloat8(f)) {}
 
     // zero extend lower 8 bits of bfloat8 to convert to IEEE half
-    explicit __host__ __device__ constexpr operator TensileHalf() const
+    explicit __host__ __device__ constexpr operator half() const
     {
         union
         {
-            uint16_t    int16;
-            TensileHalf fp16;
+            uint16_t int16;
+            _Float16 fp16;
         } u = {uint16_t(data) << 8};
         return u.fp16;
     }
 
     private:
-    static __host__ __device__ constexpr uint8_t half_to_bfloat8(TensileHalf f)
+    static __host__ __device__ constexpr uint8_t half_to_bfloat8(_Float16 f)
     {
         union
         {
-            TensileHalf fp16;
-            uint16_t    int16;
+            _Float16 fp16;
+            uint16_t int16;
         } u = {f};
         if(~u.int16 & 0x7c00)
         {
@@ -124,7 +124,7 @@ static_assert(std::is_trivially_copyable<tensile_bfloat8>{},
 
 inline std::ostream& operator<<(std::ostream& os, const tensile_bfloat8& bf8)
 {
-    return os << TensileHalf(bf8);
+    return os << half(bf8);
 }
 inline __host__ __device__ tensile_bfloat8 operator+(tensile_bfloat8 a) { return a; }
 inline __host__ __device__ tensile_bfloat8 operator-(tensile_bfloat8 a)
@@ -134,30 +134,30 @@ inline __host__ __device__ tensile_bfloat8 operator-(tensile_bfloat8 a)
 }
 inline __host__ __device__ tensile_bfloat8 operator+(tensile_bfloat8 a, tensile_bfloat8 b)
 {
-    return tensile_bfloat8(TensileHalf(a) + TensileHalf(b));
+    return tensile_bfloat8(half(a) + half(b));
 }
 inline __host__ __device__ tensile_bfloat8 operator+(int a, tensile_bfloat8 b)
 {
-    return static_cast<tensile_bfloat8>(static_cast<TensileHalf>(a) + static_cast<TensileHalf>(b));
+    return static_cast<tensile_bfloat8>(static_cast<_Float16>(a) + static_cast<_Float16>(b));
 }
 inline __host__ __device__ tensile_bfloat8 operator+(tensile_bfloat8 a, int b)
 {
-    return static_cast<tensile_bfloat8>(static_cast<TensileHalf>(a) + static_cast<TensileHalf>(b));
+    return static_cast<tensile_bfloat8>(static_cast<_Float16>(a) + static_cast<_Float16>(b));
 }
 inline __host__ __device__ tensile_bfloat8 operator-(tensile_bfloat8 a, tensile_bfloat8 b)
 {
-    return tensile_bfloat8(TensileHalf(a) - TensileHalf(b));
+    return tensile_bfloat8(half(a) - half(b));
 }
 inline __host__ __device__ tensile_bfloat8 operator*(tensile_bfloat8 a, tensile_bfloat8 b)
 {
-    return tensile_bfloat8(TensileHalf(a) * TensileHalf(b));
+    return tensile_bfloat8(half(a) * half(b));
 }
 inline __host__ __device__ tensile_bfloat8 operator/(tensile_bfloat8 a, tensile_bfloat8 b)
 {
-    return tensile_bfloat8(TensileHalf(a) / TensileHalf(b));
+    return tensile_bfloat8(half(a) / half(b));
 }
-inline __host__ __device__ bool operator<(tensile_bfloat8 a, tensile_bfloat8 b) { return TensileHalf(a) < TensileHalf(b); }
-inline __host__ __device__ bool operator==(tensile_bfloat8 a, tensile_bfloat8 b) { return TensileHalf(a) == TensileHalf(b); }
+inline __host__ __device__ bool operator<(tensile_bfloat8 a, tensile_bfloat8 b) { return half(a) < half(b); }
+inline __host__ __device__ bool operator==(tensile_bfloat8 a, tensile_bfloat8 b) { return half(a) == half(b); }
 inline __host__ __device__ bool operator>(tensile_bfloat8 a, tensile_bfloat8 b) { return b < a; }
 inline __host__ __device__ bool operator<=(tensile_bfloat8 a, tensile_bfloat8 b) { return !(a > b); }
 inline __host__ __device__ bool operator!=(tensile_bfloat8 a, tensile_bfloat8 b) { return !(a == b); }
@@ -188,8 +188,8 @@ inline __host__ __device__ tensile_bfloat8 abs(tensile_bfloat8 a)
     a.data &= 0x7f;
     return a;
 }
-inline tensile_bfloat8 sin(tensile_bfloat8 a) { return tensile_bfloat8(sinf(TensileHalf(a))); }
-inline tensile_bfloat8 cos(tensile_bfloat8 a) { return tensile_bfloat8(cosf(TensileHalf(a))); }
+inline tensile_bfloat8 sin(tensile_bfloat8 a) { return tensile_bfloat8(sinf(half(a))); }
+inline tensile_bfloat8 cos(tensile_bfloat8 a) { return tensile_bfloat8(cosf(half(a))); }
 
 #endif // __cplusplus
 
