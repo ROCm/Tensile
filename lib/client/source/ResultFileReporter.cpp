@@ -45,6 +45,7 @@ namespace Tensile
         void ResultFileReporter::reportValue(std::string const& key, T const& value)
         {
             std::string valueStr = boost::lexical_cast<std::string>(value);
+
             if(key == ResultKey::Validation)
             {
                 if(valueStr != "PASSED" && valueStr != "NO_CHECK")

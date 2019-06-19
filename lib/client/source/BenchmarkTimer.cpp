@@ -35,6 +35,8 @@ namespace Tensile
 {
     namespace Client
     {
+        static_assert(BenchmarkTimer::clock::is_steady, "Clock must be steady.");
+
         BenchmarkTimer::BenchmarkTimer(po::variables_map const& args)
             : m_numWarmups(          args["num-warmups"].as<int>()),
               m_numBenchmarks(       args["num-benchmarks"].as<int>()),
@@ -76,14 +78,14 @@ namespace Tensile
 
         void BenchmarkTimer::postSolution()
         {
-            double timePerEnqueue_ns = (m_timeInSolution_ms * 1e6) / m_numEnqueuesInSolution;
+            auto timePerEnqueue_ns = std::chrono::duration_cast<double_nanos>(m_timeInSolution) / m_numEnqueuesInSolution;
 
-            double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns);
+            double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns.count());
 
-            m_reporter->report(ResultKey::TimeNS,      timePerEnqueue_ns);
+            m_reporter->report(ResultKey::TimeNS,      timePerEnqueue_ns.count());
             m_reporter->report(ResultKey::SpeedGFlops, gflops);
 
-            m_timeInSolution_ms = 0;
+            m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
         }
 
@@ -149,7 +151,7 @@ namespace Tensile
         {
             if(!m_useGPUTimer)
             {
-                //m_timer.start();
+                m_startTime = clock::now();
             }
         }
 
@@ -159,7 +161,7 @@ namespace Tensile
             if(!m_useGPUTimer)
             {
                 HIP_CHECK_EXC(hipDeviceSynchronize());
-                //m_timer.stop();
+                m_endTime = clock::now();
             }
         }
 
@@ -169,7 +171,7 @@ namespace Tensile
         {
             HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
 
-            double totalTime = 0.0;
+            double_millis totalTime(0.0);
 
             if(m_useGPUTimer)
             {
@@ -179,27 +181,23 @@ namespace Tensile
 
                     HIP_CHECK_EXC(hipEventElapsedTime(&enqTime, startEvents->at(i).front(), stopEvents->at(i).back()));
 
-                    totalTime += enqTime;
+                    totalTime += double_millis(enqTime);
                 }
             }
             else
             {
-                //totalTime = m_timer.time();
+                totalTime = std::chrono::duration_cast<double_millis>(m_endTime - m_startTime);
             }
 
-            m_timeInSolution_ms += totalTime;
-            m_totalGPUTime_ms += totalTime;
+            m_timeInSolution += totalTime;
+            m_totalGPUTime += totalTime;
             m_numEnqueuesInSolution += startEvents->size();
 
             if(m_sleepPercent > 0)
             {
-                double sleep_ms = (totalTime * m_sleepPercent) / 100.0;
-                useconds_t sleep_us = sleep_ms * 1000;
+                auto sleepTime = totalTime * (m_sleepPercent / 100.0);
 
-                int err = usleep(sleep_us);
-
-                if(err != 0)
-                    throw std::runtime_error(concatenate("usleep(", sleep_us, ") resulted in error: ", err));
+                std::this_thread::sleep_for(sleepTime);
             }
         }
 

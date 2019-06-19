@@ -28,6 +28,8 @@
 
 #include "RunListener.hpp"
 
+#include <chrono>
+
 #include <boost/program_options.hpp>
 
 #include <Tensile/ContractionProblem.hpp>
@@ -42,6 +44,8 @@ namespace Tensile
         class BenchmarkTimer: public RunListener
         {
         public:
+            using clock = std::chrono::steady_clock;
+
             BenchmarkTimer(po::variables_map const& args);
 
             virtual bool needMoreBenchmarkRuns() const override;
@@ -100,9 +104,14 @@ namespace Tensile
             int m_numSyncsInBenchmark = 0;
             int m_curNumEnqueuesPerSync = 0;
 
-            double m_timeInSolution_ms = 0.0;
+            clock::time_point m_startTime;
+            clock::time_point m_endTime;
 
-            double m_totalGPUTime_ms = 0.0;
+            using double_millis = std::chrono::duration<double, std::milli>;
+            using double_nanos  = std::chrono::duration<double, std::nano>;
+
+            double_millis m_timeInSolution;
+            double_millis m_totalGPUTime;
         };
     }
 }

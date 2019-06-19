@@ -43,7 +43,7 @@ namespace Tensile
         {
         public:
             using rsmi_temperature_type_t = int;
-            using clock = std::chrono::high_resolution_clock;
+            using clock = std::chrono::steady_clock;
 
             // Monitor at the maximum possible rate.
             HardwareMonitor(int deviceIndex);
