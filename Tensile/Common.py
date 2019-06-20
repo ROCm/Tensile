@@ -135,7 +135,7 @@ globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -1000,7 +1000,7 @@ def assignGlobalParameters( config ):
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
 
     print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
-    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6) or v==(9,0,8))
+    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6))
     print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))
 
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
