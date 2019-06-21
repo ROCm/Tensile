@@ -1179,10 +1179,10 @@ def versionIsCompatible(queryVersionString):
     return False
 
   # minor.patch version must be >=
-  if qMinor > tMinor:
+  if int(qMinor) > int(tMinor):
     return False
   if qMinor == tMinor:
-    if qStep > tStep:
+    if int(qStep) > int(tStep):
       return False
   return True
 
