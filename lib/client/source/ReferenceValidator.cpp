@@ -29,6 +29,7 @@
 
 #include "Reference.hpp"
 
+#include <Tensile/DataTypes.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
 namespace Tensile
@@ -128,6 +129,69 @@ namespace Tensile
                 {
                     auto const& typedReference = dynamic_cast<TypedContractionInputs<float> const&>(*m_referenceInputs);
                     auto const& typedResult = dynamic_cast<TypedContractionInputs<float> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::Double
+                     && m_problem.b().dataType() == DataType::Double
+                     && m_problem.c().dataType() == DataType::Double
+                     && m_problem.d().dataType() == DataType::Double)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<double> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<double> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::ComplexFloat
+                     && m_problem.b().dataType() == DataType::ComplexFloat
+                     && m_problem.c().dataType() == DataType::ComplexFloat
+                     && m_problem.d().dataType() == DataType::ComplexFloat)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::ComplexDouble
+                     && m_problem.b().dataType() == DataType::ComplexDouble
+                     && m_problem.c().dataType() == DataType::ComplexDouble
+                     && m_problem.d().dataType() == DataType::ComplexDouble)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::Half
+                     && m_problem.b().dataType() == DataType::Half
+                     && m_problem.c().dataType() == DataType::Half
+                     && m_problem.d().dataType() == DataType::Half)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<Half> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<Half> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::Int8x4
+                     && m_problem.b().dataType() == DataType::Int8x4
+                     && m_problem.c().dataType() == DataType::Int32
+                     && m_problem.d().dataType() == DataType::Int32)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::Int32
+                     && m_problem.b().dataType() == DataType::Int32
+                     && m_problem.c().dataType() == DataType::Int32
+                     && m_problem.d().dataType() == DataType::Int32)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<int32_t> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<int32_t> const&>(*inputs);
+                    validateTyped(typedReference, typedResult);
+                }
+                else if(m_problem.a().dataType() == DataType::BFloat16
+                     && m_problem.b().dataType() == DataType::BFloat16
+                     && m_problem.c().dataType() == DataType::BFloat16
+                     && m_problem.d().dataType() == DataType::BFloat16)
+                {
+                    auto const& typedReference = dynamic_cast<TypedContractionInputs<BFloat16> const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<TypedContractionInputs<BFloat16> const&>(*inputs);
                     validateTyped(typedReference, typedResult);
                 }
                 else
@@ -299,7 +363,7 @@ namespace Tensile
         void ReferenceValidator::postSolution()
         {
             if(m_enabled && !m_validatedSolution)
-                throw std::runtime_error("Did not validate solution!");
+                return;
 
             if(m_elementsToValidate != 0)
             {

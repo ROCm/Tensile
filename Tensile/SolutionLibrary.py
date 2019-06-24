@@ -119,6 +119,7 @@ class PredicateLibrary:
 
     def __init__(self, tag=None, rows=None):
         self.tag = tag
+        if rows is None: rows = []
         self.rows = rows
 
     def merge(self, other):
@@ -137,6 +138,21 @@ class MasterSolutionLibrary:
     StateKeys = ['solutions', 'library']
 
     @classmethod
+    def FixSolutionIndices(cls, solutions):
+        # fix missing and duplicate solution indices.
+        try:
+            maxSolutionIdx = max([s.index for s in solutions if s.index is not None])
+        except ValueError:
+            maxSolutionIdx = -1
+
+        solutionsSoFar = set()
+        for solution in solutions:
+            if solution.index is None or solution.index in solutionsSoFar:
+                maxSolutionIdx += 1
+                solution.index = maxSolutionIdx
+            else:
+                solutionsSoFar.add(solution.index)
+    @classmethod
     def FromOriginalState(cls, d, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
@@ -150,20 +166,7 @@ class MasterSolutionLibrary:
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
-
-        # fix missing and duplicate solution indices.
-        try:
-            maxSolutionIdx = max([s.index for s in allSolutions if s.index is not None])
-        except ValueError:
-            maxSolutionIdx = 0
-
-        solutionsSoFar = set()
-        for solution in allSolutions:
-            if solution.index is None or solution.index in solutionsSoFar:
-                maxSolutionIdx += 1
-                solution.index = maxSolutionIdx
-            else:
-                solutionsSoFar.add(solution.index)
+        cls.FixSolutionIndices(allSolutions)
 
         asmSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] != 'Source'])
         sourceSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] == 'Source'])
@@ -178,8 +181,9 @@ class MasterSolutionLibrary:
                 library = matchingLibrary
 
             elif libName == 'Hardware':
-                newLib = PredicateLibrary(tag='Hardware', rows=[])
-                pred = Hardware.HardwarePredicate.FromOriginalDeviceSection(deviceSection)
+                newLib = PredicateLibrary(tag='Hardware')
+                isa = tuple(map(int,deviceSection[1][3:6]))
+                pred = Hardware.HardwarePredicate.FromISA(isa)
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
 
@@ -187,7 +191,7 @@ class MasterSolutionLibrary:
                 predicates = problemType.predicates(includeBatch=True, includeType=True)
                 predicate = Contractions.ProblemPredicate.And(predicates)
 
-                newLib = PredicateLibrary(tag='Problem', rows=[])
+                newLib = PredicateLibrary(tag='Problem')
                 newLib.rows.append({'predicate': predicate, 'library': library})
                 library = newLib
 
@@ -203,6 +207,19 @@ class MasterSolutionLibrary:
         rv = cls(asmSolutions, library)
         rv.sourceSolutions = sourceSolutions
         return rv
+
+    @classmethod
+    def BenchmarkingLibrary(cls, solutions):
+        solutionObjs = list([Contractions.Solution.FromOriginalState(s._state) for s in solutions])
+        cls.FixSolutionIndices(solutionObjs)
+
+        predRows = list([{'predicate': s.problemPredicate, 'library': SingleSolutionLibrary(s)} for s in solutionObjs])
+        library = PredicateLibrary(tag='Problem', rows=predRows)
+
+        solutionMap = {s.index: s for s in solutionObjs}
+
+        return cls(solutionMap, library)
+
 
     def __init__(self, solutions, library):
         self.solutions = solutions
@@ -224,8 +241,6 @@ class MasterSolutionLibrary:
         assert self.__class__ == other.__class__
 
         allIndices = itertools.chain(self.solutions, self.sourceSolutions)
-        #import pdb
-        #pdb.set_trace()
         curIndex = max(allIndices) + 1
 
         for k,s in list(other.solutions.items()):

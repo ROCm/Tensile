@@ -137,6 +137,9 @@ namespace Tensile
 
         std::vector<size_t> const& problemSizes() const { return m_problemSizes; }
 
+        void setHighPrecisionAccumulate(bool value) { m_highPrecisionAccumulate = value; }
+        bool highPrecisionAccumulate()        const { return m_highPrecisionAccumulate; }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const { return m_maxProblemSize; }
 
@@ -191,6 +194,7 @@ namespace Tensile
 
         bool m_transA;
         bool m_transB;
+        bool m_highPrecisionAccumulate = false;
 
         FreeIndices m_freeIndices;
         BatchIndices m_batchIndices;
@@ -246,8 +250,8 @@ namespace Tensile
         C const* c = nullptr;
         D      * d = nullptr;
 
-        Alpha alpha = 0;
-        Beta beta   = 0;
+        Alpha alpha = static_cast<Alpha>(0);
+        Beta beta   = static_cast<Beta>(0);
     };
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem const& contraction);

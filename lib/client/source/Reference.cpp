@@ -96,7 +96,7 @@ namespace Tensile
                 }
 
 
-                typename Inputs::DType value = 0;
+                typename Inputs::DType value(0);
 
                 for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
                 {
@@ -137,6 +137,62 @@ namespace Tensile
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
                 return ReferenceSolution<TypedContractionInputs<float>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::Double
+                 && problem.b().dataType() == DataType::Double
+                 && problem.c().dataType() == DataType::Double
+                 && problem.d().dataType() == DataType::Double)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<double> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<double>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::ComplexFloat
+                 && problem.b().dataType() == DataType::ComplexFloat
+                 && problem.c().dataType() == DataType::ComplexFloat
+                 && problem.d().dataType() == DataType::ComplexFloat)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<std::complex<float>>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::ComplexDouble
+                 && problem.b().dataType() == DataType::ComplexDouble
+                 && problem.c().dataType() == DataType::ComplexDouble
+                 && problem.d().dataType() == DataType::ComplexDouble)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<std::complex<double>>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::Half
+                 && problem.b().dataType() == DataType::Half
+                 && problem.c().dataType() == DataType::Half
+                 && problem.d().dataType() == DataType::Half)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<Half>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::Int8x4
+                 && problem.b().dataType() == DataType::Int8x4
+                 && problem.c().dataType() == DataType::Int32
+                 && problem.d().dataType() == DataType::Int32)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::Int32
+                 && problem.b().dataType() == DataType::Int32
+                 && problem.c().dataType() == DataType::Int32
+                 && problem.d().dataType() == DataType::Int32)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<int32_t> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<int32_t>>::SolveCPU(problem, typedInputs);
+            }
+            else if(problem.a().dataType() == DataType::BFloat16
+                 && problem.b().dataType() == DataType::BFloat16
+                 && problem.c().dataType() == DataType::BFloat16
+                 && problem.d().dataType() == DataType::BFloat16)
+            {
+                auto const& typedInputs = dynamic_cast<TypedContractionInputs<BFloat16> const&>(inputs);
+                return ReferenceSolution<TypedContractionInputs<BFloat16>>::SolveCPU(problem, typedInputs);
             }
             else
             {

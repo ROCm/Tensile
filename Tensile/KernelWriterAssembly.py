@@ -732,7 +732,7 @@ class KernelWriterAssembly(KernelWriter):
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
-      self.version = kernel["ISA"]
+      self.version = tuple(kernel["ISA"])
     if not globalParameters["AsmCaps"][self.version]["SupportedISA"]:
       defaultIsa = (9,0,0)
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)

@@ -65,6 +65,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::LDCEqualsLDD              >(),
                     Base::template Pair<Predicates::Contraction::BetaZero                  >(),
                     Base::template Pair<Predicates::Contraction::BetaOne                   >(),
+                    Base::template Pair<Predicates::Contraction::HighPrecisionAccumulateEqual>(),
                     Base::template Pair<Predicates::Contraction::TypesEqual                >(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual  >(),
                 });
@@ -123,6 +124,10 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::BetaOne, IO>:
         public AutoMappingTraits<Predicates::Contraction::BetaOne, IO> {};
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::HighPrecisionAccumulateEqual, IO>:
+        public AutoMappingTraits<Predicates::Contraction::HighPrecisionAccumulateEqual, IO> {};
 
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::TypesEqual, IO>:

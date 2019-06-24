@@ -55,8 +55,16 @@ namespace Tensile {
         }
 
         bool calculateStride = m_strides.empty();
+        if(m_strides.size() == 1 && m_sizes.size() > 1)
+        {
+            calculateStride = true;
+            size_t ld = m_strides[0];
 
-        if(calculateStride)
+            m_strides.resize(m_sizes.size(), 0);
+            m_strides[0] = 1;
+            m_strides[1] = ld;
+        }
+        else if(calculateStride)
         {
             m_strides.resize(m_sizes.size(), 0);
             m_strides[0] = 1;
@@ -77,7 +85,7 @@ namespace Tensile {
 
             if(calculateStride)
             {
-                m_strides[i] = minStride;
+                m_strides[i] = std::max(minStride, m_strides[i]);
             }
             else
             {

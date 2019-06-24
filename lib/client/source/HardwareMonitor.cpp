@@ -334,9 +334,18 @@ namespace Tensile
 
         void HardwareMonitor::sleepIfNecessary()
         {
-            std::this_thread::sleep_until(m_nextCollection);
+            auto now = clock::now();
 
-            m_lastCollection = clock::now();
+            if(now < m_nextCollection)
+            {
+                std::this_thread::sleep_until(m_nextCollection);
+                m_lastCollection = clock::now();
+            }
+            else
+            {
+                m_lastCollection = now;
+            }
+
             m_nextCollection = m_lastCollection + m_minPeriod;
         }
 

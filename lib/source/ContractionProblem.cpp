@@ -403,13 +403,15 @@ namespace Tensile
             dSizes[batch.d] = indexSize;
         }
 
+        size_t indexIdx = dSizes.size();
         for(auto const& bound: boundIndices)
         {
-            size_t indexIdx = dSizes.size() + bound.a - 1;
             size_t indexSize = indexSizes.at(indexIdx);
             
             aSizes[bound.a] = indexSize;
             bSizes[bound.b] = indexSize;
+
+            indexIdx++;
         }
 
         TensorDescriptor a(aType, aSizes.begin(), aSizes.end(), aStrides.begin(), aStrides.end());
@@ -807,5 +809,12 @@ namespace Tensile
     }
 
     template struct TypedContractionInputs<float>;
+    template struct TypedContractionInputs<double>;
+    template struct TypedContractionInputs<std::complex<float>>;
+    template struct TypedContractionInputs<std::complex<double>>;
+    template struct TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
+    template struct TypedContractionInputs<int32_t>;
+    template struct TypedContractionInputs<Half>;
+    template struct TypedContractionInputs<BFloat16>;
 }
 

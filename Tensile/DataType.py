@@ -233,6 +233,8 @@ class DataType:
     def flopsPerMac(self):
         return 2 if self.isReal() else 8
 
+    def state(self): return self.toEnum()
+
     def __str__(self):
         return self.toChar()
     def __repr__(self):

@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+from .DataType import DataType
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
@@ -51,7 +52,8 @@ class BoundIndex:
 
 
 class ProblemType:
-    StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']
+    StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
+                 'highPrecisionAccumulate']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -91,6 +93,7 @@ class ProblemType:
                 assert value is not None
 
         rv = cls()
+        rv.indices = indices
         rv.freeIndices = freeIndices
         rv.batchIndices = batchIndices
         rv.boundIndices = boundIndices
@@ -98,18 +101,18 @@ class ProblemType:
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
         rv.dDims = rv.cDims
-        
-        try:
-            assert d['DataType'] == 0
-            if 'DestDataType' in d:
-                assert d['DestDataType'] == 0
-        except AssertionError:
-            pass
-            #print("DataType mismatch!")
-        rv.aType = 'Float'
-        rv.bType = 'Float'
-        rv.cType = 'Float'
-        rv.dType = 'Float'
+
+        srcType = DataType(d['DataType'])
+        dstType = DataType(d['DestDataType']) if 'DestDataType' in d else srcType
+
+        rv.aType = srcType
+        rv.bType = srcType
+        rv.cType = dstType
+        rv.dType = dstType
+
+        rv.highPrecisionAccumulate = False
+        if 'HighPrecisionAccumulate' in d:
+            rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
 
         rv.batched = d['Batched']
 
@@ -185,6 +188,7 @@ class ProblemType:
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
+            predicates.append(ProblemPredicate("HighPrecisionAccumulate", value=self.highPrecisionAccumulate))
 
         return predicates
 
@@ -277,7 +281,7 @@ class Solution:
     HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromOriginalState(cls, d, deviceInfo):
+    def FromOriginalState(cls, d, deviceInfo=None):
         rv = cls()
 
         if 'SolutionNameMin' in d:
@@ -298,12 +302,13 @@ class Solution:
         rv.sizeMapping = SizeMapping.FromOriginalState(d)
 
         if d['KernelLanguage'] == 'Assembly':
-            d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
+            if 'ISA' not in d:
+                d['ISA'] = list(map(int,deviceInfo[1][3:6]))
             #print(d['ISA'])
 
-            rv.hardwarePredicate = Hardware.HardwarePredicate.FromOriginalDeviceSection(deviceInfo)
+            rv.hardwarePredicate = Hardware.HardwarePredicate.FromISA(d['ISA'])
         else:
-            d['ISA'] = (0,0,0)
+            d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
 

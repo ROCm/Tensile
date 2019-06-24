@@ -22,6 +22,7 @@
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
 from .SolutionStructs import Solution
 from .SolutionWriter import SolutionWriter
+from . import ClientExecutable
 from . import YAMLIO
 
 import os
@@ -143,7 +144,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile = open(runScriptName, "w")
   echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
-    runScriptFile.write("#!/bin/sh\n")
+    runScriptFile.write("#!/bin/bash\n")
   q = "" if os.name == "nt" else "\""
   runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
@@ -224,7 +225,27 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
         clp += " " + globalParameters["ClientArgs"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
-    runScriptFile.write("ERR=$?\n")
+    runScriptFile.write("ERR1=$?\n")
+
+    newClientExe = ClientExecutable.getClientExecutable()
+    configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
+    runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+    runScriptFile.write("ERR2=$?\n\n")
+
+    runScriptFile.write("""
+ERR=0
+if [[ $ERR1 -ne 0 ]]
+then
+    echo one
+    ERR=$ERR1
+fi
+if [[ $ERR2 -ne 0 ]]
+then
+    echo two
+    ERR=$ERR2
+fi
+""")
+
     if os.name != "nt":
       if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
@@ -250,6 +271,87 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
 def toCppBool(yamlBool):
   return "true" if yamlBool else "false"
 
+
+def problemSizeParams(solution, problemSize):
+    numIndices = len(solution.problemType.indices)
+
+    assert len(problemSize) == numIndices + 4
+
+    return [('problem-size', ','.join(map(str, problemSize[:numIndices]))),
+            ('a-strides', problemSize[numIndices+2]),
+            ('b-strides', problemSize[numIndices+3]),
+            ('c-strides', problemSize[numIndices+0]),
+            ('d-strides', problemSize[numIndices+1])]
+
+def dataInitName(num):
+    if num == 0: return 'Zero'
+    if num == 1: return 'One'
+    if num == 2: return 'Two'
+    if num == 3: return 'Random'
+    if num == 4: return 'NaN'
+
+def dataInitParams():
+    initA = globalParameters['DataInitTypeA']
+    initB = globalParameters['DataInitTypeB']
+    initC = globalParameters['DataInitTypeC']
+    initD = globalParameters['DataInitTypeD']
+    initAlpha = globalParameters['DataInitTypeAlpha']
+    initBeta  = globalParameters['DataInitTypeBeta']
+
+    if initA == -1: initA = globalParameters['DataInitTypeAB']
+    if initB == -1: initB = globalParameters['DataInitTypeAB']
+
+    return [('init-a',     dataInitName(initA)),
+            ('init-b',     dataInitName(initB)),
+            ('init-c',     dataInitName(initC)),
+            ('init-d',     dataInitName(initD)),
+            ('init-alpha', dataInitName(initAlpha)),
+            ('init-beta',  dataInitName(initBeta))]
+
+def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles):
+
+    filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+    with open(filename, "w") as f:
+        def param(key, value):
+            f.write("{}={}\n".format(key, value))
+
+        sourceDir = os.path.join(stepBaseDir, "source")
+        libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
+        param("library-file", libraryFile)
+        for coFile in codeObjectFiles:
+            param("code-object", os.path.join(sourceDir,coFile))
+
+        param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+
+        newSolution = next(iter(newLibrary.solutions.values()))
+        param('problem-identifier', newSolution.problemType.operationIdentifier)
+        param('a-type',     newSolution.problemType.aType.toEnum())
+        param('b-type',     newSolution.problemType.bType.toEnum())
+        param('c-type',     newSolution.problemType.cType.toEnum())
+        param('d-type',     newSolution.problemType.dType.toEnum())
+        param('alpha-type', newSolution.problemType.dType.toEnum())
+        param('beta-type',  newSolution.problemType.dType.toEnum())
+
+        for problemSize in problemSizes.sizes:
+            for key,value in problemSizeParams(newSolution, problemSize):
+                param(key,value)
+            #param('problem-size', ','.join(map(str,problemSize)))
+
+        param("device-idx",               globalParameters["Device"])
+
+        for key,value in dataInitParams():
+            param(key, value)
+
+        param("c-equal-d",                globalParameters["CEqualD"])
+
+        param("print-valids",             globalParameters["ValidationPrintValids"])
+        param("print-max",                globalParameters["ValidationMaxToPrint"])
+        param("num-benchmarks",           globalParameters["NumBenchmarks"])
+        param("num-elements-to-validate", globalParameters["NumElementsToValidate"])
+        param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
+        param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
+        param("use-gpu-timer",            globalParameters["KernelTime"])
+        param("sleep-percent",            globalParameters["SleepPercent"])
 
 
 ################################################################################

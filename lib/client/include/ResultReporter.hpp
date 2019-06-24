@@ -72,11 +72,13 @@ namespace Tensile
             // Solution information
             const std::string SolutionName = "solution";
             const std::string SolutionIndex = "solution-index";
+            const std::string SolutionProgress = "solution-progress";
 
             // Performance-related
             const std::string Validation  = "validation";
             const std::string TimeNS      = "time-ns";
             const std::string SpeedGFlops = "gflops";
+            const std::string EnqueueTime = "enqueue-time";
 
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";

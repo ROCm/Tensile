@@ -38,7 +38,7 @@ namespace Tensile
         ResultFileReporter::ResultFileReporter(std::string const& filename)
             : m_output(filename)
         {
-            m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFLOPS");
+            m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
         }
 
         template <typename T>

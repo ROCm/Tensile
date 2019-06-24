@@ -32,7 +32,7 @@ namespace Tensile
     template <typename MySolution>
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
-    template <typename MyProblem, typename MySolution>
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct MasterSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         static std::string Type() { return "Master"; }

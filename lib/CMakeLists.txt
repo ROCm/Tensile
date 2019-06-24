@@ -88,7 +88,7 @@ if(NOT TENSILE_DISABLE_TESTS)
     add_subdirectory(test)
 endif()
 
-if(true)
+if(false)
 get_cmake_property(_variableNames VARIABLES)
 list (SORT _variableNames)
 foreach (_variableName ${_variableNames})

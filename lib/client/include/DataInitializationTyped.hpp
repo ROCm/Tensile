@@ -38,9 +38,9 @@ namespace Tensile
     namespace Client
     {
         template <typename A, typename B = A, typename C = B, typename D = C, typename Alpha = D, typename Beta = Alpha>
-        struct ManagedContractionInputs: public TypedContractionInputs<A, B, C, B, Alpha, Beta>
+        struct ManagedContractionInputs: public TypedContractionInputs<A, B, C, D, Alpha, Beta>
         {
-            using Base = TypedContractionInputs<A, B, C, B, Alpha, Beta>;
+            using Base = TypedContractionInputs<A, B, C, D, Alpha, Beta>;
             using AType = A;
             using BType = B;
             using CType = C;
@@ -209,7 +209,10 @@ namespace Tensile
                     d = std::shared_ptr<DType>((DType *)std::malloc(TypeInfo<DType>::ElementSize * m_dMaxElements), std::free);
                 }
 
-                auto rv = std::make_shared<ManagedInputs>(a, b, c, d, 0, 0, false);
+                auto alpha = static_cast<AlphaType>(0);
+                auto beta  = static_cast<BetaType>(0);
+
+                auto rv = std::make_shared<ManagedInputs>(a, b, c, d, alpha, beta, false);
 
                 return rv;
             }
@@ -219,9 +222,9 @@ namespace Tensile
                 if(pristine && !pristine->gpu)
                     pristine = nullptr;
 
-                std::shared_ptr<DType> a;
-                std::shared_ptr<DType> b;
-                std::shared_ptr<DType> c;
+                std::shared_ptr<AType> a;
+                std::shared_ptr<BType> b;
+                std::shared_ptr<CType> c;
                 std::shared_ptr<DType> d;
 
                 if(pristine)
@@ -266,7 +269,10 @@ namespace Tensile
                     d = std::shared_ptr<DType>(dPtr, hipFree);
                 }
 
-                auto rv = std::make_shared<ManagedInputs>(a, b, c, d, 0, 0, true);
+                auto alpha = static_cast<AlphaType>(0);
+                auto beta  = static_cast<BetaType>(0);
+
+                auto rv = std::make_shared<ManagedInputs>(a, b, c, d, alpha, beta, true);
                 return rv;
             }
 

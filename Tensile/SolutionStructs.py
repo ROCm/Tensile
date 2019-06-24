@@ -53,6 +53,7 @@ class ProblemType:
   ########################################
   def __init__(self, config):
     self.state = {}
+
     for key in defaultProblemType:
       assignParameterWithDefault(self.state, key, config, defaultProblemType)
 
@@ -567,6 +568,9 @@ class Solution:
     for key in defaultSolution:
       assignParameterWithDefault(self._state, key, config, defaultSolution)
 
+    if 'ISA' not in self._state:
+       self._state['ISA'] = list(globalParameters["CurrentISA"])
+
     # assign parameters without defaults
     for key in config:
       if key != "ProblemType" and key not in self._state:
@@ -606,6 +610,7 @@ class Solution:
       kernel["ProblemType"]["UseInitialStrides"] = \
           problemType["UseInitialStrides"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
+      kernel["KernelLanguage"] = "Source"
       kernels.append(kernel)
     return kernels
 
@@ -620,6 +625,7 @@ class Solution:
   # assign tile sizes
   @staticmethod
   def assignProblemIndependentDerivedParameters(state):
+
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
         return
@@ -966,6 +972,7 @@ class Solution:
   @staticmethod
   def assignDerivedParameters(state):
     Solution.assignProblemIndependentDerivedParameters(state)
+
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
         return

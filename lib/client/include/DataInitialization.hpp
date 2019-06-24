@@ -131,21 +131,87 @@ namespace Tensile
         template <> inline float  DataInitialization::getValue<float,  InitMode::Two>()  { return 2.0f; }
         template <> inline float  DataInitialization::getValue<float,  InitMode::NaN>()  { return std::numeric_limits<float>::quiet_NaN(); }
 
-        template <> inline double DataInitialization::getValue<double, InitMode::Zero>() { return 0.0; }
-        template <> inline double DataInitialization::getValue<double, InitMode::One>()  { return 1.0; }
-        template <> inline double DataInitialization::getValue<double, InitMode::Two>()  { return 2.0; }
-        template <> inline double DataInitialization::getValue<double, InitMode::NaN>()  { return std::numeric_limits<double>::quiet_NaN(); }
-
         template <> inline float  DataInitialization::getValue<float, InitMode::Random>()
         {
             return static_cast<float>((rand() % 201) - 100);
         }
+
+        template <> inline double DataInitialization::getValue<double, InitMode::Zero>() { return 0.0; }
+        template <> inline double DataInitialization::getValue<double, InitMode::One>()  { return 1.0; }
+        template <> inline double DataInitialization::getValue<double, InitMode::Two>()  { return 2.0; }
+        template <> inline double DataInitialization::getValue<double, InitMode::NaN>()  { return std::numeric_limits<double>::quiet_NaN(); }
 
         template <> inline double DataInitialization::getValue<double, InitMode::Random>()
         {
             return static_cast<double>((rand() % 2001) - 1000);
         }
 
+        template <> inline std::complex<float>  DataInitialization::getValue<std::complex<float>,  InitMode::Zero>() { return std::complex<float>(0.0f, 0.0f); }
+        template <> inline std::complex<float>  DataInitialization::getValue<std::complex<float>,  InitMode::One>()  { return std::complex<float>(1.0f, 0.0f); }
+        template <> inline std::complex<float>  DataInitialization::getValue<std::complex<float>,  InitMode::Two>()  { return std::complex<float>(2.0f, 0.0f); }
+        template <> inline std::complex<float>  DataInitialization::getValue<std::complex<float>,  InitMode::NaN>()  { return std::complex<float>(std::numeric_limits<float>::quiet_NaN(),
+                                                                                                                                                  std::numeric_limits<float>::quiet_NaN()); }
+
+        template <> inline std::complex<float>  DataInitialization::getValue<std::complex<float>, InitMode::Random>()
+        {
+            return std::complex<float>(getValue<float, InitMode::Random>(),
+                                       getValue<float, InitMode::Random>());
+        }
+
+        template <> inline std::complex<double>  DataInitialization::getValue<std::complex<double>,  InitMode::Zero>() { return std::complex<double>(0.0, 0.0); }
+        template <> inline std::complex<double>  DataInitialization::getValue<std::complex<double>,  InitMode::One>()  { return std::complex<double>(1.0, 0.0); }
+        template <> inline std::complex<double>  DataInitialization::getValue<std::complex<double>,  InitMode::Two>()  { return std::complex<double>(2.0, 0.0); }
+        template <> inline std::complex<double>  DataInitialization::getValue<std::complex<double>,  InitMode::NaN>()  { return std::complex<double>(std::numeric_limits<double>::quiet_NaN(),
+                                                                                                                                                     std::numeric_limits<double>::quiet_NaN()); }
+
+        template <> inline std::complex<double>  DataInitialization::getValue<std::complex<double>, InitMode::Random>()
+        {
+            return std::complex<double>(getValue<double, InitMode::Random>(),
+                                        getValue<double, InitMode::Random>());
+        }
+
+        template <> inline int32_t  DataInitialization::getValue<int32_t,  InitMode::Zero>() { return 0; }
+        template <> inline int32_t  DataInitialization::getValue<int32_t,  InitMode::One>()  { return 1; }
+        template <> inline int32_t  DataInitialization::getValue<int32_t,  InitMode::Two>()  { return 2; }
+        template <> inline int32_t  DataInitialization::getValue<int32_t,  InitMode::NaN>()  { throw std::runtime_error("NaN not available for int32_t."); }
+
+        template <> inline int32_t  DataInitialization::getValue<int32_t, InitMode::Random>()
+        {
+            return rand()%7 - 3;
+        }
+
+        template <> inline Int8x4  DataInitialization::getValue<Int8x4,  InitMode::Zero>() { return Int8x4{0,0,0,0}; }
+        template <> inline Int8x4  DataInitialization::getValue<Int8x4,  InitMode::One>()  { return Int8x4{1,1,1,1}; }
+        template <> inline Int8x4  DataInitialization::getValue<Int8x4,  InitMode::Two>()  { return Int8x4{2,2,2,2}; }
+        template <> inline Int8x4  DataInitialization::getValue<Int8x4,  InitMode::NaN>()  { throw std::runtime_error("NaN not available for Int8x4."); }
+
+        template <> inline Int8x4  DataInitialization::getValue<Int8x4, InitMode::Random>()
+        {
+            return Int8x4{static_cast<int8_t>((rand()%7) - 3),
+                          static_cast<int8_t>((rand()%7) - 3),
+                          static_cast<int8_t>((rand()%7) - 3),
+                          static_cast<int8_t>((rand()%7) - 3)};
+        }
+
+        template <> inline Half  DataInitialization::getValue<Half,  InitMode::Zero>() { return static_cast<Half>(0); }
+        template <> inline Half  DataInitialization::getValue<Half,  InitMode::One>()  { return static_cast<Half>(1); }
+        template <> inline Half  DataInitialization::getValue<Half,  InitMode::Two>()  { return static_cast<Half>(2); }
+        template <> inline Half  DataInitialization::getValue<Half,  InitMode::NaN>()  { return std::numeric_limits<Half>::quiet_NaN(); }
+
+        template <> inline Half  DataInitialization::getValue<Half, InitMode::Random>()
+        {
+            return static_cast<Half>((rand()%7) - 3);
+        }
+
+        template <> inline BFloat16  DataInitialization::getValue<BFloat16,  InitMode::Zero>() { return static_cast<BFloat16>(0); }
+        template <> inline BFloat16  DataInitialization::getValue<BFloat16,  InitMode::One>()  { return static_cast<BFloat16>(1); }
+        template <> inline BFloat16  DataInitialization::getValue<BFloat16,  InitMode::Two>()  { return static_cast<BFloat16>(2); }
+        template <> inline BFloat16  DataInitialization::getValue<BFloat16,  InitMode::NaN>()  { return static_cast<BFloat16>(std::numeric_limits<float>::quiet_NaN()); }
+
+        template <> inline BFloat16  DataInitialization::getValue<BFloat16, InitMode::Random>()
+        {
+            return static_cast<BFloat16>((rand()%7) - 3);
+        }
     }
 }
 

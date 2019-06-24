@@ -80,7 +80,7 @@ namespace Tensile
                                         {BenchmarkRunNumber, OperationIdentifier, ProblemSizes, SolutionName, SolutionIndex,
                                          Validation, TimeNS, SpeedGFlops,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
-                                         FanSpeedRPMs, HardwareSampleCount},
+                                         FanSpeedRPMs, HardwareSampleCount, SolutionProgress, EnqueueTime},
                                         std::cout));
             }
 

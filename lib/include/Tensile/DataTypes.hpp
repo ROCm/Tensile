@@ -60,6 +60,7 @@ namespace Tensile
     inline DataType GetDataType<float>() { return DataType::Float; }
 
     std::string ToString(DataType d);
+    std::string TypeAbbrev(DataType d);
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
     std::istream& operator>>(std::istream& stream, DataType      & t);
 
@@ -71,6 +72,7 @@ namespace Tensile
 
         DataType dataType;
         std::string name;
+        std::string abbrev;
 
         size_t elementSize;
         size_t packing;
@@ -110,7 +112,8 @@ namespace Tensile
         constexpr static bool IsComplex = T_IsComplex;
         constexpr static bool IsIntegral = T_IsIntegral;
 
-        static inline std::string Name() { return ToString(Enum); }
+        static inline std::string Name()   { return ToString(Enum); }
+        static inline std::string Abbrev() { return TypeAbbrev(Enum); }
     };
 
     template<> struct TypeInfo<float >: public BaseTypeInfo<float,  DataType::Float,  1, false, false> {};

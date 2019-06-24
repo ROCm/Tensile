@@ -52,6 +52,24 @@ namespace Tensile
         return "Invalid";
     }
 
+    std::string TypeAbbrev(DataType d)
+    {
+        switch(d)
+        {
+            case DataType::Float         : return "S";
+            case DataType::Double        : return "D";
+            case DataType::ComplexFloat  : return "C";
+            case DataType::ComplexDouble : return "Z";
+            case DataType::Half          : return "H";
+            case DataType::Int8x4        : return "4xi8";
+            case DataType::Int32         : return "I";
+            case DataType::BFloat16      : return "B";
+
+            case DataType::Count:;
+        }
+        return "Invalid";
+    }
+
     template <typename T>
     void DataTypeInfo::registerTypeInfo()
     {
@@ -61,6 +79,7 @@ namespace Tensile
 
         info.dataType = T_Info::Enum;
         info.name = T_Info::Name();
+        info.abbrev = T_Info::Abbrev();
 
         info.packing  = T_Info::Packing;
         info.elementSize = T_Info::ElementSize;

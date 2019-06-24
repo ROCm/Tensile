@@ -27,6 +27,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Tensile/DataTypes.hpp>
 #include <Tensile/Macros.hpp>
 
 namespace Tensile

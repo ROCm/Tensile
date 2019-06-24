@@ -24,10 +24,10 @@ import sys
 import argparse
 from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-from . import YAMLIO
 from . import BenchmarkProblems
-from . import LibraryLogic
 from . import ClientWriter
+from . import LibraryLogic
+from . import YAMLIO
 from . import __version__
 
 ###############################################################################
@@ -143,8 +143,8 @@ def Tensile(userArgs):
   else:
     assignGlobalParameters({})
 
-  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
-  ensurePath(globalParameters["WorkingPath"])
+  globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
+  globalParameters["WorkingPath"] = globalParameters["OutputPath"]
 
   # override config with command-line options
   if args.device:

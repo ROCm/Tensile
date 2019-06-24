@@ -19,24 +19,29 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import os, sys
-from copy import deepcopy
-from copy import copy as shallowcopy
-import shutil
-from shutil import copy as shutil_copy
-import filecmp
 import csv
-from subprocess import Popen
+import filecmp
+import itertools
+import os
+import shutil
+import subprocess
+import sys
 import time
+
+from copy import deepcopy
+
+from . import ClientExecutable
+from . import SolutionLibrary
+from . import YAMLIO
+from . import Utils
 from .BenchmarkStructs import BenchmarkProcess
+from .ClientWriter import writeRunScript, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
+from .KernelWriterAssembly import KernelWriterAssembly
+from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType
 from .SolutionWriter import SolutionWriter
-from .KernelWriterSource import KernelWriterSource
-from .KernelWriterAssembly import KernelWriterAssembly
-from .ClientWriter import writeRunScript, writeClientParameters
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
-from . import YAMLIO
 
 ################################################################################
 # Benchmark Problem Type
@@ -147,18 +152,18 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         ]
 
     for f in filesToCopy:
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], f),
           globalParameters["WorkingPath"] )
     if globalParameters["RuntimeLanguage"] == "OCL":
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
           globalParameters["WorkingPath"] )
     else:
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
           globalParameters["WorkingPath"] )
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
           globalParameters["WorkingPath"] )
 
@@ -195,8 +200,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
-      for benchmarkIdx in range(0, len(benchmarkPermutations)):
-        benchmarkPermutation = benchmarkPermutations[benchmarkIdx]
+      for benchmarkIdx, benchmarkPermutation in enumerate(benchmarkPermutations):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
@@ -242,9 +246,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         print1("")
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
-      for solutionList in shallowcopy(solutions):
-        if len(solutionList) == 0:
-          solutions.remove(solutionList)
+      solutions = list([s for s in solutions if len(s) > 0])
     elif winners.winners=={}:
       print1("# Populating initial winners (%u solutions)\n" % len(benchmarkStep.hardcodedParameters))
       for hcParm in benchmarkStep.hardcodedParameters:
@@ -255,12 +257,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
 
     # create linear list
-    solutionList = []
-    for i in range(0, len(solutions)):
-      solutionsForHardcoded = solutions[i]
-      for j in range(0, len(solutionsForHardcoded)):
-        solution = solutionsForHardcoded[j]
-        solutionList.append(solution)
+    solutionList = list(itertools.chain.from_iterable(solutions))
+
     if len(solutionList) == 0:
         msg = "Your parameters resulted in 0 valid solutions."
         if globalParameters["PrintSolutionRejectionReason"]:
@@ -269,17 +267,15 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
             msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\" to see why each parameter combination was rejected."
         printExit(msg)
     if globalParameters["PrintLevel"] >= 1:
-      for i in range(0, len(solutions)):
-        solutionsForHardcoded = solutions[i]
-        for j in range(0, len(solutionsForHardcoded)):
-          solution = solutionsForHardcoded[j]
+      for i,solutionsForHardcoded in enumerate(solutions):
+        for j, solution in enumerate(solutionsForHardcoded):
           print2("#    (%u:%u) %s" % (i, j, \
               Solution.getNameFull(solution) ))
       print2(HR)
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy)
+        shortName, filesToCopy, )
 
     print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]
@@ -307,6 +303,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if benchmarkStep.isFinal():
       resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
+    newResultsFileName = resultsFileBase + "-new.csv"
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
@@ -319,7 +316,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
 
       # run runScript
-      process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
+      process = subprocess.Popen(runScriptName, cwd=globalParameters["WorkingPath"])
       process.communicate()
       if process.returncode:
         benchmarkTestFails += 1
@@ -332,7 +329,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions)
+    results = getResults(resultsFileName, solutions, newResultsFileName)
     print2("CSV Results: %s" % results)
     winners.addResults(benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, solutions, results)
@@ -354,15 +351,38 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   return (resultsFileBaseFinal, benchmarkTestFails)
 # End benchmarkProblemType()
 
+def compareResults(old, new):
+    import math
+    old = float(old)
+    new = float(new)
+    def isbad(x):
+        return x <= 0 or math.isnan(x) or math.isinf(x)
+
+    if isbad(old) and isbad(new):
+        return 0
+    if isbad(old):
+        return 1
+    if isbad(new):
+        return -1
+
+    return abs((old-new)/old)
 
 ################################################################################
 # Read GFlop/s from file
 ################################################################################
-def getResults(resultsFileName, solutions):
+def getResults(resultsFileName, solutions, newResultsFileName=None):
   try:
     resultsFile = open(resultsFileName, "r")
   except IOError:
     printExit("Can't open \"%s\" to get results" % resultsFileName )
+
+  newCSV = itertools.repeat(None)
+  if newResultsFileName is not None:
+    newFile = open(newResultsFileName, 'r')
+    newCSV = csv.reader(newFile)
+
+    diffFile = open(newResultsFileName+'-diff.csv', 'w')
+    diffCSV = csv.writer(diffFile)
 
   # setup data structures
   numSolutions = 0
@@ -380,26 +400,37 @@ def getResults(resultsFileName, solutions):
   rowLength = startIdx + numSolutions
 
   rowIdx = 0
-  for row in csvFile:
+  for row,newRow in zip(csvFile, newCSV):
     rowIdx+=1
     if rowIdx == 1:
+      if newRow is not None:
+        diffCSV.writerow(row)
+        diffCSV.writerow(newRow)
       continue
     else:
       if len(row) < rowLength:
         printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
             % (resultsFileName, rowIdx, rowLength) )
         break
+      if newRow is not None:
+        diffCSV.writerow([compareResults(old,new) for old,new in itertools.zip_longest(row, newRow)])
+
       idx = startIdx
-      for i in range(0, len(solutions)):
-        solutionsForHardcoded = solutions[i]
-        for j in range(0, len(solutionsForHardcoded)):
-          solution = solutionsForHardcoded[j]
+      for i,solutionsForHardcoded in enumerate(solutions):
+        for j,solution in enumerate(solutionsForHardcoded):
           gflops = float(row[idx])
+
           results[i][j].append(gflops)
           idx += 1
+
   if rowIdx < 2:
     printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
         % (resultsFileName, rowIdx) )
+
+  resultsFile.close()
+  if newResultsFileName is not None:
+    newFile.close()
+    diffFile.close()
   return results
 
 
@@ -440,9 +471,19 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
-  writeSolutionsAndKernels( \
+  codeObjectFiles = writeSolutionsAndKernels( \
       globalParameters["WorkingPath"], [problemType], solutions, kernels, kernelsBetaOnly, \
-      solutionWriter, kernelWriterSource, kernelWriterAssembly )
+      solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
+
+  newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
+  newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
+  newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
+  newLibrary.applyNaming(kernelMinNaming)
+  YAMLIO.write(newLibraryFile, Utils.state(newLibrary))
+
+  codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
+
+  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles)
 
   ##############################################################################
   # Write CMake
@@ -504,14 +545,12 @@ class WinningParameterDict:
     if globalParameters["PrintLevel"] >= 1:
       print1("# Adding Results to Solution Database")
       progressBar = ProgressBar(len(results))
-    for hardcodedIdx in range(0, len(results)):
-      hardcodedResults = results[hardcodedIdx]
+    for hardcodedIdx,hardcodedResults in enumerate(results):
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
       winningScore = -9999 # -1 is score of invalid so use -9999 here
       # find fastest benchmark parameters for this hardcoded
-      for benchmarkIdx in range(0, len(hardcodedResults)):
-        benchmarkResult = hardcodedResults[benchmarkIdx]
+      for benchmarkIdx,benchmarkResult in enumerate(hardcodedResults):
         benchmarkScore = max(benchmarkResult) # take fastest regardless of size
         if benchmarkScore > winningScore:
           winningScore = benchmarkScore
@@ -578,8 +617,7 @@ class WinningParameterDict:
           fastestScore = -1
           fastestHardcodedParameters = {}
           fastestWinningParameters = {}
-          for matchIdx in range(0, len(matches)):
-            match = matches[matchIdx]
+          for matchIdx,match in enumerate(matches):
             hardcodedFrozen = match[0]
             winningParameters = match[1]
             score = match[2]
@@ -673,6 +711,8 @@ class WinningParameterDict:
 # Main
 ################################################################################
 def main( config ):
+  client = ClientExecutable.getClientExecutable()
+
   dataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
@@ -684,8 +724,7 @@ def main( config ):
       problemSizeGroupConfigs = [{}]
     else:
       problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
-    for problemSizeGroupIdx in range(0, len(problemSizeGroupConfigs)):
-      problemSizeGroupConfig = problemSizeGroupConfigs[problemSizeGroupIdx]
+    for problemSizeGroupIdx,problemSizeGroupConfig in enumerate(problemSizeGroupConfigs):
       print2("ProblemTypeConfig: %s" % problemTypeConfig)
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
@@ -713,8 +752,8 @@ def main( config ):
         resultsFileBase = resultsFileBaseFinal
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
-        shutil_copy( resultsFileName, newResultsFileName )
-        shutil_copy( solutionsFileName, newSolutionsFileName )
+        shutil.copy( resultsFileName, newResultsFileName )
+        shutil.copy( solutionsFileName, newSolutionsFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 

@@ -107,13 +107,13 @@ namespace Tensile
         rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
         rv.args.append<uint64_t>("tensor2dSizeB", b.strides()[2]);
 
-        rv.args.append<float       *>("d", inputs.d);
-        rv.args.append<float const *>("c", inputs.c);
-        rv.args.append<float const *>("a", inputs.a);
-        rv.args.append<float const *>("b", inputs.b);
+        rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
+        rv.args.append<typename TypedInputs::CType const *>("c", inputs.c);
+        rv.args.append<typename TypedInputs::AType const *>("a", inputs.a);
+        rv.args.append<typename TypedInputs::BType const *>("b", inputs.b);
 
-        rv.args.append<float>("alpha", inputs.alpha);
-        rv.args.append<float>("beta",  inputs.beta);
+        rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
+        rv.args.append<typename TypedInputs::BetaType>( "beta",  inputs.beta);
 
         for(size_t i = 1; i < d.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
@@ -127,10 +127,12 @@ namespace Tensile
         for(size_t i = 1; i < b.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
 
-        rv.args.append<uint32_t>("sizeI", problem.freeSizeA(0));
-        rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));
-        rv.args.append<uint32_t>("sizeK", problem.batchSize(0));
-        rv.args.append<uint32_t>("sizeL", problem.boundSize(0));
+        int idx=0;
+        for(auto size: problem.problemSizes())
+        {
+            rv.args.append<uint32_t>(concatenate("size_",idx), size);
+            idx++;
+        }
 
         rv.args.append< int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
@@ -196,14 +198,16 @@ namespace Tensile
         for(size_t i = 1; i < c.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
 
-        rv.args.append<uint32_t>("sizeI", problem.freeSizeA(0));
-        rv.args.append<uint32_t>("sizeJ", problem.freeSizeB(0));
-        rv.args.append<uint32_t>("sizeK", problem.batchSize(0));
+        int idx=0;
+        for(auto size: problem.d().sizes())
+        {
+            rv.args.append<uint32_t>(concatenate("size_",idx), size);
+            idx++;
+        }
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
             rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-            //rv.args.append<typename TypedInputs::BetaType>("beta", 0);
         }
 
         return rv;
@@ -214,14 +218,14 @@ namespace Tensile
                                                         TypedInputs const& inputs,
                                                         Hardware    const& hardware) const
     {
-        if(inputs.beta == static_cast<typename TypedInputs::BetaType>(0))
+        std::string name = concatenate("Cijk_",
+                                       TypeInfo<typename TypedInputs::DType>::Abbrev());
+
+        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
-            return "Cijk_S";
+            name += "B";
         }
-        else
-        {
-            return "Cijk_SB";
-        }
+        return name;
     }
 
     template <typename TypedInputs>
@@ -257,6 +261,63 @@ namespace Tensile
         && problemType.dType == DataType::Float)
         {
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::Double
+             && problemType.bType == DataType::Double
+             && problemType.cType == DataType::Double
+             && problemType.dType == DataType::Double)
+        {
+            auto const& typedInputs = dynamic_cast<TypedContractionInputs<double> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::ComplexFloat
+             && problemType.bType == DataType::ComplexFloat
+             && problemType.cType == DataType::ComplexFloat
+             && problemType.dType == DataType::ComplexFloat)
+        {
+            auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::ComplexDouble
+             && problemType.bType == DataType::ComplexDouble
+             && problemType.cType == DataType::ComplexDouble
+             && problemType.dType == DataType::ComplexDouble)
+        {
+            auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::Half
+             && problemType.bType == DataType::Half
+             && problemType.cType == DataType::Half
+             && problemType.dType == DataType::Half)
+        {
+            auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::Int8x4
+             && problemType.bType == DataType::Int8x4
+             && problemType.cType == DataType::Int32
+             && problemType.dType == DataType::Int32)
+        {
+            auto const& typedInputs =
+                dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::Int32
+             && problemType.bType == DataType::Int32
+             && problemType.cType == DataType::Int32
+             && problemType.dType == DataType::Int32)
+        {
+            auto const& typedInputs = dynamic_cast<TypedContractionInputs<int32_t> const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        else if(problemType.aType == DataType::BFloat16
+             && problemType.bType == DataType::BFloat16
+             && problemType.cType == DataType::BFloat16
+             && problemType.dType == DataType::BFloat16)
+        {
+            auto const& typedInputs = dynamic_cast<TypedContractionInputs<BFloat16> const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
         else

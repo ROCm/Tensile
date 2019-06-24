@@ -26,6 +26,10 @@
 
 #include <ProgressListener.hpp>
 
+#include <iomanip>
+
+#include <sys/time.h>
+
 namespace Tensile
 {
     namespace Client
@@ -158,6 +162,23 @@ namespace Tensile
                                         TimingEvents const& startEvents,
                                         TimingEvents const&  stopEvents) override
         {
+            struct timeval tmnow;
+            struct tm *tm;
+            gettimeofday(&tmnow, NULL); // microsecond resolution
+            tm = localtime(&tmnow.tv_sec);
+            char prev_fill = std::cout.fill('0');
+
+            std::ostringstream msg;
+            msg.fill('0');
+            msg << (tm->tm_year + 1900) << "-"
+                << std::setw(2) << (tm->tm_mon + 1) << "-"
+                << std::setw(2) << tm->tm_mday << " "
+                << std::setw(2) << tm->tm_hour << ":"
+                << std::setw(2) << tm->tm_min << ":"
+                << std::setw(2) << tm->tm_sec << "."
+                << std::setw(6) << static_cast<int>(tmnow.tv_usec);
+
+            m_reporter->report(ResultKey::EnqueueTime, msg.str());
         }
 
         void ProgressListener::finalizeReport() override

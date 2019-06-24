@@ -189,6 +189,22 @@ namespace Tensile
                 }
             };
 
+            struct HighPrecisionAccumulateEqual: public Predicate_CRTP<HighPrecisionAccumulateEqual, ContractionProblem>
+            {
+                enum { HasIndex = false, HasValue = true };
+                bool value;
+
+                HighPrecisionAccumulateEqual() = default;
+                HighPrecisionAccumulateEqual(bool value): value(value) {}
+
+                static std::string Type() { return "HighPrecisionAccumulate"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.highPrecisionAccumulate() == value;
+                }
+            };
+
             struct TypesEqual: public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = true };

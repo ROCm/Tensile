@@ -59,14 +59,17 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
 
     return (err, src, header, kernelName)
 
-def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
+def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
+    assemblyKernels = list([k for k in kernels if k['KernelLanguage'] == 'Assembly'])
+    if len(assemblyKernels) == 0:
+        return []
 
     if globalParameters["MergeFiles"]:
         archs = collections.defaultdict(list)
-        for k in kernels:
-            archs[k['ISA']].append(k)
+        for k in assemblyKernels:
+            archs[tuple(k['ISA'])].append(k)
 
         coFiles = []
         for arch, archKernels in archs.items():
@@ -85,11 +88,9 @@ def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, ker
         return coFiles
 
     else:
-        assemblyKernels = list([kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly'])
-        if len(assemblyKernels) == 0:
-            return []
-        origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernels]
-        newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernels]
+        assemblyKernelNames = [kernelWriterAssembly.getKernelName(k) for k in assemblyKernels]
+        origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
+        newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
             shutil.copyfile(src, dst)
 
@@ -141,10 +142,12 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
+    #import pdb
+    #pdb.set_trace()
 
-    sourceKernelFiles = zip(itertools.repeat(outputPath), sourceKernelFiles)
+    args = zip(itertools.repeat(outputPath), kernelFiles)
 
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels",
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
                                  method=lambda x: x.starmap)
 
     return itertools.chain.from_iterable(coFiles)
@@ -227,7 +230,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
 def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kernelsBetaOnly, \
-    solutionWriter, kernelWriterSource, kernelWriterAssembly):
+    solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
   start = time.time()
 
   codeObjectFiles = []
@@ -269,6 +272,14 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
 
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
+  kernelsToBuild = list(kernels)
+  if errorTolerant:
+      def success(kernel):
+          writer = kernelWriterAssembly if kernel['KernelLanguage'] == 'Assembly' else kernelWriterSource
+          kernelName = writer.getKernelName(kernel)
+          return kernelName not in kernelsWithBuildErrs
+      kernelsToBuild = list(filter(success, kernelsToBuild))
+
   if False:#len(kernelsWithBuildErrs) > 0:
     print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
@@ -305,9 +316,10 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     kernelSourceFile.close()
     kernelHeaderFile.close()
 
-  if globalParameters["BuildCodeObjects"]:
-    codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly, outputPath)
-    codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
+  kernelsToBuild += kernelsBetaOnly
+
+  codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernelsToBuild, outputPath)
+  codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
@@ -911,8 +923,6 @@ def TensileCreateLibrary():
   arguments["EmbedLibrary"] = args.EmbedLibrary
   assignGlobalParameters(arguments)
 
-  globalParameters["BuildCodeObjects"] = True
-
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
@@ -1017,7 +1027,7 @@ def TensileCreateLibrary():
           embedFile.embed_file(newMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
-          for co in codeObjectFiles:
+          for co in Utils.tqdm(codeObjectFiles):
               embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
                                    key=args.EmbedLibraryKey)
 

@@ -114,10 +114,53 @@ namespace Tensile
             auto alphaType = args["alpha-type"].as<DataType>();
             auto betaType  = args["beta-type"].as<DataType>();
 
-            if(aType == DataType::Float && bType == DataType::Float && cType == DataType::Float && dType == DataType::Float
-               && alphaType == DataType::Float && betaType == DataType::Float)
+            if(aType == DataType::Float && bType == DataType::Float
+            && cType == DataType::Float && dType == DataType::Float
+            && alphaType == DataType::Float && betaType == DataType::Float)
             {
                 return GetTyped<TypedContractionInputs<float>>(args, problemFactory);
+            }
+            else if(aType == DataType::Double && bType == DataType::Double
+                 && cType == DataType::Double && dType == DataType::Double
+                 && alphaType == DataType::Double && betaType == DataType::Double)
+            {
+                return GetTyped<TypedContractionInputs<double>>(args, problemFactory);
+            }
+            else if(aType == DataType::ComplexFloat && bType == DataType::ComplexFloat
+                 && cType == DataType::ComplexFloat && dType == DataType::ComplexFloat
+                 && alphaType == DataType::ComplexFloat && betaType == DataType::ComplexFloat)
+            {
+                return GetTyped<TypedContractionInputs<std::complex<float>>>(args, problemFactory);
+            }
+            else if(aType == DataType::ComplexDouble && bType == DataType::ComplexDouble
+                 && cType == DataType::ComplexDouble && dType == DataType::ComplexDouble
+                 && alphaType == DataType::ComplexDouble && betaType == DataType::ComplexDouble)
+            {
+                return GetTyped<TypedContractionInputs<std::complex<double>>>(args, problemFactory);
+            }
+            else if(aType == DataType::Half && bType == DataType::Half
+                 && cType == DataType::Half && dType == DataType::Half
+                 && alphaType == DataType::Half && betaType == DataType::Half)
+            {
+                return GetTyped<TypedContractionInputs<Half>>(args, problemFactory);
+            }
+            else if(aType == DataType::Int8x4 && bType == DataType::Int8x4
+                 && cType == DataType::Int32 && dType == DataType::Int32
+                 && alphaType == DataType::Int32 && betaType == DataType::Int32)
+            {
+                return GetTyped<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>(args, problemFactory);
+            }
+            else if(aType == DataType::Int32 && bType == DataType::Int32
+                 && cType == DataType::Int32 && dType == DataType::Int32
+                 && alphaType == DataType::Int32 && betaType == DataType::Int32)
+            {
+                return GetTyped<TypedContractionInputs<int32_t>>(args, problemFactory);
+            }
+            else if(aType == DataType::BFloat16 && bType == DataType::BFloat16
+                 && cType == DataType::BFloat16 && dType == DataType::BFloat16
+                 && alphaType == DataType::BFloat16 && betaType == DataType::BFloat16)
+            {
+                return GetTyped<TypedContractionInputs<BFloat16>>(args, problemFactory);
             }
 
             throw std::runtime_error(concatenate("Invalid combination of data types: ",
