@@ -29,6 +29,7 @@
 #include "RunListener.hpp"
 
 #include <chrono>
+#include <future>
 
 #include <boost/program_options.hpp>
 #include <rocm_smi/rocm_smi.h>
@@ -81,26 +82,26 @@ namespace Tensile
             void sleepIfNecessary();
 
             void initThread();
-            void collect();
-            //void collectBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent);
+            void runLoop();
+            void collect(hipEvent_t startEvent, hipEvent_t stopEvent);
 
             clock::time_point m_lastCollection;
             clock::time_point m_nextCollection;
             clock::duration   m_minPeriod;
-
-            std::atomic<bool> m_active;
-            std::atomic<bool> m_isActive;
-            std::atomic<bool> m_exit;
-            hipEvent_t m_startEvent = nullptr;
-            hipEvent_t m_stopEvent = nullptr;
 
             std::thread m_thread;
 
             std::mutex m_mutex;
             std::condition_variable m_cv;
 
-            int      m_deviceIndex;
-            uint32_t m_dv_ind;
+            using Task = std::packaged_task<void(void)>;
+            Task m_task;
+            std::future<void> m_future;
+            std::atomic<bool> m_exit;
+            std::atomic<bool> m_stop;
+
+            int      m_hipDeviceIndex;
+            uint32_t m_smiDeviceIndex;
 
             size_t m_dataPoints;
 

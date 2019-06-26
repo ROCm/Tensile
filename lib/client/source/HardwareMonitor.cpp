@@ -99,11 +99,8 @@ namespace Tensile
 
         HardwareMonitor::HardwareMonitor(int deviceIndex, clock::duration minPeriod)
             : m_minPeriod(minPeriod),
-              m_active(false),
-              m_isActive(false),
-              m_exit(false),
-              m_deviceIndex(deviceIndex),
-              m_dv_ind(GetROCmSMIIndex(deviceIndex)),
+              m_hipDeviceIndex(deviceIndex),
+              m_smiDeviceIndex(GetROCmSMIIndex(deviceIndex)),
               m_dataPoints(0)
         {
             InitROCmSMI();
@@ -113,9 +110,8 @@ namespace Tensile
 
         HardwareMonitor::HardwareMonitor(int deviceIndex)
             : m_minPeriod(clock::duration::zero()),
-              m_active(false),
-              m_deviceIndex(deviceIndex),
-              m_dv_ind(GetROCmSMIIndex(deviceIndex)),
+              m_hipDeviceIndex(deviceIndex),
+              m_smiDeviceIndex(GetROCmSMIIndex(deviceIndex)),
               m_dataPoints(0)
         {
             InitROCmSMI();
@@ -125,20 +121,18 @@ namespace Tensile
 
         HardwareMonitor::~HardwareMonitor()
         {
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                m_active = false;
-                m_exit = true;
-            }
+            m_stop = true;
+            m_exit = true;
+
             m_cv.notify_all();
             m_thread.join();
         }
 
         void HardwareMonitor::initThread()
         {
-            m_active = false;
+            m_stop = false;
             m_exit = false;
-            m_thread = std::thread([=](){ this->collect(); });
+            m_thread = std::thread([=](){ this->runLoop(); });
         }
 
         void HardwareMonitor::addTempMonitor(rsmi_temperature_type_t sensorType, rsmi_temperature_metric_t metric)
@@ -240,7 +234,7 @@ namespace Tensile
         {
             assertActive();
 
-            m_active = false;
+            m_stop = true;
         }
 
         void HardwareMonitor::runUntilEvent(hipEvent_t event)
@@ -251,12 +245,16 @@ namespace Tensile
         void HardwareMonitor::runBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent)
         {
             assertNotActive();
+            m_stop = true;
 
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                m_active = true;
-                m_startEvent = startEvent;
-                m_stopEvent = stopEvent;
+
+                m_task = std::move(Task([=](){ this->collect(startEvent, stopEvent); }));
+                m_future = m_task.get_future();
+
+                m_stop = false;
+                m_exit = false;
             }
             m_cv.notify_all();
         }
@@ -286,7 +284,7 @@ namespace Tensile
                 std::tie(sensorType, metric) = m_tempMetrics[i];
 
                 int64_t newValue = 0;
-                auto status = rsmi_dev_temp_metric_get(m_dv_ind, sensorType, metric, &newValue);
+                auto status = rsmi_dev_temp_metric_get(m_smiDeviceIndex, sensorType, metric, &newValue);
                 if(status != RSMI_STATUS_SUCCESS)
                     m_tempValues[i] = std::numeric_limits<int64_t>::max();
                 else
@@ -302,7 +300,7 @@ namespace Tensile
                 rsmi_frequencies_t freq;
 
                 uint64_t newValue = 0;
-                auto status = rsmi_dev_gpu_clk_freq_get(m_dv_ind, m_clockMetrics[i], &freq);
+                auto status = rsmi_dev_gpu_clk_freq_get(m_smiDeviceIndex, m_clockMetrics[i], &freq);
                 if(status != RSMI_STATUS_SUCCESS)
                 {
                     m_clockValues[i] = std::numeric_limits<uint64_t>::max();
@@ -322,7 +320,7 @@ namespace Tensile
                 rsmi_frequencies_t freq;
 
                 int64_t newValue = 0;
-                auto status = rsmi_dev_fan_rpms_get(m_dv_ind, m_fanMetrics[i], &newValue);
+                auto status = rsmi_dev_fan_rpms_get(m_smiDeviceIndex, m_fanMetrics[i], &newValue);
                 if(status != RSMI_STATUS_SUCCESS)
                     m_fanValues[i] = std::numeric_limits<int64_t>::max();
                 else
@@ -349,77 +347,60 @@ namespace Tensile
             m_nextCollection = m_lastCollection + m_minPeriod;
         }
 
-        void HardwareMonitor::collect()
+        void HardwareMonitor::runLoop()
         {
-            std::unique_lock<std::mutex> lock(m_mutex);
+            hipSetDevice(m_hipDeviceIndex);
 
+            std::unique_lock<std::mutex> lock(m_mutex);
             while(!m_exit)
             {
-                while(!m_active && !m_exit) m_cv.wait(lock);
+                while(!m_task.valid() && !m_exit) m_cv.wait(lock);
 
                 if(m_exit)
                     return;
 
-                m_isActive = true;
-
-                clearValues();
-
-                if(m_startEvent != nullptr)
-                    HIP_CHECK_EXC(hipEventSynchronize(m_startEvent));
-
-                do
-                {
-
-                    collectOnce();
-                    sleepIfNecessary();
-
-                    if(m_stopEvent != nullptr && hipEventQuery(m_stopEvent) == hipSuccess)
-                        m_active = false;
-                }
-                while(m_active && !m_exit);
-
-                m_isActive = false;
-                lock.unlock();
-                m_cv.notify_all();
-                lock.lock();
-
+                m_task();
+                m_task = std::move(Task());
             }
         }
 
-        //void HardwareMonitor::collectBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent)
-        //{
-        //    clearValues();
+        void HardwareMonitor::collect(hipEvent_t startEvent, hipEvent_t stopEvent)
+        {
+            clearValues();
 
-        //    if(startEvent != nullptr)
-        //        HIP_CHECK_EXC(hipEventSynchronize(startEvent));
+            if(startEvent != nullptr)
+                HIP_CHECK_EXC(hipEventSynchronize(startEvent));
 
-        //    do
-        //    {
-        //        collectOnce();
-        //        sleepIfNecessary();
-        //    }
-        //    while(hipEventQuery(stopEvent) != hipSuccess);
-        //    
-        //}
+            do
+            {
+                collectOnce();
+                sleepIfNecessary();
+
+                if(stopEvent != nullptr && hipEventQuery(stopEvent) == hipSuccess)
+                    return;
+            }
+            while(!m_stop && !m_exit);
+        }
 
         void HardwareMonitor::wait()
         {
-            if(m_active && m_stopEvent == nullptr)
-                throw std::runtime_error("Tried to wait without an end condition.");
+            if(!m_future.valid())
+                throw std::runtime_error("Nothing to wait for.");
 
-            std::unique_lock<std::mutex> lock(m_mutex);
-            while(m_isActive) m_cv.wait(lock);
+            m_future.wait();
+            m_future = std::move(std::future<void>());
+
         }
 
         void HardwareMonitor::assertActive()
         {
-            if(!m_active)
+            if(!m_future.valid())
                 throw std::runtime_error("Monitor is not active.");
         }
 
         void HardwareMonitor::assertNotActive()
         {
-            if(m_active)
+            if(m_future.valid())
                 throw std::runtime_error("Monitor is active.");
         }
 
