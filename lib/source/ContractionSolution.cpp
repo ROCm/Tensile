@@ -113,7 +113,12 @@ namespace Tensile
         rv.args.append<typename TypedInputs::BType const *>("b", inputs.b);
 
         rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
-        rv.args.append<typename TypedInputs::BetaType>( "beta",  inputs.beta);
+        if(std::is_same<typename TypedInputs::AlphaType, Half>::value)
+            rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+
+        rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+        if(std::is_same<typename TypedInputs::BetaType, Half>::value)
+            rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
 
         for(size_t i = 1; i < d.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);

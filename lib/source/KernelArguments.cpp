@@ -21,6 +21,8 @@
 
 #include <Tensile/KernelArguments.hpp>
 
+#include <iomanip>
+
 namespace Tensile
 {
     std::ostream& operator<<(std::ostream& stream, const KernelArguments& t)
@@ -48,10 +50,14 @@ namespace Tensile
 
             if(std::get<KernelArguments::ArgBound>(record))
             {
+                auto oldFill = stream.fill();
+                auto oldWidth = stream.width();
                 stream << std::hex;
                 for(size_t i = offset; i < offset + size; i++)
-                    stream << " " << static_cast<uint32_t>(t.m_data[i]);
+                    stream << " " << std::setfill('0') << std::setw(2) << static_cast<uint32_t>(t.m_data[i]);
                 stream << std::dec;
+                stream.fill(oldFill);
+                stream.width(oldWidth);
 
                 if(t.m_log)
                 {

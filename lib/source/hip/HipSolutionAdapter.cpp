@@ -45,9 +45,15 @@ namespace Tensile
 {
     namespace hip
     {
+        SolutionAdapter::SolutionAdapter()
+            : m_debug(Debug::Instance().printKernelArguments())
+        {
+        }
+
         SolutionAdapter::SolutionAdapter(bool debug)
             : m_debug(debug)
         {
+            m_debug = debug || Debug::Instance().printKernelArguments();
         }
 
         SolutionAdapter::~SolutionAdapter()
@@ -100,7 +106,7 @@ namespace Tensile
 
             if(embeddedData.size() == 0)
             {
-                if(Debug::Instance().printCodeObjectInfo())
+                if(m_debug || Debug::Instance().printCodeObjectInfo())
                 {
                     std::cerr << "Found no embedded code objects";
                     if(key != "")

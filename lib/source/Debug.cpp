@@ -51,6 +51,11 @@ namespace Tensile
         return value & 0x20;
     }
 
+    bool Debug::printKernelArguments() const
+    {
+        return value & 0x40;
+    }
+
     Debug::Debug()
         : value(DEBUG_SM)
     {

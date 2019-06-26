@@ -38,7 +38,7 @@ namespace Tensile
         class SolutionAdapter: public Tensile::SolutionAdapter
         {
         public:
-            SolutionAdapter() = default;
+            SolutionAdapter();
             SolutionAdapter(bool debug);
             ~SolutionAdapter();
 
