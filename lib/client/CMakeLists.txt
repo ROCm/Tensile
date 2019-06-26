@@ -7,6 +7,7 @@ set(client_sources
     source/ClientProblemFactory.cpp
     source/DataInitialization.cpp
     source/HardwareMonitor.cpp
+    source/HardwareMonitorListener.cpp
     source/MetaRunListener.cpp
     source/ProgressListener.cpp
     source/Reference.cpp

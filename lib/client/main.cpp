@@ -35,7 +35,7 @@
 #include "BenchmarkTimer.hpp"
 #include "ClientProblemFactory.hpp"
 #include "DataInitialization.hpp"
-#include "HardwareMonitor.hpp"
+#include "HardwareMonitorListener.hpp"
 #include "MetaRunListener.hpp"
 #include "ProgressListener.hpp"
 #include "ReferenceValidator.hpp"

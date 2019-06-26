@@ -26,30 +26,39 @@
 
 #pragma once
 
-#include "RunListener.hpp"
-
 #include <chrono>
 #include <future>
+#include <thread>
+#include <tuple>
+#include <vector>
 
-#include <boost/program_options.hpp>
+#include <hip/hip_runtime.h>
 #include <rocm_smi/rocm_smi.h>
 
 namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
-
+        /**
+         * Monitors properties of a particular GPU in a separate thread.
+         *
+         * The thread is manually managed because the thread creation overhead is too high to create a thread every time.
+         * 
+         * The interface to this class is not thread-safe.
+         */
         class HardwareMonitor
         {
         public:
+            /** Translates the Hip device index into the corresponding device index for ROCm-SMI. */
+            static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
+
             using rsmi_temperature_type_t = int;
             using clock = std::chrono::steady_clock;
 
             // Monitor at the maximum possible rate.
-            HardwareMonitor(int deviceIndex);
+            HardwareMonitor(int hipDeviceIndex);
             // Limit collection to once per minPeriod.
-            HardwareMonitor(int deviceIndex, clock::duration minPeriod);
+            HardwareMonitor(int hipDeviceIndex, clock::duration minPeriod);
 
             ~HardwareMonitor();
 
@@ -63,16 +72,25 @@ namespace Tensile
             double getAverageFanSpeed(uint32_t sensorIndex = 0);
             size_t getSamples() { return m_dataPoints; }
 
+            /// Begins monitoring until stop() is called.
             void start();
+
+            /// Sends a signal to the monitoring thread to end monitoring.
             void stop();
 
+            /// Begins monitoring immediately, until the event has occurred.
             void runUntilEvent(hipEvent_t event);
+
+            /// Monitoring will occur from startEvent until stopEvent.
             void runBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent);
+
+            /// Waits until monitoring has finished.
+            /// Throws an exception if monitoring was started without a stop event 
+            /// and stop() has not been called.
             void wait();
 
         private:
             static void InitROCmSMI();
-            static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
 
             void assertActive();
             void assertNotActive();
@@ -99,6 +117,7 @@ namespace Tensile
             std::future<void> m_future;
             std::atomic<bool> m_exit;
             std::atomic<bool> m_stop;
+            bool m_hasStopEvent = false;
 
             int      m_hipDeviceIndex;
             uint32_t m_smiDeviceIndex;
@@ -113,52 +132,6 @@ namespace Tensile
 
             std::vector<uint32_t> m_fanMetrics;
             std::vector<int64_t> m_fanValues;
-        };
-
-        class HardwareMonitorListener: public RunListener
-        {
-        public:
-            HardwareMonitorListener(po::variables_map const& args);
-
-            virtual bool needMoreBenchmarkRuns() const override { return false; };
-            virtual void preBenchmarkRun() override {};
-            virtual void postBenchmarkRun() override {};
-            virtual void preProblem(ContractionProblem const& problem) override {};
-            virtual void postProblem() override {};
-            virtual void preSolution(ContractionSolution const& solution) override {};
-            virtual void postSolution() override {};
-            virtual bool needMoreRunsInSolution() const override { return false; };
-
-            virtual size_t numWarmupRuns() override { return 0; };
-            virtual void   setNumWarmupRuns(size_t count) override {};
-            virtual void   preWarmup() override {};
-            virtual void   postWarmup() override {};
-            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                           TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents) override {};
-
-            virtual size_t numSyncs() override { return 0; };
-            virtual void   setNumSyncs(size_t count) override {};
-            virtual void   preSyncs() override {};
-            virtual void   postSyncs() override {};
-
-            virtual size_t numEnqueuesPerSync() override { return 0; };
-            virtual void   setNumEnqueuesPerSync(size_t count) override {};
-            virtual void   preEnqueues() override;
-            virtual void   postEnqueues(TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents) override;
-            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                            TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) override;
-
-            virtual void finalizeReport() override {};
-
-            virtual int error() const override { return 0; };
-
-        private:
-
-            bool m_useGPUTimer;
-            HardwareMonitor m_monitor;
         };
     }
 }

@@ -97,10 +97,10 @@ namespace Tensile
             RSMI_CHECK_EXC(status);
         }
 
-        HardwareMonitor::HardwareMonitor(int deviceIndex, clock::duration minPeriod)
+        HardwareMonitor::HardwareMonitor(int hipDeviceIndex, clock::duration minPeriod)
             : m_minPeriod(minPeriod),
-              m_hipDeviceIndex(deviceIndex),
-              m_smiDeviceIndex(GetROCmSMIIndex(deviceIndex)),
+              m_hipDeviceIndex(hipDeviceIndex),
+              m_smiDeviceIndex(GetROCmSMIIndex(hipDeviceIndex)),
               m_dataPoints(0)
         {
             InitROCmSMI();
@@ -108,10 +108,10 @@ namespace Tensile
             initThread();
         }
 
-        HardwareMonitor::HardwareMonitor(int deviceIndex)
+        HardwareMonitor::HardwareMonitor(int hipDeviceIndex)
             : m_minPeriod(clock::duration::zero()),
-              m_hipDeviceIndex(deviceIndex),
-              m_smiDeviceIndex(GetROCmSMIIndex(deviceIndex)),
+              m_hipDeviceIndex(hipDeviceIndex),
+              m_smiDeviceIndex(GetROCmSMIIndex(hipDeviceIndex)),
               m_dataPoints(0)
         {
             InitROCmSMI();
@@ -245,10 +245,11 @@ namespace Tensile
         void HardwareMonitor::runBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent)
         {
             assertNotActive();
-            m_stop = true;
 
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
+
+                m_hasStopEvent = stopEvent != nullptr;
 
                 m_task = std::move(Task([=](){ this->collect(startEvent, stopEvent); }));
                 m_future = m_task.get_future();
@@ -385,7 +386,10 @@ namespace Tensile
         void HardwareMonitor::wait()
         {
             if(!m_future.valid())
-                throw std::runtime_error("Nothing to wait for.");
+                return;
+
+            if(!m_hasStopEvent && !m_stop)
+                throw std::runtime_error("Waiting for monitoring to stop with no end condition.");
 
             m_future.wait();
             m_future = std::move(std::future<void>());
@@ -404,53 +408,6 @@ namespace Tensile
                 throw std::runtime_error("Monitor is active.");
         }
 
-        HardwareMonitorListener::HardwareMonitorListener(po::variables_map const& args)
-            : m_useGPUTimer(         args["use-gpu-timer"].as<bool>()),
-              m_monitor(args["device-idx"].as<int>())
-        {
-            m_monitor.addTempMonitor(0);
-
-            m_monitor.addClockMonitor(RSMI_CLK_TYPE_SYS);
-            m_monitor.addClockMonitor(RSMI_CLK_TYPE_SOC);
-            m_monitor.addClockMonitor(RSMI_CLK_TYPE_MEM);
-
-            m_monitor.addFanSpeedMonitor();
-        }
-
-        void   HardwareMonitorListener::preEnqueues() override
-        {
-            if(!m_useGPUTimer)
-                m_monitor.start();
-        }
-
-        void   HardwareMonitorListener::postEnqueues(TimingEvents const& startEvents,
-                                                     TimingEvents const&  stopEvents) override
-        {
-            if(m_useGPUTimer)
-            {
-                m_monitor.runBetweenEvents(startEvents->front().front(), stopEvents->back().back());
-            }
-            else
-            {
-                m_monitor.stop();
-            }
-        }
-
-        void   HardwareMonitorListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                                         TimingEvents const& startEvents,
-                                                         TimingEvents const&  stopEvents) override
-        {
-            m_monitor.wait();
-
-            m_reporter->report(ResultKey::TempEdge,            m_monitor.getAverageTemp(0));
-
-            m_reporter->report(ResultKey::ClockRateSys,        m_monitor.getAverageClock(RSMI_CLK_TYPE_SYS));
-            m_reporter->report(ResultKey::ClockRateSOC,        m_monitor.getAverageClock(RSMI_CLK_TYPE_SOC));
-            m_reporter->report(ResultKey::ClockRateMem,        m_monitor.getAverageClock(RSMI_CLK_TYPE_MEM));
-
-            m_reporter->report(ResultKey::FanSpeedRPMs,        m_monitor.getAverageFanSpeed());
-            m_reporter->report(ResultKey::HardwareSampleCount, m_monitor.getSamples());
-        }
     }
 }
 
