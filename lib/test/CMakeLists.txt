@@ -15,6 +15,7 @@ set(test_sources ${test_sources}
     ContractionSelectionLibrary_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
+    ProjectedPerformance_test.cpp
     TensorDescriptor_test.cpp
 )
 

@@ -32,6 +32,7 @@
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
+#include <Tensile/GranularitySelection.hpp>
 
 #include <map>
 
@@ -39,6 +40,38 @@ namespace Tensile
 {
     namespace Serialization
     {
+        template <typename Key>
+        struct KeyConversion
+        {
+            static std::string toString(Key const& value)
+            {
+                return concatenate(value);
+            }
+
+            static Key fromString(std::string const& value)
+            {
+                std::istringstream stream(value);
+                Key rv;
+                stream >> rv;
+
+                return rv;
+            }
+        };
+
+        template <>
+        struct KeyConversion<std::string>
+        {
+            static std::string const& toString(std::string const& value)
+            {
+                return value;
+            }
+
+            static std::string const& fromString(std::string const& value)
+            {
+                return value;
+            }
+        };
+
         template <typename Map, typename IO, bool Sort, bool Flow>
         struct DefaultCustomMappingTraits
         {
@@ -46,9 +79,9 @@ namespace Tensile
             using key_type = typename Map::key_type;
             using mapped_type = typename Map::mapped_type;
 
-            static void inputOne(IO & io, std::string const& key, Map & value)
+            static void inputOne(IO & io, std::string const& keyStr, Map & value)
             {
-                iot::mapRequired(io, key.c_str(), value[key]);
+                iot::mapRequired(io, keyStr.c_str(), value[KeyConversion<key_type>::fromString(keyStr)]);
             }
 
             static void output(IO & io, Map & value)
@@ -62,13 +95,18 @@ namespace Tensile
                     std::sort(keys.begin(), keys.end());
 
                     for(auto const& key: keys)
-                        iot::mapRequired(io, key.c_str(), value.find(key)->second);
+                    {
+                        auto keyStr = KeyConversion<key_type>::toString(key);
+                        iot::mapRequired(io, keyStr.c_str(), value.find(key)->second);
+                    }
+
                 }
                 else
                 {
                     for(auto & pair: value)
                     {
-                        iot::mapRequired(io, pair.first.c_str(), pair.second);
+                        auto keyStr = KeyConversion<key_type>::toString(pair.first);
+                        iot::mapRequired(io, keyStr.c_str(), pair.second);
                     }
                 }
             }
@@ -79,6 +117,13 @@ namespace Tensile
         template<typename IO>
         struct CustomMappingTraits<std::map<std::string, std::string>, IO>:
         public DefaultCustomMappingTraits<std::map<std::string, std::string>, IO, false, true>
+        {
+        };
+
+
+        template<typename IO>
+        struct CustomMappingTraits<std::map<int, double>, IO>:
+        public DefaultCustomMappingTraits<std::map<int, double>, IO, false, true>
         {
         };
 
@@ -124,6 +169,12 @@ namespace Tensile
         TENSILE_SERIALIZE_VECTOR(true,  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
 
         TENSILE_SERIALIZE_VECTOR(false, std::shared_ptr<Tensile::ContractionSolution>);
+
+        template <typename Value, typename IO>
+        struct SequenceTraits<std::vector<Tensile::Selection::SelectionTableEntry<Value>>, IO>:
+        public DefaultSequenceTraits<std::vector<Tensile::Selection::SelectionTableEntry<Value>>, IO, false>
+        {
+        };
 
         template <typename Key, typename Value, typename IO>
         struct SequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO>:

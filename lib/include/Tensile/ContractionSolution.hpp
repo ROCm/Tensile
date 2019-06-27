@@ -47,6 +47,8 @@ namespace Tensile
         virtual std::string name() const { return kernelName; }
         virtual std::string description() const { return kernelName; }
 
+        virtual double projectedPerformance(Problem const& problem) const;
+
         bool solves(Problem const& problem,
                     Problem  const& inputs,
                     Hardware    const& hardware) const;
@@ -112,6 +114,7 @@ namespace Tensile
 
         /// Debugging purposes.  Shouldn't contain any vital information that isn't somewhere else.
         std::map<std::string, std::string> info;
+        std::map<int, double> ideals;
 
         int32_t staggerUIter(Problem  const& problem,
                              Inputs   const& inputs,
