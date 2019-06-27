@@ -47,6 +47,8 @@ namespace Tensile
         virtual std::string name() const { return kernelName; }
         virtual std::string description() const { return kernelName; }
 
+        bool isSourceKernel() const;
+
         bool solves(Problem const& problem,
                     Problem  const& inputs,
                     Hardware    const& hardware) const;

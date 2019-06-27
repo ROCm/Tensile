@@ -27,8 +27,8 @@ namespace Tensile
 {
     namespace Client
     {
-        template <typename Inputs>
-        void ReferenceSolution<Inputs>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs)
+        template <typename Inputs, typename Accumulator>
+        void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs)
         {
             auto const& freeIndices = problem.freeIndices();
             auto const& batchIndices = problem.batchIndices();
@@ -96,7 +96,7 @@ namespace Tensile
                 }
 
 
-                typename Inputs::DType value(0);
+                Accumulator value(0);
 
                 for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
                 {
@@ -116,13 +116,13 @@ namespace Tensile
                     auto bStride = problem.b().strides()[boundIndices[0].b];
 
                     for(size_t i = 0; i < boundSize[0]; i++)
-                        value += inputs.a[aIndex + (i * aStride)] * inputs.b[bIndex + (i * bStride)];
+                        value += static_cast<Accumulator>(inputs.a[aIndex + (i * aStride)] * inputs.b[bIndex + (i * bStride)]);
                 }
 
                 auto cIndex = c.index(cCoord);
                 auto dIndex = d.index(cCoord);
 
-                inputs.d[dIndex] = inputs.alpha * value
+                inputs.d[dIndex] = inputs.alpha * static_cast<typename Inputs::DType>(value)
                                  + inputs.beta * inputs.c[cIndex];
 
             }
@@ -168,7 +168,11 @@ namespace Tensile
                  && problem.d().dataType() == DataType::Half)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<Half>>::SolveCPU(problem, typedInputs);
+
+                if(problem.highPrecisionAccumulate())
+                    return ReferenceSolution<TypedContractionInputs<Half>, float>::SolveCPU(problem, typedInputs);
+                else
+                    return ReferenceSolution<TypedContractionInputs<Half>>::SolveCPU(problem, typedInputs);
             }
             else if(problem.a().dataType() == DataType::Int8x4
                  && problem.b().dataType() == DataType::Int8x4
@@ -192,7 +196,11 @@ namespace Tensile
                  && problem.d().dataType() == DataType::BFloat16)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<BFloat16> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<BFloat16>>::SolveCPU(problem, typedInputs);
+
+                if(problem.highPrecisionAccumulate())
+                    return ReferenceSolution<TypedContractionInputs<BFloat16>, float>::SolveCPU(problem, typedInputs);
+                else
+                    return ReferenceSolution<TypedContractionInputs<BFloat16>>::SolveCPU(problem, typedInputs);
             }
             else
             {

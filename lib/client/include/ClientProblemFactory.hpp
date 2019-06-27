@@ -61,6 +61,7 @@ namespace Tensile
             DataType m_dType;
             DataType m_alphaType;
             DataType m_betaType;
+            bool m_highPrecisionAccumulate;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

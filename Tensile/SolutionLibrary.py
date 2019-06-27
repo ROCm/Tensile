@@ -168,13 +168,9 @@ class MasterSolutionLibrary:
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
-        asmSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] != 'Source'])
-        sourceSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] == 'Source'])
+        matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
 
-        assert len(allSolutions) == len(asmSolutions) + len(sourceSolutions), \
-            "Solution split not consistent: {0} != {1} + {2}".format(len(allSolutions), len(asmSolutions), len(sourceSolutions))
-
-        matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
+        solutions = {s.index: s for s in allSolutions}
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
@@ -182,8 +178,13 @@ class MasterSolutionLibrary:
 
             elif libName == 'Hardware':
                 newLib = PredicateLibrary(tag='Hardware')
-                isa = tuple(map(int,deviceSection[1][3:6]))
-                pred = Hardware.HardwarePredicate.FromISA(isa)
+                devicePart = deviceSection[1]
+                if devicePart == 'fallback':
+                    pred = Hardware.HardwarePredicate("TruePred")
+                else:
+                    isa = tuple(map(int,devicePart[3:6]))
+                    pred = Hardware.HardwarePredicate.FromISA(isa)
+
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
 
@@ -204,8 +205,7 @@ class MasterSolutionLibrary:
             else:
                 raise ValueError("Unknown value " + libName)
 
-        rv = cls(asmSolutions, library)
-        rv.sourceSolutions = sourceSolutions
+        rv = cls(solutions, library)
         return rv
 
     @classmethod
@@ -230,8 +230,8 @@ class MasterSolutionLibrary:
 
     def applyNaming(self, naming=None):
         if naming is None:
-            allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
-            kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in allSolutions]))
+            #allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
+            kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in self.solutions.values()]))
             naming = OriginalSolution.getMinNaming(kernels)
 
         for s in list(self.solutions.values()):
@@ -240,18 +240,17 @@ class MasterSolutionLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__
 
-        allIndices = itertools.chain(self.solutions, self.sourceSolutions)
-        curIndex = max(allIndices) + 1
+        curIndex = max(self.solutions.keys()) + 1
 
         for k,s in list(other.solutions.items()):
             s.index = curIndex
             self.solutions[curIndex] = s
             curIndex += 1
 
-        for k,s in list(other.sourceSolutions.items()):
-            s.index = curIndex
-            self.sourceSolutions[curIndex] = s
-            curIndex += 1
+        #for k,s in list(other.sourceSolutions.items()):
+        #    s.index = curIndex
+        #    self.sourceSolutions[curIndex] = s
+        #    curIndex += 1
 
         self.library.merge(other.library)
 

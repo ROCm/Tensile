@@ -85,7 +85,7 @@ namespace Tensile
             return AlmostEqual(a.real(), b.real()) && AlmostEqual(a.imag(), b.imag());
         }
 
-        template <typename Inputs>
+        template <typename Inputs, typename Accumulator = typename Inputs::DType>
         struct ReferenceSolution
         {
             static void SolveCPU(ContractionProblem const& contraction, Inputs const& inputs);

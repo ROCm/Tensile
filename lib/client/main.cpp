@@ -103,6 +103,7 @@ namespace Tensile
                 ("d-type",                   po::value<DataType>()->default_value(DataType::Count), "D data type")
                 ("alpha-type",               po::value<DataType>()->default_value(DataType::Count), "alpha data type")
                 ("beta-type",                po::value<DataType>()->default_value(DataType::Count), "beta data type")
+                ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
 
                 ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
                 ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")
@@ -380,27 +381,25 @@ int main(int argc, const char * argv[])
                 else
                     solution = iter->second;
 
-                bool runSolution = true;
-
                 reporter->report(ResultKey::SolutionProgress, concatenate(solutionIdx,"/",lastSolutionIdx));
 
                 if(!(*solution->hardwarePredicate)(*hardware))
                 {
                     reporter->report(ResultKey::Validation, "WRONG_HARDWARE");
-                    runSolution = false;
+                    continue;
                 }
 
                 if(!(*solution->problemPredicate)(problem))
                 {
                     reporter->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
-                    runSolution = false;
+                    continue;
                 }
 
                 listeners.preSolution(*solution);
 
                 try
                 {
-                    while(runSolution && listeners.needMoreRunsInSolution())
+                    while(listeners.needMoreRunsInSolution())
                     {
                         auto inputs = dataInit->prepareGPUInputs();
 
@@ -446,7 +445,7 @@ int main(int argc, const char * argv[])
                 catch(std::runtime_error const& err)
                 {
                     reporter->report(ResultKey::Validation, "INVALID");
-                    reporter->log(LogLevel::Error, concatenate(err.what(),"\n"));
+                    reporter->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
                 }
 
                 listeners.postSolution();

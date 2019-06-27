@@ -103,9 +103,12 @@ namespace Tensile
 
         rv.sharedMemBytes = 0;
 
-        rv.args.append<uint64_t>("tensor2dSizeC", c.strides()[2]);
-        rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
-        rv.args.append<uint64_t>("tensor2dSizeB", b.strides()[2]);
+        if(!isSourceKernel())
+        {
+            rv.args.append<uint64_t>("tensor2dSizeC", c.strides()[2]);
+            rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
+            rv.args.append<uint64_t>("tensor2dSizeB", b.strides()[2]);
+        }
 
         rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
         rv.args.append<typename TypedInputs::CType const *>("c", inputs.c);
@@ -113,11 +116,11 @@ namespace Tensile
         rv.args.append<typename TypedInputs::BType const *>("b", inputs.b);
 
         rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
-        if(std::is_same<typename TypedInputs::AlphaType, Half>::value)
+        if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
             rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
 
         rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-        if(std::is_same<typename TypedInputs::BetaType, Half>::value)
+        if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
             rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
 
         for(size_t i = 1; i < d.dimensions(); i++)
@@ -144,28 +147,41 @@ namespace Tensile
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
         rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(problemNumGroupTiles0));
-        rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
 
-        uint32_t numFullBlocks = problemNumGroupTiles1;
-        uint32_t wgmRemainder1 = 0;
-        uint32_t magicNumberWgmRemainder1 = 0;
-
-        if(sizeMapping.workGroupMapping != 0)
+        if(!isSourceKernel())
         {
-            numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
-            wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
-            if(wgmRemainder1 == 0)
-                wgmRemainder1 = sizeMapping.workGroupMapping;
-            magicNumberWgmRemainder1 = magicNumber(wgmRemainder1);
+            rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
+
+            uint32_t numFullBlocks = problemNumGroupTiles1;
+            uint32_t wgmRemainder1 = 0;
+            uint32_t magicNumberWgmRemainder1 = 0;
+
+            if(sizeMapping.workGroupMapping != 0)
+            {
+                numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
+                wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
+                if(wgmRemainder1 == 0)
+                    wgmRemainder1 = sizeMapping.workGroupMapping;
+                magicNumberWgmRemainder1 = magicNumber(wgmRemainder1);
+            }
+
+            rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
+            rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
+            rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+
+            rv.args.append<uint32_t>("pad", 0);
         }
 
-        rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
-        rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
-        rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
-
-        rv.args.append<uint32_t>("pad", 0);
-
         return rv;
+    }
+
+    bool ContractionSolution::isSourceKernel() const
+    {
+        auto iter = info.find("KernelLanguage");
+        if(iter == info.end())
+            throw std::runtime_error("Unknown");
+
+        return iter->second == "Source";
     }
 
     template <typename TypedInputs>
