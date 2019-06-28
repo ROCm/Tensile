@@ -29,41 +29,79 @@
 #include <vector>
 #include <set>
 
-#include <Tensile/GranularitySelection.hpp>
+#include <Tensile/Properties.hpp>
+#include <Tensile/Debug.hpp>
+#include <Tensile/Utils.hpp>
+
+#include <Tensile/PropertyMatching.hpp>
 
 namespace Tensile
 {
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct GranularitySelectionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
-        using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table = Selection::SelectionTable<MyProblem, Element, std::shared_ptr<MySolution>>;
-        std::shared_ptr<Table> table;
+        std::map<int,std::shared_ptr<MySolution>> solutions;
 
         static std::string Type() { return "GranularitySelection"; }
         virtual std::string type() const override { return Type(); }
         virtual std::string description() const override
         {
-            if(table == nullptr)
-                return concatenate(type(), ", table: nullptr");
-            else
-                return concatenate(type(), ": ", table->description());
-        }
+            std::string rv = this->type();
 
+            return rv;
+        }
         
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
-            typename Table::Transform transform =
-                [&](Element library) -> std::shared_ptr<MySolution>
+            const bool debug = Debug::Instance().printPropertyEvaluation();
+
+            this->description();
+
+            double bestPerformance = std::numeric_limits<double>::max();
+            auto iter = solutions.begin();
+            if(iter == solutions.end())
+                return std::shared_ptr<MySolution>();
+
+            std::shared_ptr<MySolution> bestSolution = iter->second;
+            if (bestSolution)
+                bestPerformance = bestSolution->projectedPerformance(problem);
+
+            iter++;
+
+            if(debug)
+            {
+                std::cout << "best performance: " << bestPerformance << std::endl;
+            }
+
+            while(iter != solutions.end())
+            {
+                auto mySolution = iter->second;
+                double myPerformance = mySolution->projectedPerformance(problem);
+
+                if(mySolution)
                 {
-                    return library->findBestSolution(problem, hardware);
-                };
+                    auto myPerformance = mySolution->projectedPerformance(problem);
+                    if(myPerformance > bestPerformance)
+                    {
+                        bestPerformance = myPerformance;
+                        bestSolution = mySolution;
+                    }
 
-            auto closestEntry = table->findBestMatch(problem, transform);
+                    if(debug)
+                    {
+                        std::cout << ": " << myPerformance;
+                        if(myPerformance < bestPerformance)
+                        {
+                            std::cout << " <-- Best so far";
+                        } 
+                    }
+                }
+                iter++;
+            }
 
-            return closestEntry;
+            return bestSolution;
         }
 
         virtual SolutionSet<MySolution>
@@ -72,28 +110,19 @@ namespace Tensile
         {
             bool debug = Debug::Instance().printPropertyEvaluation();
 
-
             SolutionSet<MySolution> rv;
 
-            typename Table::Transform transform =
-                [&](Element library) -> std::shared_ptr<MySolution>
-                {
-                    return library->findBestSolution(problem, hardware);
-                };
-
-            auto matches = table->getAllSolutions(problem, transform);
-
-            for(auto const& row: matches)
+            auto iter = solutions.begin();
+           
+            while(iter != solutions.end())
             {
+                rv.insert(iter->second);
                 if(debug)
-                    std::cout << row->description() << std::endl;
-
-                auto rowSolutions = row->findAllSolutions(problem, hardware);
-                rv.insert(rowSolutions.begin(), rowSolutions.end());
-
-                if(debug)
-                    std::cout << std::endl;
+                    std::cout << iter->second->description() << std::endl;
+                iter++;
             }
+            if(debug)
+                std::cout << std::endl;
 
             return rv;
         }

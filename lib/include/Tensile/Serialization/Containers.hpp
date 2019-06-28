@@ -32,7 +32,6 @@
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
-#include <Tensile/GranularitySelection.hpp>
 
 #include <map>
 
@@ -169,12 +168,6 @@ namespace Tensile
         TENSILE_SERIALIZE_VECTOR(true,  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
 
         TENSILE_SERIALIZE_VECTOR(false, std::shared_ptr<Tensile::ContractionSolution>);
-
-        template <typename Value, typename IO>
-        struct SequenceTraits<std::vector<Tensile::Selection::SelectionTableEntry<Value>>, IO>:
-        public DefaultSequenceTraits<std::vector<Tensile::Selection::SelectionTableEntry<Value>>, IO, false>
-        {
-        };
 
         template <typename Key, typename Value, typename IO>
         struct SequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO>:
