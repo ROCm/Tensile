@@ -38,17 +38,8 @@ typedef union{
   int32_t val;
 } int8x4;
 
-void unpack_int8x4(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
-{
-  int8x4 x;
-  x.uval = in;
-  out_0 = x.byte[0];
-  out_1 = x.byte[1];
-  out_2 = x.byte[2];
-  out_3 = x.byte[3];
-}
-
-void unpack_int8x4(tensile_bfloat16 in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
+template< typename Type>
+void unpack_int8x4(Type in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
 {
 #ifdef NDEBUG
     throw std::logic_error( "Reached a supposed unreachable point" );
@@ -56,6 +47,17 @@ void unpack_int8x4(tensile_bfloat16 in, int32_t &out_0, int32_t &out_1, int32_t 
     assert( "Reached a supposed unreachable point" && 0 );
     throw 0;
 #endif
+}
+
+template <>
+void unpack_int8x4<uint32_t>(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
+{
+  int8x4 x;
+  x.uval = in;
+  out_0 = x.byte[0];
+  out_1 = x.byte[1];
+  out_2 = x.byte[2];
+  out_3 = x.byte[3];
 }
 
 template< typename Type, typename DestType, typename ComputeType >
@@ -224,20 +226,17 @@ TensileStatus tensileReferenceCPU(
          unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
          sumC = sumC + (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
       }
-      else if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
+      else if((std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) ||
+              localUseHighPrecisionAccumulate )
       {
-        float product = static_cast<float>(valueA) * static_cast<float>(valueB);
+        float product = tensileMultiply<float>( valueA, valueB );
         sumCfloat = tensileAdd<float>(sumCfloat, product);
       }
       else
       {
         Type product = tensileMultiply<Type>( valueA, valueB );
         //printf("%f = %f * %f\n", product, valueA, valueB );
-
-        if (localUseHighPrecisionAccumulate)
-          sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
-        else
-          sumC = tensileAdd<Type>(sumC,product);
+        sumC = tensileAdd<Type>(sumC,product);
       }
 
       // increment bound coord
@@ -264,26 +263,25 @@ TensileStatus tensileReferenceCPU(
     }
     if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>())
     {
-      sumCfloat = static_cast<float>(alpha) * sumCfloat;
+      sumCfloat = tensileMultiply<float>(alpha,sumCfloat);
     }
     else if (localUseHighPrecisionAccumulate)
     {
-      sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
+      sumCfloat = tensileMultiply<float>(alpha,sumCfloat);
     }
     else
     {
       sumC = tensileMultiply<Type>(alpha,sumC);
     }
     if (!tensileIsZero(beta)) {
-      Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
       if(std::is_same<Type, tensile_bfloat16>() && std::is_same<DestType, tensile_bfloat16>()) {
-        float tmp = tensileMultiply<float>(beta, static_cast<float>(dataC[serialIdxC]));
-        sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
+        float tmp = tensileMultiply<float>(beta, dataC[serialIdxC]);
+        sumCfloat = tensileAdd<float>(tmp,sumCfloat);
       }
       else {
         Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
         if (localUseHighPrecisionAccumulate)
-          sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
+          sumCfloat = tensileAdd<float>(tmp,sumCfloat);
         else
           sumC = tensileAdd<Type>(tmp,sumC);
       }

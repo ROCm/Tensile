@@ -50,6 +50,23 @@
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 #define TensileHalf _Float16
+
+inline std::ostream& operator<<(std::ostream& os, const TensileComplexFloat& dt)
+{
+   if(dt.y >= 0)
+       os << dt.x << "+"<< dt.y << "i";
+   else
+       os << dt.x << dt.y << "i";
+   return os;
+}
+inline std::ostream& operator<<(std::ostream& os, const TensileComplexDouble& dt)
+{
+   if(dt.y >= 0)
+       os << dt.x << "+"<< dt.y << "i";
+   else
+       os << dt.x << dt.y << "i";
+   return os;
+}
 inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 {
    os << (float)(dt);
