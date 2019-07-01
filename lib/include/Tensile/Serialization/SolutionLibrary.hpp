@@ -39,6 +39,7 @@
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/MatchingLibrary.hpp>
+#include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 
 namespace Tensile
 {
@@ -69,7 +70,8 @@ namespace Tensile
                     Base::template Pair<HardwareSelectionLibrary<MyProblem, MySolution>>(),
                     Base::template Pair<ProblemSelectionLibrary <MyProblem, MySolution>>(),
                     Base::template Pair<ProblemMapLibrary       <MyProblem, MySolution>>(),
-                    Base::template Pair<ProblemMatchingLibrary  <MyProblem, MySolution>>()
+                    Base::template Pair<ProblemMatchingLibrary  <MyProblem, MySolution>>(),
+                    Base::template Pair<GranularitySelectionLibrary  <MyProblem, MySolution>>()
                 });
             }
         };

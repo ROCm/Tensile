@@ -1,0 +1,253 @@
+---
+library:
+  rows:
+  - library:
+      map:
+        Contraction_l_Ailk_Bjlk_Cijk_Dijk:
+          rows:
+          - library:
+              idxs: [2]
+              type: GranularitySelection
+            predicate:
+              type: TypesEqual
+              value: [Float, Float, Float, Float]
+          type: Problem
+        Contraction_l_Ailk_Bljk_Cijk_Dijk:
+          rows:
+          - library:
+              idxs: [0]
+              type: GranularitySelection
+            predicate:
+              type: TypesEqual
+              value: [Float, Float, Float, Float]
+          type: Problem
+        Contraction_l_Alik_Bjlk_Cijk_Dijk:
+          rows:
+          - library:
+              idxs: [3]
+              type: GranularitySelection
+            predicate:
+              type: TypesEqual
+              value: [Float, Float, Float, Float]
+          type: Problem
+        Contraction_l_Alik_Bljk_Cijk_Dijk:
+          rows:
+          - library:
+              idxs: [1]
+              type: GranularitySelection
+            predicate:
+              type: TypesEqual
+              value: [Float, Float, Float, Float]
+          type: Problem
+      property: {type: OperationIdentifier}
+      type: ProblemMap 
+    predicate:
+      type: AMDGPU
+      value: {type: Processor, value: gfx906}
+  type: Hardware
+solutions:
+- debugKernel: false
+  hardwarePredicate: {type: TruePred}
+  index: 0
+  ideals: {32: 4904.7, 64: 9801.9}
+  info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
+    AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
+    AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', DepthU: '16', DirectToLds: 'False',
+    DirectToLdsA: 'False', DirectToLdsB: 'False', DisableKernelPieces: '0', EdgeType: ShiftPtr,
+    ExpandPointerSwap: 'True', FractionalLoad: '1', GlobalLoadVectorWidthA: '4', GlobalLoadVectorWidthB: '4',
+    GlobalRead2A: 'True', GlobalRead2B: 'True', GlobalReadCoalesceGroupA: 'True',
+    GlobalReadCoalesceGroupB: 'True', GlobalReadCoalesceVectorA: 'True', GlobalReadCoalesceVectorB: 'True',
+    GlobalReadVectorWidth: '4', GlobalSplitU: '1', GlobalSplitUSummationAssignmentRoundRobin: 'True',
+    GlobalSplitUWorkGroupMappingRoundRobin: 'False', GlobalWriteVectorWidth: '4',
+    GuaranteeNoPartialA: 'False', GuaranteeNoPartialB: 'True', InnerUnroll: '1', InterleaveAlpha: '0',
+    KernelLanguage: Assembly, LSCA: '64', LSCB: '16', LSPA: '16', LSPB: '64', LVCA: '16',
+    LVCB: '4', LVPA: '4', LVPB: '16', LdcEqualsLdd: 'True', LdsNumElements: '4096',
+    LdsNumElementsAlignedA: '1024', LdsNumElementsAlignedB: '1024', LdsOffsetA: '0',
+    LdsOffsetA_Blk: '2048', LdsOffsetB: '1024', LdsOffsetB_Blk: '3072', LdsPadA: '0',
+    LdsPadB: '0', LocalDotLayout: '1', LocalRead2A: 'True', LocalRead2B: 'True', LocalSplitU: '1',
+    LocalWrite2A: 'True', LocalWrite2B: 'True', LocalWriteUseSgprA: 'False', LocalWriteUseSgprB: 'False',
+    LoopDoWhile: 'False', LoopTail: 'True', LoopUnroll: '16', MacroTile0: '64', MacroTile1: '64',
+    MacroTileA: '64', MacroTileB: '64', MacroTileShapeMax: '64', MacroTileShapeMin: '1',
+    MaxOccupancy: '40', MinGlobalWriteVectorWidth: '1', NonTemporalA: '0', NonTemporalB: '0',
+    NonTemporalC: '0', NumElementsPerThread: '16', NumGlobalWriteVectorsPerThread: '4',
+    NumLoadsCoalescedA: '1', NumLoadsCoalescedB: '1', NumLoadsPerpendicularA: '1',
+    NumLoadsPerpendicularB: '1', NumThreads: '256', OptNoLoadLoop: '1', PackBatchDims: '0',
+    PackFreeDims: '1', PackGranularity: '2', PackedC0Indices: '[''I'']', PackedC1Indices: '[''J'']',
+    PerformanceSyncLocation: '-1', PerformanceWaitCount: '-1', PerformanceWaitLocation: '-1',
+    PersistentKernel: '0', PrefetchAcrossPersistent: '0', PrefetchGlobalRead: 'True',
+    PrefetchLocalRead: 'True', ReplacementKernel: 'False', ScheduleGlobalRead: '1',
+    ScheduleIterAlg: '1', ScheduleLocalWrite: '1', SolutionIndex: '0', SolutionNameMin: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_TT4_4,
+    StaggerU: '32', StaggerUMapping: '0', StaggerUStride: '256', SubGroup0: '16',
+    SubGroup1: '16', SubGroupA: '16', SubGroupB: '16', SuppressNoLoadLoop: 'False',
+    ThreadTile: '[4, 4]', ThreadTile0: '4', ThreadTile1: '4', ThreadTileA: '4', ThreadTileB: '4',
+    UnrollMemFence: 'False', UseSgprForGRO: 'False', Valid: 'True', VectorAtomicWidth: '1',
+    VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '1',
+    WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
+    fractionalPerpOverhangB: '0'}
+  name: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_K1_USFGRO0
+  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+  sizeMapping:
+    depthU: 16
+    globalSplitU: 1
+    macroTile: [64, 64, 1]
+    staggerStrideShift: 2
+    staggerU: 32
+    threadTile: [4, 4]
+    workGroup: [16, 16, 1]
+    workGroupMapping: 1
+- debugKernel: false
+  hardwarePredicate: {type: TruePred}
+  index: 1
+  ideals: {32: 4904.7, 64: 9801.9}
+  info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
+    AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
+    AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', DepthU: '16', DirectToLds: 'False',
+    DirectToLdsA: 'False', DirectToLdsB: 'False', DisableKernelPieces: '0', EdgeType: ShiftPtr,
+    ExpandPointerSwap: 'True', FractionalLoad: '1', GlobalLoadVectorWidthA: '4', GlobalLoadVectorWidthB: '4',
+    GlobalRead2A: 'True', GlobalRead2B: 'True', GlobalReadCoalesceGroupA: 'True',
+    GlobalReadCoalesceGroupB: 'True', GlobalReadCoalesceVectorA: 'True', GlobalReadCoalesceVectorB: 'True',
+    GlobalReadVectorWidth: '4', GlobalSplitU: '1', GlobalSplitUSummationAssignmentRoundRobin: 'True',
+    GlobalSplitUWorkGroupMappingRoundRobin: 'False', GlobalWriteVectorWidth: '4',
+    GuaranteeNoPartialA: 'True', GuaranteeNoPartialB: 'True', InnerUnroll: '1', InterleaveAlpha: '0',
+    KernelLanguage: Assembly, LSCA: '16', LSCB: '16', LSPA: '64', LSPB: '64', LVCA: '4',
+    LVCB: '4', LVPA: '16', LVPB: '16', LdcEqualsLdd: 'True', LdsNumElements: '4096',
+    LdsNumElementsAlignedA: '1024', LdsNumElementsAlignedB: '1024', LdsOffsetA: '0',
+    LdsOffsetA_Blk: '2048', LdsOffsetB: '1024', LdsOffsetB_Blk: '3072', LdsPadA: '0',
+    LdsPadB: '0', LocalDotLayout: '1', LocalRead2A: 'True', LocalRead2B: 'True', LocalSplitU: '1',
+    LocalWrite2A: 'True', LocalWrite2B: 'True', LocalWriteUseSgprA: 'False', LocalWriteUseSgprB: 'False',
+    LoopDoWhile: 'False', LoopTail: 'True', LoopUnroll: '16', MacroTile0: '64', MacroTile1: '64',
+    MacroTileA: '64', MacroTileB: '64', MacroTileShapeMax: '64', MacroTileShapeMin: '1',
+    MaxOccupancy: '40', MinGlobalWriteVectorWidth: '1', NonTemporalA: '0', NonTemporalB: '0',
+    NonTemporalC: '0', NumElementsPerThread: '16', NumGlobalWriteVectorsPerThread: '4',
+    NumLoadsCoalescedA: '1', NumLoadsCoalescedB: '1', NumLoadsPerpendicularA: '1',
+    NumLoadsPerpendicularB: '1', NumThreads: '256', OptNoLoadLoop: '1', PackBatchDims: '0',
+    PackFreeDims: '1', PackGranularity: '2', PackedC0Indices: '[''I'']', PackedC1Indices: '[''J'']',
+    PerformanceSyncLocation: '-1', PerformanceWaitCount: '-1', PerformanceWaitLocation: '-1',
+    PersistentKernel: '0', PrefetchAcrossPersistent: '0', PrefetchGlobalRead: 'True',
+    PrefetchLocalRead: 'True', ReplacementKernel: 'False', ScheduleGlobalRead: '1',
+    ScheduleIterAlg: '1', ScheduleLocalWrite: '1', SolutionIndex: '0', SolutionNameMin: Cijk_Alik_Bljk_SB_MT64x64x16_SE_TT4_4,
+    StaggerU: '32', StaggerUMapping: '0', StaggerUStride: '256', SubGroup0: '16',
+    SubGroup1: '16', SubGroupA: '16', SubGroupB: '16', SuppressNoLoadLoop: 'False',
+    ThreadTile: '[4, 4]', ThreadTile0: '4', ThreadTile1: '4', ThreadTileA: '4', ThreadTileB: '4',
+    UnrollMemFence: 'False', UseSgprForGRO: '1', Valid: 'True', VectorAtomicWidth: '1',
+    VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '1',
+    WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
+    fractionalPerpOverhangB: '0'}
+  name: Cijk_Alik_Bljk_SB_MT64x64x16_SE_K1_USFGRO1
+  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+  sizeMapping:
+    depthU: 16
+    globalSplitU: 1
+    macroTile: [64, 64, 1]
+    staggerStrideShift: 2
+    staggerU: 32
+    threadTile: [4, 4]
+    workGroup: [16, 16, 1]
+    workGroupMapping: 1
+- debugKernel: false
+  hardwarePredicate: {type: TruePred}
+  index: 2
+  ideals: {32: 4904.7, 64: 9801.9}
+  info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
+    AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
+    AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', DepthU: '16', DirectToLds: 'False',
+    DirectToLdsA: 'False', DirectToLdsB: 'False', DisableKernelPieces: '0', EdgeType: ShiftPtr,
+    ExpandPointerSwap: 'True', FractionalLoad: '1', GlobalLoadVectorWidthA: '4', GlobalLoadVectorWidthB: '4',
+    GlobalRead2A: 'True', GlobalRead2B: 'True', GlobalReadCoalesceGroupA: 'True',
+    GlobalReadCoalesceGroupB: 'True', GlobalReadCoalesceVectorA: 'True', GlobalReadCoalesceVectorB: 'True',
+    GlobalReadVectorWidth: '4', GlobalSplitU: '1', GlobalSplitUSummationAssignmentRoundRobin: 'True',
+    GlobalSplitUWorkGroupMappingRoundRobin: 'False', GlobalWriteVectorWidth: '4',
+    GuaranteeNoPartialA: 'False', GuaranteeNoPartialB: 'False', InnerUnroll: '1',
+    InterleaveAlpha: '0', KernelLanguage: Assembly, LSCA: '64', LSCB: '64', LSPA: '16',
+    LSPB: '16', LVCA: '16', LVCB: '16', LVPA: '4', LVPB: '4', LdcEqualsLdd: 'True',
+    LdsNumElements: '4096', LdsNumElementsAlignedA: '1024', LdsNumElementsAlignedB: '1024',
+    LdsOffsetA: '0', LdsOffsetA_Blk: '2048', LdsOffsetB: '1024', LdsOffsetB_Blk: '3072',
+    LdsPadA: '0', LdsPadB: '0', LocalDotLayout: '1', LocalRead2A: 'True', LocalRead2B: 'True',
+    LocalSplitU: '1', LocalWrite2A: 'True', LocalWrite2B: 'True', LocalWriteUseSgprA: 'False',
+    LocalWriteUseSgprB: 'False', LoopDoWhile: 'False', LoopTail: 'True', LoopUnroll: '16',
+    MacroTile0: '64', MacroTile1: '64', MacroTileA: '64', MacroTileB: '64', MacroTileShapeMax: '64',
+    MacroTileShapeMin: '1', MaxOccupancy: '40', MinGlobalWriteVectorWidth: '1', NonTemporalA: '0',
+    NonTemporalB: '0', NonTemporalC: '0', NumElementsPerThread: '16', NumGlobalWriteVectorsPerThread: '4',
+    NumLoadsCoalescedA: '1', NumLoadsCoalescedB: '1', NumLoadsPerpendicularA: '1',
+    NumLoadsPerpendicularB: '1', NumThreads: '256', OptNoLoadLoop: '1', PackBatchDims: '0',
+    PackFreeDims: '1', PackGranularity: '2', PackedC0Indices: '[''I'']', PackedC1Indices: '[''J'']',
+    PerformanceSyncLocation: '-1', PerformanceWaitCount: '-1', PerformanceWaitLocation: '-1',
+    PersistentKernel: '0', PrefetchAcrossPersistent: '0', PrefetchGlobalRead: 'True',
+    PrefetchLocalRead: 'True', ReplacementKernel: 'False', ScheduleGlobalRead: '1',
+    ScheduleIterAlg: '1', ScheduleLocalWrite: '1', SolutionIndex: '0', SolutionNameMin: Cijk_Ailk_Bjlk_SB_MT64x64x16_SE_TT4_4,
+    StaggerU: '32', StaggerUMapping: '0', StaggerUStride: '256', SubGroup0: '16',
+    SubGroup1: '16', SubGroupA: '16', SubGroupB: '16', SuppressNoLoadLoop: 'False',
+    ThreadTile: '[4, 4]', ThreadTile0: '4', ThreadTile1: '4', ThreadTileA: '4', ThreadTileB: '4',
+    UnrollMemFence: 'False', UseSgprForGRO: 'False', Valid: 'True', VectorAtomicWidth: '1',
+    VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '1',
+    WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
+    fractionalPerpOverhangB: '0'}
+  name: Cijk_Ailk_Bjlk_SB_MT64x64x16_SE_K1_USFGRO0
+  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+  sizeMapping:
+    depthU: 16
+    globalSplitU: 1
+    macroTile: [64, 64, 1]
+    staggerStrideShift: 2
+    staggerU: 32
+    threadTile: [4, 4]
+    workGroup: [16, 16, 1]
+    workGroupMapping: 1
+- debugKernel: false
+  hardwarePredicate: {type: TruePred}
+  index: 3
+  ideals: {32: 4904.7, 64: 9801.9}
+  info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
+    AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
+    AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', DepthU: '16', DirectToLds: 'False',
+    DirectToLdsA: 'False', DirectToLdsB: 'False', DisableKernelPieces: '0', EdgeType: ShiftPtr,
+    ExpandPointerSwap: 'True', FractionalLoad: '1', GlobalLoadVectorWidthA: '4', GlobalLoadVectorWidthB: '4',
+    GlobalRead2A: 'True', GlobalRead2B: 'True', GlobalReadCoalesceGroupA: 'True',
+    GlobalReadCoalesceGroupB: 'True', GlobalReadCoalesceVectorA: 'True', GlobalReadCoalesceVectorB: 'True',
+    GlobalReadVectorWidth: '4', GlobalSplitU: '1', GlobalSplitUSummationAssignmentRoundRobin: 'True',
+    GlobalSplitUWorkGroupMappingRoundRobin: 'False', GlobalWriteVectorWidth: '4',
+    GuaranteeNoPartialA: 'True', GuaranteeNoPartialB: 'False', InnerUnroll: '1', InterleaveAlpha: '0',
+    KernelLanguage: Assembly, LSCA: '16', LSCB: '64', LSPA: '64', LSPB: '16', LVCA: '4',
+    LVCB: '16', LVPA: '16', LVPB: '4', LdcEqualsLdd: 'True', LdsNumElements: '4096',
+    LdsNumElementsAlignedA: '1024', LdsNumElementsAlignedB: '1024', LdsOffsetA: '0',
+    LdsOffsetA_Blk: '2048', LdsOffsetB: '1024', LdsOffsetB_Blk: '3072', LdsPadA: '0',
+    LdsPadB: '0', LocalDotLayout: '1', LocalRead2A: 'True', LocalRead2B: 'True', LocalSplitU: '1',
+    LocalWrite2A: 'True', LocalWrite2B: 'True', LocalWriteUseSgprA: 'False', LocalWriteUseSgprB: 'False',
+    LoopDoWhile: 'False', LoopTail: 'True', LoopUnroll: '16', MacroTile0: '64', MacroTile1: '64',
+    MacroTileA: '64', MacroTileB: '64', MacroTileShapeMax: '64', MacroTileShapeMin: '1',
+    MaxOccupancy: '40', MinGlobalWriteVectorWidth: '1', NonTemporalA: '0', NonTemporalB: '0',
+    NonTemporalC: '0', NumElementsPerThread: '16', NumGlobalWriteVectorsPerThread: '4',
+    NumLoadsCoalescedA: '1', NumLoadsCoalescedB: '1', NumLoadsPerpendicularA: '1',
+    NumLoadsPerpendicularB: '1', NumThreads: '256', OptNoLoadLoop: '1', PackBatchDims: '0',
+    PackFreeDims: '1', PackGranularity: '2', PackedC0Indices: '[''I'']', PackedC1Indices: '[''J'']',
+    PerformanceSyncLocation: '-1', PerformanceWaitCount: '-1', PerformanceWaitLocation: '-1',
+    PersistentKernel: '0', PrefetchAcrossPersistent: '0', PrefetchGlobalRead: 'True',
+    PrefetchLocalRead: 'True', ReplacementKernel: 'False', ScheduleGlobalRead: '1',
+    ScheduleIterAlg: '1', ScheduleLocalWrite: '1', SolutionIndex: '0', SolutionNameMin: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_TT4_4,
+    StaggerU: '32', StaggerUMapping: '0', StaggerUStride: '256', SubGroup0: '16',
+    SubGroup1: '16', SubGroupA: '16', SubGroupB: '16', SuppressNoLoadLoop: 'False',
+    ThreadTile: '[4, 4]', ThreadTile0: '4', ThreadTile1: '4', ThreadTileA: '4', ThreadTileB: '4',
+    UnrollMemFence: 'False', UseSgprForGRO: 'False', Valid: 'True', VectorAtomicWidth: '1',
+    VectorStore: 'True', VectorWidth: '4', WorkGroup: '[16, 16, 1]', WorkGroupMapping: '1',
+    WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
+    fractionalPerpOverhangB: '0'}
+  name: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_K1_USFGRO0
+  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+  sizeMapping:
+    depthU: 16
+    globalSplitU: 1
+    macroTile: [64, 64, 1]
+    staggerStrideShift: 2
+    staggerU: 32
+    threadTile: [4, 4]
+    workGroup: [16, 16, 1]
+    workGroupMapping: 1
+...

@@ -135,6 +135,18 @@ namespace Tensile
                 io.mapRequired(key, obj, ctx);
             }
 
+            template <typename T>
+            static void mapOptional(IO & io, const char* key, T & obj)
+            {
+                io.mapOptional(key, obj);
+            }
+
+            template <typename T, typename Context>
+            static void mapOptional(IO & io, const char* key, T & obj, Context & ctx)
+            {
+                io.mapOptional(key, obj, ctx);
+            }
+
             static bool outputting(IO & io)
             {
                 return io.outputting();
