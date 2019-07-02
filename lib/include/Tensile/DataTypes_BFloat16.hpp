@@ -145,13 +145,16 @@ namespace Tensile
 
     inline BFloat16 operator++(BFloat16& a) { a += BFloat16(1); return a; }
     inline BFloat16 operator++(BFloat16& a, int) { BFloat16 original_value = a; ++a; return original_value;}
+}
 
-    inline bool isinf(const BFloat16& a) { return std::isinf(static_cast<float>(a)); }
-    inline bool isnan(const BFloat16& a) { return std::isnan(static_cast<float>(a)); }
-    inline bool iszero(const BFloat16& a) { return (a.data & 0x7FFF) == 0; }
+namespace std
+{
+    inline bool isinf( const Tensile::BFloat16& a) { return std::isinf(static_cast<float>(a)); }
+    inline bool isnan( const Tensile::BFloat16& a) { return std::isnan(static_cast<float>(a)); }
+    inline bool iszero(const Tensile::BFloat16& a) { return (a.data & 0x7FFF) == 0; }
 
-    inline BFloat16 abs(const BFloat16& a) { return static_cast<BFloat16>(std::abs(static_cast<float>(a))); }
-    inline BFloat16 sin(const BFloat16& a) { return static_cast<BFloat16>(std::sin(static_cast<float>(a))); }
-    inline BFloat16 cos(const BFloat16& a) { return static_cast<BFloat16>(std::cos(static_cast<float>(a))); }
+    inline Tensile::BFloat16 abs(const Tensile::BFloat16& a) { return static_cast<Tensile::BFloat16>(std::abs(static_cast<float>(a))); }
+    inline Tensile::BFloat16 sin(const Tensile::BFloat16& a) { return static_cast<Tensile::BFloat16>(std::sin(static_cast<float>(a))); }
+    inline Tensile::BFloat16 cos(const Tensile::BFloat16& a) { return static_cast<Tensile::BFloat16>(std::cos(static_cast<float>(a))); }
 }
 

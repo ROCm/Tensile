@@ -23,6 +23,8 @@
 
 #include <Tensile/ContractionProblem.hpp>
 
+#include <cmath>
+
 namespace Tensile
 {
     int32_t ContractionSolution::staggerUIter(ContractionSolution::Problem const& problem,
@@ -363,7 +365,7 @@ namespace Tensile
         while(it != ideals.end())
         {
             int myK = it->first;
-            int myMeasure = abs(myK - K);
+            int myMeasure = std::abs(myK - K);
             if (myMeasure < closestKMeasure)
             {
                 closestKMeasure = myMeasure;
