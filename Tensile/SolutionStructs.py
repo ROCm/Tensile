@@ -110,7 +110,7 @@ class ProblemType:
     else:
       self["NumIndicesC"] = 2
 
-    self["NumIndiciesLD"] = 4
+    self["NumIndicesLD"] = 4
     self["IndexAssignmentsLD"][0] = self["NumIndicesC"] + 1
     for i in range(1, len(self["IndexAssignmentsLD"])):
       self["IndexAssignmentsLD"][i] = self["IndexAssignmentsLD"][i-1] + 1
@@ -120,7 +120,7 @@ class ProblemType:
     assignParameterRequired(self.state, "NumIndicesC", config)
     assignParameterRequired(self.state, "IndexAssignmentsA", config)
     assignParameterRequired(self.state, "IndexAssignmentsB", config)
-    self["NumIndiciesLD"] = 0
+    self["NumIndicesLD"] = 0
 
   ########################################
   def isGEMM(self):
@@ -298,10 +298,10 @@ class ProblemSizeRange:
 
   ########################################
   def __init__(self, problemType, config):
-    self.totalIndices = 1+max(problemType["IndexAssignmentsA"]) + problemType["NumIndiciesLD"]
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"]) + problemType["NumIndicesLD"]
     if len(config) < self.totalIndices:
       for i in range(len(config), self.totalIndices):
-        if i < self.totalIndices - problemType["NumIndiciesLD"]:
+        if i < self.totalIndices - problemType["NumIndicesLD"]:
           config.append(0)
         else:
           config.append([0])
@@ -451,7 +451,7 @@ class ProblemSizes:
             if problemType["OperationType"] == "GEMM":
               e += [0, 0, 0, 0]
             self.exacts.append(tuple(e))
-          elif len(e) == (problemType["TotalIndices"] + problemType["NumIndiciesLD"]):
+          elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
             self.exacts.append(tuple(e))
           else:
             printExit("ExactSize %s doesn't match indices of ProblemType %s" \

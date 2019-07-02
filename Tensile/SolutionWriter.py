@@ -357,6 +357,8 @@ class SolutionWriter:
       s += ";\n"
 
       s += "%suint64_t tensor2dSizeA = 1;\n" % t
+      s += "%suint64_t tensor2dSizeAStride = 0;\n" % t
+      s += "%suint64_t tensor2dSizeAOffset = 0;\n" % t
       numIdx = len(problemType["IndexAssignmentsA"])
 
       printMe = printedSum = False
@@ -372,16 +374,22 @@ class SolutionWriter:
           printMe = False
 
         if printMe:
-          s += "%stensor2dSizeA = " % t
           if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsA"][i+1]
-            s += "std::max(tensor2dSizeA*size%s, (uint64_t)strideA%u%s);\n" \
-                % (self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeAStride = std::max(tensor2dSizeA*size%s, (uint64_t)strideA%u%s);\n" \
+                % (t, self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeAOffset += tensor2dSizeAStride - tensor2dSizeA*size%s;\n" \
+                % (t, self.indexChars[idx])
+            s += "%stensor2dSizeA = tensor2dSizeAStride;\n" % (t)
           else:
-            s += " tensor2dSizeA * size%s" % (self.indexChars[idx])
-      s += ";\n"
+            s += "%stensor2dSizeA = tensor2dSizeA * size%s;\n" % (t, self.indexChars[idx])
+
+      s += "%stensor2dSizeA -= tensor2dSizeAOffset;\n" % t
+      s += "\n"
 
       s += "%suint64_t tensor2dSizeB = 1;\n" % t
+      s += "%suint64_t tensor2dSizeBStride = 0;\n" % t
+      s += "%suint64_t tensor2dSizeBOffset = 0;\n" % t
       numIdx = len(problemType["IndexAssignmentsB"])
       printMe = printedSum = False
       for i in range(0,numIdx):
@@ -396,14 +404,18 @@ class SolutionWriter:
           printMe = False
 
         if printMe:
-          s += "%stensor2dSizeB = " % t
           if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsB"][i+1]
-            s += "std::max(tensor2dSizeB*size%s, (uint64_t)strideB%u%s);\n" \
-                % (self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeBStride = std::max(tensor2dSizeB*size%s, (uint64_t)strideB%u%s);\n" \
+                % (t, self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeBOffset += tensor2dSizeBStride - tensor2dSizeB*size%s;\n" \
+                % (t, self.indexChars[idx])
+            s += "%stensor2dSizeB = tensor2dSizeBStride;\n" % (t)
           else:
-            s += " tensor2dSizeB * size%s" % (self.indexChars[idx])
-      s += ";\n"
+            s += "%stensor2dSizeB = tensor2dSizeB * size%s;\n" % (t, self.indexChars[idx])
+
+      s += "%stensor2dSizeB -= tensor2dSizeBOffset;\n" % t
+      s += "\n"
 
     unrollChar = globalParameters["IndexChars"][problemType["IndexUnroll"]]
 
@@ -788,7 +800,7 @@ class SolutionWriter:
             """
 
           s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipExtModuleLaunchKernel(\n" % (t)
+          s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)

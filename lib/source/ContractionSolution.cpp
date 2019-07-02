@@ -347,4 +347,51 @@ namespace Tensile
         }
     }
 
+    double ContractionSolution::projectedPerformance(Problem const& problem) const
+    {
+        double M = problem.freeSizeA(0);
+        double N = problem.freeSizeB(0);
+        double NumBatches = problem.batchSize(0);
+        double K = problem.boundSize(0);
+
+        auto it = ideals.begin();
+
+        int closestK = -1;
+        int closestKMeasure = std::numeric_limits<int>::max();
+        double closestKPerformance = 0.0;
+
+        while(it != ideals.end())
+        {
+            int myK = it->first;
+            int myMeasure = abs(myK - K);
+            if (myMeasure < closestKMeasure)
+            {
+                closestKMeasure = myMeasure;
+                closestK = myK;
+                closestKPerformance = it->second;
+            }
+            it++;
+        }
+
+        double MT0 = sizeMapping.macroTile.x;
+        double MT1 = sizeMapping.macroTile.y;
+        double NumCUs = 64;
+        double GlobalSplitU = sizeMapping.globalSplitU;
+        double LocalSplitU = sizeMapping.workGroupSize.z;
+        double IdealGranularityPerf = closestKPerformance;
+
+        double Tiles0 = ceil(M / MT0);
+        double Tiles1 = ceil(N / MT1);
+
+        double TileGranularity0 = (M / MT0) / Tiles0;
+        double TileGranularity1 = (N / MT1) / Tiles1;
+
+        double TilesPerCu = (NumBatches * Tiles0 * Tiles1) / (NumCUs / GlobalSplitU / LocalSplitU);
+        double CuGranularity = TilesPerCu / ceil(TilesPerCu);
+
+        double projectedPerformance = IdealGranularityPerf * TileGranularity0 * TileGranularity1 * CuGranularity;
+
+        return projectedPerformance;
+    }
+
 }

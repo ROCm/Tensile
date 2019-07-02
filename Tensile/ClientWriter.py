@@ -154,6 +154,10 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
       % globalParameters["RuntimeLanguage"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+  else:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
   if forBenchmark:
     # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
@@ -607,9 +611,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " }\n"
   h += "};\n"
   # Index Assignments LD
-  h += "const unsigned int numIndicesLD = %u;\n" % problemType["NumIndiciesLD"]
+  h += "const unsigned int numIndicesLD = %u;\n" % problemType["NumIndicesLD"]
   h += "const unsigned int indexAssignmentsLD[numIndicesLD] = {"
-  if problemType["NumIndiciesLD"] > 0:
+  if problemType["NumIndicesLD"] > 0:
     h += " %u" % problemType["IndexAssignmentsLD"][0]
     for ldIdx in range(1, len(problemType["IndexAssignmentsLD"])):
       h += ", %u" % problemType["IndexAssignmentsLD"][ldIdx]
@@ -664,10 +668,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "const unsigned int numProblems = %u;\n" \
         % problemSizes.totalProblemSizes
     h += "const unsigned int problemSizes[numProblems][%u] = {\n" \
-        % (problemTypes[0]["TotalIndices"] + problemType["NumIndiciesLD"])
+        % (problemTypes[0]["TotalIndices"] + problemType["NumIndicesLD"])
     for i in range(0, problemSizes.totalProblemSizes):
       line = "  {%5u" %problemSizes.sizes[i][0]
-      for j in range(1, problemTypes[0]["TotalIndices"] + problemType["NumIndiciesLD"]):
+      for j in range(1, problemTypes[0]["TotalIndices"] + problemType["NumIndicesLD"]):
         line += ",%5u" % problemSizes.sizes[i][j]
       line += " }"
       h += line

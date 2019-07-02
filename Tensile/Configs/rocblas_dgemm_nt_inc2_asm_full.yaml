@@ -1829,7 +1829,7 @@ BenchmarkProblems:
           - Exact: [   512,  256, 1, 256, 45056, 45056,     0, 0 ]
           - Exact: [   256,  256, 1, 256, 45056, 45056, 45056, 0 ]
 
-    - # BenchmarkProblemSizeGroup - April 24, k=128,384
+    - # BenchmarkProblemSizeGroup - April 22, k=128
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - BufferLoad: [True]
@@ -4319,6 +4319,44 @@ BenchmarkProblems:
           - Exact: [   256,  128, 1, 128, 44928, 44928,     0, 0 ]
           - Exact: [   128,  129, 1, 128, 44928, 44928, 44928, 0 ]
           - Exact: [   128,  128, 1, 128, 44928, 44928,     0, 0 ]
+
+    - # BenchmarkProblemSizeGroup - April 22, k=384
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - BufferLoad: [True]
+        - BufferStore: [True]
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - ReplacementKernel: [True]
+      ForkParameters:
+        - FractionalLoad: [True]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True, False]
+        - PersistentKernel: [0]
+        - SuppressNoLoadLoop: [True, False] 
+        - StaggerU: [0]
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 6, 4 ]
+          - [ 4, 6 ]
+          - [ 6, 6 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+        - WorkGroup:
+          - [ 32, 16,  1 ]
+          - [ 16,  8,  1 ]
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
+          - [ 16, 32,  1 ]
+        - WorkGroupMapping: [1, 4, 8]
+        - DepthU: [ 4, 8 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
           - Exact: [ 44544, 8192, 1, 384, 44928, 44928, 44928, 0 ]
           - Exact: [ 44544,  512, 1, 384, 44928, 44928, 44928, 0 ]
           - Exact: [ 44544, 4096, 1, 384, 44928, 44928, 44928, 0 ]
@@ -5136,7 +5174,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
+    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
     ArchitectureName: "gfx906"
 
 #   ScheduleName: "vega10"

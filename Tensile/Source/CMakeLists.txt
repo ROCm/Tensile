@@ -28,7 +28,8 @@ set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 ###############################################################################
 # Common Options
 option( Tensile_ENABLE_HALF "Enable half precision data types" OFF)
-option( Tensile_CLIENT_BENCMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
+option( Tensile_CLIENT_BENCHMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
+option( Tensile_RESUME_BENCHMARK "When benchmark interrupted ON=Resume the benchmark process; OFF=Restart the benchmark process" OFF)
 option( Tensile_MERGE_FILES "Merge kernels and solutions files" OFF)
 set(Tensile_RUNTIME_LANGUAGE HIP CACHE STRING "Which runtime language to use")
 set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
@@ -66,6 +67,10 @@ else()
     -DTensile_CLIENT_LIBRARY=1 )
 endif()
 
+if(Tensile_RESUME_BENCHMARK)
+    target_compile_definitions( ${ClientName} PUBLIC
+      -DTensile_RESUME_BENCHMARK )
+endif()
 ###############################################################################
 # Visual Studio or HIPCC
 if(MSVC)
@@ -74,8 +79,9 @@ endif()
 
 if (UNIX)
   # the Tensile library doesn't require c++11, but client/ReferenceCPU does
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11"  )
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-deprecated-declarations" )
+  # with addition of bfloat16 library requires c++14
+  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14"  )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wno-deprecated-declarations" )
 endif()
 
 if(Tensile_MERGE_FILES)

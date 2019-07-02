@@ -28,7 +28,7 @@ endif()
 include("${TENSILE_SCRIPT_ROOT}/Source/TensileConfig.cmake")
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror -ftemplate-backtrace-limit=0" )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -ftemplate-backtrace-limit=0" )
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
