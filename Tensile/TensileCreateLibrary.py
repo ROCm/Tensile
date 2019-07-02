@@ -885,6 +885,7 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
+  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", action="store", default="V2")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -904,6 +905,7 @@ def TensileCreateLibrary():
   ensurePath(outputPath)
   arguments = {}
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
+  arguments["CodeObjectVersion"] = args.CodeObjectVersion
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
