@@ -1,4 +1,15 @@
 
+if(NOT TENSILE_DISABLE_TESTS)
+    enable_testing()
+
+    if(CMAKE_VERSION VERSION_GREATER 3.9)
+        include(GoogleTest)
+        option(GTEST_INTEGRATION "Enable Googletest integration with CMake." ON)
+    else()
+        option(GTEST_INTEGRATION "Enable Googletest integration with CMake." OFF)
+    endif()
+endif()
+
 set(INSTALL_GTEST OFF CACHE BOOL "Install GTest")
 add_subdirectory(googletest)
 

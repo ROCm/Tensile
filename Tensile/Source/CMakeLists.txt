@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,46 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5)
+
+option(TENSILE_NEW_CLIENT "Build the new client" ON)
+
+if(TENSILE_NEW_CLIENT)
+
+project(Tensile)
+
+option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
+option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
+option(TENSILE_USE_OPENMP    "Use LLVM for parsing config files." ON)
+option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
+option(TENSILE_DISABLE_TESTS "Disable CTest integration." OFF)
+
+if(TENSILE_USE_HIP)
+    find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
+endif()
+
+if(TENSILE_USE_OPENMP)
+    find_package(OpenMP)
+    if (OPENMP_FOUND)
+        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    endif()
+endif()
+
+set(TENSILE_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
+if(TENSILE_USE_HIP)
+    string(FIND "${CMAKE_CXX_COMPILER}" "hcc"   cxx_hcc)
+    string(FIND "${CMAKE_CXX_COMPILER}" "hipcc" cxx_hipcc)
+
+    if(cxx_hcc EQUAL "-1" AND cxx_hipcc EQUAL "-1")
+        set(TENSILE_CXX_COMPILER "${HIP_BIN_INSTALL_DIR}/hcc")
+    endif()
+endif()
+
+add_subdirectory(lib)
+
+else()
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 project(TensileClient)
@@ -132,4 +171,5 @@ if(NOT Tensile_CLIENT_BENCHMARK)
   target_link_libraries( ${ClientName} PUBLIC Tensile )
 endif()
 
+endif()
 
