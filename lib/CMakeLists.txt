@@ -45,7 +45,7 @@ set(tensile_sources  ${tensile_sources}
     )
 
 if(TENSILE_USE_LLVM)
-    find_package(LLVM REQUIRED CONFIG)
+    find_package(LLVM 6.0 REQUIRED CONFIG)
     set(tensile_sources ${tensile_sources}
         source/llvm/YAML.cpp
         source/llvm/Loading.cpp
