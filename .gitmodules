@@ -1,4 +1,4 @@
-[submodule "HostLibraryTest/googletest"]
-	path = HostLibraryTest/googletest
+[submodule "HostLibraryTests/googletest"]
+	path = HostLibraryTests/googletest
 	url = https://github.com/google/googletest.git
     branch = master
