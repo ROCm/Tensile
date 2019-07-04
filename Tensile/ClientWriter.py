@@ -260,7 +260,7 @@ def toCppBool(yamlBool):
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functionList, stepBaseDir):
+    functionList, stepBaseDir, solutionWriter):
   h = ""
 
   ##############################################################################
@@ -274,6 +274,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         if kernel not in kernels:
           kernels.append(kernel)
 
+    """
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -281,6 +282,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     solutionWriter = SolutionWriter( \
         solutionMinNaming, solutionSerialNaming, \
         kernelMinNaming, kernelSerialNaming)
+    """
 
   if forBenchmark:
     if globalParameters["MergeFiles"]:

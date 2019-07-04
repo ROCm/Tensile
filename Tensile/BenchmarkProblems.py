@@ -281,6 +281,39 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
         shortName, filesToCopy)
 
+    removeSolutions = []
+    for i in range(0, len(solutions)):
+      solutionsForHardcoded = solutions[i]
+      removeSolutions.append([])
+      for j in range(0, len(solutionsForHardcoded)):
+        solution = solutionsForHardcoded[j]
+        if solutionList.count(solution) == 0:
+          removeSolutions[i].append(solution)
+    
+    for i in range(0, len(solutions)):
+      solutionsForHardcoded = solutions[i]
+      for j in range(0, len(removeSolutions[i])):
+          solutionsForHardcoded.remove(removeSolutions[i][j])
+    
+    # remove hardcoded that don't have any valid benchmarks
+    removeHardcoded = []
+    for hardcodedIdx in range(0, numHardcoded):
+      if len(solutions[hardcodedIdx]) == 0:
+        hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
+        removeHardcoded.append(hardcodedParamDict)
+    removesExist = len(removeHardcoded) > 0
+    for hardcodedParam in removeHardcoded:
+      benchmarkStep.hardcodedParameters.remove(hardcodedParam)
+    
+    if removesExist:
+      print1("# Updating winners since kernelwriter removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
+      winners.wpdUpdate( benchmarkStep.hardcodedParameters )
+      numHardcoded = len(benchmarkStep.hardcodedParameters )
+      # remove from solution 2D list also
+      for solutionTmp in shallowcopy(solutions):
+        if len(solutionTmp) == 0:
+          solutions.remove(solutionTmp)
+
     print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]
     files = os.listdir(sourceTmp)
@@ -370,7 +403,7 @@ def getResults(resultsFileName, solutions):
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
-      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
       results[-1].append([])
       numSolutions += 1
 
@@ -444,6 +477,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       globalParameters["WorkingPath"], [problemType], solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly )
 
+  if len(solutions) == 0:
+    printExit("write solutions and kernels results 0 valid soultion.")
   ##############################################################################
   # Write CMake
   ##############################################################################
@@ -454,7 +489,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir)
+      filesToCopy, stepBaseDir, solutionWriter)
 
 ################################################################################
 # FrozenDictionary
