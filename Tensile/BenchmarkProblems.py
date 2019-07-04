@@ -370,7 +370,7 @@ def getResults(resultsFileName, solutions):
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
-      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
       results[-1].append([])
       numSolutions += 1
 
