@@ -51,6 +51,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # A couple classic large matrix problems:
+          - Range: [ [4096], [4096], [1], [4096] ]
           - Range: [ [5760], [5760], [1], [5760] ]
           - Range: [ [4608], [4608], [1], [50000] ]
           - Range: [ [5760], [5760], [1], [50000] ]
