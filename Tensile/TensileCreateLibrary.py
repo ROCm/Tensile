@@ -272,7 +272,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   removeResults = []
   for kernIdx in range(0, len(results)):
     (err,src,header,kernelName) = results[kernIdx]
-    if(err):
+    if(err == -2):
       removeKernels.append(kernels[kernIdx])
       removeSolutions.append(solutions[kernIdx])
       removeResults.append(results[kernIdx])

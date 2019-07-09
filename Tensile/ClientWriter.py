@@ -260,7 +260,7 @@ def toCppBool(yamlBool):
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functionList, stepBaseDir, solutionWriter):
+    functionList, stepBaseDir, solutionWriter = None):
   h = ""
 
   ##############################################################################
