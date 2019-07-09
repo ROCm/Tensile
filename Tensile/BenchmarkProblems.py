@@ -370,7 +370,11 @@ def getResults(resultsFileName, solutions):
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
-      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
+      # GEMM csv files contain "LDD" "LDC" "LDA" "LDB" columns
+      if solution["ProblemType"]["OperationType"] == "GEMM":
+        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
+      else:
+        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
       results[-1].append([])
       numSolutions += 1
 
