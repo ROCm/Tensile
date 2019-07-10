@@ -24,9 +24,10 @@ include(CMakeParseArguments)
 ################################################################################
 # Create A Tensile Library from LibraryLogic.yaml files
 ################################################################################
-function(TensileCreateLibrary
+function(TensileCreateLibraryCmake
     Tensile_LOGIC_PATH
     Tensile_RUNTIME_LANGUAGE
+    Tensile_CODE_OBJECT_VERSION
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
@@ -64,6 +65,8 @@ function(TensileCreateLibrary
   else()
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
+
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
 
   # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
