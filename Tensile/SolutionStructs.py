@@ -569,7 +569,10 @@ class Solution:
       assignParameterWithDefault(self._state, key, config, defaultSolution)
 
     if 'ISA' not in self._state:
-       self._state['ISA'] = list(globalParameters["CurrentISA"])
+      if 'ISA' in config:
+        self._state['ISA'] = config['ISA']
+      else:
+        self._state['ISA'] = list(globalParameters["CurrentISA"])
 
     # assign parameters without defaults
     for key in config:

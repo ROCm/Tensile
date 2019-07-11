@@ -19,20 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
-
 cmake_minimum_required(VERSION 3.5)
-
-if(NOT TENSILE_DISABLE_TESTS)
-    enable_testing()
-
-    if(CMAKE_VERSION VERSION_GREATER 3.9)
-        include(GoogleTest)
-        option(GTEST_INTEGRATION "Enable Googletest integration with CMake." ON)
-    else()
-        option(GTEST_INTEGRATION "Enable Googletest integration with CMake." OFF)
-    endif()
-endif()
 
 if(NOT DEFINED TENSILE_ROOT)
     get_filename_component(TENSILE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
@@ -40,9 +27,6 @@ endif()
 if(NOT DEFINED TENSILE_SCRIPT_ROOT)
     set(TENSILE_SCRIPT_ROOT "${TENSILE_ROOT}/Tensile")
 endif()
-
-include("${TENSILE_SCRIPT_ROOT}/Source/TensileConfig.cmake")
-
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -ftemplate-backtrace-limit=0" )
 
@@ -66,7 +50,6 @@ if(TENSILE_USE_LLVM)
         source/llvm/YAML.cpp
         source/llvm/Loading.cpp
     )
-    include_directories (${LLVM_INCLUDE_DIRS})
 endif()
 
 if(TENSILE_USE_HIP)
@@ -82,11 +65,10 @@ add_library (Tensile STATIC ${tensile_sources})
 
 target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-add_subdirectory(configs)
-
 if(TENSILE_USE_LLVM)
     target_compile_definitions(Tensile PUBLIC TENSILE_DEFAULT_SERIALIZATION)
-    target_link_libraries( Tensile PUBLIC LLVMObjectYAML )
+    target_link_libraries(Tensile PRIVATE LLVMObjectYAML )
+    target_include_directories(Tensile PRIVATE ${LLVM_INCLUDE_DIRS})
 endif()
 
 if(TENSILE_STATIC_ONLY)
@@ -96,12 +78,8 @@ endif()
 if(HIP_FOUND)
     target_compile_definitions(Tensile PUBLIC TENSILE_USE_HIP)
 
-    add_subdirectory(client)
+    #add_subdirectory(client)
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} hip::host )
-endif()
-
-if(NOT TENSILE_DISABLE_TESTS)
-    add_subdirectory(test)
 endif()
 
 if(false)

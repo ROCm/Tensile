@@ -20,6 +20,10 @@
 ################################################################################
 # This script only gets called by CMake
 
+if __name__ == "__main__":
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead.")
+    exit(1)
+
 from . import Common
 from . import EmbeddedData
 from . import Utils
@@ -1044,11 +1048,4 @@ def TensileCreateLibrary():
   print1("# Tensile Library Writer DONE")
   print1(HR)
   print1("")
-
-################################################################################
-# Main
-################################################################################
-if __name__ == "__main__":
-    print("This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead.")
-    exit(1)
 

@@ -24,6 +24,7 @@ solutions:
     index:           0
     problemType:
         operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk
+        highPrecisionAccumulate: false
         aType:           Float
         bType:           Float
         cType:           Float
@@ -46,6 +47,7 @@ solutions:
     index:           1
     problemType:
         operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk
+        highPrecisionAccumulate: false
         aType:           Float
         bType:           Float
         cType:           Float
@@ -68,6 +70,7 @@ solutions:
     index:           2
     problemType:
         operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk
+        highPrecisionAccumulate: false
         aType:           Float
         bType:           Float
         cType:           Float
@@ -90,6 +93,7 @@ solutions:
     index:           3
     problemType:
         operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk
+        highPrecisionAccumulate: false
         aType:           Float
         bType:           Float
         cType:           Float

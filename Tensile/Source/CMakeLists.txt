@@ -25,151 +25,157 @@ option(TENSILE_NEW_CLIENT "Build the new client" ON)
 
 if(TENSILE_NEW_CLIENT)
 
-project(Tensile)
+    project(Tensile)
 
-option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
-option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
-option(TENSILE_USE_OPENMP    "Use LLVM for parsing config files." ON)
-option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
-option(TENSILE_DISABLE_TESTS "Disable CTest integration." OFF)
+    option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
+    option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
+    option(TENSILE_USE_OPENMP    "Use LLVM for parsing config files." ON)
+    option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
 
-if(TENSILE_USE_HIP)
-    find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
-endif()
+    include(CMakeDependentOption)
+    CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
+                           "TENSILE_USE_HIP;TENSILE_USE_LLVM" OFF)
 
-if(TENSILE_USE_OPENMP)
-    find_package(OpenMP)
-    if (OPENMP_FOUND)
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    if(TENSILE_USE_HIP)
+        find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
     endif()
-endif()
 
-set(TENSILE_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
-if(TENSILE_USE_HIP)
-    string(FIND "${CMAKE_CXX_COMPILER}" "hcc"   cxx_hcc)
-    string(FIND "${CMAKE_CXX_COMPILER}" "hipcc" cxx_hipcc)
-
-    if(cxx_hcc EQUAL "-1" AND cxx_hipcc EQUAL "-1")
-        set(TENSILE_CXX_COMPILER "${HIP_BIN_INSTALL_DIR}/hcc")
+    if(TENSILE_USE_OPENMP)
+        find_package(OpenMP)
+        if (OPENMP_FOUND)
+            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+            set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+        endif()
     endif()
-endif()
 
-add_subdirectory(lib)
+    #set(TENSILE_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
+    #if(TENSILE_USE_HIP)
+    #    string(FIND "${CMAKE_CXX_COMPILER}" "hcc"   cxx_hcc)
+    #    string(FIND "${CMAKE_CXX_COMPILER}" "hipcc" cxx_hipcc)
 
-else()
+    #    if(cxx_hcc EQUAL "-1" AND cxx_hipcc EQUAL "-1")
+    #        set(TENSILE_CXX_COMPILER "${HIP_BIN_INSTALL_DIR}/hcc")
+    #    endif()
+    #endif()
 
-set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
-project(TensileClient)
-set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
+    add_subdirectory(lib)
+    add_subdirectory(client)
 
-###############################################################################
-# Common Options
-option( Tensile_ENABLE_HALF "Enable half precision data types" OFF)
-option( Tensile_CLIENT_BENCHMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
-option( Tensile_RESUME_BENCHMARK "When benchmark interrupted ON=Resume the benchmark process; OFF=Restart the benchmark process" OFF)
-option( Tensile_MERGE_FILES "Merge kernels and solutions files" OFF)
-set(Tensile_RUNTIME_LANGUAGE HIP CACHE STRING "Which runtime language to use")
-set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
-
-###############################################################################
-# Benchmark Client
-set(ClientName "client")
-if(Tensile_CLIENT_BENCHMARK)
-  message(STATUS "Making BenchmarkClient")
-  include(${CMAKE_SOURCE_DIR}/Generated.cmake)
-  add_executable( ${ClientName}
-    ${TensileClient_SOURCE}
-    ${TensileClient_SOLUTIONS}
-    ${TensileClient_KERNELS} )
-  target_compile_definitions( ${ClientName} PUBLIC 
-    -DTensile_CLIENT_BENCHMARK=1
-    -DTensile_CLIENT_LIBRARY=0 )
-  foreach( target ${Tensile_ISA} )
-    target_link_libraries( ${ClientName} PRIVATE --amdgpu-target=${target} )
-  endforeach()
+    export(TARGETS Tensile NAMESPACE Tensile:: FILE TensileExports.cmake)
 
 else()
-###############################################################################
-# Library Client
-  message(STATUS "Making LibraryClient")
-  option( Tensile_SHORT_FILE_NAMES "Use short file names (for MSVC)" OFF)
-  option( Tensile_LIBRARY_PRINT_DEBUG "TensileLib to print debug info" OFF)
-  add_executable( ${ClientName}
-    Client.cpp
-    MathTemplates.cpp
-    DeviceStats.h
-    )
-  target_compile_definitions( ${ClientName} PUBLIC 
-    -DTensile_CLIENT_BENCHMARK=0
-    -DTensile_CLIENT_LIBRARY=1 )
-endif()
 
-if(Tensile_RESUME_BENCHMARK)
-    target_compile_definitions( ${ClientName} PUBLIC
-      -DTensile_RESUME_BENCHMARK )
-endif()
-###############################################################################
-# Visual Studio or HIPCC
-if(MSVC)
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" ) # parallel build
-endif()
+    set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
+    project(TensileClient)
+    set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 
-if (UNIX)
-  # the Tensile library doesn't require c++11, but client/ReferenceCPU does
-  # with addition of bfloat16 library requires c++14
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14"  )
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wno-deprecated-declarations" )
-endif()
+    ###############################################################################
+    # Common Options
+    option( Tensile_ENABLE_HALF "Enable half precision data types" OFF)
+    option( Tensile_CLIENT_BENCHMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
+    option( Tensile_RESUME_BENCHMARK "When benchmark interrupted ON=Resume the benchmark process; OFF=Restart the benchmark process" OFF)
+    option( Tensile_MERGE_FILES "Merge kernels and solutions files" OFF)
+    set(Tensile_RUNTIME_LANGUAGE HIP CACHE STRING "Which runtime language to use")
+    set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
 
-if(Tensile_MERGE_FILES)
-  #include_directories(.)
-else()
-  include_directories( Kernels Solutions )
-  include_directories(.)
-endif()
+    ###############################################################################
+    # Benchmark Client
+    set(ClientName "client")
+    if(Tensile_CLIENT_BENCHMARK)
+      message(STATUS "Making BenchmarkClient")
+      include(${CMAKE_SOURCE_DIR}/Generated.cmake)
+      add_executable( ${ClientName}
+        ${TensileClient_SOURCE}
+        ${TensileClient_SOLUTIONS}
+        ${TensileClient_KERNELS} )
+      target_compile_definitions( ${ClientName} PUBLIC 
+        -DTensile_CLIENT_BENCHMARK=1
+        -DTensile_CLIENT_LIBRARY=0 )
+      foreach( target ${Tensile_ISA} )
+        target_link_libraries( ${ClientName} PRIVATE --amdgpu-target=${target} )
+      endforeach()
 
-###############################################################################
-# find and use device libraries
-if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
-  find_package(OpenCL "1.2" REQUIRED)
-  target_link_libraries( ${ClientName} PUBLIC ${OPENCL_LIBRARIES} )
-  target_compile_definitions( ${ClientName} PUBLIC 
-    -DTensile_RUNTIME_LANGUAGE_OCL=1
-    -DTensile_RUNTIME_LANGUAGE_HIP=0 )
-  target_include_directories( ${ClientName} SYSTEM
-    PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
-elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
-  find_package( HIP REQUIRED )
-  set (CMAKE_CXX_COMPILER ${HIPCC})
-  target_include_directories( ${ClientName} SYSTEM
-    PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
-  target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
-  target_compile_definitions( ${ClientName} PUBLIC 
-    -DTensile_RUNTIME_LANGUAGE_OCL=0
-    -DTensile_RUNTIME_LANGUAGE_HIP=1
-    )
-  if( Tensile_ENABLE_HALF )
-    target_compile_definitions( ${ClientName} PUBLIC  -DTensile_ENABLE_HALF )
-  endif()
-endif()
+    else()
+    ###############################################################################
+    # Library Client
+      message(STATUS "Making LibraryClient")
+      option( Tensile_SHORT_FILE_NAMES "Use short file names (for MSVC)" OFF)
+      option( Tensile_LIBRARY_PRINT_DEBUG "TensileLib to print debug info" OFF)
+      add_executable( ${ClientName}
+        Client.cpp
+        MathTemplates.cpp
+        DeviceStats.h
+        )
+      target_compile_definitions( ${ClientName} PUBLIC 
+        -DTensile_CLIENT_BENCHMARK=0
+        -DTensile_CLIENT_LIBRARY=1 )
+    endif()
+
+    if(Tensile_RESUME_BENCHMARK)
+        target_compile_definitions( ${ClientName} PUBLIC
+          -DTensile_RESUME_BENCHMARK )
+    endif()
+    ###############################################################################
+    # Visual Studio or HIPCC
+    if(MSVC)
+      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" ) # parallel build
+    endif()
+
+    if (UNIX)
+      # the Tensile library doesn't require c++11, but client/ReferenceCPU does
+      # with addition of bfloat16 library requires c++14
+      #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14"  )
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wno-deprecated-declarations" )
+    endif()
+
+    if(Tensile_MERGE_FILES)
+      #include_directories(.)
+    else()
+      include_directories( Kernels Solutions )
+      include_directories(.)
+    endif()
+
+    ###############################################################################
+    # find and use device libraries
+    if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
+      find_package(OpenCL "1.2" REQUIRED)
+      target_link_libraries( ${ClientName} PUBLIC ${OPENCL_LIBRARIES} )
+      target_compile_definitions( ${ClientName} PUBLIC 
+        -DTensile_RUNTIME_LANGUAGE_OCL=1
+        -DTensile_RUNTIME_LANGUAGE_HIP=0 )
+      target_include_directories( ${ClientName} SYSTEM
+        PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
+    elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
+      find_package( HIP REQUIRED )
+      set (CMAKE_CXX_COMPILER ${HIPCC})
+      target_include_directories( ${ClientName} SYSTEM
+        PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
+      target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
+      target_compile_definitions( ${ClientName} PUBLIC 
+        -DTensile_RUNTIME_LANGUAGE_OCL=0
+        -DTensile_RUNTIME_LANGUAGE_HIP=1
+        )
+      if( Tensile_ENABLE_HALF )
+        target_compile_definitions( ${ClientName} PUBLIC  -DTensile_ENABLE_HALF )
+      endif()
+    endif()
 
 
-###############################################################################
-# Create Tensile Library
-if(NOT Tensile_CLIENT_BENCHMARK)
-  include(${CMAKE_SOURCE_DIR}/TensileConfig.cmake)
-  TensileCreateLibrary(
-    ${Tensile_LOGIC_PATH}           # path
-    ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
-    ${Tensile_MERGE_FILES}          # ON or OFF
-    ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
-    ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
-    Tensile_ROOT ${Tensile_ROOT}
-    )
-  target_link_libraries( ${ClientName} PUBLIC Tensile )
-endif()
+    ###############################################################################
+    # Create Tensile Library
+    if(NOT Tensile_CLIENT_BENCHMARK)
+      include(${CMAKE_SOURCE_DIR}/TensileConfig.cmake)
+      TensileCreateLibrary(
+        ${Tensile_LOGIC_PATH}           # path
+        ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
+        ${Tensile_MERGE_FILES}          # ON or OFF
+        ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
+        ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
+        Tensile_ROOT ${Tensile_ROOT}
+        )
+      target_link_libraries( ${ClientName} PUBLIC Tensile )
+    endif()
 
 endif()
 

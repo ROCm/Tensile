@@ -19,6 +19,10 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+if __name__ == "__main__":
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
+    exit(1)
+
 import os
 import sys
 import argparse
@@ -218,8 +222,3 @@ def TensileSGEMM5760():
 def main():
     Tensile(sys.argv[1:])
 
-
-# script run from commandline
-if __name__ == "__main__":
-    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
-    exit(1)

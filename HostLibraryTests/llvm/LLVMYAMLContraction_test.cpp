@@ -52,6 +52,7 @@ TEST(LLVMYAMLContractionTest, Simple)
         "debugKernel: false\n"
         "problemType:\n"
         "  operationIdentifier: foo\n"
+        "  highPrecisionAccumulate: false\n"
         "  aType: Float\n"
         "  bType: Float\n"
         "  cType: Float\n"
@@ -64,8 +65,8 @@ TEST(LLVMYAMLContractionTest, Simple)
     ASSERT_FALSE(yin.error());
 
     EXPECT_EQ(s.name(), "foo");
-    EXPECT_EQ(s.sizeMapping.workGroupSize, dim3(1,2,3));
-    EXPECT_EQ(s.sizeMapping.macroTile, dim3(2,4,6));
+    EXPECT_EQ(s.sizeMapping.workGroupSize, Tensile::dim3(1,2,3));
+    EXPECT_EQ(s.sizeMapping.macroTile, Tensile::dim3(2,4,6));
 
 }
 
@@ -90,9 +91,6 @@ TEST(LLVMYAMLContractionTest, Predicate)
 
     llvm::yaml::Output yout(llvm::outs());
     yout << p;
-    //EXPECT_EQ(s.name(), "foo");
-    //EXPECT_EQ(s.workGroupSize, dim3(1,2,3));
-    //EXPECT_EQ(s.macroTile, dim3(2,4,6));
 
 }
 
@@ -117,6 +115,7 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
         "    debugKernel: false\n"
         "    problemType:\n"
         "      operationIdentifier: foo\n"
+        "      highPrecisionAccumulate: false\n"
         "      aType: Float\n"
         "      bType: Float\n"
         "      cType: Float\n"

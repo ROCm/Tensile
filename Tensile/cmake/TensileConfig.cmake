@@ -21,6 +21,41 @@
 
 include(CMakeParseArguments)
 
+if("HIP" IN_LIST Tensile_FIND_COMPONENTS)
+    set(TENSILE_USE_HIP ON CACHE BOOL "Use HIP")
+else()
+    set(TENSILE_USE_HIP OFF CACHE BOOL "Use HIP")
+endif()
+
+if("LLVM" IN_LIST Tensile_FIND_COMPONENTS)
+    set(TENSILE_USE_LLVM ON CACHE BOOL "Use LLVM")
+else()
+    set(TENSILE_USE_LLVM OFF CACHE BOOL "Use LLVM")
+endif()
+
+if("Client" IN_LIST Tensile_FIND_COMPONENTS)
+    if(TENSILE_USE_HIP AND TENSILE_USE_LLVM)
+        set(TENSILE_BUILD_CLIENT ON CACHE BOOL "Build Client")
+    elseif(Tensile_FIND_REQUIRED_Client)
+        message("Tensile client requires both Hip and LLVM.")
+        set(Tensile_FOUND false)
+    else()
+        set(TENSILE_BUILD_CLIENT OFF CACHE BOOL "Build Client")
+    endif()
+else()
+    set(TENSILE_BUILD_CLIENT OFF CACHE BOOL "Build Client")
+endif()
+
+if("STATIC_ONLY" IN_LIST Tensile_FIND_COMPONENTS)
+    set(TENSILE_STATIC_ONLY ON CACHE BOOL "Disable exporting symbols from shared library.")
+else()
+    set(TENSILE_STATIC_ONLY OFF CACHE BOOL "Disable exporting symbols from shared library.")
+endif()
+
+
+add_subdirectory("${Tensile_DIR}/../Source" "Tensile")
+
+
 ################################################################################
 # Create A Tensile Library from LibraryLogic.yaml files
 ################################################################################
@@ -151,10 +186,10 @@ function(TensileCreateLibraryFiles
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-  if(Tensile_TENSILE_ROOT)
+  if(Tensile_DIR)
     # python not pre-installed, use scripts downloaded to extern/Tensile
-    include(FindPythonInterp)
-    set(Script "${Tensile_TENSILE_ROOT}/bin/TensileCreateLibrary")
+    #include(FindPythonInterp)
+    set(Script "${Tensile_DIR}/../bin/TensileCreateLibrary")
   else()
       set(Script tensileCreateLibrary)
   endif()

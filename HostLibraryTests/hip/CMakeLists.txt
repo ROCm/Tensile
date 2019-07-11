@@ -1,7 +1,7 @@
 
 if(true)
 TensileCreateLibraryFiles(
-    "${TENSILE_ROOT}/lib/configs/lite_configs"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite
@@ -10,11 +10,13 @@ TensileCreateLibraryFiles(
     )
 endif()
 
+message("LITE_ALL_FILES: ${LITE_ALL_FILES}")
+
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite")
 file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite")
 
 TensileCreateLibraryFiles(
-    "${TENSILE_ROOT}/lib/configs/lite_configs_mixed"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs_mixed"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite_mixed
@@ -24,12 +26,12 @@ TensileCreateLibraryFiles(
     )
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
-file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")
+file(COPY ${LITE_MIXED_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")
 
 if(true)
 # Link a second copy of the lite_configs library to test that there are no issues with duplicate symbols.
 TensileCreateLibraryFiles(
-    "${TENSILE_ROOT}/lib/configs/lite_configs"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_2"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite_2

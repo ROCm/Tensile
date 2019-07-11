@@ -29,6 +29,7 @@ target_link_libraries(TensileClient Tensile Boost::program_options "${rocm_smi_r
 add_executable(tensile_client main.cpp)
 
 target_link_libraries(tensile_client Tensile TensileClient Boost::program_options)
-target_link_libraries(tensile_client "--amdgpu-target=gfx900")
-
+if(OpenMP_FOUND)
+    target_link_libraries(tensile_client "${OpenMP_EXE_LINKER_FLAGS}")
+endif()
 

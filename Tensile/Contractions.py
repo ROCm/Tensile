@@ -304,7 +304,6 @@ class Solution:
         if d['KernelLanguage'] == 'Assembly':
             if 'ISA' not in d:
                 d['ISA'] = list(map(int,deviceInfo[1][3:6]))
-            #print(d['ISA'])
 
             rv.hardwarePredicate = Hardware.HardwarePredicate.FromISA(d['ISA'])
         else:

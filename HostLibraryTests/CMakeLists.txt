@@ -25,14 +25,15 @@ project(TensileHostLibraryTest)
 
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
-option(TENSILE_USE_OPENMP    "Use LLVM for parsing config files." ON)
+option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." ON)
 option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
 option(TENSILE_DISABLE_CTEST "Disable CTest integration." OFF)
 
 if(TENSILE_USE_HIP)
-    set(TENSILE_COMPONENTS Hip)
+    set(TENSILE_COMPONENTS HIP)
     if(TENSILE_USE_LLVM)
         set(TENSILE_COMPONENTS ${TENSILE_COMPONENTS} Client)
+    endif()
 endif()
 if(TENSILE_USE_LLVM)
     set(TENSILE_COMPONENTS ${TENSILE_COMPONENTS} LLVM)
@@ -44,7 +45,7 @@ if(TENSILE_STATIC_ONLY)
     set(TENSILE_COMPONENTS ${TENSILE_COMPONENTS} STATIC_ONLY)
 endif()
 
-find_package(Tensile 4.9.9 EXACT REQUIRED ${TENSILE_COMPONENTS})
+find_package(Tensile 4.9.11 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 
 if(NOT TENSILE_DISABLE_CTEST)
     enable_testing()
@@ -61,6 +62,20 @@ set(INSTALL_GTEST OFF CACHE BOOL "Install GTest")
 add_subdirectory(googletest)
 
 find_package(Boost COMPONENTS filesystem)
+
+#if(TENSILE_USE_HIP AND NOT HIP_DIR)
+if(TENSILE_USE_HIP)
+    find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
+endif()
+
+if(TENSILE_USE_OPENMP)
+    find_package(OpenMP REQUIRED)
+    if (OPENMP_FOUND)
+        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    endif()
+endif()
 
 add_subdirectory(configs)
 
@@ -85,6 +100,8 @@ set(test_sources ${test_sources}
 )
 
 if(TENSILE_USE_LLVM)
+    find_package(LLVM 6.0 REQUIRED CONFIG)
+
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
         llvm/LLVMYAMLContraction_test.cpp
@@ -96,19 +113,29 @@ if(TENSILE_USE_HIP)
     add_subdirectory(hip)
 endif()
 
-message(STATUS "Test sources: ${test_sources}")
 add_executable(TensileTests ${test_sources})
 
-if(GTEST_INTEGRATION)
-    gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-else()
-    add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+if(NOT TENSILE_DISABLE_CTEST)
+    if(GTEST_INTEGRATION)
+        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    else()
+        add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    endif()
 endif()
 
-target_link_libraries(TensileTests gtest Tensile TensileTestLib Boost::filesystem)
+target_link_libraries(TensileTests PUBLIC gtest Tensile TensileTestLib Boost::filesystem)
 
-if(HIP_FOUND)
-    target_link_libraries(TensileTests ${HIP_TEST_LIBRARIES})
-    target_link_libraries(TensileTests "--amdgpu-target=gfx900")
+if(TENSILE_USE_LLVM)
+    target_link_libraries(TensileTests PUBLIC LLVMObjectYAML)
+    target_include_directories(TensileTests PUBLIC ${LLVM_INCLUDE_DIRS})
+endif()
+
+if(TENSILE_USE_HIP)
+    target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
+    #target_link_libraries(TensileTests PRIVATE "--amdgpu-target=gfx900")
+endif()
+
+if(TENSILE_USE_OPENMP)
+    target_link_libraries(TensileTests PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
