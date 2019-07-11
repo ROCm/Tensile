@@ -22,6 +22,7 @@
 from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from .SolutionStructs import Solution
 from . import YAMLIO
+from . import SolutionSelectionLibrary
 
 from copy import deepcopy
 from sys import stdout
@@ -1388,6 +1389,7 @@ def main(  config ):
           fileName))[0]
       dataFileName = fileBase + ".csv"
       solutionsFileName = fileBase + ".yaml"
+      selectionFileName = fileBase + ".gsp"
       if not os.path.exists(dataFileName):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
@@ -1399,13 +1401,18 @@ def main(  config ):
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName) )
+          dataFileName, solutionsFileName, selectionFileName) )
       #if problemTypeTuple not in problemTypeTuples:
       #  problemTypeTuples.append(problemTypeTuple)
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
         analysisParameters )
+    enableTileSelection = problemType["TileAwareSelection"]
+    if enableTileSelection:
+      SolutionSelectionLibrary.main( problemTypes[problemType], analysisParameters["ScheduleName"], \
+        analysisParameters["ArchitectureName"], \
+        analysisParameters["DeviceNames"], logicTuple )
     YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
         analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
         analysisParameters["DeviceNames"], logicTuple)

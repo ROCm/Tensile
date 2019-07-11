@@ -43,6 +43,32 @@ class SingleSolutionLibrary:
 class MatchingProperty(Properties.Property):
     pass
 
+class GranularitySelectionLibrary:
+    Tag = 'GranularitySelection'
+    StateKeys = [('type', 'tag'), 'idxs']
+
+    @classmethod
+    def FromOriginalState(cls, solutions):
+
+
+        indices = []
+        for index in range(0, len(solutions)):
+            solution = solutions[index]
+            value = solution.index
+            indices.append(value)
+
+        return cls(indices)
+
+    @property
+    def tag(self):
+        return self.__class__.Tag
+
+    def merge(self, other):
+        self.idxs += other.idxs
+
+    def __init__(self, idxs):
+        self.idxs = idxs
+
 class MatchingLibrary:
     Tag = 'Matching'
     StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
@@ -149,7 +175,25 @@ class MasterSolutionLibrary:
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
-        allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
+        buildGranularity = False
+        if len(d) == 12:
+          buildGranularity = True
+
+        if buildGranularity:
+          allSolutions = []
+          sIdx = 0
+          mpp = d[11]
+          idealsList = []
+          for k in mpp:
+             v = mpp[k]
+             idealsList.append(v)
+          for s in origSolutions:
+            idls = idealsList[sIdx]
+            sln = solutionClass.FromOriginalState(s, deviceSection, idls)
+            allSolutions.append(sln)
+            sIdx += 1
+        else:
+          allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
 
         # fix missing and duplicate solution indices.
         try:
@@ -172,10 +216,12 @@ class MasterSolutionLibrary:
             "Solution split not consistent: {0} != {1} + {2}".format(len(allSolutions), len(asmSolutions), len(sourceSolutions))
 
         matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
-
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                library = matchingLibrary
+                if (buildGranularity):
+                    library = GranularitySelectionLibrary.FromOriginalState(asmSolutions)
+                else:
+                    library = matchingLibrary
 
             elif libName == 'Hardware':
                 newLib = PredicateLibrary(tag='Hardware', rows=[])

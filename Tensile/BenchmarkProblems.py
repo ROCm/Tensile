@@ -279,7 +279,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy)
+        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
 
     print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]
@@ -316,7 +316,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       libraryLogicPath = None
       path = globalParameters["WorkingPath"]
       forBenchmark = True
-      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
+      enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
+      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
       # run runScript
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
@@ -341,7 +342,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     # Write Solutions YAML
     ############################################################################
     YAMLIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
-        solutions )
+      solutions )
 
     # End Iteration
     popWorkingPath() # stepName
@@ -406,7 +407,7 @@ def getResults(resultsFileName, solutions):
 ################################################################################
 # Write Benchmark Files
 ################################################################################
-def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -454,7 +455,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir)
+      filesToCopy, stepBaseDir, solutionSummationSizes)
 
 ################################################################################
 # FrozenDictionary
@@ -689,13 +690,15 @@ def main( config ):
       print2("ProblemTypeConfig: %s" % problemTypeConfig)
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
+      enableTileSelection = problemTypeObj["TileAwareSelection"]
 
       # results files will be named
       newResultsFileName = os.path.join(dataPath, "%s_%02u.csv" \
           % (str(problemTypeObj), problemSizeGroupIdx) )
       newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
           % (str(problemTypeObj), problemSizeGroupIdx) )
-
+      newGranularityFileName = os.path.join(dataPath, "%s_%02u.gsp" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
       # skip if possible
       if globalParameters["ForceRedoBenchmarkProblems"] or \
           not os.path.exists(newResultsFileName):
@@ -713,8 +716,11 @@ def main( config ):
         resultsFileBase = resultsFileBaseFinal
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
+        granularityFileName = "%s_Granularity.csv" % (resultsFileBase)
         shutil_copy( resultsFileName, newResultsFileName )
         shutil_copy( solutionsFileName, newSolutionsFileName )
+        if enableTileSelection:
+          shutil_copy( granularityFileName, newGranularityFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 

@@ -653,9 +653,10 @@ validParameters = {
     "ISA":                        validISA,       # arch for assembly kernels
 
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
-    "ReplacementKernel":          [False, True],
-
+    "ReplacementKernel":          [False, True]
     }
+
+
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":               [ False ] },
@@ -737,7 +738,7 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
-    {"ReplacementKernel":         [ False ] },
+    {"ReplacementKernel":         [ False ] }
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -785,14 +786,21 @@ defaultProblemType = {
 
     # for LD description
     "NumIndicesLD":            4,
-    "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB
+    "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
+
+    # Tile aware solution selection
+    "TileAwareSelection":       False
     }
+
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, 0 ]}]
 defaultBatchedProblemSizes = [{"Range": [ [2880], 0, [1], 0 ]}]
 defaultBatchedBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, [1], 0 ]}]
+
+
+defaultSolutionSummationSizes = [32,64,96,128,256,512,1024,2048,4096,8192,16192]
 
 
 ################################################################################
