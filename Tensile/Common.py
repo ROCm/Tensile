@@ -86,6 +86,12 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&LDS in each unroll iteration into n smaller groups..
 
 ########################################
+# power study knob controls 
+########################################
+globalParameters["LdsPowerStudy"] = False   # if True enable power study of GEMM kernel for LDS read/write
+globalParameters["MacPowerStudy"] = False   # if True enable power study of GEMM kernel for MAC activity
+
+########################################
 # less common
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug

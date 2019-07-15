@@ -338,8 +338,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         iterCode.addCode(item)
 
       # tack on the pointer and mac code:
-      iterCode.addCode(pointerCode)
       iterCode.addCode(localWriteCode)
+      iterCode.addCode(pointerCode)
       iterCode.addCode(waitCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
@@ -521,7 +521,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # since that would initC inside the other summation loops
 
     if not self.doShadowInit:
-      kl.append(self.initC(kernel))
+      if self.enable["InitC"]:
+        kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
@@ -551,10 +552,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
       kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=False))
-      if self.enable["GlobalRead"]:
+      ## do prefetch Once for LDS powerStudy if GlobalRead=False
+      if self.enable["GlobalRead"] or (globalParameters["LdsPowerStudy"]):
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
-      if self.enable["GlobalReadInc"]:
+      if self.enable["GlobalReadInc"] or (globalParameters["LdsPowerStudy"]):
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
         kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
 
@@ -606,7 +608,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["MAC"]:
         luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
         kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], useMacro=not isOptNLL ))
-    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
+    if self.enable["PostLoop"]:
+      kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
+    else:
+      if not isOptNLL:
+        kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
+      else:
+        kStr += str(self.functionEnd(kernel, False))
+        kl.append(kStr)
+        label = self.getLabelName("OptNLL_End")
+        kStr = "%s:%s" % (label, self.endLine)
+        kl.append(kStr)
     return kl
 
   ##############################################################################
@@ -679,7 +691,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
-        kl.append(self.initC(kernel)) # initC while waiting for global reads
+        if self.enable["InitC"]:
+          kl.append(self.initC(kernel)) # initC while waiting for global reads
 
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
@@ -717,6 +730,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 kl.append(self.comment("local read inc b"))
                 kl.append(self.localReadInc(kernel, iui, tensorParametersB))
       kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=False))
+
+    # added to perform A/B registers initializatio with dataInit type
+    # this code is enabled for Mac powerStudy
+    if (globalParameters["MacPowerStudy"]):
+      kl.append(self.initA(kernel))
+      kl.append(self.initB(kernel))
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
@@ -1312,12 +1331,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.localSplitUReduction(kernel))
 
         # LocalSplitU: global write indices
-        kl.append(self.comment("LocalSplitU: global write indices"))
-        kl.append(self.localSplitUGlobalWriteIndices(kernel))
+        if not (globalParameters["MacPowerStudy"]):
+          kl.append(self.comment("LocalSplitU: global write indices"))
+          kl.append(self.localSplitUGlobalWriteIndices(kernel))
 
         # LocalSplitU: global write
-        kl.append(self.comment("LocalSplitU: global write"))
-        kl.append(self.localSplitUGlobalWrite(kernel))
+        if not (globalParameters["MacPowerStudy"]):
+          kl.append(self.comment("LocalSplitU: global write"))
+          kl.append(self.localSplitUGlobalWrite(kernel))
 
 
       else:
@@ -1326,12 +1347,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
         ####################################
 
         # global write indices
-        kl.append(self.comment("not-LocalSplitU: global write indices"))
-        kl.append(self.notLocalSplitUGlobalWriteIndices(kernel))
+        if not (globalParameters["MacPowerStudy"]):
+          kl.append(self.comment("not-LocalSplitU: global write indices"))
+          kl.append(self.notLocalSplitUGlobalWriteIndices(kernel))
 
         # global write
-        kl.append(self.comment("not-LocalSplitU: global write"))
-        kl.append(self.notLocalSplitUGlobalWrite(kernel))
+        if not (globalParameters["MacPowerStudy"]):
+          kl.append(self.comment("not-LocalSplitU: global write"))
+          kl.append(self.notLocalSplitUGlobalWrite(kernel))
 
     # function suffix
     kl.append(self.functionEnd(kernel, True))
@@ -1453,8 +1476,35 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.enable["LocalRead"]      = True and not (dkp>0 and dkp >= 4) and not dkp == -4
     self.enable["Wait"]           = True and not (dkp>0 and dkp >= 5) and not dkp == -5
     self.enable["Sync"]           = True and not (dkp>0 and dkp >= 5) and not dkp == -5
+    self.enable["InitC"]          = True and not (dkp>0 and dkp >= 6) and not dkp == -6
     self.enable["MAC"]            = True and not (dkp>0 and dkp >= 6) and not dkp == -6
     self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
+
+    ## selective blocks enable for powerStudy
+    ## ldsPowerStudy : all preloop to fetch data from mem once 
+    if (globalParameters["LdsPowerStudy"]):
+      self.enable["PreLoop"]        = True 
+      self.enable["GlobalRead"]     = False
+      self.enable["GlobalReadInc"]  = False
+      self.enable["LocalWrite"]     = True 
+      self.enable["LocalRead"]      = True 
+      self.enable["Wait"]           = False
+      self.enable["Sync"]           = False
+      self.enable["InitC"]          = False
+      self.enable["MAC"]            = False
+      self.enable["PostLoop"]       = False
+
+    if (globalParameters["MacPowerStudy"]):
+      self.enable["PreLoop"]        = False
+      self.enable["GlobalRead"]     = False
+      self.enable["GlobalReadInc"]  = False
+      self.enable["LocalWrite"]     = False
+      self.enable["LocalRead"]      = False
+      self.enable["Wait"]           = False
+      self.enable["Sync"]           = False
+      self.enable["InitC"]          = True 
+      self.enable["MAC"]            = True 
+      self.enable["PostLoop"]       = False
 
     #if dkp:
     #  print "\nKernelWriter enable:", self.enable
@@ -2147,6 +2197,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def initC(self, kernel):
+    return ""
+
+  ##############################################################################
+  # Initialize A
+  ##############################################################################
+  @abc.abstractmethod
+  def initA(self, kernel):
+    return ""
+
+  ##############################################################################
+  # Initialize B
+  ##############################################################################
+  @abc.abstractmethod
+  def initB(self, kernel):
     return ""
 
   ##############################################################################

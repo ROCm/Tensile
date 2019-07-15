@@ -24,12 +24,13 @@ from .Common import globalParameters, printExit, printWarning, roundUp
 from .DataType import DataType
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
-from .Utils import ceil_divide, roundUpToNearestMultiple
+from .Utils import ceil_divide, roundUpToNearestMultiple, float_to_hex, double_to_hex
 
-from math import log, ceil
+from math import log, ceil, sin
 from copy import deepcopy
 import collections
 import traceback
+import random
 
 ################################################################################
 # Memory Instruction
@@ -4075,6 +4076,42 @@ class KernelWriterAssembly(KernelWriter):
             "after InitC, skip to end of prefetch last iter b/c numIter==0")
     return kStr
 
+
+
+  ##############################################################################
+  # Initialize A      
+  ##############################################################################
+  def initA(self, kernel):
+    kStr = ""
+    random.seed(0x1000)
+    for Idx in range(0,kernel["PrefetchLocalRead"]+1):
+      for iui in range(0,kernel["InnerUnroll"]):
+        for i in range(0, kernel["ThreadTile0"]):
+          if (globalParameters["DataInitTypeA"] == 0):
+            initVal = 0
+          else:
+            initVal = float_to_hex(sin(random.random()))
+          aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u"%(Idx,iui),i)
+          kStr += inst("v_mov_b32", aStr, initVal, "initA")
+    return kStr
+
+
+  ##############################################################################
+  # Initialize B
+  ##############################################################################
+  def initB(self, kernel):
+    kStr = ""
+    for Idx in range(0,kernel["PrefetchLocalRead"]+1):
+      for iui in range(0,kernel["InnerUnroll"]):
+        for i in range(0, kernel["ThreadTile1"]):
+          if (globalParameters["DataInitTypeB"] == 0):
+            initVal = 0
+          else:
+            #initVal = float_to_hex(sin(i))
+            initVal = float_to_hex(sin(random.random()))
+          aStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u"%(Idx,iui),i)
+          kStr += inst("v_mov_b32", aStr, initVal, "initB")
+    return kStr
 
   ##############################################################################
   # Declare Loop Num Iterations

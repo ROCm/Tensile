@@ -119,3 +119,9 @@ def ceil_divide(numerator, denominator):
     
 def roundUpToNearestMultiple(numerator, denominator):
     return ceil_divide(numerator,denominator)*int(denominator)
+
+def float_to_hex(f):
+    return hex(struct.unpack('<I', struct.pack('<f', f))[0])
+
+def double_to_hex(f):
+    return hex(struct.unpack('<Q', struct.pack('<d', f))[0])
