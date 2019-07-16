@@ -32,6 +32,8 @@ function(TensileCreateLibraryCmake
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
 
+  message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
+
   # Tensile_ROOT can be specified instead of using the installed path.
   set(oneValueArgs Tensile_ROOT)
   cmake_parse_arguments(PARSE "" "${oneValueArgs}" "" ${ARGN})

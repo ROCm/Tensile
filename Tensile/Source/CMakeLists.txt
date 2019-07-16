@@ -36,6 +36,8 @@ set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
 set(Tensile_CODE_OBJECT_VERSION V2 CACHE STRING "Which code object version to use")
 set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
 
+message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
+
 ###############################################################################
 # Benchmark Client
 set(ClientName "client")
@@ -117,7 +119,6 @@ elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
     target_compile_definitions( ${ClientName} PUBLIC  -DTensile_ENABLE_HALF )
   endif()
 endif()
-
 
 ###############################################################################
 # Create Tensile Library

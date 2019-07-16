@@ -1863,7 +1863,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     # begin kernel descriptor
-    kStr += ".hsa_code_object_version 2,0%s" % self.endLine
+    kStr += ".hsa_code_object_version %s,0%s" \
+        % (globalParameters["CodeObjectVersion"][1], self.endLine)
     kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
         % (self.version[0], self.version[1], self.version[2], self.endLine)
     kStr += ".text%s" % self.endLine

@@ -913,6 +913,8 @@ def TensileCreateLibrary():
   arguments["EmbedLibrary"] = args.EmbedLibrary
   assignGlobalParameters(arguments)
 
+  print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
+
   globalParameters["BuildCodeObjects"] = True
 
   if not os.path.exists(logicPath):
