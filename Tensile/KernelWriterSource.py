@@ -1187,12 +1187,12 @@ class KernelWriterSource(KernelWriter):
 
         # Create additional vector address components for any packed dimensions
         lastGro = gro
-        lastIdx = tP["idx"]
+        lastIdx = tP["tileIdx"]
         dimXStr = ""
         tP["packedSizeList"] = ["size%s" % self.indexChars[lastIdx]]
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
           if idx < kernel["ProblemType"]["NumIndicesC"] \
-              and idx != tP["idx"]:  # tile index
+              and idx != tP["tileIdx"]:  # tile index
             gro = None
             if isPackedIndex(kernel,idx, tP["PackBatchDims"]):
               gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
