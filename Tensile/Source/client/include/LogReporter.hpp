@@ -77,10 +77,11 @@ namespace Tensile
                 using namespace ResultKey;
                 return std::shared_ptr<LogReporter>(
                         new LogReporter(LogLevel::Debug,
-                                        {BenchmarkRunNumber, OperationIdentifier, ProblemSizes, SolutionName, SolutionIndex,
+                                        {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
+                                         OperationIdentifier, ProblemSizes, SolutionName,
                                          Validation, TimeNS, SpeedGFlops,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
-                                         FanSpeedRPMs, HardwareSampleCount, SolutionProgress, EnqueueTime},
+                                         FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
                                         std::cout));
             }
 

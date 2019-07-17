@@ -83,6 +83,7 @@ namespace Tensile
 
         void ProgressListener::postProblem() override
         {
+            m_problemIndex++;
         }
 
         void ProgressListener::preSolution(ContractionSolution const& solution) override

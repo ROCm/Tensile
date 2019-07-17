@@ -357,12 +357,18 @@ int main(int argc, const char * argv[])
     //ReferenceValidator validator(args, dataInit);
     //BenchmarkTimer timer(args);
 
+    reporter->report(ResultKey::ProblemCount, problemFactory.problems().size());
+
     while(listeners.needMoreBenchmarkRuns())
     {
         listeners.preBenchmarkRun();
 
+        size_t problemIdx = 0;
         for(auto const& problem: problemFactory.problems())
         {
+            reporter->report(ResultKey::ProblemIndex, problemIdx);
+            reporter->report(ResultKey::ProblemProgress, concatenate(problemIdx, "/", problemFactory.problems().size()));
+
             //std::cout << "Problem: " << problem.operationDescription() << std::endl;
             //std::cout << "a: " << problem.a() << std::endl;
             //std::cout << "b: " << problem.b() << std::endl;
@@ -452,6 +458,7 @@ int main(int argc, const char * argv[])
             }
 
             listeners.postProblem();
+            problemIdx++;
         }
 
         listeners.postBenchmarkRun();

@@ -49,6 +49,8 @@ namespace Tensile
 
             // Problem definition
             const std::string ProblemIndex = "problem-index";
+            const std::string ProblemCount = "problem-count";
+            const std::string ProblemProgress = "problem-progress";
             const std::string OperationIdentifier = "operation";
 
             const std::string ASizes = "a-sizes";

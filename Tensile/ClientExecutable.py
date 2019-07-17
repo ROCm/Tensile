@@ -50,11 +50,11 @@ class CMakeEnvironment:
         return os.path.join(self.buildDir, path, *paths)
 
 def clientExecutableEnvironment():
-    sourceDir = globalParameters["ClientSourcePath"]
+    sourceDir = globalParameters["SourcePath"]
     buildDir = Common.ensurePath(os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"]))
 
     options = {'CMAKE_BUILD_TYPE': 'Debug',#globalParameters["CMakeBuildType"],
-               'TENSILE_DISABLE_TESTS': 'ON',
+               'TENSILE_NEW_CLIENT': 'ON',
                'CMAKE_CXX_COMPILER': '/opt/rocm/bin/hcc'}
 
     return CMakeEnvironment(sourceDir, buildDir, **options)
@@ -70,5 +70,5 @@ def getClientExecutable():
         buildEnv.generate()
         buildEnv.build()
 
-    return buildEnv.builtPath("lib/client/tensile_client")
+    return buildEnv.builtPath("client/tensile_client")
 

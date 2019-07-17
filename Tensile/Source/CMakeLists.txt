@@ -165,7 +165,7 @@ else()
     ###############################################################################
     # Create Tensile Library
     if(NOT Tensile_CLIENT_BENCHMARK)
-      include(${CMAKE_SOURCE_DIR}/TensileConfig.cmake)
+      include(${CMAKE_SOURCE_DIR}/TensileCreateLibrary.cmake)
       TensileCreateLibrary(
         ${Tensile_LOGIC_PATH}           # path
         ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP

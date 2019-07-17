@@ -56,8 +56,7 @@ def main( config ):
       "KernelHeader.h",
       "Tools.h",
       "CMakeLists.txt",
-      "TensileConfig.cmake",
-      "TensileConfigVersion.cmake"
+      "TensileCreateLibrary.cmake",
       ]
 
   for f in filesToCopy:
@@ -144,14 +143,16 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile = open(runScriptName, "w")
   echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
-    runScriptFile.write("#!/bin/bash\n")
+    runScriptFile.write("#!/bin/bash\n\n")
   q = "" if os.name == "nt" else "\""
+
+  runScriptFile.write("set -ex\n")
+
   runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake")
   # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
-      % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
   if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
@@ -172,13 +173,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
         % ("ON" if globalParameters["ShortNames"] else "OFF"))
   if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" \
-        % globalParameters["CMakeCXXFlags"] )
+    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
   if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" \
-        % globalParameters["CMakeCFlags"] )
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" \
-      % (globalParameters["CMakeBuildType"]))
+    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+  runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
@@ -199,6 +198,9 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
         runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
+
+      runScriptFile.write("set +e\n")
+
       runScriptFile.write("./client")
 
     if globalParameters["DataInitTypeA"] == -1 :
