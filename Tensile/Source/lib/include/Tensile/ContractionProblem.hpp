@@ -254,6 +254,8 @@ namespace Tensile
         Beta beta   = static_cast<Beta>(0);
     };
 
+    using BFloat16ContractionInputs = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem const& contraction);
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free);

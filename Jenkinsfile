@@ -70,8 +70,8 @@ tensileCI:
                     set -x
                     cd ${project.paths.project_build_prefix}
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
-                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
+                    tox -vv --workdir /tmp/.tensile-tox -e lint -- Tensile/UnitTests ${test_dir}
+                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
                     """
             platform.runCommand(this, command)
         }

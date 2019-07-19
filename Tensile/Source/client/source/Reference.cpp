@@ -122,8 +122,8 @@ namespace Tensile
                 auto cIndex = c.index(cCoord);
                 auto dIndex = d.index(cCoord);
 
-                inputs.d[dIndex] = inputs.alpha * static_cast<typename Inputs::DType>(value)
-                                 + inputs.beta * inputs.c[cIndex];
+                inputs.d[dIndex] = static_cast<typename Inputs::DType>(inputs.alpha) * static_cast<typename Inputs::DType>(value)
+                                 + static_cast<typename Inputs::DType>(inputs.beta) * inputs.c[cIndex];
 
             }
         }
@@ -195,12 +195,12 @@ namespace Tensile
                  && problem.c().dataType() == DataType::BFloat16
                  && problem.d().dataType() == DataType::BFloat16)
             {
-                auto const& typedInputs = dynamic_cast<TypedContractionInputs<BFloat16> const&>(inputs);
+                auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
-                    return ReferenceSolution<TypedContractionInputs<BFloat16>, float>::SolveCPU(problem, typedInputs);
+                    return ReferenceSolution<BFloat16ContractionInputs, float>::SolveCPU(problem, typedInputs);
                 else
-                    return ReferenceSolution<TypedContractionInputs<BFloat16>>::SolveCPU(problem, typedInputs);
+                    return ReferenceSolution<BFloat16ContractionInputs>::SolveCPU(problem, typedInputs);
             }
             else
             {

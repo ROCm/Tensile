@@ -177,3 +177,13 @@ TEST(TensorDescriptor, IncrementCoord2d)
                              dims.begin(), dims.end()), true);
 }
 
+TEST(TensorDescriptor, LowerDimOnly)
+{
+    TensorDescriptor desc(DataType::Float, {4,5,6}, {5});
+    TensorDescriptor desc2(DataType::Float, {4,5,6});
+
+    EXPECT_EQ(desc.dimensions(), 3);
+    EXPECT_EQ(desc.sizes(), std::vector<size_t>({4,5,6}));
+    EXPECT_EQ(desc.strides(), std::vector<size_t>({1,5,25}));
+}
+

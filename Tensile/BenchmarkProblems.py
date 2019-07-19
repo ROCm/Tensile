@@ -353,8 +353,16 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
 def compareResults(old, new):
     import math
-    old = float(old)
-    new = float(new)
+    try:
+        old = float(old)
+    except ValueError:
+        old = -1
+
+    try:
+        new = float(new)
+    except ValueError:
+        new = -1
+
     def isbad(x):
         return x <= 0 or math.isnan(x) or math.isinf(x)
 
@@ -363,7 +371,7 @@ def compareResults(old, new):
     if isbad(old):
         return 1
     if isbad(new):
-        return -1
+        raise ValueError("Old is good ({}) and new is bad ({})".format(old, new))
 
     return abs((old-new)/old)
 

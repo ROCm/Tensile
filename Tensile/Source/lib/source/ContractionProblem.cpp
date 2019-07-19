@@ -815,6 +815,6 @@ namespace Tensile
     template struct TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     template struct TypedContractionInputs<int32_t>;
     template struct TypedContractionInputs<Half>;
-    template struct TypedContractionInputs<BFloat16>;
+    template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
 }
 

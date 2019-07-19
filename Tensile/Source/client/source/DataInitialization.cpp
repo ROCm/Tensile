@@ -160,7 +160,7 @@ namespace Tensile
                  && cType == DataType::BFloat16 && dType == DataType::BFloat16
                  && alphaType == DataType::BFloat16 && betaType == DataType::BFloat16)
             {
-                return GetTyped<TypedContractionInputs<BFloat16>>(args, problemFactory);
+                return GetTyped<BFloat16ContractionInputs>(args, problemFactory);
             }
 
             throw std::runtime_error(concatenate("Invalid combination of data types: ",

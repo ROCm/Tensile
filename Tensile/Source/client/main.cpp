@@ -348,16 +348,16 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<BenchmarkTimer>(args));
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
-    auto reporter = std::make_shared<MetaResultReporter>();
-    reporter->addReporter(LogReporter::Default(args));
-    reporter->addReporter(ResultFileReporter::Default(args));
+    auto reporters = std::make_shared<MetaResultReporter>();
+    reporters->addReporter(LogReporter::Default(args));
+    reporters->addReporter(ResultFileReporter::Default(args));
 
-    listeners.setReporter(reporter);
+    listeners.setReporter(reporters);
 
     //ReferenceValidator validator(args, dataInit);
     //BenchmarkTimer timer(args);
 
-    reporter->report(ResultKey::ProblemCount, problemFactory.problems().size());
+    reporters->report(ResultKey::ProblemCount, problemFactory.problems().size());
 
     while(listeners.needMoreBenchmarkRuns())
     {
@@ -366,8 +366,8 @@ int main(int argc, const char * argv[])
         size_t problemIdx = 0;
         for(auto const& problem: problemFactory.problems())
         {
-            reporter->report(ResultKey::ProblemIndex, problemIdx);
-            reporter->report(ResultKey::ProblemProgress, concatenate(problemIdx, "/", problemFactory.problems().size()));
+            reporters->report(ResultKey::ProblemIndex, problemIdx);
+            reporters->report(ResultKey::ProblemProgress, concatenate(problemIdx, "/", problemFactory.problems().size()));
 
             //std::cout << "Problem: " << problem.operationDescription() << std::endl;
             //std::cout << "a: " << problem.a() << std::endl;
@@ -387,21 +387,36 @@ int main(int argc, const char * argv[])
                 else
                     solution = iter->second;
 
-                reporter->report(ResultKey::SolutionProgress, concatenate(solutionIdx,"/",lastSolutionIdx));
+                listeners.preSolution(*solution);
+
+                reporters->report(ResultKey::SolutionProgress, concatenate(solutionIdx,"/",lastSolutionIdx));
 
                 if(!(*solution->hardwarePredicate)(*hardware))
                 {
-                    reporter->report(ResultKey::Validation, "WRONG_HARDWARE");
+                    reporters->report(ResultKey::Validation, "WRONG_HARDWARE");
+                    if(reporters->logAtLevel(LogLevel::Verbose))
+                    {
+                        std::ostringstream msg;
+                        solution->hardwarePredicate->debugEval(*hardware, msg);
+                        reporters->log(LogLevel::Verbose, msg.str());
+                    }
+
+                    listeners.postSolution();
                     continue;
                 }
 
                 if(!(*solution->problemPredicate)(problem))
                 {
-                    reporter->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
+                    reporters->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
+                    if(reporters->logAtLevel(LogLevel::Verbose))
+                    {
+                        std::ostringstream msg;
+                        solution->problemPredicate->debugEval(problem, msg);
+                        reporters->log(LogLevel::Verbose, msg.str());
+                    }
+                    listeners.postSolution();
                     continue;
                 }
-
-                listeners.preSolution(*solution);
 
                 try
                 {
@@ -450,8 +465,8 @@ int main(int argc, const char * argv[])
                 }
                 catch(std::runtime_error const& err)
                 {
-                    reporter->report(ResultKey::Validation, "INVALID");
-                    reporter->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
+                    reporters->report(ResultKey::Validation, "INVALID");
+                    reporters->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
                 }
 
                 listeners.postSolution();

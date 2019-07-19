@@ -84,7 +84,6 @@ namespace Tensile
 
         private:
             size_t m_benchmarkRun = 0;
-            size_t m_problemIndex = 0;
         };
     }
 }

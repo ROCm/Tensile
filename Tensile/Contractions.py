@@ -53,7 +53,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'highPrecisionAccumulate']
+                 'useBeta', 'highPrecisionAccumulate']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -113,6 +113,10 @@ class ProblemType:
         rv.highPrecisionAccumulate = False
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
+
+        rv.useBeta = True
+        if 'UseBeta' in d:
+            rv.useBeta = d['UseBeta']
 
         rv.batched = d['Batched']
 
@@ -180,11 +184,13 @@ class ProblemType:
     def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
 
-        if includeBatch and not self.batched:
-            predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
+        #if includeBatch and not self.batched:
+        #    predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
 
         if includeOperation:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
+            if not self.useBeta:
+                predicates.append(ProblemPredicate("BetaZero"));
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
@@ -200,9 +206,9 @@ class ProblemPredicate(Properties.Predicate):
             if value == 0 or value == 1:
                 return None
             elif value == 2:
-                return cls('MaxProblemSizeGreaterThan', value=32)
+                return cls('MaxProblemSizeGreaterThan', value=1)
             elif value == 3:
-                return None
+                return cls('MaxProblemSizeGreaterThan', value=32)
             else:
                 raise RuntimeError("Unknown Approx size: {}".format(value))
 

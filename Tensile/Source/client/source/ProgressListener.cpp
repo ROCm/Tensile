@@ -51,12 +51,10 @@ namespace Tensile
         void ProgressListener::postBenchmarkRun() override
         {
             m_benchmarkRun++;
-            m_problemIndex = 0;
         }
 
         void ProgressListener::preProblem(ContractionProblem const& problem) override
         {
-            m_reporter->report(ResultKey::ProblemIndex, m_problemIndex);
 
             m_reporter->report(ResultKey::OperationIdentifier, problem.operationIdentifier());
 
@@ -83,7 +81,6 @@ namespace Tensile
 
         void ProgressListener::postProblem() override
         {
-            m_problemIndex++;
         }
 
         void ProgressListener::preSolution(ContractionSolution const& solution) override

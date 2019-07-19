@@ -31,6 +31,8 @@
 
 #include <Tensile/hip/HipUtils.hpp>
 
+#include <csignal>
+
 namespace Tensile
 {
     namespace Client
@@ -78,11 +80,11 @@ namespace Tensile
 
         void BenchmarkTimer::postSolution()
         {
-            auto timePerEnqueue_ns = std::chrono::duration_cast<double_nanos>(m_timeInSolution) / m_numEnqueuesInSolution;
+            double timePerEnqueue_ns = std::chrono::duration_cast<double_nanos>(m_timeInSolution).count() / m_numEnqueuesInSolution;
 
-            double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns.count());
+            double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns);
 
-            m_reporter->report(ResultKey::TimeNS,      timePerEnqueue_ns.count());
+            m_reporter->report(ResultKey::TimeNS,      timePerEnqueue_ns);
             m_reporter->report(ResultKey::SpeedGFlops, gflops);
 
             m_timeInSolution = double_millis::zero();

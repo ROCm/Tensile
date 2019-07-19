@@ -296,13 +296,16 @@ def dataInitName(num):
     if num == 3: return 'Random'
     if num == 4: return 'NaN'
 
-def dataInitParams():
+def dataInitParams(problemType):
     initA = globalParameters['DataInitTypeA']
     initB = globalParameters['DataInitTypeB']
     initC = globalParameters['DataInitTypeC']
     initD = globalParameters['DataInitTypeD']
     initAlpha = globalParameters['DataInitTypeAlpha']
     initBeta  = globalParameters['DataInitTypeBeta']
+
+    if not problemType.useBeta:
+        initBeta = 0
 
     if initA == -1: initA = globalParameters['DataInitTypeAB']
     if initB == -1: initB = globalParameters['DataInitTypeAB']
@@ -347,7 +350,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
         param("device-idx",               globalParameters["Device"])
 
-        for key,value in dataInitParams():
+        for key,value in dataInitParams(newSolution.problemType):
             param(key, value)
 
         param("c-equal-d",                globalParameters["CEqualD"])

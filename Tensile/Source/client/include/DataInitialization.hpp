@@ -70,7 +70,7 @@ namespace Tensile
             virtual std::shared_ptr<ContractionInputs> prepareGPUInputs() = 0;
 
             template <typename T>
-            T getValue(InitMode mode)
+            static T getValue(InitMode mode)
             {
                 switch(mode)
                 {
@@ -84,7 +84,7 @@ namespace Tensile
             }
 
             template <typename T, InitMode Mode>
-            inline T getValue();
+            static inline T getValue();
 
             template <typename T>
             void initArray(InitMode mode, T * array, size_t elements)

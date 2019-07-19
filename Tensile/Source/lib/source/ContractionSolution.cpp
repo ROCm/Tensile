@@ -85,9 +85,9 @@ namespace Tensile
         rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(c.sizes()[0], sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(c.sizes()[1], sizeMapping.macroTile.y);
-        rv.numWorkGroups.z = c.sizes()[2];
+        rv.numWorkGroups.x = CeilDivide(d.sizes()[0], sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(d.sizes()[1], sizeMapping.macroTile.y);
+        rv.numWorkGroups.z = d.dimensions() > 2 ? d.sizes()[2] : 1;
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
@@ -121,9 +121,12 @@ namespace Tensile
         if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
             rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
 
-        rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-        if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
-            rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
+        if(problemType.useBeta)
+        {
+            rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+            if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
+                rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
+        }
 
         for(size_t i = 1; i < d.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
@@ -204,9 +207,9 @@ namespace Tensile
         rv.workGroupSize.y = 8;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(c.sizes()[0], rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(c.sizes()[1], rv.workGroupSize.y);
-        rv.numWorkGroups.z = c.sizes()[2];
+        rv.numWorkGroups.x = CeilDivide(d.sizes()[0], rv.workGroupSize.x);
+        rv.numWorkGroups.y = CeilDivide(d.sizes()[1], rv.workGroupSize.y);
+        rv.numWorkGroups.z = d.dimensions() > 2 ? d.sizes()[2] : 1;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -340,7 +343,7 @@ namespace Tensile
              && problemType.cType == DataType::BFloat16
              && problemType.dType == DataType::BFloat16)
         {
-            auto const& typedInputs = dynamic_cast<TypedContractionInputs<BFloat16> const&>(inputs);
+            auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
         else

@@ -190,8 +190,8 @@ namespace Tensile
                      && m_problem.c().dataType() == DataType::BFloat16
                      && m_problem.d().dataType() == DataType::BFloat16)
                 {
-                    auto const& typedReference = dynamic_cast<TypedContractionInputs<BFloat16> const&>(*m_referenceInputs);
-                    auto const& typedResult = dynamic_cast<TypedContractionInputs<BFloat16> const&>(*inputs);
+                    auto const& typedReference = dynamic_cast<BFloat16ContractionInputs const&>(*m_referenceInputs);
+                    auto const& typedResult = dynamic_cast<BFloat16ContractionInputs const&>(*inputs);
                     validateTyped(typedReference, typedResult);
                 }
                 else

@@ -31,7 +31,7 @@ setup(
   python_requires='>=3.5',
   packages=["Tensile"],
   package_data={ "Tensile": ["Tensile/Source/*", "Tensile/Configs/*"] },
-  data_files=[ ("cmake", ["Tensile/Source/TensileConfig.cmake", "Tensile/Source/TensileConfigVersion.cmake"]) ],
+  data_files=[ ("cmake", ["Tensile/cmake/TensileConfig.cmake", "Tensile/cmake/TensileConfigVersion.cmake"]) ],
   include_package_data=True,
   entry_points={"console_scripts": [
     # user runs a benchmark

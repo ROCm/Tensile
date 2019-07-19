@@ -89,6 +89,23 @@ namespace Tensile
                 }
             };
 
+            struct BatchSizeEqual: public Predicate_CRTP<BatchSizeEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                BatchSizeEqual() = default;
+                BatchSizeEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "BatchSizeEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.batchSize(index) == value;
+                }
+            };
+
             struct BoundSizeMultiple: public Predicate_CRTP<BoundSizeMultiple, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
@@ -119,6 +136,15 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.maxProblemSize() > value;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.maxProblemSize() << " > " << value << ") == " << rv;
+
+                    return rv;
                 }
             };
 
