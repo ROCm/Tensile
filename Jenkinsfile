@@ -43,13 +43,13 @@ tensileCI:
             project.paths.construct_build_prefix()
 
             def command = """#!/usr/bin/env bash
-                    set -x
-                    cd ${project.paths.project_build_prefix}
-                    mkdir build && cd build
-                    export PATH=/opt/rocm/bin:$PATH
-                    ${project.paths.build_command}
-                    make -j16
-                    ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                        set -x
+                        cd ${project.paths.project_build_prefix}
+                        mkdir build && cd build
+                        export PATH=/opt/rocm/bin:$PATH
+                        ${project.paths.build_command}
+                        make -j16
+                        ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
                     """
 
             platform.runCommand(this, command)
@@ -64,13 +64,29 @@ tensileCI:
     def testCommand =
     {
         platform, project->
+        
+        def command
+
         try
         {
-            def command = """#!/usr/bin/env bash
+            command = """#!/usr/bin/env bash
                     set -x
                     cd ${project.paths.project_build_prefix}
                     tox --version
                     tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
+                    """
+        }
+        finally
+        {
+            junit "${project.paths.project_build_prefix}/*_lint.xml"
+        }
+
+        try
+        {
+            command = """#!/usr/bin/env bash
+                    set -x
+                    cd ${project.paths.project_build_prefix}
+                    tox --version
                     tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
                     """
             platform.runCommand(this, command)
