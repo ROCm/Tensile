@@ -28,7 +28,7 @@ import java.nio.file.Path;
 
 tensileCI:
 {
-    def tensile = new rocProject('tensile')
+    def tensile = new rocProject('Tensile')
     tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900','gfx906'], tensile)
