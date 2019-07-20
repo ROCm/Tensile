@@ -168,8 +168,8 @@ TensileStatus tensileReferenceCPU(
       boundCoord[b] = 0;
     }
     while (true) { // iterate over entire bound index range
-      
-      // convert free/bound coord into tensorA,B 
+
+      // convert free/bound coord into tensorA,B
       for (unsigned int i = 0; i < numIndicesAB; i++) {
         if (indexAssignmentsA[i] < numIndicesC) {
           coordsA[i] = freeCoord[indexAssignmentsA[i]];
@@ -184,7 +184,7 @@ TensileStatus tensileReferenceCPU(
           coordsB[i] = boundCoord[indexAssignmentsB[i]-numIndicesC];
         }
       }
-      
+
       size_t serialIdxA = 0;
       for (unsigned int i = 0; i < numIndicesAB; i++) {
         serialIdxA += coordsA[i]*stridesA[i];
@@ -232,7 +232,7 @@ TensileStatus tensileReferenceCPU(
       else
       {
         Type product = tensileMultiply<Type>( valueA, valueB );
-        //printf("%f = %f * %f\n", product, valueA, valueB );
+        //printf("  product: %f = %f * %f\n", product, valueA, valueB );
 
         if (localUseHighPrecisionAccumulate)
           sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
@@ -254,6 +254,7 @@ TensileStatus tensileReferenceCPU(
       }
 
     } // bound range
+    //printf("sumC: %f\n", sumC);
 
 
     size_t serialIdxD = 0;
