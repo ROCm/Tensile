@@ -1226,6 +1226,7 @@ class KernelWriterSource(KernelWriter):
             kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
                 % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)
             kStr += dimXStr;
+            dimXStr = ""
 
     if 0 and tP["isB"]:
       kStr += "printf(\"gro-1: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u globalReadOffsetB1J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0, globalReadOffsetB1J_0_0);%s" \
