@@ -601,6 +601,8 @@ class Solution:
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \
           problemType["UseInitialStrides"]
+      kernel["ProblemType"]["SetConstStrideA"] = \
+          problemType["SetConstStrideA"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernels.append(kernel)
     return kernels

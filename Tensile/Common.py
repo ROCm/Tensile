@@ -783,6 +783,8 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    "SetConstStrideA":          [],
+
     # for LD description
     "NumIndicesLD":            4,
     "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB

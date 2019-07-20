@@ -255,6 +255,13 @@ def toCppBool(yamlBool):
   return "true" if yamlBool else "false"
 
 
+def checkConstStride(constStrideMap, keyIdx):
+  finalVal = None
+  for (mapIdx, val) in constStrideMap:
+    if keyIdx == mapIdx:
+      finalVal = val
+  #print ("idx=", keyIdx, "=", finalVal)
+  return finalVal
 
 ################################################################################
 # Write Generated Benchmark Parameters
@@ -869,19 +876,28 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h+= "std::max(minStrides[%i], sizes[%i]))" % (j,j)
       h += ";\n"
     h += "  if (stride_c != std::numeric_limits<unsigned int>::max())  strideC%u%s = stride_c;\n" % (lastStrideC-1, indexChars[lastStrideC-1])
-    
+
+    constStride = None
     for i in range(0,lastStrideA):
-      h += "  unsigned int strideA%u%s = 1" % (i, \
-          indexChars[problemType["IndexAssignmentsA"][i]])
-      for j in range(0, i):
-        h += " * ("
-        if j == 0:
-          h += "(lda != std::numeric_limits<unsigned int>::max()) ? lda : "
-        h += "std::max(minStrides[%i], sizes[%i]))" % \
-          (problemType["IndexAssignmentsA"][j],
-           problemType["IndexAssignmentsA"][j])
-      h += ";\n"
-    h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
+      idx = problemType["IndexAssignmentsA"][i]
+      constStride = checkConstStride(problemType["SetConstStrideA"], idx)
+      if constStride != None:
+        h += "  unsigned int strideA%u%s = %d; //SetConstStrideA\n" % (i,
+          indexChars[problemType["IndexAssignmentsA"][i]],
+          constStride)
+      else:
+        h += "  unsigned int strideA%u%s = 1" % (i, \
+            indexChars[problemType["IndexAssignmentsA"][i]])
+        for j in range(0, i):
+          h += " * ("
+          if j == 0:
+            h += "(lda != std::numeric_limits<unsigned int>::max()) ? lda : "
+          h += "std::max(minStrides[%i], sizes[%i]))" % \
+            (problemType["IndexAssignmentsA"][j],
+             problemType["IndexAssignmentsA"][j])
+        h += ";\n"
+    if constStride == None:
+      h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
 
     for i in range(0,lastStrideB):
       h += "  unsigned int strideB%u%s = 1" % (i, \
