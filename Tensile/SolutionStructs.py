@@ -175,12 +175,8 @@ class ProblemType:
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
-    if len(state["IndexAssignmentsA"]) != len(state["IndexAssignmentsB"]):
-      printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
     if state["NumIndicesFree"] < 2 :
       printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
-    #if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
-    #  printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]

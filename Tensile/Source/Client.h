@@ -222,7 +222,7 @@ void specializeData(
     DataType *initialData,
     unsigned int totalIndices,
     unsigned int numIndicesC,
-    unsigned int numIndicesAB,
+    unsigned int numIndicesIn,
     const unsigned int *allSizes,
     const unsigned int *indexAssignments) {
 
@@ -231,7 +231,7 @@ void specializeData(
   const unsigned int numIndicesSummation = totalIndices - numIndicesC;
 
   const unsigned int db = 0; // 0x1=header, 0x2=offset/value on each store, 0x4=loop debug
-  TensorDims td("specialize_matrix", numIndicesAB, numIndicesC, allSizes, indexAssignments);
+  TensorDims td("specialize_matrix", numIndicesIn, numIndicesC, allSizes, indexAssignments);
 
   if (db & 0x1) {
     td.print();
@@ -243,7 +243,7 @@ void specializeData(
   //std::vector<unsigned int> freeIndexSizes(numIndicesC, 0);
   std::vector<unsigned int> freeIndexSizes;
   std::vector<unsigned int> boundIndexSizes;
-  for (size_t i = 0; i < numIndicesAB; i++) {
+  for (size_t i = 0; i < numIndicesIn; i++) {
     if (indexAssignments[i] < numIndicesC) {
       freeIndexSizes.push_back(allSizes[indexAssignments[i]]);
     } else {
@@ -259,7 +259,7 @@ void specializeData(
 
   // Counters to track coordinate, these change in the bound index loop
   std::vector<unsigned int> boundCoord( numIndicesSummation, 0);
-  std::vector<unsigned int> coords( numIndicesAB, 0 );
+  std::vector<unsigned int> coords( numIndicesIn, 0 );
 
   DataType val = static_cast<DataType>(0); // running initializer value
   bool moreIndicesC = true;
@@ -275,7 +275,7 @@ void specializeData(
       // convert free/bound coord into tensorA,B 
       unsigned int f=0;
       unsigned int b=0;
-      for (unsigned int i = 0; i < numIndicesAB; i++) {
+      for (unsigned int i = 0; i < numIndicesIn; i++) {
         if (indexAssignments[i] < numIndicesC) {
           coords[i] = freeCoord[f++];
         } else {
@@ -284,7 +284,7 @@ void specializeData(
       }
 
       size_t serialIdx = 0;
-      for (unsigned int i = 0; i < numIndicesAB; i++) {
+      for (unsigned int i = 0; i < numIndicesIn; i++) {
         serialIdx += coords[i]*td.memoryStrides[i];
       }
 
@@ -390,26 +390,26 @@ bool callLibrary(
     if (initA == 5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
                      numIndicesC[problemTypeIdx],
-                     numIndicesAB[problemTypeIdx],
+                     numIndicesA[problemTypeIdx],
                      userSizes, indexAssignmentsA[problemTypeIdx]);
     }
     if (initB == 5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
                      numIndicesC[problemTypeIdx],
-                     numIndicesAB[problemTypeIdx],
+                     numIndicesB[problemTypeIdx],
                      userSizes, indexAssignmentsB[problemTypeIdx]);
     }
     copyData<DataType> (initialA, initialB);
   }
 
   if (printTensorA) {
-    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+    printTensor("A", initialA, numIndicesA[problemTypeIdx],
                   numIndicesC[problemTypeIdx],
                   userSizes,
                   indexAssignmentsA[problemTypeIdx]);
   }
   if (printTensorB) {
-    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+    printTensor("B", initialB, numIndicesB[problemTypeIdx],
                   numIndicesC[problemTypeIdx],
                   userSizes, 
                   indexAssignmentsB[problemTypeIdx]);
@@ -884,25 +884,25 @@ bool benchmarkAllSolutionsForSize(
     if (initA==5) {
       specializeData(initialA, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
+                      numIndicesA[problemTypeIdx],
                       sizes, indexAssignmentsA[problemTypeIdx]);
     }
     if (initB==5) {
       specializeData(initialB, totalIndices[problemTypeIdx],
                       numIndicesC[problemTypeIdx],
-                      numIndicesAB[problemTypeIdx],
+                      numIndicesB[problemTypeIdx],
                       sizes, indexAssignmentsB[problemTypeIdx]);
     }
     copyData<DataType> (initialA, initialB);
   }
 
   if (printTensorA) {
-    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+    printTensor("A", initialA, numIndicesA[problemTypeIdx],
                 numIndicesC[problemTypeIdx], sizes,
                 indexAssignmentsA[problemTypeIdx]);
   }
   if (printTensorB) {
-    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+    printTensor("B", initialB, numIndicesB[problemTypeIdx],
                 numIndicesC[problemTypeIdx], sizes, 
                 indexAssignmentsB[problemTypeIdx]);
   }
@@ -1946,8 +1946,10 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 
   maxSizeA = 1;
   maxSizeB = 1;
-  for (unsigned int i = 0; i < numIndicesAB[problemTypeIdx]; i++) {
+  for (unsigned int i = 0; i < numIndicesA[problemTypeIdx]; i++) {
     maxSizeA *= userSizes[indexAssignmentsA[problemTypeIdx][i]];
+  }
+  for (unsigned int i = 0; i < numIndicesB[problemTypeIdx]; i++) {
     maxSizeB *= userSizes[indexAssignmentsB[problemTypeIdx][i]];
   }
 #endif

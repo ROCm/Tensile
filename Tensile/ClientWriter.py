@@ -464,23 +464,35 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += " };\n"
 
   # Num AB Indices
-  maxNumIndicesAB = len(problemTypes[0]["IndexAssignmentsA"])
-  h += "const unsigned int numIndicesAB[numProblemTypes] = { %u" \
+  maxNumIndicesA = len(problemTypes[0]["IndexAssignmentsA"])
+  maxNumIndicesB = len(problemTypes[0]["IndexAssignmentsB"])
+  h += "const unsigned int numIndicesA[numProblemTypes] = { %u" \
       % len(problemTypes[0]["IndexAssignmentsA"])
   for problemTypeIdx in range(1, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
-    numIndicesAB = len(problemType["IndexAssignmentsA"])
-    h += ", %u" % numIndicesAB
-    maxNumIndicesAB = max(numIndicesAB, maxNumIndicesAB)
+    numIndicesA = len(problemType["IndexAssignmentsA"])
+    h += ", %u" % numIndicesA
+    maxNumIndicesA = max(numIndicesA, maxNumIndicesA)
   h += " };\n"
-  h += "const unsigned int maxNumIndicesAB = %u;\n" % maxNumIndicesAB
+  h += "const unsigned int maxNumIndicesA = %u;\n" % maxNumIndicesA
+
+  h += "const unsigned int numIndicesB[numProblemTypes] = { %u" \
+      % len(problemTypes[0]["IndexAssignmentsB"])
+  for problemTypeIdx in range(1, numProblemTypes):
+    problemType = problemTypes[problemTypeIdx]
+    numIndicesB = len(problemType["IndexAssignmentsB"])
+    h += ", %u" % numIndicesB
+    maxNumIndicesB = max(numIndicesB, maxNumIndicesB)
+  h += " };\n"
+  h += "const unsigned int maxNumIndicesB = %u;\n" % maxNumIndicesB
+
   # Index Assignments A
-  h += "const unsigned int indexAssignmentsA[numProblemTypes][maxNumIndicesAB] = {\n"
+  h += "const unsigned int indexAssignmentsA[numProblemTypes][maxNumIndicesA] = {\n"
   for problemTypeIdx in range(0, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
     indices = problemType["IndexAssignmentsA"]
     h += "  { %u" % indices[0]
-    for i in range(1, maxNumIndicesAB):
+    for i in range(1, maxNumIndicesA):
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
@@ -491,12 +503,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " }\n"
   h += "};\n"
   # Index Assignments B
-  h += "const unsigned int indexAssignmentsB[numProblemTypes][maxNumIndicesAB] = {\n"
+  h += "const unsigned int indexAssignmentsB[numProblemTypes][maxNumIndicesB] = {\n"
   for problemTypeIdx in range(0, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
     indices = problemType["IndexAssignmentsB"]
     h += "  { %u" % indices[0]
-    for i in range(1, maxNumIndicesAB):
+    for i in range(1, maxNumIndicesB):
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
@@ -786,7 +798,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "      sizes,\n"
   h += "      minStrides,\n"
   h += "      numIndicesC[problemTypeIdx],\n"
-  h += "      numIndicesAB[problemTypeIdx],\n"
+  h += "      numIndicesA[problemTypeIdx],\n"
+  h += "      numIndicesB[problemTypeIdx],\n"
   h += "      indexAssignmentsA[problemTypeIdx],\n"
   h += "      indexAssignmentsB[problemTypeIdx],\n"
   h += "      complexConjugateA[problemTypeIdx],\n"
