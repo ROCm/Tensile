@@ -441,6 +441,8 @@ bool callLibrary(
     currentElementSizeC *= userSizes[i];
     currentMemorySizeC *= strides[i];
   }
+
+  printf ("currentElementSizeC=%zu, currentMemorySizeC=%zu\n", currentElementSizeC, currentMemorySizeC);
   size_t sizeToCopy = currentMemorySizeC*bytesPerElement[dataTypeIdx];
 #if Tensile_RUNTIME_LANGUAGE_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE,
@@ -849,6 +851,7 @@ bool benchmarkAllSolutionsForSize(
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
   }
+  // TODO - fix for UseInitialStrides ?
   elementStrides[0] = 1;
   stridesD[0] = 1;
   stridesC[0] = 1;
@@ -864,9 +867,14 @@ bool benchmarkAllSolutionsForSize(
   }
 
   bool returnInvalids = false;
-  size_t currentElementSizeC = elementStrides[numIndicesC[problemTypeIdx]-1];
-  size_t currentMemorySizeD = stridesD[numIndicesC[problemTypeIdx]-1];
-  size_t currentMemorySizeC = stridesC[numIndicesC[problemTypeIdx]-1];
+  size_t currentElementSizeC = 1;
+  for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    currentElementSizeC *= sizes[i];
+  }
+  size_t currentMemorySizeC = stridesC[numIndicesC[problemTypeIdx]-1]*sizes[numIndicesC[problemTypeIdx]-1];
+  size_t currentMemorySizeD = stridesD[numIndicesC[problemTypeIdx]-1]*sizes[numIndicesC[problemTypeIdx]-1];
+
+  //printf ("currentElementSizeC=%zu, currentMemorySizeC=%zu currentMemorySizeD=%zu\n", currentElementSizeC, currentMemorySizeC, currentMemorySizeD);
 
   size_t sizeToCopyD = currentMemorySizeD*bytesPerElement[dataTypeIdx];
   size_t sizeToCopyC = currentMemorySizeC*bytesPerElement[dataTypeIdx];
