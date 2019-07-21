@@ -4202,6 +4202,9 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Calculate Loop Num Iter
+  # loopIdx is the index of the loop (used for contractions with multiple summations)
+  # 0 is outermost; self.unrollIdx is the unroll index.
+  # -1 is tail loop (used only for the unroll loop)
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx, isPap):
     kStr = ""
@@ -4305,9 +4308,12 @@ class KernelWriterAssembly(KernelWriter):
     # Multi-dimensional summation
     else:
       #printExit("no assembly support for 2+ dimensional summation")
-      kStr += "%s// 2+ dim summation, numIter%s = size%s" \
-          % (self.indent, loopChar, loopChar)
+      kStr += self.comment("%sother summation, numIter%s = size%s" \
+          % (self.indent, loopChar, loopChar))
       loopCounter = "LoopCounters+%u"%loopIdx
+      kStr += inst("s_mov_b32", sgpr(loopCounter), \
+                sgpr("SizesSum+%u"%loopIdx), \
+                "copy loop counter")
 
 
     # counter = -counter
@@ -4316,6 +4322,7 @@ class KernelWriterAssembly(KernelWriter):
         hex(0), \
         sgpr(loopCounter), \
         "counter%s = -size%s"%(loopChar, loopChar) )
+
     return kStr
 
   ##############################################################################
@@ -5757,7 +5764,7 @@ class KernelWriterAssembly(KernelWriter):
               localReadCode.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
             elif kernel["ProblemType"]["DataType"].isInt8x4() or \
                  kernel["ProblemType"]["DataType"].isSingle():
-              localReadCode.append(self.assert_eq(destVgpr, 1.0))
+              localReadCode.addText(self.assert_eq(destVgpr, 1.0))
 
     #if tP["isB"]:
     #  kStr += self.dumpLds(kernel, 0, 16)
@@ -8299,6 +8306,11 @@ class KernelWriterAssembly(KernelWriter):
     vmcnt = min(vmcnt, maxVmcnt)
 
     waitcnt = Code.WaitCnt(lgkmcnt,vmcnt,comment)
+    if 0 and lgkmcnt == 0:
+      imod = Code.Module("DebugWait")
+      imod.addCode(waitcnt)
+      imod.addText(self.bomb())
+      return imod
     return waitcnt
 
   ##############################################################################
