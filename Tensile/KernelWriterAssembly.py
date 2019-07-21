@@ -2408,20 +2408,19 @@ class KernelWriterAssembly(KernelWriter):
       # macro declaration
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tensorChar
       for i in range(0, numDim):
-        # tile index or unroll vgpr
+        # tile index or unroll vgpr or summation
+        # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
+        # this would change if we supported flexible summation indices
         if indices[i] == kernel["ProblemType"]["Index0"] \
             or indices[i] == kernel["ProblemType"]["Index1"] \
-            or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
+            or indices[i] in kernel["ProblemType"]["IndicesSummation"]:
           kStr += " vgprOffset%s" % idxChars[i]
-        # other c index sgpr
-        elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+        # other batch or free index
+        else:
           if isPackedIndex(kernel, indices[i], packBatchDims):
             kStr += " vgprOffset%s" % idxChars[i]
           elif not justOffset32: # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
             kStr += " sgprOffset%s" % idxChars[i]
-        # other sum index
-        else:
-          pass # these offsets are zero
       kStr += " vgprTmp%s" % self.endLine
 
       ########################################
@@ -2439,9 +2438,10 @@ class KernelWriterAssembly(KernelWriter):
           offset = "s[\\sgprOffset%s]" % idxChars[0]
       # other sum index
       else:
-        offset = None
+        needAdd = 0
 
       # d1+
+      needAdd = 0
       startStrideSub = 0 if kernel["ProblemType"]["UseInitialStrides"] else 1
       for i in range(1, numDim):
         # tile index or unroll vgpr
@@ -2493,8 +2493,8 @@ class KernelWriterAssembly(KernelWriter):
             needAdd = 0
         # other sum index
         else:
-          # don't even need to add b/c offset=zero
           needAdd = 0
+          continue
 
         destLo = "v[\\vgprAddr+0]"
         if needAdd:
@@ -3104,9 +3104,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
       index = i
-      kStr += ".set globalReadOffsetA%s 0%s" \
+      kStr += ".set globalReadOffsetA%s,  0%s" \
           % (self.indexChars[index], self.endLine)
-      kStr += ".set globalReadOffsetB%s 0%s" \
+      kStr += ".set globalReadOffsetB%s,  0%s" \
           % (self.indexChars[index], self.endLine)
     return kStr
 
@@ -3350,7 +3350,6 @@ class KernelWriterAssembly(KernelWriter):
                     kStr += ", %2u" % vgprTile
                   else:
                     if isPackedIndex(kernel,i, tP["PackBatchDims"]):
-                      #kStr += ", %2u" % tP["vgprPackedOffsets"]+i-1  #??
                       kStr += ", %2u" % (tP["vgprPackedOffsets"] + \
                                          (vgprTile-tileOffsets)*(len(tP["PackedIndices"])-1) +
                                          packedIter)
@@ -3363,7 +3362,7 @@ class KernelWriterAssembly(KernelWriter):
                   if i == kernel["ProblemType"]["IndexUnroll"]:
                     kStr += ", %2u" % vgprUnroll
                   else:
-                    kStr += "globalReadOffset%s%s" % (tP["tensorChar"], self.indexChars[i] )
+                    kStr += ", globalReadOffset%s%s" % (tP["tensorChar"], self.indexChars[i])
               kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                   para, sPara, perp, sPerp, self.endLine)
 
@@ -3667,6 +3666,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Global Read Addresses: Increments
+  # Define graIncrements
   ##############################################################################
   def graIncrements(self, kernel, loopIdx, tP):
     kStr = ""
@@ -3718,9 +3718,9 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), \
               "incr = %u*bytes"%depthU )
-    else:
-      printExit("NumIndicesSummation=%u not yet supported in assembly" \
-          % kernel["ProblemType"]["NumIndicesSummation"] )
+    #else:
+    #  printExit("NumIndicesSummation=%u not yet supported in assembly" \
+    #      % kernel["ProblemType"]["NumIndicesSummation"] )
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
@@ -4298,9 +4298,10 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Multi-dimensional summation
     else:
-      printExit("no assembly support for 2+ dimensional summation")
-      kStr += "%snumIter%s = size%s" \
+      #printExit("no assembly support for 2+ dimensional summation")
+      kStr += "%s// 2+ dim summation, numIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
+      loopCounter = "LoopCounters+%u"%loopIdx
 
 
     # counter = -counter
