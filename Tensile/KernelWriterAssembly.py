@@ -2423,27 +2423,33 @@ class KernelWriterAssembly(KernelWriter):
             kStr += " sgprOffset%s" % idxChars[i]
       kStr += " vgprTmp%s" % self.endLine
 
-      ########################################
-      # index 0
-      # tile index or unroll vgpr
-      if indices[0] == kernel["ProblemType"]["Index0"] \
-          or indices[0] == kernel["ProblemType"]["Index1"] \
-          or indices[0] == kernel["ProblemType"]["IndexUnroll"]:
-        offset = "v[\\vgprOffset%s]" % idxChars[0]
-      # other c index sgpr (free or batch)
-      elif indices[0] < kernel["ProblemType"]["NumIndicesC"]:
-        if isPackedIndex(kernel, indices[i], packBatchDims):
-          offset = "s[\\vgprOffset%s]" % idxChars[0]
-        else:
-          offset = "s[\\sgprOffset%s]" % idxChars[0]
-      # other sum index
-      else:
-        needAdd = 0
 
       # d1+
       needAdd = 0
       startStrideSub = 0 if kernel["ProblemType"]["UseInitialStrides"] else 1
-      for i in range(1, numDim):
+      offset = None
+      for i in range(0, numDim):
+        if indices[i] in kernel["ProblemType"]["IndicesSummation"] and \
+             not indices[i] == kernel["ProblemType"]["IndexUnroll"]:
+          # other summation, these are always 0 and don't contribute to GLOBAL_OFFSET
+          continue
+
+        if offset == None:
+          ########################################
+          # index 0
+          # tile index or unroll vgpr
+          if indices[i] == kernel["ProblemType"]["Index0"] \
+              or indices[i] == kernel["ProblemType"]["Index1"] \
+              or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
+            offset = "v[\\vgprOffset%s]" % idxChars[i]
+          # other c index sgpr (free or batch)
+          elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+            if isPackedIndex(kernel, indices[i], packBatchDims):
+              offset = "s[\\vgprOffset%s]" % idxChars[i]
+            else:
+              offset = "s[\\sgprOffset%s]" % idxChars[i]
+          continue
+
         # tile index or unroll vgpr
         if indices[i] == kernel["ProblemType"]["Index0"] \
             or indices[i] == kernel["ProblemType"]["Index1"] \
@@ -2498,7 +2504,7 @@ class KernelWriterAssembly(KernelWriter):
 
         destLo = "v[\\vgprAddr+0]"
         if needAdd:
-          # addr += offset * stride (lo)
+          # addr += offset * stride (lo) : accumulate just-computed address term into addr
           kStr += inst("_v_add_co_u32", \
               destLo, \
               "vcc", \
