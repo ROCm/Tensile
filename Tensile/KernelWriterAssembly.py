@@ -3682,7 +3682,11 @@ class KernelWriterAssembly(KernelWriter):
     # depthU
     dimIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] # dimension index
     loopChar = self.indexChars[dimIdx]
+    strideIdx = tP["ia"].index(dimIdx)
+    if not kernel["ProblemType"]["UseInitialStrides"]:
+      strideIdx -= 1
     tc = tP["tensorChar"]
+    #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
     depthU = kernel["DepthU"]
     if kernel["GlobalSplitU"] > 1 \
@@ -3694,7 +3698,7 @@ class KernelWriterAssembly(KernelWriter):
         if self.globalReadIncsUseVgpr:
           tmpSgpr = self.getTmpSgpr(1)
           kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, dimIdx)), \
+              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, strideIdx)), \
               "incr = stride%s*%u*bpe"%(loopChar, depthU) )
           kStr += inst("s_mov_b32", \
               sgpr(tmpSgpr+1), \
@@ -3710,7 +3714,7 @@ class KernelWriterAssembly(KernelWriter):
               "" )
         else: # not globalReadIncsUseVgpr, ie use SGPR
           kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%(tc)), \
-              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, dimIdx)), \
+              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, strideIdx)), \
               "incr = stride%s*%u*bpe"%(loopChar, depthU) )
 
       else: # transposed
