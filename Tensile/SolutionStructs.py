@@ -1725,7 +1725,7 @@ class Solution:
   def getParametersIndented(state, indent):
     s = ""
     s += "%sProblemType: %s\n" % (indent, str(state["ProblemType"]))
-    for key in state:
+    for key in sorted(state):
       s += "%s%s: %s\n" % (indent, str(key), str(state[key]))
     return s
 
