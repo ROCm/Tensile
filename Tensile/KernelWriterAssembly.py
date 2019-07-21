@@ -1362,6 +1362,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
 
+    # contractions with multiple summations will use multiple LoopCounters
+    # outermost loop is LoopCounter[0] and innermost is the last Counter.
+    # innermost is also the unroll loop
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("OrigLoopCounter", 1)
     if self.prefetchAcrossPersistent0:
@@ -3672,11 +3675,15 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Global Read Addresses: Increments
-  # Define graIncrements
+  # Define graIncrements, called once for each summation
   ##############################################################################
   def graIncrements(self, kernel, loopIdx, tP):
     kStr = ""
     # depthU
+    dimIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] # dimension index
+    loopChar = self.indexChars[dimIdx]
+    tc = tP["tensorChar"]
+
     depthU = kernel["DepthU"]
     if kernel["GlobalSplitU"] > 1 \
         and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
@@ -3687,15 +3694,8 @@ class KernelWriterAssembly(KernelWriter):
         if self.globalReadIncsUseVgpr:
           tmpSgpr = self.getTmpSgpr(1)
           kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-              hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
-              "incr = stride*%u*bytes"%depthU )
-          """
-          kStr += inst("s_addc_u32", \
-              sgpr(tmpSgpr+1), \
-              hex(0), \
-              hex(0), \
-              "(carry)")
-          """
+              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, dimIdx)), \
+              "incr = stride%s*%u*bpe"%(loopChar, depthU) )
           kStr += inst("s_mov_b32", \
               sgpr(tmpSgpr+1), \
               hex(0), \
@@ -3709,21 +3709,21 @@ class KernelWriterAssembly(KernelWriter):
               sgpr(tmpSgpr+1), \
               "" )
         else: # not globalReadIncsUseVgpr, ie use SGPR
-          kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
-              "incr = stride*%u*bytes"%depthU )
+          kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%(tc)), \
+              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, dimIdx)), \
+              "incr = stride%s*%u*bpe"%(loopChar, depthU) )
 
       else: # transposed
         if self.globalReadIncsUseVgpr:
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), \
-              "incr = %u*bytes"%depthU )
+              "incr = %u*bpe"%depthU )
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
-              hex(0), "incr = %u*bytes (upper)"%depthU )
+              hex(0), "incr = %u*bpe (upper)"%depthU )
         else:
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), \
-              "incr = %u*bytes"%depthU )
+              "incr = %u*bpe"%depthU )
     #else:
     #  printExit("NumIndicesSummation=%u not yet supported in assembly" \
     #      % kernel["ProblemType"]["NumIndicesSummation"] )
