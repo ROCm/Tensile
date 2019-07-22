@@ -155,7 +155,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     return destCOs
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
-    sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
+    #sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
     #import pdb
     #pdb.set_trace()
 

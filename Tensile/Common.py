@@ -140,6 +140,7 @@ globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
+globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -149,7 +150,6 @@ globalParameters["AssemblerPath"] = None                # /opt/rocm/bin/hcc
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
-globalParameters["ClientSourcePath"] = os.path.abspath(os.path.dirname(globalParameters["ScriptPath"]))  # Path to root of repo
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HccVersion"] = "0,0,0"
 

@@ -20,7 +20,6 @@
 ################################################################################
 
 from . import Common
-from . import Utils
 
 import itertools
 import os

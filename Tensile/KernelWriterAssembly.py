@@ -1967,14 +1967,14 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["ProblemType"]["DataType"].isHalf():
       if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        srcSize = "2"
-        srcAlign = "2"
-        srcByte  = 2
+        #srcSize = "2"
+        #srcAlign = "2"
+        #srcByte  = 2
         if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "Struct"
         if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "struct"
-        dstSize = "2"
-        dstAlign = "2"
-        dstByte  = 2
+        #dstSize = "2"
+        #dstAlign = "2"
+        #dstByte  = 2
         if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "Struct"
         if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "struct"
         cptSize = "4"
@@ -1982,13 +1982,13 @@ class KernelWriterAssembly(KernelWriter):
         cptByte  = 4
         cptValueType = "F32"
       else:
-        srcSize = "2"
-        srcAlign = "2"
-        srcByte  = 2
+        #srcSize = "2"
+        #srcAlign = "2"
+        #srcByte  = 2
         srcValueType = "F16"
-        dstSize = "2"
-        dstAlign = "2"
-        dstByte  = 2
+        #dstSize = "2"
+        #dstAlign = "2"
+        #dstByte  = 2
         dstValueType = "F16"
         cptSize = "2"
         cptAlign = "2"
@@ -1996,13 +1996,13 @@ class KernelWriterAssembly(KernelWriter):
         cptValueType = "F16"
     
     elif kernel["ProblemType"]["DataType"].isInt8x4():
-      srcSize = "1"
-      srcAlign = "1"
-      srcByte  = 1
+      #srcSize = "1"
+      #srcAlign = "1"
+      #srcByte  = 1
       srcValueType = "I8"
-      dstSize = "4"
-      dstAlign = "4"
-      dstByte  = 4
+      #dstSize = "4"
+      #dstAlign = "4"
+      #dstByte  = 4
       dstValueType = "I32"
       cptSize = "4"
       cptAlign = "4"
@@ -2010,13 +2010,13 @@ class KernelWriterAssembly(KernelWriter):
       cptValueType = "I32"
     
     elif kernel["ProblemType"]["DataType"].isSingle():
-      srcSize = "4"
-      srcAlign = "4"
-      srcByte  = 4
+      #srcSize = "4"
+      #srcAlign = "4"
+      #srcByte  = 4
       srcValueType = "F32"
-      dstSize = "4"
-      dstAlign = "4"
-      dstByte  = 4
+      #dstSize = "4"
+      #dstAlign = "4"
+      #dstByte  = 4
       dstValueType = "F32"
       cptSize = "4"
       cptAlign = "4"
@@ -2024,27 +2024,27 @@ class KernelWriterAssembly(KernelWriter):
       cptValueType = "F32"
     
     elif kernel["ProblemType"]["DataType"].isDouble():
-      srcSize = "8"
-      srcAlign = "8"
-      srcByte  = 8
+      #srcSize = "8"
+      #srcAlign = "8"
+      #srcByte  = 8
       srcValueType = "F64"
-      dstSize = "8"
-      dstAlign = "8"
-      dstByte  = 8
+      #dstSize = "8"
+      #dstAlign = "8"
+      #dstByte  = 8
       dstValueType = "F64"
       cptSize = "8"
       cptAlign = "8"
       cptByte  = 8
       cptValueType = "F64"
     elif kernel["ProblemType"]["DataType"].isBFloat16():
-      srcSize = "2"
-      srcAlign = "2"
-      srcByte  = 2
+      #srcSize = "2"
+      #srcAlign = "2"
+      #srcByte  = 2
       if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "Struct"
       if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "struct"
-      dstSize = "2"
-      dstAlign = "2"
-      dstByte  = 2
+      #dstSize = "2"
+      #dstAlign = "2"
+      #dstByte  = 2
       if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "Struct"
       if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "struct"
       cptSize = "4"
@@ -4693,7 +4693,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "\n"
 
       # Check tail loop required:
-      loopCounter = "LoopCounters+%u"%self.unrollIdx
+      #loopCounter = "LoopCounters+%u"%self.unrollIdx
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, tmpSgpr+1, "SizesSum+%u"%self.unrollIdx, \
@@ -4741,7 +4741,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if not prefetch:
       if isOptNLL:
-        summationEnd = self.getLabelName("Summation_End")
+        #summationEnd = self.getLabelName("Summation_End")
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
@@ -4757,7 +4757,7 @@ class KernelWriterAssembly(KernelWriter):
             hex(log2(self.bpeCexternal)), \
             "NLL: init cb addr <-  cinRowStart + coord0, scaled by BPE")
 
-        lastCoordOffset1 = 0
+        #lastCoordOffset1 = 0
         self.computeStoreAddrCalcs(kernel, ss, elements)
 
         for elementIdx in range(0, len(elements)):
@@ -6939,12 +6939,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
 
-    if self.prefetchAcrossPersistent:
-      wg0="PrevWorkGroup0"
-      wg1="PrevWorkGroup1"
-    else:
-      wg0="WorkGroup0"
-      wg1="WorkGroup1"
+    #if self.prefetchAcrossPersistent:
+    #  wg0="PrevWorkGroup0"
+    #  wg1="PrevWorkGroup1"
+    #else:
+    #  wg0="WorkGroup0"
+    #  wg1="WorkGroup1"
 
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
@@ -7297,9 +7297,9 @@ class KernelWriterAssembly(KernelWriter):
 
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
-      addrCalc = ss.elementAddr[elementIdx]
-      data = ss.elementData[elementIdx]
-      sumIdx = ss.elementSumIdx[elementIdx]
+      #addrCalc = ss.elementAddr[elementIdx]
+      #data = ss.elementData[elementIdx]
+      #sumIdx = ss.elementSumIdx[elementIdx]
       d1 = element[0]
       d0 = element[1]
       vc1 = element[2]
