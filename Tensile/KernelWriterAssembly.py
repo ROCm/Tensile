@@ -402,6 +402,7 @@ class KernelWriterAssembly(KernelWriter):
     # Debug and Check flags:
     # Check A and B values loaded from memory to ensure they are 1
     # Requires DataInitTypeAB=1.
+    # Only works if the problem uses full tiles (no edges)
     # Mismatches will assert (generate GPUVM fault)
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
@@ -3679,58 +3680,71 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graIncrements(self, kernel, loopIdx, tP):
     kStr = ""
-    # depthU
+    tc = tP["tensorChar"]
+
     dimIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] # dimension index
     loopChar = self.indexChars[dimIdx]
     strideIdx = tP["ia"].index(dimIdx)
+
     if not kernel["ProblemType"]["UseInitialStrides"]:
       strideIdx -= 1
-    tc = tP["tensorChar"]
+    if strideIdx >= 0:
+      stride = sgpr("Strides%s+%u"%(tc, strideIdx))
+    else:
+      stride = 1
+
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
+    # depthU
     depthU = kernel["DepthU"]
     if kernel["GlobalSplitU"] > 1 \
         and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
       depthU *= kernel["GlobalSplitU"]
 
-    if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+    assert(self.unrollIdx == kernel["ProblemType"]["NumIndicesSummation"]-1)
+    if loopIdx==self.unrollIdx:
       if tP["tlu"]:
         if self.globalReadIncsUseVgpr:
           tmpSgpr = self.getTmpSgpr(1)
           kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, strideIdx)), \
+              hex(depthU*tP["bpe"]), stride, \
               "incr = stride%s*%u*bpe"%(loopChar, depthU) )
           kStr += inst("s_mov_b32", \
               sgpr(tmpSgpr+1), \
               hex(0), \
               "(carry)")
           kStr += inst("v_mov_b32", \
-              vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
+              vgpr("GlobalReadIncs%s+%u+0"%(tc, 2*loopIdx)), \
               sgpr(tmpSgpr+0), \
               "" )
           kStr += inst("v_mov_b32", \
-              vgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
+              vgpr("GlobalReadIncs%s+%u+1"%(tc, 2*loopIdx)), \
               sgpr(tmpSgpr+1), \
               "" )
         else: # not globalReadIncsUseVgpr, ie use SGPR
-          kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%(tc)), \
-              hex(depthU*tP["bpe"]), sgpr("Strides%s+%u"%(tc, strideIdx)), \
-              "incr = stride%s*%u*bpe"%(loopChar, depthU) )
+          kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
+              hex(depthU*tP["bpe"]), stride, \
+              "incr%s%s = stride%s*%u*bpe (unrollIdx)"%(tc, loopChar, loopChar, depthU) )
 
       else: # transposed
         if self.globalReadIncsUseVgpr:
-          kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
+          kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+%u+0"%(tc, 2*loopIdx)), \
               hex(depthU*tP["bpe"]), \
               "incr = %u*bpe"%depthU )
-          kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
+          kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+%u+1"%(tc, 2*loopIdx)), \
               hex(0), "incr = %u*bpe (upper)"%depthU )
         else:
-          kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
+          kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
               hex(depthU*tP["bpe"]), \
               "incr = %u*bpe"%depthU )
-    #else:
-    #  printExit("NumIndicesSummation=%u not yet supported in assembly" \
-    #      % kernel["ProblemType"]["NumIndicesSummation"] )
+    else:
+      kStr += inst("s_sub_i32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
+          stride, \
+          0,
+          "incr%s%s = stride%s%s"%(tc, loopChar, tc, loopChar) )
+      # other summation, just use strideIdx - the prev summation.
+      #printExit("NumIndicesSummation=%u not yet supported in assembly" \
+      #    % kernel["ProblemType"]["NumIndicesSummation"] )
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
@@ -4134,22 +4148,22 @@ class KernelWriterAssembly(KernelWriter):
       staggerTmp = self.getTmpSgpr(1)
 
       #---
-      kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s"% (tc))
+      kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
 
       kStr += inst("s_mul_i32", \
         sgpr(staggerTmp),\
         sgpr("StaggerUIter"),\
-        sgpr("GlobalReadIncs%s"%tc), \
+        sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
         " stagger byte offset")
 
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
       # Note LoopCounters is negative
       kStr += self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
-                    sgpr("LoopCounters+%u"%self.unrollIdx), sgpr("GlobalReadIncs%s"%tc), \
+                    sgpr("LoopCounters+%u"%self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "Number of bytes accessed by the unroll loop")
 
-      kStr += inst("s_add_u32", sgpr("WrapU%s+0"%tc),  sgpr("GlobalReadIncs%s"%tc), \
+      kStr += inst("s_add_u32", sgpr("WrapU%s+0"%tc),  sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                 sgpr("WrapU%s+0"%tc), "Negative, and remove one iteration")
       kStr += inst("s_addc_u32", sgpr("WrapU%s+1"%tc),  0, \
                 sgpr("WrapU%s+1"%tc), "Negative, and remove one iteration")
@@ -4196,7 +4210,7 @@ class KernelWriterAssembly(KernelWriter):
       tmp = self.getTmpSgpr(1)
       kStr += inst("s_add_i32", sgpr(tmp), sgpr("StaggerUIter"), 2+kernel["PrefetchGlobalRead"], "")
       kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp), 
-                    sgpr("GlobalReadIncs%s"%tc), \
+                    sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
 
@@ -4915,7 +4929,7 @@ class KernelWriterAssembly(KernelWriter):
           imod.addInst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
                     sgpr("StaggerUIter"), "Is this the wrapIter?")
         #kStr += self.assert_scc_is_1() # break at the wrap iteration
-        imod.addInst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s+0"%tc), sgpr("GlobalReadIncs%s"%tc), \
+        imod.addInst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s+0"%tc), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "incLower <- ?")
         imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0,
                     "incUpper <- ?")
@@ -4926,7 +4940,7 @@ class KernelWriterAssembly(KernelWriter):
           imod.addText( self.assert_ne(vgpr(tv), sgpr("StaggerUIter"))) # break at the wrap iteration
           self.vgprPool.checkIn(tv)
       else:
-        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s"%tc), 0))
+        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), 0))
     else:
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -4943,13 +4957,13 @@ class KernelWriterAssembly(KernelWriter):
                     vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                     "vcc", \
                     vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                    vgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
+                    vgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], 2*loopIdx)), \
                     "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
                 imod.addInst("_v_addc_co_u32", \
                     vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
                     "vcc", \
                     vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                    vgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
+                    vgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], 2*loopIdx)), \
                     "vcc", \
                     "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
               else:
@@ -4957,7 +4971,7 @@ class KernelWriterAssembly(KernelWriter):
                     vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                     "vcc", \
                     vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                    sgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
+                    sgpr("GlobalReadIncs%s+%u"%(tP["tensorChar"], loopIdx)), \
                     "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
                 imod.addInst("_v_addc_co_u32", \
                     vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
@@ -6502,7 +6516,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("Srd%s+0"%ch), sgpr("Address%s+0"%ch), "init SRD base address (lower)" )
     kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
     kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), hex(0x80000000), "")
-    kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in SRD")
+    kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in post-loop SRD")
     kStr += "\n"
     return kStr
 
