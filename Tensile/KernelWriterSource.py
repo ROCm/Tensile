@@ -1390,6 +1390,7 @@ class KernelWriterSource(KernelWriter):
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
+      # print 1 or 0 subtracts:
       for j in range(loopIdx+1, \
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \

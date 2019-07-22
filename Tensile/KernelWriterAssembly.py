@@ -2375,11 +2375,20 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
     kStr += self.comment1("max SGPR=%u"%self.totalSgprs)
 
+    if kernel["ProblemType"]["UseInitialStrides"] == 0:
+      kStr += "\n"
+      idx0 = self.tPA["ia"][0]
+      idxChar= self.indexChars[idx0]
+      kStr += self.macroRegister("StrideA%s"%idxChar, "1")
+
+      idx0 = self.tPB["ia"][0]
+      idxChar= self.indexChars[idx0]
+      kStr += self.macroRegister("StrideB%s"%idxChar, "1")
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
-      kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
+      kStr += self.comment("2GB limit - set offsets to -1 to exceed this and clamp")
       kStr += self.macroRegister("BufferLimit", "0x80000000")
-      kStr += self.comment3("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
+      kStr += self.comment("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
       kStr += self.macroRegister("Srd127_96",   "0x0020000")
       #TODO-64 : This is max 32-bit negative value, the tail loop
       # does incrementally step through the GRO and increment GRO
@@ -3567,9 +3576,9 @@ class KernelWriterAssembly(KernelWriter):
       idx = indices[i]
       if idx == kernel["ProblemType"]["Index0"] \
           or idx == kernel["ProblemType"]["Index1"] \
-          or idx == kernel["ProblemType"]["IndexUnroll"] \
+          or idx in kernel["ProblemType"]["IndicesSummation"] \
           or isPackedIndex(kernel, i):
-            continue # these will be captured in GRO not the SRD
+            continue # these will be captured in GRO not the SRD (or other summations are always 0)
       else:
         if not wroteTileStart:
           kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
@@ -3691,7 +3700,8 @@ class KernelWriterAssembly(KernelWriter):
     if strideIdx >= 0:
       stride = sgpr("Strides%s+%u"%(tc, strideIdx))
     else:
-      stride = 1
+      # use constant stride:
+      stride = "Stride%s%s" % (tc, self.indexChars[tP["ia"][0]])
 
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
@@ -3738,13 +3748,54 @@ class KernelWriterAssembly(KernelWriter):
               hex(depthU*tP["bpe"]), \
               "incr = %u*bpe"%depthU )
     else:
-      kStr += inst("s_sub_i32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
-          stride, \
-          0,
-          "incr%s%s = stride%s%s"%(tc, loopChar, tc, loopChar) )
-      # other summation, just use strideIdx - the prev summation.
-      #printExit("NumIndicesSummation=%u not yet supported in assembly" \
-      #    % kernel["ProblemType"]["NumIndicesSummation"] )
+      # other summation
+      if self.globalReadIncsUseVgpr:
+        printExit("NumIndicesSummation=%u not yet supported in assembly" \
+            % kernel["ProblemType"]["NumIndicesSummation"] )
+      else:
+        graInc = "GlobalReadIncs%s+%u"%(tc, loopIdx)
+        # subtract increments done by the inner iterations
+        # may be negative:
+        loopIdxPrev = loopIdx + 1
+        dimIdxPrev    = kernel["ProblemType"]["IndicesSummation"][loopIdxPrev] # dimension index
+        loopCharPrev  = self.indexChars[dimIdxPrev]
+        strideIdxPrev = tP["ia"].index(dimIdxPrev)
+        if not kernel["ProblemType"]["UseInitialStrides"]:
+          strideIdxPrev -= 1
+        if strideIdxPrev >= 0:
+          stridePrev = sgpr("Strides%s+%u"%(tc, strideIdxPrev))
+        else:
+          # use constant stride for first index:
+          stridePrev = "Stride%s%s" % (tc, self.indexChars[tP["ia"][0]])
+
+        if loopIdx+1 == self.unrollIdx:
+          # loop is one level above the unroll
+          # unroll increment does not change in the tail loop so round to just increments in the unroll iteration
+          # add (/DEPTHU * DEPTHU)
+          tmpSgpr = self.getTmpSgpr(2)
+          kStr += self.comment("increment for loop above tail loop - compute iters = size%s%s / DepthU" % (tc,loopCharPrev))
+          # first compute number of iterations inside tail loop:
+          kStr += scalarStaticDivideAndRemainder(qReg=graInc, rReg=None, \
+              dReg="SizesSum+%u"%loopIdxPrev, divisor=kernel["DepthU"], tmpSgpr=tmpSgpr, doRemainder=0)
+          kStr += inst("s_mul_i32", sgpr(graInc), sgpr(graInc), kernel["DepthU"], "mul by DepthU")
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(graInc), 
+              "<- *= stride%s%s  " %(tc, loopCharPrev))
+        else:
+          kStr += self.comment("increment for higher-level loop")
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr("SizesSum+%u"%(loopIdxPrev)), \
+              "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
+          # CheckDimOverflow
+
+        # subtract amount that previous inner loop will have already incremented:
+        kStr += inst("s_sub_i32", sgpr(graInc), \
+            stride, \
+            sgpr(graInc), \
+            "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
+        kStr += inst("s_lshl_b32", \
+            sgpr(graInc), \
+            sgpr(graInc), \
+            hex(log2(tP["bpe"])),
+            "<- scale by bpe")
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
@@ -4909,15 +4960,17 @@ class KernelWriterAssembly(KernelWriter):
   def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
     if not self.do["GlobalInc"]: return ""
     tc = tP["tensorChar"]
+    loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
 
     imod = Code.Module("globalReadIncrement%s"%tc)
-    imod.addComment1("global read inc %s"%tc)
+    imod.addComment1("global read inc %s loop%s"%(tc,loopChar))
 
     if kernel["BufferLoad"]:
       # TODO - does this handle N-dim tensors correctly?
       #if tP["isB"]:
       #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
-      if self.staggerU:
+      if self.staggerU and loopIdx == self.unrollIdx:
         # add a wrap increment, if needed:
         incLower = self.getTmpSgpr(3)
         incUpper = incLower + 1
@@ -4940,10 +4993,8 @@ class KernelWriterAssembly(KernelWriter):
           imod.addText( self.assert_ne(vgpr(tv), sgpr("StaggerUIter"))) # break at the wrap iteration
           self.vgprPool.checkIn(tv)
       else:
-        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), 0))
+        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 0))
     else:
-      loopChar = self.indexChars[ \
-          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
       graIdx = 0
       #for perp in range(0, tP["nrp"]):
       #  for para in range(0, tP["nrc"]):
@@ -8845,6 +8896,7 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
 # only used for loop unroll and GlobalSplitU
 # doRemainder==1 : compute remainder
 # doRemainder==2 : only compute remainder (not quotient unless required for remainder)
+# dreg == dividend
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     doRemainder=1):
 
