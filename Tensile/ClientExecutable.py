@@ -22,7 +22,6 @@
 import itertools
 import os
 import subprocess
-import sys
 
 from . import Common
 from .Common import globalParameters
@@ -53,7 +52,7 @@ def clientExecutableEnvironment():
     sourceDir = globalParameters["SourcePath"]
     buildDir = Common.ensurePath(os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"]))
 
-    options = {'CMAKE_BUILD_TYPE': 'Debug',#globalParameters["CMakeBuildType"],
+    options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_NEW_CLIENT': 'ON',
                'CMAKE_CXX_COMPILER': '/opt/rocm/bin/hcc'}
 
