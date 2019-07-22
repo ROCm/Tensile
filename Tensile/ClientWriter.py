@@ -362,6 +362,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        if not globalParameters["KernelTime"]:
+            param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])
 
 
