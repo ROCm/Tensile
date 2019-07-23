@@ -55,6 +55,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   benchmarkProcess = BenchmarkProcess( problemTypeConfig, \
       problemSizeGroupConfig )
 
+  enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
   problemTypeName = str(benchmarkProcess.problemType)
   problemSizeGroupName = "%s_%02u" % (problemTypeName, problemSizeGroupIdx)
   pushWorkingPath(problemSizeGroupName)
@@ -279,7 +280,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy)
+        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
 
     print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]
@@ -316,7 +317,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       libraryLogicPath = None
       path = globalParameters["WorkingPath"]
       forBenchmark = True
-      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
+      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
       # run runScript
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
@@ -332,16 +333,16 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions)
+    results = getResults(resultsFileName, solutions, enableTileSelection)
     print2("CSV Results: %s" % results)
     winners.addResults(benchmarkStep.hardcodedParameters, \
-        benchmarkPermutations, solutions, results)
+      benchmarkPermutations, solutions, results)
 
     ############################################################################
     # Write Solutions YAML
     ############################################################################
     YAMLIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
-        solutions )
+      solutions )
 
     # End Iteration
     popWorkingPath() # stepName
@@ -358,7 +359,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 ################################################################################
 # Read GFlop/s from file
 ################################################################################
-def getResults(resultsFileName, solutions):
+def getResults(resultsFileName, solutions, enableTileSelection):
   try:
     resultsFile = open(resultsFileName, "r")
   except IOError:
@@ -401,7 +402,7 @@ def getResults(resultsFileName, solutions):
           gflops = float(row[idx])
           results[i][j].append(gflops)
           idx += 1
-  if rowIdx < 2:
+  if rowIdx < 2 and not enableTileSelection:
     printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
         % (resultsFileName, rowIdx) )
   return results
@@ -410,7 +411,7 @@ def getResults(resultsFileName, solutions):
 ################################################################################
 # Write Benchmark Files
 ################################################################################
-def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -458,7 +459,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir)
+      filesToCopy, stepBaseDir, solutionSummationSizes)
 
 ################################################################################
 # FrozenDictionary
@@ -510,12 +511,16 @@ class WinningParameterDict:
       progressBar = ProgressBar(len(results))
     for hardcodedIdx in range(0, len(results)):
       hardcodedResults = results[hardcodedIdx]
+      if not hardcodedResults:
+        continue
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
       winningScore = -9999 # -1 is score of invalid so use -9999 here
       # find fastest benchmark parameters for this hardcoded
       for benchmarkIdx in range(0, len(hardcodedResults)):
         benchmarkResult = hardcodedResults[benchmarkIdx]
+        if not benchmarkResult:
+          continue
         benchmarkScore = max(benchmarkResult) # take fastest regardless of size
         if benchmarkScore > winningScore:
           winningScore = benchmarkScore
@@ -699,7 +704,8 @@ def main( config ):
           % (str(problemTypeObj), problemSizeGroupIdx) )
       newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
           % (str(problemTypeObj), problemSizeGroupIdx) )
-
+      newGranularityFileName = os.path.join(dataPath, "%s_%02u.gsp" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
       # skip if possible
       if globalParameters["ForceRedoBenchmarkProblems"] or \
           not os.path.exists(newResultsFileName):
@@ -717,8 +723,11 @@ def main( config ):
         resultsFileBase = resultsFileBaseFinal
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
+        granularityFileName = "%s_Granularity.csv" % (resultsFileBase)
         shutil_copy( resultsFileName, newResultsFileName )
         shutil_copy( solutionsFileName, newSolutionsFileName )
+        if os.path.isfile(granularityFileName):
+          shutil_copy( granularityFileName, newGranularityFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 

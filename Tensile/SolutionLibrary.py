@@ -40,8 +40,38 @@ class SingleSolutionLibrary:
     def state(self):
         return {'type': self.tag, 'index': self.solution.index}
 
+    def remapSolutionIndices(self,indexMap):
+        pass
+
 class MatchingProperty(Properties.Property):
     pass
+
+class GranularitySelectionLibrary:
+    Tag = 'GranularitySelection'
+    StateKeys = [('type', 'tag'), 'idxs']
+
+    @classmethod
+    def FromOriginalState(cls, indices):
+        return cls(indices)
+
+    @property
+    def tag(self):
+        return self.__class__.Tag
+
+    def merge(self, other):
+        idList = list(set().union(self.idxs, idxs))
+        self.idxs = idList
+
+    def __init__(self, idxs):
+        self.idxs = idxs
+
+    def remapSolutionIndices(self,indexMap):
+        for i in range(0, len(self.idxs)):
+            index = self.idxs[i]
+            if index in indexMap:
+                self.idxs[i] = indexMap[index]
+
+
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -88,6 +118,9 @@ class MatchingLibrary:
 
         self.table += other.table
 
+    def remapSolutionIndices(self,indexMap):
+        pass
+
     def __init__(self, properties, table, distance):
         self.properties = properties
         self.table = table
@@ -113,6 +146,10 @@ class ProblemMapLibrary:
                 self.mapping[key].merge(value)
             else:
                 self.mapping[key] = value
+ 
+    def remapSolutionIndices(self,indexMap):
+        for key,value in list(self.mapping.items()):
+            value.remapSolutionIndices(indexMap)
 
 class PredicateLibrary:
     StateKeys = [('type', 'tag'), 'rows']
@@ -133,6 +170,11 @@ class PredicateLibrary:
             else:
                 self.rows.append(row)
 
+    def remapSolutionIndices(self,indexMap):
+        for row in self.rows:
+          row['library'].remapSolutionIndices(indexMap)
+
+
 class MasterSolutionLibrary:
     StateKeys = ['solutions', 'library']
 
@@ -149,6 +191,10 @@ class MasterSolutionLibrary:
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
+        buildGranularity = False
+        if len(d) > 9 and d[9]:
+          buildGranularity = True
+        
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
 
         # fix missing and duplicate solution indices.
@@ -171,11 +217,14 @@ class MasterSolutionLibrary:
         assert len(allSolutions) == len(asmSolutions) + len(sourceSolutions), \
             "Solution split not consistent: {0} != {1} + {2}".format(len(allSolutions), len(asmSolutions), len(sourceSolutions))
 
-        matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
-
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                library = matchingLibrary
+                if (buildGranularity):
+                    selectionIndices = d[9]["TileSelectionIndices"]
+                    library = GranularitySelectionLibrary.FromOriginalState(selectionIndices)
+                else:
+                    matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
+                    library = matchingLibrary
 
             elif libName == 'Hardware':
                 newLib = PredicateLibrary(tag='Hardware', rows=[])
@@ -194,6 +243,7 @@ class MasterSolutionLibrary:
                 operationID = problemType.operationIdentifier
                 prop = MatchingProperty('OperationIdentifier')
                 mapping = {operationID: library}
+
                 newLib = ProblemMapLibrary(prop, mapping)
                 library = newLib
             else:
@@ -227,17 +277,25 @@ class MasterSolutionLibrary:
         #pdb.set_trace()
         curIndex = max(allIndices) + 1
 
+        reIndexMap = {}
         for k,s in list(other.solutions.items()):
+            reIndexMap[s.index] = curIndex
             s.index = curIndex
             self.solutions[curIndex] = s
             curIndex += 1
 
         for k,s in list(other.sourceSolutions.items()):
+            reIndexMap[s.index] = curIndex
             s.index = curIndex
             self.sourceSolutions[curIndex] = s
             curIndex += 1
 
+        other.remapSolutionIndices(reIndexMap)
+
         self.library.merge(other.library)
+
+    def remapSolutionIndices(self,indexMap):
+        self.library.remapSolutionIndices(indexMap)
 
     @property
     def cpp_base_class(self):
