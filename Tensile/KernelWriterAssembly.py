@@ -5226,13 +5226,6 @@ class KernelWriterAssembly(KernelWriter):
                     "gra += 1 (upper)")
               r += 1 # next component (for half)
             # end R loop
-            # increment offset by 1 element
-            if kernel["BufferLoad"] and not kernel["UseSgprForGRO"]:
-              kStr += inst("_v_add_co_u32", \
-                  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                  "vcc", \
-                  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                    numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
@@ -5240,15 +5233,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "s_barrier // debug\n"
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
-    if kernel["UseSgprForGRO"]:
-      # increment offset 0 by 1 element
-      # have to do this after all the component loads since they all use 0
-      # This factors into address for the next tail-loop iteration
-      kStr += inst("_v_add_co_u32", \
-          vgpr("GlobalReadOffset%s+0"%(tc)), \
-          "vcc", \
-          vgpr("GlobalReadOffset%s+0"%(tc)), \
-          tP["bpe"], "graOffset += bpe")
+    if kernel["BufferLoad"]:
+      # Move SRD forward to next K element:
+      kStr += self.incrementSrd(kernel, tP, tP["bpe"], 0, checkShadowLimitCopy=True)
 
     # TODO - can remove one of these m0 restores if A and B both TLU
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
