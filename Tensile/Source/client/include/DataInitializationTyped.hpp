@@ -321,13 +321,17 @@ namespace Tensile
             {
                 hipMemcpyKind kind = copyKind(dst, src);
 
-                HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::ElementSize * m_aMaxElements, kind));
-                HIP_CHECK_EXC(hipMemcpy(dst->managedB.get(), src->managedB.get(), TypeInfo<BType>::ElementSize * m_bMaxElements, kind));
-                HIP_CHECK_EXC(hipMemcpy(dst->managedC.get(), src->managedC.get(), TypeInfo<CType>::ElementSize * m_cMaxElements, kind));
-                if(!m_cEqualsD)
-                {
+                if(dst->managedA != src->managedA)
+                    HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::ElementSize * m_aMaxElements, kind));
+
+                if(dst->managedB != src->managedB)
+                    HIP_CHECK_EXC(hipMemcpy(dst->managedB.get(), src->managedB.get(), TypeInfo<BType>::ElementSize * m_bMaxElements, kind));
+
+                if(dst->managedC != src->managedC)
+                    HIP_CHECK_EXC(hipMemcpy(dst->managedC.get(), src->managedC.get(), TypeInfo<CType>::ElementSize * m_cMaxElements, kind));
+
+                if(!m_cEqualsD && dst->managedD != src->managedD)
                     HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
-                }
 
                 dst->alpha = src->alpha;
                 dst->beta = src->beta;

@@ -123,7 +123,7 @@ namespace Tensile
             /// If true, we will allocate an extra copy of the inputs on the GPU.
             /// This will improve performance as we don't have to copy from the CPU
             /// with each kernel launch, but it will use extra memory.
-            bool m_keepPristineCopyOnGPU;
+            bool m_keepPristineCopyOnGPU = true;
         };
 
         template <> inline float  DataInitialization::getValue<float,  InitMode::Zero>() { return 0.0f; }

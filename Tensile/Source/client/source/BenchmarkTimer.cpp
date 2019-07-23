@@ -46,7 +46,9 @@ namespace Tensile
               m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>()),
               m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark),
               m_useGPUTimer(         args["use-gpu-timer"].as<bool>()),
-              m_sleepPercent(        args["sleep-percent"].as<int>())
+              m_sleepPercent(        args["sleep-percent"].as<int>()),
+              m_timeInSolution(0),
+              m_totalGPUTime(0)
         {
         }
 
@@ -76,11 +78,12 @@ namespace Tensile
         void BenchmarkTimer::preSolution(ContractionSolution const& solution)
         {
             m_numEnqueuesInSolution = 0;
+            m_timeInSolution = double_millis::zero();
         }
 
         void BenchmarkTimer::postSolution()
         {
-            double timePerEnqueue_ns = std::chrono::duration_cast<double_nanos>(m_timeInSolution).count() / m_numEnqueuesInSolution;
+            double timePerEnqueue_ns = double_nanos(m_timeInSolution).count() / m_numEnqueuesInSolution;
 
             double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns);
 
@@ -188,7 +191,7 @@ namespace Tensile
             }
             else
             {
-                totalTime = std::chrono::duration_cast<double_millis>(m_endTime - m_startTime);
+                totalTime = double_millis(m_endTime - m_startTime);
             }
 
             m_timeInSolution += totalTime;

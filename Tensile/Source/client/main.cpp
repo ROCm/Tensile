@@ -155,7 +155,10 @@ namespace Tensile
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
                 
-                ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.");
+                ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
+                ("log-file",                 po::value<std::string>(),                               "File name for output log.")
+                ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
+                ;
 
             return options;
         }
@@ -351,6 +354,14 @@ int main(int argc, const char * argv[])
     auto reporters = std::make_shared<MetaResultReporter>();
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
+
+    if(args.count("log-file"))
+    {
+        std::string filename = args["log-file"].as<std::string>();
+        auto logFile = std::make_shared<std::ofstream>(filename.c_str(), args["log-file-append"].as<bool>() ? std::ios::app : std::ios::out);
+
+        reporters->addReporter(LogReporter::Default(args, logFile));
+    }
 
     listeners.setReporter(reporters);
 

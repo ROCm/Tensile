@@ -72,7 +72,8 @@ namespace Tensile
                     m_csvOutput.setHeaderForKey(key, key);
             }
 
-            static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
+            template <typename Stream>
+            static std::shared_ptr<LogReporter> Default(po::variables_map const& args, Stream & stream)
             {
                 using namespace ResultKey;
                 return std::shared_ptr<LogReporter>(
@@ -82,7 +83,12 @@ namespace Tensile
                                          Validation, TimeNS, SpeedGFlops,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
-                                        std::cout));
+                                        stream));
+            }
+
+            static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
+            {
+                return Default(args, std::cout);
             }
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override

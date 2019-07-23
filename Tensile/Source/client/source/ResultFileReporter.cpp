@@ -85,20 +85,9 @@ namespace Tensile
             reportValue(key, value);
         }
 
-        void StartDebuggerHere()
-        {
-            for(int i = 0; i < 10; i++)
-                std::cout << "NAN: " << getpid() << std::endl;
-            std::this_thread::sleep_for(std::chrono::minutes(5));
-        }
-
         void ResultFileReporter::reportValue_double(std::string const& key, double value) override
         {
             reportValue(key, value);
-
-            if(!m_invalidSolution && (key == ResultKey::SpeedGFlops || key == ResultKey::TimeNS) && std::isnan(value))
-                StartDebuggerHere();
-
         }
 
         void ResultFileReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override
