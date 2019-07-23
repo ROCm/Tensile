@@ -1863,7 +1863,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     # begin kernel descriptor
-    kStr += ".hsa_code_object_version 2,0%s" % self.endLine
+    kStr += ".hsa_code_object_version %s,0%s" \
+        % (globalParameters["CodeObjectVersion"][1], self.endLine)
     kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
         % (self.version[0], self.version[1], self.version[2], self.endLine)
     kStr += ".text%s" % self.endLine
@@ -2081,15 +2082,15 @@ class KernelWriterAssembly(KernelWriter):
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.v2Argument(                         "alpha",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v2Argument(                         "alpha", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
+        kStr += self.v2Argument(                         "alpha", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += self.v2Argument(                        "beta",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
-      elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v2Argument(                          "beta", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += self.v2Argument(                          "beta", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
 
       for i in range(0, self.numSgprStridesD):
         kStr += self.v2Argument(                   "strideD%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -2186,8 +2187,8 @@ class KernelWriterAssembly(KernelWriter):
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += self.v3Argument(                        "beta",       4, offset,      "by_value", cptValueType); offset += 4
-      elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += self.v3Argument(                          "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += self.v3Argument(                          "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
 
       for i in range(0, self.numSgprStridesD):
         kStr += self.v3Argument(                   "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
