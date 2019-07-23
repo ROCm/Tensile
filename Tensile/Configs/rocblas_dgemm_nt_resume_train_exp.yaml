@@ -20,6 +20,7 @@ GlobalParameters:
   SleepPercent: 0
   DataInitTypeBeta : 2
   CEqualD: True
+  ResumeBenchmarkProblem: False
 # PrintSolutionRejectionReason: True
 # SolutionSelectionAlg: 1
 # PrintWinnersOnly: 1

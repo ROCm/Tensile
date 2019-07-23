@@ -91,7 +91,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
       numOther *= size
     numCols = logicAnalyzer.numProblemSizes[1]
     if numCols == 0: numCols = 1
-    numOther /= numCols
+    numOther //= numCols
     for row in range(0, numOther):
       for col in range(0, numCols):
         for sol in range(0, logicAnalyzer.numSolutions):

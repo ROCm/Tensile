@@ -28,10 +28,15 @@ set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 ###############################################################################
 # Common Options
 option( Tensile_ENABLE_HALF "Enable half precision data types" OFF)
-option( Tensile_CLIENT_BENCMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
+option( Tensile_CLIENT_BENCHMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
+option( Tensile_RESUME_BENCHMARK "When benchmark interrupted ON=Resume the benchmark process; OFF=Restart the benchmark process" OFF)
 option( Tensile_MERGE_FILES "Merge kernels and solutions files" OFF)
 set(Tensile_RUNTIME_LANGUAGE HIP CACHE STRING "Which runtime language to use")
 set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
+set(Tensile_CODE_OBJECT_VERSION V2 CACHE STRING "Which code object version to use")
+set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
+
+message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
 
 ###############################################################################
 # Benchmark Client
@@ -66,6 +71,10 @@ else()
     -DTensile_CLIENT_LIBRARY=1 )
 endif()
 
+if(Tensile_RESUME_BENCHMARK)
+    target_compile_definitions( ${ClientName} PUBLIC
+      -DTensile_RESUME_BENCHMARK )
+endif()
 ###############################################################################
 # Visual Studio or HIPCC
 if(MSVC)
@@ -111,14 +120,14 @@ elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
   endif()
 endif()
 
-
 ###############################################################################
 # Create Tensile Library
 if(NOT Tensile_CLIENT_BENCHMARK)
   include(${CMAKE_SOURCE_DIR}/TensileConfig.cmake)
-  TensileCreateLibrary(
+  TensileCreateLibraryCmake(
     ${Tensile_LOGIC_PATH}           # path
     ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
+    ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
     ${Tensile_MERGE_FILES}          # ON or OFF
     ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
     ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
