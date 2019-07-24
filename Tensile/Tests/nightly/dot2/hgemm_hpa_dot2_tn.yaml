@@ -22,7 +22,6 @@ GlobalParameters:
   DataInitTypeA: 3           # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
   DataInitTypeB: 3           # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
   DataInitTypeBeta: 0        # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
-  CpuThreads: 0
 
 BenchmarkProblems:
 
@@ -81,8 +80,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [          [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
-          - Range: [ [64, 64, 64,  700], [64, 64, 64,  700], [1], [256, 1024, 1024, 4096] ] # small
+          - Range: [          [64, 128], [64, 64, 64, 2000], [1], [256, 1024, 1024, 2048] ] # skinny-0
+          - Range: [ [64, 64, 64,  700], [64, 64, 64,  700], [1], [256, 1024, 1024, 2048] ] # small
 
   ########################################
   # NN - Large
@@ -118,7 +117,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # large
+          - Range: [ [64, 64, 64, 2000], [64, 64, 64, 2000], [1], [256, 1024, 1024, 2048] ] # large
 
   ########################################
   # NN - VectorWidth Correctness
@@ -152,50 +151,5 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [               [64],               [64], [1], [256, 1024, 1024, 4096] ] # corner
-          - Range: [               [64], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000],               [64], [1], [256, 1024, 1024, 4096] ] # skinny-1
-
-  ########################################
-  # NN - Batch
-  ########################################
-    - # Benchmark Group - ResNet 1x1:
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - EdgeType: ["ShiftPtr"]
-        - InnerUnroll: [2]
-        - LocalDotLayout: [2]
-        - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
-      ForkParameters:
-        - PrefetchGlobalRead: [ False, True ]
-        - PrefetchLocalRead: [ False]
-        - ThreadTile:
-          - [ 4, 4 ]
-          - [ 4, 8 ]
-          - [ 8, 4 ]
-          - [ 8, 8 ]
-        - WorkGroup:
-          - [ 8,  8, 1 ]
-          - [ 16, 8, 1 ]
-          - [ 8, 32, 1 ]
-          - [ 16, 16, 1 ]
-          - [ 32,  8, 1 ]
-        - WorkGroupMapping: [8]
-        - DepthU: [ 16 ]
-        - VectorWidth: [4, 8]
-        - GlobalReadVectorWidth: [-1]
-        - LdsPadB: [0,1,2,4]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [  196,  256, 64, 1024 ]
-          - Exact: [  784,  512, 64,  128 ]
-          - Exact: [ 3136,  512,  1, 2048 ]
-          - Exact: [  196, 1024, 64,  256 ]
-          - Exact: [ 3136, 2048,  1,  512 ]
-
-
+          - Range: [               [64], [64, 64, 64, 2000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 2000],               [64], [1], [256, 1024, 1024, 2048] ] # skinny-1

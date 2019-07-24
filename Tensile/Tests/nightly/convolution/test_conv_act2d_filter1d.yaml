@@ -15,7 +15,7 @@ GlobalParameters:
   PrintSolutionRejectionReason: 1
 
 BenchmarkProblems:
-  - #  1D activation with 1D weights, 1 summation
+  - #  2D activation with 1D weights, 1 summation
     - # ProblemType
       OperationType: TensorContraction
       DataType: s
@@ -34,6 +34,7 @@ BenchmarkProblems:
         - LoopTail: [True]
       ForkParameters:
         - KernelLanguage: ["Source"]
+          # TODO - asm requires flex dims
         - ThreadTile:
           - [ 4, 4 ]
           - [ 4, 8 ]
@@ -50,4 +51,5 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact : [6, 10, 4, 3]
-          - Range: [ [127,1,129], [127,1,129], [127,1,129], [63,1,65] ]
+            #- Range: [ [127,1,129], [127,1,129], [127,1,129], [63,1,65] ]
+          - Range: [ [127,1,129], 0,0, [63,1,65] ]
