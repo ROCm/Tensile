@@ -14,6 +14,7 @@ GlobalParameters:
   ShortNames: False
   MergeFiles: True
   ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
+  # In IndexAssignments, the fastest moving dimension is listed first.
 
 BenchmarkProblems:
   - # 4-D batched sgemm NN
@@ -53,9 +54,9 @@ BenchmarkProblems:
       DataType: s
       DestDataType: s
       UseBeta: True
-      NumIndicesC: 2
-      IndexAssignmentsA: [2, 0, 3]
-      IndexAssignmentsB: [2, 1, 3]
+      NumIndicesC: 2 # change from above, remove batched dim so it becomes summation
+      IndexAssignmentsA: [2, 0, 3]  # [k, i, m]
+      IndexAssignmentsB: [2, 1, 3]  # [k, j, m]
       # C[ij] = Sum[kl] A[kil] * B[kjl]
       # Free Indices: [i, j]
       # Batch Indices:
@@ -130,12 +131,15 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: True
       NumIndicesC: 3
-      IndexAssignmentsA: [5, 4, 0, 1, 3]
-      IndexAssignmentsB: [5, 4, 1, 3, 2]
+      IndexAssignmentsA: [5, 4, 0, 1, 3]  # n(s), m(s), i(f), j(b), l(s)
+      IndexAssignmentsB: [5, 4, 1, 3, 2]  # n(s), m(s), j(b), l(s), k(f)
       # C[ijk] = Sum[lmn] A[nmijl] * B[nmjlk]
       # Free Indices: [i, k]
       # Batch Indices: j
       # Sum Indices: l, m, n
+      # Translate to traditional conv notation:
+      # i=H*W, j=N, k=Cout, l=Cin, m=R, n=S
+      # Need one more free dimension to decouple H,W.
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:

@@ -78,7 +78,8 @@ TensileStatus tensileReferenceCPU(
     const unsigned int *sizes,
     const unsigned int *minStrides,
     unsigned int numIndicesC,
-    unsigned int numIndicesAB,
+    unsigned int numIndicesA,
+    unsigned int numIndicesB,
     const unsigned int *indexAssignmentsA,
     const unsigned int *indexAssignmentsB,
     bool complexConjugateA,
@@ -90,23 +91,25 @@ TensileStatus tensileReferenceCPU(
   bool localUseHighPrecisionAccumulate = useHighPrecisionAccumulate && std::is_same<Type, TensileHalf>::value;
 
   // sizes
-  unsigned int *sizesA = new unsigned int[numIndicesAB];
-  unsigned int *sizesB = new unsigned int[numIndicesAB];
+  unsigned int *sizesA = new unsigned int[numIndicesA];
+  unsigned int *sizesB = new unsigned int[numIndicesB];
 
   // Stride in each index
   unsigned int *strides = new unsigned int[totalIndices];
 
   unsigned int *stridesD = new unsigned int[numIndicesC];
   unsigned int *stridesC = new unsigned int[numIndicesC];
-  unsigned int *stridesA = new unsigned int[numIndicesAB];
-  unsigned int *stridesB = new unsigned int[numIndicesAB];
+  unsigned int *stridesA = new unsigned int[numIndicesA];
+  unsigned int *stridesB = new unsigned int[numIndicesB];
 
   for (unsigned int i = 0; i < totalIndices; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
   }
 
-  for (unsigned int i = 0; i < numIndicesAB; i++) {
+  for (unsigned int i = 0; i < numIndicesA; i++) {
     sizesA[i] = sizes[indexAssignmentsA[i]];
+  }
+  for (unsigned int i = 0; i < numIndicesB; i++) {
     sizesB[i] = sizes[indexAssignmentsB[i]];
   }
 
@@ -121,8 +124,10 @@ TensileStatus tensileReferenceCPU(
   stridesA[1] = (lda != std::numeric_limits<unsigned int>::max()) ? lda : strides[indexAssignmentsA[0]];
   stridesB[1] = (ldb != std::numeric_limits<unsigned int>::max()) ? ldb : strides[indexAssignmentsB[0]];
 
-  for (unsigned int i = 2; i < numIndicesAB; i++) {
+  for (unsigned int i = 2; i < numIndicesA; i++) {
     stridesA[i] = stridesA[i-1] * strides[indexAssignmentsA[i-1]];
+  }
+  for (unsigned int i = 2; i < numIndicesB; i++) {
     stridesB[i] = stridesB[i-1] * strides[indexAssignmentsB[i-1]];
   }
   for (unsigned int i = 2; i < numIndicesC; i++) {
@@ -147,7 +152,7 @@ TensileStatus tensileReferenceCPU(
     freeCoord[i] = 0;
   }
 
-  for (size_t i = 0; i < numIndicesAB; i++) {
+  for (size_t i = 0; i < numIndicesA; i++) {
     if ( indexAssignmentsA[i] >= numIndicesC) {
       boundIndexSizes[indexAssignmentsA[i]-numIndicesC] = sizes[indexAssignmentsA[i]];
     }
@@ -155,8 +160,8 @@ TensileStatus tensileReferenceCPU(
 
   // allocate tensor coords
   std::vector<unsigned int> coordsC( numIndicesC );
-  std::vector<unsigned int> coordsA( numIndicesAB );
-  std::vector<unsigned int> coordsB( numIndicesAB );
+  std::vector<unsigned int> coordsA( numIndicesA );
+  std::vector<unsigned int> coordsB( numIndicesB );
 
   bool moreIndicesC = true;
   while (moreIndicesC) { // iterate over entire free index range
@@ -168,25 +173,25 @@ TensileStatus tensileReferenceCPU(
       boundCoord[b] = 0;
     }
     while (true) { // iterate over entire bound index range
-      
-      // convert free/bound coord into tensorA,B 
-      for (unsigned int i = 0; i < numIndicesAB; i++) {
+
+      // convert free/bound coord into tensorA,B
+      for (unsigned int i = 0; i < numIndicesA; i++) {
         if (indexAssignmentsA[i] < numIndicesC) {
           coordsA[i] = freeCoord[indexAssignmentsA[i]];
         } else {
           coordsA[i] = boundCoord[indexAssignmentsA[i]-numIndicesC];
         }
       }
-      for (unsigned int i = 0; i < numIndicesAB; i++) {
+      for (unsigned int i = 0; i < numIndicesB; i++) {
         if (indexAssignmentsB[i] < numIndicesC) {
           coordsB[i] = freeCoord[indexAssignmentsB[i]];
         } else {
           coordsB[i] = boundCoord[indexAssignmentsB[i]-numIndicesC];
         }
       }
-      
+
       size_t serialIdxA = 0;
-      for (unsigned int i = 0; i < numIndicesAB; i++) {
+      for (unsigned int i = 0; i < numIndicesA; i++) {
         serialIdxA += coordsA[i]*stridesA[i];
       }
       Type valueA = dataA[serialIdxA];
@@ -202,7 +207,7 @@ TensileStatus tensileReferenceCPU(
       }
 
       size_t serialIdxB = 0;
-      for (unsigned int i = 0; i < numIndicesAB; i++) {
+      for (unsigned int i = 0; i < numIndicesB; i++) {
         serialIdxB += coordsB[i]*stridesB[i];
       }
       Type valueB = dataB[serialIdxB];
@@ -232,7 +237,7 @@ TensileStatus tensileReferenceCPU(
       else
       {
         Type product = tensileMultiply<Type>( valueA, valueB );
-        //printf("%f = %f * %f\n", product, valueA, valueB );
+        //printf("  product: %f = %f * %f\n", product, valueA, valueB );
 
         if (localUseHighPrecisionAccumulate)
           sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
@@ -254,6 +259,7 @@ TensileStatus tensileReferenceCPU(
       }
 
     } // bound range
+    //printf("sumC: %f\n", sumC);
 
 
     size_t serialIdxD = 0;
