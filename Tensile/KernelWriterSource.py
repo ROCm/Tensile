@@ -1187,12 +1187,12 @@ class KernelWriterSource(KernelWriter):
 
         # Create additional vector address components for any packed dimensions
         lastGro = gro
-        lastIdx = tP["idx"]
+        lastIdx = tP["tileIdx"]
         dimXStr = ""
         tP["packedSizeList"] = ["size%s" % self.indexChars[lastIdx]]
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
           if idx < kernel["ProblemType"]["NumIndicesC"] \
-              and idx != tP["idx"]:  # tile index
+              and idx != tP["tileIdx"]:  # tile index
             gro = None
             if isPackedIndex(kernel,idx, tP["PackBatchDims"]):
               gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
@@ -1226,6 +1226,7 @@ class KernelWriterSource(KernelWriter):
             kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
                 % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)
             kStr += dimXStr;
+            dimXStr = ""
 
     if 0 and tP["isB"]:
       kStr += "printf(\"gro-1: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u globalReadOffsetB1J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0, globalReadOffsetB1J_0_0);%s" \
@@ -1389,6 +1390,7 @@ class KernelWriterSource(KernelWriter):
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
+      # print 1 or 0 subtracts:
       for j in range(loopIdx+1, \
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \

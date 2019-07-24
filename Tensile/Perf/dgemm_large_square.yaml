@@ -19,8 +19,12 @@ GlobalParameters:
   KernelTime: True
   PinClocks: True
   SleepPercent: 000
-  DataInitTypeBeta : 0
+  DataInitTypeBeta : 1
+  DataInitTypeAB : 0
+  DataInitTypeC : 0
+  PrintWinnersOnly: 1
   PrintSolutionRejectionReason: 1
+
 
 BenchmarkProblems:
   ########################################
