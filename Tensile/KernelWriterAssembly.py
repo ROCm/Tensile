@@ -4136,9 +4136,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
 
 
-    if kernel["PrefetchGlobalRead"]:
-      #if kernel["PrefetchGlobalRead"]:
-        # May need to jump to tail after initialization.
+    if self.doShadowInit and kernel["PrefetchGlobalRead"]:
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       if kernel["SuppressNoLoadLoop"]:
@@ -4738,9 +4736,16 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       if not isPap:
-        kStr += inst("s_cbranch_scc1 %s"\
-            % self.getNamedLabel("ShadowInitStart"), \
-            "skip to ShadowInitStart iter b/c numIter==0")
+        if self.doShadowInit:
+          kStr += inst("s_cbranch_scc1 %s"\
+              % self.getNamedLabel("ShadowInitStart"), \
+              "skip to ShadowInitStart iter b/c numIter==0")
+        else:
+          loopChar = self.indexChars[ \
+              kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+          labelName = "label_%04d" % self.getLabelNum("LoopEnd%s"%loopChar)
+          kStr += inst("s_cbranch_scc1 %s" % labelName,
+              "skip to unrollLoop end loop%s iter b/c numIter==0" % loopChar)
       else:
         kStr += inst("s_cbranch_scc1 label_%04u"\
             % self.getLabelNum("SkipPrefetchAcrossPersistent"), \
