@@ -3768,23 +3768,10 @@ class KernelWriterAssembly(KernelWriter):
           # use constant stride for first index:
           stridePrev = "Stride%s%s" % (tc, self.indexChars[tP["ia"][0]])
 
-        if loopIdx+1 == self.unrollIdx:
-          # loop is one level above the unroll
-          # unroll increment does not change in the tail loop so round to just increments in the unroll iteration
-          # add (/DEPTHU * DEPTHU)
-          tmpSgpr = self.getTmpSgpr(2)
-          kStr += self.comment("increment for loop above tail loop - compute iters = size%s%s / DepthU" % (tc,loopCharPrev))
-          # first compute number of iterations inside tail loop:
-          kStr += scalarStaticDivideAndRemainder(qReg=graInc, rReg=None, \
-              dReg="SizesSum+%u"%loopIdxPrev, divisor=kernel["DepthU"], tmpSgpr=tmpSgpr, doRemainder=0)
-          kStr += inst("s_mul_i32", sgpr(graInc), sgpr(graInc), kernel["DepthU"], "mul by DepthU")
-          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(graInc), 
-              "<- *= stride%s%s  " %(tc, loopCharPrev))
-        else:
-          kStr += self.comment("increment for higher-level loop")
-          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr("SizesSum+%u"%(loopIdxPrev)), \
+        kStr += self.comment("increment for higher-level loop")
+        kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr("SizesSum+%u"%(loopIdxPrev)), \
               "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
-          # CheckDimOverflow
+        # CheckDimOverflow
 
         # subtract amount that previous inner loop will have already incremented:
         kStr += inst("s_sub_i32", sgpr(graInc), \
@@ -3796,6 +3783,8 @@ class KernelWriterAssembly(KernelWriter):
             sgpr(graInc), \
             hex(log2(tP["bpe"])),
             "<- scale by bpe")
+        #if tP["isB"]:
+        #  kStr += self.bomb()
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
@@ -4562,7 +4551,7 @@ class KernelWriterAssembly(KernelWriter):
           "restart Loop%s"%(loopChar ))
 
       if tailLoop:
-        if kernel["PersistentKernel"]:
+        if kernel["PersistentKernel"] or len(kernel["ProblemType"]["IndicesSummation"]) > 1:
           # recover the 'damage' done to LRO:
           stmp = self.getTmpSgpr(1)
           for tP in [self.tPA, self.tPB]:
