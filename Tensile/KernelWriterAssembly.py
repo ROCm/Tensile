@@ -530,13 +530,21 @@ class KernelWriterAssembly(KernelWriter):
   # return label name including a unique number
   # create new if it doesn't already exist
   ########################################
-  def getLabelName(self, name):
+  def getNamedLabel(self, name):
     if name not in self.labels:
       self.labels[name] = "%s_%u" % (name, len(self.labels))
     return self.labels[name]
 
   ########################################
-  # labelDef is a comment string if this is a label definition
+  # return string that defines a unique named name_number
+  ########################################
+  def getNamedLabelDef(self, name, labelComment=""):
+    t = "%s: // %s\n" % (self.getNamedLabel(name), labelComment)
+    return t
+
+  ########################################
+  # return string that defines a unique numeric label
+  # labelComment is a comment string if this is a label definition
   ##############################################################################
   def getLabelDef(self,name,labelComment=""):
     t = "label_%04u: // %s %s\n" % (self.getLabelNum(name), name, labelComment)
@@ -4093,10 +4101,12 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # openShadowInit
+  # Label after prefetches are launched.  This is present even if ShadowInit not
+  # used.
   ##############################################################################
   def openShadowInit(self, kernel):
     kStr = ""
-    kStr += self.getLabelDef("ShadowInitStart")
+    kStr += self.getNamedLabelDef("ShadowInitStart")
     return kStr
 
 
@@ -4399,7 +4409,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if not tailLoop:
-      kStr += "%s:\n" % self.getLabelName("openLoop%s"%loopChar)
+      kStr += "%s:\n" % self.getNamedLabel("openLoop%s"%loopChar)
     loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
     loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
 
@@ -4601,7 +4611,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self, kernel):
     kStr = ""
 
-    kStr += "%s:\n" % self.getLabelName("Summation_End")
+    kStr += "%s:\n" % self.getNamedLabel("Summation_End")
 
     kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
             (self.startVgprValuA, self.lastVgprForReads))
@@ -4728,15 +4738,15 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       if not isPap:
-        kStr += inst("s_cbranch_scc1 label_%04u"\
-            % self.getLabelNum("ShadowInitStart"), \
+        kStr += inst("s_cbranch_scc1 %s"\
+            % self.getNamedLabel("ShadowInitStart"), \
             "skip to ShadowInitStart iter b/c numIter==0")
       else:
         kStr += inst("s_cbranch_scc1 label_%04u"\
             % self.getLabelNum("SkipPrefetchAcrossPersistent"), \
             "skip prefetch loads since numIter==0")
     elif isOptNLL:
-      skipOptNLL = self.getLabelName("OptNLL_End")
+      skipOptNLL = self.getNamedLabel("OptNLL_End")
       tmpSgpr = self.getTmpSgpr(2)
 
       kStr += self.checkIsBetaZero(kernel, tmpSgpr, skipOptNLL)
@@ -4816,7 +4826,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if not prefetch:
       if isOptNLL:
-        summationEnd = self.getLabelName("Summation_End")
+        summationEnd = self.getNamedLabel("Summation_End")
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
@@ -4845,7 +4855,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += str(self.functionEnd(kernel, False))
         #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
 
-        label = self.getLabelName("OptNLL_End")
+        label = self.getNamedLabel("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
       else:
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
@@ -7019,7 +7029,7 @@ class KernelWriterAssembly(KernelWriter):
         writeLabels[beta]["EdgeCheck1"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
         writeLabels[beta][edge] = self.getLabelNum("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
       if not beta:
-        betaLabel = self.getLabelName("GW_Beta")
+        betaLabel = self.getNamedLabel("GW_Beta")
     endLabel = self.getLabelNum("GW_End")
 
     # Layout
@@ -7077,7 +7087,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(6)
 
     # branch B1 or B0
-    betaLabel = self.getLabelName("GW_Beta")
+    betaLabel = self.getNamedLabel("GW_Beta")
     kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
 
     for beta in betas:
