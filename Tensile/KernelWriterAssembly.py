@@ -4427,12 +4427,13 @@ class KernelWriterAssembly(KernelWriter):
     else:
       endCounter =  0
 
-    kStr += inst("s_cmp_ge_i32", \
-        sgpr(loopCounter), \
-        hex(endCounter), \
-        "LoopCounter%s < EndCounter"%(loopChar) )
-    kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
-        "don't enter Loop%s"%loopChar )
+    if tailLoop or loopIdx == self.unrollIdx:
+      kStr += inst("s_cmp_ge_i32", \
+          sgpr(loopCounter), \
+          hex(endCounter), \
+          "LoopCounter%s < EndCounter"%(loopChar) )
+      kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
+          "don't enter Loop%s"%loopChar )
 
     if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
       kStr += inst("","compare if odd-iter return")
@@ -4543,8 +4544,9 @@ class KernelWriterAssembly(KernelWriter):
       # One technique is to create a copy of the unroll loop with all loads removed.
       # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
       # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
-      # increments appropriately
-      if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
+      # increments appropriately.
+      # Also sum idx other than unroll always compare against 0 (there is no PGR to account for)
+      if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
         endCounter = -1
       else:
         endCounter = 0
@@ -8656,6 +8658,22 @@ class KernelWriterAssembly(KernelWriter):
           "assert: restore execmask")
 
     return kStr
+
+  def assert_s_eq(self, sval0, sval1, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+          "assert: saved execmask")
+
+      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
+      kStr += inst("s_cmp_eq_u32", sval0, sval1, "cmp")
+      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "No assert if SCC=1")
+
+      kStr += self.assertCommon(cookie)
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+      return kStr
 
 
   def assert_scc_is_1(self, cookie=-1):
