@@ -435,35 +435,36 @@ class ProblemSizes:
     self.ranges = []
     self.exacts = []
     self.minStrides = None
-    for dictionary in config:
-      for sizeTypeKey in dictionary:
-        if sizeTypeKey == "Range":
-          psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
-          self.ranges.append( psr )
-        elif sizeTypeKey == "Exact":
-          e = dictionary[sizeTypeKey]
-          if len(e) == problemType["TotalIndices"]:
-            if problemType["OperationType"] == "GEMM":
-              e += [0, 0, 0, 0]
-            self.exacts.append(tuple(e))
-          elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
-            self.exacts.append(tuple(e))
+    if config:
+      for dictionary in config:
+        for sizeTypeKey in dictionary:
+          if sizeTypeKey == "Range":
+            psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
+            self.ranges.append( psr )
+          elif sizeTypeKey == "Exact":
+            e = dictionary[sizeTypeKey]
+            if len(e) == problemType["TotalIndices"]:
+              if problemType["OperationType"] == "GEMM":
+                e += [0, 0, 0, 0]
+              self.exacts.append(tuple(e))
+            elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
+              self.exacts.append(tuple(e))
+            else:
+              printExit("ExactSize %s doesn't match indices of ProblemType %s" \
+                  % (e, problemType) )
+
+          elif sizeTypeKey == "MinStride":
+            e = dictionary[sizeTypeKey]
+            if len(e) != problemType["TotalIndices"]:
+              printExit("MinStride %s doesn't match indices of ProblemType %s" \
+                  % (e, problemType) )
+            if self.minStrides:
+              printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
+                  % (self.minStrides, e) )
+
+            self.minStrides=(tuple(e))
           else:
-            printExit("ExactSize %s doesn't match indices of ProblemType %s" \
-                % (e, problemType) )
-
-        elif sizeTypeKey == "MinStride":
-          e = dictionary[sizeTypeKey]
-          if len(e) != problemType["TotalIndices"]:
-            printExit("MinStride %s doesn't match indices of ProblemType %s" \
-                % (e, problemType) )
-          if self.minStrides:
-            printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
-                % (self.minStrides, e) )
-
-          self.minStrides=(tuple(e))
-        else:
-          printExit("ProblemSize Type %s not supported"%sizeTypeKey)
+            printExit("ProblemSize Type %s not supported"%sizeTypeKey)
 
     if not self.minStrides: 
       # set harmless default mins of 0

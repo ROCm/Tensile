@@ -47,11 +47,12 @@ def executeStepsInConfig( config ):
     BenchmarkProblems.main( config["BenchmarkProblems"] )
     print1("")
 
+
   ##############################################################################
   # Library Logic
   ##############################################################################
   libraryLogicDataPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["LibraryLogicPath"])
+    globalParameters["LibraryLogicPath"])
   if "LibraryLogic" in config:
     if os.path.exists(libraryLogicDataPath):
       libraryLogicFiles = os.listdir(libraryLogicDataPath)

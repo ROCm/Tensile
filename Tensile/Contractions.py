@@ -274,12 +274,14 @@ class Solution:
                 'sizeMapping',
                 'debugKernel',
                 'info',
-                'index']
+                'index',
+                'ideals']
     HiddenKeys = ['originalSolution']
 
     @classmethod
     def FromOriginalState(cls, d, deviceInfo):
         rv = cls()
+
 
         if 'SolutionNameMin' in d:
             rv.name = d['SolutionNameMin']
@@ -298,6 +300,10 @@ class Solution:
         rv.info = cls.ReadOriginalInfo(d)
 
         rv.sizeMapping = SizeMapping.FromOriginalState(d)
+        if 'Ideals' in d:
+            rv.ideals = d['Ideals']
+        else:
+            rv.ideals = {}
 
         if d['KernelLanguage'] == 'Assembly':
             d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
@@ -322,6 +328,7 @@ class Solution:
         self.debugKernel = False
         self.info = {}
         self.index = None
+        self.ideals = {}
 
         for key, value in kwargs:
             if key not in Solution.StateKeys and key not in Solution.HiddenKeys:
