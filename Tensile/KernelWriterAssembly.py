@@ -4479,6 +4479,12 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(numIter)
       #kStr += dump(vgpr(sgId))
 
+    if not tailLoop and loopIdx != self.unrollIdx:
+      # reset LRO since these may have changed due to odd-iter exit ?
+      if kernel["PrefetchGlobalRead"]:
+        kStr += self.localReadResetOffsets(kernel, self.tPA)
+        kStr += self.localReadResetOffsets(kernel, self.tPB)
+
     return kStr
 
 
@@ -4506,7 +4512,7 @@ class KernelWriterAssembly(KernelWriter):
         unrollInc = kernel["InnerUnroll"]
       else:
         unrollInc = 1
-      kStr += self.comment("closeLoop loopIdx=%d finalLoop=%d tailLoop=%d" % (loopIdx, finalLoop, tailLoop))
+      kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
       kStr += inst("s_add_u32", \
           sgpr(loopCounter), \
@@ -4530,7 +4536,7 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
       loopCounter = "LoopCounters+%u"%loopIdx
       unrollInc = 1
-      kStr += self.comment("closeLoop loopIdx=%d finalLoop=%d tailLoop=%d" % (loopIdx, finalLoop, tailLoop))
+      kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
       kStr += inst("s_add_u32", \
           sgpr("LoopCounters+%u"%loopIdx), \
@@ -4573,7 +4579,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_mov_b32", sgpr(stmp), inc, "tailloop lds offset")
             kStr += inst("s_mul_i32", sgpr(stmp), sgpr("OrigLoopCounter"), sgpr(stmp), "scale by mul")
             kStr += inst("v_sub_u32", vgpr("LocalReadAddr%s"%tc), vgpr("LocalReadAddr%s"%tc), sgpr(stmp), "remove lro damage")
-      else : # not tailLoop:
+      elif loopIdx == self.unrollIdx:
         oddIterCode = Code.Module()
         if not kernel["SuppressNoLoadLoop"] and kernel["ExpandPointerSwap"]:
           # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
@@ -5685,11 +5691,12 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(tmpLocalWriteAddr)
 
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
-    if 0 and tP["isB"]:
+    if 0 and tP["isB"]: # post-lds-write
     #if 0 and self.localWriteDoCnt >= 0:
       localWriteCode.addInst( "s_waitcnt lgkmcnt(0) & vmcnt(0)", "")
       localWriteCode.addInst("s_barrier", "dump LDS" )
-      localWriteCode.addText(self.bomb())
+      localWriteCode.addText(self.assert_eq(sgpr("LoopCounters+0"), 1))
+      #localWriteCode.addText(self.bomb())
 
     return imod
 
@@ -5718,6 +5725,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Reset Offsets A/B
   # x % n == n & (n-1) for n power of 2
   # tP[localReadOffset] maintains running count of offsets
+  # This is called from the tail loop to reset read offsets?
   ##############################################################################
   def localReadResetOffsets(self, kernel, tP):
     tc=tP["tensorChar"]
