@@ -105,7 +105,7 @@ def main( config ):
   stepName = None
   solutionSummationSizes = None
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions, stepBaseDir, solutionSummationSizes)
+      functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -290,7 +290,7 @@ def checkConstStride(constStrideMap, keyIdx):
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functionList, stepBaseDir, solutionWriter = None, solutionSummationSizes):
+    functionList, stepBaseDir, solutionSummationSizes, solutionWriter = None):
   h = ""
 
   ##############################################################################

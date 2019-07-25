@@ -494,7 +494,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir, solutionWriter, solutionSummationSizes)
+      filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
 
 
 ################################################################################
