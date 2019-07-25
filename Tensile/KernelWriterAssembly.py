@@ -4109,6 +4109,29 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.getNamedLabelDef("ShadowInitStart")
     return kStr
 
+  ##############################################################################
+  # closeShadowInit
+  # Label after prefetches are launched.  This is present even if ShadowInit not
+  # used.
+  ##############################################################################
+  def closeShadowInit(self, kernel):
+    kStr = ""
+    assert(self.doShadowInit and kernel["PrefetchGlobalRead"])
+
+    kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+        hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+    if kernel["SuppressNoLoadLoop"]:
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+      lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
+    else:
+      lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
+    kStr += inst("s_cbranch_scc1 label_%04u"\
+          % lastIterEnd, \
+          "after InitC, skip to end of prefetch last iter b/c numIter==0")
+
+    return kStr
+
 
   ##############################################################################
   # Initialize C
@@ -4135,19 +4158,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "save for store code")
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
 
-
-    if self.doShadowInit and kernel["PrefetchGlobalRead"]:
-      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
-          hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
-      if kernel["SuppressNoLoadLoop"]:
-        loopChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
-        lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
-      else:
-        lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
-      kStr += inst("s_cbranch_scc1 label_%04u"\
-            % lastIterEnd, \
-            "after InitC, skip to end of prefetch last iter b/c numIter==0")
     return kStr
 
 
