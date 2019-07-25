@@ -468,7 +468,7 @@ class SolutionWriter:
           s += "%sglobalWorkSizeBetaOnly[2] *= size%s;\n" % (t, self.indexChars[i])
 
       if problemType["UseBeta"]:
-        s += "%sbool betaZero = beta == 0;\n" % (t)
+        s += "%sbool betaZero = beta == (%s)0;\n" % (t, typeName)
       if self.language == "OCL":
         if problemType["UseBeta"]:
           s += "%scl_kernel kernelBetaOnly = betaZero ? kernel_%s : kernel_%s;\n" \

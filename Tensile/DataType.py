@@ -34,8 +34,8 @@ class DataType:
     """
     properties = [{'char': 'S', 'name': 'single', 'enum': 'Float', 'reg': 1, 'ocl': 'float', 'hip': 'float', 'libType': 'float', 'libEnum': 'tensileDataTypeFloat'},
         {'char': 'D', 'name': 'double', 'enum': 'Double', 'reg': 2, 'ocl': 'double', 'hip': 'double', 'libType': 'double', 'libEnum': 'tensileDataTypeDouble'},
-        {'char': 'C', 'name': 'complexSingle', 'enum': 'ComplexFloat', 'reg': 2, 'ocl': 'float2', 'hip': 'float2', 'libType': 'TensileComplexFloat', 'libEnum': 'tensileDataTypeComplexFloat'},
-        {'char': 'Z', 'name': 'complexDouble', 'enum': 'ComplexDouble', 'reg': 4, 'ocl': 'double2', 'hip': 'double2', 'libType': 'TensileComplexDouble', 'libEnum': 'tensileDataTypeComplexDouble'},
+        {'char': 'C', 'name': 'complexSingle', 'enum': 'ComplexFloat', 'reg': 2, 'ocl': 'float2', 'hip': 'TensileComplexFloat', 'libType': 'TensileComplexFloat', 'libEnum': 'tensileDataTypeComplexFloat'},
+        {'char': 'Z', 'name': 'complexDouble', 'enum': 'ComplexDouble', 'reg': 4, 'ocl': 'double2', 'hip': 'TensileComplexDouble', 'libType': 'TensileComplexDouble', 'libEnum': 'tensileDataTypeComplexDouble'},
         {'char': 'H', 'name': 'half', 'enum': 'Half', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_half', 'libType': 'TensileHalf', 'libEnum': 'tensileDataTypeHalf'},
         {'char': '4xi8', 'name': 'int8x4', 'enum': 'Int8', 'reg': 1, 'ocl': 'ERROR', 'hip': 'uint32_t', 'libType': 'TensileInt8x4', 'libEnum': 'tensileDataTypeInt8x4'},
         {'char': 'I', 'name': 'int32', 'enum': 'Int32', 'reg': 1, 'ocl': 'ERROR', 'hip': 'int32_t', 'libType': 'TensileInt32', 'libEnum': 'tensileDataTypeInt32'},
@@ -81,12 +81,6 @@ class DataType:
         Returns a string containing the data output format, depending on programming language 
         and in the case of complex numbers, the vector width. 
         """
-        if language == "HIP":
-            if self.value == DataType.complexSingle:
-                return "make_float2(0.f, 0.f)"
-            if self.value == DataType.complexDouble:
-                return "make_double2(0.0, 0.0)"
-
         zeroString = "("
         zeroString += self.toDevice(language)
         if vectorWidth > 1:
@@ -117,10 +111,14 @@ class DataType:
             return False
     def isComplex(self):
         return not self.isReal()
+    def isDoubleComplex(self):
+        return self.value == DataType.complexDouble
+    def isSingleComplex(self):
+        return self.value == DataType.complexSingle
     def isDouble(self):
-        return self.value == DataType.double or self.value == DataType.complexDouble
+        return self.value == DataType.double
     def isSingle(self):
-        return self.value == DataType.single or self.value == DataType.complexSingle
+        return self.value == DataType.single
     def isHalf(self):
         return self.value == DataType.half
     def isInt32(self):
