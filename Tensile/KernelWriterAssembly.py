@@ -1260,6 +1260,8 @@ class KernelWriterAssembly(KernelWriter):
     #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
 
     self.totalVgprs = vgprIdx
+    if self.totalVgprs < kernel["MinVgprNumber"] or self.totalVgprs > kernel["MaxVgprNumber"]:
+      raise RuntimeError("Generating asm kernel error: total vgpr: %u not in [%u, %u].\n" % (self.totalVgprs, kernel["MinVgprNumber"], kernel["MaxVgprNumber"]))
 
     ########################################
     # SGPR Allocation
