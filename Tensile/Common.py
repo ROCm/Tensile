@@ -653,7 +653,11 @@ validParameters = {
     "ISA":                        validISA,       # arch for assembly kernels
 
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
-    "ReplacementKernel":          [False, True]
+    "ReplacementKernel":          [False, True],
+
+    "MinVgprNumber":                list(range(0,256)),
+    
+    "MaxVgprNumber":                list(range(0,257)),
     }
 
 
@@ -738,7 +742,9 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
-    {"ReplacementKernel":         [ False ] }
+    {"ReplacementKernel":         [ False ] },
+    {"MinVgprNumber":             [0]},
+    {"MaxVgprNumber":             [256]},
     ]
 # benchmark these solution independently
 defaultForkParameters = []

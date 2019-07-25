@@ -267,6 +267,22 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
   print(len(results))
 
+  removeKernels = []
+  removeSolutions = []
+  removeResults = []
+  for kernIdx in range(0, len(results)):
+    (err,src,header,kernelName) = results[kernIdx]
+    if(err == -2):
+      removeKernels.append(kernels[kernIdx])
+      removeSolutions.append(solutions[kernIdx])
+      removeResults.append(results[kernIdx])
+  for kern in removeKernels:
+      kernels.remove(kern)
+  for solut in removeSolutions:
+      solutions.remove(solut)
+  for rel in removeResults:
+      results.remove(rel)
+
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if False:#len(kernelsWithBuildErrs) > 0:

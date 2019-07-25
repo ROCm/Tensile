@@ -2586,7 +2586,7 @@ for codeObjectFileName in codeObjectFileNames:
       return (-1, "")
     except RuntimeError as exc:
       print(exc)
-      return (-1, "")
+      return (-2, "")
 
   ##############################################################################
   # header file string
