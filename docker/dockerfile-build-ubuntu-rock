@@ -38,7 +38,7 @@ ADD docker/scripts/fix_hcc_config /tmp
 RUN /tmp/fix_hcc_config && rm /tmp/fix_hcc_config
 
 # docker pipeline runs containers with particular uid
-# create a jenkins user with this specific uid so it can use sudo priviledges
+# create a jenkins user with this specific uid so it can use sudo privileges
 # Grant any member of sudo group password-less sudo privileges
 RUN useradd --create-home -u ${user_uid} -o -G sudo --shell /bin/bash jenkins && \
     mkdir -p /etc/sudoers.d/ && \
