@@ -21,6 +21,7 @@
 
 #include <vector>
 #include <iostream>
+#include <iomanip>
 
 extern const char indexChars[];
 
@@ -272,11 +273,11 @@ void printTensor(
           std::cout << "/";
         }
         if (sizeof(Type) == 2) {
-          std::cout << "0x" << std::hex << *(uint16_t*)(&data[eo]) << std::dec;
+          std::cout << "0x" << std::setfill('0') << std::setw(4) << std::hex << *(uint16_t*)(&data[eo]) << std::dec;
         } else if (sizeof(Type) == 4) {
-          std::cout << "0x" << std::hex << *(uint32_t*)(&data[eo]) << std::dec;
+          std::cout << "0x" << std::setfill('0') << std::setw(8) << std::hex << *(uint32_t*)(&data[eo]) << std::dec;
         } else if (sizeof(Type) == 8) {
-          std::cout << "0x" << std::hex << *(uint64_t*)(&data[eo]) << std::dec;
+          std::cout << "0x" << std::setfill('0') << std::setw(16) << std::hex << *(uint64_t*)(&data[eo]) << std::dec;
         }
       }
 

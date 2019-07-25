@@ -425,10 +425,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # increments
       kl.append(self.comment("global read addresses: increments a"))
-      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      for i in reversed(range(kernel["ProblemType"]["NumIndicesSummation"])):
         kl.append(self.graIncrements(kernel, i, tensorParametersA))
       kl.append(self.comment("global read addresses: increments b"))
-      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
         kl.append(self.graIncrements(kernel, i, tensorParametersB))
 
       ####################################
@@ -2586,7 +2586,7 @@ for codeObjectFileName in codeObjectFileNames:
       return (-1, "")
     except RuntimeError as exc:
       print(exc)
-      return (-1, "")
+      return (-2, "")
 
   ##############################################################################
   # header file string

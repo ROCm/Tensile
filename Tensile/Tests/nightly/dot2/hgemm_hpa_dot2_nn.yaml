@@ -22,7 +22,6 @@ mnGlobalParameters:
   DataInitTypeA: 3           # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
   DataInitTypeB: 3           # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
   DataInitTypeBeta: 0        # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
-  CpuThreads: 0
 
 BenchmarkProblems:
 

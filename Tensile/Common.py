@@ -656,6 +656,9 @@ validParameters = {
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
 
+    "MinVgprNumber":                list(range(0,256)),
+    
+    "MaxVgprNumber":                list(range(0,257)),
     }
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
@@ -739,6 +742,8 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
+    {"MinVgprNumber":             [0]},
+    {"MaxVgprNumber":             [256]},
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -783,6 +788,8 @@ defaultProblemType = {
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
+
+    "SetConstStrideA":          [],
 
     # for LD description
     "NumIndicesLD":            4,
