@@ -1133,11 +1133,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
-    # doShadowInit is required since this pushes up the SRD initialization
+    # doShadowInit is required since this pushes up the store SRD initialization before the NLL
+    # OptNLL only allowed for single summation index  - for multiple summation we (currently)
+    # execute the NLL inside each unroll iteration not just once at the end.
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
       if kernel["KernelLanguage"] == "Assembly" and kernel["OptNoLoadLoop"] and \
          kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
-         kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1:
+         kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
+         kernel["ProblemType"]["NumIndicesSummation"] == 1:
         self.saveLocalPointers(kernel)
         kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True)
         self.restoreLocalPointers(kernel)
