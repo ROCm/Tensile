@@ -45,12 +45,13 @@ tensileCI:
             def command = """#!/usr/bin/env bash
                     set -ex
                     cd ${project.paths.project_build_prefix}
-                    mkdir build && cd build
+                    mkdir build
+                    pushd build
                     export PATH=/opt/rocm/bin:$PATH
                     ${project.paths.build_command}
                     make -j
 
-                    cd ${project.paths.project_build_prefix}
+                    popd
                     tox --version
                     tox -vv --workdir /tmp/.tensile-tox -e lint
                     """
@@ -71,10 +72,12 @@ tensileCI:
             def command = """#!/usr/bin/env bash
                     set -ex
 
-                    cd ${project.paths.project_build_prefix}/build
+                    cd ${project.paths.project_build_prefix}
+
+                    pushd build
                     ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
 
-                    cd ${project.paths.project_build_prefix}
+                    popd
                     tox --version
                     tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
                     """
