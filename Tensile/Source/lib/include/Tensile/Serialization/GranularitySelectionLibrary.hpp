@@ -49,38 +49,34 @@ namespace Tensile
                     iot::setError(io, "GranularitySelectionLibrary requires that context be set to a SolutionMap.");
                 }
 
-                std::vector<int> mappingIndexes;
+                std::vector<int> mappingIndices;
                 if(iot::outputting(io))
                 {
-                    auto iter = lib.solutions.begin();
-                    while(iter != lib.solutions.end())
-                    {
-                        mappingIndexes.push_back(iter->first);
-                        iter++;
-                    }
-                    iot::mapRequired(io, "idxs", mappingIndexes);
+                    mappingIndices.reserve(lib.solutions.size());
+
+                    for(auto const& pair: lib.solutions)
+                        mappingIndices.push_back(pair.first);
+
+                    iot::mapRequired(io, "indices", mappingIndices);
                 }
                 else
                 {
-                    iot::mapRequired(io, "idxs", mappingIndexes);
-                    auto iter = mappingIndexes.begin();
-                    if (iter == mappingIndexes.end())
-                    {
+                    iot::mapRequired(io, "indices", mappingIndices);
+                    if(mappingIndices.empty())
                         iot::setError(io, "GranularitySelectionLibrary requires non empty mapping index set.");
-                    }
-                    while(iter != mappingIndexes.end())
+
+                    for(int index: mappingIndices)
                     {
-                        int index = *iter;
                         auto slnIter = ctx->find(index);
                         if(slnIter == ctx->end())
                         {
-                            std::ostringstream msg;
-                            msg << "Invalid solution index: " << index;
-                            iot::setError(io, msg.str());
+                            iot::setError(io, concatenate("Invalid solution index: ", index));
                         }
-                        auto solution = slnIter->second; 
-                        lib.solutions.insert(std::make_pair(index, solution));
-                        iter++;
+                        else
+                        {
+                            auto solution = slnIter->second; 
+                            lib.solutions.insert(std::make_pair(index, solution));
+                        }
                     }
                 }
             }

@@ -43,12 +43,9 @@ class SingleSolutionLibrary:
     def remapSolutionIndices(self,indexMap):
         pass
 
-class MatchingProperty(Properties.Property):
-    pass
-
 class GranularitySelectionLibrary:
     Tag = 'GranularitySelection'
-    StateKeys = [('type', 'tag'), 'idxs']
+    StateKeys = [('type', 'tag'), 'indices']
 
     @classmethod
     def FromOriginalState(cls, indices):
@@ -59,19 +56,17 @@ class GranularitySelectionLibrary:
         return self.__class__.Tag
 
     def merge(self, other):
-        idList = list(set().union(self.idxs, idxs))
-        self.idxs = idList
+        idList = list(set().union(self.indices, indices))
+        self.indices = idList
 
-    def __init__(self, idxs):
-        self.idxs = idxs
+    def __init__(self, indices):
+        self.indices = indices
 
     def remapSolutionIndices(self,indexMap):
-        for i in range(0, len(self.idxs)):
-            index = self.idxs[i]
+        for i in range(0, len(self.indices)):
+            index = self.indices[i]
             if index in indexMap:
-                self.idxs[i] = indexMap[index]
-
-
+                self.indices[i] = indexMap[index]
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -83,10 +78,10 @@ class MatchingLibrary:
         origTable = d[1]
 
         propertyKeys = {
-                2:lambda: MatchingProperty('FreeSizeA', index=0),
-                3:lambda: MatchingProperty('FreeSizeB', index=0),
-                0:lambda: MatchingProperty('BatchSize', index=0),
-                1:lambda: MatchingProperty('BoundSize', index=0)
+                2:lambda: Properties.Property('FreeSizeA', index=0),
+                3:lambda: Properties.Property('FreeSizeB', index=0),
+                0:lambda: Properties.Property('BatchSize', index=0),
+                1:lambda: Properties.Property('BoundSize', index=0)
             }
 
         properties = list([propertyKeys[i]() for i in indices])
@@ -220,7 +215,7 @@ class MasterSolutionLibrary:
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
+                matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
                 library = matchingLibrary
             
             elif libName == 'Granularity':
@@ -249,7 +244,7 @@ class MasterSolutionLibrary:
 
             elif libName == 'OperationIdentifier':
                 operationID = problemType.operationIdentifier
-                prop = MatchingProperty('OperationIdentifier')
+                prop = Properties.Property('OperationIdentifier')
                 mapping = {operationID: library}
 
                 newLib = ProblemMapLibrary(prop, mapping)
@@ -295,18 +290,13 @@ class MasterSolutionLibrary:
         curIndex = max(self.solutions.keys()) + 1
 
         reIndexMap = {}
-        for k,s in list(other.solutions.items()):
+        for k,s in other.solutions.items():
             reIndexMap[s.index] = curIndex
             s.index = curIndex
             self.solutions[curIndex] = s
             curIndex += 1
 
-        #for k,s in list(other.sourceSolutions.items()):
-        #    s.index = curIndex
-        #    self.sourceSolutions[curIndex] = s
-        #    curIndex += 1
-
-        other.remapSolutionIndices(reIndexMap)
+        other.library.remapSolutionIndices(reIndexMap)
 
         self.library.merge(other.library)
 
