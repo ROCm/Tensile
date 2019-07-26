@@ -60,6 +60,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   benchmarkProcess = BenchmarkProcess( problemTypeConfig, \
       problemSizeGroupConfig )
 
+  enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
   problemTypeName = str(benchmarkProcess.problemType)
   problemSizeGroupName = "%s_%02u" % (problemTypeName, problemSizeGroupIdx)
   pushWorkingPath(problemSizeGroupName)
@@ -275,7 +276,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy, )
+        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
 
     removeSolutions = []
     for i in range(0, len(solutions)):
@@ -344,7 +345,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       libraryLogicPath = None
       path = globalParameters["WorkingPath"]
       forBenchmark = True
-      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
+      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
       # run runScript
       process = subprocess.Popen(runScriptName, cwd=globalParameters["WorkingPath"])
@@ -360,7 +361,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions, newResultsFileName)
+    results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
     print2("CSV Results: %s" % results)
     winners.addResults(benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, solutions, results)
@@ -409,7 +410,7 @@ def compareResults(old, new):
 ################################################################################
 # Read GFlop/s from file
 ################################################################################
-def getResults(resultsFileName, solutions, newResultsFileName=None):
+def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName=None):
   try:
     resultsFile = open(resultsFileName, "r")
   except IOError:
@@ -465,8 +466,7 @@ def getResults(resultsFileName, solutions, newResultsFileName=None):
 
           results[i][j].append(gflops)
           idx += 1
-
-  if rowIdx < 2:
+  if rowIdx < 2 and not enableTileSelection:
     printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
         % (resultsFileName, rowIdx) )
 
@@ -480,7 +480,7 @@ def getResults(resultsFileName, solutions, newResultsFileName=None):
 ################################################################################
 # Write Benchmark Files
 ################################################################################
-def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -540,7 +540,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir, solutionWriter)
+      filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
+
 
 ################################################################################
 # FrozenDictionary
@@ -591,11 +592,15 @@ class WinningParameterDict:
       print1("# Adding Results to Solution Database")
       progressBar = ProgressBar(len(results))
     for hardcodedIdx,hardcodedResults in enumerate(results):
+      if not hardcodedResults: continue
+      
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
       winningScore = -9999 # -1 is score of invalid so use -9999 here
       # find fastest benchmark parameters for this hardcoded
       for benchmarkIdx,benchmarkResult in enumerate(hardcodedResults):
+        if not benchmarkResult: continue
+        
         benchmarkScore = max(benchmarkResult) # take fastest regardless of size
         if benchmarkScore > winningScore:
           winningScore = benchmarkScore
@@ -779,7 +784,8 @@ def main( config ):
           % (str(problemTypeObj), problemSizeGroupIdx) )
       newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
           % (str(problemTypeObj), problemSizeGroupIdx) )
-
+      newGranularityFileName = os.path.join(dataPath, "%s_%02u.gsp" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
       # skip if possible
       if globalParameters["ForceRedoBenchmarkProblems"] or \
           not os.path.exists(newResultsFileName):
@@ -797,8 +803,11 @@ def main( config ):
         resultsFileBase = resultsFileBaseFinal
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
+        granularityFileName = "%s_Granularity.csv" % (resultsFileBase)
         shutil.copy( resultsFileName, newResultsFileName )
         shutil.copy( solutionsFileName, newSolutionsFileName )
+        if os.path.isfile(granularityFileName):
+          shutil.copy( granularityFileName, newGranularityFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 

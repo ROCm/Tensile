@@ -26,7 +26,7 @@ from .Common import print1, print2, printWarning, defaultSolution, \
     defaultBenchmarkCommonParameters, hasParam, \
     defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
     defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
-    validParameters
+    validParameters, defaultSolutionSummationSizes
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
 class BenchmarkProcess:
@@ -77,6 +77,7 @@ class BenchmarkProcess:
     self.benchmarkSteps = []
     self.hardcodedParameters = [{}]
     self.singleValueParameters = {}
+    self.solutionSummationSizes = []
 
     # (I)
     self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
@@ -99,6 +100,7 @@ class BenchmarkProcess:
     print2("####################################################################")
     print2("")
 
+    self.solutionSummationSizes = defaultSolutionSummationSizes
     ############################################################################
     # (I-0) get 6 phases from config
     configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
@@ -495,17 +497,20 @@ class BenchmarkProcess:
     print2("####################################################################")
     print1("# Benchmark Final")
     for problemSizesDict in self.benchmarkFinalParameters:
-      problemSizes = problemSizesDict["ProblemSizes"]
-      self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
-      currentBenchmarkParameters = {}
-      benchmarkStep = BenchmarkStep(
-          self.hardcodedParameters,
-          currentBenchmarkParameters,
-          self.initialSolutionParameters,
-          self.currentProblemSizes,
-          self.benchmarkStepIdx )
-      self.benchmarkSteps.append(benchmarkStep)
-      self.benchmarkStepIdx+=1
+      if "SolutionSummationSizes" in problemSizesDict:
+        self.solutionSummationSizes = problemSizesDict["SolutionSummationSizes"]
+      else:  
+        problemSizes = problemSizesDict["ProblemSizes"]
+        self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
+        currentBenchmarkParameters = {}
+        benchmarkStep = BenchmarkStep(
+            self.hardcodedParameters,
+            currentBenchmarkParameters,
+            self.initialSolutionParameters,
+            self.currentProblemSizes,
+            self.benchmarkStepIdx )
+        self.benchmarkSteps.append(benchmarkStep)
+        self.benchmarkStepIdx+=1
 
 
   ##############################################################################
