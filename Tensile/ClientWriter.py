@@ -20,8 +20,6 @@
 ################################################################################
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
-from .SolutionStructs import Solution
-from .SolutionWriter import SolutionWriter
 from . import ClientExecutable
 from . import YAMLIO
 

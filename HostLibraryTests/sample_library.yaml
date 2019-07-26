@@ -24,6 +24,8 @@ solutions:
     index:           0
     problemType:
         operationIdentifier: foo
+        highPrecisionAccumulate: false
+        useBeta: true
         aType:           Float
         bType:           Float
         cType:           Float
@@ -46,6 +48,8 @@ solutions:
     index:           1
     problemType:
         operationIdentifier: foo
+        highPrecisionAccumulate: false
+        useBeta: true
         aType:           Float
         bType:           Float
         cType:           Float
@@ -68,6 +72,8 @@ solutions:
     index:           2
     problemType:
         operationIdentifier: foo
+        highPrecisionAccumulate: false
+        useBeta: true
         aType:           Float
         bType:           Float
         cType:           Float
@@ -90,6 +96,8 @@ solutions:
     index:           3
     problemType:
         operationIdentifier: foo
+        highPrecisionAccumulate: false
+        useBeta: true
         aType:           Float
         bType:           Float
         cType:           Float

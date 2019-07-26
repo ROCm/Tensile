@@ -89,10 +89,10 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
 
         std::mt19937 rng;
 
-        InitTensor(a_h.data(),    problem.a(), RandomInt<float>(rng));
-        InitTensor(b_h.data(),    problem.b(), RandomAlternatingInt<float>(rng));
-        InitTensor(c_h.data(),    problem.c(), RandomInt<float>(rng));
-        InitTensor(d_in_h.data(), problem.d(), RandomInt<float>(rng));
+        InitTensor(a_h.data(),    problem.a(), RandomInt<float>(), rng);
+        InitTensor(b_h.data(),    problem.b(), RandomAlternatingInt<float>(), rng);
+        InitTensor(c_h.data(),    problem.c(), RandomInt<float>(), rng);
+        InitTensor(d_in_h.data(), problem.d(), RandomInt<float>(), rng);
 
         //InitTensor(a_h.data(), problem.a, Iota<float>());
         //InitTensor(b_h.data(), problem.b, Iota<float>());
@@ -120,13 +120,13 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
         inputs.c = c_d;
         inputs.d = d_d;
 
-        inputs.alpha = RandomInt<float>(rng)();
+        inputs.alpha = RandomInt<float>()(rng);
         if(problem.beta() == 1.0)
             inputs.beta = 1.0;
         else if(problem.beta() == 0.0)
             inputs.beta = 0.0;
         else
-            inputs.beta = RandomInt<float>(rng)();
+            inputs.beta = RandomInt<float>()(rng);
 
         hardware = hip::GetCurrentDevice();
         ASSERT_NE(hardware, nullptr);
@@ -232,10 +232,16 @@ TEST_P(RunGEMMKernelTest, BestSolution)
     WriteTensor(std::cout, d_h.data(), problem.c());
     */
 
+    bool fail = false;
+
+#pragma omp parallel for
     for(int i = 0; i < d_ref_h.size(); i++)
     {
-        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+#pragma omp flush(fail)
+        if(!fail)
+            EXPECT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i << ": " << (fail=true);
     }
+    ASSERT_EQ(fail, false);
 }
 
 TEST_P(RunGEMMKernelTest, AllSolutions)
@@ -326,10 +332,10 @@ std::vector<ContractionProblem> TestProblems()
         //ContractionProblem::GEMM(false,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
         //ContractionProblem::GEMM( true, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
         //ContractionProblem::GEMM( true,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
-          ContractionProblem::GEMM(false, false,    4,    4,    6,    4,    6,    4, 1.5, false,  2),
-          ContractionProblem::GEMM(false,  true,    4,    4,    6,    4,    4,    4, 1.5, false,  2),
-          ContractionProblem::GEMM( true, false,    4,    4,    6,    6,    6,    4, 1.5, false,  2),
-          ContractionProblem::GEMM( true,  true,    4,    4,    6,    6,    4,    4, 1.5, false,  2),
+        //ContractionProblem::GEMM(false, false,    4,    4,    6,    4,    6,    4, 1.5, false,  2),
+        //ContractionProblem::GEMM(false,  true,    4,    4,    6,    4,    4,    4, 1.5, false,  2),
+        //ContractionProblem::GEMM( true, false,    4,    4,    6,    6,    6,    4, 1.5, false,  2),
+        //ContractionProblem::GEMM( true,  true,    4,    4,    6,    6,    4,    4, 1.5, false,  2),
           ContractionProblem::GEMM(false, false,  234,  123,  634,  234,  634,  234, 1.5, false, 1),
           ContractionProblem::GEMM(false, false,  234,  123,  634,  245,  768,  249, 1.5, false, 12),
           ContractionProblem::GEMM(false,  true,  234,  123,  634,  245,  768,  249, 1.5, false, 12),

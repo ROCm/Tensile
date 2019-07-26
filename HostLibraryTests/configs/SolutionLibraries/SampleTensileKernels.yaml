@@ -25,10 +25,11 @@ solutions:
     problemType:
         operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk
         highPrecisionAccumulate: false
-        aType:           Float
-        bType:           Float
-        cType:           Float
-        dType:           Float
+        useBeta: true
+        aType: Float
+        bType: Float
+        cType: Float
+        dType: Float
   - name:            'Cijk_Ailk_Bjlk_SB_MT128x128x08_K1'
     sizeMapping:
       workGroup:       [ 256,   1, 1 ]
@@ -48,10 +49,11 @@ solutions:
     problemType:
         operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk
         highPrecisionAccumulate: false
-        aType:           Float
-        bType:           Float
-        cType:           Float
-        dType:           Float
+        useBeta: true
+        aType: Float
+        bType: Float
+        cType: Float
+        dType: Float
   - name:            'Cijk_Alik_Bljk_SB_MT128x128x08_K1'
     sizeMapping:
       workGroup:       [ 256,   1, 1 ]
@@ -71,10 +73,11 @@ solutions:
     problemType:
         operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk
         highPrecisionAccumulate: false
-        aType:           Float
-        bType:           Float
-        cType:           Float
-        dType:           Float
+        useBeta: true
+        aType: Float
+        bType: Float
+        cType: Float
+        dType: Float
   - name:            'Cijk_Alik_Bjlk_SB_MT128x128x08_K1'
     sizeMapping:
       workGroup:       [ 256,   1, 1 ]
@@ -94,10 +97,11 @@ solutions:
     problemType:
         operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk
         highPrecisionAccumulate: false
-        aType:           Float
-        bType:           Float
-        cType:           Float
-        dType:           Float
+        useBeta: true
+        aType: Float
+        bType: Float
+        cType: Float
+        dType: Float
 library:         
   type:     ProblemMap
   property: { type: OperationIdentifier }

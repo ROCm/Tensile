@@ -27,40 +27,40 @@
 #pragma once
 
 #include <random>
+#include <omp.h>
 
 namespace Tensile
 {
-    template <typename T, typename RNG=std::mt19937>
+    template <typename T>
     struct RandomInt
     {
-        RandomInt(RNG & _rng)
-            : rng(_rng)
+        RandomInt()
         {
         }
 
-        RNG & rng;
         std::uniform_int_distribution<int> dist = std::uniform_int_distribution<int>(1,10);
-        template <typename... Args>
-        T operator()(Args &&...)
+
+        template <typename RNG, typename... Args>
+        T operator()(RNG & rng, Args &&...)
         {
             return dist(rng);
         }
     };
 
-    template <typename T, typename RNG=std::mt19937>
+    template <typename T>
     struct RandomAlternatingInt
     {
-        RandomInt<T, RNG> parent;
+        RandomInt<T> parent;
 
-        RandomAlternatingInt(RNG & _rng)
-            : parent(_rng)
+        RandomAlternatingInt()
+            : parent()
         {
         }
-
-        T operator()(std::vector<size_t> const& index3)
+        template <typename RNG>
+        T operator()(RNG & rng, std::vector<size_t> const& index3)
         {
             T sign = ((index3[0] % 2) ^ (index3[1] % 2)) ? 1 : -1;
-            return sign * parent();
+            return sign * parent(rng, index3);
         }
     };
 
@@ -74,8 +74,8 @@ namespace Tensile
         Iota(int initial) : value(initial) {}
         Iota(int initial, int increment) : value(initial), inc(increment) {}
 
-        template <typename... Args>
-        T operator()(Args &&...)
+        template <typename RNG, typename... Args>
+        T operator()(RNG & rng, Args &&...)
         {
             T rv = value;
             value += inc;
@@ -83,23 +83,34 @@ namespace Tensile
         }
     };
 
-    template <typename T, typename Generator>
-    void InitTensor(T * data, TensorDescriptor const& desc, Generator g)
+    template <typename T, typename Generator, typename RNG>
+    void InitTensor(T * data, TensorDescriptor const& desc, Generator g, RNG & rng)
     {
         if(desc.dimensions() != 3)
             throw std::runtime_error("Fix this function to work with dimensions != 3");
 
-        std::vector<size_t> index3{0,0,0};
+        auto seed_base = rng();
 
-        for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
+#pragma omp parallel num_threads(32)
         {
-            for(index3[1] = 0; index3[1] < desc.sizes()[1]; index3[1]++)
-            {
-                index3[0] = 0;
-                size_t baseIdx = desc.index(index3);
+            RNG myrng = rng;
+            myrng.seed(seed_base + omp_get_thread_num());
 
-                for(; index3[0] < desc.sizes()[0]; index3[0]++)
-                    data[baseIdx + index3[0]] = g(index3);
+            std::vector<size_t> index3{0,0,0};
+
+#pragma omp for schedule(static) collapse(2)
+            for(size_t i = 0; i < desc.sizes()[2]; i++)
+            {
+                for(size_t j = 0; j < desc.sizes()[1]; j++)
+                {
+                    index3[2] = i;
+                    index3[1] = j;
+                    index3[0] = 0;
+                    size_t baseIdx = desc.index(index3);
+
+                    for(; index3[0] < desc.sizes()[0]; index3[0]++)
+                        data[baseIdx + index3[0]] = g(myrng, index3);
+                }
             }
         }
     }

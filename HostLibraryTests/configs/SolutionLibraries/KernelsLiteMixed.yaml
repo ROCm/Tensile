@@ -30923,13 +30923,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -30984,7 +30984,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -31039,7 +31039,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -31091,13 +31091,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -31155,7 +31155,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -31207,13 +31207,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -31269,7 +31269,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -31323,12 +31323,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -31380,13 +31381,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -31436,14 +31437,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 32
     globalSplitU: 1
@@ -31498,7 +31499,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -31550,13 +31551,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -31615,7 +31616,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 32
     globalSplitU: 1
@@ -31667,13 +31668,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -31729,7 +31730,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -31783,12 +31784,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -31840,13 +31842,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -31896,14 +31898,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -31953,14 +31955,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 32
     globalSplitU: 1
@@ -32010,14 +32012,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -32067,14 +32069,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -32132,7 +32134,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -32184,13 +32186,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -32246,7 +32248,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -32300,12 +32302,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -32357,13 +32360,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -32413,14 +32416,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -32475,7 +32478,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -32527,13 +32530,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -32592,7 +32595,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 32
     globalSplitU: 1
@@ -32644,13 +32647,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -32706,7 +32709,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -32760,12 +32763,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -32817,13 +32821,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -32873,14 +32877,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -32935,7 +32939,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -32993,7 +32997,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -33045,13 +33049,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -33107,7 +33111,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -33161,12 +33165,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -33218,13 +33223,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -33276,13 +33281,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -33337,7 +33342,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -33389,13 +33394,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -33453,7 +33458,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -33505,13 +33510,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -33567,7 +33572,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -33621,12 +33626,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -33678,13 +33684,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -33734,14 +33740,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -33791,14 +33797,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 32
     globalSplitU: 1
@@ -33848,14 +33854,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -33905,14 +33911,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -33970,7 +33976,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -34022,13 +34028,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -34084,7 +34090,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -34138,12 +34144,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2
@@ -34198,7 +34205,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -34250,13 +34257,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -34306,14 +34313,14 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -34368,7 +34375,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 1
@@ -34420,13 +34427,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 4}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -34484,7 +34491,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 16
     globalSplitU: 1
@@ -34536,13 +34543,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
-    - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: MaxProblemSizeGreaterThan, value: 1}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -34598,7 +34605,7 @@ solutions:
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 4
     globalSplitU: 1
@@ -34652,12 +34659,13 @@ solutions:
     type: And
     value:
     - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: MaxProblemSizeGreaterThan, value: 32}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
     - {type: HighPrecisionAccumulate, value: false}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, highPrecisionAccumulate: false,
-    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
+    operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk, useBeta: true}
   sizeMapping:
     depthU: 8
     globalSplitU: 2

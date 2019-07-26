@@ -306,9 +306,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       winners.wpdUpdate( benchmarkStep.hardcodedParameters )
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
-      for solutionTmp in shallowcopy(solutions):
-        if len(solutionTmp) == 0:
-          solutions.remove(solutionTmp)
+      solutions = list([s for s in solutions if len(s) > 0])
 
     print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]

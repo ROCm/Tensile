@@ -29,7 +29,7 @@ import java.nio.file.Path;
 tensileCI:
 {
     def tensile = new rocProject('Tensile')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib'
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900','gfx906'], tensile)
 
@@ -43,13 +43,13 @@ tensileCI:
             project.paths.construct_build_prefix()
 
             def command = """#!/usr/bin/env bash
-                    set -x
+                    set -ex
                     cd ${project.paths.project_build_prefix}
                     mkdir build && cd build
                     export PATH=/opt/rocm/bin:$PATH
                     ${project.paths.build_command}
-                    make -j16
-                    ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                    make -j
+                    ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
                     """
 
             platform.runCommand(this, command)
@@ -67,10 +67,10 @@ tensileCI:
         try
         {
             def command = """#!/usr/bin/env bash
-                    set -x
+                    set -ex
                     cd ${project.paths.project_build_prefix}
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e lint -- Tensile/UnitTests ${test_dir}
+                    tox -vv --workdir /tmp/.tensile-tox -e lint
                     tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
                     """
             platform.runCommand(this, command)
