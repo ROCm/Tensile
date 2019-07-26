@@ -485,12 +485,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   problemTypesForDataType = {} # for data type
   schedulesForProblemType = {} # for problem type
   functionInfo = [] # dataTypeIdx, problemTypeIdx, idxWithinDataType, idxWithinProblemType
-  tileSelection = False
+  #tileSelection = False
 
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     dataType = problemType["DataType"]
-    tileSelection = problemType["TileAwareSelection"]
+    #tileSelection = problemType["TileAwareSelection"]
 
     destDataType = problemType["DestDataType"]
     destDataTypes[dataType] = destDataType

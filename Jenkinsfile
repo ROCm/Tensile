@@ -49,14 +49,16 @@ tensileCI:
                     export PATH=/opt/rocm/bin:$PATH
                     ${project.paths.build_command}
                     make -j
-                    ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+
+                    cd ${project.paths.project_build_prefix}
+                    tox --version
+                    tox -vv --workdir /tmp/.tensile-tox -e lint
                     """
 
             platform.runCommand(this, command)
         }
         finally
         {
-            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
     }
   
@@ -68,15 +70,19 @@ tensileCI:
         {
             def command = """#!/usr/bin/env bash
                     set -ex
+
+                    cd ${project.paths.project_build_prefix}/build
+                    ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+
                     cd ${project.paths.project_build_prefix}
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e lint
                     tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
                     """
             platform.runCommand(this, command)
         }
         finally
         {
+            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
             junit "${project.paths.project_build_prefix}/*_tests.xml"
         }
     }

@@ -56,8 +56,8 @@ class GranularitySelectionLibrary:
         return self.__class__.Tag
 
     def merge(self, other):
-        idList = list(set().union(self.indices, indices))
-        self.indices = idList
+        assert self.__class__ == other.__class__
+        self.indices = list(set().union(self.indices, other.indices))
 
     def __init__(self, indices):
         self.indices = indices
@@ -202,11 +202,10 @@ class MasterSolutionLibrary:
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
-        buildGranularity = False
         if len(d) > 9 and d[9]:
-          buildGranularity = True
-          assert libraryOrder[-1] == "Matching"
-          libraryOrder[-1] = "Granularity"
+            # It's a Granularity library
+            assert libraryOrder[-1] == "Matching"
+            libraryOrder[-1] = "Granularity"
         
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
