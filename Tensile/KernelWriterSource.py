@@ -965,6 +965,16 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
 
+
+    for tc in ('A', 'B'):
+      for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+        (freeDim, sumDim, leading, trailing) = zp
+        freeDimChar = self.indexChars[freeDim]
+        kStr += self.endLine
+        kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
+        kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
+
+
     return kStr
 
   ##############################################################################
@@ -1351,9 +1361,18 @@ class KernelWriterSource(KernelWriter):
                 else:
                   kStr += "globalReadOffset%s%s" \
                       % (tP["tensorChar"], self.indexChars[index])
+              zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[0] == i), None)
+              if zp:
+                # subtract pad - this both helps efficiently detect OOB on the summation start and also
+                # corrects the valid offsets for the leading pad.
+                kStr += " - zeroPad%s%s_Leading" % (tc, self.indexChars[i])
               if i < len(tP["ia"])-1:
                 kStr += ", "
             kStr += " );%s" % self.endLine
+            if 0 and tP["isA"]:
+              kStr += "printf(%sgid0=%%u %s=%%lu%s, %s(0), %s);" \
+                       % (self.quote, gro, self.endLineQuote, \
+                          self.getGlobalIdStr, gro) + self.endLine
     return kStr
 
   ##############################################################################
@@ -1699,8 +1718,8 @@ class KernelWriterSource(KernelWriter):
       loopIdx = self.unrollIdx
 
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    loopDim  = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    loopChar = self.indexChars[loopDim]
     if tailLoop:
       kStr += self.endLine + "  /* Compute tail loop num iter */" + self.endLine
       kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
@@ -1732,6 +1751,28 @@ class KernelWriterSource(KernelWriter):
         kStr += "%snumIter%s = numIterMyWg;%s" \
             % (self.indent, self.unrollChar, self.endLine)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
+
+      problemType = kernel["ProblemType"]
+      zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
+      zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
+      if zpA or zpB:
+        kStr += "%sunsigned int elementCounter%s = 0;" \
+            % (self.indent, loopChar) \
+            + self.endLine
+      if zpA:
+        freeDim = zpA[0]
+        freeDimChar = self.indexChars[freeDim]
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Trailing + 1);" \
+            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
+            + self.endLine
+      if zpB:
+        freeDim = zpB[0]
+        freeDimChar = self.indexChars[freeDim]
+        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s) - strideB%s * (zeroPadB%s_Leading + zeroPadB%s_Trailing + 1);" \
+            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
+            + self.endLine
+
+      assert(zpB == None) # not supported
     return kStr
 
 
@@ -1766,8 +1807,24 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def closeLoop(self, kernel, loopIdx, finalLoop):
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    problemType = kernel["ProblemType"]
+    loopDim = problemType["IndicesSummation"][loopIdx]
+    loopChar = self.indexChars[loopDim]
+
+    for tc in ('A', 'B'):
+      # assume A and B don't specify same summation idx
+      zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[1] == loopDim), None)
+      if zp:
+        if loopIdx == self.unrollIdx:
+          incAmount = "LOCAL_DEPTHU"
+          if kernel["GlobalSplitU"] > 1 \
+              and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
+            incAmount += "*GLOBAL_SPLITU"
+        else:
+          incAmount = "1"
+        kStr += "%selementCounter%s += %s;" % (self.indent, loopChar, incAmount) + self.endLine
+
+
     self.indent = self.indent[2:]
     if kernel["LoopDoWhile"]:
       kStr += "%s} while (--numIter%s > %u);%s" \
@@ -1917,7 +1974,9 @@ class KernelWriterSource(KernelWriter):
                 para, sPara, perp, sPerp )
             kStr += "%s%s = " % (self.indent, dest)
             # guard around K
+            guarded = 0
             if guardK:
+              guarded = 1
               kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                   % (tP["tensorChar"], self.unrollChar, \
                   (perp if tP["tlu"] else para), \
@@ -1925,13 +1984,27 @@ class KernelWriterSource(KernelWriter):
                   (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
                   else ""), (" || !numIter%s"%self.unrollChar) \
                   if kernel["GlobalSplitU"] > 1 else "")
+
+            # guard around pad
+            for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+              if guarded:
+                kStr += " || "
+              guarded = 1
+              loopDim = zp[1]
+              loopChar = self.indexChars[loopDim]
+              globalReadOffset = "globalReadOffset%s_%u_%u_%u_%u + %u" \
+                  % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0);
+              kStr += "( (elementCounter%s * stride%s%s + %s) >= elementEdge%s%s )" \
+                      % (loopChar, tc, loopChar, globalReadOffset, tc, loopChar)
+
             # guard around edge
             if kernel["EdgeType"] == "Branch":
-              if guardK:
+              if guarded:
                 kStr += " || "
+              guarded = 1
               kStr += "( !inBounds%s_%u )" % ( \
                   (tP["tensorChar"], para if tP["tlu"] else perp) )
-            if kernel["EdgeType"] == "Branch" or guardK:
+            if guarded:
               kStr += " ? SCALAR_OOB_DATA : "
             kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
                 % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \

@@ -89,8 +89,17 @@ class ProblemType:
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(config)
 
+
     self.state["AssignedDerivedParameters"] = False
     ProblemType.assignDerivedParameters(self.state)
+
+    for tc in ('A', 'B'):
+      for zp in self["ZeroPad%s"%tc] :
+        (freeDim, sumDim, leading, trailing) = zp
+        if freeDim not in self.state["IndicesFree"]:
+          printExit("ZeroPad%s=%s dim=%u is not a free index"%(tc, zp, freeDim))
+        if sumDim not in self.state["IndicesSummation"]:
+          printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
 
 
   ########################################
@@ -604,6 +613,10 @@ class Solution:
           problemType["UseInitialStrides"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
+      kernel["ProblemType"]["ZeroPadA"] = \
+          problemType["ZeroPadA"]
+      kernel["ProblemType"]["ZeroPadB"] = \
+          problemType["ZeroPadB"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernels.append(kernel)
     return kernels
