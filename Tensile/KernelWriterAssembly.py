@@ -1405,6 +1405,16 @@ class KernelWriterAssembly(KernelWriter):
     # for conditionals
     self.lastPostLoopSgpr = self.sgprIdx
 
+    for tc in ('A', 'B'):
+      for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+        (freeDim, sumDim, leading, trailing) = zp
+        freeDimChar = self.indexChars[freeDim]
+        sumDimChar = self.indexChars[sumDim]
+        # These will eventually be read as kernel args:
+        self.defineSgpr("ZeroPad%s%s_Leading"%(tc, freeDimChar),1)
+        self.defineSgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar),1)
+        self.defineSgpr("ElementEdge%s%s"%(tc, sumDimChar),1)
+
     if kernel["FractionalLoad"] == 2:
       if kernel["fractionalPerpOverhangA"]:
         self.defineSgpr("PerpOverhangVccA", 2, 2)
@@ -2757,6 +2767,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getKernArg("NumFullBlocks")
       kStr += self.getKernArg("WgmRemainder1")
       kStr += self.getKernArg("MagicNumberWgmRemainder1")
+
+      for tc in ('A', 'B'):
+        for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+          (freeDim, sumDim, leading, trailing) = zp
+          freeDimChar = self.indexChars[freeDim]
+          kStr += inst ("s_mov_b32", sgpr("ZeroPad%s%s_Leading"%(tc, freeDimChar)), leading, "")
+          kStr += inst ("s_mov_b32", sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), trailing, "")
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % self.kernArgOffset )
