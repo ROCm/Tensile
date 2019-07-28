@@ -3819,14 +3819,7 @@ class KernelWriterAssembly(KernelWriter):
         loopIdxPrev = loopIdx + 1
         dimIdxPrev    = kernel["ProblemType"]["IndicesSummation"][loopIdxPrev] # dimension index
         loopCharPrev  = self.indexChars[dimIdxPrev]
-        strideIdxPrev = tP["ia"].index(dimIdxPrev)
-        if not kernel["ProblemType"]["UseInitialStrides"]:
-          strideIdxPrev -= 1
-        if strideIdxPrev >= 0:
-          stridePrev = sgpr("Strides%s+%u"%(tc, strideIdxPrev))
-        else:
-          # use constant stride for first index:
-          stridePrev = "Stride%s%s" % (tc, self.indexChars[tP["ia"][0]])
+        stridePrev = self.stride(tc, dimIdxPrev)
 
         kStr += self.comment("increment for higher-level loop")
         kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr("SizesSum+%u"%(loopIdxPrev)), \
