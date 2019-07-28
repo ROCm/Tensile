@@ -521,17 +521,29 @@ class KernelWriterAssembly(KernelWriter):
   ########################################
   def size(self, tc, dim):
     problemType = self.kernel["ProblemType"]
-    return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
+    if tc in ['A','B','C','D']:
+      return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
+    else:
+      raise ValueError("unexpected tensorChar='%s' in size function"%tc)
 
   ########################################
   ########################################
   def stride(self, tc, dim):
     problemType = self.kernel["ProblemType"]
-    if not problemType["UseInitialStrides"] and \
-        dim == problemType["IndexAssignments%s"%tc][0]:
-      return ("constStride%s%s"%(tc,self.indexChars[dim]))
+    if tc in ['A','B']:
+      if not problemType["UseInitialStrides"] and \
+          dim == problemType["IndexAssignments%s"%tc][0]:
+        return ("constStride%s%s"%(tc,self.indexChars[dim]))
+      else:
+        return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
+    elif tc in ['D','C']:
+      if not problemType["UseInitialStrides"] and dim == 0:
+        return ("constStride%s%s"%(tc,self.indexChars[dim]))
+      else:
+        return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
     else:
-      return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
+      raise ValueError("unexpected tensorChar='%s' in stride function"%tc)
+
 
   ########################################
   # Get Label
@@ -2421,7 +2433,6 @@ class KernelWriterAssembly(KernelWriter):
         idxChar= self.indexChars[idx]
         kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
                   "sgprSizesFree+%u"%(idx))
-
     for tc in ('A','B'):
       for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
         idxChar= self.indexChars[idx]
@@ -2434,6 +2445,17 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += "\n"
     kStr += self.comment1("Stride Assignments")
+    for tc in ('D','C'):
+      for idx in range(0, problemType["NumIndicesC"]):
+        i = idx
+        idxChar= self.indexChars[idx]
+        if i == 0 and not kernel["ProblemType"]["UseInitialStrides"]:
+          kStr += self.macroRegister("constStride%s%s"%(tc,idxChar), 1)
+        else:
+          if not kernel["ProblemType"]["UseInitialStrides"]:
+            i = i-1
+          kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
+                    "sgprStrides%s+%u"%(tc, i))
     for tc in ('A','B'):
       for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
         idxChar= self.indexChars[idx]
