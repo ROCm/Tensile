@@ -2489,7 +2489,6 @@ class KernelWriterAssembly(KernelWriter):
 
       # d1+
       needAdd = 0
-      startStrideSub = 0 if kernel["ProblemType"]["UseInitialStrides"] else 1
       offset = None
       for i in range(0, numDim):
         if indices[i] in kernel["ProblemType"]["IndicesSummation"] and \
@@ -2520,13 +2519,13 @@ class KernelWriterAssembly(KernelWriter):
           # offset * stride
           kStr += inst("v_mul_lo_u32", \
               "v[\\vgprTmp+0]", \
-              sgpr("Strides%s+%u"%(tensorChar,i-startStrideSub)), \
+              self.stride(tensorChar, i), \
               "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u lower"%i)
           if not justOffset32:
             kStr += inst("v_mul_hi_u32", \
                 "v[\\vgprTmp+1]", \
-                sgpr("Strides%s+%u"%(tensorChar,i-startStrideSub)), \
+                self.stride(tensorChar, i), \
                 "v[\\vgprOffset%s]" % idxChars[i],  \
                 "mul d%u upper"%i)
           needAdd = 1
@@ -2536,7 +2535,7 @@ class KernelWriterAssembly(KernelWriter):
             assert (justOffset32) # packed only supported for buffer addressing
             kStr += inst("v_mul_lo_u32", \
                 "v[\\vgprTmp+0]", \
-                sgpr("Strides%s+%u"%(tensorChar,i-startStrideSub)), \
+                self.stride(tensorChar, i), \
                 "v[\\vgprOffset%s]" % idxChars[i],  \
                 "mul d%u lower"%i)
             needAdd = 1
@@ -2548,13 +2547,13 @@ class KernelWriterAssembly(KernelWriter):
             # offset * stride
             kStr += inst("v_mul_lo_u32", \
                 "v[\\vgprTmp+0]", \
-                sgpr("Strides%s+%u"%(tensorChar,i-startStrideSub)), \
+                self.stride(tensorChar, i), \
                 "v[\\vgprTmp+2]",  \
                 "other stride mul d%u lower"%i)
             if not justOffset32:
               kStr += inst("v_mul_hi_u32", \
                   "v[\\vgprTmp+1]", \
-                  sgpr("Strides%s+%u"%(tensorChar,i-startStrideSub)), \
+                  self.stride(tensorChar, i), \
                   "v[\\vgprTmp+2]",  \
                   "mul d%u upper"%i)
             needAdd = 1
@@ -3334,7 +3333,7 @@ class KernelWriterAssembly(KernelWriter):
       # Subtract the static component from SizesFree:
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
-      kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), sgpr(tmpSgpr), \
+      kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.size(tc, tP["idx"]), sgpr(tmpSgpr), \
                 "edge = Size%s - WG*MT"%(tP["tileChar"]))
       # use math here to use unsigned (to increase range)
       #  - add srdShiftLeft to tmpSgpr - ensure it is always positive
@@ -3346,7 +3345,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("_v_add_co_u32", vgpr(shiftedEdge), "vcc", vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
     else:
       tmpSgpr = self.getTmpSgpr(1)
-      kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), margin, \
+      kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.size(tc, tP["idx"]), margin, \
           "edge = Size%s-%u"%(tP["tileChar"], margin) )
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
@@ -3750,15 +3749,8 @@ class KernelWriterAssembly(KernelWriter):
 
     dimIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] # dimension index
     loopChar = self.indexChars[dimIdx]
-    strideIdx = tP["ia"].index(dimIdx)
 
-    if not kernel["ProblemType"]["UseInitialStrides"]:
-      strideIdx -= 1
-    if strideIdx >= 0:
-      stride = sgpr("Strides%s+%u"%(tc, strideIdx))
-    else:
-      # use constant stride:
-      stride = "Stride%s%s" % (tc, self.indexChars[tP["ia"][0]])
+    stride = self.stride(tc, dimIdx)
 
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
