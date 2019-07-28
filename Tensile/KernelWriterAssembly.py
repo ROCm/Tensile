@@ -4219,21 +4219,25 @@ class KernelWriterAssembly(KernelWriter):
 
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
-      # Note LoopCounters is negative
       kStr += self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
                     sgpr("LoopCounters+%u"%self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "Number of bytes accessed by the unroll loop")
 
-      kStr += inst("s_add_u32", sgpr("WrapU%s+0"%tc),  sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                sgpr("WrapU%s+0"%tc), "Negative, and remove one iteration")
-      kStr += inst("s_addc_u32", sgpr("WrapU%s+1"%tc),  0, \
-                sgpr("WrapU%s+1"%tc), "Negative, and remove one iteration")
+      kStr += inst("s_sub_u32", sgpr("WrapU%s+0"%tc),  \
+                sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                sgpr("WrapU%s+0"%tc), \
+                "remove one iteration")
+      kStr += inst("s_subb_u32", sgpr("WrapU%s+1"%tc), \
+                sgpr("WrapU%s+1"%tc), \
+                0, \
+                "remove one iteration")
 
       kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
 
       if tP["isB"]:
-        # Convert passed in S' to S for easy loop comparison.  S=(PGR-1)-S'
-        kStr += inst("s_sub_i32", sgpr("StaggerUIter"), (-kernel["PrefetchGlobalRead"]-1), sgpr("StaggerUIter"), \
+        # Convert passed in S' to S for easy loop comparison.  S=S-(PGR-1)'
+        kStr += inst("s_add_u32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
+                  (kernel["PrefetchGlobalRead"]+1), \
                   "Subtract (PGR-1); StaggerUIter now contains target iteration to wrap")
     return kStr
 
@@ -4246,31 +4250,32 @@ class KernelWriterAssembly(KernelWriter):
   # ^unrollLoopStart           ^tailLoopStart   (in summation0 dimension)
 
   #
-  # S = sgprStaggerUIter = (-PGR-1)-S'
+  # S = sgprStaggerUIter = S+(PGR+1)'
   # W = sgprWrapU
   # PGR = kernel["PrefetchGlobalRead"]
   #
-  # S' = StaggUIter that is passed into the kernel = PGR-1-S
+  # S' = StaggUIter that is passed into the kernel = -PGR+1+S
   # S'*I is also the global read offset (from unrollLoopStart) at unroll loop exit ?
   # I = GlobalReadIncs
-  # W' = -W
+  # W' = W
 
   # Need to move it to tailLoopStart
 
   # To compute position where tail loop should start:
   #  = W' - S'*I + I
-  #  = -W - (-PGR-1-S)*I) + I
-  #  = -W + (PGR+1+S)*I + I
-  #  = -W + (S+2+PGR)*I
-  #  = (S+2+PGR)*I - W
+  #  = W - (S+PGR+1)*I) + I
+  #  = W - (S+PGR+1)*I + I
+  #  = W - (S+2+PGR)*I
   ##############################################################################
   def removeStagger(self, kernel, tP):
     kStr = ""
     if self.staggerU:
       tc = tP["tensorChar"]
       tmp = self.getTmpSgpr(1)
-      kStr += inst("s_add_i32", sgpr(tmp), sgpr("StaggerUIter"), 2+kernel["PrefetchGlobalRead"], "")
-      kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp), 
+      # might be able to refactor this to eliminate signed math
+      kStr += inst("s_sub_i32", sgpr(tmp), 2+kernel["PrefetchGlobalRead"], \
+                  sgpr("StaggerUIter"), "")
+      kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp),
                     sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
@@ -4392,15 +4397,7 @@ class KernelWriterAssembly(KernelWriter):
       loopCounter = "LoopCounters+%u"%loopIdx
       kStr += inst("s_mov_b32", sgpr(loopCounter), \
                 sgpr("SizesSum+%u"%loopIdx), \
-                "copy loop counter")
-
-
-    # counter = -counter
-    kStr += inst("s_sub_u32", \
-        sgpr(loopCounter), \
-        hex(0), \
-        sgpr(loopCounter), \
-        "counter%s = -size%s"%(loopChar, loopChar) )
+                "init loop counter")
 
     return kStr
 
@@ -4433,12 +4430,12 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["SuppressNoLoadLoop"]:
         endCounter =  0
       else:
-        endCounter = -1
+        endCounter = 1
     else:
       endCounter =  0
 
     if tailLoop or loopIdx == self.unrollIdx:
-      kStr += inst("s_cmp_ge_i32", \
+      kStr += inst("s_cmp_le_u32", \
           sgpr(loopCounter), \
           hex(endCounter), \
           "LoopCounter%s < EndCounter"%(loopChar) )
@@ -4524,11 +4521,11 @@ class KernelWriterAssembly(KernelWriter):
         unrollInc = 1
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
-      kStr += inst("s_add_u32", \
+      kStr += inst("s_sub_u32", \
           sgpr(loopCounter), \
           sgpr(loopCounter), \
           hex(unrollInc), \
-          "inc counter%s"%(loopChar) )
+          "dec counter%s (toilLoop)"%(loopChar) )
 
       # Track # LDS reads?
       kStr += inst("s_add_u32", \
@@ -4548,11 +4545,11 @@ class KernelWriterAssembly(KernelWriter):
       unrollInc = 1
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
-      kStr += inst("s_add_u32", \
+      kStr += inst("s_sub_u32", \
           sgpr("LoopCounters+%u"%loopIdx), \
           sgpr("LoopCounters+%u"%loopIdx), \
           hex(unrollInc), \
-          "inc counter%s"%(loopChar) )
+          "dec counter%s"%(loopChar) )
 
       # If PrefetchGlobalRead=1 the loads in the loop prefetch next macro-tile
       # For the final trip through the unroll loop we need to ensure those loads stay in bounds.
@@ -4563,7 +4560,7 @@ class KernelWriterAssembly(KernelWriter):
       # increments appropriately.
       # Also sum idx other than unroll always compare against 0 (there is no PGR to account for)
       if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
-        endCounter = -1
+        endCounter = 1
       else:
         endCounter = 0
 
@@ -5001,7 +4998,7 @@ class KernelWriterAssembly(KernelWriter):
         incUpper = incLower + 1
         tmpS =    incLower + 2
         if prefetchIndex:
-          imod.addInst("s_sub_u32", sgpr(tmpS), sgpr("LoopCounters+%u"%self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
+          imod.addInst("s_add_u32", sgpr(tmpS), sgpr("LoopCounters+%u"%self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
           imod.addInst("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
         else:
           imod.addInst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
