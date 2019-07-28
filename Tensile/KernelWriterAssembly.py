@@ -517,10 +517,14 @@ class KernelWriterAssembly(KernelWriter):
         break
     return lastVgprs
 
+  ########################################
+  ########################################
   def size(self, tc, dim):
     problemType = self.kernel["ProblemType"]
     return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
 
+  ########################################
+  ########################################
   def stride(self, tc, dim):
     problemType = self.kernel["ProblemType"]
     if not problemType["UseInitialStrides"] and \
@@ -2412,6 +2416,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
     kStr += self.comment1("Size Assignments")
     problemType = kernel["ProblemType"]
+    for tc in ('D','C'):
+      for idx in range(0, problemType["NumIndicesC"]):
+        idxChar= self.indexChars[idx]
+        kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
+                  "sgprSizesFree+%u"%(idx))
+
     for tc in ('A','B'):
       for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
         idxChar= self.indexChars[idx]
@@ -2519,13 +2529,13 @@ class KernelWriterAssembly(KernelWriter):
           # offset * stride
           kStr += inst("v_mul_lo_u32", \
               "v[\\vgprTmp+0]", \
-              self.stride(tensorChar, i), \
+              self.stride(tensorChar, indices[i]), \
               "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u lower"%i)
           if not justOffset32:
             kStr += inst("v_mul_hi_u32", \
                 "v[\\vgprTmp+1]", \
-                self.stride(tensorChar, i), \
+                self.stride(tensorChar, indices[i]), \
                 "v[\\vgprOffset%s]" % idxChars[i],  \
                 "mul d%u upper"%i)
           needAdd = 1
@@ -2535,7 +2545,7 @@ class KernelWriterAssembly(KernelWriter):
             assert (justOffset32) # packed only supported for buffer addressing
             kStr += inst("v_mul_lo_u32", \
                 "v[\\vgprTmp+0]", \
-                self.stride(tensorChar, i), \
+                self.stride(tensorChar, indices[i]), \
                 "v[\\vgprOffset%s]" % idxChars[i],  \
                 "mul d%u lower"%i)
             needAdd = 1
@@ -2547,13 +2557,13 @@ class KernelWriterAssembly(KernelWriter):
             # offset * stride
             kStr += inst("v_mul_lo_u32", \
                 "v[\\vgprTmp+0]", \
-                self.stride(tensorChar, i), \
+                self.stride(tensorChar, indices[i]), \
                 "v[\\vgprTmp+2]",  \
                 "other stride mul d%u lower"%i)
             if not justOffset32:
               kStr += inst("v_mul_hi_u32", \
                   "v[\\vgprTmp+1]", \
-                  self.stride(tensorChar, i), \
+                  self.stride(tensorChar, indices[i]), \
                   "v[\\vgprTmp+2]",  \
                   "mul d%u upper"%i)
             needAdd = 1
@@ -3567,7 +3577,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.assert_eq(sgpr(tileStart+1),0)
       if not tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
-                  sgpr("Strides%s+%u"%(tc,startStride)), "tlu=0, scaled tile-offset by stride")
+                  sgpr("Strides%s+%u"%(tc,startStride)), \
+                  "tlu=0, scaled tile-offset by stride")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -3578,7 +3589,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.assert_eq(sgpr(stmp+1),0)
         if tP["tlu"]: # non-transpose case, tile is in perp dim and should be scaled by Stride
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
-                    sgpr("Strides%s+%u"%(tc,startStride)), "tlu=1, scaled unroll-offset by stride")
+                    sgpr("Strides%s+%u"%(tc,startStride)), \
+                    "tlu=1, scaled unroll-offset by stride")
 
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffet term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
@@ -3596,7 +3608,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
       kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
-    startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
     if self.use64bPbcLimit:
       limitTmp0 = "ShadowLimit%s+0"%tc
       limitTmp1 = "ShadowLimit%s+1"%tc
