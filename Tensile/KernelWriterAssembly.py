@@ -517,6 +517,18 @@ class KernelWriterAssembly(KernelWriter):
         break
     return lastVgprs
 
+  def size(self, tc, dim):
+    problemType = self.kernel["ProblemType"]
+    return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
+
+  def stride(self, tc, dim):
+    problemType = self.kernel["ProblemType"]
+    if not problemType["UseInitialStrides"] and \
+        dim == problemType["IndexAssignments%s"%tc][0]:
+      return ("constStride%s%s"%(tc,self.indexChars[dim]))
+    else:
+      return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
+
   ########################################
   # Get Label
   # return label number - create new if it doesn't already exist
@@ -686,6 +698,7 @@ class KernelWriterAssembly(KernelWriter):
     dkp = kernel["DisableKernelPieces"]
     self.do["NullKernel"]  = dkp >= 9 or dkp == -9
 
+    self.kernel = kernel
     self.tPA = tPA
     self.tPB = tPB
 
@@ -2396,15 +2409,31 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
     kStr += self.comment1("max SGPR=%u"%self.totalSgprs)
 
-    if kernel["ProblemType"]["UseInitialStrides"] == 0:
-      kStr += "\n"
-      idx0 = self.tPA["ia"][0]
-      idxChar= self.indexChars[idx0]
-      kStr += self.macroRegister("StrideA%s"%idxChar, "1")
+    kStr += "\n"
+    kStr += self.comment1("Size Assignments")
+    problemType = kernel["ProblemType"]
+    for tc in ('A','B'):
+      for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
+        idxChar= self.indexChars[idx]
+        if idx < problemType["NumIndicesC"]:
+          kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
+                    "sgprSizesFree+%u"%(idx))
+        else:
+          kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
+                    "sgprSizesSum+%u"%(idx - problemType["NumIndicesC"]))
 
-      idx0 = self.tPB["ia"][0]
-      idxChar= self.indexChars[idx0]
-      kStr += self.macroRegister("StrideB%s"%idxChar, "1")
+    kStr += "\n"
+    kStr += self.comment1("Stride Assignments")
+    for tc in ('A','B'):
+      for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
+        idxChar= self.indexChars[idx]
+        if i == 0 and not kernel["ProblemType"]["UseInitialStrides"]:
+          kStr += self.macroRegister("constStride%s%s"%(tc,idxChar), 1)
+        else:
+          if not kernel["ProblemType"]["UseInitialStrides"]:
+            i = i-1
+          kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
+                    "sgprStrides%s+%u"%(tc, i))
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
       kStr += self.comment("2GB limit - set offsets to -1 to exceed this and clamp")
