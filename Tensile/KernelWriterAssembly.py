@@ -4360,8 +4360,8 @@ class KernelWriterAssembly(KernelWriter):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    loopChar = self.indexChars[loopDim]
 
     ########################################
     # Tail Loop
@@ -4453,7 +4453,7 @@ class KernelWriterAssembly(KernelWriter):
                   0x1,
                   "save unroll loop start position - copy1 or copy2")
     ########################################
-    # Multi-dimensional summation
+    # Multi-dimensional summation, not unroll loop
     else:
       #printExit("no assembly support for 2+ dimensional summation")
       kStr += self.comment("%sother summation, numIter%s = size%s" \
@@ -4462,6 +4462,34 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(loopCounter), \
                 sgpr("SizesSum+%u"%loopIdx), \
                 "init loop counter")
+
+    if not tailLoop:
+      problemType = kernel["ProblemType"]
+      zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
+      zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
+      if zpA:
+        tc = 'A'
+        (freeDim,sumDim) = zpA[:2]
+        freeDimChar = self.indexChars[freeDim]
+        sumDimChar = self.indexChars[sumDim]
+        tmpSgpr = self.getTmpSgpr(2)
+        kStr += "\n"
+        kStr += self.comment1("ElementEdge%s%s" % (tc, sumDimChar))
+        kStr += inst("s_add_u32", sgpr(tmpSgpr), self.size('A',freeDim), \
+                  self.size('A', sumDim), "")
+        kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
+                  self.stride('A', sumDim), "elementEdgeAK")
+        kStr += inst("s_add_u32", sgpr(tmpSgpr), \
+                  sgpr("ZeroPad%s%s_Leading"%(tc, freeDimChar)), \
+                  sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
+                  "sum pads")
+        kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
+                      sgpr(tmpSgpr+1), 1, "")
+        kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
+                  sgpr(tmpSgpr+1), \
+                  self.stride('A', freeDim), "scale")
+        kStr += inst("s_sub_u32", sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
+                  sgpr(tmpSgpr), sgpr(tmpSgpr+1), "Final elementEdge calc")
 
     return kStr
 
