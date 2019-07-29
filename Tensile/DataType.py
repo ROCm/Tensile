@@ -64,7 +64,7 @@ class DataType:
             'enum': 'ComplexFloat',
             'reg': 2,
             'ocl': 'float2',
-            'hip': 'float2',
+            'hip': 'TensileComplexFloat',
             'libType': 'TensileComplexFloat',
             'libEnum': 'tensileDataTypeComplexFloat',
             'isIntegral': False,
@@ -77,7 +77,7 @@ class DataType:
             'enum': 'ComplexDouble',
             'reg': 4,
             'ocl': 'double2',
-            'hip': 'double2',
+            'hip': 'TensileComplexDouble',
             'libType': 'TensileComplexDouble',
             'libEnum': 'tensileDataTypeComplexDouble',
             'isIntegral': False,
@@ -177,12 +177,6 @@ class DataType:
         Returns a string containing the data output format, depending on programming language 
         and in the case of complex numbers, the vector width. 
         """
-        if language == "HIP":
-            if self.value == DataType.complexSingle:
-                return "make_float2(0.f, 0.f)"
-            if self.value == DataType.complexDouble:
-                return "make_double2(0.0, 0.0)"
-
         zeroString = "("
         zeroString += self.toDevice(language)
         if vectorWidth > 1:
@@ -210,11 +204,14 @@ class DataType:
         return not self.isComplex()
     def isComplex(self):
         return self.properties['isComplex']
-
+    def isDoubleComplex(self):
+        return self.value == DataType.complexDouble
+    def isSingleComplex(self):
+        return self.value == DataType.complexSingle
     def isDouble(self):
-        return self.value == DataType.double or self.value == DataType.complexDouble
+        return self.value == DataType.double
     def isSingle(self):
-        return self.value == DataType.single or self.value == DataType.complexSingle
+        return self.value == DataType.single
     def isHalf(self):
         return self.value == DataType.half
     def isInt32(self):

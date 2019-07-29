@@ -47,8 +47,6 @@
 // FIXME - steal hip error encodings since rocBLAS expects hip error codes to be returned...
 #define tensileStatusFailure hipErrorUnknown
 #define tensileStatusAssertFailure hipErrorRuntimeOther
-#define TensileComplexFloat float2
-#define TensileComplexDouble double2
 #define TensileHalf _Float16
 inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 {
@@ -56,6 +54,124 @@ inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
    return os;
 }
 
+template <typename t>
+struct tensile_complex
+{
+    t x;
+    t y;
+
+    __host__ __device__ tensile_complex() = default;
+
+    constexpr __host__ __device__ tensile_complex(t real, t imag = 0)
+        : x{real}
+        , y{imag}
+    {
+    }
+
+    template <typename u, typename std::enable_if<std::is_arithmetic<u>{}>::type* = nullptr>
+    tensile_complex<t>& operator=(const u a)
+    {
+        x = a;
+        y = 0;
+        return (*this);
+    }
+};
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const tensile_complex<T>& data)
+{
+    if(data.y >= 0)
+    {
+        os << data.x << "+" << data.y << "i";
+    }
+    else
+    {
+        os << data.x << data.y << "i";
+    }
+
+    return os;
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> data)
+{
+    return data;
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> data)
+{
+    return tensile_complex<T>{-data.x, -data.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x + b.x, a.y + b.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x - b.x, a.y - b.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator*(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator/(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{(a.x * b.x + a.y * b.y) / (b.x * b.x + b.y * b.y),
+                              (a.y * b.x - a.x * b.y) / (b.x * b.x + b.y * b.y)};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator+=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a + b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator-=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a - b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator*=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a * b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator/=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a / b);
+}
+template <typename T>
+constexpr __host__ __device__ bool operator==(tensile_complex<T>& a, tensile_complex<T>  b)
+{
+    return (a.x == b.x ) && (a.y == b.y);
+}
+
+
+using tensile_float_complex = tensile_complex<float>;
+using tensile_double_complex = tensile_complex<double>;
+
+#define TensileComplexFloat tensile_float_complex
+#define TensileComplexDouble tensile_double_complex
 #endif // HIP
 
 #define TensileInt8x4 uint32_t

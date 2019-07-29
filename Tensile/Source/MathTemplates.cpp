@@ -27,6 +27,7 @@
 #include <string>
 #include <string.h>
 #include <sstream>
+#include <stdexcept>
 
 
 /*******************************************************************************
@@ -204,6 +205,14 @@ template< >
 TensileHalf tensileMultiply( TensileHalf a, TensileHalf b ) {
   return a*b;
 }
+template< >
+float tensileMultiply( TensileHalf a, TensileHalf b ) {
+  return (float)a * (float)b;
+}
+template< >
+float tensileMultiply( TensileHalf a, float b ) {
+  return ((float)a) * b;
+}
 #endif
 // single
 template< >
@@ -256,6 +265,16 @@ float tensileMultiply( tensile_bfloat16 a, float b ) {
 
 // complex single
 template< >
+float tensileMultiply( TensileComplexFloat a, TensileComplexFloat b ) {
+  throw std::logic_error( "Reached a supposed unreachable point" );
+  return 0.0f;
+}
+template< >
+float tensileMultiply( TensileComplexFloat a, float b ) {
+  throw std::logic_error( "Reached a supposed unreachable point" );
+  return 0.0f;
+}
+template< >
 TensileComplexFloat tensileMultiply( TensileComplexFloat a, TensileComplexFloat b ) {
   TensileComplexFloat c;
   TENSILEREAL(c) = TENSILEREAL(a)*TENSILEREAL(b) - TENSILECOMP(a)*TENSILECOMP(b);
@@ -263,6 +282,16 @@ TensileComplexFloat tensileMultiply( TensileComplexFloat a, TensileComplexFloat 
   return c;
 }
 // complex double
+template< >
+float tensileMultiply( TensileComplexDouble a, TensileComplexDouble b ) {
+  throw std::logic_error( "Reached a supposed unreachable point" );
+  return 0.0f;
+}
+template< >
+float tensileMultiply( TensileComplexDouble a, float b ) {
+  throw std::logic_error( "Reached a supposed unreachable point" );
+  return 0.0f;
+}
 template< >
 TensileComplexDouble tensileMultiply( TensileComplexDouble a, TensileComplexDouble b ) {
   TensileComplexDouble c;
@@ -281,6 +310,10 @@ TensileComplexDouble tensileMultiply( TensileComplexDouble a, TensileComplexDoub
 template< >
 TensileHalf tensileAdd( TensileHalf a, TensileHalf b ) {
   return a+b;
+}
+template< >
+float tensileAdd( TensileHalf a, float b ) {
+  return (float)a+b;
 }
 #endif
 template< >
@@ -315,6 +348,12 @@ TensileComplexFloat tensileAdd( TensileComplexFloat a, TensileComplexFloat b ) {
   TENSILECOMP(c) = TENSILECOMP(a)+TENSILECOMP(b);
   return c;
 }
+template< >
+float tensileAdd( TensileComplexFloat a, float b ) {
+  throw std::logic_error( "Reached a supposed unreachable point" );
+  return 0.0f;
+}
+
 // complex double
 template< >
 TensileComplexDouble tensileAdd( TensileComplexDouble a, TensileComplexDouble b ) {
@@ -322,6 +361,11 @@ TensileComplexDouble tensileAdd( TensileComplexDouble a, TensileComplexDouble b 
   TENSILEREAL(c) = TENSILEREAL(a)+TENSILEREAL(b);
   TENSILECOMP(c) = TENSILECOMP(a)+TENSILECOMP(b);
   return c;
+}
+template< >
+float tensileAdd( TensileComplexDouble a, float b ) {
+  throw std::logic_error( "Reached a supposed unreachable point" );
+  return 0.0f;
 }
 
 /*******************************************************************************
