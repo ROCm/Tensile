@@ -2296,6 +2296,15 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "   v_add_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
+    # add w/o carry-out:
+    # note the non-explicit CO will write vcc
+    kStr += ".macro _v_add_u32 dst, src0, src1, dpp=" + self.endLine
+    if self.AsmBugs["ExplicitCO"]:
+        kStr += "   v_add_u32 \dst, \src0, \src1 \dpp" + self.endLine
+    else:
+        kStr += "   v_add_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
+    kStr += ".endm" + self.endLine
+
     kStr += ".macro _v_sub_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
         kStr += "   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
@@ -2466,6 +2475,8 @@ class KernelWriterAssembly(KernelWriter):
             i = i-1
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
                     "sgprStrides%s+%u"%(tc, i))
+
+    kStr += self.macroRegister("DepthU", kernel["DepthU"])
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
       kStr += self.comment("2GB limit - set offsets to -1 to exceed this and clamp")
@@ -4479,17 +4490,21 @@ class KernelWriterAssembly(KernelWriter):
                   self.size('A', sumDim), "")
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
                   self.stride('A', sumDim), "elementEdgeAK")
-        kStr += inst("s_add_u32", sgpr(tmpSgpr), \
-                  sgpr("ZeroPad%s%s_Leading"%(tc, freeDimChar)), \
-                  sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
-                  "sum pads")
+        inc = 1 - self.srdShiftLeft[tc]
         kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
-                      sgpr(tmpSgpr+1), 1, "")
+                      sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
+                      inc, "")
+        #v1 = tmpSgpr + 1
         kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
                   sgpr(tmpSgpr+1), \
                   self.stride('A', freeDim), "scale")
         kStr += inst("s_sub_u32", sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
-                  sgpr(tmpSgpr), sgpr(tmpSgpr+1), "Final elementEdge calc")
+                  sgpr(tmpSgpr), sgpr(tmpSgpr+1), "elementEdge = strideU*(sizeU+sizeFree) - strideFree*(Trailing+1)")
+        kStr += inst("s_lshl_b32", \
+                  sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
+                  sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
+                  log2(self.bpeAB), "scale by bpe")
+
 
     return kStr
 
@@ -5370,6 +5385,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):
     tc = tP["tensorChar"]
+    problemType = self.kernel["ProblemType"]
     imod = Code.StructuredModule("globalReadDo%s_%u"%(tc,mode))
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return imod
 
@@ -5394,6 +5410,23 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("SrdB+2"), \
               0,
               "Set limit to 0 for last iteration")
+
+    tmpSgpr = self.getTmpSgpr(2+len(problemType["ZeroPad%s"%tc]))
+    # +0,+1 - general purpose tmp. i + 2 is the offset for zero-pad index X
+    for i, zp in enumerate(problemType["ZeroPad%s"%tc]):
+      zpTmp = tmpSgpr + i + 2
+      imod.header.addComment1("Zeropad check:")
+      freeDim = zp[0]
+      sumDim = zp[1]
+      sumChar = self.indexChars[sumDim]
+      loopIdx = problemType["IndicesSummation"].index(sumDim)
+      # TODO - fix for GSU, need LOCAL_DEPTHU*GSUp
+      imod.header.addInst("s_mul_i32", sgpr(zpTmp), sgpr("LoopCounters+%u"%loopIdx), "DepthU", "compute elementCounter%s, step1"%(sumChar))
+      imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), sgpr(zpTmp), "compute elementCounter%s, step2"%(sumChar))
+      imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.stride(tc,freeDim), sgpr(zpTmp), "scale by stride")
+      imod.header.addInst("s_lshl_b32", sgpr(zpTmp), sgpr(zpTmp), log2(self.bpeAB), "scale by bpe")
+
+
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
       imod.header.addText(self.comment1("before DirectToLds load, ensure prior ds_reads have finished"))
@@ -5448,6 +5481,27 @@ class KernelWriterAssembly(KernelWriter):
                 offsetVgpr= "GlobalReadOffset%s+0"%(tc)
                 soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
 
+              for i, zp in enumerate(problemType["ZeroPad%s"%tc]):
+                zpTmp = tmpSgpr + i + 1
+                sumDim = zp[1]
+                sumChar = self.indexChars[sumDim]
+                freeDimChar = self.indexChars[zp[0]]
+                if soffset != "0":
+                  print("Warning, soffset=", soffset, "not really supported.")
+                #assert (soffset==0) # need to add any offset here
+                addrV = self.vgprPool.checkOut(1)
+                loadModule.addInst("_v_add_u32", vgpr(addrV), vgpr(offsetVgpr), sgpr(zpTmp), "GRO += scaled elements")
+                loadModule.addInst("v_cmp_ge_u32", "vcc", vgpr(addrV), sgpr("ElementEdge%s%s"%(tc,sumChar)), "is in the trailing pad region?")
+
+                # leadingEdge = ZeroPad_Leading ) *bpe
+                #loadModule.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), log2(self.bpeAB), "scale by bpe")
+                #loadModule.addInst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(addrV), sgpr(tmpSgpr), "is in the leading pad region?")
+                #loadModule.addInst("s_or_b64", "vcc", "vcc", sgpr(tmpSgpr,2), "combine leading / trailing pad into vcc")
+                loadModule.addInst("v_cndmask_b32", vgpr(addrV), vgpr(offsetVgpr), -1, "vcc", "Set addresses in pad to large OOB value")
+                #loadModule.addText(self.bomb())
+                assert (i==0) # need to and/combine multiple compares here
+                offsetVgpr = addrV # replace offsetvgpr
+
               if kernel["DirectToLds%s"%tc]:
 
                 # Get offset (for checking, see comment below) and comment:
@@ -5501,6 +5555,10 @@ class KernelWriterAssembly(KernelWriter):
       imod.footer.addInst("s_mov_b32", "m0", \
           hex(kernel["LdsNumElements"] * tP["bpe"]), \
           "Restore LDS clamp at %u bytes"%(kernel["LdsNumElements"] * tP["bpe"]))
+
+    if problemType["ZeroPad%s"%tc]:
+      self.vgprPool.checkIn(addrV)
+
 
     return imod
 

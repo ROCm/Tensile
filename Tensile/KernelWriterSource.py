@@ -1990,12 +1990,12 @@ class KernelWriterSource(KernelWriter):
               if guarded:
                 kStr += " || "
               guarded = 1
-              loopDim = zp[1]
-              loopChar = self.indexChars[loopDim]
+              sumDim = zp[1]
+              sumChar = self.indexChars[sumDim]
               globalReadOffset = "globalReadOffset%s_%u_%u_%u_%u + %u" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0);
               kStr += "( (elementCounter%s * stride%s%s + %s) >= elementEdge%s%s )" \
-                      % (loopChar, tc, loopChar, globalReadOffset, tc, loopChar)
+                      % (sumChar, tc, sumChar, globalReadOffset, tc, sumChar)
 
             # guard around edge
             if kernel["EdgeType"] == "Branch":
