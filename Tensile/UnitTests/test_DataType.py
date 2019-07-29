@@ -97,8 +97,8 @@ def test_complexSingle():
     assert obj.toName() == 'complexSingle'
     assert obj.toEnum() == 'ComplexFloat'
     assert obj.toOpenCL() == 'float2'
-    assert obj.toHIP() == 'float2'
-    assert obj.toDevice("") == 'float2'
+    assert obj.toHIP() == 'TensileComplexFloat'
+    assert obj.toDevice("") == 'TensileComplexFloat'
     assert obj.toCpp() == 'TensileComplexFloat'
     assert obj.getLibString() == 'tensileDataTypeComplexFloat'
     assert obj.numBytes() == 8
@@ -110,8 +110,8 @@ def test_complexDouble():
     assert obj.toName() == 'complexDouble'
     assert obj.toEnum() == 'ComplexDouble'
     assert obj.toOpenCL() == 'double2'
-    assert obj.toHIP() == 'double2'
-    assert obj.toDevice("") == 'double2'
+    assert obj.toHIP() == 'TensileComplexDouble'
+    assert obj.toDevice("") == 'TensileComplexDouble'
     assert obj.toCpp() == 'TensileComplexDouble'
     assert obj.getLibString() == 'tensileDataTypeComplexDouble'
     assert obj.numBytes() == 16
