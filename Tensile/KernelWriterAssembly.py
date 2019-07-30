@@ -5499,9 +5499,10 @@ class KernelWriterAssembly(KernelWriter):
                 loadModule.addInst("v_cmp_ge_u32", "vcc", vgpr(addrV), sgpr("ElementEdge%s%s"%(tc,sumChar)), "is in the trailing pad region?")
 
                 # leadingEdge = ZeroPad_Leading ) *bpe
-                #loadModule.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), log2(self.bpeAB), "scale by bpe")
-                #loadModule.addInst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(addrV), sgpr(tmpSgpr), "is in the leading pad region?")
-                #loadModule.addInst("s_or_b64", "vcc", "vcc", sgpr(tmpSgpr,2), "combine leading / trailing pad into vcc")
+                loadModule.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), log2(self.bpeAB), "scale by bpe")
+                loadModule.addInst("v_cmp_le_u32", sgpr(tmpSgpr,2), vgpr(addrV), sgpr(tmpSgpr), "is in the leading pad region?")
+                loadModule.addInst("s_or_b64", "vcc", "vcc", sgpr(tmpSgpr,2), "combine leading / trailing pad into vcc")
+
                 loadModule.addInst("v_cndmask_b32", vgpr(addrV), vgpr(offsetVgpr), -1, "vcc", "Set addresses in pad to large OOB value")
                 #loadModule.addText(self.bomb())
                 assert (i==0) # need to and/combine multiple compares here
