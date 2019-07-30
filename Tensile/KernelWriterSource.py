@@ -457,7 +457,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "}%s" % (self.endLine)
         """
         kStr += self.endLine
-        kStr += "template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>%s" % (self.endLine)
+        kStr += "template <typename T>%s" % (self.endLine)
         kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
             % (self.volatileStr, self.globalPtrStr, self.endLine)
         kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
@@ -575,39 +575,46 @@ class KernelWriterSource(KernelWriter):
           "  DST.s0 = MAC(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = MAC(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = MAC( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel["ProblemType"]["UseBeta"]:
-        # dst = alpha*reg + beta*dst
-        kStr += (
-          "#define TYPE_MAC_WRITE( DST, SRC, ALPHA, REG, BETA ) "+self.endLinePP +
-          "  /* (1) */ " + self.endLinePP +
-          "  type_mac_tmp = REG.s0; " + self.endLinePP +
-          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
-          "  /* (2) */ " + self.endLinePP +
-          "  if(BETA.s0 != 0) { " + self.endLinePP +
-          "  REG.s0 = MAC(  BETA.s0, SRC.s0, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s0, SRC.s1, REG.s1 ); " + self.endLinePP +
-          "  } " + self.endLinePP +
-          "  if (BETA.s1 != 0) { " + self.endLinePP +
-          "  REG.s0 = MAC( -BETA.s1, SRC.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s1, SRC.s0, REG.s1 ); " + self.endLinePP +
-          "  } " + self.endLinePP +
-          "  /* (3) */ " + self.endLinePP +
-          "  DST = REG;" + self.endLine )
+
+      if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
+        if kernel["ProblemType"]["UseBeta"]:
+          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
+        else:
+          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
       else:
-        # dst = alpha*reg
-        kStr += (
-          "#define TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
-          "  /* (1) */ " + self.endLinePP +
-          "  type_mac_tmp = REG.s0; " + self.endLinePP +
-          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
-          "  /* (3) */ " + self.endLinePP +
-          "  DST = REG;" + self.endLine )
+        if kernel["ProblemType"]["UseBeta"]:
+          # dst = alpha*reg + beta*dst
+          kStr += (
+            "#define TYPE_MAC_WRITE( DST, SRC, ALPHA, REG, BETA ) "+self.endLinePP +
+            "  /* (1) */ " + self.endLinePP +
+            "  type_mac_tmp = REG.s0; " + self.endLinePP +
+            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
+            "  /* (2) */ " + self.endLinePP +
+            "  if(BETA.s0 != 0) { " + self.endLinePP +
+            "  REG.s0 = MAC(  BETA.s0, SRC.s0, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = MAC(  BETA.s0, SRC.s1, REG.s1 ); " + self.endLinePP +
+            "  } " + self.endLinePP +
+            "  if (BETA.s1 != 0) { " + self.endLinePP +
+            "  REG.s0 = MAC( -BETA.s1, SRC.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = MAC(  BETA.s1, SRC.s0, REG.s1 ); " + self.endLinePP +
+            "  } " + self.endLinePP +
+            "  /* (3) */ " + self.endLinePP +
+            "  DST = REG;" + self.endLine )
+        else:
+          # dst = alpha*reg
+          kStr += (
+            "#define TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
+            "  /* (1) */ " + self.endLinePP +
+            "  type_mac_tmp = REG.s0; " + self.endLinePP +
+            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
+            "  /* (3) */ " + self.endLinePP +
+            "  DST = REG;" + self.endLine )
 
     ####################################
     # sumation unroll
@@ -874,10 +881,6 @@ class KernelWriterSource(KernelWriter):
         and kernel["VectorWidth"] > 1 \
         and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch"):
       kStr += "#define SCALAR_ZERO 0%s" % self.endLine
-    elif kernel["ProblemType"]["DataType"].isComplex():
-      kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
-      kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
-      kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
     elif kernel["ProblemType"]["DestDataType"].isBFloat16():
       kStr += "#define SCALAR_ZERO 0.0f%s" % self.endLine
     else:
@@ -1525,6 +1528,12 @@ class KernelWriterSource(KernelWriter):
   # openShadowInit
   ##############################################################################
   def openShadowInit(self, kernel):
+    return ""
+
+  ##############################################################################
+  # closeShadowInit
+  ##############################################################################
+  def closeShadowInit(self, kernel):
     return ""
 
   ##############################################################################
@@ -2886,14 +2895,9 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # zero
-    if kernel["ProblemType"]["DataType"].isComplex():
-      kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
-      kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
-      kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
-    else:
-      kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
-         "DataType"].zeroString(self.language, 1), \
-         self.endLine )
+    kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
+        "DataType"].zeroString(self.language, 1), \
+        self.endLine )
 
     ########################################
     # zero
@@ -2917,7 +2921,6 @@ class KernelWriterSource(KernelWriter):
     kStr += "}%s" % self.endLine
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
-    if kernel["ProblemType"]["DataType"].isReal():
-      kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
-      kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
+    kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
+    kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
     return kStr

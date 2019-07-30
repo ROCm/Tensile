@@ -530,13 +530,21 @@ class KernelWriterAssembly(KernelWriter):
   # return label name including a unique number
   # create new if it doesn't already exist
   ########################################
-  def getLabelName(self, name):
+  def getNamedLabel(self, name):
     if name not in self.labels:
       self.labels[name] = "%s_%u" % (name, len(self.labels))
     return self.labels[name]
 
   ########################################
-  # labelDef is a comment string if this is a label definition
+  # return string that defines a unique named name_number
+  ########################################
+  def getNamedLabelDef(self, name, labelComment=""):
+    t = "%s: // %s\n" % (self.getNamedLabel(name), labelComment)
+    return t
+
+  ########################################
+  # return string that defines a unique numeric label
+  # labelComment is a comment string if this is a label definition
   ##############################################################################
   def getLabelDef(self,name,labelComment=""):
     t = "label_%04u: // %s %s\n" % (self.getLabelNum(name), name, labelComment)
@@ -4094,10 +4102,35 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # openShadowInit
+  # Label after prefetches are launched.  This is present even if ShadowInit not
+  # used.
   ##############################################################################
   def openShadowInit(self, kernel):
     kStr = ""
-    kStr += self.getLabelDef("ShadowInitStart")
+    kStr += self.getNamedLabelDef("ShadowInitStart")
+    return kStr
+
+  ##############################################################################
+  # closeShadowInit
+  # Label after prefetches are launched.  This is present even if ShadowInit not
+  # used.
+  ##############################################################################
+  def closeShadowInit(self, kernel):
+    kStr = ""
+    assert(self.doShadowInit and kernel["PrefetchGlobalRead"])
+
+    kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+        hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+    if kernel["SuppressNoLoadLoop"]:
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+      lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
+    else:
+      lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
+    kStr += inst("s_cbranch_scc1 label_%04u"\
+          % lastIterEnd, \
+          "after InitC, skip to end of prefetch last iter b/c numIter==0")
+
     return kStr
 
 
@@ -4126,21 +4159,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "save for store code")
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
 
-
-    if kernel["PrefetchGlobalRead"]:
-      #if kernel["PrefetchGlobalRead"]:
-        # May need to jump to tail after initialization.
-      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
-          hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
-      if kernel["SuppressNoLoadLoop"]:
-        loopChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
-        lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
-      else:
-        lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
-      kStr += inst("s_cbranch_scc1 label_%04u"\
-            % lastIterEnd, \
-            "after InitC, skip to end of prefetch last iter b/c numIter==0")
     return kStr
 
 
@@ -4400,7 +4418,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if not tailLoop:
-      kStr += "%s:\n" % self.getLabelName("openLoop%s"%loopChar)
+      kStr += "%s:\n" % self.getNamedLabel("openLoop%s"%loopChar)
     loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
     loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
 
@@ -4420,12 +4438,13 @@ class KernelWriterAssembly(KernelWriter):
     else:
       endCounter =  0
 
-    kStr += inst("s_cmp_ge_i32", \
-        sgpr(loopCounter), \
-        hex(endCounter), \
-        "LoopCounter%s < EndCounter"%(loopChar) )
-    kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
-        "don't enter Loop%s"%loopChar )
+    if tailLoop or loopIdx == self.unrollIdx:
+      kStr += inst("s_cmp_ge_i32", \
+          sgpr(loopCounter), \
+          hex(endCounter), \
+          "LoopCounter%s < EndCounter"%(loopChar) )
+      kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
+          "don't enter Loop%s"%loopChar )
 
     if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
       kStr += inst("","compare if odd-iter return")
@@ -4471,6 +4490,12 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(numIter)
       #kStr += dump(vgpr(sgId))
 
+    if not tailLoop and loopIdx != self.unrollIdx:
+      # reset LRO since these may have changed due to odd-iter exit ?
+      if kernel["PrefetchGlobalRead"]:
+        kStr += self.localReadResetOffsets(kernel, self.tPA)
+        kStr += self.localReadResetOffsets(kernel, self.tPB)
+
     return kStr
 
 
@@ -4498,7 +4523,7 @@ class KernelWriterAssembly(KernelWriter):
         unrollInc = kernel["InnerUnroll"]
       else:
         unrollInc = 1
-      kStr += self.comment("closeLoop loopIdx=%d finalLoop=%d tailLoop=%d" % (loopIdx, finalLoop, tailLoop))
+      kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
       kStr += inst("s_add_u32", \
           sgpr(loopCounter), \
@@ -4522,7 +4547,7 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
       loopCounter = "LoopCounters+%u"%loopIdx
       unrollInc = 1
-      kStr += self.comment("closeLoop loopIdx=%d finalLoop=%d tailLoop=%d" % (loopIdx, finalLoop, tailLoop))
+      kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
       kStr += inst("s_add_u32", \
           sgpr("LoopCounters+%u"%loopIdx), \
@@ -4536,8 +4561,9 @@ class KernelWriterAssembly(KernelWriter):
       # One technique is to create a copy of the unroll loop with all loads removed.
       # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
       # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
-      # increments appropriately
-      if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
+      # increments appropriately.
+      # Also sum idx other than unroll always compare against 0 (there is no PGR to account for)
+      if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
         endCounter = -1
       else:
         endCounter = 0
@@ -4564,7 +4590,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_mov_b32", sgpr(stmp), inc, "tailloop lds offset")
             kStr += inst("s_mul_i32", sgpr(stmp), sgpr("OrigLoopCounter"), sgpr(stmp), "scale by mul")
             kStr += inst("v_sub_u32", vgpr("LocalReadAddr%s"%tc), vgpr("LocalReadAddr%s"%tc), sgpr(stmp), "remove lro damage")
-      else : # not tailLoop:
+      elif loopIdx == self.unrollIdx:
         oddIterCode = Code.Module()
         if not kernel["SuppressNoLoadLoop"] and kernel["ExpandPointerSwap"]:
           # In this case we kept the 'no-load' loop which has LDS offsets assuming first bank of LDS
@@ -4602,7 +4628,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self, kernel):
     kStr = ""
 
-    kStr += "%s:\n" % self.getLabelName("Summation_End")
+    kStr += "%s:\n" % self.getNamedLabel("Summation_End")
 
     kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
             (self.startVgprValuA, self.lastVgprForReads))
@@ -4729,15 +4755,22 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       if not isPap:
-        kStr += inst("s_cbranch_scc1 label_%04u"\
-            % self.getLabelNum("ShadowInitStart"), \
-            "skip to ShadowInitStart iter b/c numIter==0")
+        if self.doShadowInit:
+          kStr += inst("s_cbranch_scc1 %s"\
+              % self.getNamedLabel("ShadowInitStart"), \
+              "skip to ShadowInitStart iter b/c numIter==0")
+        else:
+          loopChar = self.indexChars[ \
+              kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+          labelName = "label_%04d" % self.getLabelNum("LoopEnd%s"%loopChar)
+          kStr += inst("s_cbranch_scc1 %s" % labelName,
+              "skip to unrollLoop end loop%s iter b/c numIter==0" % loopChar)
       else:
         kStr += inst("s_cbranch_scc1 label_%04u"\
             % self.getLabelNum("SkipPrefetchAcrossPersistent"), \
             "skip prefetch loads since numIter==0")
     elif isOptNLL:
-      skipOptNLL = self.getLabelName("OptNLL_End")
+      skipOptNLL = self.getNamedLabel("OptNLL_End")
       tmpSgpr = self.getTmpSgpr(2)
 
       kStr += self.checkIsBetaZero(kernel, tmpSgpr, skipOptNLL)
@@ -4817,7 +4850,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if not prefetch:
       if isOptNLL:
-        summationEnd = self.getLabelName("Summation_End")
+        summationEnd = self.getNamedLabel("Summation_End")
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
@@ -4846,7 +4879,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += str(self.functionEnd(kernel, False))
         #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
 
-        label = self.getLabelName("OptNLL_End")
+        label = self.getNamedLabel("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
       else:
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
@@ -5669,11 +5702,12 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(tmpLocalWriteAddr)
 
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
-    if 0 and tP["isB"]:
+    if 0 and tP["isB"]: # post-lds-write
     #if 0 and self.localWriteDoCnt >= 0:
       localWriteCode.addInst( "s_waitcnt lgkmcnt(0) & vmcnt(0)", "")
       localWriteCode.addInst("s_barrier", "dump LDS" )
-      localWriteCode.addText(self.bomb())
+      localWriteCode.addText(self.assert_eq(sgpr("LoopCounters+0"), 1))
+      #localWriteCode.addText(self.bomb())
 
     return imod
 
@@ -5702,6 +5736,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Reset Offsets A/B
   # x % n == n & (n-1) for n power of 2
   # tP[localReadOffset] maintains running count of offsets
+  # This is called from the tail loop to reset read offsets?
   ##############################################################################
   def localReadResetOffsets(self, kernel, tP):
     tc=tP["tensorChar"]
@@ -7020,7 +7055,7 @@ class KernelWriterAssembly(KernelWriter):
         writeLabels[beta]["EdgeCheck1"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
         writeLabels[beta][edge] = self.getLabelNum("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
       if not beta:
-        betaLabel = self.getLabelName("GW_Beta")
+        betaLabel = self.getNamedLabel("GW_Beta")
     endLabel = self.getLabelNum("GW_End")
 
     # Layout
@@ -7078,7 +7113,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(6)
 
     # branch B1 or B0
-    betaLabel = self.getLabelName("GW_Beta")
+    betaLabel = self.getNamedLabel("GW_Beta")
     kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
 
     for beta in betas:
@@ -8642,6 +8677,22 @@ class KernelWriterAssembly(KernelWriter):
           "assert: restore execmask")
 
     return kStr
+
+  def assert_s_eq(self, sval0, sval1, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+          "assert: saved execmask")
+
+      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
+      kStr += inst("s_cmp_eq_u32", sval0, sval1, "cmp")
+      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "No assert if SCC=1")
+
+      kStr += self.assertCommon(cookie)
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+      return kStr
 
 
   def assert_scc_is_1(self, cookie=-1):
