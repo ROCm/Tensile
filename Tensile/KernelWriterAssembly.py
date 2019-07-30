@@ -4491,15 +4491,20 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
                   self.stride('A', sumDim), "elementEdgeAK")
         inc = 1 - self.srdShiftLeft[tc]
-        kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
-                      sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
-                      inc, "")
-        #v1 = tmpSgpr + 1
-        kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
-                  sgpr(tmpSgpr+1), \
-                  self.stride('A', freeDim), "scale")
+        if inc:
+          kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
+                        sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
+                        inc, "")
+          if not self.stride('A', freeDim).startswith("const"):
+            kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
+                      sgpr(tmpSgpr+1), \
+                      self.stride('A', freeDim), "scale")
+          v1 = tmpSgpr + 1
+        else:
+          # bypass meaningless calcs
+          v1 = "ZeroPad%s%s_Trailing"%(tc, freeDimChar)
         kStr += inst("s_sub_u32", sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
-                  sgpr(tmpSgpr), sgpr(tmpSgpr+1), "elementEdge = strideU*(sizeU+sizeFree) - strideFree*(Trailing+1)")
+                  sgpr(tmpSgpr), sgpr(v1), "elementEdge = strideU*(sizeU+sizeFree) - strideFree*(Trailing+1)")
         kStr += inst("s_lshl_b32", \
                   sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
                   sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
