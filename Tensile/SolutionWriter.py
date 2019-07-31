@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .SolutionStructs import Solution
+from .SolutionStructs import Solution, isPackedIndex
 from .KernelWriterSource import KernelWriterSource
 from .Common import globalParameters
 
@@ -237,7 +237,8 @@ class SolutionWriter:
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
     for i in range(0, problemType["NumIndicesC"]):
-      if i != problemType["Index0"] and i != problemType["Index1"]:
+      if i != problemType["Index0"] and i != problemType["Index1"] \
+          and not isPackedIndex(solution,i):
         s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
     s += "%sunsigned int sizeOfC0 = " % (t)
