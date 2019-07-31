@@ -90,7 +90,8 @@ class KernelWriterSource(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = "  "
-    self.useMagicNumber = True
+    # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
+    self.useMagicNumber = False
     self.db={}
     self.db["PrintStagger"] = 0
 
@@ -2494,29 +2495,27 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index0 and Index1:
     index0 = kernel["ProblemType"]["Index0"]
-    kStr += "  unsigned int globalC%s = " % self.indexChars[index0]
+    kStr += "  unsigned int flattenedGlobalC0 = "
     kStr += "(wg%s)*MT%s + (serial %% SG%s)*VECTOR_WIDTH;%s" \
             % (self.indexChars[index0], self.tileChar0, self.tileChar0, self.endLine)
-    # Save original flattened C0 before extracting batch components:
-    kStr += "  unsigned int flattenedGlobalC0 = globalC%s;%s" \
-        % (self.indexChars[index0], self.endLine)
 
     index1 = kernel["ProblemType"]["Index1"]
-    kStr += "  unsigned int globalC%s = " % self.indexChars[index1]
+    kStr += "  unsigned int flattenedGlobalC1 = "
     kStr += "(wg%s)*MT%s + (serial / SG%s)*VECTOR_WIDTH;%s" \
             % (self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
-    # Save original flattened C0 before extracting batch components:
-    kStr += "  unsigned int flattenedGlobalC1 = globalC%s;%s" \
-        % (self.indexChars[index1], self.endLine)
 
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      if i != index0 and i != index1:
         kStr += "  unsigned int globalC%s = " % self.indexChars[i]
-        if isPackedIndex(kernel,i):
-          kStr += "0; // define, will be set below%s" % (self.endLine)
+        if i == index0 and len(kernel["PackedC0Indices"])==1:
+          kStr += "flattenedGlobalC0;"
+        elif i == index1 and len(kernel["PackedC1Indices"])==1:
+          kStr += "flattenedGlobalC1;"
+        elif isPackedIndex(kernel,i):
+          kStr += "0; // will be set below"
         else:
           #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
-          kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
+          kStr += "(wg%s);" % (self.indexChars[i])
+        kStr += "%s" % self.endLine
 
     return kStr
 
