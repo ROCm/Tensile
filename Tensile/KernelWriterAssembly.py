@@ -5235,6 +5235,7 @@ class KernelWriterAssembly(KernelWriter):
   def globalReadGuardK(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
+    problemType = self.kernel["ProblemType"]
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth
@@ -5298,6 +5299,8 @@ class KernelWriterAssembly(KernelWriter):
 
     directToLdsLoads = 0
 
+    if problemType["ZeroPad%s"%tc]:
+      addrV = self.vgprPool.checkOut(1)
     loopCnt = -1
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
@@ -5342,6 +5345,12 @@ class KernelWriterAssembly(KernelWriter):
                 else:
                   offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
                   soffset = "0"
+
+                if problemType["ZeroPad%s"%tc]:
+                  codeMod = Code.Module("guardZeroPad%u"%loopCnt)
+                  offsetVgpr = self.addZeroPadGuard(kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV)
+                  kStr += str(codeMod)
+
 
                 if kernel["DirectToLds%s"%tc]:
                   if directToLdsLoads != 0:
@@ -5423,6 +5432,9 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"]:
       # Move SRD forward to next K element:
       kStr += self.incrementSrd(kernel, tP, tP["bpe"], 0, checkShadowLimitCopy=True)
+
+    if problemType["ZeroPad%s"%tc]:
+      self.vgprPool.checkIn(addrV)
 
     # TODO - can remove one of these m0 restores if A and B both TLU
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -5580,9 +5592,9 @@ class KernelWriterAssembly(KernelWriter):
                 soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
 
               if problemType["ZeroPad%s"%tc]:
-                mod = Code.Module("guardZeroPad%u"%loopCnt)
-                offsetVgpr = self.addZeroPadGuard(kernel, tP, mod, offsetVgpr, soffset, tmpSgpr, addrV)
-                loadModule.addCode(mod)
+                codeMod = Code.Module("guardZeroPad%u"%loopCnt)
+                offsetVgpr = self.addZeroPadGuard(kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV)
+                loadModule.addCode(codeMod)
 
               if kernel["DirectToLds%s"%tc]:
 
