@@ -4514,7 +4514,7 @@ class KernelWriterAssembly(KernelWriter):
                   self.stride('A', sumDim), "elementEdgeAK")
         # srdShiftLeft is included in GRO so need to add this to edge.
         # Do this after the scale is applied.
-        kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
+        kStr += inst("s_add_u32", sgpr(tmpSgpr), \
                   sgpr(tmpSgpr), \
                   self.srdShiftLeft[tc], "")
 
