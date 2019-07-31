@@ -27,7 +27,6 @@ from subprocess import Popen, PIPE
 import itertools
 import math
 import os.path
-import platform
 import subprocess
 import sys
 import time
