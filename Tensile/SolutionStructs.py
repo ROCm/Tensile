@@ -1034,21 +1034,28 @@ class Solution:
     # grid size [0,1]
     problemType = state["ProblemType"]
     state["PackedC0Indices"] = []
+    state["PackedC0IndicesX"] = []
     indexChars = globalParameters["IndexChars"]
     # Pack all the dimensions (batch and free) of A into grid[0]
+    assert(isPackedIndex(state, problemType["Index0"], 0x1))
+    assert(isPackedIndex(state, problemType["Index1"], 0x2))
+
     for idx in problemType["IndexAssignmentsA"]:
       if idx < problemType["NumIndicesC"] and \
           (isPackedIndex(state, idx, 0x1) or \
            idx == problemType["Index0"]):
         state["PackedC0Indices"].append("%s" % indexChars[idx])
+        state["PackedC0IndicesX"].append(idx)
 
     state["PackedC1Indices"] = []
+    state["PackedC1IndicesX"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
       if idx < problemType["NumIndicesC"] and \
           (isPackedIndex(state, idx, 0x2) or \
            idx == problemType["Index1"]):
         state["PackedC1Indices"].append("%s" % indexChars[idx])
+        state["PackedC1IndicesX"].append(idx)
 
     # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
     # (since this could result in non-contiguous addresses)

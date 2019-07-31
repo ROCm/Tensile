@@ -1193,54 +1193,51 @@ class KernelWriterSource(KernelWriter):
     tc = tP["tensorChar"]
     for l in range(0, tP["nrt"]):
       for s in range(0, 1 if tP["rc"] else tP["nrtv"]):
-        firstGro = gro = "globalReadOffset%s%s_%u_%u" % (tc, tP["tileChar"], l, s)
+        flattenedOffset = "flattenedOffset%s_%u_%u"%(tc,l,s)
+        gro = "globalReadOffset%s%s_%u_%u" % (tc, tP["tileChar"], l, s)
         kStr += "  unsigned int %s = globalReadOffset%s%s + %u + %d*%s;%s" \
-            % (gro, tc, tP["tileChar"], s, l, \
+            % (flattenedOffset, tc, tP["tileChar"], s, l, \
             (tP["lsc"] if tP["tlu"] else tP["lsp"]), \
             self.endLine)
 
+        # clip to edge if the flattened offset is OOB:
+        tP["packedSizeList"] = ["size%s"%self.indexChars[idx] for idx in kernel["PackedC%dIndicesX"%tP["tensorIdx"]]]
+        sizeStr = " * ".join(tP["packedSizeList"])
+
+        kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
+            % (flattenedOffset, flattenedOffset, sizeStr, sizeStr, flattenedOffset, self.endLine)
+
         # Create additional vector address components for any packed dimensions
-        lastGro = gro
-        lastIdx = tP["tileIdx"]
-        dimXStr = ""
-        tP["packedSizeList"] = ["size%s" % self.indexChars[lastIdx]]
+        lastGro = flattenedOffset
+        firstPrintedIdx = 1
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
-          if idx < kernel["ProblemType"]["NumIndicesC"] \
-              and idx != tP["tileIdx"]:  # tile index
-            gro = None
-            if isPackedIndex(kernel,idx, tP["PackBatchDims"]):
-              gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
+          if idx < kernel["ProblemType"]["NumIndicesC"]:
+            gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
 
-            if gro != None:
-              tP["packedSizeList"].append("size%s"%self.indexChars[idx])
-
+            if firstPrintedIdx:
+              firstPrintedIdx = 0
+              kStr += "  unsigned int %s = %s;%s" % (gro, flattenedOffset, self.endLine)
+            elif isPackedIndex(kernel,idx, tP["PackBatchDims"]):
               if self.useMagicNumber:
                 c = globalParameters["IndexChars"][lastIdx]
-                dimXStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                kStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
                         % (gro, lastGro, c, c, self.endLine)
-                dimXStr += "  %s -= (%s*size%s);%s" \
+                kStr += "  %s -= (%s*size%s);%s" \
                     % (lastGro, gro, self.indexChars[lastIdx], self.endLine)
               else:
-                dimXStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
+                kStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
                         % (gro, lastGro, self.indexChars[lastIdx], self.endLine)
-                dimXStr += "  %s %%= size%s;%s" % (lastGro, self.indexChars[lastIdx], self.endLine)
-              #dimXStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
-              lastGro = gro
-              lastIdx = idx
+                kStr += "  %s %%= size%s;%s" % (lastGro, self.indexChars[lastIdx], self.endLine)
+              #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
+            lastGro = gro
+            lastIdx = idx
 
-          # Add check and then dimension extraction code, if we used any packed dims above:
-          if dimXStr != "":
-            sizeStr = " * ".join(tP["packedSizeList"])
-            if 0 and tP["isA"]:
-              kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0);%s" \
-                      % (self.endLine)
-            if 0 and tP["isB"]:
-              kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0J_0_0);%s" \
-                      % (self.endLine)
-            kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
-                % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)
-            kStr += dimXStr;
-            dimXStr = ""
+          if 0 and tP["isA"]:
+            kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0);%s" \
+                    % (self.endLine)
+          if 0 and tP["isB"]:
+            kStr += "printf(\"gro-0: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0J_0_0);%s" \
+                    % (self.endLine)
 
     if 0 and tP["isB"]:
       kStr += "printf(\"gro-1: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u globalReadOffsetB1J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0, globalReadOffsetB1J_0_0);%s" \
