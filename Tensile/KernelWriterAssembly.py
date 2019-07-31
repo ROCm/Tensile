@@ -416,7 +416,11 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValueC"]  = False
     # value expected if CheckValueC is set. Use '.' for FP.
     # For example could be 16.0 if U=8 and alpha=2
-    self.db["CheckValueCExpectedValue"] = 16.0
+    self.db["ValueCExpectedValue"] = 16.0
+
+    # Force an expected value for all C outputs.
+    # May be useful for checking store path 
+    self.db["ForceExpectedValue"]  = False
 
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
     #self.db["CheckStoreC"] = 1024.0 # possible value
@@ -1545,6 +1549,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
+    if self.db["ForceExpectedValue"] : print ("\n***WARNING: ForceExpectedValue enabled, may impact functionality\n")
     if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
@@ -4973,7 +4978,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
 
         elif kernel["ProblemType"]["DataType"].isSingle():
-            #kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
+            #kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
           kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
 
         elif kernel["ProblemType"]["DataType"].isDouble():
@@ -7793,8 +7798,10 @@ class KernelWriterAssembly(KernelWriter):
 
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
+          if self.db["ForceExpectedValue"]:
+            kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), self.db["ValueCExpectedValue"], "force expected value" )
           if self.db["CheckValueC"]:
-            kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckValueCExpectedValue"], "Move expected value")
+            kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
             kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
 
         elif kernel["ProblemType"]["DataType"].isDouble():
