@@ -30,12 +30,13 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
-          #- LoopTail: [False] # FIXME, note no loop tail
+        - LoopTail: [False]
       ForkParameters:
         #- KernelLanguage: ["Source"]
         - KernelLanguage: ["Source", "Assembly"]
-        - PrefetchGlobalRead: [0]
-        - PrefetchLocalRead: [0]
+        - PrefetchGlobalRead: [1]
+        - ExpandPointerSwap: [0]
+        - PrefetchLocalRead: [1]
         - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
@@ -50,11 +51,14 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact : [32, 32, 1, 4] # one unroll iter
+          #- Exact : [32, 32, 1, 4] # one unroll iter
           #- Exact : [32, 32, 2, 6] # simplest tail lo9op case
-          - Exact : [32, 32, 1, 8] # 2 unroll iters
-          - Exact : [32, 32, 1, 12]  # 3 unroll iters
-          - Exact : [32, 32, 2, 4]
-          - Exact : [32, 32, 2, 8]
-          - Range: [ [32], [32], [1,1,8], [64] ] # vary higher sum dimension
+          # - Exact : [32, 32, 1, 8] # 2 unroll iters
+            #- Exact : [32, 32, 1, 12]  # 3 unroll iters
+            #- Exact : [32, 32, 2, 4]
+            - Exact : [32, 32, 1, 8]
+            - Exact : [32, 32, 2, 8]
+            - Exact : [32, 32, 3, 8]
+            - Exact : [32, 32, 4, 8]
+            #- Range: [ [32], [32], [1,1,8], [64] ] # vary higher sum dimension
             #- Range: [ [32], [32], [8], [1,1,12] ] # vary unroll including hit tail loop in some cases.
