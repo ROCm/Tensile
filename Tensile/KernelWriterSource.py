@@ -2318,46 +2318,47 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # extractGlobalCDims: Extract the packed dims from mask(s)
   #
-  # indexMask:
-  #   - 0x1: add index0 extraction, if index0 has packed dims
-  #   - 0x2: add index1 extraction, if index1 has packed dims
+  # tensorIdx:
   ##############################################################################
-  def extractGlobalCDims(self, kernel, base, indexMask):
+  def extractGlobalCDims(self, kernel, base, tensorIdx):
     kStr = ""
     problemType = kernel["ProblemType"]
-    index0 = kernel["ProblemType"]["Index0"]
-    index1 = kernel["ProblemType"]["Index1"]
     lastIndex = None
-    if indexMask & 0x1:
+    if tensorIdx == 0:
       flattenedGlobalC = "flattenedGlobalC0"
-      lastIndex = index0
       targetIndices = problemType["IndexAssignmentsA"]
-    if indexMask & 0x2:
+    elif tensorIdx == 1:
       flattenedGlobalC = "flattenedGlobalC1"
-      lastIndex = index1
       targetIndices = problemType["IndexAssignmentsB"]
 
-    if lastIndex != None:
-      if base != "":
-        kStr += "  globalC%s = %s + %s;%s" \
-            % (self.indexChars[lastIndex], flattenedGlobalC, base, self.endLine)
+    first = 1
+    for idx in kernel["PackedC%sIndicesX"%tensorIdx]:
+      kStr += "  globalC%s = " % (self.indexChars[idx])
 
-        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-          if i != index0 and i != index1 and i in targetIndices and isPackedIndex(kernel,i,indexMask):
-            #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
-            kStr += "  globalC%s = " % (self.indexChars[i])
-            if self.useMagicNumber:
-              c = globalParameters["IndexChars"][lastIndex]
-              kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
-                      % (self.indexChars[lastIndex], c, c, self.endLine)
-              kStr += "  globalC%s -= (globalC%s*size%s);%s" \
-                      % (self.indexChars[lastIndex], self.indexChars[i], \
-                         self.indexChars[lastIndex], self.endLine)
-            else:
-              kStr += "(globalC%s) / size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
-              kStr += "  globalC%s %%= size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
-            lastIndex = i
-            #kStr += "printf(\"post: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalCK=%%u\\n\", serial, wg0I, wg1J, globalC0I, globalCK);%s" % (self.endLine)
+      if first:
+        # first print just copies flattenedGlobalC1 - no div / mod
+        first = 0
+        kStr += "  %s" % (flattenedGlobalC)
+        if base:
+          kStr += " + %s" % base
+        kStr += ";" + self.endLine
+      else:
+        # later iterations extract dimension from previous using mod, 
+        # then div to remove the extracted bits for next iteration
+        #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
+        if self.useMagicNumber:
+          c = globalParameters["IndexChars"][lastIndex]
+          kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                  % (self.indexChars[lastIndex], c, c, self.endLine)
+          kStr += "  globalC%s -= (globalC%s*size%s);%s" \
+                  % (self.indexChars[lastIndex], self.indexChars[idx], \
+                     self.indexChars[lastIndex], self.endLine)
+        else:
+          kStr += "(globalC%s) / size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
+          kStr += "  globalC%s %%= size%s;%s" % (self.indexChars[lastIndex], self.indexChars[lastIndex], self.endLine)
+
+      lastIndex = idx
+      #kStr += "printf(\"post: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalCK=%%u\\n\", serial, wg0I, wg1J, globalC0I, globalCK);%s" % (self.endLine)
 
     return kStr
 
@@ -2426,11 +2427,11 @@ class KernelWriterSource(KernelWriter):
             kStr += self.endLine
           if addTensorDimCheck0:
             kStr += "  /* new 0 offset - inc and extract tensor dims */%s" % (self.endLine)
-            kStr += self.extractGlobalCDims(kernel, base0, 0x1)
+            kStr += self.extractGlobalCDims(kernel, base0, 0)
             addTensorDimCheck0 = 0
           if addTensorDimCheck1:
             kStr += "  /* new 1 offset - inc and extract tensor dims */%s" % (self.endLine)
-            kStr += self.extractGlobalCDims(kernel, base1, 0x2)
+            kStr += self.extractGlobalCDims(kernel, base1, 1)
             addTensorDimCheck1 = 0
 
           ### Bounds checks:
@@ -2555,11 +2556,11 @@ class KernelWriterSource(KernelWriter):
                 kStr += self.endLine
               if addTensorDimCheck0:
                 kStr += "  /* new vw0 offset - inc and extract tensor dims */%s" % (self.endLine)
-                kStr += self.extractGlobalCDims(kernel, base0, 0x1)
+                kStr += self.extractGlobalCDims(kernel, base0, 0)
                 addTensorDimCheck0 = 0
               if addTensorDimCheck1:
                 kStr += "  /* new vw1 offset - inc and extract tensor dims */%s" % (self.endLine)
-                kStr += self.extractGlobalCDims(kernel, base1, 0x2)
+                kStr += self.extractGlobalCDims(kernel, base1, 1)
                 addTensorDimCheck1 = 0
 
               ### Bounds checks:

@@ -1031,6 +1031,8 @@ class Solution:
     state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
 
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # The order in PackedC*Indices also determines the order that dimensions are packed - the first elements in
+    # the list are the fastest-moving elements.
     # grid size [0,1]
     problemType = state["ProblemType"]
     state["PackedC0Indices"] = []
@@ -1041,9 +1043,8 @@ class Solution:
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
     for idx in problemType["IndexAssignmentsA"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x1) or \
-           idx == problemType["Index0"]):
+      if isPackedIndex(state, idx, 0x1):
+        assert (idx < problemType["NumIndicesC"])
         state["PackedC0Indices"].append("%s" % indexChars[idx])
         state["PackedC0IndicesX"].append(idx)
 
@@ -1051,9 +1052,8 @@ class Solution:
     state["PackedC1IndicesX"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x2) or \
-           idx == problemType["Index1"]):
+      if isPackedIndex(state, idx, 0x2):
+        assert (idx < problemType["NumIndicesC"])
         state["PackedC1Indices"].append("%s" % indexChars[idx])
         state["PackedC1IndicesX"].append(idx)
 
