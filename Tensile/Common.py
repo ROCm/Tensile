@@ -825,6 +825,9 @@ defaultProblemType = {
     # - Caveats:
     #  - CPU reference model does not yet support zero-padding
     #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
+    #  - ZeroPad requires that the ElementEdge <= 2^32:
+    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32 
+    #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
 
     #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
     # Note nesting of brackets ; the parm can contain multiple padding tuples.
