@@ -1035,7 +1035,7 @@ class Solution:
     # the list are the fastest-moving elements.
     # grid size [0,1]
     problemType = state["ProblemType"]
-    state["PackedC0Indices"] = []
+    state["PackedC0IdxChars"] = []
     state["PackedC0IndicesX"] = []
     indexChars = globalParameters["IndexChars"]
     # Pack all the dimensions (batch and free) of A into grid[0]
@@ -1045,16 +1045,16 @@ class Solution:
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
         assert (idx < problemType["NumIndicesC"])
-        state["PackedC0Indices"].append("%s" % indexChars[idx])
+        state["PackedC0IdxChars"].append("%s" % indexChars[idx])
         state["PackedC0IndicesX"].append(idx)
 
-    state["PackedC1Indices"] = []
+    state["PackedC1IdxChars"] = []
     state["PackedC1IndicesX"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
       if isPackedIndex(state, idx, 0x2):
         assert (idx < problemType["NumIndicesC"])
-        state["PackedC1Indices"].append("%s" % indexChars[idx])
+        state["PackedC1IdxChars"].append("%s" % indexChars[idx])
         state["PackedC1IndicesX"].append(idx)
 
     # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
@@ -1062,8 +1062,8 @@ class Solution:
     # Current implementation ensures that the vector load is not partial across the Free* boundary:
     # GlobalLoadVectorWidth=1 will always meet this requirement.
     # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
-    packedC0 = len(state["PackedC0Indices"])>1
-    packedC1 = len(state["PackedC1Indices"])>1
+    packedC0 = len(state["PackedC0IdxChars"])>1
+    packedC1 = len(state["PackedC1IdxChars"])>1
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
 
@@ -1074,8 +1074,8 @@ class Solution:
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"])
 
-    #print("PackedC0Indices", state["PackedC0Indices"])
-    #print("PackedC1Indices", state["PackedC1Indices"])
+    #print("PackedC0IdxChars", state["PackedC0IdxChars"])
+    #print("PackedC1IdxChars", state["PackedC1IdxChars"])
 
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())

@@ -1396,10 +1396,10 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
-    for idxChar in kernel["PackedC0Indices"][:-1]:
+    for idxChar in kernel["PackedC0IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
-    for idxChar in kernel["PackedC1Indices"][:-1]:
+    for idxChar in kernel["PackedC1IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
 
@@ -2174,11 +2174,11 @@ class KernelWriterAssembly(KernelWriter):
       for i in range(0, self.numSgprSizesSum):
         kStr += self.v2Argument(                  "SizesSum%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
-      for idxChar in kernel["PackedC0Indices"][:-1]:
+      for idxChar in kernel["PackedC0IdxChars"][:-1]:
         kStr += self.v2Argument(     "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(      "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
-      for idxChar in kernel["PackedC1Indices"][:-1]:
+      for idxChar in kernel["PackedC1IdxChars"][:-1]:
         kStr += self.v2Argument(     "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(      "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
@@ -2274,11 +2274,11 @@ class KernelWriterAssembly(KernelWriter):
       for i in range(0, self.numSgprSizesSum):
         kStr += self.v3Argument(                  "SizesSum%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
-      for idxChar in kernel["PackedC0Indices"][:-1]:
+      for idxChar in kernel["PackedC0IdxChars"][:-1]:
         kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
 
-      for idxChar in kernel["PackedC1Indices"][:-1]:
+      for idxChar in kernel["PackedC1IdxChars"][:-1]:
         kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
 
@@ -2863,10 +2863,10 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("SizesFree+%u"%i)
       for i in range(0, self.numSgprSizesSum):
         kStr += self.getKernArg("SizesSum+%u"%i)
-      for idxChar in kernel["PackedC0Indices"][:-1]:
+      for idxChar in kernel["PackedC0IdxChars"][:-1]:
         kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
-      for idxChar in kernel["PackedC1Indices"][:-1]:
+      for idxChar in kernel["PackedC1IdxChars"][:-1]:
         kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
       kStr += self.getKernArg("OrigStaggerUIter", self.staggerU)
@@ -3323,11 +3323,13 @@ class KernelWriterAssembly(KernelWriter):
             lastGroIdx = 0
             kStr += "\n"
             for p in range(0, numExtraPackedOffsetsPerTile):
-              groChar = tP["PackedIndices"][p+1]
+              groChar = self.indexChars[tP["PackedIndices"][p+1]]
               groIdx  = ord(groChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
               groVgpr = vgpr(tP["vgprPackedOffsets"] + l*numExtraPackedOffsetsPerTile + p)
+              pChar = self.indexChars[tP["PackedIndices"][p]]
               kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" \
-                  % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%tP["PackedIndices"][p]), sgpr("MagicShiftSize%s"%tP["PackedIndices"][p]))
+                  % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%pChar), \
+                  sgpr("MagicShiftSize%s"%pChar))
               kStr += inst("v_mov_b32", groVgpr, vgpr(tmpV), "extract gro%s%s_%u (%s)"%(tc,groChar,l,groVgpr))
               kStr += inst("v_mul_lo_u32", vgpr(tmpV), groVgpr, sgpr("SizesFree+%u"%lastGroIdx), "remainder part 1")
               kStr += inst("v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
@@ -6756,7 +6758,7 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-packed
       # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
       #--
-      assert (len(kernel["PackedC1Indices"]) == 1) # would need to extract/scale indices from coord1
+      assert (len(kernel["PackedC1IdxChars"]) == 1) # would need to extract/scale indices from coord1
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
       kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
                   vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \

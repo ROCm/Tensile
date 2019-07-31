@@ -832,10 +832,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
-    for idxChar in kernel["PackedC0Indices"][:-1]:
+    for idxChar in kernel["PackedC0IdxChars"][:-1]:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
-    for idxChar in kernel["PackedC1Indices"][:-1]:
+    for idxChar in kernel["PackedC1IdxChars"][:-1]:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
@@ -2504,9 +2504,9 @@ class KernelWriterSource(KernelWriter):
 
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         kStr += "  unsigned int globalC%s = " % self.indexChars[i]
-        if i == index0 and len(kernel["PackedC0Indices"])==1:
+        if i == index0 and len(kernel["PackedC0IndicesX"])==1:
           kStr += "flattenedGlobalC0;"
-        elif i == index1 and len(kernel["PackedC1Indices"])==1:
+        elif i == index1 and len(kernel["PackedC1IndicesX"])==1:
           kStr += "flattenedGlobalC1;"
         elif isPackedIndex(kernel,i):
           kStr += "0; // will be set below"
