@@ -5463,10 +5463,12 @@ class KernelWriterAssembly(KernelWriter):
       sumDim = zp[1]
       sumChar = self.indexChars[sumDim]
       freeDimChar = self.indexChars[zp[0]]
-      if soffset != "0":
-        print("Warning, soffset=", soffset, "not really supported.")
       #assert (soffset==0) # need to add any offset here
-      codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(offsetVgpr), sgpr(zpTmp), "GRO += scaled elements")
+      codeMod.addText("\n")
+      codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(offsetVgpr), sgpr(zpTmp), "<- GRO + scaled elementCounter")
+      if soffset != "0":
+        codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(addrV), soffset, " add soffset ")
+
       codeMod.addInst("v_cmp_ge_u32", "vcc", vgpr(addrV), sgpr("ElementEdge%s%s"%(tc,sumChar)), "is in the trailing pad region?")
 
       # leadingEdge = ZeroPad_Leading ) *bpe
