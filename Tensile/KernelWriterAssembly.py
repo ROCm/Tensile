@@ -5439,6 +5439,39 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
+  # addZeroPadGuard
+  # add to code module the code to guard subsequent load
+  ##############################################################################
+  def addZeroPadGuard(self, kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV):
+    tc = tP["tensorChar"]
+    problemType = self.kernel["ProblemType"]
+
+    for i, zp in enumerate(problemType["ZeroPad%s"%tc]):
+      zpTmp = tmpSgpr + i + 1
+      sumDim = zp[1]
+      sumChar = self.indexChars[sumDim]
+      freeDimChar = self.indexChars[zp[0]]
+      if soffset != "0":
+        print("Warning, soffset=", soffset, "not really supported.")
+      #assert (soffset==0) # need to add any offset here
+      codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(offsetVgpr), sgpr(zpTmp), "GRO += scaled elements")
+      codeMod.addInst("v_cmp_ge_u32", "vcc", vgpr(addrV), sgpr("ElementEdge%s%s"%(tc,sumChar)), "is in the trailing pad region?")
+
+      # leadingEdge = ZeroPad_Leading ) *bpe
+      codeMod.addInst("s_add_u32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), \
+          self.srdShiftLeft[tc], "add prePad")
+      codeMod.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), log2(self.bpeAB), "scale by bpe")
+      codeMod.addInst("v_cmp_le_u32", sgpr(tmpSgpr,2), vgpr(addrV), sgpr(tmpSgpr), "is in the leading pad region?")
+      codeMod.addInst("s_or_b64", "vcc", "vcc", sgpr(tmpSgpr,2), "combine leading / trailing pad into vcc")
+
+      codeMod.addInst("v_cndmask_b32", vgpr(addrV), vgpr(offsetVgpr), -1, "vcc", "Set addresses in pad to large OOB value")
+      #codeMod.addText(self.bomb())
+      assert (i==0) # need to and/combine multiple compares here
+
+    return addrV
+
+
+  ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):
@@ -5446,6 +5479,9 @@ class KernelWriterAssembly(KernelWriter):
     problemType = self.kernel["ProblemType"]
     imod = Code.StructuredModule("globalReadDo%s_%u"%(tc,mode))
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return imod
+
+    # sizeK % LOCAL_DEPTHU
+    guardK = (mode==2)
 
     graIdx = 0
     g2lIdx = 0
@@ -5479,12 +5515,16 @@ class KernelWriterAssembly(KernelWriter):
       sumChar = self.indexChars[sumDim]
       loopIdx = problemType["IndicesSummation"].index(sumDim)
       # TODO - fix for GSU, need LOCAL_DEPTHU*GSUp
-      imod.header.addInst("s_mul_i32", sgpr(zpTmp), sgpr("LoopCounters+%u"%loopIdx), "DepthU", "compute elementCounter%s, step1"%(sumChar))
-      imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), sgpr(zpTmp), "compute elementCounter%s, step2"%(sumChar))
+      if guardK:
+        imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), \
+          sgpr("LoopCounters+%u"%loopIdx), "compute elementCounter%s, step2"%(sumChar))
+      else:
+        imod.header.addInst("s_mul_i32", sgpr(zpTmp), sgpr("LoopCounters+%u"%loopIdx), \
+          "DepthU", "compute elementCounter%s, step1"%(sumChar))
+        imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), \
+          sgpr(zpTmp), "compute elementCounter%s, step2"%(sumChar))
       imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.stride(tc,freeDim), sgpr(zpTmp), "scale by stride")
       imod.header.addInst("s_lshl_b32", sgpr(zpTmp), sgpr(zpTmp), log2(self.bpeAB), "scale by bpe")
-
-
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
       imod.header.addText(self.comment1("before DirectToLds load, ensure prior ds_reads have finished"))
@@ -5500,8 +5540,6 @@ class KernelWriterAssembly(KernelWriter):
         imod.header.addInst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
 
 
-    # sizeK % LOCAL_DEPTHU
-    guardK = (mode==2)
     if guardK:
       imod.middle.addText(self.globalReadGuardK(kernel, tP))
       return imod
@@ -5519,6 +5557,8 @@ class KernelWriterAssembly(KernelWriter):
     directToLdsLoads = 0
 
     loopCnt = -1
+    if problemType["ZeroPad%s"%tc]:
+      addrV = self.vgprPool.checkOut(1)
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -5539,29 +5579,10 @@ class KernelWriterAssembly(KernelWriter):
                 offsetVgpr= "GlobalReadOffset%s+0"%(tc)
                 soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
 
-              for i, zp in enumerate(problemType["ZeroPad%s"%tc]):
-                zpTmp = tmpSgpr + i + 1
-                sumDim = zp[1]
-                sumChar = self.indexChars[sumDim]
-                freeDimChar = self.indexChars[zp[0]]
-                if soffset != "0":
-                  print("Warning, soffset=", soffset, "not really supported.")
-                #assert (soffset==0) # need to add any offset here
-                addrV = self.vgprPool.checkOut(1)
-                loadModule.addInst("_v_add_u32", vgpr(addrV), vgpr(offsetVgpr), sgpr(zpTmp), "GRO += scaled elements")
-                loadModule.addInst("v_cmp_ge_u32", "vcc", vgpr(addrV), sgpr("ElementEdge%s%s"%(tc,sumChar)), "is in the trailing pad region?")
-
-                # leadingEdge = ZeroPad_Leading ) *bpe
-                loadModule.addInst("s_add_u32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), \
-                    self.srdShiftLeft[tc], "add prePad")
-                loadModule.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), log2(self.bpeAB), "scale by bpe")
-                loadModule.addInst("v_cmp_le_u32", sgpr(tmpSgpr,2), vgpr(addrV), sgpr(tmpSgpr), "is in the leading pad region?")
-                loadModule.addInst("s_or_b64", "vcc", "vcc", sgpr(tmpSgpr,2), "combine leading / trailing pad into vcc")
-
-                loadModule.addInst("v_cndmask_b32", vgpr(addrV), vgpr(offsetVgpr), -1, "vcc", "Set addresses in pad to large OOB value")
-                #loadModule.addText(self.bomb())
-                assert (i==0) # need to and/combine multiple compares here
-                offsetVgpr = addrV # replace offsetvgpr
+              if problemType["ZeroPad%s"%tc]:
+                mod = Code.Module("guardZeroPad%u"%loopCnt)
+                offsetVgpr = self.addZeroPadGuard(kernel, tP, mod, offsetVgpr, soffset, tmpSgpr, addrV)
+                loadModule.addCode(mod)
 
               if kernel["DirectToLds%s"%tc]:
 
