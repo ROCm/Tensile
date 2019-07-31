@@ -2476,12 +2476,16 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
                     "sgprStrides%s+%u"%(tc, i))
 
+    kStr += "\n"
     kStr += self.macroRegister("DepthU", kernel["DepthU"])
+    kStr += self.comment1("Number of elements to shift-left SRD")
+    kStr += self.macroRegister("SrdShiftLeftA", self.srdShiftLeft['A'])
+    kStr += self.macroRegister("SrdShiftLeftB", self.srdShiftLeft['B'])
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
-      kStr += self.comment("2GB limit - set offsets to -1 to exceed this and clamp")
+      kStr += self.comment1("2GB limit - set offsets to -1 to exceed this and clamp")
       kStr += self.macroRegister("BufferLimit", "0x80000000")
-      kStr += self.comment("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
+      kStr += self.comment1("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
       kStr += self.macroRegister("Srd127_96",   "0x0020000")
       #TODO-64 : This is max 32-bit negative value, the tail loop
       # does incrementally step through the GRO and increment GRO
@@ -3636,7 +3640,25 @@ class KernelWriterAssembly(KernelWriter):
 
     #---
     # Compute BUFFER Limit:
-    prePad = self.srdShiftLeft[tc] * tP["bpe"] # leave room in case we have to pointer shift
+    prePad = prePadConst = self.srdShiftLeft[tc] * tP["bpe"] # leave room in case we have to pointer shift
+    # subtract the zeropad(s) from the SRD base
+    # this causes small offsets (<pad) to result in large negative offsets and thus report as OOB
+    for i,zp in enumerate(kernel["ProblemType"]["ZeroPad%s"%tc]):
+     freeDimChar = self.indexChars[zp[0]]
+     # override the const pre-pad with an SGPR based on the leading/trailing items:
+     prePad = prePadSgpr = sgpr(stmp+4)
+     stmp5 = sgpr(stmp+5)
+     kStr += inst("s_lshl_b32", stmp5, \
+                 sgpr("ZeroPad%s%s_Leading"%(tc, freeDimChar)), \
+                 log2(tP["bpe"]), "<- scale leading zero-pad by BPE")
+     if i==0:
+       kStr += inst("s_add_u32", prePadSgpr, \
+                 stmp5,
+                 prePadConst, "prePadSgpr = Leading + prepadconst")
+     else:
+       kStr += inst("s_add_u32", prePadSgpr, \
+                 stmp5, prePadSgpr, "prepadSgpr += scaled Leading")
+
     if not wroteTileStart:
       kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
       kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
@@ -3660,7 +3682,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
           hex(log2(tP["bpe"])), "Set limit to use bytes")
       if prePad:
-        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePadConst, "extend limit for pre-pad")
         kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
 
       kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
@@ -3668,7 +3690,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       # put limit directly into SRD:
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
-      kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
+      kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePadConst, "extend limit for pre-pad")
 
     # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
     numDim = len(indices)
@@ -4490,21 +4512,30 @@ class KernelWriterAssembly(KernelWriter):
                   self.size('A', sumDim), "")
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
                   self.stride('A', sumDim), "elementEdgeAK")
-        inc = 1 - self.srdShiftLeft[tc]
-        if inc:
-          kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
-                        sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
-                        inc, "")
-          if not self.stride('A', freeDim).startswith("const"):
+        # srdShiftLeft is included in GRO so need to add this to edge.
+        # Do this after the scale is applied.
+        kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
+                  sgpr(tmpSgpr), \
+                  self.srdShiftLeft[tc], "")
+
+        # Leading adds to the range since we have more elements to left of original array - need to 
+        # overcome the other adjustments to SRD and GRO
+        kStr += inst("s_sub_u32", sgpr(tmpSgpr+1), \
+                  sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
+                  sgpr("ZeroPad%s%s_Leading"%(tc, freeDimChar)), \
+                  "Adjust for pads")
+
+        kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
+                      sgpr(tmpSgpr+1), 1 , "")
+
+        if not self.stride('A', freeDim).startswith("const"):
             kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
                       sgpr(tmpSgpr+1), \
                       self.stride('A', freeDim), "scale")
-          v1 = tmpSgpr + 1
-        else:
-          # bypass meaningless calcs
-          v1 = "ZeroPad%s%s_Trailing"%(tc, freeDimChar)
+
         kStr += inst("s_sub_u32", sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
-                  sgpr(tmpSgpr), sgpr(v1), "elementEdge = strideU*(sizeU+sizeFree) - strideFree*(Trailing+1)")
+                  sgpr(tmpSgpr), sgpr(tmpSgpr+1), \
+                  "elementEdge = strideU*(sizeU+sizeFree) + srdPrePad - strideFree*(Leading-Trailing+1)")
         kStr += inst("s_lshl_b32", \
                   sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
                   sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
@@ -5499,7 +5530,9 @@ class KernelWriterAssembly(KernelWriter):
                 loadModule.addInst("v_cmp_ge_u32", "vcc", vgpr(addrV), sgpr("ElementEdge%s%s"%(tc,sumChar)), "is in the trailing pad region?")
 
                 # leadingEdge = ZeroPad_Leading ) *bpe
-                loadModule.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), log2(self.bpeAB), "scale by bpe")
+                loadModule.addInst("s_add_u32", sgpr(tmpSgpr), sgpr("ZeroPad%s%s_Leading"%(tc,freeDimChar)), \
+                    self.srdShiftLeft[tc], "add prePad")
+                loadModule.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), log2(self.bpeAB), "scale by bpe")
                 loadModule.addInst("v_cmp_le_u32", sgpr(tmpSgpr,2), vgpr(addrV), sgpr(tmpSgpr), "is in the leading pad region?")
                 loadModule.addInst("s_or_b64", "vcc", "vcc", sgpr(tmpSgpr,2), "combine leading / trailing pad into vcc")
 
