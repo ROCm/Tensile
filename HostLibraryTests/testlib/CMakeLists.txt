@@ -5,5 +5,5 @@ set(testlib_sources
 add_library(TensileTestLib STATIC ${testlib_sources})
 
 target_include_directories(TensileTestLib PUBLIC include)
-target_link_libraries(TensileTestLib PUBLIC Boost::filesystem Tensile)
+target_link_libraries(TensileTestLib PUBLIC Boost::filesystem TensileHost)
 

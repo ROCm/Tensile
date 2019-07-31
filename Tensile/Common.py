@@ -1023,18 +1023,19 @@ def assignGlobalParameters( config ):
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
-  if platform.linux_distribution()[0] == "Ubuntu":
-    process = Popen(["dpkg", "-l", "hcc"], stdout=PIPE)
-    if process.returncode:
-      printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
 
-    line = process.stdout.readline().decode()
-    while line != "":
-      packageIdx = line.find("hcc")
-      if packageIdx >= 0:
-        globalParameters["HccVersion"] = line.split()[2]
-        break
-      line = process.stdout.readline().decode()
+  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
+  # The alternative would be to install the `distro` package.
+  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  try:
+    output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+
+    for line in output.split('\n'):
+      if 'hcc' in line:
+        globalParameters['HccVersion'] = line.split()[2]
+
+  except (subprocess.CalledProcessError, OSError) as e:
+      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hcc', e))
 
   for key in config:
     value = config[key]

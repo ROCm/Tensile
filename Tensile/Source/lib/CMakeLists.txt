@@ -28,8 +28,6 @@ if(NOT DEFINED TENSILE_SCRIPT_ROOT)
     set(TENSILE_SCRIPT_ROOT "${TENSILE_ROOT}/Tensile")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -ftemplate-backtrace-limit=0" )
-
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
     source/ContractionProblem.cpp
@@ -61,25 +59,26 @@ endif()
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-add_library (Tensile STATIC ${tensile_sources})
+add_library (TensileHost STATIC ${tensile_sources})
 
-target_include_directories(Tensile INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if(TENSILE_USE_LLVM)
-    target_compile_definitions(Tensile PUBLIC TENSILE_DEFAULT_SERIALIZATION)
-    target_link_libraries(Tensile PRIVATE LLVMObjectYAML )
-    target_include_directories(Tensile PRIVATE ${LLVM_INCLUDE_DIRS})
+    target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
+    target_link_libraries(TensileHost PRIVATE LLVMObjectYAML )
+    target_include_directories(TensileHost PRIVATE ${LLVM_INCLUDE_DIRS})
 endif()
 
 if(TENSILE_STATIC_ONLY)
-    target_compile_definitions(Tensile PUBLIC TENSILE_STATIC_ONLY)
+    target_compile_definitions(TensileHost PUBLIC TENSILE_STATIC_ONLY)
 endif()
 
-if(HIP_FOUND)
-    target_compile_definitions(Tensile PUBLIC TENSILE_USE_HIP)
+if(TENSILE_USE_HIP)
+    target_compile_definitions(TensileHost PUBLIC TENSILE_USE_HIP)
 
     #add_subdirectory(client)
-    target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} hip::host )
+    target_link_libraries( TensileHost PUBLIC ${HSA_LIBRARIES} hip::host )
+
 endif()
 
 if(false)

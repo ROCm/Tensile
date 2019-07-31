@@ -29,7 +29,7 @@ import java.nio.file.Path;
 tensileCI:
 {
     def tensile = new rocProject('Tensile')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc ../HostLibraryTests'
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DCMAKE_CXX_FLAGS=-Werror ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900','gfx906'], tensile)
 
@@ -44,7 +44,11 @@ tensileCI:
 
             def command = """#!/usr/bin/env bash
                     set -ex
+
+                    hostname
+
                     cd ${project.paths.project_build_prefix}
+
                     mkdir build
                     pushd build
                     export PATH=/opt/rocm/bin:$PATH
@@ -71,6 +75,8 @@ tensileCI:
         {
             def command = """#!/usr/bin/env bash
                     set -ex
+
+                    hostname
 
                     cd ${project.paths.project_build_prefix}
 

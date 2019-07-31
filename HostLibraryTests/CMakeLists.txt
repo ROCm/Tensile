@@ -23,6 +23,9 @@ cmake_minimum_required(VERSION 3.5)
 
 project(TensileHostLibraryTest)
 
+set( CMAKE_CXX_STANDARD 14 )
+set( CMAKE_CXX_EXTENSIONS OFF )
+
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
 option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." ON)
@@ -65,7 +68,7 @@ find_package(Boost COMPONENTS filesystem)
 
 #if(TENSILE_USE_HIP AND NOT HIP_DIR)
 if(TENSILE_USE_HIP)
-    find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
+    find_package(HIP REQUIRED CONFIG PATHS /opt/rocm)
 endif()
 
 if(TENSILE_USE_OPENMP)
@@ -123,7 +126,7 @@ if(NOT TENSILE_DISABLE_CTEST)
     endif()
 endif()
 
-target_link_libraries(TensileTests PUBLIC gtest Tensile TensileTestLib Boost::filesystem)
+target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib Boost::filesystem)
 
 if(TENSILE_USE_LLVM)
     target_link_libraries(TensileTests PUBLIC LLVMObjectYAML)

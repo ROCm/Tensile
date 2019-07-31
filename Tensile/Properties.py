@@ -59,7 +59,7 @@ class Predicate(Property):
 
     @classmethod
     def And(cls, predicates):
-        predicates = list(predicates)
+        predicates = tuple(predicates)
         if len(predicates) == 0:
             return cls('TruePred')
         if len(predicates) == 1:

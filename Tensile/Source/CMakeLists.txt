@@ -37,7 +37,7 @@ if(TENSILE_NEW_CLIENT)
                            "TENSILE_USE_HIP;TENSILE_USE_LLVM" OFF)
 
     if(TENSILE_USE_HIP)
-        find_package(HIP REQUIRED CONFIG PATHS /opt/rocm/hip)
+        find_package(HIP REQUIRED CONFIG PATHS /opt/rocm)
     endif()
 
     if(TENSILE_USE_OPENMP)
@@ -62,7 +62,7 @@ if(TENSILE_NEW_CLIENT)
     add_subdirectory(lib)
     add_subdirectory(client)
 
-    export(TARGETS Tensile NAMESPACE Tensile:: FILE TensileExports.cmake)
+    export(TARGETS TensileHost NAMESPACE Tensile:: FILE TensileExports.cmake)
 
 else()
 

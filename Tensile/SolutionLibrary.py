@@ -157,7 +157,7 @@ class PredicateLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag
 
-        rowdict = dict([(r['predicate'], i) for i,r in enumerate(self.rows)])
+        rowdict = {r['predicate']: i  for i,r in enumerate(self.rows)}
 
         for row in other.rows:
             if row['predicate'] in rowdict:

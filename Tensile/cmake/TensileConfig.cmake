@@ -52,8 +52,8 @@ else()
     set(TENSILE_STATIC_ONLY OFF CACHE BOOL "Disable exporting symbols from shared library.")
 endif()
 
-
 add_subdirectory("${Tensile_DIR}/../Source" "Tensile")
+include("${Tensile_DIR}/../Source/TensileCreateLibrary.cmake")
 
 function(TensileCreateLibraryFiles
         Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
@@ -125,7 +125,7 @@ function(TensileCreateLibraryFiles
   else()
 
     add_library(${Tensile_EMBED_LIBRARY} "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
-    target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC Tensile)
+    target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC TensileHost)
 
   endif()
 
