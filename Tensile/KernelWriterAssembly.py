@@ -3328,10 +3328,10 @@ class KernelWriterAssembly(KernelWriter):
             lastGroIdx = 0
             kStr += "\n"
             for p in range(0, numExtraPackedOffsetsPerTile):
-              groChar = self.indexChars[tP["PackedIndices"][p+1]]
-              groIdx  = ord(groChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
+              groIdx  = tP["PackedIndices"][p+1]
+              groChar = globalParameters["IndexChars"][tP["PackedIndices"][p+1]]
               groVgpr = vgpr(tP["vgprPackedOffsets"] + l*numExtraPackedOffsetsPerTile + p)
-              pChar = self.indexChars[tP["PackedIndices"][p]]
+              pChar = globalParameters["IndexChars"][tP["PackedIndices"][p]]
               kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" \
                   % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%pChar), \
                   sgpr("MagicShiftSize%s"%pChar))
