@@ -20,8 +20,12 @@ find_package(Boost COMPONENTS program_options)
 
 add_library(TensileClient STATIC ${client_sources})
 
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${Tensile_DIR}")
-find_package(ROCmSMI REQUIRED)
+find_package(ROCmSMI QUIET)
+if(NOT ROCmSMI_FOUND)
+    set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${Tensile_DIR}" "${Tensile_DIR}/../Source/cmake" "${CMAKE_HOME_DIRECTORY}/cmake"})
+    message(STATUS "${CMAKE_MODULE_PATH}")
+    find_package(ROCmSMI REQUIRED)
+endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
