@@ -117,7 +117,10 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     soFilename = base + '.so'
     soFilepath = os.path.join(buildPath, soFilename)
 
-    archFlags = ['-amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
+    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+             if globalParameters["AsmCaps"][arch]["SupportedISA"]]
+
+    archFlags = ['-amdgpu-target=' + arch for arch in archs]
 
     hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags', '--shared']).decode().split(' ')
     hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
@@ -137,7 +140,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     #print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
 
-    return ["{0}-000-gfx{1}.hsaco".format(soFilepath,''.join(map(str,arch))) for arch in globalParameters["SupportedISA"]]
+    return ["{0}-000-{1}.hsaco".format(soFilepath,arch) for arch in archs]
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
