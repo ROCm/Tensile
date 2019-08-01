@@ -98,6 +98,22 @@ TEST(ContractionProblem, OperationIdentifier)
               "Contraction_l_Alik_Bjlk_Cijk_Dijk");
 }
 
+TEST(ContractionProblem, FromOperationIdentifier)
+{
+    std::vector<size_t> sizes{5,6,4,2};
+    std::vector<size_t> empty;
+    std::string identifier = "Contraction_l_AlikC_Bjlk_Cijk_Dijk";
+    auto problem = ContractionProblem::FromIndexSizes(identifier,
+                                                      sizes,
+                                                      DataType::ComplexFloat, empty,
+                                                      DataType::ComplexFloat, empty,
+                                                      DataType::ComplexFloat, empty,
+                                                      DataType::ComplexFloat, empty,
+                                                      2.0);
+
+    EXPECT_EQ(problem.operationIdentifier(), identifier);
+}
+
 #if 0
 TEST(ContractionProblem, Simple)
 {

@@ -53,6 +53,9 @@ namespace Tensile
 
         static TensorOp ComplexConjugate() { return TensorOp(Type::ComplexConjugate); }
 
+        std::string name() const;
+        std::string suffix() const;
+
         // static TensorOp ReLU();
         // static TensorOp LeakyReLU(float alpha);
         // ...
@@ -64,5 +67,19 @@ namespace Tensile
         bool operator!=(TensorOp const& rhs) const { return !(*this == rhs); }
         bool operator<=(TensorOp const& rhs) const { return !(*this > rhs); }
         bool operator>=(TensorOp const& rhs) const { return !(*this < rhs); }
+
+        static Type GetType(std::string const& name);
+    private:
+        static void InitTypeNames();
+        static std::map<std::string, Type> typeNames;
     };
+
+    std::string ToString(TensorOp::Type t);
+    std::string Suffix(TensorOp::Type t);
+
+    std::ostream& operator<<(std::ostream& stream, TensorOp const& t);
+    std::istream& operator>>(std::istream& stream, TensorOp      & t);
+
+    std::ostream& operator<<(std::ostream& stream, TensorOp::Type const& t);
+    std::istream& operator>>(std::istream& stream, TensorOp::Type      & t);
 }

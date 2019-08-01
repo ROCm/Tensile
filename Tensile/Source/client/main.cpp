@@ -152,6 +152,11 @@ namespace Tensile
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
+                ("a-ops",                    vector_default_empty<TensorOp>(), "Operations applied to A.")
+                ("b-ops",                    vector_default_empty<TensorOp>(), "Operations applied to B.")
+                ("c-ops",                    vector_default_empty<TensorOp>(), "Operations applied to C.")
+                ("d-ops",                    vector_default_empty<TensorOp>(), "Operations applied to D.")
+
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
                 

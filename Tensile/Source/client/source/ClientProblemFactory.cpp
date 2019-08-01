@@ -46,11 +46,16 @@ namespace Tensile
               m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>()),
               m_bStrides(args["b-strides"].as<std::vector<std::vector<size_t>>>()),
               m_cStrides(args["c-strides"].as<std::vector<std::vector<size_t>>>()),
-              m_dStrides(args["d-strides"].as<std::vector<std::vector<size_t>>>())
+              m_dStrides(args["d-strides"].as<std::vector<std::vector<size_t>>>()),
+              m_aOps(args["a-ops"].as<TensorOps>()),
+              m_bOps(args["b-ops"].as<TensorOps>()),
+              m_cOps(args["c-ops"].as<TensorOps>()),
+              m_dOps(args["d-ops"].as<TensorOps>())
         {
             if(args.count("problem-identifier"))
                 ContractionProblem::IdentifierToIndices(args["problem-identifier"].as<std::string>(),
-                                                        m_freeIndices, m_batchIndices, m_boundIndices);
+                                                        m_freeIndices, m_batchIndices, m_boundIndices,
+                                                        m_aOps, m_bOps, m_cOps, m_dOps);
 
             if(args.count("type"))
             {
@@ -89,8 +94,6 @@ namespace Tensile
             if(m_cStrides.size() == 1) cStrides = m_cStrides[0];
             if(m_dStrides.size() == 1) dStrides = m_dStrides[0];
 
-            TensorOps nop;
-
             for(int i = 0; i < m_problemSizes.size(); i++)
             {
                 if(m_aStrides.size() == m_problemSizes.size()) aStrides = m_aStrides[i];
@@ -101,10 +104,10 @@ namespace Tensile
                 rv.push_back(ContractionProblem::FromIndexSizes(
                              m_freeIndices, m_batchIndices, m_boundIndices,
                              m_problemSizes[i],
-                             m_aType, aStrides, nop,
-                             m_bType, bStrides, nop,
-                             m_cType, cStrides, nop,
-                             m_dType, dStrides, nop,
+                             m_aType, aStrides, m_aOps,
+                             m_bType, bStrides, m_bOps,
+                             m_cType, cStrides, m_cOps,
+                             m_dType, dStrides, m_dOps,
                              m_beta));
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
 

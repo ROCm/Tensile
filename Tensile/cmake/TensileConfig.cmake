@@ -114,12 +114,13 @@ function(TensileCreateLibraryFiles
   endif()
 
   file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
+  file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
   set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
 
-  set("${Tensile_VAR_PREFIX}_CODE_OBJECTS" ${CodeObjects} PARENT_SCOPE)
+  set("${Tensile_VAR_PREFIX}_CODE_OBJECTS" ${CodeObjects} ${HSACodeObjects} PARENT_SCOPE)
   set("${Tensile_VAR_PREFIX}_LIBRARY_FILE" "${LibraryFile}" PARENT_SCOPE)
 
-  set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${LibraryFile} PARENT_SCOPE)
+  set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${HSACodeObjects} ${LibraryFile} PARENT_SCOPE)
 
   if(Tensile_EMBED_LIBRARY STREQUAL "")
   else()

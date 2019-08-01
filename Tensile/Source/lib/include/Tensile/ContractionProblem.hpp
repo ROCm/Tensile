@@ -101,7 +101,11 @@ namespace Tensile
         static void IdentifierToIndices(std::string  const& identifier, 
                                         FreeIndices       & freeIndices,
                                         BatchIndices      & batchIndices,
-                                        BoundIndices      & boundIndices);
+                                        BoundIndices      & boundIndices,
+                                        TensorOps         & aOps,
+                                        TensorOps         & bOps,
+                                        TensorOps         & cOps,
+                                        TensorOps         & dOps);
 
         static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
                                                  BatchIndices const& batchIndices,
@@ -115,10 +119,10 @@ namespace Tensile
 
         static ContractionProblem FromIndexSizes(std::string const& operationIdentifier,
                                                  std::vector<size_t> const& indexSizes,
-                                                 DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
-                                                 DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
-                                                 DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
-                                                 DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
+                                                 DataType aType, std::vector<size_t> const& aStrides,
+                                                 DataType bType, std::vector<size_t> const& bStrides,
+                                                 DataType cType, std::vector<size_t> const& cStrides,
+                                                 DataType dType, std::vector<size_t> const& dStrides,
                                                  double beta);
 
         ContractionProblem(TensorDescriptor const& a, TensorOps const& aOps,

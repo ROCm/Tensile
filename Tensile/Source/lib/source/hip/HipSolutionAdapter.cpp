@@ -75,6 +75,7 @@ namespace Tensile
             {
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
+                m_loadedModuleNames.push_back(concatenate("File ", path));
             }
         }
 
@@ -92,6 +93,7 @@ namespace Tensile
             {
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
+                m_loadedModuleNames.push_back("Module from bytes");
             }
         }
 
@@ -125,6 +127,7 @@ namespace Tensile
             {
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.insert(m_modules.end(), newModules.begin(), newModules.end());
+                m_loadedModuleNames.push_back(concatenate("Embedded code object ", key, " (", newModules.size(), ")"));
             }
         }
 
@@ -238,6 +241,24 @@ namespace Tensile
             {
                 launchKernel(kernels[i], stream, startEvents[i], stopEvents[i]);
             }
+        }
+
+        std::ostream & operator<<(std::ostream & stream, SolutionAdapter const& adapter)
+        {
+            stream << "hip::SolutionAdapter";
+
+            if(adapter.m_debug)
+            {
+                stream << "[" << std::endl;
+                for(auto const& name: adapter.m_loadedModuleNames)
+                    stream << name << std::endl;
+
+                stream << "]";
+            }
+
+            stream << " (" << adapter.m_modules.size() << " total modules)" << std::endl;
+
+            return stream;
         }
     }
 }

@@ -22,8 +22,7 @@ add_library(TensileClient STATIC ${client_sources})
 
 find_package(ROCmSMI QUIET)
 if(NOT ROCmSMI_FOUND)
-    set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${Tensile_DIR}" "${Tensile_DIR}/../Source/cmake" "${CMAKE_HOME_DIRECTORY}/cmake"})
-    message(STATUS "${CMAKE_MODULE_PATH}")
+    set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${Tensile_DIR}" "${Tensile_DIR}/../Source/cmake" "${CMAKE_HOME_DIRECTORY}/cmake")
     find_package(ROCmSMI REQUIRED)
 endif()
 

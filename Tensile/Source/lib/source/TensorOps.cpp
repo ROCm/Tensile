@@ -20,12 +20,99 @@
  */
 
 #include <Tensile/TensorOps.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
+    std::map<std::string, TensorOp::Type>  TensorOp::typeNames;
+
     TensorOp::TensorOp() = default;
     TensorOp::TensorOp(Type type)
         : type(type)
     {}
+
+    std::string ToString(TensorOp::Type t)
+    {
+        switch(t)
+        {
+            case TensorOp::Type::None:             return "None";
+            case TensorOp::Type::ComplexConjugate: return "ComplexConjugate";
+
+            case TensorOp::Type::Count:;
+        }
+
+        return "Invalid";
+    }
+
+    std::string Suffix(TensorOp::Type t)
+    {
+        switch(t)
+        {
+            case TensorOp::Type::None:             return "";
+            case TensorOp::Type::ComplexConjugate: return "C";
+
+            case TensorOp::Type::Count:;
+        }
+
+        return "Invalid";
+    }
+
+    std::once_flag opTypeNameFlag;
+
+    TensorOp::Type TensorOp::GetType(std::string const& name)
+    {
+        std::call_once(opTypeNameFlag, InitTypeNames);
+
+        auto iter = typeNames.find(name);
+        if(iter == typeNames.end())
+            throw std::runtime_error(concatenate("Invalid TensorOp type: ", name));
+
+        return iter->second;
+    }
+
+    void TensorOp::InitTypeNames()
+    {
+        for(int idx = 0; idx < static_cast<int>(Type::Count); idx++)
+        {
+            Type type = static_cast<Type>(idx);
+            typeNames[ToString(type)] = type;
+            typeNames[Suffix(type)] = type;
+        }
+    }
+
+    std::string TensorOp::name() const
+    {
+        return ToString(type);
+    }
+
+    std::string TensorOp::suffix() const
+    {
+        return Suffix(type);
+    }
+
+    std::ostream& operator<<(std::ostream& stream, TensorOp const& t)
+    {
+        return stream << t.type;
+    }
+
+    std::istream& operator>>(std::istream& stream, TensorOp      & t)
+    {
+        return stream >> t.type;
+    }
+
+    std::ostream& operator<<(std::ostream& stream, TensorOp::Type const& t)
+    {
+        return stream << ToString(t);
+    }
+
+    std::istream& operator>>(std::istream& stream, TensorOp::Type      & t)
+    {
+        std::string typeName;
+        stream >> typeName;
+
+        t = TensorOp::GetType(typeName);
+
+        return stream;
+    }
 }
 

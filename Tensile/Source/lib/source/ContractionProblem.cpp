@@ -191,7 +191,11 @@ namespace Tensile
     void ContractionProblem::IdentifierToIndices(std::string  const& identifier, 
                                                  FreeIndices       & freeIndices,
                                                  BatchIndices      & batchIndices,
-                                                 BoundIndices      & boundIndices)
+                                                 BoundIndices      & boundIndices,
+                                                 TensorOps         & aOps,
+                                                 TensorOps         & bOps,
+                                                 TensorOps         & cOps,
+                                                 TensorOps         & dOps)
     {
         FreeIndices  free;
         BatchIndices batch;
@@ -203,41 +207,74 @@ namespace Tensile
 
         size_t begin = prefix.size();
         size_t end = identifier.find("_", begin);
+        size_t nextBegin = end+1;
 
         std::string boundStr = identifier.substr(begin, end-begin);
 
-        begin = end+1;
+        begin = nextBegin;
         end = identifier.find("_", begin);
+        nextBegin = end+1;
 
         if(identifier.at(begin) != 'A')
             throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
 
+        if(identifier.at(end-1) == 'C')
+        {
+            aOps.push_back(TensorOp::ComplexConjugate());
+            end--;
+        }
+
         begin++;
         std::string a = identifier.substr(begin, end-begin);
 
-        begin = end+1;
+        begin = nextBegin;
         end = identifier.find("_", begin);
+        nextBegin = end+1;
 
         if(identifier.at(begin) != 'B')
             throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
 
+        if(identifier.at(end-1) == 'C')
+        {
+            bOps.push_back(TensorOp::ComplexConjugate());
+            end--;
+        }
+
         begin++;
         std::string b = identifier.substr(begin, end-begin);
 
-        begin = end+1;
+        begin = nextBegin;
         end = identifier.find("_", begin);
+        nextBegin = end+1;
 
         if(identifier.at(begin) != 'C')
             throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
 
+        if(identifier.at(end-1) == 'C')
+        {
+            cOps.push_back(TensorOp::ComplexConjugate());
+            end--;
+        }
+
         begin++;
         std::string c = identifier.substr(begin, end-begin);
 
-        begin = end+1;
+        begin = nextBegin;
         end = identifier.find("_", begin);
 
         if(identifier.at(begin) != 'D')
             throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
+
+        if(end != std::string::npos)
+            throw std::runtime_error(concatenate("Contraction identifier (", identifier, ")must match 'Contraction_s_A_B_C_D'"));
+
+        end = identifier.size();
+
+        if(identifier.at(end-1) == 'C')
+        {
+            dOps.push_back(TensorOp::ComplexConjugate());
+            end--;
+        }
 
         begin++;
         std::string d = identifier.substr(begin, end-begin);
@@ -312,20 +349,23 @@ namespace Tensile
     ContractionProblem ContractionProblem::FromIndexSizes(
             std::string const& operationIdentifier,
             std::vector<size_t> const& indexSizes,
-            DataType aType, std::vector<size_t> const& aStrides, TensorOps const& aOps,
-            DataType bType, std::vector<size_t> const& bStrides, TensorOps const& bOps,
-            DataType cType, std::vector<size_t> const& cStrides, TensorOps const& cOps,
-            DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
+            DataType aType, std::vector<size_t> const& aStrides,
+            DataType bType, std::vector<size_t> const& bStrides,
+            DataType cType, std::vector<size_t> const& cStrides,
+            DataType dType, std::vector<size_t> const& dStrides,
             double beta)
     {
         FreeIndices freeIndices;
         BatchIndices batchIndices;
         BoundIndices boundIndices;
 
+        TensorOps aOps, bOps, cOps, dOps;
+
         IdentifierToIndices(operationIdentifier, 
                             freeIndices,
                             batchIndices,
-                            boundIndices);
+                            boundIndices,
+                            aOps, bOps, cOps, dOps);
 
         return FromIndexSizes(freeIndices, batchIndices, boundIndices,
                               indexSizes,
@@ -587,6 +627,22 @@ namespace Tensile
         for(int bUse: bUseCount) TENSILE_ASSERT_EXC(bUse == 1);
         for(int cUse: cUseCount) TENSILE_ASSERT_EXC(cUse == 1);
         for(int dUse: dUseCount) TENSILE_ASSERT_EXC(dUse == 1);
+
+        for(auto const& op: m_aOps)
+            if(op.type == TensorOp::Type::ComplexConjugate)
+                TENSILE_ASSERT_EXC(DataTypeInfo::Get(m_a.dataType()).isComplex);
+
+        for(auto const& op: m_bOps)
+            if(op.type == TensorOp::Type::ComplexConjugate)
+                TENSILE_ASSERT_EXC(DataTypeInfo::Get(m_b.dataType()).isComplex);
+
+        for(auto const& op: m_cOps)
+            if(op.type == TensorOp::Type::ComplexConjugate)
+                TENSILE_ASSERT_EXC(DataTypeInfo::Get(m_c.dataType()).isComplex);
+
+        for(auto const& op: m_dOps)
+            if(op.type == TensorOp::Type::ComplexConjugate)
+                TENSILE_ASSERT_EXC(DataTypeInfo::Get(m_d.dataType()).isComplex);
     }
 
     size_t ContractionProblem::freeSizeA(size_t idx) const
@@ -718,9 +774,20 @@ namespace Tensile
 
         rv << "_" << m_sumNames;
         rv << "_A" << m_aNames;
+        for(auto const& op: m_aOps)
+            rv << op.suffix();
+
         rv << "_B" << m_bNames;
+        for(auto const& op: m_bOps)
+            rv << op.suffix();
+
         rv << "_C" << m_cNames;
+        for(auto const& op: m_cOps)
+            rv << op.suffix();
+
         rv << "_D" << m_dNames;
+        for(auto const& op: m_dOps)
+            rv << op.suffix();
 
         return rv.str();
     }

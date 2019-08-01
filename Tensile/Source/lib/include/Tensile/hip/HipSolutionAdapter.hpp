@@ -72,6 +72,7 @@ namespace Tensile
                                std::vector<hipEvent_t> const& stopEvents);
 
         private:
+
             hipFunction_t getKernel(std::string const& name);
 
             std::mutex m_access;
@@ -79,6 +80,12 @@ namespace Tensile
             std::vector<hipModule_t> m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
             bool m_debug = false;
+
+            std::vector<std::string> m_loadedModuleNames;
+
+            friend std::ostream & operator<<(std::ostream & stream, SolutionAdapter const& adapter);
         };
+
+        std::ostream & operator<<(std::ostream & stream, SolutionAdapter const& adapter);
     }
 }

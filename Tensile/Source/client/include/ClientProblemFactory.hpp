@@ -69,6 +69,11 @@ namespace Tensile
             std::vector<std::vector<size_t>> m_cStrides;
             std::vector<std::vector<size_t>> m_dStrides;
 
+            TensorOps m_aOps;
+            TensorOps m_bOps;
+            TensorOps m_cOps;
+            TensorOps m_dOps;
+
             double m_beta;
         };
 

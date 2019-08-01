@@ -123,7 +123,8 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     soFilename = base + '.so'
     soFilepath = os.path.join(buildPath, soFilename)
 
-    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
+    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+            if globalParameters["AsmCaps"][arch]["SupportedISA"]]
 
     archFlags = ['-amdgpu-target=' + arch for arch in archs]
 
