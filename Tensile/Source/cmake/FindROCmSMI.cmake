@@ -1,9 +1,16 @@
 
-find_package(ROCM REQUIRED CONFIG PATHS /opt/rocm)
+if(NOT ROCM_ROOT)
+    if(NOT ROCM_DIR)
+        set(ROCM_ROOT "/opt/rocm")
+    else()
+        set(ROCM_DIR "${ROCM_DIR}/../../..")
+    endif()
+endif()
+
 
 # For some reason the *_DIR variables have inconsistent values between Tensile and rocBLAS.  Search various paths.
 find_path(ROCM_SMI_ROOT "include/rocm_smi/rocm_smi.h"
-    PATHS "${ROCM_DIR}/../../.." "${HIP_DIR}/../../../.." "${HIP_DIR}/../../.."
+    PATHS "${ROCM_ROOT}" "${HIP_DIR}/../../../.." "${HIP_DIR}/../../.."
     PATH_SUFFIXES "rocm_smi"
     )
 
