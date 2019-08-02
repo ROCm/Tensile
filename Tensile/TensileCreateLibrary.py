@@ -124,7 +124,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     soFilepath = os.path.join(buildPath, soFilename)
 
     archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-            if globalParameters["AsmCaps"][arch]["SupportedISA"]]
+             if globalParameters["AsmCaps"][arch]["SupportedISA"]]
 
     archFlags = ['-amdgpu-target=' + arch for arch in archs]
 
@@ -146,14 +146,7 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     #print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
 
-    coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
-    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-    destCOs = [os.path.join(destDir, name) for name in coFilenames]
-
-    for (src, dst) in zip(extractedCOs, destCOs):
-        shutil.copyfile(src, dst)
-
-    return destCOs
+    return ["{0}-000-{1}.hsaco".format(soFilepath,arch) for arch in archs]
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     #sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]

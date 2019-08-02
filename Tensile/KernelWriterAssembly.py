@@ -863,10 +863,11 @@ class KernelWriterAssembly(KernelWriter):
         }
     self.memoryInstructions[(8,0,3)] = self.memoryInstructions[(9,0,0)]
     self.memoryInstructions[(9,0,6)] = self.memoryInstructions[(9,0,0)]
+    self.memoryInstructions[(9,0,8)] = self.memoryInstructions[(9,0,0)]
 
     if self.version == (9,0,0):
       self.mixinst = "v_mad_mix_f32"
-    elif self.version == (9,0,6):
+    elif self.version == (9,0,6) or self.version == (9,0,8):
       self.mixinst = "v_fma_mix_f32"
     else:
       self.mixinst = "NOT_SUPPORTED"
@@ -1671,7 +1672,7 @@ class KernelWriterAssembly(KernelWriter):
                 C[0] = A[0]*B[0]+D[0]
                 C[1] = A[1]*B[1]+D[1]
                 """
-          elif self.version == (9,0,6):
+          elif self.version == (9,0,6) or self.version == (9,0,8):
             if kernel["ProblemType"]["HighPrecisionAccumulate"]:
               # we treat HighPrecisionAccumulate as expanded packed math
               b = blockB*2
@@ -1779,7 +1780,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.comment3("int8 not implemented yet for gfx803:")
           elif self.version == (9,0,0):
             kStr += self.comment3("int8 not implemented yet for gfx900:")
-          elif self.version == (9,0,6):
+          elif self.version == (9,0,6) or self.version == (9,0,8):
             for iui in range(0, innerUnroll):
               cidx = a + b*kernel["ThreadTile0"] + 0
               cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
