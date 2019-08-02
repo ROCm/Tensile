@@ -32,7 +32,7 @@
 
 // If this is a C compiler, C++ compiler below C++11, or a host-only compiler,
 // we only include a minimal definition of tensile_bfloat16
-#if __cplusplus < 201103L || !defined(__HCC__)
+#if __cplusplus < 201103L || (!defined(__HCC__) && !defined(__HIPCC__))
 
 #include <stdint.h>
 typedef struct
@@ -40,7 +40,7 @@ typedef struct
     uint16_t data;
 } tensile_bfloat16;
 
-#else // __cplusplus < 201103L || !defined(__HCC__)
+#else // __cplusplus < 201103L || (!defined(__HCC__) && !defined(__HIPCC__))
 
 #include <cmath>
 #include <cstddef>
