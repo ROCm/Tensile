@@ -146,7 +146,14 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     #print(' '.join(extractArgs))
     subprocess.check_call(extractArgs, cwd=buildPath)
 
-    return ["{0}-000-{1}.hsaco".format(soFilepath,arch) for arch in archs]
+    coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
+    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
+    destCOs = [os.path.join(destDir, name) for name in coFilenames]
+
+    for (src, dst) in zip(extractedCOs, destCOs):
+        shutil.copyfile(src, dst)
+
+    return destCOs
 
 def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
     #sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
