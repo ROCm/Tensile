@@ -27,6 +27,27 @@ namespace Tensile
 {
     namespace Client
     {
+        template <typename T>
+        struct Transform
+        {
+            inline static T Input(T const& val, bool conj)
+            {
+                return val;
+            }
+        };
+
+        template <typename T>
+        struct Transform<std::complex<T>>
+        {
+            inline static std::complex<T> Input(std::complex<T> const& val, bool conj)
+            {
+                if(conj)
+                    return std::conj(val);
+
+                return val;
+            }
+        };
+
         template <typename Inputs, typename Accumulator>
         void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs)
         {
@@ -38,6 +59,17 @@ namespace Tensile
             auto const& b = problem.b();
             auto const& c = problem.c();
             auto const& d = problem.d();
+
+            bool aConjugate = false;
+            bool bConjugate = false;
+
+            for(auto const& op: problem.aOps())
+                if(op.type == TensorOp::Type::ComplexConjugate)
+                    aConjugate = true;
+
+            for(auto const& op: problem.bOps())
+                if(op.type == TensorOp::Type::ComplexConjugate)
+                    bConjugate = true;
 
             std::vector<size_t> freeASize(problem.freeIndices().size());
             std::vector<size_t> freeBSize(problem.freeIndices().size());
@@ -116,7 +148,12 @@ namespace Tensile
                     auto bStride = problem.b().strides()[boundIndices[0].b];
 
                     for(size_t i = 0; i < boundSize[0]; i++)
-                        value += static_cast<Accumulator>(inputs.a[aIndex + (i * aStride)] * inputs.b[bIndex + (i * bStride)]);
+                    {
+                        auto aVal = Transform<typename Inputs::AType>::Input(inputs.a[aIndex + (i * aStride)], aConjugate);
+                        auto bVal = Transform<typename Inputs::BType>::Input(inputs.b[bIndex + (i * bStride)], bConjugate);
+
+                        value += static_cast<Accumulator>(aVal * bVal);
+                    }
                 }
 
                 auto cIndex = c.index(cCoord);

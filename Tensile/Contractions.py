@@ -102,6 +102,9 @@ class ProblemType:
         rv.cDims = d['NumIndicesC']
         rv.dDims = rv.cDims
 
+        rv.aConjugate = d['ComplexConjugateA']
+        rv.bConjugate = d['ComplexConjugateB']
+
         srcType = DataType(d['DataType'])
         dstType = DataType(d['DestDataType']) if 'DestDataType' in d else srcType
 
@@ -175,11 +178,14 @@ class ProblemType:
     def operationIdentifier(self):
         (aNames, bNames, cNames, dNames, sumNames) = self.indexNames
 
+        aOp = 'C' if self.aConjugate else ''
+        bOp = 'C' if self.bConjugate else ''
+
         return '_'.join(['Contraction', sumNames,
-                         'A'+aNames,
-                         'B'+bNames,
-                         'C'+cNames,
-                         'D'+dNames])
+                         'A' + aNames + aOp,
+                         'B' + bNames + bOp,
+                         'C' + cNames,
+                         'D' + dNames])
 
     def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
