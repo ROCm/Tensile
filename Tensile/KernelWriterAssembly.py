@@ -419,7 +419,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["ValueCExpectedValue"] = 16.0
 
     # Force an expected value for all C outputs.
-    # May be useful for checking store path 
+    # May be useful for checking store path
     self.db["ForceExpectedValue"]  = False
 
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
@@ -5051,9 +5051,12 @@ class KernelWriterAssembly(KernelWriter):
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
         # optimized NLL has edge=beta=atomic=False by design
-        ss = self.StoreState(self, kernel, fullVw, edge=False, beta=False, atomic=False)
+        ss = self.StoreState(self, kernel, fullVw, edge=False, beta=False, \
+            atomic=False, elements=elements)
+        kStr += str(ss.setupFirstBatch())
+
         tmpSgpr = self.getTmpSgpr(1)
-        ss.setupStoreElements(kernel, elements, None)
+        ss.setupStoreElementsForBatch(kernel, elements, None)
 
         kStr += inst("_v_add_lshl_u32", \
             vgpr(ss.addrVgpr), \
@@ -6730,6 +6733,8 @@ class KernelWriterAssembly(KernelWriter):
     tmpS1 = tmpS0+1
     wgMT1 = tmpS0+2
 
+    kStr += self.comment1("computeStoreVgprs")
+
     if self.prefetchAcrossPersistent:
       wg0="PrevWorkGroup0"
       wg1="PrevWorkGroup1"
@@ -6763,7 +6768,7 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-packed
       # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
       #--
-      assert (len(kernel["PackedC1IdxChars"]) == 1) # would need to extract/scale indices from coord1
+      assert (len(kernel["PackedC1IndicesX"]) == 1) # would need to extract/scale indices from coord1
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
       kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
                   vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
@@ -6879,7 +6884,6 @@ class KernelWriterAssembly(KernelWriter):
     #print "GlobalWriteIndices"
     if not self.do["PostLoop"]: return ""
     kStr = ""
-
 
     kStr += self.computeStoreVgprs(kernel,
               divisor = kernel["SubGroup0"],\
@@ -7045,7 +7049,7 @@ class KernelWriterAssembly(KernelWriter):
     # These are set based on edge, atomic, etc - do not change during
     # the generation of the store code.
     ##############################################################################
-    class StoreConfig:
+    class StoreConstConfig:
       def __init__(self, kernelWriter, kernel, ss, gwvw, edge, beta, atomic):
 
         self.gwvw = gwvw
@@ -7062,7 +7066,6 @@ class KernelWriterAssembly(KernelWriter):
             kernelWriter.overflowedResources = 2
             self.numElementsPerBatchLimitedBySgprs = 1 # dummy value
             #assert self.numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
-
 
         self.numVgprsPerAddr = kernelWriter.rpgo if kernel["BufferStore"] else kernelWriter.rpga
         if ss.optStoreAddrVgpr:
@@ -7086,8 +7089,10 @@ class KernelWriterAssembly(KernelWriter):
         # Really only used if gwvw=1 - edge cases
         self.halfDataRegPerVI = True if gwvw*self.numVgprsPerDataPerVI < 1.0 else False
 
-    def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic):
+    # StoreState constructor:
+    def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic, elements):
       self.kernelWriter = kernelWriter
+      self.kernel = kernel
 
       #--
       # optStoreAddrVgpr works in cases where the data is written row by row to memory.A
@@ -7096,7 +7101,7 @@ class KernelWriterAssembly(KernelWriter):
       #  - as we move to a new row, increment the appropriate SRDs
       self.optStoreAddrVgpr = 1 and kernel["BufferStore"] and not edge and not atomic
 
-      self.cfg = self.StoreConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
+      self.cfg = self.StoreConstConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
 
       # Use to detect new rows:
       self.lastCoordOffset1 = 0
@@ -7104,15 +7109,44 @@ class KernelWriterAssembly(KernelWriter):
       # vgpr holding current coord, setup initial state
       self.coordVgpr1 = kernelWriter.coord1
 
-      # used for optStoreAddrVgpr mode - only need one address VGPR
-      if self.optStoreAddrVgpr:
+
+      if len(kernel["PackedC0IndicesX"]) > 1:
+        numCols = len([e for e in elements if e[0] == 0]) # count #elements with row==0
+        self.numAddrVgpr = numCols # one address for each element write, maybe should div vw?
+        self.addrVgpr = kernelWriter.vgprPool.checkOut(self.numAddrVgpr, "addrVgpr for packed elements")
+        print("addrVgpr=%u"%self.addrVgpr, "NumPacked=", self.numAddrVgpr, "elements=", elements)
+      elif self.optStoreAddrVgpr:
         self.addrVgpr = kernelWriter.vgprPool.checkOut(1, "addrVgpr")
+        self.numAddrVgpr = 1
       else:
+        self.numAddrVgpr = 0
         self.addrVgpr = None
 
       # For detecting when we are running first batch
       self.firstBatch = True
 
+    ##############################################################################
+    # Setup before the first batch is called.
+    # This is called once for each store edge type, and for OptNLL
+    # returns code mod to add after common address vgpr and before the
+    # batches are processed.
+    ##############################################################################
+    def setupFirstBatch(self):
+      # used for optStoreAddrVgpr mode - only need one address VGPR
+      #codeMod = Code.Module("Packed B%u_E%u" % (beta, edge) )
+      codeMod = Code.Module("Packed")
+      codeMod.addComment1("setupFirstBatch")
+
+      if len(self.kernel["PackedC0IndicesX"]) > 1:
+        for i in range(0,self.numAddrVgpr):
+          codeMod.addInst("_v_add_lshl_u32", \
+                vgpr(self.addrVgpr+i), \
+                vgpr(self.kernelWriter.cinRowStart), \
+                vgpr(self.kernelWriter.coord0), \
+                hex(log2(self.kernelWriter.bpeCexternal)), \
+                "init cb addr <-  cinRowStart + coord0, scaled by BPE")
+
+      return codeMod
 
     ##############################################################################
     # Setup data structures to feed store loops:
@@ -7121,7 +7155,7 @@ class KernelWriterAssembly(KernelWriter):
     # batchElementSgprs is SGPRs to use for mask.  If None, elementMask is
     #  not initialized.
     ##############################################################################
-    def setupStoreElements(self, kernel, batchElements, batchElementSgprs):
+    def setupStoreElementsForBatch(self, kernel, batchElements, batchElementSgprs):
 
       self.elementAddr = []
       self.elementData = []  # VGPR to use for element data, needed for atomic or beta
@@ -7212,8 +7246,6 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr("Strides%s+0"%(tc)), \
                   log2(self.kernelWriter.bpeCexternal), \
                   "Scale by BPE")
-
-          #CheckDimOverflow?
 
           kStr += inst("s_add_u32 ", \
                sgpr("Srd%s+0"%(tc)), \
@@ -7330,9 +7362,9 @@ class KernelWriterAssembly(KernelWriter):
     for beta in betas:
       writeLabels[beta] = {}
       for edge in edges:
-        writeLabels[beta]["EdgeCheck0"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck0" % ( 1 if beta else 0, 1 if edge else 0) )
-        writeLabels[beta]["EdgeCheck1"] = self.getLabelNum("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
-        writeLabels[beta][edge] = self.getLabelNum("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta]["EdgeCheck0"] = self.getNamedLabel("GW_B%u_E%u_EdgeCheck0" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta]["EdgeCheck1"] = self.getNamedLabel("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta][edge] = self.getNamedLabel("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
       if not beta:
         betaLabel = self.getNamedLabel("GW_Beta")
     endLabel = self.getLabelNum("GW_End")
@@ -7402,25 +7434,22 @@ class KernelWriterAssembly(KernelWriter):
 
       ########################################
       # branch if Edge0 or Edge1
-      kStr += self.checkIsEdge(kernel, tmpSgpr, "label_%04u" % writeLabels[beta][True])
+      kStr += self.checkIsEdge(kernel, tmpSgpr, "%s" % writeLabels[beta][True])
 
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
-        kStr += "label_%04u:%s"%(writeLabels[beta][edge], self.endLine)
+        kStr += "%s:%s"%(writeLabels[beta][edge], self.endLine)
 
         edgeI = edge
         #edgeI = True  # set to True to disable vector stores
-
         gwvw = vectorWidths[edgeI]
-
         #print "globalWriteElements: edge=", edge, "beta=", beta, "atomic=", atomic
 
         ########################################
         # Calculate Vgprs for Write Batching
         ########################################
 
-        self.ss = self.StoreState(self, kernel, gwvw, edge, beta, atomic)
-
+        self.ss = self.StoreState(self, kernel, gwvw, edge, beta, atomic, elements[edgeI])
 
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
@@ -7434,7 +7463,6 @@ class KernelWriterAssembly(KernelWriter):
         #  - if atomic 2*rpe for old and cmp values
 
         numVgprsPerElement = self.ss.cfg.numVgprsPerAddr + int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw))
-
 
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
@@ -7548,6 +7576,8 @@ class KernelWriterAssembly(KernelWriter):
 
         tmpSgpr = self.getTmpSgpr(self.ss.cfg.fixedSgprsPerBatch+self.ss.cfg.numSgprsPerElement*numElementsPerBatch)
         elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
+
+        kStr += str(self.ss.setupFirstBatch())
 
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
@@ -7682,11 +7712,13 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      lsu = kernel["LocalSplitU"] > 1
-      strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
+      if kernel["LocalSplitU"] > 1:
+        strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
+      else:
+        strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
 
+      # coordOffset0 is a constant offset from left edge of output space assignment
       coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
-
       globalOffset = coordOffset0 * self.bpeCexternal
 
       coordOffset1 = d1*strideD1 + vc1
@@ -7695,7 +7727,8 @@ class KernelWriterAssembly(KernelWriter):
 
       newCoord1 = (ss.firstBatch and elementIdx==0) or (coordOffset1 != ss.lastCoordOffset1)
       if newCoord1:
-        globalOffset = 0  # necessary??
+        assert(globalOffset==0) # remove me
+        globalOffset = 0
 
       ss.lastCoordOffset1 = coordOffset1
       ss.elementAddr[elementIdx].globalOffset = globalOffset # save for later loads and stores
@@ -7845,7 +7878,7 @@ class KernelWriterAssembly(KernelWriter):
         commentStr += "; "
     kStr += self.comment3(commentStr)
 
-    ss.setupStoreElements(kernel, batchElements, batchElementSgprs)
+    ss.setupStoreElementsForBatch(kernel, batchElements, batchElementSgprs)
 
     loadsIssued = 0
     storesIssued = 0
