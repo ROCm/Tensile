@@ -5056,7 +5056,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += str(ss.setupFirstBatch())
 
         tmpSgpr = self.getTmpSgpr(1)
-        ss.setupStoreElementsForBatch(kernel, elements, None)
+        ss.setupStoreElementsForBatch(kernel, elements, None, None)
 
         kStr += inst("_v_add_lshl_u32", \
             vgpr(ss.addrVgpr), \
@@ -7155,7 +7155,8 @@ class KernelWriterAssembly(KernelWriter):
     # batchElementSgprs is SGPRs to use for mask.  If None, elementMask is
     #  not initialized.
     ##############################################################################
-    def setupStoreElementsForBatch(self, kernel, batchElements, batchElementSgprs):
+    def setupStoreElementsForBatch(self, kernel, batchElements, batchElementSgprs,
+          tmpVgpr):
 
       self.elementAddr = []
       self.elementData = []  # VGPR to use for element data, needed for atomic or beta
@@ -7165,14 +7166,41 @@ class KernelWriterAssembly(KernelWriter):
       kw = self.kernelWriter
 
       lastData = 0
+      myLastCoordOffset1 = -1 # TODO - may generate extra inst at batch start
       for elementIdx in range(0, len(batchElements)):
+        element = batchElements[elementIdx]
+        d1 = element[0]
+        d0 = element[1]
+        vc1 = element[2]
+        vc0 = element[3]
+
+        if kernel["LocalSplitU"] > 1:
+          strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
+        else:
+          strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
+        coordOffset1 = d1*strideD1 + vc1
+
+        # TODO - review firstBatch, lastCoord, should be set in this function
+        newCoord1 = (self.firstBatch and elementIdx==0) or (coordOffset1 != myLastCoordOffset1)
+        globalOffset = 0
+
+        print ("FIXME")
+        if 0:
+          if coordOffset1 == 0: # only true for first row of output
+            self.coordVgpr1 = self.kernelWriter.coord1
+          elif tmpVgpr != None: # TODO, this is only needed for edge and eventually not there either
+            self.coordVgpr1 = tmpVgpr+1
+
         # gpr assignments for element
+        coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
         if self.optStoreAddrVgpr:
           # use same address vgpr for all
-          self.elementAddr.append(kw.AddrCalc(kw, self.addrVgpr))
+          self.elementAddr.append(kw.AddrCalc(kw, self.addrVgpr, element, coordOffset0, \
+            self.coordVgpr1, newCoord1))
         else:
           addr = kw.vgprPool.checkOut(self.cfg.numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
-          self.elementAddr.append(kw.AddrCalc(kw, addr))
+          self.elementAddr.append(kw.AddrCalc(kw, addr, element, coordOffset0, \
+            self.coordVgpr1, newCoord1))
         # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
         # should have same data pointer, next should move.
 
@@ -7197,18 +7225,13 @@ class KernelWriterAssembly(KernelWriter):
           mask = batchElementSgprs + elementIdx * self.cfg.numSgprsPerElement # elementSgprs+0
           self.elementMask.append(mask)
 
-        element = batchElements[elementIdx]
-        d1 = element[0]
-        d0 = element[1]
-        vc1 = element[2]
-        vc0 = element[3]
         #print "Edge=", edge, element
         if kernel["LocalSplitU"] > 1:
           sumIdx = kw.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
         else:
           sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
-
+        myLastCoordOffset = coordOffset1
 
     def __del__(self):
       if (self.addrVgpr != None):
@@ -7220,11 +7243,71 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   class AddrCalc:
     # rowInc is number of rows to add to the base address
-    def __init__(self, kernelWriter, addr):
+    # coord0Vgpr : TODO
+    # coord1 : VGPR which tracks the last coord1 calculation.
+    #          If this is new coord1, just overwrite it with latest calc.
+    def __init__(self, kernelWriter, addr, element, coordOffset0, coord1, newCoord1):
       self.kernelWriter = kernelWriter
       self.addr = addr # vgprs for address, could be more than one
+      self.element = element
+      self.coordOffset0 = coordOffset0
+      self.coord1 = coord1
       self.globalOffset = 0 # offset to add to instruction
+      self.newCoord1 = newCoord1
       self.rowInc = 0
+
+    """
+    Generate code to set up the address vgpr
+    tmpVgpr : two temp vgprs
+    """
+    def emitAddressSetupCode(self, kernel, optStoreAddrVgpr, tmpS01, edge):
+      kStr = ""
+      coord0 = self.kernelWriter.coord0
+      d1 = self.element[0]
+      d0 = self.element[1]
+      vc1 = self.element[2]
+      vc0 = self.element[3]
+
+      dbAddr = 0
+
+      kStr += self.kernelWriter.comment1("store addr=v%u coordOffset0=%u"% \
+          (self.addr, self.coordOffset0))
+      if not optStoreAddrVgpr:
+        if self.coordOffset0 == 0:
+          self.destElementOffset = self.coordOffset0
+        elif self.coordOffset0 <= 64:
+          kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), self.coordOffset0, \
+              "NEW0.1. coord0 += d0*sg0*VW + vc0")
+          self.destElementOffset = self.addr
+        else:
+          kStr += inst("s_mov_b32", sgpr(self.addr), self.coordOffset0, "coordOffset0 d0=%u vc0=%u"%(d0, vc0))
+          kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), sgpr(self.addr), \
+              "NEW0.2. coord0 += d0*sg0*VW + vc0")
+          self.destElementOffset = self.addr
+
+      if kernel["LocalSplitU"] > 1:
+        strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
+      else:
+        strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
+      coordOffset1 = d1*strideD1 + vc1
+      #self.ss.coordVgpr1 = self.coord1
+      if self.newCoord1: # different than last coord1, need to add some new code?
+        if not kernel["BufferStore"] or edge: #TODO, do we need edge?
+          if coordOffset1 == 0:
+            # just use coord1 directly
+            if dbAddr:
+              kStr += self.comment1("NEW0.0 coordOffset1=0, use coordVgpr1=v%u directly"%self.ss.coordVgpr1)
+          elif coordOffset1 <= 64:
+            # coordOffset1 fits in instruction:
+            kStr += inst("_v_add_co_u32", vgpr(self.coord1), "vcc", vgpr(self.kernelWriter.coord1), coordOffset1, \
+                "NEW1.1: coord1 += d1*sg1*VW + vc1")
+          else:
+            kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset1, "coordOffset1 d1=%u vc1=%u"%(d0, vc0))
+            kStr += inst("_v_add_co_u32", vgpr(self.coord1), "vcc", vgpr(self.kernelWriter.coord1), sgpr(tmpS01), \
+                "NEW1.2: coord1 += d1*sg1*VW + vc1") #TODO1-change kernelwriter.coord1
+#
+        #globalOffset = coordOffset0 * self.bpeCexternal
+      return kStr
 
     """
     Generate code to move to the next row(s)
@@ -7257,6 +7340,9 @@ class KernelWriterAssembly(KernelWriter):
                sgpr("Srd%s+1"%(tc)), \
                0, \
               "gra SRD += inc(upper)" )
+      elif 0: # not optStoreAddrVgpr
+
+        None
 
       return kStr
 
@@ -7878,7 +7964,7 @@ class KernelWriterAssembly(KernelWriter):
         commentStr += "; "
     kStr += self.comment3(commentStr)
 
-    ss.setupStoreElementsForBatch(kernel, batchElements, batchElementSgprs)
+    ss.setupStoreElementsForBatch(kernel, batchElements, batchElementSgprs, tmpVgpr)
 
     loadsIssued = 0
     storesIssued = 0
@@ -7904,6 +7990,7 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = ss.elementAddr[elementIdx].addr
+      addrElement = ss.elementAddr[elementIdx]
       data = ss.elementData[elementIdx]
       mask = ss.elementMask[elementIdx]
       sumIdx = ss.elementSumIdx[elementIdx]
@@ -7911,6 +7998,9 @@ class KernelWriterAssembly(KernelWriter):
       d0 = element[1]
       vc1 = element[2]
       vc0 = element[3]
+
+      if 0:
+        kStr += addrElement.emitAddressSetupCode(kernel, ss.optStoreAddrVgpr, tmpS01, edge)
 
       #----
       # Compute the write path address:
@@ -7955,18 +8045,18 @@ class KernelWriterAssembly(KernelWriter):
           globalOffset = coordOffset0 * self.bpeCexternal
           coordVgpr0 = coord0
         else:
-          kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), coordOffset0, \
+          kStr += inst("_v_add_co_u32", vgpr(addr), "vcc", vgpr(coord0), coordOffset0, \
               "coord0 += d0*sg0*VW + vc0")
-          coordVgpr0 = tmpVgpr+0
+          coordVgpr0 = addr
       else:
         if ss.optStoreAddrVgpr:
           globalOffset = coordOffset0 * self.bpeCexternal
           coordVgpr0 = coord0
         else:
-          kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset0, "coord0Offset d0=%u vc0=%u"%(d0, vc0))
-          kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), sgpr(tmpS01), \
+          kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset0, "coordOffset0 d0=%u vc0=%u"%(d0, vc0))
+          kStr += inst("_v_add_co_u32", vgpr(addr), "vcc", vgpr(coord0), sgpr(tmpS01), \
               "coord0 += d0*sg0*VW + vc0")
-          coordVgpr0 = tmpVgpr+0
+          coordVgpr0 = addr
 
       ss.elementAddr[elementIdx].rowInc = coordOffset1 - self.ss.lastCoordOffset1
       assert ss.elementAddr[elementIdx].rowInc >= 0, "element address row inc can't go backwards"
@@ -8029,6 +8119,21 @@ class KernelWriterAssembly(KernelWriter):
       # end for elementIdx
 
       if kernel["BufferStore"]:
+        #kStr += inst("v_mov_b32", vgpr(addr), 0x0, "bozo")
+        if edge:
+          # Set address to -1 if OOB on either dimension
+          # TODO - for PreciseBoundsCheckStore we could set bounds on C to tile dim
+          # and only check the x/coord0 index here, save a couple inst
+          # TODO-packed:
+          # compare against product-of-packed sizes, see other code
+          # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
+          #--
+          kStr += self.comment1("TODO-packed: compare against product of packed sizes")
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.ss.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
+
+        # scale address:
         if kernel["LdcEqualsLdd"] or beta or atomic:
           if ss.optStoreAddrVgpr and ((not kernel["LdcEqualsLdd"]) or self.ss.firstBatch) and elementIdx == 0:
             kStr += inst("_v_add_lshl_u32", \
@@ -8044,21 +8149,9 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr(self.cinRowPtr), \
                 vgpr(coordVgpr0), \
                 hex(log2(self.bpeCexternal)), \
-                "accumulate d0 lower and *= bpe into addr")
+                "accumulate d0 lower and *= bpe into Cin addr")
 
-        #kStr += inst("v_mov_b32", vgpr(addr), 0x0, "bozo")
         if edge:
-          # Set address to -1 if OOB on either dimension
-          # TODO - for PreciseBoundsCheckStore we could set bounds on C to tile dim
-          # and only check the x/coord0 index here, save a couple inst
-          # TODO-packed:
-          # compare against product-of-packed sizes, see other code
-          # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
-          #--
-          kStr += self.comment1("TODO-packed: compare against product of packed sizes")
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.ss.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
-          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
           if kernel["LdcEqualsLdd"] or beta or atomic:
             kStr += inst("v_cndmask_b32", vgpr(addr), -1, vgpr(addr), sgpr(mask,2), "clip if OOB. offset" )
       else:
