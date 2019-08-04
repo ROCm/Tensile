@@ -5060,10 +5060,10 @@ class KernelWriterAssembly(KernelWriter):
 
         kStr += inst("_v_add_lshl_u32", \
             vgpr(ss.addrVgpr), \
-            vgpr(self.cinRowStart), \
+            vgpr(self.cinRowPtr), \
             vgpr(self.coord0), \
             hex(log2(self.bpeCexternal)), \
-            "NLL: init cb addr <-  cinRowStart + coord0, scaled by BPE")
+            "NLL: init cb addr <-  cinRowPtr + coord0, scaled by BPE")
 
         for elementIdx in range(0, len(elements)):
           kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
@@ -6674,10 +6674,10 @@ class KernelWriterAssembly(KernelWriter):
 
     # Walk through addressing components (each tensor index) in C
     # For static dims add to SrdC / SrdD to compute a new base.
-    # For dynamic (based on TT assignment) - save in coutRowStart in computeStoreVgprs, 
+    # For dynamic (based on TT assignment) - save in coutRowPtr in computeStoreVgprs, 
     # which saves the TT assignment for each WI scaled by StrideC0
     # TODO - future opportunities for store vgpr and other optimization
-    #  - coutRowStart and tid1 are strongly related - can we merge or remove one of these?
+    #  - coutRowPtr and tid1 are strongly related - can we merge or remove one of these?
     # Packed follows same philosophy but may have more vector components
     indices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     numDim = len(indices)
@@ -6747,10 +6747,8 @@ class KernelWriterAssembly(KernelWriter):
     tid1 = self.vgprPool.checkOut(1)
 
     if kernel["BufferStore"]:
-      self.cinRowStart  = self.vgprPool.checkOut(1, "cinRowStart")
-      self.cinRowPtr    = self.vgprPool.checkOut(1, "cinRowPtr")   # running pointer to start of batch
-      self.coutRowStart = self.vgprPool.checkOut(1, "coutRowStart")
-      self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
+      self.cinRowPtr  = self.vgprPool.checkOut(1, "cinRowPtr")
+      self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
 
     tmpV0 = self.vgprPool.checkOut(2)
     kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
@@ -6772,10 +6770,10 @@ class KernelWriterAssembly(KernelWriter):
       #--
       assert (len(kernel["PackedC1IndicesX"]) == 1) # would need to extract/scale indices from coord1
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-      kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
+      kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
                   vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
                   "rowStart vgpr")
-      kStr += inst("v_mul_lo_u32", vgpr(self.cinRowStart),
+      kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
                   vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
                   "rowStart vgpr")
       kStr += "\n"
@@ -6926,9 +6924,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(self.coord1)
 
     if kernel["BufferStore"]:
-      self.vgprPool.checkIn(self.cinRowStart)
       self.vgprPool.checkIn(self.cinRowPtr)
-      self.vgprPool.checkIn(self.coutRowStart)
       self.vgprPool.checkIn(self.coutRowPtr)
     if not kernel["BufferStore"]:
       self.vgprPool.checkIn(self.addrD)
@@ -7152,10 +7148,10 @@ class KernelWriterAssembly(KernelWriter):
         for i in range(0,self.numAddrVgpr):
           codeMod.addInst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr+i), \
-                vgpr(self.kernelWriter.cinRowStart), \
+                vgpr(self.kernelWriter.cinRowPtr), \
                 vgpr(self.kernelWriter.coord0), \
                 hex(log2(self.kernelWriter.bpeCexternal)), \
-                "init cb addr <-  cinRowStart + coord0, scaled by BPE")
+                "init cb addr <-  cinRowPtr + coord0, scaled by BPE")
 
       return codeMod
 
@@ -7281,8 +7277,18 @@ class KernelWriterAssembly(KernelWriter):
         # else non-opt stores include the coord0 offset into address modes
         self.globalOffset = 0
 
-    def optimizedAddConst(self, destV, src0, const, tmpS0):
+    """
+    Use minimally efficient instructions to add stride*scale
+    """
+    def addScaled(self, destV, src0, src1, scale1, tmpS01, comment=""):
       kStr = ""
+      if scale1 == 1:
+        kStr += inst("_v_add_u32", destV, src0, \
+                  src1, comment)
+      else:
+        kStr += inst("s_mul_i32", sgpr(tmpS01), src1, self.rowInc, "scale stride")
+        kStr += inst("_v_add_u32", destV, src0,  \
+                        sgpr(tmpS01), comment)
       return kStr
 
     """
@@ -7342,31 +7348,13 @@ class KernelWriterAssembly(KernelWriter):
           kw = self.kernelWriter
           if kernel["BufferStore"]:
             # TODO-packed - do these need a different stride accounting for packed dims?
-            if self.rowInc == 0:
-              if kernel["LdcEqualsLdd"] or beta or atomic:
-                kStr += inst("v_mov_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowStart), "cinRowPtr <- cinRowStart (first row)")
+            if self.rowInc > 0:
+              kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
+                        sgpr("StridesC+0"), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
               if not kernel["LdcEqualsLdd"]:
-                kStr += inst("v_mov_b32", vgpr(kw.coutRowPtr), vgpr(kw.coutRowStart), "coutRowPtr <- coutRowStart (first row)")
-            elif self.rowInc == 1:
-              if kernel["LdcEqualsLdd"] or beta or atomic:
-                kStr += inst("_v_add_co_u32", vgpr(kw.cinRowPtr), "vcc", vgpr(kw.cinRowPtr), \
-                          sgpr("StridesC+0"), "cinRowPtr <- move cin to start of new row")
-              if not kernel["LdcEqualsLdd"]:
-                kStr += inst("_v_add_co_u32", vgpr(kw.coutRowPtr), "vcc", vgpr(kw.coutRowPtr), \
-                          sgpr("StridesD+0"), "coutRowPtr <- move cout to start of new row")
-            else:
-              if kernel["LdcEqualsLdd"] or beta or atomic:
-                kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesC+0"), self.coordOffset1, \
-                    "scale StrideC *= coordOffset1(%u)"%self.coordOffset1)
-                kStr += inst("_v_add_co_u32", vgpr(kw.cinRowPtr), "vcc", vgpr(kw.cinRowStart), \
-                          sgpr(tmpS01), "cinRowPtr <- inc for non-0 (tt1+vc1))")
-              if not kernel["LdcEqualsLdd"]:
-                kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesD+0"), self.coordOffset1, \
-                    "scale StrideD *= coordOffset1(%u)"%self.coordOffset1)
-                kStr += inst("_v_add_co_u32", vgpr(kw.coutRowPtr), "vcc", vgpr(kw.coutRowStart), \
-                          sgpr(tmpS01), "coutRowPtr <- inc for non-0 (tt1+vc1))")
+                kStr += self.addScaled(vgpr(kw.coutRowPtr), vgpr(kw.coutRowPtr), \
+                          sgpr("StridesD+0"), self.rowInc, tmpS01, "Move coutRowPtr to next row")
 
-        #globalOffset = coordOffset0 * self.bpeCexternal
       return kStr
 
     """
@@ -8047,10 +8035,10 @@ class KernelWriterAssembly(KernelWriter):
           if ss.optStoreAddrVgpr and ((not kernel["LdcEqualsLdd"]) or self.ss.firstBatch) and elementIdx == 0:
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(addr), \
-                vgpr(self.cinRowStart), \
+                vgpr(self.cinRowPtr), \
                 vgpr(self.coord0), \
                 hex(log2(self.bpeCexternal)), \
-                "init cb addr <-  cinRowStart + coord0, scaled by BPE")
+                "ROWSTART_TARGET: init cb addr <-  cinRowPtr + coord0, scaled by BPE")
 
           if not ss.optStoreAddrVgpr:
             kStr += inst("_v_add_lshl_u32", \
@@ -8058,7 +8046,7 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr(self.cinRowPtr), \
                 vgpr(coordVgpr0), \
                 hex(log2(self.bpeCexternal)), \
-                "accumulate d0 lower and *= bpe into Cin addr")
+                "ROWSTART: accumulate d0 lower and *= bpe into Cin addr")
 
         if edge:
           if kernel["LdcEqualsLdd"] or beta or atomic:
@@ -8157,10 +8145,10 @@ class KernelWriterAssembly(KernelWriter):
           if ss.optStoreAddrVgpr and elementIdx == (len(batchElements) - 1):
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(addr), \
-                vgpr(self.coutRowStart), \
+                vgpr(self.coutRowPtr), \
                 vgpr(self.coord0), \
                 hex(log2(self.bpeCexternal)), \
-                "init cb addr <-  coutRowStart + coord0, scaled by BPE")
+                "init cb addr <-  coutRowPtr + coord0, scaled by BPE")
 
           if not ss.optStoreAddrVgpr:
             kStr += inst("_v_add_lshl_u32", \
