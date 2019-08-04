@@ -7303,7 +7303,7 @@ class KernelWriterAssembly(KernelWriter):
       Sets self.coord0V with vgpr that contains the coord0 for this element.  This enables
         optimization - if no setup code is required the coord0 can be the input.
     """
-    def emitAddressSetupCode(self, kernel, optStoreAddrVgpr, tmpS01, edge, beta, atomic):
+    def emitAddressSetupCode(self, kernel, optStoreAddrVgpr, tmpS01, edge, beta, atomic, mask):
       kStr = ""
       coord0 = self.kernelWriter.coord0
       d1 = self.element[0]
@@ -7350,13 +7350,25 @@ class KernelWriterAssembly(KernelWriter):
           # Move the row ptr
           kw = self.kernelWriter
           if kernel["BufferStore"]:
-            # TODO-packed - do these need a different stride accounting for packed dims?
             if self.rowInc > 0:
               kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
                         sgpr("StridesC+0"), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
               if not kernel["LdcEqualsLdd"]:
                 kStr += self.addScaled(vgpr(kw.coutRowPtr), vgpr(kw.coutRowPtr), \
                           sgpr("StridesD+0"), self.rowInc, tmpS01, "Move coutRowPtr to next row")
+
+        if kernel["BufferStore"]:
+          if 1 and edge:
+            # Set address to -1 if OOB on either dimension
+            # and only check the x/coord0 index here, save a couple inst
+            # TODO-packed: compare against product-of-packed sizes, see other code
+            # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
+            #--
+            kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0V), \
+                      sgpr("SizesFree+0"), "coord0 < size0" )
+            kStr += inst("v_cmp_lt_u32",  sgpr(mask,2), vgpr(self.coord1), \
+                      sgpr("SizesFree+1"), "coord1 < size1" )
+            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "in0 && in1" )
 
       return kStr
 
@@ -8008,7 +8020,7 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      kStr += addrCalc.emitAddressSetupCode(kernel, ss.optStoreAddrVgpr, tmpS01, edge, beta, atomic)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss.optStoreAddrVgpr, tmpS01, edge, beta, atomic, mask)
 
       #self.ss.lastCoordOffset1 = coordOffset1
       # end for elementIdx
@@ -8017,23 +8029,7 @@ class KernelWriterAssembly(KernelWriter):
       coordVgpr1 = addrCalc.coord1
       self.ss.coordVgpr1 = None
       if kernel["BufferStore"]:
-
-        #kStr += inst("v_mov_b32", vgpr(addr), 0x0, "bozo")
-        if edge:
-          # Set address to -1 if OOB on either dimension
-          # TODO - for PreciseBoundsCheckStore we could set bounds on C to tile dim
-          # and only check the x/coord0 index here, save a couple inst
-          # TODO-packed:
-          # compare against product-of-packed sizes, see other code
-          # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
-          #--
-          kStr += self.comment1("TODO-packed: compare against product of packed sizes")
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
-          #kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.ss.coordVgpr1Saved), sgpr("SizesFree+1"), "coord1 < size1" )  # ADDME?
-          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
-
-        # scale address:
+        # scale and set final address:
         if kernel["LdcEqualsLdd"] or beta or atomic:
           if ss.optStoreAddrVgpr and ((not kernel["LdcEqualsLdd"]) or self.ss.firstBatch) and elementIdx == 0:
             kStr += inst("_v_add_lshl_u32", \
