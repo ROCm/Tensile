@@ -7167,7 +7167,6 @@ class KernelWriterAssembly(KernelWriter):
     #  not initialized.
     #
     # Also create an AddrCalc for each memory operation.
-    # 
     ##############################################################################
     def setupStoreElementsForBatch(self, kernel, batchElements, batchElementSgprs):
 
@@ -7204,7 +7203,6 @@ class KernelWriterAssembly(KernelWriter):
           strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
         coordOffset1 = d1*strideD1 + vc1
 
-        # TODO - review firstBatch, lastCoord, should be set in this function
         newCoord1 = (self.firstBatch and elementIdx==0) or (coordOffset1 != self.lastCoordOffset1)
 
         # gpr and offset assignments for element
@@ -8010,7 +8008,7 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = ss.elementAddr[elementIdx].addr
-      addrElement = ss.elementAddr[elementIdx]
+      addrCalc = ss.elementAddr[elementIdx]
       data = ss.elementData[elementIdx]
       mask = ss.elementMask[elementIdx]
       sumIdx = ss.elementSumIdx[elementIdx]
@@ -8019,14 +8017,13 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      if 1:
-        kStr += addrElement.emitAddressSetupCode(kernel, ss.optStoreAddrVgpr, tmpS01, edge, beta, atomic)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss.optStoreAddrVgpr, tmpS01, edge, beta, atomic)
 
       #self.ss.lastCoordOffset1 = coordOffset1
       # end for elementIdx
 
-      coordVgpr0 = addrElement.coord0V
-      coordVgpr1 = addrElement.coord1
+      coordVgpr0 = addrCalc.coord0V
+      coordVgpr1 = addrCalc.coord1
       self.ss.coordVgpr1 = None
       if kernel["BufferStore"]:
 
