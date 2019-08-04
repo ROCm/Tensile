@@ -6748,7 +6748,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferStore"]:
       self.cinRowPtr  = self.vgprPool.checkOut(1, "cinRowPtr")
-      self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
+      if not kernel["LdcEqualsLdd"]:
+        self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
 
     tmpV0 = self.vgprPool.checkOut(2)
     kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
@@ -6770,12 +6771,13 @@ class KernelWriterAssembly(KernelWriter):
       #--
       assert (len(kernel["PackedC1IndicesX"]) == 1) # would need to extract/scale indices from coord1
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-      kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
-                  vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
-                  "rowStart vgpr")
       kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
                   vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
                   "rowStart vgpr")
+      if not kernel["LdcEqualsLdd"]:
+        kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
+                    vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
+                    "rowStart vgpr")
       kStr += "\n"
 
       #kStr += self.assert_ne(sgpr("WorkGroup1"),1)
@@ -6925,7 +6927,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferStore"]:
       self.vgprPool.checkIn(self.cinRowPtr)
-      self.vgprPool.checkIn(self.coutRowPtr)
+      if not kernel["LdcEqualsLdd"]:
+        self.vgprPool.checkIn(self.coutRowPtr)
     if not kernel["BufferStore"]:
       self.vgprPool.checkIn(self.addrD)
       self.vgprPool.checkIn(self.addrC)
