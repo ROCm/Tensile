@@ -7258,14 +7258,15 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   class AddrCalc:
     # rowInc is number of rows to add to the base address
-    # coord0Vgpr : TODO
-    # coord1 : VGPR which tracks the last coord1 calculation.
+    # coord0Vgpr : This is VGPR that holds coord0.  Coord0 is element-space
+    #    packed index for the 0 coordinate of the C/D matrix.
+    # coord1Vgpr : VGPR which tracks the last coord1 calculation.
     #          If this is new coord1, just overwrite it with latest calc.
-    def __init__(self, kernelWriter, optStoreAddrVgpr, addr, element, \
-        coordOffset0, coord1, coordOffset1, rowInc, newCoord1):
+    def __init__(self, kernelWriter, optStoreAddrVgpr, addrVgpr, element, \
+        coordOffset0, coord1Vgpr, coordOffset1, rowInc, newCoord1):
       self.kernelWriter = kernelWriter
-      self.addr = addr # vgprs for address, could be more than one
-      self.coord1 = coord1 # vpgpr that stores coord1
+      self.addrVgpr = addrVgpr # vgprs for address, could be more than one
+      self.coord1Vgpr = coord1Vgpr # vpgpr that stores coord1Vgpr
 
       self.element = element
       self.coordOffset0 = coordOffset0
@@ -7300,7 +7301,7 @@ class KernelWriterAssembly(KernelWriter):
       tmpVgpr : two temp vgprs
     Output:
       Returns kStr with appropriate setup code
-      Sets self.coord0V with vgpr that contains the coord0 for this element.  This enables
+      Sets self.coord0Vgpr with vgpr that contains the coord0 for this element.  This enables
         optimization - if no setup code is required the coord0 can be the input.
     """
     def emitAddressSetupCode(self, kernel, optStoreAddrVgpr, tmpS01, edge, beta, atomic, mask):
@@ -7311,41 +7312,41 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = self.element[2]
       vc0 = self.element[3]
 
-      dbAddr = 0
-
       #kStr += self.kernelWriter.comment1("store addr=v%u coordOffset0=%u"% \
       #    (self.addr, self.coordOffset0))
       #kStr += self.kernelWriter.comment1("(d1,vc1,d0,vc0)=(%u,%u,%u,%u) coordOffset1=%u element-rows coordOffset0=%u rows"\
       #    % (d1,vc1,d0,vc0, coordOffset1, coordOffset0))
       if optStoreAddrVgpr:
-        self.coord0V = self.addr
+        self.coord0Vgpr = self.addrVgpr
       else:
         if self.coordOffset0 == 0:
-          self.coord0V = coord0
+          self.coord0Vgpr = coord0
         elif self.coordOffset0 <= 64:
-          kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), self.coordOffset0, \
-              "NEW0.1: coord0 += d0*sg0*VW + vc0")
-          self.coord0V = self.addr
+          kStr += inst("_v_add_co_u32", vgpr(self.addrVgpr), "vcc", vgpr(coord0), self.coordOffset0, \
+                    "coord0.1: coord0 += d0*sg0*VW + vc0")
+          self.coord0Vgpr = self.addrVgpr
         else:
           kStr += inst("s_mov_b32", sgpr(tmpS01), self.coordOffset0, "coordOffset0 d0=%u vc0=%u"%(d0, vc0))
-          kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), sgpr(tmpS01), \
-              "NEW0.2: coord0 += d0*sg0*VW + vc0")
-          self.coord0V = self.addr
+          kStr += inst("_v_add_co_u32", vgpr(self.addrVgpr), "vcc", vgpr(coord0), sgpr(tmpS01), \
+                    "coord0.2: coord0 += d0*sg0*VW + vc0")
+          self.coord0Vgpr = self.addrVgpr
 
-        if self.newCoord1: # different than last coord1, need to add some new code?
+        if self.newCoord1: # different than last coord1Vgpr, need to add some new code?
           if not kernel["BufferStore"] or edge: #TODO, do we need edge?
             if self.rowInc== 0:
-              # just use coord1 directly
-              if dbAddr:
-                kStr += self.comment1("NEW0.0 rowInc=0, use coordVgpr1=v%u directly"%self.coord1)
+              # just use coord1Vgpr directly
+              if 0:
+                kStr += self.comment1("coord0.0 rowInc=0, use coordVgpr1=v%u directly"%self.coord1Vgpr)
             elif self.rowInc <= 64:
               # rowInc fits in instruction:
-              kStr += inst("_v_add_co_u32", vgpr(self.coord1), "vcc", vgpr(self.kernelWriter.coord1), self.rowInc, \
-                  "NEW1.1: coord1 += d1*sg1*VW + vc1")
+              kStr += inst("_v_add_co_u32", vgpr(self.coord1Vgpr), "vcc", \
+                        vgpr(self.kernelWriter.coord1), self.rowInc, \
+                        "coord1.1: coord1Vgpr += d1*sg1*VW + vc1")
             else:
               kStr += inst("s_mov_b32", sgpr(tmpS01), self.rowInc, "rowInc d1=%u vc1=%u"%(d0, vc0))
-              kStr += inst("_v_add_co_u32", vgpr(self.coord1), "vcc", vgpr(self.kernelWriter.coord1), sgpr(tmpS01), \
-                  "NEW1.2: coord1 += d1*sg1*VW + vc1") #TODO1-change kernelwriter.coord1
+              kStr += inst("_v_add_co_u32", vgpr(self.coord1Vgpr), "vcc", \
+                        vgpr(self.kernelWriter.coord1), sgpr(tmpS01), \
+                        "coord1.2: coord1 += d1*sg1*VW + vc1") #TODO1-change kernelwriter.coord1
 
           # Move the row ptr
           kw = self.kernelWriter
@@ -7358,15 +7359,15 @@ class KernelWriterAssembly(KernelWriter):
                           sgpr("StridesD+0"), self.rowInc, tmpS01, "Move coutRowPtr to next row")
 
         if kernel["BufferStore"]:
-          if 1 and edge:
+          if edge:
             # Set address to -1 if OOB on either dimension
             # and only check the x/coord0 index here, save a couple inst
             # TODO-packed: compare against product-of-packed sizes, see other code
             # May eventually want to save that product in a defined sgpr - it is guranteed to fit in 32-bit
             #--
-            kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0V), \
+            kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), \
                       sgpr("SizesFree+0"), "coord0 < size0" )
-            kStr += inst("v_cmp_lt_u32",  sgpr(mask,2), vgpr(self.coord1), \
+            kStr += inst("v_cmp_lt_u32",  sgpr(mask,2), vgpr(self.coord1Vgpr), \
                       sgpr("SizesFree+1"), "coord1 < size1" )
             kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "in0 && in1" )
 
@@ -7860,10 +7861,10 @@ class KernelWriterAssembly(KernelWriter):
       bps = kernel["ProblemType"]["DataType"].numBytes() * ss.cfg.gwvw
       rpv = kernel["ProblemType"]["DataType"].numRegisters() * ss.cfg.gwvw
       if kernel["BufferStore"]:
-        addr0 = vgpr(addrCalc.addr)
+        addr0 = vgpr(addrCalc.addrVgpr)
         addr1 = sgpr("SrdD", 4)
       else:
-        addr0 = vgpr(addrCalc.addr,2)
+        addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
 
       useBuffer = kernel["BufferStore"]
@@ -8010,7 +8011,7 @@ class KernelWriterAssembly(KernelWriter):
     globalOffset = 0
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
-      addr = ss.elementAddr[elementIdx].addr
+      addr = ss.elementAddr[elementIdx].addrVgpr
       addrCalc = ss.elementAddr[elementIdx]
       data = ss.elementData[elementIdx]
       mask = ss.elementMask[elementIdx]
@@ -8025,8 +8026,8 @@ class KernelWriterAssembly(KernelWriter):
       #self.ss.lastCoordOffset1 = coordOffset1
       # end for elementIdx
 
-      coordVgpr0 = addrCalc.coord0V
-      coordVgpr1 = addrCalc.coord1
+      coordVgpr0 = addrCalc.coord0Vgpr
+      coordVgpr1 = addrCalc.coord1Vgpr
       self.ss.coordVgpr1 = None
       if kernel["BufferStore"]:
         # scale and set final address:
@@ -8409,7 +8410,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("apply mask, calc new C and issue write")
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
-        addr = ss.elementAddr[elementIdx].addr
+        addr = ss.elementAddr[elementIdx].addrVgpr
         mask = ss.elementMask[elementIdx]
         d1 = element[0]
         d0 = element[1]
@@ -8557,7 +8558,7 @@ class KernelWriterAssembly(KernelWriter):
     lastData = -1
     for elementIdx in range(0, len(batchElements)):
       if not ss.optStoreAddrVgpr:
-        addr = ss.elementAddr[elementIdx].addr
+        addr = ss.elementAddr[elementIdx].addrVgpr
         self.vgprPool.checkIn(addr,"writeBatch addr ei:%d"%elementIdx)
 
       data = ss.elementData[elementIdx]
