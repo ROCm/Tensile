@@ -7445,10 +7445,18 @@ class KernelWriterAssembly(KernelWriter):
           # Set address to -1 if OOB on either dimension
           # and only check the x/coord0 index here, save a couple inst
           # TODO-packed: compare against product-of-packed sizes, see other code
+          sizeBoundary = [0,0]
+          sizeBoundary[0] = \
+              sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
+              else kw.size('C', kernel["ProblemType"]["Index0"])
+          sizeBoundary[1] = \
+              sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
+              else kw.size('C', kernel["ProblemType"]["Index1"])
+
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), \
-                    sgpr("SizesFree+0"), "coord0 < size0" )
+                    sizeBoundary[0], "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(mask,2), vgpr(self.coord1Vgpr), \
-                    sgpr("SizesFree+1"), "coord1 < size1" )
+                    sizeBoundary[1], "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "in0 && in1" )
 
           kStr += self.emitScaleToBpe(kernel, ss, beta, atomic)
