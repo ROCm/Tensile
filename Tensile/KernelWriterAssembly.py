@@ -7296,8 +7296,9 @@ class KernelWriterAssembly(KernelWriter):
     """
     Emit code that computes the coord0 and coord1 for this element
     sets self.coord0Vgpr with the address that holds the coord0 value for this element.
+    Input: tmpVgpr is a 1 temporary VGPR used for coord0 calculation on edges
     """
-    def emitAddressCoordIncrement(self, kernel, ss, tmpS01, edge):
+    def emitAddressCoordIncrement(self, kernel, ss, tmpVgpr, tmpS01, edge):
 
       kStr = ""
       kw = self.kernelWriter
@@ -7313,14 +7314,14 @@ class KernelWriterAssembly(KernelWriter):
         if self.coordOffset0 == 0:
           self.coord0Vgpr = kw.coord0
         elif self.coordOffset0 <= 64:
-          kStr += inst("_v_add_co_u32", vgpr(self.addrVgpr), "vcc", vgpr(kw.coord0), self.coordOffset0, \
+          self.coord0Vgpr = tmpVgpr
+          kStr += inst("_v_add_co_u32", vgpr(self.coord0Vgpr), "vcc", vgpr(kw.coord0), self.coordOffset0, \
                     "coord0.1: coord0 += d0*sg0*VW + vc0")
-          self.coord0Vgpr = self.addrVgpr
         else:
+          self.coord0Vgpr = tmpVgpr
           kStr += inst("s_mov_b32", sgpr(tmpS01), self.coordOffset0, "coordOffset0 d0=%u vc0=%u"%(d0, vc0))
-          kStr += inst("_v_add_co_u32", vgpr(self.addrVgpr), "vcc", vgpr(kw.coord0), sgpr(tmpS01), \
+          kStr += inst("_v_add_co_u32", vgpr(self.coord0Vgpr), "vcc", vgpr(kw.coord0), sgpr(tmpS01), \
                     "coord0.2: coord0 += d0*sg0*VW + vc0")
-          self.coord0Vgpr = self.addrVgpr
 
         if self.newCoord1: # different than last coord1Vgpr, need to add some new code?
           if not kernel["BufferStore"] or edge: #TODO, do we need edge?
@@ -7380,11 +7381,11 @@ class KernelWriterAssembly(KernelWriter):
         optimization - if no setup code is required the coord0 can be the input.
     """
     # TODO - mask should be part of AddrCalc state not passed as parm
-    def emitAddressSetupCode(self, kernel, ss, tmpS01, edge, beta, atomic, mask):
+    def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, mask):
       kStr = ""
       kw = self.kernelWriter
 
-      kStr += self.emitAddressCoordIncrement(kernel, ss, tmpS01, edge)
+      kStr += self.emitAddressCoordIncrement(kernel, ss, tmpVgpr, tmpS01, edge)
 
       # Move the row ptr VGPR
       # optSrdIncForRow moves the SRD so don't move here
@@ -8065,7 +8066,7 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpS01, edge, beta, atomic, mask)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, mask)
       if not kernel["BufferStore"]:
         # flat: in-bounds exec mask
         if edge:
