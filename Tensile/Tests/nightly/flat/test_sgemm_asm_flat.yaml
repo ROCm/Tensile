@@ -39,6 +39,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
+        - LdcEqualsLdd: [True, False]
         - ThreadTile:
           - [ 3, 5 ]
           - [ 4, 8 ]

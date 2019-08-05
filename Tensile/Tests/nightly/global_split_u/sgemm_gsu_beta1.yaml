@@ -54,6 +54,7 @@ BenchmarkProblems:
       ForkParameters:
         - PrefetchGlobalRead: [ False]
         - PrefetchLocalRead: [ False]
+        - LdcEqualsLdd: [True, False]
         - ThreadTile:
           - [ 4, 8 ]
           - [ 8, 8 ]
