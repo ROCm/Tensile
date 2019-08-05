@@ -1,5 +1,8 @@
 import Tensile.Tensile as Tensile
 
+def test_cgemm_asm(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/float_complex/cgemm_asm.yaml"), tmpdir.strpath])
+
 def test_cgemm_hip_source_nn(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/float_complex/cgemm_hip_source_nn.yaml"), tmpdir.strpath])
 
