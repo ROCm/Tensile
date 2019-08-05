@@ -7262,7 +7262,12 @@ class KernelWriterAssembly(KernelWriter):
     def __init__(self, kernelWriter, ss, addrVgpr, element, \
         coordOffset0, coord1Vgpr, coordOffset1, rowInc, newCoord1):
       self.kernelWriter = kernelWriter
-      self.addrVgpr = addrVgpr # vgprs for address, could be more than one
+
+      # vgprs for address, could be more than one (for flat)
+      # If LdcEqualsLdd and if the store batch needs a load (beta or atomic),
+      # then the value in the addrVgpr will be recomputed with LDD
+      # after all loads have completed.
+      self.addrVgpr = addrVgpr
       self.coord1Vgpr = coord1Vgpr # vpgpr that stores coord1Vgpr
 
       self.element = element
@@ -7296,7 +7301,10 @@ class KernelWriterAssembly(KernelWriter):
     """
     Emit code that computes the coord0 and coord1 for this element
     sets self.coord0Vgpr with the address that holds the coord0 value for this element.
-    Input: tmpVgpr is a 1 temporary VGPR used for coord0 calculation on edges
+    Input:
+      - tmpVgpr is a 1 temporary VGPR used for coord0 calculation on edges
+        If LdcEqualsLdd we could re-use addrVgpr here and perhaps save the temp.
+
     """
     def emitAddressCoordIncrement(self, kernel, ss, tmpVgpr, tmpS01, edge):
 
@@ -7350,18 +7358,17 @@ class KernelWriterAssembly(KernelWriter):
 
       # scale and set final address:
       if kernel["LdcEqualsLdd"] or beta or atomic:
-
-        # This is first element in the first batch, create a byte address:
-        if ss.optSingleColVgpr and ((not kernel["LdcEqualsLdd"]) or \
-            ss.firstBatch) and (self.element == (0,0,0,0)):
-          kStr += inst("_v_add_lshl_u32", \
+        if ss.optSingleColVgpr:
+          # This is first element in the first batch, create a byte address that will
+          # be re-used by subsequent elements:
+          if ss.firstBatch and self.element == (0,0,0,0):
+            kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
               vgpr(kw.cinRowPtr), \
               vgpr(kw.coord0), \
               hex(log2(kw.bpeCexternal)), \
               "ROWSTART_TARGET: init cb addr <-  cinRowPtr + coord0, scaled by BPE")
-
-        if not ss.optSingleColVgpr:
+        else:
           kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
               vgpr(kw.cinRowPtr), \
@@ -7416,6 +7423,36 @@ class KernelWriterAssembly(KernelWriter):
                         sgpr(mask,2), "clip if OOB. offset" )
         else:
           kStr += self.emitScaleAddressToBpe(kernel, ss, beta, atomic)
+
+      return kStr
+
+
+    def emitLddChange(self, kernel, ss, edge, mask, isLastElement):
+      kStr = ""
+      kw = self.kernelWriter
+
+      # Set write address for D - this overwrites self.addrVgpr
+      if kernel["BufferStore"]:
+        if ss.optSrdIncForRow:
+          if isLastElement:
+            kStr += inst("_v_add_lshl_u32", \
+              vgpr(self.addrVgpr), \
+              vgpr(kw.coutRowPtr), \
+              vgpr(kw.coord0), \
+              hex(log2(kw.bpeCexternal)), \
+              "init cb addr <-  coutRowPtr + coord0, scaled by BPE")
+        else: # not ss.optSrdIncForRow
+          kStr += inst("_v_add_lshl_u32", \
+              vgpr(self.addrVgpr), \
+              vgpr(kw.coutRowPtr), \
+              vgpr(self.coord0Vgpr), \
+              hex(log2(kw.bpeCexternal)), \
+              "accumulate d0 lower and *= bpe into addr")
+
+        if edge:
+          kStr += inst("v_cndmask_b32", vgpr(self.addrVgpr), -1, \
+                    vgpr(self.addrVgpr), sgpr(mask,2), \
+                    "LDD clip if OOB. offset")
 
       return kStr
 
@@ -8131,7 +8168,6 @@ class KernelWriterAssembly(KernelWriter):
         extraFields = ""
         loadsIssued += 1
 
-        addrCalc = ss.elementAddr[elementIdx]
         if ss.optSrdIncForRow and addrCalc.rowInc:
           kStr += addrCalc.incrementToNextRow("C", ss, tmpS01)
 
@@ -8154,27 +8190,8 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["InterleaveAlpha"]:
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
 
-      # Set write address to D
       if not kernel["LdcEqualsLdd"]:
-        if kernel["BufferStore"]:
-          if ss.optSrdIncForRow and elementIdx == (len(batchElements) - 1):
-            kStr += inst("_v_add_lshl_u32", \
-                vgpr(addr), \
-                vgpr(self.coutRowPtr), \
-                vgpr(self.coord0), \
-                hex(log2(self.bpeCexternal)), \
-                "init cb addr <-  coutRowPtr + coord0, scaled by BPE")
-
-          if not ss.optSrdIncForRow:
-            kStr += inst("_v_add_lshl_u32", \
-                vgpr(addr), \
-                vgpr(self.coutRowPtr), \
-                vgpr(addrCalc.coord0Vgpr), \
-                hex(log2(self.bpeCexternal)), \
-                "accumulate d0 lower and *= bpe into addr")
-
-          if edge:
-            kStr += inst("v_cndmask_b32", vgpr(addr), -1, vgpr(addr), sgpr(mask,2), "clip if OOB. offset")
+        kStr += addrCalc.emitLddChange(kernel, ss, edge, mask, elementIdx == len(batchElements)-1)
 
       if not kernel["BufferStore"]:
         offsetSrc = (tmpVgpr+2) if beta else addr
@@ -8184,9 +8201,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrD+1), \
             vgpr(offsetSrc+1), "vcc", "addr = D + index*bytes (hi)")
 
-      # restore full exec mask for calculating addr of next element
-      if not kernel["BufferStore"] and edge and (beta or atomic):
-        kStr += inst("s_mov_b64", "exec", -1, "full mask -1 -> exec" )
+        # restore full exec mask for calculating addr of next element
+        if edge and (beta or atomic):
+          kStr += inst("s_mov_b64", "exec", -1, "full mask -1 -> exec" )
 
     ########################################
     # rC *= alpha
