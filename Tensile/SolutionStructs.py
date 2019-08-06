@@ -1612,9 +1612,14 @@ class Solution:
     if packedC0 or packedC1:
       if state["EdgeType"] != "ShiftPtr":
         reject(state, "Packed dims requires EdgeType==ShiftPtr")
-      if state["KernelLanguage"] == "Assembly" and \
-        (not state["BufferLoad"] or state["UseSgprForGRO"]):
-        reject(state, "Packed dims for Assembly requires BufferLoad and UseSgprForGRO=0")
+      if state["KernelLanguage"] == "Assembly":
+        if not state["BufferLoad"] or state["UseSgprForGRO"]:
+          reject(state, "Packed dims for Assembly requires BufferLoad and UseSgprForGRO=0")
+        if not state["LdcEqualsLdd"]:
+          # this would require an extra VGPR for addressing (since shared VGPRS are per-row)
+          # and also would require that the dimension extraction and scale code be implemented
+          # for LDD as well. see emitExtractAndScalePackedDims
+          reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
     if packedC0 and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:

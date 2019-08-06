@@ -7376,6 +7376,62 @@ class KernelWriterAssembly(KernelWriter):
 
       return kStr
 
+    # storeChar is 'C' or 'D'
+    def emitExtractAndScalePackedDims(self, kernel, ss, beta, atomic, tmpVgpr, storeChar):
+      kStr = ""
+      kw = self.kernelWriter
+      packedIndices = kernel["PackedC0IndicesX"]
+      for i,idx in enumerate(packedIndices[:-1]):
+        # vgprTmp assignments:
+        #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
+        #   - tmp+1 is DIV output
+        #   - tmp+2 is scratch
+        idxChar= globalParameters["IndexChars"][idx]
+        kStr += kw.comment1("extract %s"%kw.size('A', idx))
+        packedBits = self.coord0Vgpr # start with coord0, will move to temp below
+        assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
+        kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" % \
+                 (tmpVgpr+1, vgpr(packedBits), \
+                  sgpr("MagicNumberSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar))
+        # tmpVgpr+1 returns the quotient, tmpVgpr+2 is overwritten
+
+        # compute remainder, packedBits % sizeIdx - this is the 'extracted' index that must be scaled
+        # remainder is mul and sub
+        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), kw.size('A', idx), \
+                     "remainder part 1")
+        kStr += inst("_v_sub_u32", vgpr(tmpVgpr+2), vgpr(packedBits), vgpr(tmpVgpr+2),
+                      "remainder part 2")
+
+        if i==0:
+          kStr += inst("v_mul_lo_u32", vgpr(self.addrVgpr), vgpr(tmpVgpr+2), \
+                    kw.stride(storeChar, idx), "addrCalc <- scaled extracted dim")
+        else:
+          kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+2), \
+                    kw.stride(storeChar, idx), "scale extracted dim")
+          kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
+                    vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
+
+        if i < len(packedIndices)-2:
+          # TODO - might be able to eliminate this
+          kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+1), \
+                    "Copy remaining bits for next divide")
+          packedBits = tmpVgpr+0
+
+        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
+                  kw.stride(storeChar, packedIndices[-1]), "scale final extracted dim")
+        kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
+                  vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
+        kStr += inst("_v_add_lshl_u32", vgpr(self.addrVgpr), \
+                  vgpr(kw.cinRowPtr), \
+                  vgpr(self.addrVgpr), \
+                  hex(log2(kw.bpeCexternal)), \
+                  "packed: add rowPtr and scaleToBpe")
+
+        if 0 and d0==1:
+          kStr += kw.bomb()
+
+      return kStr
+
     """
     Needs 3 temporary VGPRs
     """
@@ -7400,57 +7456,8 @@ class KernelWriterAssembly(KernelWriter):
           # Need an address calculation for the first address in each row:
           if d1==0 and vc1==0:
             packedIndices = kernel["PackedC0IndicesX"]
-            packedBits = self.coord0Vgpr # start with coord0, will move to temp below
             if len(packedIndices) > 1:
-              for i,idx in enumerate(packedIndices[:-1]):
-                # vgprTmp assignments:
-                #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
-                #   - tmp+1 is DIV output
-                #   - tmp+2 is scratch
-                idxChar= globalParameters["IndexChars"][idx]
-                kStr += kw.comment1("extract %s"%kw.size('A', idx))
-                assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
-                kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" % \
-                         (tmpVgpr+1, vgpr(packedBits), \
-                          sgpr("MagicNumberSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar))
-                # tmpVgpr+1 returns the quotient, tmpVgpr+2 is overwritten
-
-                # compute remainder, packedBits % sizeIdx - this is the 'extracted' index that must be scaled
-                # remainder is mul and sub
-                kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), kw.size('A', idx), \
-                             "remainder part 1")
-                kStr += inst("_v_sub_u32", vgpr(tmpVgpr+2), vgpr(packedBits), vgpr(tmpVgpr+2), 
-                              "remainder part 2")
-
-                if i==0:
-                  kStr += inst("v_mul_lo_u32", vgpr(self.addrVgpr), vgpr(tmpVgpr+2), \
-                            kw.stride("C", idx), "addrCalc <- scaled extracted dim")
-                else:
-                  kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+2), \
-                            kw.stride("C", idx), "scale extracted dim")
-                  kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
-                            vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
-
-                if i < len(packedIndices)-2:
-                  # TODO - might be able to eliminate this
-                  kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+1), \
-                            "Copy remaining bits for next divide")
-                  packedBits = tmpVgpr+0
-
-                kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
-                          kw.stride("C", packedIndices[-1]), "scale final extracted dim")
-                kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
-                          vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
-                kStr += inst("_v_add_lshl_u32", vgpr(self.addrVgpr), \
-                          vgpr(kw.cinRowPtr), \
-                          vgpr(self.addrVgpr), \
-                          hex(log2(kw.bpeCexternal)), \
-                          "packed: add rowPtr and scaleToBpe")
-
-                if 0 and d0==1:
-                  kStr += kw.bomb()
-
-
+              kStr += self.emitExtractAndScalePackedDims(kernel, ss, beta, atomic, tmpVgpr, 'C')
             else:
               kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
