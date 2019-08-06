@@ -7143,8 +7143,8 @@ class KernelWriterAssembly(KernelWriter):
         if len(kernel["PackedC0IndicesX"]) > 1:
           self.optSharedColVgpr = 1
         else:
-          #self.optSingleColVgpr = 1 or forceOpt
-          self.optSharedColVgpr = 1 # BOZO
+          self.optSingleColVgpr = 1 or forceOpt
+          #self.optSharedColVgpr = 1 # BOZO
         self.optSrdIncForRow = 1
 
       # can't have both of these enabled:
