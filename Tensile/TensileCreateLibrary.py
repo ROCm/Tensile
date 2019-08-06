@@ -361,7 +361,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kernelsToBuild += kernelsBetaOnly
 
-  codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernelsToBuild, outputPath)
+  codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernelsToBuild, outputPath)
   codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
