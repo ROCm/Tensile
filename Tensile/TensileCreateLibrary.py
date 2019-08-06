@@ -159,7 +159,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
-    sourceKernelFiles = zip(CxxCompiler, itertools.repeat(outputPath), sourceKernelFiles)
+    sourceKernelFiles = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), sourceKernelFiles)
 
     coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels",
                                  method=lambda x: x.starmap)
