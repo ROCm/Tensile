@@ -153,6 +153,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
   runScriptFile.write("cmake")
   # runtime and kernel language
   runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
   runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")

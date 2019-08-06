@@ -1139,7 +1139,7 @@ def apply_print_exception(item, *args):
     sys.stdout.flush()
     sys.stderr.flush()
 
-def ProcessingPool(enable=False):
+def ProcessingPool(enable=True):
   import multiprocessing
   import multiprocessing.dummy
 
@@ -1150,7 +1150,7 @@ def ProcessingPool(enable=False):
 
   return multiprocessing.Pool(threadCount)
 
-def ParallelMap(function, objects, message="", enable=False, method=None):
+def ParallelMap(function, objects, message="", enable=True, method=None):
   """
   Generally equivalent to list(map(function, objects)), possibly executing in parallel.
 
