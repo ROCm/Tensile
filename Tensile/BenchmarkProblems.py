@@ -515,7 +515,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], [problemType], solutions, kernels, kernelsBetaOnly, \
+      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))

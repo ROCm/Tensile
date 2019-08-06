@@ -80,8 +80,10 @@ else()
     set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
     set(Tensile_CODE_OBJECT_VERSION V2 CACHE STRING "Which code object version to use")
     set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
+    set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hcc hipcc)
 
     message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
+    message( STATUS "Tensile_COMPILER            from Tensile/Source/CMakeLists.txt: ${Tensile_COMPILER}")
 
     ###############################################################################
     # Benchmark Client
@@ -174,6 +176,7 @@ else()
         ${Tensile_LOGIC_PATH}           # path
         ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
+        ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
         ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF

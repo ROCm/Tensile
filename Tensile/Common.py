@@ -159,6 +159,7 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "V2"
+globalParameters["CxxCompiler"] = "hcc"
 
 # might be deprecated
 globalParameters["EnableHalf"] = False
