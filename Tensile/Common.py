@@ -790,16 +790,59 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    # List of pairs of [index, constValue].
+    # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
+    #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],
+
+    # ZeroPad:
+    # Zero-pad will add leading and trailing "pad" elements to the specified free
+    # dimension when accessed by specified summation dimension.
+    #
+    # Format is list of tuples of [freeDim, sumDim, padLeading, padTrailing].
+    #  - freeDim is the anchor where the zero-pad starts.
+    #  - sumDim is the summation dim to which the padding checking is added.
+    #  - padLeading is the number of elements to pad before the Start element
+    #  - padTrailing is the number of elements to pad before the last element.
+
+    # - Terms:
+    #   - Start is the first summation element
+    #   - FreeSize is the size of the specified free dimension (freeDim)
+    #   - SumSize is the size of the specified summation dimension (sumDim)
+    # - Pad Ranges:
+    #   - Ranges show below are inclusive on the start element and exclusive on the last element.
+    #     For example, [0,3) is 0,1,2.
+    #    - Elements in the region [Start-padLeading, Start) are in the leading pad region and will return 0.
+    #    - Elements in the memory region [Start + freeSize + sumSize - padTrailing,  Start + freeSize + sumSize)
+    #     are in the trailing pad region and will return 0.
+    # - Strides:
+    #   - SummationStride is applied to compute the element address before checking the regions.
+    #   - FreeStride is applied to the computation of the Start element, padLeading, and padTrailing.
+    #   -  No memory access is performed for elements in the Pad regions.
+    #   - The Pad regions are handled by manipulating the tensor addressing and are not visible in actual memory.
+    #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
+    #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.
+    # - Caveats:
+    #  - CPU reference model does not yet support zero-padding
+    #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
+    #  - ZeroPad requires that the ElementEdge <= 2^32:
+    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32 
+    #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
+
+    #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
+    # Note nesting of brackets ; the parm can contain multiple padding tuples.
+
+    "ZeroPadA":                 [], # [ [0,1, 2,3]]
+    "ZeroPadB":                 [], # Not fully supported/tested yet
 
     # for LD description
     "NumIndicesLD":            4,
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
 
     # Tile aware solution selection
-    "TileAwareSelection":       False    
+    "TileAwareSelection":       False
     }
-    
+
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, 0 ]}]

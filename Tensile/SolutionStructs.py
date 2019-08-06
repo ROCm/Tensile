@@ -90,8 +90,26 @@ class ProblemType:
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(config)
 
+
     self.state["AssignedDerivedParameters"] = False
     ProblemType.assignDerivedParameters(self.state)
+
+    for tc in ('A', 'B'):
+      freeDims={}
+      sumDims={}
+      for zp in self["ZeroPad%s"%tc] :
+        (freeDim, sumDim, leading, trailing) = zp
+        if freeDim not in self.state["IndicesFree"]:
+          printExit("ZeroPad%s=%s dim=%u is not a free index"%(tc, zp, freeDim))
+        if sumDim not in self.state["IndicesSummation"]:
+          printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
+        if freeDim in freeDims:
+          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple"%(tc, zp, freeDim))
+        freeDims[freeDim] = 1
+        if sumDim in sumDims:
+          printExit("ZeroPad%s=%s sumDim=%u occurs in more than one tuple"%(tc, zp, sumDim))
+        sumDims[sumDim] = 1
+
 
 
   ########################################
@@ -611,6 +629,10 @@ class Solution:
           problemType["UseInitialStrides"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
+      kernel["ProblemType"]["ZeroPadA"] = \
+          problemType["ZeroPadA"]
+      kernel["ProblemType"]["ZeroPadB"] = \
+          problemType["ZeroPadB"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernel["KernelLanguage"] = "Source"
       kernels.append(kernel)
@@ -1595,6 +1617,15 @@ class Solution:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
 
+    # current requirement to avoid buffer loads that span multiple entries
+    # if the summation dim participating in the ZeroPad is not fast-moving then
+    # likely have more performant options.
+    for tc in ('A', 'B'):
+      if problemType["ZeroPad%s"%tc] and state["KernelLanguage"] == "Assembly":
+        if state["GlobalLoadVectorWidth%s"%tc] != 1:
+          reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
+        if not state["BufferLoad"]:
+          reject(state, "asm ZeroPad requires BufferLoad")
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0

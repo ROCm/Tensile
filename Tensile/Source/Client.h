@@ -1913,7 +1913,7 @@ bool benchmarkProblemSizes(
         &problem_gpu_time_ms);
     if (invalids) returnInvalids = true;
     gpu_time_ms += problem_gpu_time_ms;
-    printf ("gpu_time: %6.2f ms+ %6.2fns\n", gpu_time_ms, problem_gpu_time_ms);
+    //printf ("gpu_time: %6.2f ms+ %6.2fns\n", gpu_time_ms, problem_gpu_time_ms);
 
   } // for problemIdx
 	auto timeK = totalKernelTimer.elapsed_sec();
