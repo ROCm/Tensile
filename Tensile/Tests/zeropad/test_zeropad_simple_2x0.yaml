@@ -1,6 +1,5 @@
 GlobalParameters:
   EnqueuesPerSync: 1
-  LibraryPrintDebug: False
   NumElementsToValidate: 1
   KernelTime: True
   #PinClocks: True
@@ -15,7 +14,7 @@ GlobalParameters:
   #PrintTensorB: 1
   PrintTensorD: 2
   CpuThreads: 0
-  LibraryPrintDebug: 1
+  #LibraryPrintDebug: 1
 
 BenchmarkProblems:
   ########################################

@@ -1,6 +1,5 @@
 GlobalParameters:
   EnqueuesPerSync: 1
-  LibraryPrintDebug: False
   NumElementsToValidate: 1
   KernelTime: True
   #PinClocks: True
