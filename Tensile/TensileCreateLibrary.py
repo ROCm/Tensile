@@ -131,27 +131,28 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       compileArgs = [which('hcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
 
+      linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
+      extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
+
+      #print(' '.join(compileArgs))
+      subprocess.check_call(compileArgs)
+
+      #print(' '.join(linkArgs))
+      subprocess.check_call(linkArgs)
+
+      #print(' '.join(extractArgs))
+      subprocess.check_call(extractArgs, cwd=buildPath)
+
     elif (CxxCompiler == "hipcc"):
 
       hipFlags = "--genco"
-      hipLinkFlags = ""
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilename]
 
-
-    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
-    extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
-
-    #print(' '.join(compileArgs))
-    subprocess.check_call(compileArgs)
-
-    #print(' '.join(linkArgs))
-    subprocess.check_call(linkArgs)
-
-    #print(' '.join(extractArgs))
-    subprocess.check_call(extractArgs, cwd=buildPath)
+      #print(' '.join(compileArgs))
+      subprocess.check_call(compileArgs)
 
     return ["{0}-000-{1}.hsaco".format(soFilepath,arch) for arch in archs]
 
