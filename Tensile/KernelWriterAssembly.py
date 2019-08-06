@@ -7588,7 +7588,15 @@ class KernelWriterAssembly(KernelWriter):
     # May want to allocate an SGPR to save this value
     #--
     kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
-    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+0", \
+    sizeBoundary = [0,0]
+    sizeBoundary[0] = \
+        sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
+        else self.size('C', kernel["ProblemType"]["Index0"])
+    sizeBoundary[1] = \
+        sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
+        else self.size('C', kernel["ProblemType"]["Index1"])
+
+    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, sizeBoundary[0], \
         kernel["MacroTile0"], tmpS45, 2)
     # s23 = nwg0-1
     kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
@@ -7609,7 +7617,7 @@ class KernelWriterAssembly(KernelWriter):
     # --
 
     # s23 = rMT1 = Size1 % MT1
-    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, "SizesFree+1", \
+    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, sizeBoundary[1], \
         kernel["MacroTile1"], tmpS45, 2)
     # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
 
@@ -9333,15 +9341,17 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
 
   assert (qReg != tmpSgpr)
 
+  dRegSgpr = dReg if type(dReg) == str and dReg.startswith("s[") else sgpr(dReg)
+
   kStr = ""
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
     if doRemainder != 2:
-      kStr += inst("s_lshr_b32", sgpr(qReg), sgpr(dReg), divisor_log2, \
-          "%s = %s / %u"%(sgpr(qReg), sgpr(dReg), divisor) )
+      kStr += inst("s_lshr_b32", sgpr(qReg), dRegSgpr, divisor_log2, \
+          "%s = %s / %u"%(sgpr(qReg), dRegSgpr, divisor) )
     if doRemainder:
-      kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), sgpr(dReg), \
-          "%s = %s %% %u"%(sgpr(rReg), sgpr(dReg), divisor) )
+      kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), dRegSgpr, \
+          "%s = %s %% %u"%(sgpr(rReg), dRegSgpr, divisor) )
   else:
     """
     if divisor == 30:
@@ -9361,16 +9371,16 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     magicLo = magic & (2**16-1)
 
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "STATIC_DIV: divisior=%s"%divisor)
-    kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), hex(magicHi), sgpr(dReg), "tmp1 = dividend * magic hi")
+    kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), hex(magicHi), dRegSgpr, "tmp1 = dividend * magic hi")
     kStr += inst("s_lshl_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(16), "left shift 16 bits")
-    kStr += inst("s_mul_i32", sgpr(qReg), sgpr(dReg), hex(magicLo), "tmp0 = dividend * magic lo")
+    kStr += inst("s_mul_i32", sgpr(qReg), dRegSgpr, hex(magicLo), "tmp0 = dividend * magic lo")
     kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr(qReg), sgpr(tmpSgpr+0), "add lo")
     kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), hex(0), "add hi")
     kStr += inst("s_lshr_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(shift), "tmp1 = (dividend * magic) << shift")
     kStr += inst("s_mov_b32", sgpr(qReg), sgpr(tmpSgpr), "quotient")
     if doRemainder:
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(qReg), hex(divisor), "quotient*divisor")
-      kStr += inst("s_sub_u32", sgpr(rReg), sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - quotient*divisor")
+      kStr += inst("s_sub_u32", sgpr(rReg), dRegSgpr, sgpr(tmpSgpr), "rReg = dividend - quotient*divisor")
   return kStr
 
 ########################################
