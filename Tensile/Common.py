@@ -529,6 +529,7 @@ validParameters = {
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
+    # The byte address of the last element in the packed array must fit in 2^32.
     # 0x0 = each workgroup works on a single batch dim.
     # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
     #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
