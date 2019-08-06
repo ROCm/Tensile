@@ -47,11 +47,11 @@ tensileCI:
 
                     hostname
 
+                    export PATH=/opt/rocm/bin:$PATH
                     cd ${project.paths.project_build_prefix}
 
                     mkdir build
                     pushd build
-                    export PATH=/opt/rocm/bin:$PATH
                     ${project.paths.build_command}
                     make -j
 
@@ -78,6 +78,7 @@ tensileCI:
 
                     hostname
 
+                    export PATH=/opt/rocm/bin:$PATH
                     cd ${project.paths.project_build_prefix}
 
                     pushd build
