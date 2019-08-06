@@ -520,7 +520,7 @@ class KernelWriterAssembly(KernelWriter):
   ########################################
   ########################################
   def size(self, tc, dim):
-    problemType = self.kernel["ProblemType"]
+    #problemType = self.kernel["ProblemType"]
     if tc in ['A','B','C','D']:
       return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
     else:
@@ -4535,7 +4535,7 @@ class KernelWriterAssembly(KernelWriter):
     if not tailLoop:
       problemType = kernel["ProblemType"]
       zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
-      zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
+      #zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
       if zpA:
         tc = 'A'
         (freeDim,sumDim) = zpA[:2]
