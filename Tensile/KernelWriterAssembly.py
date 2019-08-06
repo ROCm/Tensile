@@ -7756,8 +7756,13 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Vgprs
-    goc = 0 if kernel["BufferStore"] else 3 # GLOBAL_OFFSET_C
-    tmpVgpr = self.vgprPool.checkOut(2+goc,"coord+GOC") # 2 for coord + GLOBAL_OFFSET_C
+    if kernel["BufferStore"]:
+      numTmpVgpr = 2
+      if len(kernel["PackedC0IndicesX"]) > 1:
+        numTmpVgpr += 1
+    else:
+      numTmpVgpr = 2 + 3 # GLOBAL_OFFSET_C needs 3, plus 2 tmps?
+    tmpVgpr = self.vgprPool.checkOut(numTmpVgpr,"store tmps")
 
     ########################################
     # Sgprs
