@@ -7127,10 +7127,15 @@ class KernelWriterAssembly(KernelWriter):
 
       # optSingleColVgpr: optimize coord0/column address calculations:
       #  - Use the load/store instruction offset
+      #  - Doesn't work for edge since each element requires own addr VGPR so
+      #    we can perform bounds check and set to -1 for OOB accesses.
       # optSharedColVgpr:
-      #  - Each col gets it's own address, but rows in the same col share VGPR
-      # if optSingleColVgpr = optSharedColVgpr = 0, then each element gets 
-      #  1-2 VGPRs to track address.
+      #  - Each col gets it's own address, but rows in the same col share VGPR.
+      #    Doesn't work for edge since each element requires own addr VGPR so
+      #    we can perform bounds check and set to -1 for OOB accesses.
+      # if optSingleColVgpr = optSharedColVgpr = 0, then each element gets
+      #  1-2 VGPRs to track address.  Address calcs are performed independently
+      #  for each element.
       #
       # optSrdIncForRow: optimize coord1/row address calculations:
       #  - Move the SRD bewtween memory operations to get to new row
@@ -7141,17 +7146,19 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["BufferStore"] and not edge and not atomic:
         if len(kernel["PackedC0IndicesX"]) > 1:
+          # packed mode needs a unique VGPR address calc for each column.
           self.optSharedColVgpr = 1
         else:
           self.optSingleColVgpr = 1 or forceOpt
-          #self.optSharedColVgpr = 1 # BOZO
+
+        # atomic needs to reset the SRD to handle retry loop.  Then might work.
         self.optSrdIncForRow = 1
 
       # can't have both of these enabled:
       assert (not (self.optSingleColVgpr and self.optSharedColVgpr))
 
       # need another set of col VGPR to preserve scaled LDD
-      assert (not (self.optSharedColVgpr and not kernel["LdcEqualsLdd"])) 
+      assert (not (self.optSharedColVgpr and not kernel["LdcEqualsLdd"]))
 
       self.cfg = self.StoreConstConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
 
@@ -7165,7 +7172,6 @@ class KernelWriterAssembly(KernelWriter):
         numCols = len([e for e in elements if e[0] == 0 and e[2] == 0]) # count #elements with row d1=v1==0
         self.numAddrVgpr = numCols
         self.sharedColVgprs = kernelWriter.vgprPool.checkOut(self.numAddrVgpr, "sharedColVgprs for packed elements")
-        print("Edge=", edge, "sharedColVgprs=", self.sharedColVgprs, "NumPacked=", self.numAddrVgpr, "elements=", elements)
       elif self.optSingleColVgpr:
         self.numAddrVgpr = 1
         self.sharedColVgprs = kernelWriter.vgprPool.checkOut(1, "sharedColVgprs")
@@ -7336,6 +7342,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       kw = self.kernelWriter
       (d1,d0,vc1,vc0) = self.element
+      self.coord0Vgpr = None # will set below
 
       #kStr += self.kernelWriter.comment1("store addr=v%u coordOffset0=%u"% \
       #    (self.addr, self.coordOffset0))
@@ -7357,12 +7364,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("_v_add_co_u32", vgpr(self.coord0Vgpr), "vcc", vgpr(kw.coord0), sgpr(tmpS01), \
                     "coord0.2: coord0 += d0*sg0*VW + vc0")
 
-        if self.newCoord1: # different than last coord1Vgpr, need to add some new code?
+        if self.newCoord1:
           if not kernel["BufferStore"] or edge: #TODO, do we need edge?
             if self.rowInc== 0:
-              # just use coord1Vgpr directly
-              if 0:
-                kStr += self.comment1("coord0.0 rowInc=0, use coordVgpr1=v%u directly"%self.coord1Vgpr)
+              None
             elif self.rowInc <= 64:
               # rowInc fits in instruction:
               kStr += inst("_v_add_co_u32", vgpr(self.coord1Vgpr), "vcc", \
@@ -7372,8 +7377,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("s_mov_b32", sgpr(tmpS01), self.rowInc, "rowInc d1=%u vc1=%u"%(d0, vc0))
               kStr += inst("_v_add_co_u32", vgpr(self.coord1Vgpr), "vcc", \
                         vgpr(self.kernelWriter.coord1), sgpr(tmpS01), \
-                        "coord1.2: coord1 += d1*sg1*VW + vc1") #TODO1-change kernelwriter.coord1
-
+                        "coord1.2: coord1 += d1*sg1*VW + vc1")
       return kStr
 
     # storeChar is 'C' or 'D'
@@ -7438,6 +7442,7 @@ class KernelWriterAssembly(KernelWriter):
     def emitScaleToBpe(self, kernel, ss, beta, atomic, tmpVgpr):
       kStr = ""
       kw = self.kernelWriter
+      (d1,d0,vc1,vc0) = self.element
 
       # scale and set final address:
       if kernel["LdcEqualsLdd"] or beta or atomic:
@@ -7452,7 +7457,6 @@ class KernelWriterAssembly(KernelWriter):
               hex(log2(kw.bpeCexternal)), \
               "optSingleColVgpr scaleToBpe: sharedAddrVgpr <- cinRowPtr + coord0, scaled by BPE")
         elif ss.optSharedColVgpr:
-          (d1,d0,vc1,vc0) = self.element
           # Need an address calculation for the first address in each row:
           if d1==0 and vc1==0:
             packedIndices = kernel["PackedC0IndicesX"]
@@ -7466,12 +7470,20 @@ class KernelWriterAssembly(KernelWriter):
                 hex(log2(kw.bpeCexternal)), \
                 "optSharedColVgpr scaleToBpe for first row: col addr <- cinRowPtr + coord0, scaled by BPE")
         else:
-          kStr += inst("_v_add_lshl_u32", \
-              vgpr(self.addrVgpr), \
-              vgpr(kw.cinRowPtr), \
-              vgpr(self.coord0Vgpr), \
-              hex(log2(kw.bpeCexternal)), \
-              "scaleToBpe: accumulate d0 lower and *= bpe into Cin addr")
+          # Generate final address calculation (to bytes) for each element
+          # The unpacking takes 8-10 instructions so could be worth optimizing someday :
+          # each col has same offset so could create a class to hold column-specific state including
+          # the byte address offset for that col and the mask in/out.
+          packedIndices = kernel["PackedC0IndicesX"]
+          if len(packedIndices) > 1:
+            kStr += self.emitExtractAndScalePackedDims(kernel, ss, beta, atomic, tmpVgpr, 'C')
+          else:
+            kStr += inst("_v_add_lshl_u32", \
+                vgpr(self.addrVgpr), \
+                vgpr(kw.cinRowPtr), \
+                vgpr(self.coord0Vgpr), \
+                hex(log2(kw.bpeCexternal)), \
+                "scaleToBpe: accumulate d0 lower and *= bpe into Cin addr")
 
       return kStr
 
