@@ -106,7 +106,7 @@ def which(p):
     return None
 
 
-def buildSourceCodeObjectFile(outputPath, kernelFile):
+def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     buildPath = ensurePath(os.path.join(globalParameters['WorkingPath'], 'code_object_tmp'))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
@@ -117,32 +117,49 @@ def buildSourceCodeObjectFile(outputPath, kernelFile):
     soFilename = base + '.so'
     soFilepath = os.path.join(buildPath, soFilename)
 
-    archFlags = ['-amdgpu-target=gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA']]
+    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+             if globalParameters["AsmCaps"][arch]["SupportedISA"]]
 
-    hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags', '--shared']).decode().split(' ')
-    hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
+    archFlags = ['-amdgpu-target=' + arch for arch in archs]
 
-    hipFlags += ['-I', outputPath]
+    if (CxxCompiler == 'hcc'):
 
-    compileArgs = [which('hcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
-    linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
-    extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
+      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags', '--shared']).decode().split(' ')
+      hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
 
-    #print(' '.join(compileArgs))
-    subprocess.check_call(compileArgs)
+      hipFlags += ['-I', outputPath]
 
-    #print(' '.join(linkArgs))
-    subprocess.check_call(linkArgs)
+      compileArgs = [which('hcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
 
-    #print(' '.join(extractArgs))
-    subprocess.check_call(extractArgs, cwd=buildPath)
+      linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
+      extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
-    return ["{0}-000-gfx{1}.hsaco".format(soFilepath,''.join(map(str,arch))) for arch in globalParameters["SupportedISA"]]
+      #print(' '.join(compileArgs))
+      subprocess.check_call(compileArgs)
 
-def buildSourceCodeObjectFiles(kernelFiles, kernels, outputPath):
+      #print(' '.join(linkArgs))
+      subprocess.check_call(linkArgs)
+
+      #print(' '.join(extractArgs))
+      subprocess.check_call(extractArgs, cwd=buildPath)
+
+    elif (CxxCompiler == "hipcc"):
+
+      hipFlags = "--genco"
+
+      hipFlags += ['-I', outputPath]
+
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilename]
+
+      #print(' '.join(compileArgs))
+      subprocess.check_call(compileArgs)
+
+    return ["{0}-000-{1}.hsaco".format(soFilepath,arch) for arch in archs]
+
+def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
 
-    sourceKernelFiles = zip(itertools.repeat(outputPath), sourceKernelFiles)
+    sourceKernelFiles = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), sourceKernelFiles)
 
     coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels",
                                  method=lambda x: x.starmap)
@@ -226,7 +243,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kernelsBetaOnly, \
+def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly):
   start = time.time()
 
@@ -267,6 +284,22 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
   print(len(results))
 
+  removeKernels = []
+  removeSolutions = []
+  removeResults = []
+  for kernIdx in range(0, len(results)):
+    (err,src,header,kernelName) = results[kernIdx]
+    if(err == -2):
+      removeKernels.append(kernels[kernIdx])
+      removeSolutions.append(solutions[kernIdx])
+      removeResults.append(results[kernIdx])
+  for kern in removeKernels:
+      kernels.remove(kern)
+  for solut in removeSolutions:
+      solutions.remove(solut)
+  for rel in removeResults:
+      results.remove(rel)
+
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
   if False:#len(kernelsWithBuildErrs) > 0:
@@ -306,7 +339,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     kernelHeaderFile.close()
 
   if globalParameters["BuildCodeObjects"]:
-    codeObjectFiles += buildSourceCodeObjectFiles(kernelFiles, kernels + kernelsBetaOnly, outputPath)
+    codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels + kernelsBetaOnly, outputPath)
     codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
 
   stop = time.time()
@@ -885,6 +918,7 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       action="store", default="hcc")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", action="store", default="V2")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
@@ -901,11 +935,13 @@ def TensileCreateLibrary():
 
   logicPath = args.LogicPath
   outputPath = args.OutputPath
+  CxxCompiler = args.CxxCompiler
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
   arguments = {}
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
+  arguments["CxxCompiler"] = args.CxxCompiler
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
@@ -914,6 +950,7 @@ def TensileCreateLibrary():
   assignGlobalParameters(arguments)
 
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
+  print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
 
   globalParameters["BuildCodeObjects"] = True
 
@@ -1001,7 +1038,7 @@ def TensileCreateLibrary():
 
   # write solutions and kernels
   problemTypes = list(logicData.keys())
-  codeObjectFiles = writeSolutionsAndKernels(outputPath, problemTypes, solutions,
+  codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
                                              kernels, kernelsBetaOnly,
                                              solutionWriter,
                                              kernelWriterSource, kernelWriterAssembly)

@@ -126,6 +126,11 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   indexOrder    = logicTuple[2]
   exactLogic    = logicTuple[3]
   rangeLogic    = logicTuple[4]
+
+  tileSelection = False
+  if len(logicTuple) > 5 and logicTuple[5]:
+    tileSelection = True
+
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
   print2("# writeLogic( %s )" % ( filename ))
@@ -159,6 +164,20 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
     solutionState["ProblemType"]["ComputeDataType"] = \
         solutionState["ProblemType"]["ComputeDataType"].value
     solutionList.append(solutionState)
+
+  if tileSelection:
+    tileSolutions = logicTuple[5]
+    for solution in tileSolutions:
+      solutionState = solution.getAttributes()
+      solutionState["ProblemType"] = solutionState["ProblemType"].state
+      solutionState["ProblemType"]["DataType"] = \
+          solutionState["ProblemType"]["DataType"].value
+      solutionState["ProblemType"]["DestDataType"] = \
+          solutionState["ProblemType"]["DestDataType"].value
+      solutionState["ProblemType"]["ComputeDataType"] = \
+          solutionState["ProblemType"]["ComputeDataType"].value
+      solutionList.append(solutionState)
+
   data.append(solutionList)
   # index order
   data.append(indexOrder)
@@ -171,6 +190,12 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
 
   # rangeLogic
   data.append(rangeLogic)
+
+  if tileSelection:
+    tileSelectionLogic = {}
+    tileSelectionIndices = logicTuple[6]
+    tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
+    data.append(tileSelectionLogic)
 
   # open & write file
   try:

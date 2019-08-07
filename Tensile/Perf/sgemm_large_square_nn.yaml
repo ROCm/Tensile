@@ -1,6 +1,6 @@
 # A config to generate a fast kernel for large DGEMMs
 GlobalParameters:
-  EnqueuesPerSync: 1
+  EnqueuesPerSync: 10
   LibraryPrintDebug: False
   NumElementsToValidate: 0
   KernelTime: True
@@ -9,6 +9,7 @@ GlobalParameters:
   DataInitTypeBeta : 0
   DataInitTypeAB: 0
   PrintSolutionRejectionReason: 1
+  PrintWinnersOnly: 1
 
 BenchmarkProblems:
   ########################################
@@ -21,7 +22,7 @@ BenchmarkProblems:
       TransposeA: False
       TransposeB: False
       UseBeta: True
-      Batched: True
+      Batched: False
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -51,11 +52,13 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # A couple classic large matrix problems:
-          - Range: [ [4096], [4096], [1], [4096] ]
-          - Range: [ [5760], [5760], [1], [4096] ]
-          - Range: [ [5760], [5760], [1], [5760] ]
-          - Range: [ [7744], [7744], [1], [7744] ]
-          - Range: [ [5760], [5760], [1], [50000] ]
+          #- Range: [ [384,384,9984], 0, 0]
+          - Range: [ [4096], [4096], [4096] ]
+          - Range: [ [5760], [5760], [4096] ]
+          - Range: [ [5760], [5760], [5760] ]
+          - Range: [ [7744], [7744], [7744] ]
+          - Range: [ [5760], [5760], [50000] ]
+            #- Range: [ [5760], 0, [64,64,2048] ]  # k sweep
 
   ########################################
 

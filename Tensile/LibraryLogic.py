@@ -22,6 +22,7 @@
 from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from .SolutionStructs import Solution
 from . import YAMLIO
+from . import SolutionSelectionLibrary
 
 from copy import deepcopy
 from sys import stdout
@@ -37,6 +38,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print2(HR)
   print1("# Analyzing: %s" % problemType)
 
+  enableTileSelection = problemType["TileAwareSelection"]
   solutionsList = []
   problemSizesList = []
   dataFileNameList = []
@@ -111,6 +113,45 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
         Solution.getNameMin(s, solutionMinNaming), \
         Solution.getNameFull(s)))  # this is the right name
 
+  selectionSolutionsIdsList = None 
+  selectionSolutions = None
+  if enableTileSelection:
+    validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, problemSizeGroups)
+  
+    validSelectionSolutionsIncluded = []
+    validSelectionSolutionsRemainder = []
+    for validSelectionSolution in validSelectionSolutions:
+      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      if validSolution in logicAnalyzer.solutions:
+        validExactSolutionIndex = logicAnalyzer.solutions.index(validSolution)
+        validExactSolution = logicAnalyzer.solutions[validExactSolutionIndex]
+        validSelectionSolutionsIncluded.append((validSolutionName, validExactSolution, validSolutionInfo))
+      else:
+        validSelectionSolutionsRemainder.append(validSelectionSolution)
+
+    selectionSolutions = []
+    selectionSolutionsIds = set([])
+    for i in range(0 ,len(validSelectionSolutionsIncluded)):
+      validSelectionSolution = validSelectionSolutionsIncluded[i]
+      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      validSolution["Ideals"] = validSolutionInfo
+      selectionSolutionsIds.add(validSolution["SolutionIndex"])
+      #selectionSolutions.append(validSolution)
+
+    solutionsStartIndex = len(logicAnalyzer.solutions)
+
+    for i in range(0, len(validSelectionSolutionsRemainder)):
+      validSelectionSolution = validSelectionSolutionsRemainder[i]
+      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      selectionSolutionIndex = solutionsStartIndex + i
+      validSolution["SolutionIndex"] = selectionSolutionIndex
+      selectionSolutionsIds.add(selectionSolutionIndex)
+      validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
+      validSolution["Ideals"] = validSolutionInfo
+      selectionSolutions.append(validSolution)
+
+    selectionSolutionsIdsList = list(selectionSolutionsIds)
+
   ######################################
   # Correct outliers
   """
@@ -157,8 +198,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1("# Exact Logic:\n")
   print1("%s"%exactLogic)
 
+  #selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
-       exactLogic, rangeLogic )
+       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList)
 
 
 
@@ -432,9 +474,6 @@ class LogicAnalyzer:
         else:
           printExit("Huh? %s has ProblemSize %s which isn't in its yaml" \
               % ( dataFileName, list(problemSize)) )
-    if rowIdx < 2:
-      printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
-          % (dataFileName, rowIdx) )
     #print self.data
 
 
@@ -1370,12 +1409,9 @@ def main(  config ):
   print1(HR)
   print1("")
 
-
-
   ##############################################################################
   # Determine Which Problem Types
   ##############################################################################
-  #problemTypeTuples = []
   problemTypes = {}
   if not os.path.exists(benchmarkDataPath):
     printExit("Path doesn't exist: %s" % benchmarkDataPath)
@@ -1388,6 +1424,7 @@ def main(  config ):
           fileName))[0]
       dataFileName = fileBase + ".csv"
       solutionsFileName = fileBase + ".yaml"
+      selectionFileName = fileBase + ".gsp"
       if not os.path.exists(dataFileName):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
@@ -1399,13 +1436,12 @@ def main(  config ):
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName) )
-      #if problemTypeTuple not in problemTypeTuples:
-      #  problemTypeTuples.append(problemTypeTuple)
+          dataFileName, solutionsFileName, selectionFileName) )
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
-        analysisParameters )
+        analysisParameters)
+
     YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
         analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
         analysisParameters["DeviceNames"], logicTuple)

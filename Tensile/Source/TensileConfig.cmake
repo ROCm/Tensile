@@ -27,12 +27,14 @@ include(CMakeParseArguments)
 function(TensileCreateLibraryCmake
     Tensile_LOGIC_PATH
     Tensile_RUNTIME_LANGUAGE
+    Tensile_COMPILER
     Tensile_CODE_OBJECT_VERSION
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
 
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
+  message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
 
   # Tensile_ROOT can be specified instead of using the installed path.
   set(oneValueArgs Tensile_ROOT)
@@ -69,6 +71,7 @@ function(TensileCreateLibraryCmake
   endif()
 
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--cxx-compiler=${Tensile_COMPILER}")
 
   # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
@@ -111,7 +114,7 @@ function(TensileCreateLibraryCmake
   set(options)
   add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
   # specify gpu targets
-  set(Tensile_HIP_ISA "gfx803" "gfx900" "gfx906")
+  set(Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
   foreach( target ${Tensile_HIP_ISA} )
     target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
   endforeach()

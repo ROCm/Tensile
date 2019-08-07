@@ -425,10 +425,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # increments
       kl.append(self.comment("global read addresses: increments a"))
-      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      for i in reversed(range(kernel["ProblemType"]["NumIndicesSummation"])):
         kl.append(self.graIncrements(kernel, i, tensorParametersA))
       kl.append(self.comment("global read addresses: increments b"))
-      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
         kl.append(self.graIncrements(kernel, i, tensorParametersB))
 
       ####################################
@@ -476,7 +476,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # we can't init in shadow of this prefetch
     # since that would initC inside the other summation loops
 
-    if not self.doShadowInit:
+    if self.doShadowInit != 2:
       kl.append(self.initC(kernel))
 
     # open non-unrolled summation loops
@@ -620,7 +620,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("local read addresses: declare addresses b"))
       kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
 
-    self.doShadowInit = self.unrollIdx==0 and kernel["PrefetchGlobalRead"]
+    # doShadowInit perfoms initialization in the 'shadow' of the global mem prefetch
+    self.doShadowInit = 0
+    if kernel["PrefetchGlobalRead"]:
+      if kernel["ProblemType"]["NumIndicesSummation"]==1:
+        self.doShadowInit = 2 # 2 is both store setup and initC
+      else:
+        # can't do shadow initC with multiple summation since this resets the ValuC counters
+        # on each unroll iteration.
+        self.doShadowInit = 1 # 1 is just store setup
     if self.prefetchAcrossPersistent:
       # first prefetch is outside persistent loop, subsequent prefetch will
       # be integrated into no-load-loop
@@ -635,7 +643,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
-        kl.append(self.initC(kernel)) # initC while waiting for global reads
+        if self.doShadowInit == 2:
+          kl.append(self.initC(kernel)) # initC while waiting for global reads
+        kl.append(self.closeShadowInit(kernel))
 
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
@@ -1123,15 +1133,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
+    # doShadowInit is required since this pushes up the store SRD initialization before the NLL
+    # OptNLL only allowed for single summation index  - for multiple summation we (currently)
+    # execute the NLL inside each unroll iteration not just once at the end.
     if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
       if kernel["KernelLanguage"] == "Assembly" and kernel["OptNoLoadLoop"] and \
-         kernel["BufferLoad"] and kernel["BufferStore"] and \
-         kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1:
+         kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
+         kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
+         kernel["ProblemType"]["NumIndicesSummation"] == 1:
         self.saveLocalPointers(kernel)
-        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, True)
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True)
         self.restoreLocalPointers(kernel)
 
-      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, False)
+      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False)
 
 
     ########################################
@@ -2099,6 +2113,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
+  # closeShadowInit:
+  # Top of shadow init code
+  ##############################################################################
+  @abc.abstractmethod
+  def closeShadowInit(self, kernel):
+    return ""
+
+  ##############################################################################
   # Initialize C
   ##############################################################################
   @abc.abstractmethod
@@ -2586,7 +2608,7 @@ for codeObjectFileName in codeObjectFileNames:
       return (-1, "")
     except RuntimeError as exc:
       print(exc)
-      return (-1, "")
+      return (-2, "")
 
   ##############################################################################
   # header file string

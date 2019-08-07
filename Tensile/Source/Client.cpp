@@ -78,6 +78,17 @@ int main( int argc, char *argv[] ) {
           deviceOnHostD, deviceOnHostC);
 #endif
 
+#if Tensile_CLIENT_BENCHMARK
+#define TENSILE_CLIENT_CALL_BENCHMARK_SOLUTIONS                         \
+    if (runBenchmarkSolutions != 0) {                                   \
+        benchmarkSolutions(initialD, initialC, initialA,                \
+              initialB, alpha, beta, referenceD, referenceC,            \
+              deviceOnHostD, deviceOnHostC);                            \
+    }
+#else
+#define TENSILE_CLIENT_CALL_BENCHMARK_SOLUTIONS
+#endif
+
 #define TENSILE_CLIENT_CALL_SETUP(Ti, To, Tc)                           \
     To *initialD;                                                       \
     To *initialC;                                                       \
@@ -91,6 +102,9 @@ int main( int argc, char *argv[] ) {
     To *deviceOnHostC;                                                  \
     initData(&initialD, &initialC, &initialA, &initialB, &alpha, &beta, \
         &referenceD, &referenceC, &deviceOnHostD, &deviceOnHostC);      \
+                                                                        \
+    TENSILE_CLIENT_CALL_BENCHMARK_SOLUTIONS                             \
+                                                                        \
     for (unsigned int i = 0; i < numBenchmarks; i++) {                  \
       TENSILE_CLIENT_CALL_PROBLEM                                       \
     }                                                                   \
@@ -173,7 +187,6 @@ int main( int argc, char *argv[] ) {
   if (invalids) {
 #if Tensile_CLIENT_BENCHMARK
     printf("\nInvalid Solutions: %u/%u\n", static_cast<unsigned int>(invalidSolutions.size()), numSolutions);
-    // for (unsigned int i = 0; i < numInvalidSolutions; i++) {
     for (std::set<unsigned int>::iterator i = invalidSolutions.begin(); i != invalidSolutions.end(); i++) {
       unsigned int invalidSolutionIdx = *i;
       printf("[%2u] %s\n", invalidSolutionIdx, solutions[invalidSolutionIdx]._name);

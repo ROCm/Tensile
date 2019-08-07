@@ -89,8 +89,26 @@ class ProblemType:
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(config)
 
+
     self.state["AssignedDerivedParameters"] = False
     ProblemType.assignDerivedParameters(self.state)
+
+    for tc in ('A', 'B'):
+      freeDims={}
+      sumDims={}
+      for zp in self["ZeroPad%s"%tc] :
+        (freeDim, sumDim, leading, trailing) = zp
+        if freeDim not in self.state["IndicesFree"]:
+          printExit("ZeroPad%s=%s dim=%u is not a free index"%(tc, zp, freeDim))
+        if sumDim not in self.state["IndicesSummation"]:
+          printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
+        if freeDim in freeDims:
+          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple"%(tc, zp, freeDim))
+        freeDims[freeDim] = 1
+        if sumDim in sumDims:
+          printExit("ZeroPad%s=%s sumDim=%u occurs in more than one tuple"%(tc, zp, sumDim))
+        sumDims[sumDim] = 1
+
 
 
   ########################################
@@ -175,12 +193,8 @@ class ProblemType:
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
-    if len(state["IndexAssignmentsA"]) != len(state["IndexAssignmentsB"]):
-      printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
     if state["NumIndicesFree"] < 2 :
       printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
-    #if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
-    #  printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -439,35 +453,36 @@ class ProblemSizes:
     self.ranges = []
     self.exacts = []
     self.minStrides = None
-    for dictionary in config:
-      for sizeTypeKey in dictionary:
-        if sizeTypeKey == "Range":
-          psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
-          self.ranges.append( psr )
-        elif sizeTypeKey == "Exact":
-          e = dictionary[sizeTypeKey]
-          if len(e) == problemType["TotalIndices"]:
-            if problemType["OperationType"] == "GEMM":
-              e += [0, 0, 0, 0]
-            self.exacts.append(tuple(e))
-          elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
-            self.exacts.append(tuple(e))
+    if config:
+      for dictionary in config:
+        for sizeTypeKey in dictionary:
+          if sizeTypeKey == "Range":
+            psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
+            self.ranges.append( psr )
+          elif sizeTypeKey == "Exact":
+            e = dictionary[sizeTypeKey]
+            if len(e) == problemType["TotalIndices"]:
+              if problemType["OperationType"] == "GEMM":
+                e += [0, 0, 0, 0]
+              self.exacts.append(tuple(e))
+            elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
+              self.exacts.append(tuple(e))
+            else:
+              printExit("ExactSize %s doesn't match indices of ProblemType %s" \
+                  % (e, problemType) )
+
+          elif sizeTypeKey == "MinStride":
+            e = dictionary[sizeTypeKey]
+            if len(e) != problemType["TotalIndices"]:
+              printExit("MinStride %s doesn't match indices of ProblemType %s" \
+                  % (e, problemType) )
+            if self.minStrides:
+              printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
+                  % (self.minStrides, e) )
+
+            self.minStrides=(tuple(e))
           else:
-            printExit("ExactSize %s doesn't match indices of ProblemType %s" \
-                % (e, problemType) )
-
-        elif sizeTypeKey == "MinStride":
-          e = dictionary[sizeTypeKey]
-          if len(e) != problemType["TotalIndices"]:
-            printExit("MinStride %s doesn't match indices of ProblemType %s" \
-                % (e, problemType) )
-          if self.minStrides:
-            printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
-                % (self.minStrides, e) )
-
-          self.minStrides=(tuple(e))
-        else:
-          printExit("ProblemSize Type %s not supported"%sizeTypeKey)
+            printExit("ProblemSize Type %s not supported"%sizeTypeKey)
 
     if not self.minStrides: 
       # set harmless default mins of 0
@@ -605,6 +620,12 @@ class Solution:
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \
           problemType["UseInitialStrides"]
+      kernel["ProblemType"]["SetConstStrideA"] = \
+          problemType["SetConstStrideA"]
+      kernel["ProblemType"]["ZeroPadA"] = \
+          problemType["ZeroPadA"]
+      kernel["ProblemType"]["ZeroPadB"] = \
+          problemType["ZeroPadB"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernels.append(kernel)
     return kernels
@@ -1586,6 +1607,15 @@ class Solution:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
 
+    # current requirement to avoid buffer loads that span multiple entries
+    # if the summation dim participating in the ZeroPad is not fast-moving then
+    # likely have more performant options.
+    for tc in ('A', 'B'):
+      if problemType["ZeroPad%s"%tc] and state["KernelLanguage"] == "Assembly":
+        if state["GlobalLoadVectorWidth%s"%tc] != 1:
+          reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
+        if not state["BufferLoad"]:
+          reject(state, "asm ZeroPad requires BufferLoad")
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
@@ -1727,7 +1757,7 @@ class Solution:
   def getParametersIndented(state, indent):
     s = ""
     s += "%sProblemType: %s\n" % (indent, str(state["ProblemType"]))
-    for key in state:
+    for key in sorted(state):
       s += "%s%s: %s\n" % (indent, str(key), str(state[key]))
     return s
 
