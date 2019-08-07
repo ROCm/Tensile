@@ -383,7 +383,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   return (resultsFileBaseFinal, benchmarkTestFails)
 # End benchmarkProblemType()
 
-def compareResults(old, new):
+def compareResults(old, new, name):
     import math
     try:
         old = float(old)
@@ -403,7 +403,7 @@ def compareResults(old, new):
     if isbad(old):
         return 1
     if isbad(new):
-        raise ValueError("Old is good ({}) and new is bad ({})".format(old, new))
+        raise ValueError("Old is good ({}) and new is bad ({}). Name: {}".format(old, new, name))
 
     return abs((old-new)/old)
 
@@ -450,6 +450,7 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
       if newRow is not None:
         diffCSV.writerow(row)
         diffCSV.writerow(newRow)
+        headerRow = row
       continue
     else:
       if len(row) < rowLength:
@@ -457,7 +458,7 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
             % (resultsFileName, rowIdx, rowLength) )
         break
       if newRow is not None:
-        diffCSV.writerow([compareResults(old,new) for old,new in itertools.zip_longest(row, newRow)])
+        diffCSV.writerow([compareResults(old,new,name) for old,new,name in itertools.zip_longest(row, newRow, headerRow)])
 
       idx = startIdx
       for i,solutionsForHardcoded in enumerate(solutions):

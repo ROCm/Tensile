@@ -159,6 +159,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       #print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
+    else:
+      raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
     coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
@@ -169,12 +171,10 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     return destCOs
 
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels, outputPath):
-    sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
+def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
+    args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
 
-    sourceKernelFiles = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), sourceKernelFiles)
-
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels",
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
                                  method=lambda x: x.starmap)
 
     return itertools.chain.from_iterable(coFiles)
@@ -361,7 +361,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kernelsToBuild += kernelsBetaOnly
 
-  codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernelsToBuild, outputPath)
+  codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
   codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
