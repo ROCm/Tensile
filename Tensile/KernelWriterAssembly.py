@@ -759,6 +759,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       self.groOffsetInMacroTile = 0
 
+
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
@@ -7089,22 +7090,33 @@ class KernelWriterAssembly(KernelWriter):
 
         self.gwvw = gwvw
 
+
         if ss.optSingleColVgpr:
-          self.numSgprsPerElement = 0
-          self.fixedSgprsPerBatch = 0
-          self.numElementsPerBatchLimitedBySgprs = 9999
           # use one vgpr (allocated in ss.sharedColVgprs) for all addressing
           # - need 0 additional vgpr per element.
           self.numVgprsPerAddr = 0
         else:
+          self.numVgprsPerAddr = kernelWriter.rpgo if kernel["BufferStore"] else kernelWriter.rpga
+
+        if ss.optSharedMask:
+          self.numSgprsPerElement = 0
+          self.fixedSgprsPerBatch = 2
+        else:
           self.numSgprsPerElement = 2
           self.fixedSgprsPerBatch = 6
-          self.numElementsPerBatchLimitedBySgprs = (kernelWriter.maxSgprs - kernelWriter.startSgprTmpPool - self.fixedSgprsPerBatch - 1) // self.numSgprsPerElement
-          self.numVgprsPerAddr = kernelWriter.rpgo if kernel["BufferStore"] else kernelWriter.rpga
-          if self.numElementsPerBatchLimitedBySgprs<=0:
-            kernelWriter.overflowedResources = 2
-            self.numElementsPerBatchLimitedBySgprs = 1 # dummy value
+
+        if self.numSgprsPerElement:
+          self.numElementsPerBatchLimitedBySgprs = \
+              (kernelWriter.maxSgprs - kernelWriter.startSgprTmpPool - self.fixedSgprsPerBatch - 1) // self.numSgprsPerElement
+        else:
+          self.numElementsPerBatchLimitedBySgprs = 9999 # no limit
+
+        if self.numElementsPerBatchLimitedBySgprs<=0:
+          kernelWriter.overflowedResources = 2
+          self.numElementsPerBatchLimitedBySgprs = 1 # dummy value
             #assert self.numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
+
+
         if atomic:
           # flat atomics have another VGPR to allow different data for return#
           regsPerElement = 2 if kernel["BufferStore"] else 3
@@ -7134,23 +7146,27 @@ class KernelWriterAssembly(KernelWriter):
 
       # optSingleColVgpr: optimize coord0/column address calculations:
       #  - Use the load/store instruction offset
-      #  - Doesn't work for edge since each element requires own addr VGPR so
-      #    we can perform bounds check and set to -1 for OOB accesses.
       # optSharedColVgpr:
       #  - Each col gets it's own address, but rows in the same col share VGPR.
-      #    Doesn't work for edge since each element requires own addr VGPR so
+
+      # optSrdIncForRow: optimize coord1/row address calculations:
+      #  - Move the SRD bewtween memory operations to get to new row
+      #    atomic needs to reset the SRD to handle retry loop.  Then might work.
+
+      self.optSingleColVgpr = 0
+      self.optSharedColVgpr = 0
+      self.optSrdIncForRow  = 0
+
+      # opt*ColVgpr doesn't work for edge since each element requires own addr VGPR so
       #    we can perform bounds check and set to -1 for OOB accesses.
       # if optSingleColVgpr = optSharedColVgpr = 0, then each element gets
       #  1-2 VGPRs to track address.  Address calcs are performed independently
       #  for each element.
-      #
-      # optSrdIncForRow: optimize coord1/row address calculations:
-      #  - Move the SRD bewtween memory operations to get to new row
 
-      self.optSingleColVgpr = 0
-      self.optSharedColVgpr = 0
-      self.optSrdIncForRow = 0
-
+      # atomic contains multiple memory operations which need to preserve
+      # the address for each load.  Memops in same row can use offsets
+      # and share a base register but Memops in different rows need
+      # different registers or need to inteliigently reset the SRD.
       if kernel["BufferStore"] and not edge and not atomic:
         if len(kernel["PackedC0IndicesX"]) > 1:
           # packed mode needs a unique VGPR address calc for each column.
@@ -7158,14 +7174,21 @@ class KernelWriterAssembly(KernelWriter):
         else:
           self.optSingleColVgpr = 1 or forceOpt
 
-        # atomic needs to reset the SRD to handle retry loop.  Then might work.
-        self.optSrdIncForRow = 1
+        if not atomic and len(kernel["PackedC1IndicesX"]) == 1:
+          self.optSrdIncForRow = 1
+
+      self.optSharedMask  = kernel["BufferStore"] and not edge and not atomic
+
 
       # can't have both of these enabled:
       assert (not (self.optSingleColVgpr and self.optSharedColVgpr))
 
       # need another set of col VGPR to preserve scaled LDD
       assert (not (self.optSharedColVgpr and not kernel["LdcEqualsLdd"]))
+
+      # packed1 not yet supported.  Would need to:
+      # - extract packed dimensions from coord1 into 
+      assert( len(kernel["PackedC1IndicesX"]) == 1)
 
       self.cfg = self.StoreConstConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
 
@@ -7312,6 +7335,7 @@ class KernelWriterAssembly(KernelWriter):
       self.coordOffset0 = coordOffset0
       self.coordOffset1 = coordOffset1
       self.rowInc = rowInc
+      self.rowIncDirtyRowPtr = 0 # rowInc was used to modify rowPtr, need to recompute addr
       self.newCoord1 = newCoord1 # vgpr that stores newCoord1
 
       if ss.optSingleColVgpr:
@@ -7330,7 +7354,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("_v_add_u32", destV, src0, \
                   src1, comment)
       else:
-        kStr += inst("s_mul_i32", sgpr(tmpS01), src1, self.rowInc, "scale stride")
+        kStr += inst("s_mul_i32", sgpr(tmpS01), src1, scale1, "scale stride")
         kStr += inst("_v_add_u32", destV, src0,  \
                         sgpr(tmpS01), comment)
       return kStr
@@ -7451,12 +7475,17 @@ class KernelWriterAssembly(KernelWriter):
       kw = self.kernelWriter
       (d1,d0,vc1,vc0) = self.element
 
+      # set when we generate code that updates the address
+      # optSingleColVgpr and optSharedColVgpr attempt to minimize these updates
+      updatedAddr = False
+
       # scale and set final address:
       if kernel["LdcEqualsLdd"] or beta or atomic:
         if ss.optSingleColVgpr:
           # This is first element in the first batch, create a byte address that will
           # be re-used by subsequent elements:
           if ss.firstBatch and self.element == (0,0,0,0):
+            updatedAddr = True
             kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
               vgpr(kw.cinRowPtr), \
@@ -7468,8 +7497,10 @@ class KernelWriterAssembly(KernelWriter):
           if d1==0 and vc1==0:
             packedIndices = kernel["PackedC0IndicesX"]
             if len(packedIndices) > 1:
+              updatedAddr = True
               kStr += self.emitExtractAndScalePackedDims(kernel, ss, beta, atomic, tmpVgpr, 'C')
             else:
+              updatedAddr = True
               kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
                 vgpr(kw.cinRowPtr), \
@@ -7477,20 +7508,34 @@ class KernelWriterAssembly(KernelWriter):
                 hex(log2(kw.bpeCexternal)), \
                 "optSharedColVgpr scaleToBpe for first row: col addr <- cinRowPtr + coord0, scaled by BPE")
         else:
+
           # Generate final address calculation (to bytes) for each element
           # The unpacking takes 8-10 instructions so could be worth optimizing someday :
           # each col has same offset so could create a class to hold column-specific state including
           # the byte address offset for that col and the mask in/out.
           packedIndices = kernel["PackedC0IndicesX"]
           if len(packedIndices) > 1:
+            updatedAddr = True
             kStr += self.emitExtractAndScalePackedDims(kernel, ss, beta, atomic, tmpVgpr, 'C')
           else:
+            updatedAddr = True
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
                 vgpr(kw.cinRowPtr), \
                 vgpr(self.coord0Vgpr), \
                 hex(log2(kw.bpeCexternal)), \
                 "scaleToBpe: accumulate d0 lower and *= bpe into Cin addr")
+
+        # if not optSrdIncForRow then we may have moved the row pointer
+        # and depending on paths above may not have refreshed addrVgpr already.
+        # if so - do it here:
+        if self.rowIncDirtyRowPtr and not updatedAddr:
+          kStr += inst("_v_add_lshl_u32", \
+            vgpr(self.addrVgpr), \
+            vgpr(kw.cinRowPtr), \
+            vgpr(kw.coord0), \
+            hex(log2(kw.bpeCexternal)), \
+            "scaleToBpe: Update address with new rowPtr")
 
       return kStr
 
@@ -7514,6 +7559,7 @@ class KernelWriterAssembly(KernelWriter):
       # optSrdIncForRow moves the SRD so don't move here
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
+          self.rowIncDirtyRowPtr = 1
           kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
                     sgpr("StridesC+0"), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
           if not kernel["LdcEqualsLdd"]:
@@ -7939,6 +7985,15 @@ class KernelWriterAssembly(KernelWriter):
 
         assert numElementsPerBatch > 0, "numElementsPerBatch=0 for %s"%self.kernelName
 
+        #numElementsPerBatch=min(2,numElementsPerBatch) # hack to control number of batches
+        if atomic and (self.ss.optSingleColVgpr or self.ss.optSharedColVgpr):
+          # hack to avoid re-using address vgpr across rows
+          # atomics need to perform several memory operations
+          # if the batch spans multiple rows, need multiple address vgpr
+          # which is not currently supported in the two opt*ColVgpr modes
+          firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0]
+          numElementsPerBatch=min(len(firstRow),numElementsPerBatch)
+
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
         #  numVectorsPerBatch = numElementsPerBatch / kernel["GlobalWriteVectorWidth"]
@@ -7947,7 +8002,12 @@ class KernelWriterAssembly(KernelWriter):
         numBatches = max(1, ceil_divide(len(elements[edgeI]),numElementsPerBatch))
         #print("NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch, "numVgprsPerElement", numVgprsPerElement, "len(elements[edgeI])", len(elements[edgeI]))
 
-        tmpSgpr = self.getTmpSgpr(self.ss.cfg.fixedSgprsPerBatch+self.ss.cfg.numSgprsPerElement*numElementsPerBatch)
+
+
+        numSgprs = self.ss.cfg.fixedSgprsPerBatch + self.ss.cfg.numSgprsPerElement*numElementsPerBatch
+        kStr += self.comment("allocate %u sgpr. perBatch=%u perElement=%u elements=%u"%\
+            (numSgprs, self.ss.cfg.fixedSgprsPerBatch, self.ss.cfg.numSgprsPerElement, numElementsPerBatch))
+        tmpSgpr = self.getTmpSgpr(numSgprs);
         elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
 
         for batchIdx in range(0, numBatches):
@@ -8188,6 +8248,8 @@ class KernelWriterAssembly(KernelWriter):
       tmpVgpr, batchElementSgprs, tmpSgpr):
     kStr = ""
 
+    kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSharedMask=%u optSrdIncForRow=%u" % \
+              (ss.optSingleColVgpr, ss.optSharedColVgpr, ss.optSharedMask, ss.optSrdIncForRow))
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
@@ -8293,7 +8355,7 @@ class KernelWriterAssembly(KernelWriter):
             addr0 = vgpr(addr,2)
             addr1 = ""
           kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+1, \
-                    addr0, addr1, soffset=0, offset=avi*bpm, extraFields="",
+                    addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
       elif beta:
         bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
@@ -8402,7 +8464,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("issue first atomic writes")
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
-        addr = ss.elementAddr[elementIdx].addrVgpr
+        addrCalc = ss.elementAddr[elementIdx]
         mask = ss.elementMask[elementIdx]
         d1 = element[0]
         d0 = element[1]
@@ -8429,13 +8491,13 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["BufferStore"]:
               kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(dataV,2), \
-                   vgpr(addr,1), \
+                   vgpr(addrCalc.addrVgpr,1), \
                    sgpr("SrdD", 4),  \
-                   "0 offen offset:%u glc" % (avi*bps), \
+                   "0 offen offset:%u glc" % addrCalc.globalOffset, \
                    "attempt write avi=%u"%(avi), self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                  (vgpr(atomicDestVgpr), vgpr(addr,2), \
+                  (vgpr(atomicDestVgpr), vgpr(addrCalc.addrVgpr,2), \
                   vgpr(dataV,2), "glc", "attempt write", self.endLine )
           else:
              kStr += inst("v_mov_b32", vgpr(atomicDestVgpr), vgpr(dataV+1), "Fake successful CAS" )
@@ -8496,6 +8558,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("apply updated masks and issue writes again")
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
+        addrCalc = ss.elementAddr[elementIdx]
         addr = ss.elementAddr[elementIdx].addrVgpr
         mask = ss.elementMask[elementIdx]
         bps = kernel["ProblemType"]["DataType"].numBytes()
@@ -8519,7 +8582,7 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
                    sgpr("SrdD", 4), \
-                   "0 offen offset:%u glc" % (avi*bps), \
+                   "0 offen offset:%u glc" % (addrCalc.globalOffset), \
                    "try again", self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \

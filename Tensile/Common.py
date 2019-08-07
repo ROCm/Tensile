@@ -535,6 +535,7 @@ validParameters = {
     #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
     # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
     #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    # 0x3 = pack batch dims into both A and B. Could support any stride for A and B. (Not supported yet)
     "PackBatchDims":             [0,1,2],
 
     # Pack free dimensions
