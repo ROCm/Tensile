@@ -751,7 +751,13 @@ class KernelWriterAssembly(KernelWriter):
     # groOffsetInMacroTile doesn't work with pointer-shift because it sets the SRD to point to the
     # start of the macro-tile - if we overhang by small number of elements (<GRVW) then can't shift
     # back to get all the data.
-    self.groOffsetInMacroTile = kernel["BufferLoad"]
+    # groOffsetInMacroTile doesn't work with packed dims since these need to set SRD to the tensor base
+    # then extract the packed dimensions from the flattened index (including the workgroup) and scale by strides
+    # - the index is per-work-item so can't put work-group into the SRD
+    if len(kernel["PackedC0IndicesX"])==1 and len(kernel["PackedC1IndicesX"])==1 and kernel["BufferLoad"]:
+      self.groOffsetInMacroTile = 1
+    else:
+      self.groOffsetInMacroTile = 0
 
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
@@ -760,7 +766,7 @@ class KernelWriterAssembly(KernelWriter):
     # This is not an error condition but bears further investigation.
     # In particular if PrefetchAcrossPersistent=1 then the NewTile setup code
     # will be run before the no-load-loop iteration where registers are still
-    # tight.  Realistically we just have the GlobalToLocal VGPRs, all else is 
+    # tight.  Realistically we just have the GlobalToLocal VGPRs, all else is
     # growth.
     self.preventVgprOverflowDuringNewTile = True
 
@@ -5995,7 +6001,8 @@ class KernelWriterAssembly(KernelWriter):
     #if 0 and self.localWriteDoCnt >= 0:
       localWriteCode.addInst( "s_waitcnt lgkmcnt(0) & vmcnt(0)", "")
       localWriteCode.addInst("s_barrier", "dump LDS" )
-      localWriteCode.addText(self.assert_eq(sgpr("LoopCounters+0"), 1))
+      localWriteCode.addText(self.assert_ne(sgpr("WorkGroup0"),1))
+      #localWriteCode.addText(self.assert_eq(sgpr("LoopCounters+0"), 1))
       #localWriteCode.addText(self.bomb())
 
     return imod
@@ -6672,7 +6679,7 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("WorkGroup1"), \
         "<- wg1*MT1")
 
-    # Overall strategy is to set the SRD to the start of the row that contains the output tile.
+    # Overall strategy is to set the SRD to the top-left of the macro-tile.
     # TT offsets are from this base (and include the column)
 
     # In non-packed mode:
@@ -6685,7 +6692,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Walk through addressing components (each tensor index) in C
     # For static dims add to SrdC / SrdD to compute a new base.
-    # For dynamic (based on TT assignment) - save in coutRowPtr in computeStoreVgprs, 
+    # For dynamic (based on TT assignment) - save in coutRowPtr in computeStoreVgprs,
     # which saves the TT assignment for each WI scaled by StrideC0
     # TODO - future opportunities for store vgpr and other optimization
     #  - coutRowPtr and tid1 are strongly related - can we merge or remove one of these?
