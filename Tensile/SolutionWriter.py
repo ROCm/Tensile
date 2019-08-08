@@ -579,7 +579,7 @@ class SolutionWriter:
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
       if kernel["KernelLanguage"] == "Source":
-        kernel["ISA"] = (0, 0, 0) # HIP source kernels needs dummy ISA version
+        kernel["ISA"] = [0, 0, 0] # HIP source kernels needs dummy ISA version
       kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)

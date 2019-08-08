@@ -56,7 +56,7 @@ def test_init_half():
 def test_init_i8():
     expected = DataType('4xi8') 
     assert DataType('int8x4') == expected 
-    assert DataType('Int8') == expected
+    assert DataType('Int8x4') == expected
     assert DataType('tensileDataTypeInt8x4') == expected
 
 def test_init_i32():
@@ -135,7 +135,7 @@ def test_int8():
     obj = DataType(5)
     assert obj.toChar() == '4xi8'
     assert obj.toName() == 'int8x4'
-    assert obj.toEnum() == 'Int8'
+    assert obj.toEnum() == 'Int8x4'
     assert obj.toOpenCL() == 'ERROR'
     assert obj.toHIP() == 'uint32_t'
     assert obj.toDevice("OCL") == 'ERROR'

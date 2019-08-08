@@ -359,6 +359,7 @@ private:
   // Data members:
   SizeType _sizes[NumSizes];
   bool     _equalStrides;
+  uint32_t _db;
 };
 
 //-------------
@@ -465,8 +466,14 @@ struct ProblemProperties {
       _free0ElementMultiple(free0ElementMultiple),
       _free1ElementMultiple(free1ElementMultiple),
       _approxSize(approxSize),
-      _equalStrides(equalStrides)
-     {}
+      _equalStrides(equalStrides),
+      _db(0)
+     {
+       const char *db = std::getenv("TENSILE_DB");
+       if (db) {
+         _db = strtol(db,nullptr,0);
+       }
+     }
 
   // Constructor used to compute assertions for a specified problem size
   template<class ProblemDimsType>
@@ -519,11 +526,37 @@ struct ProblemProperties {
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const ProblemProperties &solutionRequirements) const {
-    return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
-           (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
-           (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
-           ((this->_approxSize) >= solutionRequirements._approxSize) &&
-           ((this->_equalStrides) == solutionRequirements._equalStrides);
+      bool rv = (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
+                (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
+                (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
+                ((this->_approxSize) >= solutionRequirements._approxSize) &&
+                ((this->_equalStrides) == solutionRequirements._equalStrides);
+
+      if(this->_db & 0x10)
+      {
+          if(!rv)
+          {
+#define check_print(name, oper) \
+              if(!(this->name oper solutionRequirements.name)) \
+              { \
+                  std::cout << #name << "failed: !(" << this->name << #oper << solutionRequirements.name << ")" << std::endl; \
+              }
+
+              std::cout << "Assertion failed:" << std::endl;
+              check_print(_summationElementMultiple, >=);
+              check_print(_free0ElementMultiple, >=);
+              check_print(_free1ElementMultiple, >=);
+              check_print(_approxSize, >=);
+              check_print(_equalStrides, ==);
+#undef check_print
+          }
+          else
+          {
+              std::cout << "Satisfied asserts!" << std::endl;
+          }
+      }
+
+      return rv;
   }
 
   unsigned _summationElementMultiple;
@@ -531,6 +564,7 @@ struct ProblemProperties {
   unsigned _free1ElementMultiple;
   int      _approxSize;
   bool     _equalStrides;
+  uint32_t _db;
 };
 
 

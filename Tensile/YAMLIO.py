@@ -249,9 +249,9 @@ def readLibraryLogicForSchedule( filename ):
       isa0 = int(architectureName[3])
       isa1 = int(architectureName[4])
       isa2 = int(architectureName[5])
-      solutionState["ISA"] = (isa0, isa1, isa2)
+      solutionState["ISA"] = [isa0, isa1, isa2]
     else:
-      solutionState["ISA"] = (0, 0, 0)
+      solutionState["ISA"] = [0, 0, 0]
     solutionObject = Solution(solutionState)
     if solutionObject["ProblemType"] != problemType:
       printExit("ProblemType of file doesn't match solution: %s != %s" \

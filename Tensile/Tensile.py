@@ -19,15 +19,19 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+if __name__ == "__main__":
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
+    exit(1)
+
 import os
 import sys
 import argparse
 from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-from . import YAMLIO
 from . import BenchmarkProblems
-from . import LibraryLogic
 from . import ClientWriter
+from . import LibraryLogic
+from . import YAMLIO
 from . import __version__
 
 ###############################################################################
@@ -144,8 +148,8 @@ def Tensile(userArgs):
   else:
     assignGlobalParameters({})
 
-  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
-  ensurePath(globalParameters["WorkingPath"])
+  globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
+  globalParameters["WorkingPath"] = globalParameters["OutputPath"]
 
   # override config with command-line options
   if args.device:
@@ -219,8 +223,3 @@ def TensileSGEMM5760():
 def main():
     Tensile(sys.argv[1:])
 
-
-# script run from commandline
-if __name__ == "__main__":
-    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
-    exit(1)

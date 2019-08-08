@@ -43,12 +43,9 @@ class SingleSolutionLibrary:
     def remapSolutionIndices(self,indexMap):
         pass
 
-class MatchingProperty(Properties.Property):
-    pass
-
 class GranularitySelectionLibrary:
     Tag = 'GranularitySelection'
-    StateKeys = [('type', 'tag'), 'idxs']
+    StateKeys = [('type', 'tag'), 'indices']
 
     @classmethod
     def FromOriginalState(cls, indices):
@@ -59,19 +56,17 @@ class GranularitySelectionLibrary:
         return self.__class__.Tag
 
     def merge(self, other):
-        idList = list(set().union(self.idxs, idxs))
-        self.idxs = idList
+        assert self.__class__ == other.__class__
+        self.indices = list(set().union(self.indices, other.indices))
 
-    def __init__(self, idxs):
-        self.idxs = idxs
+    def __init__(self, indices):
+        self.indices = indices
 
     def remapSolutionIndices(self,indexMap):
-        for i in range(0, len(self.idxs)):
-            index = self.idxs[i]
+        for i in range(0, len(self.indices)):
+            index = self.indices[i]
             if index in indexMap:
-                self.idxs[i] = indexMap[index]
-
-
+                self.indices[i] = indexMap[index]
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -83,10 +78,10 @@ class MatchingLibrary:
         origTable = d[1]
 
         propertyKeys = {
-                2:lambda: MatchingProperty('FreeSizeA', index=0),
-                3:lambda: MatchingProperty('FreeSizeB', index=0),
-                0:lambda: MatchingProperty('BatchSize', index=0),
-                1:lambda: MatchingProperty('BoundSize', index=0)
+                2:lambda: Properties.Property('FreeSizeA', index=0),
+                3:lambda: Properties.Property('FreeSizeB', index=0),
+                0:lambda: Properties.Property('BatchSize', index=0),
+                1:lambda: Properties.Property('BoundSize', index=0)
             }
 
         properties = list([propertyKeys[i]() for i in indices])
@@ -156,12 +151,13 @@ class PredicateLibrary:
 
     def __init__(self, tag=None, rows=None):
         self.tag = tag
+        if rows is None: rows = []
         self.rows = rows
 
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag
 
-        rowdict = dict([(r['predicate'], i) for i,r in enumerate(self.rows)])
+        rowdict = {r['predicate']: i  for i,r in enumerate(self.rows)}
 
         for row in other.rows:
             if row['predicate'] in rowdict:
@@ -179,6 +175,21 @@ class MasterSolutionLibrary:
     StateKeys = ['solutions', 'library']
 
     @classmethod
+    def FixSolutionIndices(cls, solutions):
+        # fix missing and duplicate solution indices.
+        try:
+            maxSolutionIdx = max([s.index for s in solutions if s.index is not None])
+        except ValueError:
+            maxSolutionIdx = -1
+
+        solutionsSoFar = set()
+        for solution in solutions:
+            if solution.index is None or solution.index in solutionsSoFar:
+                maxSolutionIdx += 1
+                solution.index = maxSolutionIdx
+            else:
+                solutionsSoFar.add(solution.index)
+    @classmethod
     def FromOriginalState(cls, d, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
@@ -191,57 +202,48 @@ class MasterSolutionLibrary:
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
-        buildGranularity = False
         if len(d) > 9 and d[9]:
-          buildGranularity = True
+            # It's a Granularity library
+            assert libraryOrder[-1] == "Matching"
+            libraryOrder[-1] = "Granularity"
         
         allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
+        cls.FixSolutionIndices(allSolutions)
 
-        # fix missing and duplicate solution indices.
-        try:
-            maxSolutionIdx = max([s.index for s in allSolutions if s.index is not None])
-        except ValueError:
-            maxSolutionIdx = 0
-
-        solutionsSoFar = set()
-        for solution in allSolutions:
-            if solution.index is None or solution.index in solutionsSoFar:
-                maxSolutionIdx += 1
-                solution.index = maxSolutionIdx
-            else:
-                solutionsSoFar.add(solution.index)
-
-        asmSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] != 'Source'])
-        sourceSolutions = dict([(s.index, s) for s in allSolutions if s.info['KernelLanguage'] == 'Source'])
-
-        assert len(allSolutions) == len(asmSolutions) + len(sourceSolutions), \
-            "Solution split not consistent: {0} != {1} + {2}".format(len(allSolutions), len(asmSolutions), len(sourceSolutions))
+        solutions = {s.index: s for s in allSolutions}
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                if (buildGranularity):
-                    selectionIndices = d[9]["TileSelectionIndices"]
-                    library = GranularitySelectionLibrary.FromOriginalState(selectionIndices)
-                else:
-                    matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, asmSolutions)
-                    library = matchingLibrary
+                matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                library = matchingLibrary
+            
+            elif libName == 'Granularity':
+                selectionIndices = d[9]["TileSelectionIndices"]
+                library = GranularitySelectionLibrary.FromOriginalState(selectionIndices)
 
             elif libName == 'Hardware':
-                newLib = PredicateLibrary(tag='Hardware', rows=[])
-                pred = Hardware.HardwarePredicate.FromOriginalDeviceSection(deviceSection)
+                newLib = PredicateLibrary(tag='Hardware')
+                devicePart = deviceSection[1]
+                if devicePart == 'fallback':
+                    pred = Hardware.HardwarePredicate("TruePred")
+                else:
+                    isa = tuple(map(int,devicePart[3:6]))
+                    pred = Hardware.HardwarePredicate.FromISA(isa)
+
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
 
             elif libName == 'Predicates':
-                pred = problemType.predicate(includeType=True)
-                if pred is not None:
-                    newLib = PredicateLibrary(tag='Problem', rows=[])
-                    newLib.rows.append({'predicate': pred, 'library': library})
-                    library = newLib
+                predicates = problemType.predicates(includeBatch=True, includeType=True)
+                predicate = Contractions.ProblemPredicate.And(predicates)
+
+                newLib = PredicateLibrary(tag='Problem')
+                newLib.rows.append({'predicate': predicate, 'library': library})
+                library = newLib
 
             elif libName == 'OperationIdentifier':
                 operationID = problemType.operationIdentifier
-                prop = MatchingProperty('OperationIdentifier')
+                prop = Properties.Property('OperationIdentifier')
                 mapping = {operationID: library}
 
                 newLib = ProblemMapLibrary(prop, mapping)
@@ -249,9 +251,21 @@ class MasterSolutionLibrary:
             else:
                 raise ValueError("Unknown value " + libName)
 
-        rv = cls(asmSolutions, library)
-        rv.sourceSolutions = sourceSolutions
+        rv = cls(solutions, library)
         return rv
+
+    @classmethod
+    def BenchmarkingLibrary(cls, solutions):
+        solutionObjs = list([Contractions.Solution.FromOriginalState(s._state) for s in solutions])
+        cls.FixSolutionIndices(solutionObjs)
+
+        predRows = list([{'predicate': s.problemPredicate, 'library': SingleSolutionLibrary(s)} for s in solutionObjs])
+        library = PredicateLibrary(tag='Problem', rows=predRows)
+
+        solutionMap = {s.index: s for s in solutionObjs}
+
+        return cls(solutionMap, library)
+
 
     def __init__(self, solutions, library):
         self.solutions = solutions
@@ -262,8 +276,8 @@ class MasterSolutionLibrary:
 
     def applyNaming(self, naming=None):
         if naming is None:
-            allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
-            kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in allSolutions]))
+            #allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
+            kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in self.solutions.values()]))
             naming = OriginalSolution.getMinNaming(kernels)
 
         for s in list(self.solutions.values()):
@@ -272,30 +286,18 @@ class MasterSolutionLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__
 
-        allIndices = itertools.chain(self.solutions, self.sourceSolutions)
-        #import pdb
-        #pdb.set_trace()
-        curIndex = max(allIndices) + 1
+        curIndex = max(self.solutions.keys()) + 1
 
         reIndexMap = {}
-        for k,s in list(other.solutions.items()):
+        for k,s in other.solutions.items():
             reIndexMap[s.index] = curIndex
             s.index = curIndex
             self.solutions[curIndex] = s
             curIndex += 1
 
-        for k,s in list(other.sourceSolutions.items()):
-            reIndexMap[s.index] = curIndex
-            s.index = curIndex
-            self.sourceSolutions[curIndex] = s
-            curIndex += 1
-
-        other.remapSolutionIndices(reIndexMap)
+        other.library.remapSolutionIndices(reIndexMap)
 
         self.library.merge(other.library)
-
-    def remapSolutionIndices(self,indexMap):
-        self.library.remapSolutionIndices(indexMap)
 
     @property
     def cpp_base_class(self):
