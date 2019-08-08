@@ -5536,7 +5536,7 @@ class KernelWriterAssembly(KernelWriter):
       if mode==1 and tP["isA"]:
         imod.header.addInst("s_cmp_eq_i32", \
               sgpr("LoopCounters+%u"%loopIdx), \
-              "%u"%-1, \
+              "%u"% 1, \
               "%s"%"is this the last iteration")
         imod.header.addInst("s_cmov_b32", \
               sgpr("SrdA+2"), \

@@ -23,7 +23,7 @@
 from __future__ import print_function
 
 # hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.10.0"
+__version__ = "4.11.0"
 
 def PrintTensileRoot():
     import os.path
