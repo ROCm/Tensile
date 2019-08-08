@@ -12,6 +12,8 @@ NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.8.0"
 sed -i "s/${OLD_VERSION}/${NEW_VERSION}/g" Tensile/__init__.py
 sed -i "s/${OLD_VERSION}/${NEW_VERSION}/g" HostLibraryTests/CMakeLists.txt
 
+echo "The version number also needs to be fixed in Tensile/cmake/TensileConfigVersion.cmake ."
+
 #only update when there is a major version change
 #for FILE in Tensile/Configs/*yaml
 #do
