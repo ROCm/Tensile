@@ -27,8 +27,8 @@ include(CMakeParseArguments)
 function(TensileCreateLibraryCmake
     Tensile_LOGIC_PATH
     Tensile_RUNTIME_LANGUAGE
-    Tensile_CODE_OBJECT_VERSION
     Tensile_COMPILER
+    Tensile_CODE_OBJECT_VERSION
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
