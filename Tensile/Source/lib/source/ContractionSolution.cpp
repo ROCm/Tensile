@@ -107,9 +107,20 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            rv.args.append<uint64_t>("tensor2dSizeC", c.strides()[2]);
-            rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
-            rv.args.append<uint64_t>("tensor2dSizeB", b.strides()[2]);
+            uint64_t tensor2dSizeC = c.dimensions() <= 2 ? c.totalAllocatedElements() : c.strides().at(2);
+            uint64_t tensor2dSizeA = a.dimensions() <= 2 ? a.totalAllocatedElements() : a.strides().at(2);
+            uint64_t tensor2dSizeB = b.dimensions() <= 2 ? b.totalAllocatedElements() : b.strides().at(2);
+
+            rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
+            rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
+            rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+
+            //rv.args.append<uint64_t>("tensor2dSizeC", c.sizes().back() * c.strides().back());
+            //rv.args.append<uint64_t>("tensor2dSizeA", a.sizes().back() * a.strides().back());
+            //rv.args.append<uint64_t>("tensor2dSizeB", b.sizes().back() * b.strides().back());
+            //rv.args.append<uint64_t>("tensor2dSizeC", c.strides().back());
+            //rv.args.append<uint64_t>("tensor2dSizeA", a.strides().back());
+            //rv.args.append<uint64_t>("tensor2dSizeB", b.strides().back());
         }
 
         rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
@@ -244,7 +255,7 @@ namespace Tensile
                                                         TypedInputs const& inputs,
                                                         Hardware    const& hardware) const
     {
-        std::string name = concatenate("Cijk_",
+        std::string name = concatenate("C", problem.cNames(), "_",
                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
