@@ -5065,28 +5065,33 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if not prefetch:
       if isOptNLL:
-        _ = self.getNamedLabel("Summation_End")
+        kStr += self.comment1("Stores for OptNLL")
+        self.getNamedLabel("Summation_End")
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
         # optimized NLL has edge=beta=atomic=False by design
         ss = self.StoreState(self, kernel, fullVw, edge=False, beta=False, \
-            atomic=False, elements=elements, forceOpt=1)
+            atomic=False, elements=elements)
 
-        tmpSgpr = self.getTmpSgpr(1)
+        # TODO - maybe this should be encapulated in the SS setup code
+        tmpSgpr = self.getTmpSgpr(2)
+        if len(kernel["PackedC0IndicesX"]) > 1:
+          tmpVgpr= self.vgprPool.checkOut(3, "NLL address tmps")
+        else:
+          tmpVgpr= None # don't need tmps for other uses?
+         # need to allocate vgprs for this path,
+        assert(len(kernel["PackedC1IndicesX"]) == 1)
+
         ss.setupStoreElementsForBatch(kernel, fullVw, elements, None)
-
-        kStr += inst("_v_add_lshl_u32", \
-            vgpr(ss.sharedColVgprs), \
-            vgpr(self.cinRowPtr), \
-            vgpr(self.coord0), \
-            hex(log2(self.bpeCexternal)), \
-            "NLL: init cb addr <-  cinRowPtr + coord0, scaled by BPE")
 
         for elementIdx in range(0, len(elements)):
           kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
           addrCalc = ss.elementAddr[elementIdx]
           sumIdx = ss.elementSumIdx[elementIdx]
+
+          kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
+                            edge=False, beta=False, atomic=False, mask=None)
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr)
 
         kStr += "\n"
@@ -7134,7 +7139,7 @@ class KernelWriterAssembly(KernelWriter):
         self.halfDataRegPerVI = True if gwvw*self.numVgprsPerDataPerVI < 1.0 else False
 
     # StoreState constructor:
-    def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic, elements, forceOpt=0):
+    def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic, elements):
       self.kernelWriter = kernelWriter
       self.kernel = kernel
 
@@ -7172,7 +7177,7 @@ class KernelWriterAssembly(KernelWriter):
           # packed mode needs a unique VGPR address calc for each column.
           self.optSharedColVgpr = 1
         else:
-          self.optSingleColVgpr = 1 or forceOpt
+          self.optSingleColVgpr = 1
 
         if not atomic and len(kernel["PackedC1IndicesX"]) == 1:
           self.optSrdIncForRow = 1
