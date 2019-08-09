@@ -114,13 +114,6 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
             rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
-
-            //rv.args.append<uint64_t>("tensor2dSizeC", c.sizes().back() * c.strides().back());
-            //rv.args.append<uint64_t>("tensor2dSizeA", a.sizes().back() * a.strides().back());
-            //rv.args.append<uint64_t>("tensor2dSizeB", b.sizes().back() * b.strides().back());
-            //rv.args.append<uint64_t>("tensor2dSizeC", c.strides().back());
-            //rv.args.append<uint64_t>("tensor2dSizeA", a.strides().back());
-            //rv.args.append<uint64_t>("tensor2dSizeB", b.strides().back());
         }
 
         rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
