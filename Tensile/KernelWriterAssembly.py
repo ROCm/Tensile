@@ -5065,8 +5065,6 @@ class KernelWriterAssembly(KernelWriter):
             hex(log2(self.bpeCexternal)), \
             "NLL: init cb addr <-  cinRowStart + coord0, scaled by BPE")
 
-        self.computeStoreAddrCalcs(kernel, ss, elements)
-
         for elementIdx in range(0, len(elements)):
           kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
           addrCalc = ss.elementAddr[elementIdx]
@@ -7167,6 +7165,9 @@ class KernelWriterAssembly(KernelWriter):
     # batchElements is a list of (d0,d1,v0,v1) for which stores to perform
     # batchElementSgprs is SGPRs to use for mask.  If None, elementMask is
     #  not initialized.
+    #
+    # Also create an AddrCalc for each memory operation.
+    # 
     ##############################################################################
     def setupStoreElementsForBatch(self, kernel, batchElements, batchElementSgprs):
 
@@ -7180,11 +7181,16 @@ class KernelWriterAssembly(KernelWriter):
       lastData = 0
       for elementIdx in range(0, len(batchElements)):
         # Create the AddrCalc for each memory load/store
-        # This is the control code that sets up the source and dest and offsets, and
+        # This is the control code that sets up the dest, source, offsets, etc and
         # identifies cases where the AddrCalc is a new row and therefore needs some
-        # additional math.
+        # additional math.  Each AddrCalc contains isolated state sufficient to
+        # perform any needed range checks and address calculations for the element.
+        #
+        # The AddrCalc creation code here maintains state across elements (including
+        # across write batches) to remove replicated calculations.
+        #
         # Later the AddrCalc::emitAddressSetupCode will emit the necessary code
-        # Also allocate resources here, if needed.
+        # Also allocate VGPR resources here, if needed.
 
         element = batchElements[elementIdx]
         d1 = element[0]
@@ -7201,14 +7207,15 @@ class KernelWriterAssembly(KernelWriter):
         # TODO - review firstBatch, lastCoord, should be set in this function
         newCoord1 = (self.firstBatch and elementIdx==0) or (coordOffset1 != self.lastCoordOffset1)
 
-        # gpr assignments for element
+        # gpr and offset assignments for element
         coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
         if self.optStoreAddrVgpr:
           # use same address vgpr for all
           self.elementAddr.append(kw.AddrCalc(kw, self.optStoreAddrVgpr, self.addrVgpr, element, coordOffset0, \
             self.kernelWriter.coord1, coordOffset1, coordOffset1 - self.lastCoordOffset1, newCoord1))
         else:
-          addr = kw.vgprPool.checkOut(self.cfg.numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
+          addr = kw.vgprPool.checkOut(self.cfg.numVgprsPerAddr, \
+              "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
           self.elementAddr.append(kw.AddrCalc(kw, self.optStoreAddrVgpr, addr, element, coordOffset0, \
             self.kernelWriter.coord1, coordOffset1, coordOffset1 - self.lastCoordOffset1, newCoord1))
         # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
@@ -7310,12 +7317,12 @@ class KernelWriterAssembly(KernelWriter):
           self.coord0V = coord0
         elif self.coordOffset0 <= 64:
           kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), self.coordOffset0, \
-              "NEW0.1. coord0 += d0*sg0*VW + vc0")
+              "NEW0.1: coord0 += d0*sg0*VW + vc0")
           self.coord0V = self.addr
         else:
-          kStr += inst("s_mov_b32", sgpr(self.addr), self.coordOffset0, "coordOffset0 d0=%u vc0=%u"%(d0, vc0))
-          kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), sgpr(self.addr), \
-              "NEW0.2. coord0 += d0*sg0*VW + vc0")
+          kStr += inst("s_mov_b32", sgpr(tmpS01), self.coordOffset0, "coordOffset0 d0=%u vc0=%u"%(d0, vc0))
+          kStr += inst("_v_add_co_u32", vgpr(self.addr), "vcc", vgpr(coord0), sgpr(tmpS01), \
+              "NEW0.2: coord0 += d0*sg0*VW + vc0")
           self.coord0V = self.addr
 
         if self.newCoord1: # different than last coord1, need to add some new code?
@@ -7832,48 +7839,6 @@ class KernelWriterAssembly(KernelWriter):
          assert ("bad bps")
 
     return kStr
-
-  ##############################################################################
-  # Set fields (rowInc, globalOffset, instOffset) for each addrCalc in the ss.elementAddress
-  # TODO - someday make this a one-stop shop to also save the coord0 and coord1
-  # offset information as a first pass; then second pass the AddrCalc
-  # class can generate the code necessary to set up the next store.
-  # This could work for all addressing modes (flat, buffer), LDD/LDC, etc
-  # Should result in more cleanly partitioned code with less interleaved if/else
-  ##############################################################################
-  def computeStoreAddrCalcs(self, kernel, ss, batchElements):
-
-    for elementIdx in range(0, len(batchElements)):
-      element = batchElements[elementIdx]
-      #addrCalc = ss.elementAddr[elementIdx]
-      #data = ss.elementData[elementIdx]
-      #sumIdx = ss.elementSumIdx[elementIdx]
-      d1 = element[0]
-      d0 = element[1]
-      vc1 = element[2]
-      vc0 = element[3]
-
-      if kernel["LocalSplitU"] > 1:
-        strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
-      else:
-        strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
-
-      # coordOffset0 is a constant offset from left edge of output space assignment
-      coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
-      globalOffset = coordOffset0 * self.bpeCexternal
-
-      coordOffset1 = d1*strideD1 + vc1
-      ss.elementAddr[elementIdx].rowInc = coordOffset1 - ss.lastCoordOffset1
-      assert ss.elementAddr[elementIdx].rowInc >= 0, "element address row inc can't go backwards"
-
-      newCoord1 = (ss.firstBatch and elementIdx==0) or (coordOffset1 != ss.lastCoordOffset1)
-      if newCoord1:
-        assert(globalOffset==0) # remove me
-        globalOffset = 0
-
-      ss.lastCoordOffset1 = coordOffset1
-      ss.elementAddr[elementIdx].globalOffset = globalOffset # save for later loads and stores
-
 
   ##############################################################################
   # Add stores for the element with addrCalc and sumIdx.
