@@ -524,7 +524,12 @@ class KernelWriterAssembly(KernelWriter):
   ########################################
   ########################################
   def size(self, tc, dim):
-    #problemType = self.kernel["ProblemType"]
+    """
+    Return sgpr() with the specified size
+    See above definitions for how these are mapped to Free or Sum sizes
+    based on the problem definition.
+    """
+    problemType = self.kernel["ProblemType"]
     if tc in ['A','B','C','D']:
       return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
     else:
@@ -1360,7 +1365,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WorkGroup0", 1)
 
     for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
-      if 1 or not isPackedIndex(kernel,i): # TODO-packed - enable this check - we don't need WG in packed cases
+      if not isPackedIndex(kernel,i):
         self.defineSgpr("WorkGroup%u"%i, 1)
 
     self.lastUserSgprPlus1=self.sgprIdx  # For initSgpr, this is one past the past user sgpr
@@ -1406,6 +1411,12 @@ class KernelWriterAssembly(KernelWriter):
     for idxChar in kernel["PackedC1IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+
+    # product of all packed dims in the 0 or 1 dimensions:
+    if len(kernel["PackedC0IndicesX"]) > 1:
+      self.defineSgpr("PackedSize0", 1)
+    if len(kernel["PackedC1IndicesX"]) > 1:
+      self.defineSgpr("PackedSize1", 1)
 
     # contractions with multiple summations will use multiple LoopCounters
     # outermost loop is LoopCounter[0] and innermost is the last Counter.
@@ -6689,12 +6700,14 @@ class KernelWriterAssembly(KernelWriter):
         #--
         coord = sgpr(wgMT1)
         addToSrd = True
-      else: # group index, this is higher-order Tensor dimension, just add to SRD base:
-        # TODO-packed - modify to ignore packed, perhaps:
-        # if not isPackedIndex(kernel, i):
-        #--
+      elif not isPackedIndex(kernel, i):
+        # group index, this is higher-order Tensor dimension, just add to SRD base:
         coord = sgpr("WorkGroup%u"%i)
         addToSrd = True
+      else:
+        # could be packed higher-order index, just ignore
+        coord = None
+        addToSrd = False
 
       if addToSrd:
         # These are constant across all workitems, just add to the SRD:
@@ -6715,6 +6728,19 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
 
         kStr += "\n"
+
+    for cdir in (0,1):
+      indices = kernel["PackedC%uIndicesX"%cdir]
+      packedSizes = "PackedSize%u"%cdir
+      if len(indices) > 1:
+        for i,idx in enumerate(indices[1:]):
+          if i==0:
+            kStr += inst("s_mul_i32", sgpr(packedSizes), self.size('C', indices[0]), \
+                      self.size('C', idx), "first packed size")
+          else:
+            kStr += inst("s_mul_i32", sgpr(packedSizes), sgpr(packedSizes), \
+                      self.size ('C', idx), "first packed size")
+
 
     return kStr
 
