@@ -2,6 +2,7 @@
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
+  ValidationPrintValids: True
   KernelTime: True
   PrintSolutionRejectionReason: 1
 

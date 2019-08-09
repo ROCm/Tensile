@@ -9,7 +9,9 @@ GlobalParameters:
   #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
+  DataInitTypeAB: 0
   PrintSolutionRejectionReason: 1
+  CEqualD: 1
 
 BenchmarkProblems:
   ########################################
@@ -50,7 +52,10 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # A couple classic large matrix problems:
+          - Range: [ [4096], [4096], [1], [4096] ]
           - Range: [ [5760], [5760], [1], [5760] ]
+            #- Range: [ [4608], [4608], [1], [20000] ]
+            #- Range: [ [5760], [5760], [1], [20000] ]
           - Range: [ [7744], [7744], [1], [7744] ]
 
   ########################################

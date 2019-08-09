@@ -18,11 +18,9 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from __future__ import print_function
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
-from .SolutionStructs import Solution
-from .SolutionWriter import SolutionWriter
+from . import ClientExecutable
 from . import YAMLIO
 
 import os
@@ -56,8 +54,7 @@ def main( config ):
       "KernelHeader.h",
       "Tools.h",
       "CMakeLists.txt",
-      "TensileConfig.cmake",
-      "TensileConfigVersion.cmake"
+      "TensileCreateLibrary.cmake",
       ]
 
   for f in filesToCopy:
@@ -104,8 +101,9 @@ def main( config ):
   solutions = None
   problemSizes = None
   stepName = None
+  solutionSummationSizes = None
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions, stepBaseDir)
+      functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -120,7 +118,8 @@ def main( config ):
   # write runScript
   path = globalParameters["WorkingPath"]
   forBenchmark = False
-  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
+  enableTileSelection = False
+  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
   # run runScript
   process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
@@ -137,30 +136,38 @@ def main( config ):
 ################################################################################
 # Write Run Script
 ################################################################################
-def writeRunScript(path, libraryLogicPath, forBenchmark):
+def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
   # create run.bat or run.sh which builds and runs
   runScriptName = os.path.join(path, \
     "run.%s" % ("bat" if os.name == "nt" else "sh") )
   runScriptFile = open(runScriptName, "w")
   echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
-    runScriptFile.write("#!/bin/sh\n")
+    runScriptFile.write("#!/bin/bash\n\n")
   q = "" if os.name == "nt" else "\""
+
+  runScriptFile.write("set -ex\n")
+
   runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake")
   # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
-      % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
+  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+  else:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
   if forBenchmark:
     # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
   else:
     # for library client
     runScriptFile.write(" -DTensile_ROOT=%s" \
-        % os.path.join(globalParameters["ScriptPath"], "..") )
+        % os.path.join(globalParameters["ScriptPath"], "bin") )
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
     runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
@@ -168,13 +175,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
         % ("ON" if globalParameters["ShortNames"] else "OFF"))
   if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" \
-        % globalParameters["CMakeCXXFlags"] )
+    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
   if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" \
-        % globalParameters["CMakeCFlags"] )
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" \
-      % (globalParameters["CMakeBuildType"]))
+    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+  runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
@@ -195,6 +200,9 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
         runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
+
+      runScriptFile.write("set +e\n")
+
       runScriptFile.write("./client")
 
     if globalParameters["DataInitTypeA"] == -1 :
@@ -219,13 +227,34 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
     clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
     clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
+    clp += " --benchmark-solutions %u" % enableTileSelection
     if "ClientArgs" in globalParameters:
       clientParams = globalParameters["ClientArgs"]
       if clientParams:
         clp += " " + globalParameters["ClientArgs"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
-    runScriptFile.write("ERR=$?\n")
+    runScriptFile.write("ERR1=$?\n")
+
+    newClientExe = ClientExecutable.getClientExecutable()
+    configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
+    runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+    runScriptFile.write("ERR2=$?\n\n")
+
+    runScriptFile.write("""
+ERR=0
+if [[ $ERR1 -ne 0 ]]
+then
+    echo one
+    ERR=$ERR1
+fi
+if [[ $ERR2 -ne 0 ]]
+then
+    echo two
+    ERR=$ERR2
+fi
+""")
+
     if os.name != "nt":
       if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
@@ -251,13 +280,129 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
 def toCppBool(yamlBool):
   return "true" if yamlBool else "false"
 
+def getMaxSolutionSizes(solutions, solutionSummationSizes):
+
+  maxK = max(solutionSummationSizes)
+  maxMT0 = 0
+  maxMT1 = 0
+  for solution in solutions:
+
+    wg = solution["WorkGroup"]
+    tt = solution["ThreadTile"]
+    mt0 = wg[0] * tt[0]
+    mt1 = wg[1] * tt[1]
+
+    if (mt0 > maxMT0):
+      maxMT0 = mt0
+
+    if (mt1 > maxMT1):
+      maxMT1 = mt1
+
+  return [maxMT0, maxMT1, maxK]
+
+def checkConstStride(constStrideMap, keyIdx):
+  finalVal = None
+  for (mapIdx, val) in constStrideMap:
+    if keyIdx == mapIdx:
+      finalVal = val
+  #print ("idx=", keyIdx, "=", finalVal)
+  return finalVal
+
+
+def problemSizeParams(solution, problemSize):
+    numIndices = len(solution.problemType.indices)
+
+    assert len(problemSize) == numIndices + 4
+
+    return [('problem-size', ','.join(map(str, problemSize[:numIndices]))),
+            ('a-strides', problemSize[numIndices+2]),
+            ('b-strides', problemSize[numIndices+3]),
+            ('c-strides', problemSize[numIndices+0]),
+            ('d-strides', problemSize[numIndices+1])]
+
+def dataInitName(num):
+    if num == 0: return 'Zero'
+    if num == 1: return 'One'
+    if num == 2: return 'Two'
+    if num == 3: return 'Random'
+    if num == 4: return 'NaN'
+
+def dataInitParams(problemType):
+    initA = globalParameters['DataInitTypeA']
+    initB = globalParameters['DataInitTypeB']
+    initC = globalParameters['DataInitTypeC']
+    initD = globalParameters['DataInitTypeD']
+    initAlpha = globalParameters['DataInitTypeAlpha']
+    initBeta  = globalParameters['DataInitTypeBeta']
+
+    if not problemType.useBeta:
+        initBeta = 0
+
+    if initA == -1: initA = globalParameters['DataInitTypeAB']
+    if initB == -1: initB = globalParameters['DataInitTypeAB']
+
+    return [('init-a',     dataInitName(initA)),
+            ('init-b',     dataInitName(initB)),
+            ('init-c',     dataInitName(initC)),
+            ('init-d',     dataInitName(initD)),
+            ('init-alpha', dataInitName(initAlpha)),
+            ('init-beta',  dataInitName(initBeta))]
+
+def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles):
+
+    filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+    with open(filename, "w") as f:
+        def param(key, value):
+            f.write("{}={}\n".format(key, value))
+
+        sourceDir = os.path.join(stepBaseDir, "source")
+        libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
+        param("library-file", libraryFile)
+        for coFile in codeObjectFiles:
+            param("code-object", os.path.join(sourceDir,coFile))
+
+        param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+
+        newSolution = next(iter(newLibrary.solutions.values()))
+        param('problem-identifier', newSolution.problemType.operationIdentifier)
+        param('a-type',     newSolution.problemType.aType.toEnum())
+        param('b-type',     newSolution.problemType.bType.toEnum())
+        param('c-type',     newSolution.problemType.cType.toEnum())
+        param('d-type',     newSolution.problemType.dType.toEnum())
+        param('alpha-type', newSolution.problemType.dType.toEnum())
+        param('beta-type',  newSolution.problemType.dType.toEnum())
+
+        param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
+
+        for problemSize in problemSizes.sizes:
+            for key,value in problemSizeParams(newSolution, problemSize):
+                param(key,value)
+            #param('problem-size', ','.join(map(str,problemSize)))
+
+        param("device-idx",               globalParameters["Device"])
+
+        for key,value in dataInitParams(newSolution.problemType):
+            param(key, value)
+
+        param("c-equal-d",                globalParameters["CEqualD"])
+
+        param("print-valids",             globalParameters["ValidationPrintValids"])
+        param("print-max",                globalParameters["ValidationMaxToPrint"])
+        param("num-benchmarks",           globalParameters["NumBenchmarks"])
+        param("num-elements-to-validate", globalParameters["NumElementsToValidate"])
+        param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
+        param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
+        param("use-gpu-timer",            globalParameters["KernelTime"])
+        if not globalParameters["KernelTime"]:
+            param("num-warmups", 1)
+        param("sleep-percent",            globalParameters["SleepPercent"])
 
 
 ################################################################################
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functionList, stepBaseDir):
+    functionList, stepBaseDir, solutionSummationSizes, solutionWriter = None):
   h = ""
 
   ##############################################################################
@@ -271,6 +416,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         if kernel not in kernels:
           kernels.append(kernel)
 
+    """
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -278,6 +424,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     solutionWriter = SolutionWriter( \
         solutionMinNaming, solutionSerialNaming, \
         kernelMinNaming, kernelSerialNaming)
+    """
 
   if forBenchmark:
     if globalParameters["MergeFiles"]:
@@ -306,14 +453,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "} DataTypeEnum;\n"
   h += "\n"
 
-  h += "// Debug Params\n";
+  h += "// Debug Params\n"
   h += "const unsigned printTensorA=%x;\n" % int(globalParameters["PrintTensorA"])
   h += "const unsigned printTensorB=%x;\n" % int(globalParameters["PrintTensorB"])
   h += "const unsigned printTensorC=%x;\n" % int(globalParameters["PrintTensorC"])
   h += "const unsigned printTensorD=%x;\n" % int(globalParameters["PrintTensorD"])
 
   h += "const bool printWinnersOnly=%s;\n" % toCppBool(globalParameters["PrintWinnersOnly"])
-  h += "\n";
+  h += "\n"
 
   h += "const char indexChars[%u] = \"%s" \
       % (len(globalParameters["IndexChars"])+1, \
@@ -340,10 +487,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   problemTypesForDataType = {} # for data type
   schedulesForProblemType = {} # for problem type
   functionInfo = [] # dataTypeIdx, problemTypeIdx, idxWithinDataType, idxWithinProblemType
+  #tileSelection = False
 
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     dataType = problemType["DataType"]
+    #tileSelection = problemType["TileAwareSelection"]
 
     destDataType = problemType["DestDataType"]
     destDataTypes[dataType] = destDataType
@@ -425,7 +574,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "const DataTypeEnum dataTypeEnums[numDataTypes] = { enum_%s" \
       % dataTypes[0].toCpp()
   for dataTypeIdx in range(1, numDataTypes):
-    h += ", enum_%s" % dataTypes[dataTypeIdx].toCpp();
+    h += ", enum_%s" % dataTypes[dataTypeIdx].toCpp()
   h += " };\n"
   # bytes per elements
   h += "const unsigned int bytesPerElement[numDataTypes] = { %u" \
@@ -461,23 +610,35 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += " };\n"
 
   # Num AB Indices
-  maxNumIndicesAB = len(problemTypes[0]["IndexAssignmentsA"])
-  h += "const unsigned int numIndicesAB[numProblemTypes] = { %u" \
+  maxNumIndicesA = len(problemTypes[0]["IndexAssignmentsA"])
+  maxNumIndicesB = len(problemTypes[0]["IndexAssignmentsB"])
+  h += "const unsigned int numIndicesA[numProblemTypes] = { %u" \
       % len(problemTypes[0]["IndexAssignmentsA"])
   for problemTypeIdx in range(1, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
-    numIndicesAB = len(problemType["IndexAssignmentsA"])
-    h += ", %u" % numIndicesAB
-    maxNumIndicesAB = max(numIndicesAB, maxNumIndicesAB)
+    numIndicesA = len(problemType["IndexAssignmentsA"])
+    h += ", %u" % numIndicesA
+    maxNumIndicesA = max(numIndicesA, maxNumIndicesA)
   h += " };\n"
-  h += "const unsigned int maxNumIndicesAB = %u;\n" % maxNumIndicesAB
+  h += "const unsigned int maxNumIndicesA = %u;\n" % maxNumIndicesA
+
+  h += "const unsigned int numIndicesB[numProblemTypes] = { %u" \
+      % len(problemTypes[0]["IndexAssignmentsB"])
+  for problemTypeIdx in range(1, numProblemTypes):
+    problemType = problemTypes[problemTypeIdx]
+    numIndicesB = len(problemType["IndexAssignmentsB"])
+    h += ", %u" % numIndicesB
+    maxNumIndicesB = max(numIndicesB, maxNumIndicesB)
+  h += " };\n"
+  h += "const unsigned int maxNumIndicesB = %u;\n" % maxNumIndicesB
+
   # Index Assignments A
-  h += "const unsigned int indexAssignmentsA[numProblemTypes][maxNumIndicesAB] = {\n"
+  h += "const unsigned int indexAssignmentsA[numProblemTypes][maxNumIndicesA] = {\n"
   for problemTypeIdx in range(0, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
     indices = problemType["IndexAssignmentsA"]
     h += "  { %u" % indices[0]
-    for i in range(1, maxNumIndicesAB):
+    for i in range(1, maxNumIndicesA):
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
@@ -488,12 +649,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " }\n"
   h += "};\n"
   # Index Assignments B
-  h += "const unsigned int indexAssignmentsB[numProblemTypes][maxNumIndicesAB] = {\n"
+  h += "const unsigned int indexAssignmentsB[numProblemTypes][maxNumIndicesB] = {\n"
   for problemTypeIdx in range(0, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
     indices = problemType["IndexAssignmentsB"]
     h += "  { %u" % indices[0]
-    for i in range(1, maxNumIndicesAB):
+    for i in range(1, maxNumIndicesB):
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
@@ -504,9 +665,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " }\n"
   h += "};\n"
   # Index Assignments LD
-  h += "const unsigned int numIndicesLD = %u;\n" % problemType["NumIndiciesLD"]
+  h += "const unsigned int numIndicesLD = %u;\n" % problemType["NumIndicesLD"]
   h += "const unsigned int indexAssignmentsLD[numIndicesLD] = {"
-  if problemType["NumIndiciesLD"] > 0:
+  if problemType["NumIndicesLD"] > 0:
     h += " %u" % problemType["IndexAssignmentsLD"][0]
     for ldIdx in range(1, len(problemType["IndexAssignmentsLD"])):
       h += ", %u" % problemType["IndexAssignmentsLD"][ldIdx]
@@ -561,24 +722,24 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "const unsigned int numProblems = %u;\n" \
         % problemSizes.totalProblemSizes
     h += "const unsigned int problemSizes[numProblems][%u] = {\n" \
-        % (problemTypes[0]["TotalIndices"] + problemType["NumIndiciesLD"])
+        % (problemTypes[0]["TotalIndices"] + problemType["NumIndicesLD"])
     for i in range(0, problemSizes.totalProblemSizes):
       line = "  {%5u" %problemSizes.sizes[i][0]
-      for j in range(1, problemTypes[0]["TotalIndices"] + problemType["NumIndiciesLD"]):
+      for j in range(1, problemTypes[0]["TotalIndices"] + problemType["NumIndicesLD"]):
         line += ",%5u" % problemSizes.sizes[i][j]
       line += " }"
       h += line
       if i < problemSizes.totalProblemSizes-1:
         h += ","
       else:
-        h += "};"
-      h += "\n"
+        h += "" 
+    h += "};\n"
     h += "const unsigned int minStrides[%u] = {" \
         % problemTypes[0]["TotalIndices"]
     for i in range(0, len(problemSizes.minStrides)):
       if (i!=0):
-        h += ", ";
-      h += str(problemSizes.minStrides[i]);
+        h += ", "
+      h += str(problemSizes.minStrides[i])
     h += "};\n"
   else:
     h += "unsigned int userSizes[maxNumIndices];\n"
@@ -586,7 +747,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         % maxNumIndices
     for i in range(0, maxNumIndices):
       if (i!=0):
-        h += ", ";
+        h += ", "
       h += str(0); # always use 0 for minStrides in benchmark mode
     h += "};\n"
 
@@ -630,10 +791,26 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Max Problem Sizes
   ##############################################################################
   if forBenchmark:
-    h += "size_t maxSizeD = %u;\n" % (problemSizes.maxD)
-    h += "size_t maxSizeC = %u;\n" % (problemSizes.maxC)
-    h += "size_t maxSizeA = %u;\n" % (problemSizes.maxA)
-    h += "size_t maxSizeB = %u;\n" % (problemSizes.maxB)
+    maximumD = problemSizes.maxD
+    maximumC = problemSizes.maxC
+    maximumA = problemSizes.maxA 
+    maximumB = problemSizes.maxC 
+
+    maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
+
+    maxMN = 1296 * maxMT[0] * maxMT[1]
+    maxMK = 36 * maxMT[0] * maxMT[2]
+    maxNK = 36 * maxMT[1] * maxMT[2]
+
+    maximumA = max(maximumA, maxMK)
+    maximumB = max(maximumB, maxNK)
+    maximumC = max(maximumC, maxMN)
+    maximumD = max(maximumD, maxMN)
+
+    h += "size_t maxSizeD = %u;\n" % (maximumD)
+    h += "size_t maxSizeC = %u;\n" % (maximumC)
+    h += "size_t maxSizeA = %u;\n" % (maximumA)
+    h += "size_t maxSizeB = %u;\n" % (maximumB)
     h += "\n"
   else:
     h += "size_t maxSizeD;\n"
@@ -678,6 +855,42 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "\n"
     h += " };\n"
     h += "\n"
+
+    numSummations = len(solutionSummationSizes)
+    h += "const unsigned int numSummations = %d;\n" % (numSummations)
+    
+    h += "const unsigned int summations[numSummations] = {%d" % (solutionSummationSizes[0])
+    for i in range(1, numSummations):
+      h += ", %d" % (solutionSummationSizes[i])
+    h += "};\n"
+
+  ##############################################################################
+  # Solution meta data
+  ##############################################################################
+
+    transA = solutions[0]["ProblemType"]["TransposeA"]
+    transB = solutions[0]["ProblemType"]["TransposeB"]
+    h += "const unsigned int solutionMetaData[maxNumSolutions][10] = {\n"
+    for i in range(0, len(solutions)):
+      solution = solutions[i]
+
+      wg = solution["WorkGroup"]
+      tt = solution["ThreadTile"]
+      mt0 = wg[0] * tt[0]
+      mt1 = wg[1] * tt[1]
+      gsu = solution["GlobalSplitU"]
+      lsu = wg[2]
+
+      h += "  {%d, %d, %d, %d, %d, %d, %d, %d, %d, %d}" % (mt0,mt1,tt[0],tt[1],wg[0],wg[1],transA,transB,gsu,lsu)
+
+      if (i < len(solutions) - 1):
+        h += ",\n"
+      else:
+        h += "\n"
+    h += " };\n"
+    h += "\n"
+
+    
 
   else:
     # Function Names
@@ -783,7 +996,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "      sizes,\n"
   h += "      minStrides,\n"
   h += "      numIndicesC[problemTypeIdx],\n"
-  h += "      numIndicesAB[problemTypeIdx],\n"
+  h += "      numIndicesA[problemTypeIdx],\n"
+  h += "      numIndicesB[problemTypeIdx],\n"
   h += "      indexAssignmentsA[problemTypeIdx],\n"
   h += "      indexAssignmentsB[problemTypeIdx],\n"
   h += "      complexConjugateA[problemTypeIdx],\n"
@@ -853,19 +1067,28 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h+= "std::max(minStrides[%i], sizes[%i]))" % (j,j)
       h += ";\n"
     h += "  if (stride_c != std::numeric_limits<unsigned int>::max())  strideC%u%s = stride_c;\n" % (lastStrideC-1, indexChars[lastStrideC-1])
-    
+
+    constStride = None
     for i in range(0,lastStrideA):
-      h += "  unsigned int strideA%u%s = 1" % (i, \
-          indexChars[problemType["IndexAssignmentsA"][i]])
-      for j in range(0, i):
-        h += " * ("
-        if j == 0:
-          h += "(lda != std::numeric_limits<unsigned int>::max()) ? lda : "
-        h += "std::max(minStrides[%i], sizes[%i]))" % \
-          (problemType["IndexAssignmentsA"][j],
-           problemType["IndexAssignmentsA"][j])
-      h += ";\n"
-    h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
+      idx = problemType["IndexAssignmentsA"][i]
+      constStride = checkConstStride(problemType["SetConstStrideA"], idx)
+      if constStride != None:
+        h += "  unsigned int strideA%u%s = %d; //SetConstStrideA\n" % (i,
+          indexChars[problemType["IndexAssignmentsA"][i]],
+          constStride)
+      else:
+        h += "  unsigned int strideA%u%s = 1" % (i, \
+            indexChars[problemType["IndexAssignmentsA"][i]])
+        for j in range(0, i):
+          h += " * ("
+          if j == 0:
+            h += "(lda != std::numeric_limits<unsigned int>::max()) ? lda : "
+          h += "std::max(minStrides[%i], sizes[%i]))" % \
+            (problemType["IndexAssignmentsA"][j],
+             problemType["IndexAssignmentsA"][j])
+        h += ";\n"
+    if constStride == None:
+      h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
 
     for i in range(0,lastStrideB):
       h += "  unsigned int strideB%u%s = 1" % (i, \
@@ -892,7 +1115,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
-    numSizes = problemType["TotalIndices"];
+    numSizes = problemType["TotalIndices"]
     h += "  typedef ProblemDims<%u,%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
         % (firstStride, lastStrideD, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
     # TODO - this should be initialized somewhere once?
@@ -1130,6 +1353,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         "../Data","%s.csv" % stepName)
     resultsFileName = resultsFileName.replace("\\", "\\\\")
     h += "const char *resultsFileName = \"%s\";\n" % resultsFileName
+
+    granularityFileName = os.path.join(stepBaseDir, \
+        "../Data","%s_Granularity.csv" % stepName)
+
+    granularityFileName = granularityFileName.replace("\\", "\\\\")
+    h += "const char *granularityFileName = \"%s\";\n" % granularityFileName
 
   ##############################################################################
   # Write File

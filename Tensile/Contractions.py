@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
+from .DataType import DataType
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
@@ -52,7 +52,8 @@ class BoundIndex:
 
 
 class ProblemType:
-    StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']
+    StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
+                 'useBeta', 'highPrecisionAccumulate']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -92,6 +93,7 @@ class ProblemType:
                 assert value is not None
 
         rv = cls()
+        rv.indices = indices
         rv.freeIndices = freeIndices
         rv.batchIndices = batchIndices
         rv.boundIndices = boundIndices
@@ -99,18 +101,25 @@ class ProblemType:
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
         rv.dDims = rv.cDims
-        
-        try:
-            assert d['DataType'] == 0
-            if 'DestDataType' in d:
-                assert d['DestDataType'] == 0
-        except AssertionError:
-            pass
-            #print("DataType mismatch!")
-        rv.aType = 'Float'
-        rv.bType = 'Float'
-        rv.cType = 'Float'
-        rv.dType = 'Float'
+
+        rv.aConjugate = d['ComplexConjugateA']
+        rv.bConjugate = d['ComplexConjugateB']
+
+        srcType = DataType(d['DataType'])
+        dstType = DataType(d['DestDataType']) if 'DestDataType' in d else srcType
+
+        rv.aType = srcType
+        rv.bType = srcType
+        rv.cType = dstType
+        rv.dType = dstType
+
+        rv.highPrecisionAccumulate = False
+        if 'HighPrecisionAccumulate' in d:
+            rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
+
+        rv.useBeta = True
+        if 'UseBeta' in d:
+            rv.useBeta = d['UseBeta']
 
         rv.batched = d['Batched']
 
@@ -169,32 +178,31 @@ class ProblemType:
     def operationIdentifier(self):
         (aNames, bNames, cNames, dNames, sumNames) = self.indexNames
 
-        return '_'.join(['Contraction', sumNames,
-                         'A'+aNames,
-                         'B'+bNames,
-                         'C'+cNames,
-                         'D'+dNames])
+        aOp = 'C' if self.aConjugate else ''
+        bOp = 'C' if self.bConjugate else ''
 
-    def predicate(self, includeOperation=False, includeType=False):
+        return '_'.join(['Contraction', sumNames,
+                         'A' + aNames + aOp,
+                         'B' + bNames + bOp,
+                         'C' + cNames,
+                         'D' + dNames])
+
+    def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
 
-        if not self.batched:
-            predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
+        #if includeBatch and not self.batched:
+        #    predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
 
         if includeOperation:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
+            if not self.useBeta:
+                predicates.append(ProblemPredicate("BetaZero"));
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
+            predicates.append(ProblemPredicate("HighPrecisionAccumulate", value=self.highPrecisionAccumulate))
 
-        if len(predicates) == 0:
-            return None
-
-        if len(predicates) == 1:
-            return predicates[0]
-
-        return ProblemPredicate('And', value=predicates)
-
+        return predicates
 
 class ProblemPredicate(Properties.Predicate):
     @classmethod
@@ -204,37 +212,41 @@ class ProblemPredicate(Properties.Predicate):
             if value == 0 or value == 1:
                 return None
             elif value == 2:
-                return cls('MaxProblemSizeGreaterThan', value=32)
+                return cls('MaxProblemSizeGreaterThan', value=1)
             elif value == 3:
-                return None
+                return cls('MaxProblemSizeGreaterThan', value=32)
             else:
                 raise RuntimeError("Unknown Approx size: {}".format(value))
 
         if key.endswith('Multiple'):
             if value == 1:
                 return None
-            rv = cls(None, index=None, value=value)
             
             if key == "AssertFree0ElementMultiple":
-                rv.tag = "FreeSizeAMultiple"
-                rv.index = 0
-                return rv
+                tag = "FreeSizeAMultiple"
+                index = 0
             elif key == "AssertFree1ElementMultiple":
-                rv.tag = "FreeSizeBMultiple"
-                rv.index = 0
-                return rv
+                tag = "FreeSizeBMultiple"
+                index = 0
             elif key == "AssertSummationElementMultiple":
-                rv.tag = "BoundSizeMultiple"
-                rv.index = 0
-                return rv
+                tag = "BoundSizeMultiple"
+                index = 0
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
+
+            return cls(tag, index=index, value=value)
 
         if key == 'VectorWidth' and value > 1:
             return cls('LeadingSizesGreaterOrEqual', value=value)
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
+
+    @classmethod
+    def FromOriginalState(cls, d, problemType, morePreds=[]):
+        problemTypePreds = problemType.predicates(True, True, True)
+
+        return super().FromOriginalState(d, problemTypePreds + morePreds)
 
 class SizeMapping:
     StateKeys = ['workGroup',
@@ -277,20 +289,21 @@ class Solution:
                 'sizeMapping',
                 'debugKernel',
                 'info',
-                'index']
+                'index',
+                'ideals']
     HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromOriginalState(cls, d, deviceInfo):
+    def FromOriginalState(cls, d, deviceInfo=None):
         rv = cls()
+
 
         if 'SolutionNameMin' in d:
             rv.name = d['SolutionNameMin']
 
         rv.problemType = ProblemType.FromOriginalState(d['ProblemType'])
 
-
-        rv.problemPredicate = ProblemPredicate.FromOriginalState(d)
+        rv.problemPredicate = ProblemPredicate.FromOriginalState(d, rv.problemType)
 
         if 'DebugKernel' in d:
             rv.debugKernel = d['DebugKernel']
@@ -301,12 +314,18 @@ class Solution:
         rv.info = cls.ReadOriginalInfo(d)
 
         rv.sizeMapping = SizeMapping.FromOriginalState(d)
+        if 'Ideals' in d:
+            rv.ideals = d['Ideals']
+        else:
+            rv.ideals = {}
 
         if d['KernelLanguage'] == 'Assembly':
-            d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
-            #print(d['ISA'])
+            if 'ISA' not in d:
+                d['ISA'] = list(map(int,deviceInfo[1][3:6]))
+
+            rv.hardwarePredicate = Hardware.HardwarePredicate.FromISA(d['ISA'])
         else:
-            d['ISA'] = (0,0,0)
+            d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
 
@@ -325,6 +344,7 @@ class Solution:
         self.debugKernel = False
         self.info = {}
         self.index = None
+        self.ideals = {}
 
         for key, value in kwargs:
             if key not in Solution.StateKeys and key not in Solution.HiddenKeys:

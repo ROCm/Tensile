@@ -23,7 +23,7 @@ from . import Properties
 
 class HardwarePredicate(Properties.Predicate):
     @classmethod
-    def FromOriginalDeviceSection(cls, d):
-        gfxArch = d[1]
+    def FromISA(cls, isa):
+        gfxArch = 'gfx'+''.join(map(str, isa))
         return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 

@@ -47,8 +47,6 @@
 // FIXME - steal hip error encodings since rocBLAS expects hip error codes to be returned...
 #define tensileStatusFailure hipErrorUnknown
 #define tensileStatusAssertFailure hipErrorRuntimeOther
-#define TensileComplexFloat float2
-#define TensileComplexDouble double2
 #define TensileHalf _Float16
 inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 {
@@ -56,6 +54,124 @@ inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
    return os;
 }
 
+template <typename t>
+struct tensile_complex
+{
+    t x;
+    t y;
+
+    __host__ __device__ tensile_complex() = default;
+
+    constexpr __host__ __device__ tensile_complex(t real, t imag = 0)
+        : x{real}
+        , y{imag}
+    {
+    }
+
+    template <typename u, typename std::enable_if<std::is_arithmetic<u>{}>::type* = nullptr>
+    tensile_complex<t>& operator=(const u a)
+    {
+        x = a;
+        y = 0;
+        return (*this);
+    }
+};
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const tensile_complex<T>& data)
+{
+    if(data.y >= 0)
+    {
+        os << data.x << "+" << data.y << "i";
+    }
+    else
+    {
+        os << data.x << data.y << "i";
+    }
+
+    return os;
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> data)
+{
+    return data;
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> data)
+{
+    return tensile_complex<T>{-data.x, -data.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x + b.x, a.y + b.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x - b.x, a.y - b.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator*(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator/(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{(a.x * b.x + a.y * b.y) / (b.x * b.x + b.y * b.y),
+                              (a.y * b.x - a.x * b.y) / (b.x * b.x + b.y * b.y)};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator+=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a + b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator-=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a - b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator*=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a * b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator/=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a / b);
+}
+template <typename T>
+constexpr __host__ __device__ bool operator==(tensile_complex<T>& a, tensile_complex<T>  b)
+{
+    return (a.x == b.x ) && (a.y == b.y);
+}
+
+
+using tensile_float_complex = tensile_complex<float>;
+using tensile_double_complex = tensile_complex<double>;
+
+#define TensileComplexFloat tensile_float_complex
+#define TensileComplexDouble tensile_double_complex
 #endif // HIP
 
 #define TensileInt8x4 uint32_t
@@ -243,6 +359,7 @@ private:
   // Data members:
   SizeType _sizes[NumSizes];
   bool     _equalStrides;
+  uint32_t _db;
 };
 
 //-------------
@@ -349,8 +466,14 @@ struct ProblemProperties {
       _free0ElementMultiple(free0ElementMultiple),
       _free1ElementMultiple(free1ElementMultiple),
       _approxSize(approxSize),
-      _equalStrides(equalStrides)
-     {}
+      _equalStrides(equalStrides),
+      _db(0)
+     {
+       const char *db = std::getenv("TENSILE_DB");
+       if (db) {
+         _db = strtol(db,nullptr,0);
+       }
+     }
 
   // Constructor used to compute assertions for a specified problem size
   template<class ProblemDimsType>
@@ -403,11 +526,37 @@ struct ProblemProperties {
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const ProblemProperties &solutionRequirements) const {
-    return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
-           (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
-           (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
-           ((this->_approxSize) >= solutionRequirements._approxSize) &&
-           ((this->_equalStrides) == solutionRequirements._equalStrides);
+      bool rv = (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
+                (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
+                (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
+                ((this->_approxSize) >= solutionRequirements._approxSize) &&
+                ((this->_equalStrides) == solutionRequirements._equalStrides);
+
+      if(this->_db & 0x10)
+      {
+          if(!rv)
+          {
+#define check_print(name, oper) \
+              if(!(this->name oper solutionRequirements.name)) \
+              { \
+                  std::cout << #name << "failed: !(" << this->name << #oper << solutionRequirements.name << ")" << std::endl; \
+              }
+
+              std::cout << "Assertion failed:" << std::endl;
+              check_print(_summationElementMultiple, >=);
+              check_print(_free0ElementMultiple, >=);
+              check_print(_free1ElementMultiple, >=);
+              check_print(_approxSize, >=);
+              check_print(_equalStrides, ==);
+#undef check_print
+          }
+          else
+          {
+              std::cout << "Satisfied asserts!" << std::endl;
+          }
+      }
+
+      return rv;
   }
 
   unsigned _summationElementMultiple;
@@ -415,6 +564,7 @@ struct ProblemProperties {
   unsigned _free1ElementMultiple;
   int      _approxSize;
   bool     _equalStrides;
+  uint32_t _db;
 };
 
 

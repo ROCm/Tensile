@@ -56,7 +56,7 @@ def test_init_half():
 def test_init_i8():
     expected = DataType('4xi8') 
     assert DataType('int8x4') == expected 
-    assert DataType('Int8') == expected
+    assert DataType('Int8x4') == expected
     assert DataType('tensileDataTypeInt8x4') == expected
 
 def test_init_i32():
@@ -97,8 +97,8 @@ def test_complexSingle():
     assert obj.toName() == 'complexSingle'
     assert obj.toEnum() == 'ComplexFloat'
     assert obj.toOpenCL() == 'float2'
-    assert obj.toHIP() == 'float2'
-    assert obj.toDevice("") == 'float2'
+    assert obj.toHIP() == 'TensileComplexFloat'
+    assert obj.toDevice("") == 'TensileComplexFloat'
     assert obj.toCpp() == 'TensileComplexFloat'
     assert obj.getLibString() == 'tensileDataTypeComplexFloat'
     assert obj.numBytes() == 8
@@ -110,8 +110,8 @@ def test_complexDouble():
     assert obj.toName() == 'complexDouble'
     assert obj.toEnum() == 'ComplexDouble'
     assert obj.toOpenCL() == 'double2'
-    assert obj.toHIP() == 'double2'
-    assert obj.toDevice("") == 'double2'
+    assert obj.toHIP() == 'TensileComplexDouble'
+    assert obj.toDevice("") == 'TensileComplexDouble'
     assert obj.toCpp() == 'TensileComplexDouble'
     assert obj.getLibString() == 'tensileDataTypeComplexDouble'
     assert obj.numBytes() == 16
@@ -135,7 +135,7 @@ def test_int8():
     obj = DataType(5)
     assert obj.toChar() == '4xi8'
     assert obj.toName() == 'int8x4'
-    assert obj.toEnum() == 'Int8'
+    assert obj.toEnum() == 'Int8x4'
     assert obj.toOpenCL() == 'ERROR'
     assert obj.toHIP() == 'uint32_t'
     assert obj.toDevice("OCL") == 'ERROR'

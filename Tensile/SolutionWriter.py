@@ -357,53 +357,65 @@ class SolutionWriter:
       s += ";\n"
 
       s += "%suint64_t tensor2dSizeA = 1;\n" % t
+      s += "%suint64_t tensor2dSizeAStride = 0;\n" % t
+      s += "%suint64_t tensor2dSizeAOffset = 0;\n" % t
       numIdx = len(problemType["IndexAssignmentsA"])
 
-      printMe = printedSum = False
+      printMe = False
       for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsA"][i]
 
-        # Multiply only by first free and first summation
+        # Don't multiple batch dimensions that will be backed into SRD:
         if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC0Indices"]]:
           printMe = True
-        elif idx in problemType["IndicesSummation"] and not printedSum:
-          printMe = printedSum = True
+        elif idx in problemType["IndicesSummation"]:
+          printMe = True
         else:
           printMe = False
 
         if printMe:
-          s += "%stensor2dSizeA = " % t
           if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsA"][i+1]
-            s += "std::max(tensor2dSizeA*size%s, (uint64_t)strideA%u%s);\n" \
-                % (self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeAStride = std::max(tensor2dSizeA*size%s, (uint64_t)strideA%u%s);\n" \
+                % (t, self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeAOffset += tensor2dSizeAStride - tensor2dSizeA*size%s;\n" \
+                % (t, self.indexChars[idx])
+            s += "%stensor2dSizeA = tensor2dSizeAStride;\n" % (t)
           else:
-            s += " tensor2dSizeA * size%s" % (self.indexChars[idx])
-      s += ";\n"
+            s += "%stensor2dSizeA = tensor2dSizeA * size%s;\n" % (t, self.indexChars[idx])
+
+      s += "%stensor2dSizeA -= tensor2dSizeAOffset;\n" % t
+      s += "\n"
 
       s += "%suint64_t tensor2dSizeB = 1;\n" % t
+      s += "%suint64_t tensor2dSizeBStride = 0;\n" % t
+      s += "%suint64_t tensor2dSizeBOffset = 0;\n" % t
       numIdx = len(problemType["IndexAssignmentsB"])
-      printMe = printedSum = False
+      printMe = False
       for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsB"][i]
 
         # Multiply only by first free and first summation
         if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC1Indices"]]:
           printMe = True
-        elif idx in problemType["IndicesSummation"] and not printedSum:
-          printMe = printedSum = True
+        elif idx in problemType["IndicesSummation"]:
+          printMe = True
         else:
           printMe = False
 
         if printMe:
-          s += "%stensor2dSizeB = " % t
           if i+1 < numIdx:
             strideIdx = problemType["IndexAssignmentsB"][i+1]
-            s += "std::max(tensor2dSizeB*size%s, (uint64_t)strideB%u%s);\n" \
-                % (self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeBStride = std::max(tensor2dSizeB*size%s, (uint64_t)strideB%u%s);\n" \
+                % (t, self.indexChars[idx], i+1, self.indexChars[strideIdx])
+            s += "%stensor2dSizeBOffset += tensor2dSizeBStride - tensor2dSizeB*size%s;\n" \
+                % (t, self.indexChars[idx])
+            s += "%stensor2dSizeB = tensor2dSizeBStride;\n" % (t)
           else:
-            s += " tensor2dSizeB * size%s" % (self.indexChars[idx])
-      s += ";\n"
+            s += "%stensor2dSizeB = tensor2dSizeB * size%s;\n" % (t, self.indexChars[idx])
+
+      s += "%stensor2dSizeB -= tensor2dSizeBOffset;\n" % t
+      s += "\n"
 
     unrollChar = globalParameters["IndexChars"][problemType["IndexUnroll"]]
 
@@ -456,7 +468,7 @@ class SolutionWriter:
           s += "%sglobalWorkSizeBetaOnly[2] *= size%s;\n" % (t, self.indexChars[i])
 
       if problemType["UseBeta"]:
-        s += "%sbool betaZero = beta == 0;\n" % (t)
+        s += "%sbool betaZero = beta == (%s)0;\n" % (t, typeName)
       if self.language == "OCL":
         if problemType["UseBeta"]:
           s += "%scl_kernel kernelBetaOnly = betaZero ? kernel_%s : kernel_%s;\n" \
@@ -567,7 +579,7 @@ class SolutionWriter:
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
       if kernel["KernelLanguage"] == "Source":
-        kernel["ISA"] = (0, 0, 0) # HIP source kernels needs dummy ISA version
+        kernel["ISA"] = [0, 0, 0] # HIP source kernels needs dummy ISA version
       kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)
@@ -788,7 +800,7 @@ class SolutionWriter:
             """
 
           s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipExtModuleLaunchKernel(\n" % (t)
+          s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)
