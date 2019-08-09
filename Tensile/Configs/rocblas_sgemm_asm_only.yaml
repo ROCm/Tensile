@@ -5,10 +5,10 @@ GlobalParameters:
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
-  EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
-  LibraryPrintDebug: True
-  NumElementsToValidate: 0
+  EnqueuesPerSync: 5
+  SyncsPerBenchmark: 3
+  LibraryPrintDebug: False
+  NumElementsToValidate: 128
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -16,10 +16,10 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  PinClocks: False
+  PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  PrintWinnersOnly: 1
+  PrintWinnersOnly: 0
 
 BenchmarkProblems:
   ########################################
@@ -325,7 +325,7 @@ BenchmarkProblems:
 
 LibraryLogic:
 #   ScheduleName: "vega20"
-#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
+#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
 #   ArchitectureName: "gfx906"
 
     ScheduleName: "vega10"

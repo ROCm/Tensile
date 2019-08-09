@@ -53,11 +53,16 @@ class Property:
 
 class Predicate(Property):
     @classmethod
-    def FromOriginalState(cls, d):
-        predicates = list([p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None])
+    def FromOriginalState(cls, d, morePreds=[]):
+        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + morePreds
+        return cls.And(predicates)
+
+    @classmethod
+    def And(cls, predicates):
+        predicates = tuple(predicates)
         if len(predicates) == 0:
             return cls('TruePred')
         if len(predicates) == 1:
             return predicates[0]
-
         return cls('And', value=predicates)
+

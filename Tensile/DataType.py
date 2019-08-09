@@ -19,11 +19,9 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-try:
-    basestring
-except NameError:
-    basestring = str
+import functools
 
+@functools.total_ordering
 class DataType:
     """ 
     Data Type (new)
@@ -32,48 +30,146 @@ class DataType:
     The inner keys (char, reg, etc) correspond with the data type properties values
     Lookup table is used to store row numbers of a specific property
     """
-    properties = [{'char': 'S', 'name': 'single', 'enum': 'Float', 'reg': 1, 'ocl': 'float', 'hip': 'float', 'libType': 'float', 'libEnum': 'tensileDataTypeFloat'},
-        {'char': 'D', 'name': 'double', 'enum': 'Double', 'reg': 2, 'ocl': 'double', 'hip': 'double', 'libType': 'double', 'libEnum': 'tensileDataTypeDouble'},
-        {'char': 'C', 'name': 'complexSingle', 'enum': 'ComplexFloat', 'reg': 2, 'ocl': 'float2', 'hip': 'float2', 'libType': 'TensileComplexFloat', 'libEnum': 'tensileDataTypeComplexFloat'},
-        {'char': 'Z', 'name': 'complexDouble', 'enum': 'ComplexDouble', 'reg': 4, 'ocl': 'double2', 'hip': 'double2', 'libType': 'TensileComplexDouble', 'libEnum': 'tensileDataTypeComplexDouble'},
-        {'char': 'H', 'name': 'half', 'enum': 'Half', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_half', 'libType': 'TensileHalf', 'libEnum': 'tensileDataTypeHalf'},
-        {'char': '4xi8', 'name': 'int8x4', 'enum': 'Int8', 'reg': 1, 'ocl': 'ERROR', 'hip': 'uint32_t', 'libType': 'TensileInt8x4', 'libEnum': 'tensileDataTypeInt8x4'},
-        {'char': 'I', 'name': 'int32', 'enum': 'Int32', 'reg': 1, 'ocl': 'ERROR', 'hip': 'int32_t', 'libType': 'TensileInt32', 'libEnum': 'tensileDataTypeInt32'},
-        {'char': 'B', 'name': 'bfloat16', 'enum': 'BFloat16', 'reg': 0.5, 'ocl': 'ERROR', 'hip': 'tensile_bfloat16', 'libType': 'tensile_bfloat16', 'libEnum': 'tensileDataTypeBFloat16'},
-        ]
+
+    properties = [
+        {
+            'char': 'S',
+            'name': 'single',
+            'enum': 'Float',
+            'reg': 1,
+            'ocl': 'float',
+            'hip': 'float',
+            'libType': 'float',
+            'libEnum': 'tensileDataTypeFloat',
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+        },
+        {
+            'char': 'D',
+            'name': 'double',
+            'enum': 'Double',
+            'reg': 2,
+            'ocl': 'double',
+            'hip': 'double',
+            'libType': 'double',
+            'libEnum': 'tensileDataTypeDouble',
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+        },
+        {
+            'char': 'C',
+            'name': 'complexSingle',
+            'enum': 'ComplexFloat',
+            'reg': 2,
+            'ocl': 'float2',
+            'hip': 'TensileComplexFloat',
+            'libType': 'TensileComplexFloat',
+            'libEnum': 'tensileDataTypeComplexFloat',
+            'isIntegral': False,
+            'isComplex': True,
+            'packing': 1,
+        },
+        {
+            'char': 'Z',
+            'name': 'complexDouble',
+            'enum': 'ComplexDouble',
+            'reg': 4,
+            'ocl': 'double2',
+            'hip': 'TensileComplexDouble',
+            'libType': 'TensileComplexDouble',
+            'libEnum': 'tensileDataTypeComplexDouble',
+            'isIntegral': False,
+            'isComplex': True,
+            'packing': 1,
+        },
+        {
+            'char': 'H',
+            'name': 'half',
+            'enum': 'Half',
+            'reg': 0.5,
+            'ocl': 'ERROR',
+            'hip': 'tensile_half',
+            'libType': 'TensileHalf',
+            'libEnum': 'tensileDataTypeHalf',
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+        },
+        {
+            'char': '4xi8',
+            'name': 'int8x4',
+            'enum': 'Int8x4',
+            'reg': 1,
+            'ocl': 'ERROR',
+            'hip': 'uint32_t',
+            'libType': 'TensileInt8x4',
+            'libEnum': 'tensileDataTypeInt8x4',
+            'isIntegral': True,
+            'isComplex': False,
+            'packing': 4,
+        },
+        {
+            'char': 'I',
+            'name': 'int32',
+            'enum': 'Int32',
+            'reg': 1,
+            'ocl': 'ERROR',
+            'hip': 'int32_t',
+            'libType': 'TensileInt32',
+            'libEnum': 'tensileDataTypeInt32',
+            'isIntegral': True,
+            'isComplex': False,
+            'packing': 1,
+        },
+        {
+            'char': 'B',
+            'name': 'bfloat16',
+            'enum': 'BFloat16',
+            'reg': 0.5,
+            'ocl': 'ERROR',
+            'hip': 'tensile_bfloat16',
+            'libType': 'tensile_bfloat16',
+            'libEnum': 'tensileDataTypeBFloat16',
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+        },
+    ]
     lookup = {}    
             
     def __init__(self, value):
         if isinstance(value, int):
             self.value = value
-            _ = DataType.properties[value]
-        elif isinstance(value, basestring):
+        elif isinstance(value, str):
             self.value = DataType.lookup[value.lower()]
-            return
         elif isinstance(value, DataType):
             self.value = value.value
         else:
             raise RuntimeError("initializing DataType to {0} {1}".format(str(type(value)), str(value)))
+
+        self.properties = DataType.properties[self.value]
    
     def toChar(self):
-        return self.properties[self.value]['char']
+        return self.properties['char']
     def toName(self):
-        return self.properties[self.value]['name']
+        return self.properties['name']
     def toEnum(self):
-        return self.properties[self.value]['enum']
+        return self.properties['enum']
     def toOpenCL(self):
-        return self.properties[self.value]['ocl']
+        return self.properties['ocl']
     def toHIP(self):
-        return self.properties[self.value]['hip']
+        return self.properties['hip']
     def toDevice(self, language):
         if language == "OCL":
             return self.toOpenCL()
         else:
             return self.toHIP()
     def toCpp(self):
-        return self.properties[self.value]['libType']
+        return self.properties['libType']
     def getLibString(self):
-        return self.properties[self.value]['libEnum']
+        return self.properties['libEnum']
 
     ########################################
     def zeroString(self, language, vectorWidth):
@@ -81,12 +177,6 @@ class DataType:
         Returns a string containing the data output format, depending on programming language 
         and in the case of complex numbers, the vector width. 
         """
-        if language == "HIP":
-            if self.value == DataType.complexSingle:
-                return "make_float2(0.f, 0.f)"
-            if self.value == DataType.complexDouble:
-                return "make_double2(0.0, 0.0)"
-
         zeroString = "("
         zeroString += self.toDevice(language)
         if vectorWidth > 1:
@@ -111,16 +201,17 @@ class DataType:
         return zeroString
 
     def isReal(self):
-        if self.value == DataType.half or self.value == DataType.single or self.value == DataType.double or self.value == DataType.int8x4 or self.value == DataType.int32 or self.value == DataType.bfloat16:
-            return True
-        else:
-            return False
+        return not self.isComplex()
     def isComplex(self):
-        return not self.isReal()
+        return self.properties['isComplex']
+    def isDoubleComplex(self):
+        return self.value == DataType.complexDouble
+    def isSingleComplex(self):
+        return self.value == DataType.complexSingle
     def isDouble(self):
-        return self.value == DataType.double or self.value == DataType.complexDouble
+        return self.value == DataType.double
     def isSingle(self):
-        return self.value == DataType.single or self.value == DataType.complexSingle
+        return self.value == DataType.single
     def isHalf(self):
         return self.value == DataType.half
     def isInt32(self):
@@ -133,38 +224,43 @@ class DataType:
         return self.value == None
 
     def numRegisters(self):
-        return self.properties[self.value]['reg']
+        return self.properties['reg']
     def numBytes(self):
         return int(self.numRegisters() * 4)
     def flopsPerMac(self):
         return 2 if self.isReal() else 8
+
+    def state(self): return self.toEnum()
+
     def __str__(self):
         return self.toChar()
     def __repr__(self):
         return self.__str__()
+
     def getAttributes(self):
-        return (self.value)
+        return (self.value,)
+
     def __hash__(self):
         return hash(self.getAttributes())
+
     def __eq__(self, other):
-        return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
-    def __ne__(self, other):
-        result = self.__eq__(other)
-        if result is NotImplemented:
-            return result
-        return not result
+        if not isinstance(other, DataType):
+            return NotImplemented
+
+        return self.getAttributes() == other.getAttributes()
+
     def __lt__(self, other):
-        return isinstance(other, DataType) and self.getAttributes() < other.getAttributes()
-    def __gt__(self,other):
-        return isinstance(other, DataType) and self.getAttributes() > other.getAttributes()
-    def __le__(self,other):
-        return isinstance(other, DataType) and self.getAttributes() <= other.getAttributes()
-    def __ge__(self,other):
-        return isinstance(other, DataType) and self.getAttributes() >= other.getAttributes()
+        if not isinstance(other, DataType):
+            return NotImplemented
+
+        return self.getAttributes() < other.getAttributes()
+
+    # Other operands are provided by functools.total_ordering.
 
 def populateLookupTable(properties,lookup):
     """
-    Populates Lookup Table with the corresponding row number for each DataType. The row number is assigned to self.value when a DataType object is called 
+    Populates Lookup Table with the corresponding row number for each DataType. The row number
+    is assigned to self.value when a DataType object is called 
     """
     for i,e in enumerate(properties):
         setattr(DataType, e['name'], i)
@@ -175,3 +271,4 @@ def populateLookupTable(properties,lookup):
             lookup[lookupKey] = i        
     
 populateLookupTable(DataType.properties,DataType.lookup)
+

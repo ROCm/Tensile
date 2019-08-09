@@ -457,7 +457,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "}%s" % (self.endLine)
         """
         kStr += self.endLine
-        kStr += "template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>%s" % (self.endLine)
+        kStr += "template <typename T>%s" % (self.endLine)
         kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
             % (self.volatileStr, self.globalPtrStr, self.endLine)
         kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
@@ -575,39 +575,46 @@ class KernelWriterSource(KernelWriter):
           "  DST.s0 = MAC(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = MAC(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = MAC( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel["ProblemType"]["UseBeta"]:
-        # dst = alpha*reg + beta*dst
-        kStr += (
-          "#define TYPE_MAC_WRITE( DST, SRC, ALPHA, REG, BETA ) "+self.endLinePP +
-          "  /* (1) */ " + self.endLinePP +
-          "  type_mac_tmp = REG.s0; " + self.endLinePP +
-          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
-          "  /* (2) */ " + self.endLinePP +
-          "  if(BETA.s0 != 0) { " + self.endLinePP +
-          "  REG.s0 = MAC(  BETA.s0, SRC.s0, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s0, SRC.s1, REG.s1 ); " + self.endLinePP +
-          "  } " + self.endLinePP +
-          "  if (BETA.s1 != 0) { " + self.endLinePP +
-          "  REG.s0 = MAC( -BETA.s1, SRC.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s1, SRC.s0, REG.s1 ); " + self.endLinePP +
-          "  } " + self.endLinePP +
-          "  /* (3) */ " + self.endLinePP +
-          "  DST = REG;" + self.endLine )
+
+      if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
+        if kernel["ProblemType"]["UseBeta"]:
+          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
+        else:
+          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
       else:
-        # dst = alpha*reg
-        kStr += (
-          "#define TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
-          "  /* (1) */ " + self.endLinePP +
-          "  type_mac_tmp = REG.s0; " + self.endLinePP +
-          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
-          "  /* (3) */ " + self.endLinePP +
-          "  DST = REG;" + self.endLine )
+        if kernel["ProblemType"]["UseBeta"]:
+          # dst = alpha*reg + beta*dst
+          kStr += (
+            "#define TYPE_MAC_WRITE( DST, SRC, ALPHA, REG, BETA ) "+self.endLinePP +
+            "  /* (1) */ " + self.endLinePP +
+            "  type_mac_tmp = REG.s0; " + self.endLinePP +
+            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
+            "  /* (2) */ " + self.endLinePP +
+            "  if(BETA.s0 != 0) { " + self.endLinePP +
+            "  REG.s0 = MAC(  BETA.s0, SRC.s0, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = MAC(  BETA.s0, SRC.s1, REG.s1 ); " + self.endLinePP +
+            "  } " + self.endLinePP +
+            "  if (BETA.s1 != 0) { " + self.endLinePP +
+            "  REG.s0 = MAC( -BETA.s1, SRC.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = MAC(  BETA.s1, SRC.s0, REG.s1 ); " + self.endLinePP +
+            "  } " + self.endLinePP +
+            "  /* (3) */ " + self.endLinePP +
+            "  DST = REG;" + self.endLine )
+        else:
+          # dst = alpha*reg
+          kStr += (
+            "#define TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
+            "  /* (1) */ " + self.endLinePP +
+            "  type_mac_tmp = REG.s0; " + self.endLinePP +
+            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
+            "  /* (3) */ " + self.endLinePP +
+            "  DST = REG;" + self.endLine )
 
     ####################################
     # sumation unroll
@@ -874,10 +881,6 @@ class KernelWriterSource(KernelWriter):
         and kernel["VectorWidth"] > 1 \
         and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch"):
       kStr += "#define SCALAR_ZERO 0%s" % self.endLine
-    elif kernel["ProblemType"]["DataType"].isComplex():
-      kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
-      kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
-      kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
     elif kernel["ProblemType"]["DestDataType"].isBFloat16():
       kStr += "#define SCALAR_ZERO 0.0f%s" % self.endLine
     else:
@@ -961,6 +964,16 @@ class KernelWriterSource(KernelWriter):
     kStr += "  /* allocate local memory */" + self.endLine
     kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
+
+
+    for tc in ('A', 'B'):
+      for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+        (freeDim, sumDim, leading, trailing) = zp
+        freeDimChar = self.indexChars[freeDim]
+        kStr += self.endLine
+        kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
+        kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
+
 
     return kStr
 
@@ -1187,12 +1200,12 @@ class KernelWriterSource(KernelWriter):
 
         # Create additional vector address components for any packed dimensions
         lastGro = gro
-        lastIdx = tP["idx"]
+        lastIdx = tP["tileIdx"]
         dimXStr = ""
         tP["packedSizeList"] = ["size%s" % self.indexChars[lastIdx]]
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
           if idx < kernel["ProblemType"]["NumIndicesC"] \
-              and idx != tP["idx"]:  # tile index
+              and idx != tP["tileIdx"]:  # tile index
             gro = None
             if isPackedIndex(kernel,idx, tP["PackBatchDims"]):
               gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
@@ -1226,6 +1239,7 @@ class KernelWriterSource(KernelWriter):
             kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
                 % (firstGro, firstGro, sizeStr, sizeStr, firstGro, self.endLine)
             kStr += dimXStr;
+            dimXStr = ""
 
     if 0 and tP["isB"]:
       kStr += "printf(\"gro-1: serial:%%u wg0:%%u wg1:%%u globalReadOffsetA0I_0_0:%%u globalReadOffsetB1J_0_0:%%u\\n\", serial, wg0I, wg1J, globalReadOffsetA0I_0_0, globalReadOffsetB1J_0_0);%s" \
@@ -1347,9 +1361,18 @@ class KernelWriterSource(KernelWriter):
                 else:
                   kStr += "globalReadOffset%s%s" \
                       % (tP["tensorChar"], self.indexChars[index])
+              zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[0] == i), None)
+              if zp:
+                # subtract pad - this both helps efficiently detect OOB on the summation start and also
+                # corrects the valid offsets for the leading pad.
+                kStr += " - zeroPad%s%s_Leading" % (tc, self.indexChars[i])
               if i < len(tP["ia"])-1:
                 kStr += ", "
             kStr += " );%s" % self.endLine
+            if 0 and tP["isA"]:
+              kStr += "printf(%sgid0=%%u %s=%%lu%s, %s(0), %s);" \
+                       % (self.quote, gro, self.endLineQuote, \
+                          self.getGlobalIdStr, gro) + self.endLine
     return kStr
 
   ##############################################################################
@@ -1389,6 +1412,7 @@ class KernelWriterSource(KernelWriter):
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
+      # print 1 or 0 subtracts:
       for j in range(loopIdx+1, \
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \
@@ -1523,6 +1547,12 @@ class KernelWriterSource(KernelWriter):
   # openShadowInit
   ##############################################################################
   def openShadowInit(self, kernel):
+    return ""
+
+  ##############################################################################
+  # closeShadowInit
+  ##############################################################################
+  def closeShadowInit(self, kernel):
     return ""
 
   ##############################################################################
@@ -1688,8 +1718,8 @@ class KernelWriterSource(KernelWriter):
       loopIdx = self.unrollIdx
 
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    loopDim  = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    loopChar = self.indexChars[loopDim]
     if tailLoop:
       kStr += self.endLine + "  /* Compute tail loop num iter */" + self.endLine
       kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
@@ -1721,6 +1751,28 @@ class KernelWriterSource(KernelWriter):
         kStr += "%snumIter%s = numIterMyWg;%s" \
             % (self.indent, self.unrollChar, self.endLine)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
+
+      problemType = kernel["ProblemType"]
+      zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
+      zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
+      if zpA or zpB:
+        kStr += "%sunsigned int elementCounter%s = 0;" \
+            % (self.indent, loopChar) \
+            + self.endLine
+      if zpA:
+        freeDim = zpA[0]
+        freeDimChar = self.indexChars[freeDim]
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Trailing + 1);" \
+            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
+            + self.endLine
+      if zpB:
+        freeDim = zpB[0]
+        freeDimChar = self.indexChars[freeDim]
+        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s) - strideB%s * (zeroPadB%s_Leading + zeroPadB%s_Trailing + 1);" \
+            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
+            + self.endLine
+
+      assert(zpB == None) # not supported
     return kStr
 
 
@@ -1755,8 +1807,24 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def closeLoop(self, kernel, loopIdx, finalLoop):
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    problemType = kernel["ProblemType"]
+    loopDim = problemType["IndicesSummation"][loopIdx]
+    loopChar = self.indexChars[loopDim]
+
+    for tc in ('A', 'B'):
+      # assume A and B don't specify same summation idx
+      zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[1] == loopDim), None)
+      if zp:
+        if loopIdx == self.unrollIdx:
+          incAmount = "LOCAL_DEPTHU"
+          if kernel["GlobalSplitU"] > 1 \
+              and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
+            incAmount += "*GLOBAL_SPLITU"
+        else:
+          incAmount = "1"
+        kStr += "%selementCounter%s += %s;" % (self.indent, loopChar, incAmount) + self.endLine
+
+
     self.indent = self.indent[2:]
     if kernel["LoopDoWhile"]:
       kStr += "%s} while (--numIter%s > %u);%s" \
@@ -1906,7 +1974,9 @@ class KernelWriterSource(KernelWriter):
                 para, sPara, perp, sPerp )
             kStr += "%s%s = " % (self.indent, dest)
             # guard around K
+            guarded = 0
             if guardK:
+              guarded = 1
               kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                   % (tP["tensorChar"], self.unrollChar, \
                   (perp if tP["tlu"] else para), \
@@ -1914,13 +1984,27 @@ class KernelWriterSource(KernelWriter):
                   (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
                   else ""), (" || !numIter%s"%self.unrollChar) \
                   if kernel["GlobalSplitU"] > 1 else "")
+
+            # guard around pad
+            for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+              if guarded:
+                kStr += " || "
+              guarded = 1
+              sumDim = zp[1]
+              sumChar = self.indexChars[sumDim]
+              globalReadOffset = "globalReadOffset%s_%u_%u_%u_%u + %u" \
+                  % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0);
+              kStr += "( (elementCounter%s * stride%s%s + %s) >= elementEdge%s%s )" \
+                      % (sumChar, tc, sumChar, globalReadOffset, tc, sumChar)
+
             # guard around edge
             if kernel["EdgeType"] == "Branch":
-              if guardK:
+              if guarded:
                 kStr += " || "
+              guarded = 1
               kStr += "( !inBounds%s_%u )" % ( \
                   (tP["tensorChar"], para if tP["tlu"] else perp) )
-            if kernel["EdgeType"] == "Branch" or guardK:
+            if guarded:
               kStr += " ? SCALAR_OOB_DATA : "
             kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
                 % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \
@@ -2556,7 +2640,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Function End
   ##############################################################################
-  def functionEnd(self, kernel):
+  def functionEnd(self, kernel, addLabel):
     kStr = ""
 
     if kernel["PersistentKernel"]:
@@ -2884,14 +2968,9 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # zero
-    if kernel["ProblemType"]["DataType"].isComplex():
-      kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
-      kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
-      kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
-    else:
-      kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
-         "DataType"].zeroString(self.language, 1), \
-         self.endLine )
+    kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
+        "DataType"].zeroString(self.language, 1), \
+        self.endLine )
 
     ########################################
     # zero
@@ -2915,7 +2994,6 @@ class KernelWriterSource(KernelWriter):
     kStr += "}%s" % self.endLine
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
-    if kernel["ProblemType"]["DataType"].isReal():
-      kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
-      kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
+    kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
+    kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
     return kStr

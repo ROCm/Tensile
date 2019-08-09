@@ -19,5 +19,15 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+# Even though we don't support python 2, this is still packaged sometimes with python 2.
+from __future__ import print_function
+
 # hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.9.8"
+__version__ = "4.11.0"
+
+def PrintTensileRoot():
+    import os.path
+
+    print(os.path.dirname(__file__), end='')
+
+

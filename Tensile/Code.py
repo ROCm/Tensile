@@ -20,7 +20,7 @@
 ################################################################################
 
 from __future__ import print_function
-from .Common import globalParameters, printExit, printWarning
+from .Common import globalParameters, printExit
 # Global to print module names around strings
 printModuleNames = 0
 
@@ -313,8 +313,8 @@ class  MacInst (Inst):
         elif self.version == (9,0,0):
           if self.kernel["ProblemType"]["HighPrecisionAccumulate"]:
             # we treat HighPrecisionAccumulate as expanded packed math
-            b = self.bIdx*2
-            a = self.aIdx*2
+            #b = self.bIdx*2
+            #a = self.aIdx*2
             if self.kernel["LocalDotLayout"] > 1 and self.innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
               cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", self.aIdx, self.bIdx, self.kernel["ThreadTile0"]) # *2 b/c of fp32
               cidx = self.aIdx*2 + self.bIdx*self.kernel["ThreadTile0"]*2 + 0
@@ -382,8 +382,8 @@ class  MacInst (Inst):
                     C[1] = A[1]*B[1]+D[1]
                  """
           else:
-            b = self.bIdx*2
-            a = self.aIdx*2
+            #b = self.bIdx*2
+            #a = self.aIdx*2
             for iui in range(0, self.innerUnroll):
               cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", self.aIdx, self.bIdx, self.kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
               aStr = "v[%s+%u]" \
@@ -402,8 +402,8 @@ class  MacInst (Inst):
         elif self.version == (9,0,6):
           if self.kernel["ProblemType"]["HighPrecisionAccumulate"]:
              # we treat HighPrecisionAccumulate as expanded packed math
-            b = self.bIdx*2
-            a = self.aIdx*2
+            #b = self.bIdx*2
+            #a = self.aIdx*2
             if self.kernel["LocalDotLayout"] > 1 and self.innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
               cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", self.aIdx, self.bIdx, self.kernel["ThreadTile0"]) # *2 b/c of fp32
               cidx = self.aIdx*2 + self.bIdx*self.kernel["ThreadTile0"]*2 + 0
@@ -475,8 +475,8 @@ class  MacInst (Inst):
                 """
                   #kStr += self.bomb(-13)
           else:
-            b = self.bIdx*2
-            a = self.aIdx*2
+            #b = self.bIdx*2
+            #a = self.aIdx*2
             for iui in range(0, self.innerUnroll):
               cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", self.aIdx, self.bIdx, self.kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
               aStr = "v[%s+%u]" \

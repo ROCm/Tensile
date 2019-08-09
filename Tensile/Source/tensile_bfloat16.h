@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,22 +30,23 @@
 #ifndef _TENSILE_BFLOAT16_H_
 #define _TENSILE_BFLOAT16_H_
 
-#ifndef __cplusplus
+// If this is a C compiler, C++ compiler below C++11, or a host-only compiler,
+// we only include a minimal definition of tensile_bfloat16
+#if __cplusplus < 201103L || (!defined(__HCC__) && !defined(__HIPCC__))
 
-#include <inttypes.h>
-
+#include <stdint.h>
 typedef struct
 {
     uint16_t data;
 } tensile_bfloat16;
 
-#else // __cplusplus
+#else // __cplusplus < 201103L || (!defined(__HCC__) && !defined(__HIPCC__))
 
-#include <hip/hip_runtime_api.h>
-
-#include <cinttypes>
 #include <cmath>
-#include <iostream>
+#include <cstddef>
+#include <cstdint>
+#include <hip/hip_runtime.h>
+#include <ostream>
 #include <type_traits>
 
 struct tensile_bfloat16
@@ -57,25 +58,25 @@ struct tensile_bfloat16
     __host__ __device__ tensile_bfloat16() {}
 
     // round upper 16 bits of IEEE float to convert to bfloat16
-    explicit __host__ __device__ constexpr tensile_bfloat16(float f) : data(float_to_bfloat16(f)) {}
+    explicit __host__ __device__ tensile_bfloat16(float f) : data(float_to_bfloat16(f)) { }
 
     // zero extend lower 16 bits of bfloat16 to convert to IEEE float
-    explicit __host__ __device__ constexpr operator float() const
+    explicit __host__ __device__ operator float() const
     {
         union
         {
             uint32_t int32;
-            float fp32;
+            float    fp32;
         } u = {uint32_t(data) << 16};
         return u.fp32;
     }
 
-    private:
-    static __host__ __device__ constexpr uint16_t float_to_bfloat16(float f)
+private:
+    static __host__ __device__ uint16_t float_to_bfloat16(float f)
     {
         union
         {
-            float fp32;
+            float    fp32;
             uint32_t int32;
         } u = {f};
         if(~u.int32 & 0x7f800000)
@@ -191,6 +192,6 @@ inline __host__ __device__ tensile_bfloat16 abs(tensile_bfloat16 a)
 inline tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
 inline tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
 
-#endif // __cplusplus
+#endif // __cplusplus < 201103L || !defined(__HCC__)
 
 #endif // _TENSILE_BFLOAT16_H_

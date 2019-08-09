@@ -28,8 +28,8 @@ import java.nio.file.Path;
 
 tensileCI:
 {
-    def tensile = new rocProject('tensile')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug ../lib'
+    def tensile = new rocProject('Tensile')
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DCMAKE_CXX_FLAGS=-Werror ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900','gfx906'], tensile)
 
@@ -43,20 +43,27 @@ tensileCI:
             project.paths.construct_build_prefix()
 
             def command = """#!/usr/bin/env bash
-                    set -x
-                    cd ${project.paths.project_build_prefix}
-                    mkdir build && cd build
+                    set -ex
+
+                    hostname
+
                     export PATH=/opt/rocm/bin:$PATH
+                    cd ${project.paths.project_build_prefix}
+
+                    mkdir build
+                    pushd build
                     ${project.paths.build_command}
-                    make -j16
-                    ./test/TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                    make -j
+
+                    popd
+                    tox --version
+                    tox -vv --workdir /tmp/.tensile-tox -e lint
                     """
 
             platform.runCommand(this, command)
         }
         finally
         {
-            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
     }
   
@@ -67,16 +74,25 @@ tensileCI:
         try
         {
             def command = """#!/usr/bin/env bash
-                    set -x
+                    set -ex
+
+                    hostname
+
+                    export PATH=/opt/rocm/bin:$PATH
                     cd ${project.paths.project_build_prefix}
+
+                    pushd build
+                    ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+
+                    popd
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e lint
-                    tox -vv --workdir /tmp/.tensile-tox Tensile/UnitTests ${test_dir} -e py35
+                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
                     """
             platform.runCommand(this, command)
         }
         finally
         {
+            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
             junit "${project.paths.project_build_prefix}/*_tests.xml"
         }
     }

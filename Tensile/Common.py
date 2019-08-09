@@ -27,7 +27,6 @@ from subprocess import Popen, PIPE
 import itertools
 import math
 import os.path
-import platform
 import subprocess
 import sys
 import time
@@ -134,12 +133,13 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8)]             # assembly kernels writer supports these architectures
+globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
+globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -159,6 +159,7 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "V2"
+globalParameters["CxxCompiler"] = "hcc"
 
 # might be deprecated
 globalParameters["EnableHalf"] = False
@@ -655,7 +656,12 @@ validParameters = {
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
 
+    "MinVgprNumber":                list(range(0,256)),
+    
+    "MaxVgprNumber":                list(range(0,257)),
     }
+
+
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":               [ False ] },
@@ -694,7 +700,7 @@ defaultBenchmarkCommonParameters = [
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
-    {"OptNoLoadLoop":             [ 0 ] },
+    {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
 
     {"BufferLoad":                [ True ] },
@@ -738,6 +744,8 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
+    {"MinVgprNumber":             [0]},
+    {"MaxVgprNumber":             [256]},
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -783,16 +791,68 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
 
+    # List of pairs of [index, constValue].
+    # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
+    #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
+    "SetConstStrideA":          [],
+
+    # ZeroPad:
+    # Zero-pad will add leading and trailing "pad" elements to the specified free
+    # dimension when accessed by specified summation dimension.
+    #
+    # Format is list of tuples of [freeDim, sumDim, padLeading, padTrailing].
+    #  - freeDim is the anchor where the zero-pad starts.
+    #  - sumDim is the summation dim to which the padding checking is added.
+    #  - padLeading is the number of elements to pad before the Start element
+    #  - padTrailing is the number of elements to pad before the last element.
+
+    # - Terms:
+    #   - Start is the first summation element
+    #   - FreeSize is the size of the specified free dimension (freeDim)
+    #   - SumSize is the size of the specified summation dimension (sumDim)
+    # - Pad Ranges:
+    #   - Ranges show below are inclusive on the start element and exclusive on the last element.
+    #     For example, [0,3) is 0,1,2.
+    #    - Elements in the region [Start-padLeading, Start) are in the leading pad region and will return 0.
+    #    - Elements in the memory region [Start + freeSize + sumSize - padTrailing,  Start + freeSize + sumSize)
+    #     are in the trailing pad region and will return 0.
+    # - Strides:
+    #   - SummationStride is applied to compute the element address before checking the regions.
+    #   - FreeStride is applied to the computation of the Start element, padLeading, and padTrailing.
+    #   -  No memory access is performed for elements in the Pad regions.
+    #   - The Pad regions are handled by manipulating the tensor addressing and are not visible in actual memory.
+    #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
+    #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.
+    # - Caveats:
+    #  - CPU reference model does not yet support zero-padding
+    #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
+    #  - ZeroPad requires that the ElementEdge <= 2^32:
+    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32 
+    #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
+
+    #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
+    # Note nesting of brackets ; the parm can contain multiple padding tuples.
+
+    "ZeroPadA":                 [], # [ [0,1, 2,3]]
+    "ZeroPadB":                 [], # Not fully supported/tested yet
+
     # for LD description
-    "NumIndiciesLD":            4,
-    "IndexAssignmentsLD":       [3, 4, 5, 6]      # order is LDD, LDC, LDA, LDB
+    "NumIndicesLD":            4,
+    "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
+
+    # Tile aware solution selection
+    "TileAwareSelection":       False
     }
+
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, 0 ]}]
 defaultBatchedProblemSizes = [{"Range": [ [2880], 0, [1], 0 ]}]
 defaultBatchedBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, [1], 0 ]}]
+
+
+defaultSolutionSummationSizes = [32,64,96,128,256,512,1024,2048,4096,8192,16192]
 
 
 ################################################################################
@@ -1000,24 +1060,25 @@ def assignGlobalParameters( config ):
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
 
     print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
-    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6))
+    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6) or v==(9,0,8))
     print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))
 
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
-  if platform.linux_distribution()[0] == "Ubuntu":
-    process = Popen(["dpkg", "-l", "hcc"], stdout=PIPE)
-    if process.returncode:
-      printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
 
-    line = process.stdout.readline().decode()
-    while line != "":
-      packageIdx = line.find("hcc")
-      if packageIdx >= 0:
-        globalParameters["HccVersion"] = line.split()[2]
-        break
-      line = process.stdout.readline().decode()
+  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
+  # The alternative would be to install the `distro` package.
+  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  try:
+    output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+
+    for line in output.split('\n'):
+      if 'hcc' in line:
+        globalParameters['HccVersion'] = line.split()[2]
+
+  except (subprocess.CalledProcessError, OSError) as e:
+      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hcc', e))
 
   for key in config:
     value = config[key]
@@ -1179,10 +1240,10 @@ def versionIsCompatible(queryVersionString):
     return False
 
   # minor.patch version must be >=
-  if qMinor > tMinor:
+  if int(qMinor) > int(tMinor):
     return False
   if qMinor == tMinor:
-    if qStep > tStep:
+    if int(qStep) > int(tStep):
       return False
   return True
 
