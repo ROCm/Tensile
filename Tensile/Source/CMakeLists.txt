@@ -130,8 +130,8 @@ if(NOT Tensile_CLIENT_BENCHMARK)
   TensileCreateLibraryCmake(
     ${Tensile_LOGIC_PATH}           # path
     ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
-    ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
     ${Tensile_COMPILER}             # hcc or hipcc
+    ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
     ${Tensile_MERGE_FILES}          # ON or OFF
     ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
     ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
