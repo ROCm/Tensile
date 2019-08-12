@@ -256,7 +256,10 @@ class SizeMapping:
                  'staggerU',
                  'globalSplitU',
                  'staggerStrideShift',
-                 'workGroupMapping']
+                 'workGroupMapping',
+                 'persistentKernel',
+                 'sourceKernel',
+                 ]
 
     @classmethod
     def FromOriginalState(cls, d):
@@ -267,7 +270,9 @@ class SizeMapping:
                    staggerU           = d['StaggerU'] if 'StaggerU' in d else 0,
                    depthU             = d['DepthU'],
                    globalSplitU       = d['GlobalSplitU'],
-                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0
+                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
+                   persistentKernel   = d['PersistentKernel'],
+                   sourceKernel       = d['KernelLanguage'] == 'Source',
                    )
 
     @classmethod

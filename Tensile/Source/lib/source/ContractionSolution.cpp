@@ -21,6 +21,7 @@
 
 #include <Tensile/ContractionSolution.hpp>
 
+#include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionProblem.hpp>
 
 #include <cmath>
@@ -93,6 +94,16 @@ namespace Tensile
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
+
+        std::cout << "Persistent: "  << sizeMapping.persistentKernel << std::endl;
+        if(sizeMapping.persistentKernel != 0)
+        {
+            size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount * sizeMapping.persistentKernel;
+            size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
+
+            rv.numWorkGroups.x = std::min(persistentGroups, problemGroups);
+            rv.numWorkGroups.y = 1;
+        }
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -186,11 +197,7 @@ namespace Tensile
 
     bool ContractionSolution::isSourceKernel() const
     {
-        auto iter = info.find("KernelLanguage");
-        if(iter == info.end())
-            throw std::runtime_error("Unknown");
-
-        return iter->second == "Source";
+        return sizeMapping.sourceKernel;
     }
 
     template <typename TypedInputs>

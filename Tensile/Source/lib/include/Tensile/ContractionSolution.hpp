@@ -90,6 +90,10 @@ namespace Tensile
             size_t globalSplitU;
             size_t staggerStrideShift;
             int workGroupMapping;
+
+            size_t persistentKernel;
+
+            bool sourceKernel;
         };
 
         struct ProblemType
