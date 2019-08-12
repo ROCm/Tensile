@@ -34,12 +34,12 @@ tensileCI:
     def nodes = new dockerNodes(['gfx900','gfx906'], tensile)
 
     boolean formatCheck = false
-    
+
     def compileCommand =
     {
         platform, project->
         try
-        {    
+        {
             project.paths.construct_build_prefix()
 
             def command = """#!/usr/bin/env bash
@@ -66,7 +66,9 @@ tensileCI:
         {
         }
     }
-  
+
+    tensile.timeout.test = 10
+
     def test_dir = auxiliary.isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
     def testCommand =
     {
@@ -99,5 +101,5 @@ tensileCI:
     def packageCommand = null
 
     buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
-    
+
 }

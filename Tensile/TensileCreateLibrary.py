@@ -126,7 +126,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
 
-    archFlags = ['-amdgpu-target=' + arch for arch in archs]
+    archFlags = ['--amdgpu-target=' + arch for arch in archs]
 
     if (CxxCompiler == 'hcc'):
 
@@ -149,20 +149,22 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       #print(' '.join(extractArgs))
       subprocess.check_call(extractArgs, cwd=buildPath)
 
+      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = "--genco"
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilename]
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
 
       #print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
+
+      coFilenames = [soFilename]
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
-    coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
     destCOs = [os.path.join(destDir, name) for name in coFilenames]
 
