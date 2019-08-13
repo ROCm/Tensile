@@ -130,12 +130,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     if (CxxCompiler == 'hcc'):
 
-      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags', '--shared']).decode().split(' ')
+      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags',]).decode().split(' ')
       hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
+      compileArgs = [which('hcc')] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
 
       linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
       extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
