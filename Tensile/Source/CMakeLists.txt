@@ -27,10 +27,10 @@ if(TENSILE_NEW_CLIENT)
 
     project(Tensile)
 
-    option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
-    option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
-    option(TENSILE_USE_OPENMP    "Use LLVM for parsing config files." ON)
-    option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
+    set(TENSILE_USE_HIP      ON CACHE BOOL "Use the Hip runtime.")
+    set(TENSILE_USE_LLVM     ON CACHE BOOL "Use LLVM for parsing config files.")
+    set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use LLVM for parsing config files.")
+    set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
     include(CMakeDependentOption)
     CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
@@ -60,7 +60,10 @@ if(TENSILE_NEW_CLIENT)
     #endif()
 
     add_subdirectory(lib)
-    add_subdirectory(client)
+
+    if(TENSILE_BUILD_CLIENT)
+        add_subdirectory(client)
+    endif()
 
     export(TARGETS TensileHost NAMESPACE Tensile:: FILE TensileExports.cmake)
 

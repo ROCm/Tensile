@@ -25,6 +25,8 @@
 #include <Tensile/ContractionProblem_Detail.hpp>
 #include <Tensile/Utils.hpp>
 
+#include <set>
+
 namespace Tensile
 {
     ContractionProblem ContractionProblem::GEMM_Strides(bool transA, bool transB,
@@ -881,7 +883,11 @@ namespace Tensile
     template struct TypedContractionInputs<std::complex<double>>;
     template struct TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     template struct TypedContractionInputs<int32_t>;
+#ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
+#endif
+#ifdef TENSILE_USE_BF16
     template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+#endif
 }
 

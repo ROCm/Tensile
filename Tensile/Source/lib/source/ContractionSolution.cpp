@@ -313,6 +313,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
+#ifdef TENSILE_USE_HALF
         else if(problemType.aType == DataType::Half
              && problemType.bType == DataType::Half
              && problemType.cType == DataType::Half
@@ -321,6 +322,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
+#endif
         else if(problemType.aType == DataType::Int8x4
              && problemType.bType == DataType::Int8x4
              && problemType.cType == DataType::Int32
@@ -338,6 +340,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<int32_t> const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
+#ifdef TENSILE_USE_BF16
         else if(problemType.aType == DataType::BFloat16
              && problemType.bType == DataType::BFloat16
              && problemType.cType == DataType::BFloat16
@@ -346,6 +349,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
+#endif
         else
         {
             throw std::runtime_error("Data type not implemented.");

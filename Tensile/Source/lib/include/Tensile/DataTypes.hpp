@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <complex>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 
