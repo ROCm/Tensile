@@ -5,13 +5,12 @@ GlobalParameters:
   PrintSolutionRejectionReason: True
 
 BenchmarkProblems:
-  - # hgemm CT
+  - # zgemm CT
     - # ProblemType
       OperationType: GEMM
       DataType: z
       DestDataType: z
       ComputeDataType: z
-      HighPrecisionAccumulate: True
       TransposeA: True
       TransposeB: True
       ComplexConjugateA: True

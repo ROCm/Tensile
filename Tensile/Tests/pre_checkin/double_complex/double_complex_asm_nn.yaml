@@ -6,13 +6,12 @@ GlobalParameters:
 
 BenchmarkProblems:
 
-  - # hgemm NN
+  - # zgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: z
       DestDataType: z
       ComputeDataType: z
-      HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: False
       UseBeta: True

@@ -5505,7 +5505,7 @@ class KernelWriterAssembly(KernelWriter):
                    kernel["ProblemType"]["DataType"].isSingleComplex():
                 regIdx = r*2
               elif kernel["ProblemType"]["DataType"].isDoubleComplex() :
-                regIdx = r*2
+                regIdx = r*4
               else:
                 printWarning("DataType unsupported")
               kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
@@ -6789,14 +6789,10 @@ class KernelWriterAssembly(KernelWriter):
           elif kernel["ProblemType"]["DataType"].isDoubleComplex():
             cIdx *= 4
             regIdx *= 4
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), \
+            kStr += inst("v_add_f64", vgpr("ValuC+%u"%cIdx), \
                 vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u], real part"%(cIdx, regIdx) )
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), \
-                vgpr("ValuC+%u" % (regIdx+1)), vgpr("ValuC+%u"%(cIdx+1)), "c[%u] += c[%u], imaginary part"%(cIdx+1, regIdx+1) )
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), \
+            kStr += inst("v_add_f64", vgpr("ValuC+%u"%(cIdx+2)), \
                 vgpr("ValuC+%u" % (regIdx+2)), vgpr("ValuC+%u"%(cIdx+2)), "c[%u] += c[%u], imaginary part"%(cIdx+2, regIdx+2) )
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+3)), \
-                vgpr("ValuC+%u" % (regIdx+3)), vgpr("ValuC+%u"%(cIdx+3)), "c[%u] += c[%u], imaginary part"%(cIdx+3, regIdx+3) )
           else:
             assert(0) # unsupported data type, need to modify here and LSU write/read code
     return kStr
@@ -8923,7 +8919,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*2, \
                       addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
           elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-            kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*2, \
+            kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*4, \
                       addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
 

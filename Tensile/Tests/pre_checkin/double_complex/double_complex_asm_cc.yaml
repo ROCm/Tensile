@@ -5,7 +5,7 @@ GlobalParameters:
   PrintSolutionRejectionReason: True
 
 BenchmarkProblems:
-  - # hgemm CC
+  - # zgemm CC
     - # ProblemType
       OperationType: GEMM
       DataType: z
