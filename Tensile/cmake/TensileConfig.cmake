@@ -28,6 +28,8 @@ get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
 
 execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
 endif()
+list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/cmake/")
+list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/")
 
 if("HIP" IN_LIST Tensile_FIND_COMPONENTS)
     set(TENSILE_USE_HIP ON CACHE BOOL "Use HIP")
