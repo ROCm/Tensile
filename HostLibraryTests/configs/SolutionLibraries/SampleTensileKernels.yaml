@@ -16,6 +16,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      sourceKernel: false
+      persistentKernel: 0
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
@@ -40,6 +42,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      sourceKernel: false
+      persistentKernel: 0
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
@@ -64,6 +68,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      sourceKernel: false
+      persistentKernel: 0
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
@@ -88,6 +94,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      sourceKernel: false
+      persistentKernel: 0
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
