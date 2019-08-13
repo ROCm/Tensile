@@ -1934,6 +1934,49 @@ class KernelWriterAssembly(KernelWriter):
       if beAggressive:
         kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
+    # double precision complex
+    elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+      for b in range(0, kernel["ThreadTile1"]):
+        for a in range(0, kernel["ThreadTile0"]):
+          for iui in range(0, innerUnroll):
+            # c.real += a.real * b.real 
+            cStr = "v[%s+(%u+%u*%u)*4+0:(%s+%u+%u*%u)*4+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u*4+0:%s+%u*4+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+            bStr = "v[%s+%u*4+0:%s+%u*4+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+            kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            # c.real -= a.imag * b.imag
+            cStr = "v[%s+(%u+%u*%u)*4+0:(%s+%u+%u*%u)*4+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u*4+2:%s+%u*4+3]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+            bStr = "v[%s+%u*4+2:%s+%u*4+3]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+            if kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]:
+              kStr += "v_fma_f64 %s, %s, -%s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            elif kernel["ProblemType"]["ComplexConjugateA"] or kernel["ProblemType"]["ComplexConjugateB"]:
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            else:
+              kStr += "v_fma_f64 %s, %s, -%s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            # c.imag += a.real * b.imag
+            cStr = "v[%s+(%u+%u*%u)*4+2:(%s+%u+%u*%u)*4+3]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u*4+0:%s+%u*4+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+            bStr = "v[%s+%u*4+2:%s+%u*4+3]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+            if kernel["ProblemType"]["ComplexConjugateB"]:
+              kStr += "v_fma_f64 %s, %s, -%s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            else:
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            # c.imag += a.imag * b.real
+            cStr = "v[%s+(%u+%u*%u)*4+2:(%s+%u+%u*%u)*4+3]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u*4+2:%s+%u*4+3]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+            bStr = "v[%s+%u*4+0:%s+%u*4+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+            if kernel["ProblemType"]["ComplexConjugateA"]:
+              kStr += "v_fma_f64 %s, -%s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+            else:
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+              
+            if beAggressive and not doOnce:
+              kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+              doOnce = True
+      if beAggressive:
+        kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
+        
       # other precision
     else:
       printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
@@ -2158,7 +2201,8 @@ class KernelWriterAssembly(KernelWriter):
       if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f32"
     
     elif kernel["ProblemType"]["DataType"].isDouble() or \
-         kernel["ProblemType"]["DataType"].isSingleComplex():
+         kernel["ProblemType"]["DataType"].isSingleComplex() or \
+         kernel["ProblemType"]["DataType"].isDoubleComplex():
       if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "F64"
       if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "f64"
       if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "F64"
@@ -2210,6 +2254,9 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["ProblemType"]["DataType"].isDouble() or \
            kernel["ProblemType"]["DataType"].isSingleComplex():
         kStr += self.v2Argument(                         "alpha", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
+      elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+        kStr += self.v2Argument(                         "alpha_real", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
+        kStr += self.v2Argument(                         "alpha_imag", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
@@ -2219,6 +2266,9 @@ class KernelWriterAssembly(KernelWriter):
         elif kernel["ProblemType"]["DataType"].isDouble() or \
              kernel["ProblemType"]["DataType"].isSingleComplex():
           kStr += self.v2Argument(                          "beta", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
+        elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+          kStr += self.v2Argument(                          "beta_real", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
+          kStr += self.v2Argument(                          "beta_imag", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
 
       for i in range(0, self.numSgprStridesD):
         kStr += self.v2Argument(                   "strideD%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -2913,6 +2963,11 @@ class KernelWriterAssembly(KernelWriter):
            kernel["ProblemType"]["DataType"].isSingleComplex():
         kStr += self.getKernArg("Alpha+0")
         kStr += self.getKernArg("Alpha+1")
+      elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+        kStr += self.getKernArg("Alpha+0")
+        kStr += self.getKernArg("Alpha+1")
+        kStr += self.getKernArg("Alpha+2")
+        kStr += self.getKernArg("Alpha+3")
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
@@ -2925,6 +2980,11 @@ class KernelWriterAssembly(KernelWriter):
              kernel["ProblemType"]["DataType"].isSingleComplex():
           kStr += self.getKernArg("Beta+0")
           kStr += self.getKernArg("Beta+1")
+        elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+          kStr += self.getKernArg("Beta+0")
+          kStr += self.getKernArg("Beta+1")
+          kStr += self.getKernArg("Beta+2")
+          kStr += self.getKernArg("Beta+3")
       for i in range(0, self.numSgprStridesD):
         kStr += self.getKernArg("StridesD+%u"%i)
       for i in range(0, self.numSgprStridesC):
@@ -4994,6 +5054,16 @@ class KernelWriterAssembly(KernelWriter):
           if beAggressive and not doOnce:
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
+
+    # double precision complex
+    elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+      for blockB in range(0, kernel["ThreadTile1"]):
+        for blockA in range(0, kernel["ThreadTile0"]):
+          imod.addCode(Code.MacInst(kernel,blockA,blockB,bufferIdx,iuiCount))
+          if beAggressive and not doOnce:
+            imod.addInst("s_setprio ","1","Raise priority while processing macs")
+            doOnce = True
+            
     else:
       printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
 
@@ -5433,6 +5503,8 @@ class KernelWriterAssembly(KernelWriter):
                 regIdx = r
               elif kernel["ProblemType"]["DataType"].isDouble() or \
                    kernel["ProblemType"]["DataType"].isSingleComplex():
+                regIdx = r*2
+              elif kernel["ProblemType"]["DataType"].isDoubleComplex() :
                 regIdx = r*2
               else:
                 printWarning("DataType unsupported")
@@ -6519,6 +6591,10 @@ class KernelWriterAssembly(KernelWriter):
       if isLds:
         assert (useDwordX2==1)
       elementStep = 1
+    elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+      if isLds:
+        assert (useDwordX2==1)
+      elementStep = 1
 
     return (elementStep, useDwordX2)
 
@@ -6710,6 +6786,17 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u], real part"%(cIdx, regIdx) )
             kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), \
                 vgpr("ValuC+%u" % (regIdx+1)), vgpr("ValuC+%u"%(cIdx+1)), "c[%u] += c[%u], imaginary part"%(cIdx+1, regIdx+1) )
+          elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+            cIdx *= 4
+            regIdx *= 4
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), \
+                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u], real part"%(cIdx, regIdx) )
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), \
+                vgpr("ValuC+%u" % (regIdx+1)), vgpr("ValuC+%u"%(cIdx+1)), "c[%u] += c[%u], imaginary part"%(cIdx+1, regIdx+1) )
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), \
+                vgpr("ValuC+%u" % (regIdx+2)), vgpr("ValuC+%u"%(cIdx+2)), "c[%u] += c[%u], imaginary part"%(cIdx+2, regIdx+2) )
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+3)), \
+                vgpr("ValuC+%u" % (regIdx+3)), vgpr("ValuC+%u"%(cIdx+3)), "c[%u] += c[%u], imaginary part"%(cIdx+3, regIdx+3) )
           else:
             assert(0) # unsupported data type, need to modify here and LSU write/read code
     return kStr
@@ -8204,6 +8291,10 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isSingleComplex():
         kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*2, rpv, \
                   addr0, addr1, addrCalc.globalOffset, ntStr)
+      elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+        rps = kernel["ProblemType"]["DataType"].numRegisters()
+        kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*rps, rpv, \
+                  addr0, addr1, addrCalc.globalOffset, ntStr)
 
     return kStr
 
@@ -8278,6 +8369,22 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mul_f32", vgpr("ValuC+%u"%(sumIdxV*2+1)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV*2+1)), "*= alpha ( Ci = Ar * Ci)")
           kStr += inst("v_mac_f32", vgpr("ValuC+%u"%(sumIdxV*2+1)), sgpr("Alpha+1"), vgpr(tmpVgpr), "*= alpha ( Ci += Ai * Cr_backup )")
           self.vgprPool.checkIn(tmpVgpr)
+          
+        # double precision complex
+        elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+          vtmp1 = self.vgprPool.checkOut(2)
+          vtmp2 = self.vgprPool.checkOut(2)
+          # tmp1 = a.real * b.real
+          kStr += inst("v_mul_f64", vgpr(vtmp1,2), sgpr("Alpha+0",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), "")
+          # tmp2 = a.imag * b.real
+          kStr += inst("v_mul_f64", vgpr(vtmp2,2), sgpr("Alpha+2",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), "")
+          # c.real = a.real * b.real - a.imag * b.imag = tmp1 - a.imag * b.imag
+          kStr += "v_fma_f64 %s, %s, -%s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+0),2), sgpr("Alpha+2",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(vtmp1,2), self.endLine)
+          # c.imag = a.real * b.imag + a.imag * b.real = a.real * b.imag + tmp2
+          kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+2),2), sgpr("Alpha+0",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(vtmp2,2), self.endLine)
+          self.vgprPool.checkIn(vtmp1)
+          self.vgprPool.checkIn(vtmp2)
+          
     return kStr
 
   ##############################################################################
@@ -8421,7 +8528,8 @@ class KernelWriterAssembly(KernelWriter):
         elif kernel["ProblemType"]["DataType"].isInt8x4() or \
              kernel["ProblemType"]["DataType"].isSingle() or \
              kernel["ProblemType"]["DataType"].isDouble() or \
-             kernel["ProblemType"]["DataType"].isSingleComplex():
+             kernel["ProblemType"]["DataType"].isSingleComplex() or \
+             kernel["ProblemType"]["DataType"].isDoubleComplex():
           kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
                     extraFields=extraFields, \
@@ -8759,6 +8867,16 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("v_mac_f32", vgpr("ValuC+%u"%(sumIdxV*2+1)), vgpr(dataV+1), sgpr("Beta"), "finalSum Ci += old Ci * Br")
               kStr += inst("v_mac_f32", vgpr("ValuC+%u"%(sumIdxV*2+1)), vgpr(dataV+0), sgpr("Beta+1"), "finalSum Ci += old Cr * Bi")
 
+            # double precision complex
+            elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+              # c.real += a.real * b.real 
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+0),2), vgpr(dataV+0,2), sgpr("Beta+0",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), self.endLine)
+              # c.real -= a.imag * b.imag
+              kStr += "v_fma_f64 %s, %s, -%s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+0),2), vgpr(dataV+2,2), sgpr("Beta+2",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), self.endLine)
+              # c.imag += a.real * b.imag
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(dataV+0,2), sgpr("Beta+2",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), self.endLine)
+              # c.imag += a.imag * b.real
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(dataV+2,2), sgpr("Beta+0",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), self.endLine)
 
         # pack stores, beta and non-beta reach here:
         for vi in range(0, gwvw):
@@ -8802,6 +8920,9 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx, \
                       addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
           elif kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isSingleComplex() :
+            kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*2, \
+                      addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
+          elif kernel["ProblemType"]["DataType"].isDoubleComplex():
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*2, \
                       addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
