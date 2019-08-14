@@ -79,7 +79,7 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
 ########################################
-# optimization knob controls 
+# optimization knob controls
 ########################################
 
 globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&LDS in each unroll iteration into n smaller groups..
@@ -94,7 +94,7 @@ globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is m
 # serial-in-u will use a sequence that increments in the K dimension
 # This is a predictable patterns that can be checked as the kernel runs to detect
 # when the wrong data is being used.
-# trig_float initializes with the sin function to have non-zero values in the mantissa 
+# trig_float initializes with the sin function to have non-zero values in the mantissa
 # and exponent. It cannot be used for int8 or int32. Need to use tensileAlmostEqual
 # not tensileEqual for checking the result.
 globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  Can be overridden by the DataInitTypeA or DataInitTypeB.  Eventually DataInitTypeAB will be retired.
@@ -213,7 +213,7 @@ validParameters = {
 
     # for transposes, this option governs how short-vectors should be read from global and written to lds
     # it is impossible to transpose data while operating on short-vectors for GlobalRead,LocalWrite and LocalRead; an odd number of those must be transposing and operating on vector components.
-    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds 
+    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds
     # =True means read short-vector from global and write its components to lds
     # =False means read vector components from global so that a full short-vector can be written to lds
     # both options were supported until a refactoring of the short-vector code (necessary to enable assembly) broke it. Since =True always seems to be faster, no time has been spend on fixing =False
@@ -288,7 +288,7 @@ validParameters = {
     # 2 = interleave two stores after required macs have completed execution
     "OptNoLoadLoop":               [0, 1, 2],
 
-    # Prefetch across persistent kernel iterations - the no-load-loop computes the 
+    # Prefetch across persistent kernel iterations - the no-load-loop computes the
     # tile assignment and next global read offset and launches the buffer loads for
     # the next tile in the sequence.
     "PrefetchAcrossPersistent":    [0, 1],
@@ -657,7 +657,7 @@ validParameters = {
     "ReplacementKernel":          [False, True],
 
     "MinVgprNumber":                list(range(0,256)),
-    
+
     "MaxVgprNumber":                list(range(0,257)),
     }
 
@@ -827,7 +827,7 @@ defaultProblemType = {
     #  - CPU reference model does not yet support zero-padding
     #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
     #  - ZeroPad requires that the ElementEdge <= 2^32:
-    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32 
+    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32
     #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
 
     #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
@@ -1111,7 +1111,7 @@ def CPUThreadCount(enable=True):
     return 0
   else:
     import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
+    cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 0:
         return cpu_count*abs(cpuThreads)
