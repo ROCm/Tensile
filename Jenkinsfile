@@ -76,7 +76,7 @@ tensileCI:
         try
         {
             def command = """#!/usr/bin/env bash
-                    set -ex
+                    set -x
 
                     hostname
 
@@ -89,7 +89,8 @@ tensileCI:
                     popd
                     tox --version
                     tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
-                    """
+                    date    
+                """
             platform.runCommand(this, command)
         }
         finally
