@@ -27,6 +27,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>

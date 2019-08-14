@@ -30,8 +30,6 @@
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
 
-#include <Tensile/hip/HipSolutionAdapter.hpp>
-
 using namespace Tensile;
 
 std::map<int, double> makeIdeals()
