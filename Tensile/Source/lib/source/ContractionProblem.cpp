@@ -883,6 +883,7 @@ namespace Tensile
     template struct TypedContractionInputs<std::complex<double>>;
     template struct TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     template struct TypedContractionInputs<int32_t>;
+
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
 #endif

@@ -122,10 +122,11 @@ namespace Tensile
     template<> struct TypeInfo<std::complex<float >>: public BaseTypeInfo<std::complex<float >, DataType::ComplexFloat,  1, true, false> {};
     template<> struct TypeInfo<std::complex<double>>: public BaseTypeInfo<std::complex<double>, DataType::ComplexDouble, 1, true, false> {};
 
-    template<> struct TypeInfo<Half>:     public BaseTypeInfo<Half, DataType::Half,  1, false, false> {};
     template<> struct TypeInfo<Int8x4>:   public BaseTypeInfo<Int8x4, DataType::Int8x4,  4, false, true>  {};
 
     template<> struct TypeInfo<int32_t>:  public BaseTypeInfo<int32_t,  DataType::Int32,    1, false, true>  {};
+
+    template<> struct TypeInfo<Half>:     public BaseTypeInfo<Half, DataType::Half,  1, false, false> {};
     template<> struct TypeInfo<BFloat16>: public BaseTypeInfo<BFloat16, DataType::BFloat16, 1, false, false>  {};
 
 
