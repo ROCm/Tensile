@@ -21,6 +21,7 @@
 
 #include <Tensile/ContractionSolution.hpp>
 
+#include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionProblem.hpp>
 
 #include <cmath>
@@ -94,6 +95,16 @@ namespace Tensile
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
+        std::cout << "Persistent: "  << sizeMapping.persistentKernel << std::endl;
+        if(sizeMapping.persistentKernel != 0)
+        {
+            size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount * sizeMapping.persistentKernel;
+            size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
+
+            rv.numWorkGroups.x = std::min(persistentGroups, problemGroups);
+            rv.numWorkGroups.y = 1;
+        }
+
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
@@ -107,9 +118,13 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            rv.args.append<uint64_t>("tensor2dSizeC", c.strides()[2]);
-            rv.args.append<uint64_t>("tensor2dSizeA", a.strides()[2]);
-            rv.args.append<uint64_t>("tensor2dSizeB", b.strides()[2]);
+            uint64_t tensor2dSizeC = c.dimensions() <= 2 ? c.totalAllocatedElements() : c.strides().at(2);
+            uint64_t tensor2dSizeA = a.dimensions() <= 2 ? a.totalAllocatedElements() : a.strides().at(2);
+            uint64_t tensor2dSizeB = b.dimensions() <= 2 ? b.totalAllocatedElements() : b.strides().at(2);
+
+            rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
+            rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
+            rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
         rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
@@ -182,11 +197,7 @@ namespace Tensile
 
     bool ContractionSolution::isSourceKernel() const
     {
-        auto iter = info.find("KernelLanguage");
-        if(iter == info.end())
-            throw std::runtime_error("Unknown");
-
-        return iter->second == "Source";
+        return sizeMapping.sourceKernel;
     }
 
     template <typename TypedInputs>
@@ -244,7 +255,7 @@ namespace Tensile
                                                         TypedInputs const& inputs,
                                                         Hardware    const& hardware) const
     {
-        std::string name = concatenate("Cijk_",
+        std::string name = concatenate("C", problem.cNames(), "_",
                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
