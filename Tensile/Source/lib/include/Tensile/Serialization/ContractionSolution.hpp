@@ -85,6 +85,9 @@ namespace Tensile
                 iot::mapRequired(io, "globalSplitU",        s.globalSplitU);
                 iot::mapRequired(io, "staggerStrideShift",  s.staggerStrideShift);
                 iot::mapRequired(io, "workGroupMapping",    s.workGroupMapping);
+
+                iot::mapRequired(io, "persistentKernel",    s.persistentKernel);
+                iot::mapRequired(io, "sourceKernel",        s.sourceKernel);
             }
 
             const static bool flow = false;
