@@ -24741,6 +24741,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 0
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -24792,6 +24793,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [8, 4]
@@ -24801,6 +24804,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 1
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -24852,6 +24856,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -24861,6 +24867,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 2
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -24911,6 +24918,8 @@ solutions:
     depthU: 32
     globalSplitU: 1
     macroTile: [128, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 1
     staggerU: 32
     threadTile: [8, 4]
@@ -24920,6 +24929,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 3
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -24971,6 +24981,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -24980,6 +24992,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 4
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25028,6 +25041,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [64, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [4, 4]
@@ -25037,6 +25052,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 5
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25087,6 +25103,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 8]
@@ -25096,6 +25114,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 6
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25146,6 +25165,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [128, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [8, 8]
@@ -25155,6 +25176,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 7
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25205,6 +25227,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [32, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [4, 4]
@@ -25214,6 +25238,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 8
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25264,6 +25289,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [32, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 8]
@@ -25273,6 +25300,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 9
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25323,6 +25351,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [8, 4]
@@ -25332,6 +25362,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 10
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25382,6 +25413,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [128, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [8, 4]
@@ -25391,6 +25424,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 11
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25440,6 +25474,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -25449,6 +25485,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 12
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25499,6 +25536,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [32, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 8]
@@ -25508,6 +25547,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 13
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25558,6 +25598,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [128, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [8, 8]
@@ -25567,6 +25609,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 14
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25617,6 +25660,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [8, 8]
@@ -25626,6 +25671,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 15
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25676,6 +25722,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 8]
@@ -25685,6 +25733,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 16
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25735,6 +25784,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [32, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [4, 4]
@@ -25744,6 +25795,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 17
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25793,6 +25845,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -25802,6 +25856,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 18
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25852,6 +25907,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 8]
@@ -25861,6 +25918,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 19
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25910,6 +25968,8 @@ solutions:
     depthU: 32
     globalSplitU: 1
     macroTile: [64, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 1
     staggerU: 32
     threadTile: [8, 4]
@@ -25919,6 +25979,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 20
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -25968,6 +26029,8 @@ solutions:
     depthU: 32
     globalSplitU: 1
     macroTile: [32, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 1
     staggerU: 32
     threadTile: [4, 8]
@@ -25977,6 +26040,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 21
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26027,6 +26091,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 4]
@@ -26036,6 +26102,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 22
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26086,6 +26153,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [128, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [8, 8]
@@ -26095,6 +26164,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 23
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26145,6 +26215,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [32, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [4, 4]
@@ -26154,6 +26226,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 24
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26203,6 +26276,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -26212,6 +26287,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 25
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26262,6 +26338,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [128, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [8, 4]
@@ -26271,6 +26349,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 26
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26321,6 +26400,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [8, 8]
@@ -26330,6 +26411,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 27
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26380,6 +26462,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [128, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [8, 8]
@@ -26389,6 +26473,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 28
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26439,6 +26524,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [8, 4]
@@ -26448,6 +26535,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 29
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26498,6 +26586,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [32, 32, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [4, 4]
@@ -26507,6 +26597,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 30
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26557,6 +26648,8 @@ solutions:
     depthU: 16
     globalSplitU: 1
     macroTile: [64, 128, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 2
     staggerU: 32
     threadTile: [4, 8]
@@ -26566,6 +26659,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx900}
+  ideals: {}
   index: 31
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26615,6 +26709,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -26624,6 +26720,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 32
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26662,8 +26759,8 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: MaxProblemSizeGreaterThan, value: 32}
+    - {type: LeadingSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26674,6 +26771,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [32, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [4, 8]
@@ -26683,6 +26782,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 33
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26734,6 +26834,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
@@ -26743,6 +26845,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 34
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '1', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26793,6 +26896,8 @@ solutions:
     depthU: 32
     globalSplitU: 1
     macroTile: [128, 64, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 1
     staggerU: 32
     threadTile: [8, 4]
@@ -26802,6 +26907,7 @@ solutions:
   hardwarePredicate:
     type: AMDGPU
     value: {type: Processor, value: gfx906}
+  ideals: {}
   index: 35
   info: {AggressivePerfMode: '1', AssertFree0ElementMultiple: '1', AssertFree1ElementMultiple: '1',
     AssertMinApproxSize: '3', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'False',
@@ -26853,6 +26959,8 @@ solutions:
     depthU: 8
     globalSplitU: 1
     macroTile: [8, 8, 1]
+    persistentKernel: 0
+    sourceKernel: false
     staggerStrideShift: 3
     staggerU: 32
     threadTile: [2, 2]
