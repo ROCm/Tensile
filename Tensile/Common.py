@@ -1110,7 +1110,6 @@ def CPUThreadCount(enable=True):
   if not enable or globalParameters["CpuThreads"] == 0:
     return 0
   else:
-    import multiprocessing
     cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 0:
