@@ -35,8 +35,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 RUN pip3 install wheel && pip3 install tox pyyaml
 
 # Patch hcc-config.cmake in /opt/rocm
-ADD docker/scripts/fix_hcc_config /tmp
-RUN /tmp/fix_hcc_config && rm /tmp/fix_hcc_config
+#ADD docker/scripts/fix_hcc_config /tmp
+#RUN /tmp/fix_hcc_config && rm /tmp/fix_hcc_config
 
 # docker pipeline runs containers with particular uid
 # create a jenkins user with this specific uid so it can use sudo privileges

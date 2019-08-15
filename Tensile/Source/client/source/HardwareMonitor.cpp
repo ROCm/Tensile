@@ -26,6 +26,8 @@
 
 #include "HardwareMonitor.hpp"
 
+#include <chrono>
+#include <iomanip>
 #include <unistd.h>
 
 #include <hip/hip_runtime.h>
@@ -73,6 +75,7 @@ namespace Tensile
             RSMI_CHECK_EXC(rsmi_num_monitor_devices(&smiCount));
 
             std::ostringstream msg;
+            msg << "PCI IDs: [" << std::endl;
 
             for(uint32_t smiIndex = 0; smiIndex < smiCount; smiIndex++)
             {
@@ -85,6 +88,10 @@ namespace Tensile
                 if(hipPCIID == rsmiPCIID)
                     return smiIndex;
             }
+
+            msg << "]" << std::endl;
+            std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            msg << std::put_time(gmtime(&now), "%F %T %z");
 
             throw std::runtime_error(concatenate("RSMI Can't find a device with PCI ID ", hipPCIID , "(",
                                                  props.pciDomainID, "-", props.pciBusID, "-", props.pciDeviceID, ")\n",
