@@ -6,6 +6,8 @@
 #include "TensileTypes.h"
 #include <hip/hip_runtime_api.h>
 #include <iostream>
+#include <iomanip>
+#include <chrono>
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -107,7 +109,9 @@ struct Device {
               // find hwmon path
               std::vector<std::string> hwpaths = lsDir(drmPath + "/device/hwmon", std::regex("hwmon\\d+"));
               if (hwpaths.size() != 1) {
-                WARNING("No or multiple hwmon paths for " << drmPath);
+                WARNING("No or multiple hwmon paths for " << drmPath << " ( found " << hwpaths.size() << " paths)");
+                std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                WARNING("Date: " << std::put_time(gmtime(&now), "%F %T %z"));
               }
               if (hwpaths.size() > 0) {
                 hwmonPath = drmPath + "/device/hwmon/" + hwpaths[0];
