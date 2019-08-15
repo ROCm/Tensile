@@ -794,7 +794,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumD = problemSizes.maxD
     maximumC = problemSizes.maxC
     maximumA = problemSizes.maxA 
-    maximumB = problemSizes.maxC 
+    maximumB = problemSizes.maxB 
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
