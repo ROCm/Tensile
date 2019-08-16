@@ -16,7 +16,7 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  PinClocks: True
+  PinClocks: False
   SleepPercent: 25
   DataInitTypeA : 3
   DataInitTypeB : 3
