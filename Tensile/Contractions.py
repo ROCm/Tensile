@@ -271,7 +271,7 @@ class SizeMapping:
                    depthU             = d['DepthU'],
                    globalSplitU       = d['GlobalSplitU'],
                    staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
-                   persistentKernel   = d['PersistentKernel'],
+                   persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
                    sourceKernel       = d['KernelLanguage'] == 'Source',
                    )
 
