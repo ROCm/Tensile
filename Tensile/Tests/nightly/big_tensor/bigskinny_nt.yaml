@@ -16,7 +16,7 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  PinClocks: True
+  PinClocks: False
   SleepPercent: 0
   PrintSolutionRejectionReason : 1
 
