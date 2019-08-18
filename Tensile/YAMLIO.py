@@ -30,6 +30,48 @@ try:
 except ImportError:
   printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
 
+#https://stackoverflow.com/questions/528281/how-can-i-include-a-yaml-file-inside-another
+class Loader(yaml.SafeLoader):
+    def __init__(self, stream):
+        self._root = os.path.split(stream.name)[0]
+        super(Loader, self).__init__(stream)
+    def include(self, node):
+        print(node)
+        filename = os.path.join(self._root, self.construct_scalar(node))
+        try:
+          with open(filename, 'r') as f:
+             rv=yaml.load(f, Loader)
+             print(rv)
+             return rv+["Header"]
+             #return rv
+        except IOError:
+          printExit("Cannot load file: %s" % filename)
+
+Loader.add_constructor('!include', Loader.include)
+
+# Loader above creates a single node out of the contents of every !include
+# If we write
+# ABC:
+#  - !include defaults.yaml
+#  - "x"
+#  - "y"
+# we'll end up with {"ABC": [ [<contents of defaults.yaml>], "x", "y"] }, which is typically not what we want
+# (we want {"ABC": [ <contents of defaults.yaml>, "x", "y"] } instead.)
+# The following function converts the tree into the desired format.
+def flatten(x):
+   if type(x) is dict:
+     return {a: flatten(x[a]) for a in x} 
+   elif type(x) is list:
+     rv=[]
+     for a in x:
+       if type(a) is list and 'Header' in a:
+         rv.extend(flatten(a))
+       elif a!='Header':
+         rv.append(flatten(a))
+     return rv
+   else:
+     return x
+	      
 ################################################################################
 # Read Benchmark Config from YAML Files
 ################################################################################
@@ -38,7 +80,8 @@ def readConfig( filename ):
     stream = open(filename, "r")
   except IOError:
     printExit("Cannot open file: %s" % filename )
-  config = yaml.load(stream, yaml.SafeLoader)
+  config = yaml.load(stream, Loader)
+  config = flatten(config)
   stream.close()
   return config
 
