@@ -86,16 +86,27 @@ namespace Tensile
         rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(d.sizes()[0], sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(d.sizes()[1], sizeMapping.macroTile.y);
-        rv.numWorkGroups.z = d.dimensions() > 2 ? d.sizes()[2] : 1;
+        rv.numWorkGroups.x = 1;
+        rv.numWorkGroups.y = 1;
+
+        for(size_t i = 0; i < problem.freeIndices().size(); i++)
+        {
+            rv.numWorkGroups.x *= problem.freeSizeA(i);
+            rv.numWorkGroups.y *= problem.freeSizeB(i);
+        }
+
+        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
+
+        rv.numWorkGroups.z = 1;
+        for(size_t i = 0; i < problem.batchIndices().size(); i++)
+            rv.numWorkGroups.z *= problem.batchSize(i);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
-        std::cout << "Persistent: "  << sizeMapping.persistentKernel << std::endl;
         if(sizeMapping.persistentKernel != 0)
         {
             size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount * sizeMapping.persistentKernel;

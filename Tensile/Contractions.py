@@ -23,8 +23,10 @@ from .DataType import DataType
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
-from .Utils import state
+from .Utils import state, state_key_ordering
 
+
+@state_key_ordering
 class FreeIndex:
     StateKeys = ['a', 'b', 'ca', 'cb', 'da', 'db']
 
@@ -36,6 +38,7 @@ class FreeIndex:
         self.da = da
         self.db = db
 
+@state_key_ordering
 class BatchIndex:
     StateKeys = ['a', 'b', 'c', 'd']
     def __init__(self, a=None, b=None, c=None, d=None):
@@ -44,6 +47,7 @@ class BatchIndex:
         self.c = c
         self.d = d
 
+@state_key_ordering
 class BoundIndex:
     StateKeys = ['a', 'b']
     def __init__(self, a=None, b=None):
@@ -94,9 +98,9 @@ class ProblemType:
 
         rv = cls()
         rv.indices = indices
-        rv.freeIndices = freeIndices
-        rv.batchIndices = batchIndices
-        rv.boundIndices = boundIndices
+        rv.freeIndices = sorted(freeIndices)
+        rv.batchIndices = sorted(batchIndices)
+        rv.boundIndices = sorted(boundIndices)
         rv.aDims = len(d['IndexAssignmentsA'])
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']

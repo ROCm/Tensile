@@ -20,6 +20,8 @@
 ################################################################################
 
 from .Common import ProgressBar
+
+import functools
 import sys
 
 class SpinnyThing:
@@ -77,6 +79,20 @@ def state(obj):
         pass
 
     return obj
+
+def state_key_ordering(cls):
+    def tup(obj):
+        return tuple([getattr(obj, k) for k in cls.StateKeys])
+
+    def lt(a, b):
+        return tup(a) < tup(b)
+    def eq(a, b):
+        return tup(a) == tup(b)
+
+    cls.__lt__ = lt
+    cls.__eq__ = eq
+
+    return functools.total_ordering(cls)
 
 def hash_combine(*objs, **kwargs):
     shift = 1

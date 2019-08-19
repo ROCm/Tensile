@@ -308,17 +308,24 @@ def checkConstStride(constStrideMap, keyIdx):
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
 
-
 def problemSizeParams(solution, problemSize):
     numIndices = len(solution.problemType.indices)
 
-    assert len(problemSize) == numIndices + 4
+    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
 
-    return [('problem-size', ','.join(map(str, problemSize[:numIndices]))),
-            ('a-strides', problemSize[numIndices+2]),
-            ('b-strides', problemSize[numIndices+3]),
-            ('c-strides', problemSize[numIndices+0]),
-            ('d-strides', problemSize[numIndices+1])]
+    if len(problemSize) == numIndices:
+        return [problemSizeArg]
+    elif len(problemSize) == numIndices + 4:
+        return [problemSizeArg,
+                ('a-strides', problemSize[numIndices+2]),
+                ('b-strides', problemSize[numIndices+3]),
+                ('c-strides', problemSize[numIndices+0]),
+                ('d-strides', problemSize[numIndices+1])]
+
+    raise RuntimeError(
+        "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
+            ', '.join(map(str, problemSize))))
+
 
 def dataInitName(num):
     if num == 0: return 'Zero'

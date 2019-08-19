@@ -387,12 +387,12 @@ def compareResults(old, new, name):
     import math
     try:
         old = float(old)
-    except ValueError:
+    except (ValueError, TypeError):
         old = -1
 
     try:
         new = float(new)
-    except ValueError:
+    except (ValueError, TypeError):
         new = -1
 
     def isbad(x):
