@@ -21,6 +21,16 @@
 
 include(CMakeParseArguments)
 
+if(NOT DEFINED Tensile_ROOT)
+# Compute the installation prefix relative to this file.
+get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
+
+execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+endif()
+list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/cmake/")
+list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/")
+
 if("HIP" IN_LIST Tensile_FIND_COMPONENTS)
     set(TENSILE_USE_HIP ON CACHE BOOL "Use HIP")
 else()
@@ -52,8 +62,8 @@ else()
     set(TENSILE_STATIC_ONLY OFF CACHE BOOL "Disable exporting symbols from shared library.")
 endif()
 
-add_subdirectory("${Tensile_DIR}/../Source" "Tensile")
-include("${Tensile_DIR}/../Source/TensileCreateLibrary.cmake")
+add_subdirectory("${Tensile_ROOT}/Source" "Tensile")
+include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 
 function(TensileCreateLibraryFiles
         Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
@@ -64,13 +74,7 @@ function(TensileCreateLibraryFiles
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-  if(Tensile_DIR)
-    # python not pre-installed, use scripts downloaded to extern/Tensile
-    #include(FindPythonInterp)
-    set(Script "${Tensile_DIR}/../bin/TensileCreateLibrary")
-  else()
-      set(Script tensileCreateLibrary)
-  endif()
+  set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
   message(STATUS "Tensile script: ${Script}")
 
   set(Options "")

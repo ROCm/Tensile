@@ -13,9 +13,14 @@ find_path(ROCM_SMI_ROOT "include/rocm_smi/rocm_smi.h"
     PATHS "${ROCM_ROOT}" "${HIP_DIR}/../../../.." "${HIP_DIR}/../../.."
     PATH_SUFFIXES "rocm_smi"
     )
+mark_as_advanced(ROCM_SMI_ROOT)
 
 find_library(ROCM_SMI_LIBRARY rocm_smi64
     PATHS "${ROCM_SMI_ROOT}/lib")
+mark_as_advanced(ROCM_SMI_LIBRARY)
+
+include( FindPackageHandleStandardArgs )
+find_package_handle_standard_args( ROCmSMI DEFAULT_MSG ROCM_SMI_LIBRARY ROCM_SMI_ROOT )
 
 add_library(rocm_smi SHARED IMPORTED)
 
