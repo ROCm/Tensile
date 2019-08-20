@@ -36,16 +36,7 @@ function(TensileCreateLibraryCmake
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
 
-  # Tensile_ROOT can be specified instead of using the installed path.
-  set(oneValueArgs Tensile_BIN)
-  cmake_parse_arguments(PARSE "" "${oneValueArgs}" "" ${ARGN})
-
-  if(PARSE_Tensile_BIN)
-    # python not pre-installed, use scripts downloaded to extern/Tensile
-    set(Tensile_CREATE_COMMAND "${PARSE_Tensile_BIN}/TensileCreateLibrary")
-  else()
-    set(Tensile_CREATE_COMMAND tensileCreateLibrary)
-  endif()
+  set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
 
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
