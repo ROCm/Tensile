@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -36,16 +36,7 @@ function(TensileCreateLibraryCmake
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
 
-  # Tensile_ROOT can be specified instead of using the installed path.
-  set(oneValueArgs Tensile_ROOT)
-  cmake_parse_arguments(PARSE "" "${oneValueArgs}" "" ${ARGN})
-
-  if(PARSE_Tensile_ROOT)
-    # python not pre-installed, use scripts downloaded to extern/Tensile
-    set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/TensileCreateLibrary")
-  else()
-    set(Tensile_CREATE_COMMAND tensileCreateLibrary)
-  endif()
+  set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
 
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
@@ -137,7 +128,7 @@ function(TensileCreateLibraryCmake
     target_compile_definitions( Tensile PUBLIC
       -DTensile_RUNTIME_LANGUAGE_OCL=1 -DTensile_RUNTIME_LANGUAGE_HIP=0 )
     target_include_directories( Tensile SYSTEM
-      PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
+      PUBLIC  ${OPENCL_INCLUDE_DIRS} )
   else()
     #find_package( HIP REQUIRED )
     set (CMAKE_CXX_COMPILER ${HIPCC})
@@ -149,5 +140,3 @@ function(TensileCreateLibraryCmake
   endif()
 
 endfunction()
-
-
