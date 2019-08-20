@@ -4,7 +4,7 @@ GlobalParameters:
   LibraryPrintDebug: True
   NumElementsToValidate: 1000
   KernelTime: True
-  #PinClocks: True
+  PinClocks: False
   SleepPercent: 0
   DataInitTypeBeta : 1
   PrintSolutionRejectionReason: 1
