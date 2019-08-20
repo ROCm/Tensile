@@ -5091,7 +5091,7 @@ class KernelWriterAssembly(KernelWriter):
           sumIdx = ss.elementSumIdx[elementIdx]
 
           kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
-                            edge=False, beta=False, atomic=False, mask=None)
+                            edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr)
 
         kStr += "\n"
@@ -7475,7 +7475,7 @@ class KernelWriterAssembly(KernelWriter):
     """
     Needs 3 temporary VGPRs
     """
-    def emitScaleToBpe(self, kernel, ss, beta, atomic, tmpVgpr):
+    def emitScaleToBpe(self, kernel, ss, beta, atomic, tmpVgpr, firstInBatch):
       kStr = ""
       kw = self.kernelWriter
       (d1,d0,vc1,vc0) = self.element
@@ -7489,7 +7489,7 @@ class KernelWriterAssembly(KernelWriter):
         if ss.optSingleColVgpr:
           # This is first element in the first batch, create a byte address that will
           # be re-used by subsequent elements:
-          if ss.firstBatch and self.element == (0,0,0,0):
+          if ss.firstBatch and firstInBatch:
             updatedAddr = True
             kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
@@ -7554,7 +7554,7 @@ class KernelWriterAssembly(KernelWriter):
         optimization - if no setup code is required the coord0 can be the input.
     """
     # TODO - mask should be part of AddrCalc state not passed as parm
-    def emitAddressSetupCode(self, kernel, ss, tmpVgpr01, tmpS01, edge, beta, atomic, mask):
+    def emitAddressSetupCode(self, kernel, ss, tmpVgpr01, tmpS01, edge, beta, atomic, mask, elementIdx):
       kStr = ""
       kw = self.kernelWriter
 
@@ -7591,13 +7591,13 @@ class KernelWriterAssembly(KernelWriter):
                     sizeBoundary[1], "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "in0 && in1" )
 
-          kStr += self.emitScaleToBpe(kernel, ss, beta, atomic, tmpVgpr01)
+          kStr += self.emitScaleToBpe(kernel, ss, beta, atomic, tmpVgpr01, elementIdx==0)
 
           if kernel["LdcEqualsLdd"] or beta or atomic:
               kStr += inst("v_cndmask_b32", vgpr(self.addrVgpr), -1, vgpr(self.addrVgpr), \
                         sgpr(mask,2), "clip if OOB. offset" )
         else:
-          kStr += self.emitScaleToBpe(kernel, ss, beta, atomic, tmpVgpr01)
+          kStr += self.emitScaleToBpe(kernel, ss, beta, atomic, tmpVgpr01, elementIdx==0)
 
       return kStr
 
@@ -8309,7 +8309,7 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, mask)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, mask, elementIdx)
       if not kernel["BufferStore"]:
         # flat: in-bounds exec mask
         if edge:
