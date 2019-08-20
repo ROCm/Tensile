@@ -130,10 +130,13 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     if (CxxCompiler == 'hcc'):
 
-      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags',]).decode().split(' ')
+      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags']).decode().split(' ')
+      # when HCC_HOME is defined -I/opt/rocm/include is *not* part of
+      # hcc-config --cxxflags; so we need hipconfig -C to be safe
+      hipFlags += subprocess.check_output([which('hipconfig'), '-C']).decode().split(' ')
       hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
 
-      hipFlags += ['-I', outputPath]
+      hipFlags += ['-I', outputPath, '-fPIC']
 
       compileArgs = [which('hcc')] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
 
@@ -285,7 +288,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
-      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n\n")
+      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+      kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
     kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
   else:
     kernelSourceFile = None
