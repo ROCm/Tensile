@@ -474,7 +474,7 @@ class KernelWriterAssembly(KernelWriter):
           '-target', 'amdgcn-amd-amdhsa']
 
     if archHasV3:
-      rv += ['-mno-code-object-v3']
+      rv += ['-mno-code-object-v3' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-v3']
 
     rv += ['-mcpu=gfx' + ''.join(map(str,isa))]
 
@@ -1982,17 +1982,33 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     # begin kernel descriptor
-    kStr += ".hsa_code_object_version %s,0%s" \
+    if globalParameters["CodeObjectVersion"] == "V2":
+      kStr += ".hsa_code_object_version %s,0%s" \
         % (globalParameters["CodeObjectVersion"][1], self.endLine)
-    kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
+      kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
         % (self.version[0], self.version[1], self.version[2], self.endLine)
+    if globalParameters["CodeObjectVersion"] == "V3":
+      kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s\"%s" \
+        % ("".join(map(str,self.version)), self.endLine)
+
     kStr += ".text%s" % self.endLine
+    kStr += ".protected %s%s" % (self.kernelName, self.endLine)
+    kStr += ".globl %s%s" % (self.kernelName, self.endLine)
     kStr += ".p2align 8%s" % self.endLine
-    kStr += ".amdgpu_hsa_kernel %s%s" % (self.kernelName, self.endLine)
-    kStr += "%s:%s" % (self.kernelName, self.endLine)
-    kStr += ".amd_kernel_code_t%s" % self.endLine
-    kStr += "  is_ptr64 = 1%s" % self.endLine
-    kStr += "  enable_sgpr_kernarg_segment_ptr = 1%s" % self.endLine
+    kStr += ".type %s,@function%s" % (self.kernelName, self.endLine)
+
+    if globalParameters["CodeObjectVersion"] == "V3":
+        kStr += ".section .rodata,#alloc%s" % self.endLine
+        kStr += ".p2align 6%s" % self.endLine
+    tWord = "amdgpu_hsa_kernel" if globalParameters["CodeObjectVersion"] == "V2" else "amdhsa_kernel"
+    kStr += ".%s %s%s" % (tWord, self.kernelName, self.endLine)
+    if globalParameters["CodeObjectVersion"] == "V2":
+        kStr += "%s:%s" % (self.kernelName, self.endLine)
+        kStr += ".amd_kernel_code_t%s" % self.endLine
+        kStr += "  is_ptr64 = 1%s" % self.endLine
+    tWord = "enable_sgpr_kernarg_segment_ptr =" if globalParameters["CodeObjectVersion"] == "V2" \
+        else ".amdhsa_user_sgpr_kernarg_segment_ptr"
+    kStr += "  %s 1%s" % (tWord, self.endLine)
 
     # kern arg size
     kernArgReg = 0
@@ -2011,7 +2027,8 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kernArgReg += self.rpga # debug buffer
     kernArgBytes = kernArgReg * 4 # bytes/reg
-    kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
+    if globalParameters["CodeObjectVersion"] == "V2":
+      kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
         % (kernArgBytes, self.endLine)
     # kernArgReg = 0
     # kernArgReg += 3*self.rpga
@@ -2035,46 +2052,63 @@ class KernelWriterAssembly(KernelWriter):
     # register allocation
     totalVgprs = self.vgprPool.size()
     assert(self.totalSgprs >= self.sgprPool.size())
-    kStr += "  workitem_vgpr_count = %u // vgprs%s" \
-        % (totalVgprs, self.endLine)
-    kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
-        % (self.totalSgprs, self.endLine)
-    kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
+    tWord = "workitem_vgpr_count =" if globalParameters["CodeObjectVersion"] == "V2" \
+        else ".amdhsa_next_free_vgpr"
+    kStr += "  %s %u // vgprs%s" \
+        % (tWord, totalVgprs, self.endLine)
+    tWord = "wavefront_sgpr_count =" if globalParameters["CodeObjectVersion"] == "V2" \
+        else ".amdhsa_next_free_sgpr"
+    kStr += "  %s %u // sgprs%s" \
+        % (tWord, self.totalSgprs, self.endLine)
+
+    if globalParameters["CodeObjectVersion"] == "V2":
+      kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
         % ( (totalVgprs-1)//4, totalVgprs, self.endLine)
-    kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
+      kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
         % ( 1+(self.totalSgprs-1)//8, self.totalSgprs, self.endLine)
 
-    # work-group dimensions
-    kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
+      # work-group dimensions
+      kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
 
-    # grid dimensions
-    kStr += "  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x%s" % self.endLine
-    kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
-    if kernel["ProblemType"]["NumIndicesC"] > 2:
-      kStr += "  compute_pgm_rsrc2_tgid_z_en = %u // wg.z%s" % (1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0, self.endLine)
-    #if abs(kernel["WorkGroupMapping"]) > 1:
-    #  kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
-    #  kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
+      # grid dimensions
+      kStr += "  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x%s" % self.endLine
+      kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
+      if kernel["ProblemType"]["NumIndicesC"] > 2:
+        kStr += "  compute_pgm_rsrc2_tgid_z_en = %u // wg.z%s" % (1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0, self.endLine)
+      #if abs(kernel["WorkGroupMapping"]) > 1:
+      #  kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
+      #  kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
 
-    # lds size
-    #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
-    #jgolds HACK
-    # only want to enable this for cases we know it helps: 4x4 TT size and 16x16 WG size. Feel free to add more
-    # cases after validating performance
+      # lds size
+      #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
+      #jgolds HACK
+      # only want to enable this for cases we know it helps: 4x4 TT size and 16x16 WG size. Feel free to add more
+      # cases after validating performance
+    tWord = "workgroup_group_segment_byte_size =" if globalParameters["CodeObjectVersion"] == "V2" \
+        else ".amdhsa_group_segment_fixed_size"
     if kernel["AggressivePerfMode"]>=2 and kernel["ProblemType"]["DataType"].isDouble() and \
       kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
-      kStr += "  workgroup_group_segment_byte_size = 32768 // lds bytes%s" \
-          % ( self.endLine ) # Pad LDS to ensure we run exactly two waves
+      group_segment_size = 32768 # Pad LDS to ensure we run exactly two waves
     else:
-      kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
-          % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
+      group_segment_size = kernel["LdsNumElements"] * self.bpeAB
+    kStr += "  %s %u // lds bytes%s" \
+      % ( tWord, group_segment_size, self.endLine )
 
-    # other
-    kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
-    kStr += "  kernarg_segment_alignment = 4%s" % self.endLine
-    kStr += "  group_segment_alignment = 4%s" % self.endLine
-    kStr += "  private_segment_alignment = 4%s" % self.endLine
-    kStr += ".end_amd_kernel_code_t%s" % self.endLine
+    if globalParameters["CodeObjectVersion"] == "V2":
+      # other
+      kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
+      kStr += "  kernarg_segment_alignment = 4%s" % self.endLine
+      kStr += "  group_segment_alignment = 4%s" % self.endLine
+      kStr += "  private_segment_alignment = 4%s" % self.endLine
+      kStr += ".end_amd_kernel_code_t%s" % self.endLine
+    if globalParameters["CodeObjectVersion"] == "V3":
+      kStr += "  .amdhsa_private_segment_fixed_size 0%s" % self.endLine
+      kStr += "  .amdhsa_system_sgpr_workgroup_id_x 1%s" % self.endLine
+      kStr += "  .amdhsa_system_sgpr_workgroup_id_y 1%s" % self.endLine
+      kStr += "  .amdhsa_system_sgpr_workgroup_id_z %u%s" % (1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0, self.endLine)
+      kStr += "  .amdhsa_system_vgpr_workitem_id 0%s" % self.endLine
+      kStr += ".end_amdhsa_kernel%s" % self.endLine
+      kStr += ".text%s" % self.endLine
 
     kStr += self.comment3("Optimizations and Config:")
     kStr += self.comment1("ThreadTile= %u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
@@ -2096,37 +2130,49 @@ class KernelWriterAssembly(KernelWriter):
         cptByte  = 4
         cptValueType = "F32"
       else:
-        srcValueType = "F16"
-        dstValueType = "F16"
+        if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "F16"
+        if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "f16"
+        if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "F16"
+        if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "f16"
         cptSize = "2"
         cptAlign = "2"
         cptByte  = 2
-        cptValueType = "F16"
+      if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "F16"
+      if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f16"
     
     elif kernel["ProblemType"]["DataType"].isInt8x4():
-      srcValueType = "I8"
-      dstValueType = "I32"
+      if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "I8"
+      if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "i8"
+      if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "I32"
+      if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "i32"
       cptSize = "4"
       cptAlign = "4"
       cptByte  = 4
-      cptValueType = "I32"
+      if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "I32"
+      if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "i32"
     
     elif kernel["ProblemType"]["DataType"].isSingle():
-      srcValueType = "F32"
-      dstValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "f32"
+      if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "f32"
       cptSize = "4"
       cptAlign = "4"
       cptByte  = 4
-      cptValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f32"
     
     elif kernel["ProblemType"]["DataType"].isDouble() or \
          kernel["ProblemType"]["DataType"].isSingleComplex():
-      srcValueType = "F64"
-      dstValueType = "F64"
+      if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "F64"
+      if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "f64"
+      if globalParameters["CodeObjectVersion"] == "V2": dstValueType = "F64"
+      if globalParameters["CodeObjectVersion"] == "V3": dstValueType = "f64"
       cptSize = "8"
       cptAlign = "8"
       cptByte  = 8
-      cptValueType = "F64"
+      if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "F64"
+      if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f64"
     elif kernel["ProblemType"]["DataType"].isBFloat16():
       if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "Struct"
       if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "struct"
@@ -2135,7 +2181,8 @@ class KernelWriterAssembly(KernelWriter):
       cptSize = "4"
       cptAlign = "4"
       cptByte  = 4
-      cptValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "F32"
+      if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f32"
 
     if globalParameters["CodeObjectVersion"] == "V2":
 #     Codeobject V2 metadata
@@ -2220,7 +2267,7 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += "    CodeProps:\n"
       kStr += "      KernargSegmentSize: %u%s" % (ka_size, self.endLine)
-      kStr += "      GroupSegmentFixedSize: %u%s" % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
+      kStr += "      GroupSegmentFixedSize: %u%s" % ( group_segment_size, self.endLine )
       kStr += "      PrivateSegmentFixedSize: %u%s" % ( 0, self.endLine )
       kStr += "      KernargSegmentAlign:  %u%s" % ( 8, self.endLine )
       kStr += "      WavefrontSize:        %u%s" % ( 64, self.endLine )
@@ -2238,28 +2285,24 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "amdhsa.kernels:\n"
       kStr += "  - .name: %s%s" % (self.kernelName, self.endLine)
       kStr += "    .symbol: '%s.kd'%s" % (self.kernelName, self.endLine)
-      kStr += "    .kernarg_segment_size:       %u%s" % (kernArgBytes, self.endLine)
-      kStr += "    .group_segment_fixed_size:   %u%s" % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
-      kStr += "    .private_segment_fixed_size: %u%s" % ( 0, self.endLine )
-      kStr += "    .kernarg_segment_align:      %u%s" % ( 8, self.endLine )
-      kStr += "    .wavefront_size:             %u%s" % ( 64, self.endLine )
-      kStr += "    .sgpr_count:                 %u%s" % ( self.totalSgprs, self.endLine )
-      kStr += "    .vgpr_count:                 %u%s" % ( totalVgprs, self.endLine )
-      kStr += "    .max_flat_workgroup_size: %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], self.endLine )
-      kStr += "    .args:\n"
+      kStr += "    .language:                   %s%s" % ("OpenCL C", self.endLine)
+      kStr += "    .language_version:%s" % self.endLine
+      kStr += "      - 2%s" % self.endLine
+      kStr += "      - 0%s" % self.endLine
+      kStr += "    .args:%s" % self.endLine
       offset = 0;
 
       if globalParameters["DebugKernel"]:
         kStr += self.v3Argument(                    'AddressDbg',     '8', offset, "global_buffer","struct", "generic"); offset += 8
 
-      kStr += self.v3Argument(                           'sizeC',     '8', offset,      "by_value",        "U64"); offset += 8
-      kStr += self.v3Argument(                           'sizeA',     '8', offset,      "by_value",        "U64"); offset += 8
-      kStr += self.v3Argument(                           'sizeB',     '8', offset,      "by_value",        "U64"); offset += 8
+      kStr += self.v3Argument(                           'sizeC',     '8', offset,      "by_value",        "u64"); offset += 8
+      kStr += self.v3Argument(                           'sizeA',     '8', offset,      "by_value",        "u64"); offset += 8
+      kStr += self.v3Argument(                           'sizeB',     '8', offset,      "by_value",        "u64"); offset += 8
 
-      kStr += self.v3Argument(                               'D',     '8', offset, "global_buffer","struct", dstValueType); offset += 8
-      kStr += self.v3Argument(                               'C',     '8', offset, "global_buffer","struct", dstValueType); offset += 8
-      kStr += self.v3Argument(                               'A',     '8', offset, "global_buffer","struct", srcValueType); offset += 8
-      kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer","struct", srcValueType); offset += 8
+      kStr += self.v3Argument(                               'D',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
+      kStr += self.v3Argument(                               'C',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
+      kStr += self.v3Argument(                               'A',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
+      kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
@@ -2305,7 +2348,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
 
-      kStr += self.v3Argument(              "OrigStaggerUIter",     '4', offset,      "by_value",        "i32"); offset += 4
+      kStr += self.v3Argument(              "OrigStaggerUIter",       '4', offset,      "by_value",        "i32"); offset += 4
 
       kStr += self.v3Argument(                  "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
       kStr += self.v3Argument(                  "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
@@ -2318,11 +2361,23 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.v3Argument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
 
       kStr += self.v3Argument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
+      kStr += "    .group_segment_fixed_size:   %u%s" % ( group_segment_size, self.endLine ) #XXXXXX
+      kStr += "    .kernarg_segment_align:      %u%s" % ( 8, self.endLine )
+      kStr += "    .kernarg_segment_size:       %u%s" % (((offset+7)//8)*8, self.endLine) # round up to .kernarg_segment_align
+      kStr += "    .max_flat_workgroup_size:    %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], self.endLine )
+      kStr += "    .private_segment_fixed_size: %u%s" % ( 0, self.endLine )
+      kStr += "    .sgpr_count:                 %u%s" % ( self.totalSgprs, self.endLine )
+      kStr += "    .sgpr_spill_count:           %u%s" % ( 0, self.endLine )
+      kStr += "    .vgpr_count:                 %u%s" % ( totalVgprs, self.endLine )
+      kStr += "    .vgpr_spill_count:           %u%s" % ( 0, self.endLine )
+      kStr += "    .wavefront_size:             %u%s" % ( 64, self.endLine )
 
       kStr += "...\n"
 
       kStr += ".end_amdgpu_metadata\n"
 
+    if globalParameters["CodeObjectVersion"] == "V3":
+        kStr += "%s:%s" % (self.kernelName, self.endLine)
     kStr += self.comment3("Asm syntax workarounds")
     kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:

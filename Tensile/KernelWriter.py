@@ -2496,6 +2496,7 @@ for codeObjectFileName in codeObjectFileNames:
     kernelFileName_txt = "%s.s.txt" % kernelName
     SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
     REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
+    if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
     REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
 
     if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
