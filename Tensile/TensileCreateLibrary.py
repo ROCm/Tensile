@@ -108,6 +108,7 @@ def which(p):
 
 def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     buildPath = ensurePath(os.path.join(globalParameters['WorkingPath'], 'code_object_tmp'))
+    destDir = ensurePath(os.path.join(outputPath, 'library'))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
@@ -120,7 +121,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
 
-    archFlags = ['-amdgpu-target=' + arch for arch in archs]
+    archFlags = ['--amdgpu-target=' + arch for arch in archs]
 
     if (CxxCompiler == 'hcc'):
 
@@ -146,18 +147,29 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       #print(' '.join(extractArgs))
       subprocess.check_call(extractArgs, cwd=buildPath)
 
+      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = "--genco"
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilename]
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
 
       #print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-    return ["{0}-000-{1}.hsaco".format(soFilepath,arch) for arch in archs]
+      coFilenames = [soFilename]
+    else:
+      raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
+
+    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
+    destCOs = [os.path.join(destDir, name) for name in coFilenames]
+
+    for (src, dst) in zip(extractedCOs, destCOs):
+        shutil.copyfile(src, dst)
+
+    return destCOs
 
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels, outputPath):
     sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
@@ -192,11 +204,11 @@ def prepAsm():
     # cannot use globalParameters["CurrentISA"] because it might be (0,0,0)
     defaultIsa = (9,0,0)
     assemblerFile.write( \
-      "${ASM} -x assembler -target amdgcn--amdhsa %s $@ -c -o $f.o $f.s\n" % \
+      "${ASM} -x assembler -target amdgcn-amd-amdhsa %s $@ -c -o $f.o $f.s\n" % \
       ("-mno-code-object-v3" if \
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
-      globalParameters["CodeObjectVersion"] == "V2" else ""))
-    assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
+      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-v3"))
+    assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
 
