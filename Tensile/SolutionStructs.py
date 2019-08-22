@@ -19,10 +19,14 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import sys,traceback
-from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from copy import deepcopy
+import itertools
 import math
+import sys
+import traceback
+
+from copy import deepcopy
+
+from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from .Utils import roundUpToNearestMultiple
 from .DataType import DataType
 
@@ -304,11 +308,32 @@ class ProblemType:
       return result
     return not result
 
+def sizeRange(start, *args, **kwargs):
+    value = start
+    increment = 1
+    progression = 0
+    stop = start
 
-################################################################################
-# ProblemSizeRange
-################################################################################
-class ProblemSizeRange:
+    if len(args) == 1:
+        stop = args[0]
+    elif len(args) == 2:
+        (increment, stop) = args
+    elif len(args) == 3:
+        (increment, progression, stop) = args
+
+    if 'increment' in kwargs:
+        increment = kwargs['increment']
+    if 'progression' in kwargs:
+        progression = kwargs['progression']
+    if 'stop' in kwargs:
+        stop = kwargs['stop']
+
+    while value <= stop:
+        yield value
+        value += increment
+        increment += progression
+
+class ProblemSizeRangeOld:
 
   ########################################
   def __init__(self, problemType, config):
@@ -437,6 +462,72 @@ class ProblemSizeRange:
       else:
         indices = self.indicesSized[self.indicesMapped[mappedIdx]]
         state += str(self.indicesMapped[mappedIdx])
+        mappedIdx += 1
+      if i < len(self.indexIsSized)-1:
+        state += ", "
+    state += " ]"
+    return state
+
+
+################################################################################
+# ProblemSizeRange
+################################################################################
+class ProblemSizeRange:
+
+  ########################################
+  def __init__(self, problemType, config):
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"]) + problemType["NumIndicesLD"]
+    if len(config) < self.totalIndices:
+      for i in range(len(config), self.totalIndices):
+        if i < self.totalIndices - problemType["NumIndicesLD"]:
+          config.append(0)
+        else:
+          config.append([0])
+
+    self.indexIsSized = []
+    self.indicesSized = []
+    self.sizedIndexLocations = []
+    self.indicesMapped = {}
+    for i in range(0, self.totalIndices):
+      dim = deepcopy(config[i])
+      if isinstance(dim, list):
+        self.indicesSized.append(dim)
+        self.indexIsSized.append(True)
+        self.sizedIndexLocations.append(i)
+
+      elif isinstance(dim, int):
+        self.indicesMapped[i] = dim
+        self.indexIsSized.append(False)
+
+    self.problemSizes = []
+    # itertools.product increments the rightmost values fastest, we want the opposite.
+    for sizedSizes in itertools.product(*[sizeRange(*dim) for dim in reversed(self.indicesSized)]):
+        sizedSizes = reversed(sizedSizes)
+        sizes = list([None for i in range(self.totalIndices)])
+
+        for idx,size in zip(self.sizedIndexLocations, sizedSizes):
+            sizes[idx] = size
+
+        for dst,src in self.indicesMapped.items():
+            sizes[dst] = sizes[src]
+
+        if None in sizes: raise ValueError("Invalid index mapping!")
+
+        self.problemSizes.append(tuple(sizes))
+
+  ########################################
+  # YAML format
+  def __str__(self):
+    state = "[ "
+    sizedIdx = 0
+    mappedIdx = 0
+    for i in range(0, len(self.indexIsSized)):
+      if self.indexIsSized[i]:
+        indices = self.indicesSized[sizedIdx]
+        state += "[ {} ]".format(", ".join(map(str, indices)))
+        sizedIdx += 1
+      else:
+        state += str(self.indicesMapped[i])
         mappedIdx += 1
       if i < len(self.indexIsSized)-1:
         state += ", "
