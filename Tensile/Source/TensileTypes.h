@@ -530,6 +530,31 @@ struct ProblemProperties {
 
     _equalStrides = ((pdims.strideD(0) == pdims.strideC(0)) &&
                      (pdims.strideD(1) == pdims.strideC(1)));
+
+    _allBatchAStridesAreZero = 1;
+    int strideIdx = 0;
+    for (auto &idx : props->indexAssignmentsA()) {
+      bool isb = props->isBatchIdx(idx);
+      // Would need to fix for UseInitialStrides
+      auto stride = strideIdx ==0 ? 1 : pdims.strideA(strideIdx-1);
+      if (props->isBatchIdx(idx) and stride != 0) {
+        _allBatchAStridesAreZero = 0;
+      }
+      strideIdx++;
+    }
+
+    _allBatchBStridesAreZero = 1;
+    strideIdx = 0;
+    for (auto &idx : props->indexAssignmentsB()) {
+      bool isb = props->isBatchIdx(idx);
+      // Would need to fix for UseInitialStrides
+      auto stride = strideIdx ==0 ? 1 : pdims.strideB(strideIdx-1);
+      if (props->isBatchIdx(idx) and stride != 0) {
+        _allBatchBStridesAreZero = 0;
+      }
+      strideIdx++;
+    }
+
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
@@ -573,6 +598,8 @@ struct ProblemProperties {
   unsigned _free1ElementMultiple;
   int      _approxSize;
   bool     _equalStrides;
+  bool     _allBatchAStridesAreZero; // true if all batchA strides are 0
+  bool     _allBatchBStridesAreZero; // true if all batchB strides are 0
   uint32_t _db;
 };
 
