@@ -1031,32 +1031,39 @@ class Solution:
     state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
 
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # The order in PackedC*Indices also determines the order that dimensions are packed - the first elements in
+    # the list are the fastest-moving elements.
     # grid size [0,1]
     problemType = state["ProblemType"]
-    state["PackedC0Indices"] = []
+    state["PackedC0IdxChars"] = []
+    state["PackedC0IndicesX"] = []
     indexChars = globalParameters["IndexChars"]
     # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsA"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x1) or \
-           idx == problemType["Index0"]):
-        state["PackedC0Indices"].append("%s" % indexChars[idx])
+    assert(isPackedIndex(state, problemType["Index0"], 0x1))
+    assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
-    state["PackedC1Indices"] = []
+    for idx in problemType["IndexAssignmentsA"]:
+      if isPackedIndex(state, idx, 0x1):
+        assert (idx < problemType["NumIndicesC"])
+        state["PackedC0IdxChars"].append("%s" % indexChars[idx])
+        state["PackedC0IndicesX"].append(idx)
+
+    state["PackedC1IdxChars"] = []
+    state["PackedC1IndicesX"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x2) or \
-           idx == problemType["Index1"]):
-        state["PackedC1Indices"].append("%s" % indexChars[idx])
+      if isPackedIndex(state, idx, 0x2):
+        assert (idx < problemType["NumIndicesC"])
+        state["PackedC1IdxChars"].append("%s" % indexChars[idx])
+        state["PackedC1IndicesX"].append(idx)
 
     # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
     # (since this could result in non-contiguous addresses)
     # Current implementation ensures that the vector load is not partial across the Free* boundary:
     # GlobalLoadVectorWidth=1 will always meet this requirement.
     # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
-    packedC0 = len(state["PackedC0Indices"])>1
-    packedC1 = len(state["PackedC1Indices"])>1
+    packedC0 = len(state["PackedC0IdxChars"])>1
+    packedC1 = len(state["PackedC1IdxChars"])>1
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
 
@@ -1067,8 +1074,8 @@ class Solution:
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"])
 
-    #print("PackedC0Indices", state["PackedC0Indices"])
-    #print("PackedC1Indices", state["PackedC1Indices"])
+    #print("PackedC0IdxChars", state["PackedC0IdxChars"])
+    #print("PackedC1IdxChars", state["PackedC1IdxChars"])
 
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
@@ -1603,11 +1610,19 @@ class Solution:
       reject(state, "packedC1 requires GuaranteeNoPartialB")
 
     if packedC0 or packedC1:
+
+      state["UseSgprForGRO"] = 0
+
       if state["EdgeType"] != "ShiftPtr":
         reject(state, "Packed dims requires EdgeType==ShiftPtr")
-      if state["KernelLanguage"] == "Assembly" and \
-        (not state["BufferLoad"] or state["UseSgprForGRO"]):
-        reject(state, "Packed dims for Assembly requires BufferLoad and UseSgprForGRO=0")
+      if state["KernelLanguage"] == "Assembly":
+        if not state["BufferLoad"]:
+          reject(state, "Packed dims for Assembly requires BufferLoad")
+        if not state["LdcEqualsLdd"]:
+          # this would require an extra VGPR for addressing (since shared VGPRS are per-row)
+          # and also would require that the dimension extraction and scale code be implemented
+          # for LDD as well. see emitExtractAndScalePackedDims
+          reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
     if packedC0 and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:

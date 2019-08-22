@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .SolutionStructs import Solution
+from .SolutionStructs import Solution, isPackedIndex
 from .KernelWriterSource import KernelWriterSource
 from .Common import globalParameters
 
@@ -138,10 +138,10 @@ class SolutionWriter:
           s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
-      for idxChar in solution["PackedC0Indices"][:-1]:
+      for idxChar in solution["PackedC0IdxChars"][:-1]:
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
-      for idxChar in solution["PackedC1Indices"][:-1]:
+      for idxChar in solution["PackedC1IdxChars"][:-1]:
         s += "%sunsigned magicNumberSize%s;\n" % (t, idxChar)
         s += "%sunsigned magicShiftSize%s;\n" % (t, idxChar)
 
@@ -237,22 +237,23 @@ class SolutionWriter:
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
     for i in range(0, problemType["NumIndicesC"]):
-      if i != problemType["Index0"] and i != problemType["Index1"]:
+      if i != problemType["Index0"] and i != problemType["Index1"] \
+          and not isPackedIndex(solution,i):
         s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
     s += "%sunsigned int sizeOfC0 = " % (t)
-    s += " * ".join(["size" + i for i in solution["PackedC0Indices"]])
+    s += " * ".join(["size" + i for i in solution["PackedC0IdxChars"]])
     s += ";\n"
 
     s += "%sunsigned int sizeOfC1 = " % (t)
-    s += " * ".join(["size" + i for i in solution["PackedC1Indices"]])
+    s += " * ".join(["size" + i for i in solution["PackedC1IdxChars"]])
     s += ";\n"
 
-    for idxChar in solution["PackedC0Indices"][:-1]:
+    for idxChar in solution["PackedC0IdxChars"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
           % (t, idxChar, idxChar, idxChar)
-    for idxChar in solution["PackedC1Indices"][:-1]:
+    for idxChar in solution["PackedC1IdxChars"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
       s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
               % (t, idxChar, idxChar, idxChar)
@@ -366,7 +367,7 @@ class SolutionWriter:
         idx = problemType["IndexAssignmentsA"][i]
 
         # Don't multiple batch dimensions that will be backed into SRD:
-        if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC0Indices"]]:
+        if idx in solution["PackedC0IndicesX"]:
           printMe = True
         elif idx in problemType["IndicesSummation"]:
           printMe = True
@@ -396,7 +397,7 @@ class SolutionWriter:
         idx = problemType["IndexAssignmentsB"][i]
 
         # Multiply only by first free and first summation
-        if idx in [ord(x)-ord(globalParameters["IndexChars"][0]) for x in solution["PackedC1Indices"]]:
+        if idx in solution["PackedC1IndicesX"]:
           printMe = True
         elif idx in problemType["IndicesSummation"]:
           printMe = True
@@ -623,10 +624,10 @@ class SolutionWriter:
         s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeB== %%lu\\n\", tensor2dSizeB );\n" % (t)
-        for idxChar in solution["PackedC0Indices"][:-1]:
+        for idxChar in solution["PackedC0IdxChars"][:-1]:
           s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
               % (t, idxChar, idxChar, idxChar, idxChar)
-        for idxChar in solution["PackedC1Indices"][:-1]:
+        for idxChar in solution["PackedC1IdxChars"][:-1]:
           s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
               % (t, idxChar, idxChar, idxChar, idxChar)
         s += "%sprintf(\"  magicNumberProblemNumGroupTiles0==%%u\\n\", magicNumberProblemNumGroupTiles0);\n" % t
@@ -700,10 +701,10 @@ class SolutionWriter:
             lastParam = i == problemType["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
-          for idxChar in solution["PackedC0Indices"][:-1]:
+          for idxChar in solution["PackedC0IdxChars"][:-1]:
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
-          for idxChar in solution["PackedC1Indices"][:-1]:
+          for idxChar in solution["PackedC1IdxChars"][:-1]:
             s += "%s,magicNumberSize%s\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
           s += "%s,staggerUIter\n" % (t)
@@ -780,10 +781,10 @@ class SolutionWriter:
           s += "%shipFunctionArgs.magicNumberWgmRemainder1 = magicNumberWgmRemainder1;\n" % (t)
 
           # Magic numbers for packed indices:
-          for idxChar in solution["PackedC0Indices"][:-1]:
+          for idxChar in solution["PackedC0IdxChars"][:-1]:
             s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
-          for idxChar in solution["PackedC1Indices"][:-1]:
+          for idxChar in solution["PackedC1IdxChars"][:-1]:
             s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
           if globalParameters["LibraryPrintDebug"]:
