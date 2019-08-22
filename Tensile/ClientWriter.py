@@ -850,13 +850,16 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      h += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %s} }" % \
+      h += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %s, %d, %d} }" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
           solution["AssertFree1ElementMultiple"],
           solution["AssertMinApproxSize"],
-          "true" if solution["LdcEqualsLdd"] else "false" )
+          "true" if solution["LdcEqualsLdd"] else "false",
+          solution["PackBatchDims"]==2, \
+          solution["PackBatchDims"]==1, \
+          )
       if i < len(solutions)-1:
         h += ","
       h += "\n"

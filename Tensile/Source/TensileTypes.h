@@ -470,12 +470,16 @@ struct ProblemProperties {
                     unsigned free0ElementMultiple,
                     unsigned free1ElementMultiple,
                     int approxSize,
-                    bool equalStrides)
+                    bool equalStrides,
+                    bool allBatchAStridesAreZero,
+                    bool allBatchBStridesAreZero)
     : _summationElementMultiple(summationElementMultiple),
       _free0ElementMultiple(free0ElementMultiple),
       _free1ElementMultiple(free1ElementMultiple),
       _approxSize(approxSize),
       _equalStrides(equalStrides),
+      _allBatchAStridesAreZero(allBatchAStridesAreZero),
+      _allBatchBStridesAreZero(allBatchBStridesAreZero),
       _db(0)
      {
        const char *db = std::getenv("TENSILE_DB");
@@ -564,7 +568,10 @@ struct ProblemProperties {
                 (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
                 (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
                 ((this->_approxSize) >= solutionRequirements._approxSize) &&
-                ((this->_equalStrides) == solutionRequirements._equalStrides);
+                ((this->_equalStrides) == solutionRequirements._equalStrides) &&
+                ((this->_allBatchAStridesAreZero) >= solutionRequirements._allBatchAStridesAreZero) &&
+                ((this->_allBatchBStridesAreZero) >= solutionRequirements._allBatchBStridesAreZero)
+                ;
 
       if(this->_db & 0x10)
       {
@@ -598,7 +605,7 @@ struct ProblemProperties {
   unsigned _free1ElementMultiple;
   int      _approxSize;
   bool     _equalStrides;
-  bool     _allBatchAStridesAreZero; // true if all batchA strides are 0
+  bool     _allBatchAStridesAreZero; // for problems: true if all batchA strides are 0. Solutions: true if all batchA strides must be 0 to run the kernel. Prob,Soln:  x,0: ok:  0,1: FAILED_ASSERT, 1,1: OK .  P>=S
   bool     _allBatchBStridesAreZero; // true if all batchB strides are 0
   uint32_t _db;
 };
