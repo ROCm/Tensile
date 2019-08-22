@@ -7489,7 +7489,10 @@ class KernelWriterAssembly(KernelWriter):
         if ss.optSingleColVgpr:
           # This is first element in the first batch, create a byte address that will
           # be re-used by subsequent elements:
-          if ss.firstBatch and firstInBatch:
+          # if this element is firstInBatch - may need to set up a bpe-scaled row pointer for the batch:
+          #  - for not LdcEqualsLdd - need row-ptr start of each batch
+          #  - or always init rowptr at the start of the first batch (so can be re-used in each batch)
+          if (not kernel["LdcEqualsLdd"] or ss.firstBatch) and firstInBatch:
             updatedAddr = True
             kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
