@@ -89,6 +89,7 @@ if (UNIX)
   # with addition of bfloat16 library requires c++14
   #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14"  )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wno-deprecated-declarations" )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_HCC_COMPAT_MODE__=1")
 endif()
 
 if(Tensile_MERGE_FILES)
