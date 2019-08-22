@@ -41,6 +41,7 @@ setup(
     "TensileCreateLibrary = Tensile.TensileCreateLibrary:TensileCreateLibrary",
 
     "TensileGetPath = Tensile:PrintTensileRoot",
+    "TensileParseLog = Tensile.ExtractSizes:RunParseLog",
     # automatic benchmarking for rocblas
     "tensile_rocblas_sgemm = Tensile.Tensile:TensileROCBLASSGEMM",
     "tensile_rocblas_dgemm = Tensile.Tensile:TensileROCBLASDGEMM",
