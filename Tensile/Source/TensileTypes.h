@@ -426,10 +426,14 @@ class ProblemType
 public:
   ProblemType(const std::vector<int> &indicesFree,
               const std::vector<int> &indicesSummation,
-              const std::vector<int> &indicesBatch)
+              const std::vector<int> &indicesBatch,
+              const std::vector<int> &indexAssignmentsA,
+              const std::vector<int> &indexAssignmentsB)
     : _indicesFree(indicesFree),
       _indicesSummation(indicesSummation),
-      _indicesBatch(indicesBatch)
+      _indicesBatch(indicesBatch),
+      _indexAssignmentsA(indexAssignmentsA),
+      _indexAssignmentsB(indexAssignmentsB)
   {
   }
 
@@ -440,10 +444,15 @@ public:
     return std::find(_indicesBatch.begin(), _indicesBatch.end(), idx) != _indicesBatch.end();
   };
 
+  const std::vector<int> indexAssignmentsA() const { return _indexAssignmentsA; }
+  const std::vector<int> indexAssignmentsB() const { return _indexAssignmentsB; }
+
 private:
   const std::vector<int> _indicesFree;
   const std::vector<int> _indicesSummation;
   const std::vector<int> _indicesBatch;
+  const std::vector<int> _indexAssignmentsA;
+  const std::vector<int> _indexAssignmentsB;
 };
 
 

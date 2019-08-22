@@ -1129,7 +1129,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "  static const ProblemType problemType( "
     h += listToInitializer(problemType["IndicesFree"]) + ", "
     h += listToInitializer(problemType["IndicesSummation"]) + ", "
-    h += listToInitializer(problemType["IndicesBatch"])
+    h += listToInitializer(problemType["IndicesBatch"]) + ', '
+    h += listToInitializer(problemType["IndexAssignmentsA"]) + ', '
+    h += listToInitializer(problemType["IndexAssignmentsB"])
     h += ");\n"
     # create problem size - TODO could move this up to the caller
     h += "  ProblemDims_%s pdims(" % problemType
