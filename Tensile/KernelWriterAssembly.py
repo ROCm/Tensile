@@ -529,7 +529,6 @@ class KernelWriterAssembly(KernelWriter):
     See above definitions for how these are mapped to Free or Sum sizes
     based on the problem definition.
     """
-    problemType = self.kernel["ProblemType"]
     if tc in ['A','B','C','D']:
       return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
     else:
@@ -7467,7 +7466,7 @@ class KernelWriterAssembly(KernelWriter):
                   hex(log2(kw.bpeCexternal)), \
                   "packed: add rowPtr and scaleToBpe")
 
-        if 0 and d0==1:
+        if 0:
           kStr += kw.bomb()
 
       return kStr
@@ -8299,7 +8298,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.bomb() # should not get here
     if edge and self.db["AssertNoEdge"]:
       kStr += self.bomb() # should not get here
-    globalOffset = 0
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = ss.elementAddr[elementIdx].addrVgpr
