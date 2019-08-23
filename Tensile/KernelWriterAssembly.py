@@ -363,10 +363,6 @@ class KernelWriterAssembly(KernelWriter):
 
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
-    # don't let write logic increase VGPR usage unless absolutely necessary.
-    # doesn't actually work and is somewhat complicated
-    self.minimizeWriteRegGrowth = False
-
     # Remove me if 906 can work with beta in SGPR
     # Also can push alpha/beta recalc back to host for HPA mode
     self.betaInSgpr = True
@@ -7912,23 +7908,6 @@ class KernelWriterAssembly(KernelWriter):
           currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size())
           futureOccupancy = self.getOccupancy(kernel, \
               self.vgprPool.size() - numVgprAvailable + minNeeded)
-          # This doesn't actually work - we have already created the batches above with specific gwvw
-          # Would need to loop again inside each batch to call globalWriteBatch for each subBatch
-
-          while self.minimizeWriteRegGrowth and gwvw > kernel["MinGlobalWriteVectorWidth"]:
-            minNeeded = minElements*numVgprsPerElement
-            futureOccupancy = self.getOccupancy(kernel, \
-                self.vgprPool.size() - numVgprAvailable + minNeeded)
-            if futureOccupancy < currentOccupancy:
-              if shrinkDb:
-                print("shrink-gwvw-before: gwvw=%u  numVgprsPerElement=%u %s" % (gwvw, numVgprsPerElement, self.kernelName))
-              gwvw = gwvw//2
-              subBatches *= 2
-              numVgprsPerElement = self.ss.cfg.numVgprsPerAddr + int(self.ss.cfg.numVgprsPerDataPerVI * gwvw)
-              if shrinkDb:
-                print("shrink-gwvw-after: gwvw=%u  numVgprsPerElement=%u" % (gwvw, numVgprsPerElement))
-            else:
-              break  # good enough
 
           if shrinkDb:
             print("currentOccupancy=%u futureOccupancy=%u VGPRs=%u numVgprAvail=%u vgprPerElem=%u" \

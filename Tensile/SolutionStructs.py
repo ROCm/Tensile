@@ -1122,10 +1122,6 @@ class Solution:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
 
-    if state["MinGlobalWriteVectorWidth"] == -1:
-      state["MinGlobalWriteVectorWidth"] = 2 \
-        if state["ProblemType"]["DataType"].isHalf() else 1
-
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
       state["DirectToLds"] = False

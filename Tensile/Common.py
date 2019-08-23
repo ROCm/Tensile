@@ -569,16 +569,6 @@ validParameters = {
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
 
-    # Minimum guaranteed global store vector width
-    # Tensile will allocate additional VGPR in Global Store phase if needed to
-    # ensure that writes can be written with MinWriteVectorWidth.
-    # If requested global write vector width is larger than MinGlobalWriteVectorWidth,
-    # then additional
-    # or the granted gwvw == MinGlobalWriteVectorWidth.
-    # MinGlobalWriteVectorWidth=-1 chooses a sensible default of 2 for half and
-    # one for other types.
-    "MinGlobalWriteVectorWidth":      [-1, 1, 2, 4, 8 ],
-
     "VectorStore":                    [False, True],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
@@ -677,7 +667,6 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadB":                   [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"MinGlobalWriteVectorWidth": [ -1 ] },
     {"VectorStore":               [ True ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
