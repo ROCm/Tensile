@@ -194,7 +194,6 @@ class MasterSolutionLibrary:
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
 
-        _ = d[0]
         deviceSection = d[1:4]
         origProblemType = d[4]
         origSolutions = d[5]

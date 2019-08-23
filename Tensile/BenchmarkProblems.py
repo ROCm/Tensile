@@ -762,7 +762,7 @@ class WinningParameterDict:
 # Main
 ################################################################################
 def main( config ):
-  _ = ClientExecutable.getClientExecutable()
+  ClientExecutable.getClientExecutable()
 
   dataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])

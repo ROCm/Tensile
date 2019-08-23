@@ -734,13 +734,15 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d} }%s // %d" % \
+    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d, %d, %d} }%s // %d" % \
       (solutionName, solutionName, \
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
         solution["AssertMinApproxSize"], \
         solution["LdcEqualsLdd"], \
+        solution["PackBatchDims"]==2, \
+        solution["PackBatchDims"]==1, \
         "," if i < len(solutionsForSchedule)-1 else "", \
         i)
     s += "\n"

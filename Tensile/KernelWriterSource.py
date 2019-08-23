@@ -1210,6 +1210,7 @@ class KernelWriterSource(KernelWriter):
         # Create additional vector address components for any packed dimensions
         lastGro = flattenedOffset
         firstPrintedIdx = 1
+        lastIdx = -1
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
           if idx < kernel["ProblemType"]["NumIndicesC"]:
             gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
@@ -2322,14 +2323,11 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def extractGlobalCDims(self, kernel, base, tensorIdx):
     kStr = ""
-    problemType = kernel["ProblemType"]
     lastIndex = None
     if tensorIdx == 0:
       flattenedGlobalC = "flattenedGlobalC0"
-      targetIndices = problemType["IndexAssignmentsA"]
     elif tensorIdx == 1:
       flattenedGlobalC = "flattenedGlobalC1"
-      targetIndices = problemType["IndexAssignmentsB"]
 
     first = 1
     for idx in kernel["PackedC%sIndicesX"%tensorIdx]:
