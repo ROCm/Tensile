@@ -1620,10 +1620,10 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["PackGranularity"]==2 \
+    if packedC0 and state["VectorStore"] and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
           reject(state, "packedC0 requires AF0EM>VectorWidth (for stores)")
-    if packedC1 and state["PackGranularity"]==2 \
+    if packedC1 and state["VectorStore"] and state["PackGranularity"]==2 \
         and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
