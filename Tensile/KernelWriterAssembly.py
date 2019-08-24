@@ -434,7 +434,6 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadDoCnt   = 0
     self.localWriteDoCnt  = 0
 
-
     self.maxVgprs = 256
     self.maxSgprs = 99
 
@@ -2636,8 +2635,8 @@ class KernelWriterAssembly(KernelWriter):
       # Each index may be skipped, scaled by stride, or unscaled
       # If destLo is unset, no accumulation is necessary.
 
-      # if the first index (i==0) is unscaled (UseInitialStrides), 
-      # it can be combined at the next update or moved at end 
+      # if the first index (i==0) is unscaled (UseInitialStrides),
+      # it can be combined at the next update or moved at end
       # (if there is no next update)
 
       offset = None # this is VGPR or SGPR string to use for the offset
@@ -2691,7 +2690,7 @@ class KernelWriterAssembly(KernelWriter):
                   "mul d%u upper"%i)
             needAdd = 1
           else: # offset is SGPR:
-            if not justOffset32: 
+            if not justOffset32:
               # buffer mode (aka justOffset32) does scalars into SRD not offset
               kStr += inst("v_mov_b32", \
                   "v[\\vgprTmp+2]", \
@@ -3706,7 +3705,7 @@ class KernelWriterAssembly(KernelWriter):
   # GRO are offset from the tile SRD and the first GRO will be 0
   # Only called for BufferLoad=1 (or eventually BufferStore=1)
   ##############################################################################
-  def computeSrd(self, kernel, tP, tc, indices, bpe):
+  def computeLoadSrd(self, kernel, tP, tc, indices, bpe):
     kStr = ""
 
     stmp = self.getTmpSgpr(2+2)
@@ -3880,7 +3879,7 @@ class KernelWriterAssembly(KernelWriter):
       # maxAddrSgpr = size[n] * stride[n-1]
       kStr += self.comment1("max read offset = size[n] * stride[n-1]")
 
-      kStr += self.computeSrd(kernel, tP, tc, kernel["ProblemType"]["IndexAssignments%s"%tc], tP["bpe"])
+      kStr += self.computeLoadSrd(kernel, tP, tc, kernel["ProblemType"]["IndexAssignments%s"%tc], tP["bpe"])
 
       #kStr += self.bomb(0x13) # after addresses and SRD set
     else:
