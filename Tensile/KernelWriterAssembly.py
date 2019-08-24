@@ -2615,16 +2615,21 @@ class KernelWriterAssembly(KernelWriter):
 
       # macro declaration
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tc
+      dimsCalc = []
       for i in range(0, numDim):
         # tile index or unroll vgpr or summation
         # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
-        # this would change if we supported flexible summation indices
         if indices[i] == kernel["ProblemType"]["Index0"] \
             or indices[i] == kernel["ProblemType"]["Index1"] \
-            or indices[i] in kernel["ProblemType"]["IndicesSummation"]:
+            or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
           kStr += " vgprOffset%s" % idxChars[i]
-        # other batch or free index
+          dimsCalc.append(i)
+        elif indices[i] in kernel["ProblemType"]["IndicesSummation"]:
+          # other summation index (not unroll)
+          continue
         else:
+          # other batch or free index
+          dimsCalc.append(i)
           if isPackedIndex(kernel, indices[i], packBatchDims):
             kStr += " vgprOffset%s" % idxChars[i]
           elif not justOffset32: # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
@@ -3594,8 +3599,8 @@ class KernelWriterAssembly(KernelWriter):
                 else: # summation index
                   if i == kernel["ProblemType"]["IndexUnroll"]:
                     kStr += ", %2u" % vgprUnroll
-                  else:
-                    kStr += ", globalReadOffset%s%s" % (tP["tensorChar"], self.indexChars[i])
+                  # other summation indices are ignored
+
               kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                   para, sPara, perp, sPerp, self.endLine)
 
