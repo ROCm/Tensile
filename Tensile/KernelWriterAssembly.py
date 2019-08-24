@@ -2615,7 +2615,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # macro declaration
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tc
-      dimsCalc = []
+      calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
       for i in range(0, numDim):
         # tile index or unroll vgpr or summation
         # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
@@ -2623,20 +2623,20 @@ class KernelWriterAssembly(KernelWriter):
             or indices[i] == kernel["ProblemType"]["Index1"] \
             or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
           kStr += " vgprOffset%s" % idxChars[i]
-          dimsCalc.append(i)
+          calcDims.append(i)
         elif indices[i] in kernel["ProblemType"]["IndicesSummation"]:
           # other summation index (not unroll)
           continue
         else:
           # other batch or free index
-          dimsCalc.append(i)
           if isPackedIndex(kernel, indices[i], packBatchDims):
+            calcDims.append(i)
             kStr += " vgprOffset%s" % idxChars[i]
           elif not justOffset32: # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
+            calcDims.append(i)
             kStr += " sgprOffset%s" % idxChars[i]
       kStr += " vgprTmp%s" % self.endLine
 
-      # d1+
       # Each index may be skipped, scaled by stride, or unscaled
       # If destLo is unset, no accumulation is necessary.
 
@@ -2644,15 +2644,17 @@ class KernelWriterAssembly(KernelWriter):
       # it can be combined at the next update or moved at end
       # (if there is no next update)
 
-      offset = None # this is VGPR or SGPR string to use for the offset
       pendingOffset = None # offset pending for accumulation
       offsetIsVgpr = False # True if the source is VGPR ; False if SGPR
       destLo = None
-      for i in range(0, numDim):
-        if indices[i] in kernel["ProblemType"]["IndicesSummation"] and \
-             not indices[i] == kernel["ProblemType"]["IndexUnroll"]:
-          # other summation, these are always 0 and don't contribute to GLOBAL_OFFSET
-          continue
+
+      # true for first addr calc. In this case, we can directly write addr
+      # rather than accumulating through a tmp
+      writeDirectToAddr = justOffset32
+      for i in calcDims:
+        # should have eliminated these above
+        idx = indices[i]
+        assert not (idx in kernel["ProblemType"]["IndicesSummation"] and idx != kernel["ProblemType"]["IndexUnroll"])
 
         if indices[i] == kernel["ProblemType"]["Index0"] \
             or indices[i] == kernel["ProblemType"]["Index1"] \
@@ -2667,6 +2669,7 @@ class KernelWriterAssembly(KernelWriter):
         else:
           assert(0) # no other type allowed
 
+        # offset is VGPR or SGPR string to use for the offset
         if offsetIsVgpr:
           offset = "v[\\vgprOffset%s]" % idxChars[i]
         else:
@@ -2675,25 +2678,36 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += self.comment1("dim%s pendingOffset=%s offset=%s offsetIsVgpr=%s" \
         #    % (self.indexChars[indices[i]], pendingOffset, offset, offsetIsVgpr))
 
-        needAdd = 0 # if 1, index writes a temp that must be accumulated
+        needAdd = 0
+        # should be indices[i]??
         if i==0 and not kernel["ProblemType"]["UseInitialStrides"]:
+          # slide into next address calc - can do addr = pendingOffset + nextAddrCalc
           pendingOffset = offset
         else:
           # tile index or unroll vgpr
           if offsetIsVgpr:
+            if writeDirectToAddr:
+              destLo = "v[\\vgprAddr+0]"
+              destHi = "v[\\vgprAddr+1]"
+              needAdd = 0 # don't need add since writing address directly.
+              writeDirectToAddr = 0
+            else:
+              destLo = "v[\\vgprTmp+0]"
+              destHi = "v[\\vgprTmp+1]"
+              needAdd = 1
+
             # offset * stride
             kStr += inst("v_mul_lo_u32", \
-                "v[\\vgprTmp+0]", \
+                destLo,
                 self.stride(tc, indices[i]), \
                 offset, \
                 "mul d%u lower"%i)
             if not justOffset32:
               kStr += inst("v_mul_hi_u32", \
-                  "v[\\vgprTmp+1]", \
+                  destHi,
                   self.stride(tc, indices[i]), \
                   offset, \
                   "mul d%u upper"%i)
-            needAdd = 1
           else: # offset is SGPR:
             if not justOffset32:
               # buffer mode (aka justOffset32) does scalars into SRD not offset
@@ -2715,25 +2729,18 @@ class KernelWriterAssembly(KernelWriter):
               needAdd = 1
 
         if needAdd:
+          writeDirectToAddr = 0 # safety net, once we write address can't directly overwrite it later
           destLo = "v[\\vgprAddr+0]"
           # addr += offset * stride (lo) : accumulate just-computed address term into addr
 
-          if pendingOffset:
-            kStr += inst("_v_add_co_u32", \
-              destLo, \
-              "vcc", \
-              "v[\\vgprTmp+0]", \
-              pendingOffset, \
-              "accumulate d%u lower"%i)
-              #"accumulate d%u lower + pending(%s)"%(i,pendingOffset))
-            pendingOffset = None
-          else:
-            kStr += inst("_v_add_co_u32", \
-              destLo, \
-              "vcc", \
-              "v[\\vgprTmp+0]", \
-              destLo, \
-              "accumulate d%u lower"%i)
+          src = pendingOffset if pendingOffset else destLo
+          kStr += inst("_v_add_co_u32", \
+            destLo, \
+            "vcc", \
+            src, \
+            "v[\\vgprTmp+0]", \
+            "accumulate d%u lower"%i)
+
           # addr += offset * stride (hi)
           if not justOffset32:
             kStr += inst("_v_addc_co_u32", \
@@ -2743,14 +2750,24 @@ class KernelWriterAssembly(KernelWriter):
                 0, \
                 "vcc", \
                 "accumulate d%u upper"%i)
+          pendingOffset = None
 
       # pendingOffset but never got a chance to apply it,
-      # need to just add an explicit move.
+      # need to just add an explicit move or add:
       # this can happen for small-order tensors
       if pendingOffset != None:
-        kStr += inst("v_mov_b32", destLo, offset, "setup d0 lower")
-        if not justOffset32:
-          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        destLo = "v[\\vgprAddr+0]"
+        if writeDirectToAddr:
+          kStr += inst("v_mov_b32", destLo, offset, "setup d0 lower")
+          if not justOffset32:
+            kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        else:
+          kStr += inst("_v_add_co_u32", \
+            destLo, \
+            "vcc", \
+            destLo, \
+            pendingOffset, \
+            "accumulate final pendingOffset")
 
 
       if tP != None and kernel["BufferLoad"] and self.srdShiftLeft[tc]:
@@ -4748,6 +4765,7 @@ class KernelWriterAssembly(KernelWriter):
     if not tailLoop and loopIdx != self.unrollIdx:
       # reset LRO since these may have changed due to odd-iter exit ?
       if kernel["PrefetchGlobalRead"]:
+        kStr += self.comment1("openLoop - reset LRO for possible odd-iter exit")
         kStr += self.localReadResetOffsets(kernel, self.tPA)
         kStr += self.localReadResetOffsets(kernel, self.tPB)
 
