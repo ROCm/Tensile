@@ -5310,7 +5310,13 @@ class KernelWriterAssembly(KernelWriter):
           imod.addText( self.assert_ne(vgpr(tv), sgpr("StaggerUIter"))) # break at the wrap iteration
           self.vgprPool.checkIn(tv)
       else:
-        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 0))
+        if loopIdx != self.unrollIdx:
+          incUpper = sgpr(self.getTmpSgpr(1))
+          # GRO may be negative for other summation if stride-other < stride-unroll.
+          imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
+        else:
+          incUpper = 0 # GRO is positive for loop unroll
+        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper))
     else:
       graIdx = 0
       #for perp in range(0, tP["nrp"]):
