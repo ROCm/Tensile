@@ -236,10 +236,13 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write("\n")
     runScriptFile.write("ERR1=$?\n")
 
-    newClientExe = ClientExecutable.getClientExecutable()
-    configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
-    runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
-    runScriptFile.write("ERR2=$?\n\n")
+    if globalParameters["NewClient"]:
+      newClientExe = ClientExecutable.getClientExecutable()
+      configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
+      runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+      runScriptFile.write("ERR2=$?\n\n")
+    else:
+      runScriptFile.write("ERR2=0\n")
 
     runScriptFile.write("""
 ERR=0
