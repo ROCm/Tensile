@@ -188,9 +188,13 @@ class ProblemType:
       else:
         printExit("invalid index %u (expected summation but not (inA and inB))" % i)
     # print index assignments
-    #print1("IndicesFree:  %s" % state["IndicesFree"])
-    #print1("IndicesBatch: %s" % state["IndicesBatch"])
-    #print1("IndicesSum:   %s" % state["IndicesSummation"])
+    if 0:
+      print1("IndicesFree:  %s" % state["IndicesFree"])
+      print1("IndicesBatch: %s" % state["IndicesBatch"])
+      print1("IndicesSum:   %s" % state["IndicesSummation"])
+      print1("IndexAssignmentsA:   %s" % state["IndexAssignmentsA"])
+      print1("IndexAssignmentsB:   %s" % state["IndexAssignmentsB"])
+
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
