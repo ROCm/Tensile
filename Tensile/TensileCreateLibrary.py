@@ -77,7 +77,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 
         coFiles = []
         for arch, archKernels in archs.items():
-            objectFiles = list([os.path.join(asmDir, kernelWriterAssembly.getKernelName(k) + '.o') \
+            objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
                                 for k in archKernels \
                                 if k['KernelLanguage'] == 'Assembly'])
             if len(objectFiles) == 0:
@@ -86,7 +86,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             archName = 'gfx'+''.join(map(str,arch))
             coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-            subprocess.check_call(args)
+            subprocess.check_call(args, cwd=asmDir)
             coFiles.append(coFile)
 
         return coFiles
