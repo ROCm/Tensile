@@ -552,7 +552,7 @@ validParameters = {
     # 0x2 : VectorWidth must not span tensor dim
     "PackGranularity": [2],
 
-    # Controls desiredwidth of loads from global memory -> LDS.
+    # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
@@ -562,23 +562,16 @@ validParameters = {
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
-    # The load width is closely related to the width of local stores so VectorWidth controls local write width.
+    # The global load width is closely related to the width of local stores so
+    # GlobalReadVectorWidth also ontrols local write width.
     # Local read width also matches since VectorWidth consec elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
-    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
+    # -1 means use the largest vector width up to 128 bits.
+    # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-
-    # Minimum guaranteed global store vector width
-    # Tensile will allocate additional VGPR in Global Store phase if needed to
-    # ensure that writes can be written with MinWriteVectorWidth.
-    # If requested global write vector width is larger than MinGlobalWriteVectorWidth,
-    # then additional
-    # or the granted gwvw == MinGlobalWriteVectorWidth.
-    # MinGlobalWriteVectorWidth=-1 chooses a sensible default of 2 for half and
-    # one for other types.
-    "MinGlobalWriteVectorWidth":      [-1, 1, 2, 4, 8 ],
-
+    # If False, store 1 element per instruction.
+    # If True, store vector-width elements per instruction.
     "VectorStore":                    [False, True],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
@@ -677,7 +670,6 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadB":                   [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"MinGlobalWriteVectorWidth": [ -1 ] },
     {"VectorStore":               [ True ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
