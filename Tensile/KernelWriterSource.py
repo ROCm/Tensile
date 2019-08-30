@@ -1730,7 +1730,7 @@ class KernelWriterSource(KernelWriter):
   # some of the CUs working on same output space may perform different
   # numbers of unroll loop iterations.  Account for that here.
   # This is a separate function since the graInc for multiple summations
-  # needs to know the #loop iters as well, so this code allows the 
+  # needs to know the #loop iters as well, so this code allows the
   # code to be replicated in multiple places.
   ##############################################################################
   def calculateLoopNumIterGsu(self, kernel, iterVar, hidden):

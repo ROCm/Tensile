@@ -3998,7 +3998,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       # other summation
       if self.globalReadIncsUseVgpr:
-        printExit("NumIndicesSummation=%u not yet supported in assembly" \
+        printExit("NumIndicesSummation=%u not yet supported in assembly unless globalReadIncsUseVgpr==0" \
             % kernel["ProblemType"]["NumIndicesSummation"] )
       else:
         graInc = "GlobalReadIncs%s+%u"%(tc, loopIdx)
@@ -4010,22 +4010,35 @@ class KernelWriterAssembly(KernelWriter):
         stridePrev = self.stride(tc, dimIdxPrev)
 
         kStr += self.comment("increment for higher-level loop")
-        kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr("SizesSum+%u"%(loopIdxPrev)), \
-              "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
-        # CheckDimOverflow
+        if kernel["GlobalSplitU"] > 1:
+          # Summations always appear in both A and B, can compute number of iterations just once:
+          if tP["isA"]:
+            kStr += self.calculateLoopNumIterGsu(kernel)
+          tmpSgpr = self.getTmpSgpr(1)
+          unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
+          kStr += inst("s_mul_i32", sgpr(tmpSgpr), stridePrev, sgpr(unrollLoopCounter), \
+                "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+          kStr += inst("s_mul_i32", sgpr(graInc), sgpr(tmpSgpr), kernel["GlobalSplitU"]*kernel["DepthU"]*tP["bpe"],
+                        "*=GSU*DepthU*bpe") 
+          # TODO - add in BPE here too
+        else:
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr("SizesSum+%u"%(loopIdxPrev)), \
+                "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
+          # CheckDimOverflow
 
-        # subtract amount that previous inner loop will have already incremented:
-        kStr += inst("s_sub_i32", sgpr(graInc), \
-            stride, \
-            sgpr(graInc), \
-            "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
-        kStr += inst("s_lshl_b32", \
-            sgpr(graInc), \
-            sgpr(graInc), \
-            hex(log2(tP["bpe"])),
-            "<- scale by bpe")
+          # subtract amount that previous inner loop will have already incremented:
+          kStr += inst("s_sub_i32", sgpr(graInc), \
+              stride, \
+              sgpr(graInc), \
+              "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
+
+          kStr += inst("s_lshl_b32", \
+              sgpr(graInc), \
+              sgpr(graInc), \
+              hex(log2(tP["bpe"])),
+              "<- scale by bpe")
         #if tP["isB"]:
-        #  kStr += self.bomb()
+        #  kStr += self.assert_ne(sgpr("WorkGroup0"),0)
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
@@ -4514,6 +4527,38 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+
+  ##############################################################################
+  # Emit code to compute loop iterations for GSU.
+  # See same function in KernelWriterSource.py for background explanation
+  # This function is used to compute number of loop iters and also
+  # for computing the global read increment for GSU case.
+  # For multiple summation, the number of loop iterations needs to be reset
+  # for each iteration so replicate the code in addr inc and at open of unroll loop
+
+  # Output: Unroll LoopCounter SGPR contains the number of unroll iterations for
+  # this workgroup.
+  ##############################################################################
+  def calculateLoopNumIterGsu(self, kernel):
+    kStr = ""
+    loopCounter = "LoopCounters+%u"%self.unrollIdx
+    tmpSgpr = self.getTmpSgpr(3)
+    quotient = loopCounter
+    remainder = "GSUSumIdx+1" # numIterPerWgRemainder
+    dividend = tmpSgpr+2 # numIterMyWg
+    divisor = kernel["GlobalSplitU"]
+    kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
+    kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
+
+    # if gsuSumIdx < numIterPerWgRemainder
+    kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(1), sgpr(loopCounter), "tmp<-numIterMyWg++" )
+    kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
+        "gsuSumIdx < numIterPerWgRemainder" )
+    kStr += inst("s_cmov_b32", sgpr(loopCounter), sgpr(tmpSgpr), "numIterMyWg++ if needed" )
+
+    return kStr
+
+
   ##############################################################################
   # Calculate Loop Num Iter
   # loopIdx is the index of the loop (used for contractions with multiple summations)
@@ -4595,21 +4640,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(3)
-        quotient = loopCounter
-        remainder = "GSUSumIdx+1" # numIterPerWgRemainder
-        dividend = tmpSgpr+2 # numIterMyWg
-        divisor = kernel["GlobalSplitU"]
-        kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
-        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
-
-        # if gsuSumIdx < numIterPerWgRemainder
-        kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
-            "gsuSumIdx < numIterPerWgRemainder" )
-        afterInc = self.getLabelNum("AfterNumIterInc")
-        kStr += inst("s_cbranch_scc0", "label_%04u"%afterInc, "skip" )
-        kStr += inst("s_add_u32", sgpr(loopCounter), hex(1), sgpr(loopCounter), "numIterMyWg++" )
-        kStr += "label_%04u:%s" % (afterInc, self.endLine)
+        kStr += self.calculateLoopNumIterGsu(kernel)
 
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
                 sgpr(loopCounter), \
