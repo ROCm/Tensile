@@ -335,7 +335,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if benchmarkStep.isFinal():
       resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
-    newResultsFileName = resultsFileBase + "-new.csv"
+    newResultsFileName = resultsFileBase + "-new.csv" if globalParameters["NewClient"] else None
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
@@ -762,7 +762,8 @@ class WinningParameterDict:
 # Main
 ################################################################################
 def main( config ):
-  ClientExecutable.getClientExecutable()
+  if globalParameters["NewClient"]:
+    ClientExecutable.getClientExecutable()
 
   dataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
@@ -795,7 +796,7 @@ def main( config ):
         (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
         totalTestFails += benchmarkErrors
-        
+
         print("clientExit=%u %s for %s" %\
                 (totalTestFails, "(ERROR)" if totalTestFails else "(PASS)", \
                 globalParameters["ConfigPath"]))
