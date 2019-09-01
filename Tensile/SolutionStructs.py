@@ -1570,18 +1570,15 @@ class Solution:
           reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
                   (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
+    # these work everywhere, no special restrictions
+    state["AssertMinApproxSize"] = 0
     if state["KernelLanguage"] == "Assembly":
-      # Asm kernels only work if all dims are > 32
-      state["AssertMinApproxSize"] = 1
       if state["VectorWidth"] > 1:
         # VW>1 kernels require dims>1
         state["AssertMinApproxSize"] = 3
     elif state["VectorWidth"] > 1:
       # VW>1 kernels require dims>1
       state["AssertMinApproxSize"] = 2
-    else:
-      # these work everywhere, no special restrictions
-      state["AssertMinApproxSize"] = 0
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO

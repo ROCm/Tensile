@@ -511,13 +511,10 @@ struct ProblemProperties {
     else if ((free1Size & 0x1) == 0) _free1ElementMultiple=2;
 
     bool allBelow1 = true;
-    bool allBelow32 = true;
     bool anyBelow1 = false;
     for (int si=0; si!=pdims.numSizes(); si++) {
       if (!props->isBatchIdx(si)) {
         auto size = pdims.sizes(si);
-        if (size > 32)
-          allBelow32 = false;
         if (size > 1)
           allBelow1 = false;
         if (size == 1)
@@ -526,8 +523,6 @@ struct ProblemProperties {
     }
     if (allBelow1)
       _approxSize = 1; // really small
-    else if (allBelow32)
-      _approxSize = 2; // still small
     else if (anyBelow1)
       _approxSize = 2; // one dim not big enough
     else
