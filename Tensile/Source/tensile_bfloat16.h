@@ -61,7 +61,7 @@ struct tensile_bfloat16
     explicit __host__ __device__ tensile_bfloat16(float f) : data(float_to_bfloat16(f)) { }
 
     // zero extend lower 16 bits of bfloat16 to convert to IEEE float
-    explicit __host__ __device__ operator float() const
+    __host__ __device__ operator float() const
     {
         union
         {
@@ -184,11 +184,6 @@ inline __host__ __device__ tensile_bfloat16 operator--(tensile_bfloat16& a, int)
 inline __host__ __device__ bool isinf(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && !(a.data & 0x7f); }
 inline __host__ __device__ bool isnan(tensile_bfloat16 a) { return !(~a.data & 0x7f80) && +(a.data & 0x7f); }
 inline __host__ __device__ bool iszero(tensile_bfloat16 a) { return !(a.data & 0x7fff); }
-inline __host__ __device__ tensile_bfloat16 abs(tensile_bfloat16 a)
-{
-    a.data &= 0x7fff;
-    return a;
-}
 inline tensile_bfloat16 sin(tensile_bfloat16 a) { return tensile_bfloat16(sinf(float(a))); }
 inline tensile_bfloat16 cos(tensile_bfloat16 a) { return tensile_bfloat16(cosf(float(a))); }
 
