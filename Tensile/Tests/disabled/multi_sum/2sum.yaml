@@ -1,0 +1,66 @@
+GlobalParameters:
+  EnqueuesPerSync: 1
+  LibraryPrintDebug: 0
+  NumElementsToValidate: 1000
+  KernelTime: True
+  SleepPercent: 0
+  DataInitTypeBeta : 0
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  DataInitTypeC: 4
+  DataInitTypeAlpha: 2
+  DataInitTypeBeta: 0
+  PrintSolutionRejectionReason: 1
+  PrintWinnersOnly: 1
+  PrintTensorA: 0
+  PrintTensorB: 0
+  PrintTensorD: 0
+  NewClient: 0
+
+BenchmarkProblems:
+  ########################################
+  # NT - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: TensorContraction
+      DataType: s
+      DestDataType: s
+      UseBeta: False
+      NumIndicesC: 2
+      IndexAssignmentsA: [ 3, 0, 2]
+      IndexAssignmentsB: [ 3, 1, 2]
+      # 3 is Cin, 2 is batch index converted to a second summation index
+      #
+      # Standard batched NT is :
+      #  IndicesFree:  [0, 1]  # 0 is H*W, 1 is Cout
+      #  IndicesBatch: [2]  # N, but convert to summation in the config above
+      #  IndicesSum:   [3]
+      #  IndexAssignmentsA:   [3, 0, 2]
+      #  IndexAssignmentsB:   [3, 1, 2]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+          #- TailLoop: [False]
+      ForkParameters:
+        - KernelLanguage: ["Source", "Assembly"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ThreadTile:
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - StaggerU: [0]
+        - StaggerUMapping: [0]
+        - DepthU: [ 4]
+        - VectorWidth: [1]
+        - FractionalLoad: [0]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [16], [16], [1,1,4], [32] ]
+          - Range: [ [16,1,128], [16], [1,1,4], [32] ]
+          - Exact: [ 32, 32, 2, 4]
