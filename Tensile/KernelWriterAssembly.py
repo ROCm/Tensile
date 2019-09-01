@@ -4612,12 +4612,9 @@ class KernelWriterAssembly(KernelWriter):
 
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:
-        kStr += inst("s_cmp_eq_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
+        kStr += inst("s_cmp_lg_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
             "gsuSumIdx == numIterPerWgRemainder" )
-        afterZero = self.getLabelNum("AfterNumIterZero")
-        kStr += inst("s_cbranch_scc1", "label_%04u"%afterZero, "skip" )
-        kStr += inst("s_mov_b32", sgpr(loopCounter), hex(0), "numIter=0" )
-        kStr += "label_%04u:%s" % (afterZero, self.endLine)
+        kStr += inst("s_cmov_b32", sgpr(loopCounter), hex(0), "numIter=0" )
 
       # if tail numIter == 0 skip altogether
       tailLoopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
