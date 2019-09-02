@@ -28,6 +28,7 @@
 #include <Tensile/Utils.hpp>
 
 #include <algorithm>
+#include <mutex>
 
 namespace Tensile
 {
