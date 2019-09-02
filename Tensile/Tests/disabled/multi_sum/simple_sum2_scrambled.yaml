@@ -7,7 +7,7 @@ GlobalParameters:
   SleepPercent: 0
   DataInitTypeBeta : 0
   DataInitTypeA: 3
-  DataInitTypeB: 1
+  DataInitTypeB: 3
   DataInitTypeC: 4
   DataInitTypeAlpha: 2
   DataInitTypeBeta: 0

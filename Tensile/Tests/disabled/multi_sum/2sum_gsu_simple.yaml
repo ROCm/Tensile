@@ -1,20 +1,20 @@
 GlobalParameters:
   EnqueuesPerSync: 1
-  LibraryPrintDebug: 1
+  LibraryPrintDebug: 0
   NumElementsToValidate: -1
   KernelTime: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  DataInitTypeA: 1
-  DataInitTypeB: 1
+  DataInitTypeA: 3
+  DataInitTypeB: 3
   DataInitTypeC: 4
   DataInitTypeAlpha: 2
   DataInitTypeBeta: 0
   PrintSolutionRejectionReason: 1
   PrintWinnersOnly: 0
-  PrintTensorA: 1
+  PrintTensorA: 0
   PrintTensorB: 0
-  PrintTensorD: 2
+  PrintTensorD: 0
   CpuThreads: 0
   NewClient: 0
 
@@ -65,12 +65,5 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 16, 16, 2, 4]
-
-
-          #LibraryLogic:
-          #SolutionImportanceMin: 0
-          #ScheduleName: "vega20"
-          # DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
-          #ArchitectureName: "gfx906"
-
-          #LibraryClient:
+            #- Exact: [ 16, 16, 2, 5]
+            #- Exact: [ 16, 16, 2, 8]

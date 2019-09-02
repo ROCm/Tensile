@@ -66,4 +66,4 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 16, 16, 2, 4]
-          - Range: [ [127,1,129], 0, [1,5], [1,1,32]]
+          - Range: [ [127,1,129], 0, [1,5], [4,4,32]]
