@@ -26,6 +26,7 @@
 
 #include <ProgressListener.hpp>
 
+#include <cstddef>
 #include <iomanip>
 
 #include <sys/time.h>

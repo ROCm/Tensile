@@ -25,6 +25,7 @@
 #include <Tensile/ContractionProblem_Detail.hpp>
 #include <Tensile/Utils.hpp>
 
+#include <cstddef>
 #include <set>
 
 namespace Tensile

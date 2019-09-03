@@ -50,6 +50,8 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
+#include <cstddef>
+
 namespace po = boost::program_options;
 
 namespace Tensile

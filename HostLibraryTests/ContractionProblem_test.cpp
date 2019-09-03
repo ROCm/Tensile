@@ -28,6 +28,8 @@
 
 #include <Tensile/ContractionProblem.hpp>
 
+#include <cstddef>
+
 using namespace Tensile;
 
 TEST(ContractionProblem, OperationDescription)

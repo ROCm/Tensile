@@ -30,6 +30,8 @@
 #include <Tensile/MatchingLibrary.hpp>
 #include <Tensile/Distance.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Serialization

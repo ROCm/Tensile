@@ -97,7 +97,7 @@ namespace Tensile
         return stream << t.type;
     }
 
-    std::istream& operator>>(std::istream& stream, TensorOp      & t)
+    std::istream& operator>>(std::istream& stream, TensorOp const& t)
     {
         return stream >> t.type;
     }
@@ -107,7 +107,7 @@ namespace Tensile
         return stream << ToString(t);
     }
 
-    std::istream& operator>>(std::istream& stream, TensorOp::Type      & t)
+    std::istream& operator>>(std::istream& stream, TensorOp::Type const& t)
     {
         std::string typeName;
         stream >> typeName;

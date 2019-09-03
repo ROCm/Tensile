@@ -27,6 +27,8 @@
 #include <hip/hip_hcc.h>
 #include <hip/hip_runtime.h>
 
+#include <cstddef>
+
 #if 0
 hipError_t hipHccModuleLaunchKernel(hipFunction_t f, uint32_t globalWorkSizeX,
                                     uint32_t globalWorkSizeY, uint32_t globalWorkSizeZ,

@@ -24,6 +24,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <cstddef>
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"

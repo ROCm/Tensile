@@ -32,6 +32,8 @@
 
 #include "ClientProblemFactory.hpp"
 
+#include <cstddef>
+
 namespace po = boost::program_options;
 
 namespace Tensile

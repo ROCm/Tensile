@@ -24,6 +24,8 @@
 #include <Tensile/PropertyMatching.hpp>
 #include <Tensile/ContractionProblem.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Contraction
