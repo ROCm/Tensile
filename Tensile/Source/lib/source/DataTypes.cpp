@@ -145,7 +145,7 @@ namespace Tensile
         return stream << ToString(t);
     }
 
-    std::istream& operator>>(std::istream& stream, const DataType& t)
+    std::istream& operator>>(std::istream& stream, DataType& t)
     {
         std::string strValue;
         stream >> strValue;
