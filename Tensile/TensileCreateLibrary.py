@@ -566,7 +566,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "static const ProblemType problemType_%s( " % problemType
     s += listToInitializer(problemType["IndicesFree"]) + ", "
     s += listToInitializer(problemType["IndicesSummation"]) + ", "
-    s += listToInitializer(problemType["IndicesBatch"])
+    s += listToInitializer(problemType["IndicesBatch"]) + ", "
+    s += listToInitializer(problemType["IndexAssignmentsA"]) + ", "
+    s += listToInitializer(problemType["IndexAssignmentsB"])
     s += ");\n"
 
     s += "\n"
