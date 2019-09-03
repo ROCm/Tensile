@@ -10,12 +10,11 @@ GlobalParameters:
   DataInitTypeC: 4
   DataInitTypeAlpha: 2
   DataInitTypeBeta: 0
-  PrintSolutionRejectionReason: 1
+  PrintSolutionRejectionReason: 0
   PrintWinnersOnly: 0
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
-  CpuThreads: 0
   NewClient: 0
 
 BenchmarkProblems:
@@ -46,7 +45,8 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
           #- TailLoop: [False]
       ForkParameters:
-        #- KernelLanguage: ["Assembly"]
+        #- KernelLanguage: ["Assembly", "Source"]
+        - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [False,True]
         - PrefetchGlobalRead: [False,True]
         - GlobalSplitU: [2,3,4,5]
@@ -57,10 +57,9 @@ BenchmarkProblems:
           - [ 8, 8, 1 ]
           - [ 16, 16, 1 ]
         - StaggerU: [0]
-        - StaggerUMapping: [0]
-        - DepthU: [ 4]
-        - VectorWidth: [1]
-        - FractionalLoad: [0]
+        - DepthU: [ 4,8]
+        - VectorWidth: [1,-1]
+        - FractionalLoad: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
