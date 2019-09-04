@@ -5615,10 +5615,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "s_barrier // debug\n"
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
-    if kernel["BufferLoad"]:
-      # Move SRD forward to next K element:
-      kStr += self.incrementSrd(kernel, tP, tP["bpe"], 0, checkShadowLimitCopy=True)
-
     if problemType["ZeroPad%s"%tc]:
       self.vgprPool.checkIn(addrV)
 
