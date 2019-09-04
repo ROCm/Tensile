@@ -861,8 +861,8 @@ namespace Tensile
         return stream >> bound.a >> comma >> bound.b;
     }
 
-    __host__ ContractionInputs::ContractionInputs() = default;
-    __host__ ContractionInputs::~ContractionInputs() = default;
+    ContractionInputs::ContractionInputs() = default;
+    ContractionInputs::~ContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;

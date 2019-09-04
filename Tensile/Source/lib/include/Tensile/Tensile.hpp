@@ -44,7 +44,7 @@ namespace Tensile
     class TENSILE_API Problem
     {
     public:
-        __host__ virtual ~Problem();
+        virtual ~Problem();
 
         virtual std::string description() const = 0;
     };
@@ -52,7 +52,7 @@ namespace Tensile
     class TENSILE_API ProblemInputs
     {
     public:
-        __host__ virtual ~ProblemInputs();
+        virtual ~ProblemInputs();
 
     };
 
@@ -82,7 +82,7 @@ namespace Tensile
     class TENSILE_API Solution
     {
     public:
-        __host__ virtual ~Solution();
+        virtual ~Solution();
 
         virtual std::string name() const = 0;
         virtual std::string description() const = 0;
@@ -92,7 +92,7 @@ namespace Tensile
     class TENSILE_API SolutionAdapter
     {
     public:
-        __host__ virtual ~SolutionAdapter();
+        virtual ~SolutionAdapter();
 
         virtual std::string name() const = 0;
     };
