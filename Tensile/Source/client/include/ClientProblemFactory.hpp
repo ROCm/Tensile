@@ -44,7 +44,7 @@ namespace Tensile
         {
         public:
             ClientProblemFactory(po::variables_map const& args);
-            ~ClientProblemFactory();
+            ~ClientProblemFactory() = default;
 
             std::vector<ContractionProblem> const& problems() const;
 

@@ -33,8 +33,6 @@ namespace Tensile
     {
     }
 
-    StreamRead::~StreamRead() = default;
-
     //bool StreamRead::operator bool() const { return m_success; }
 
     bool StreamRead::read(std::istream & stream)

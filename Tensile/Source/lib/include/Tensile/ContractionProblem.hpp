@@ -244,10 +244,10 @@ namespace Tensile
         using AlphaType = Alpha;
         using BetaType = Beta;
 
-        TypedContractionInputs();
+        TypedContractionInputs() = default;
         TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
-                               Alpha _alpha, Beta _beta);
-        ~TypedContractionInputs();
+                               Alpha _alpha, Beta _beta) = default;
+        ~TypedContractionInputs() = default;
         
         A const* a = nullptr;
         B const* b = nullptr;
