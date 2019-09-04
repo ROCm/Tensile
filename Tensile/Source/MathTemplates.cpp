@@ -86,15 +86,15 @@ template<> TensileComplexDouble tensileGetOne<TensileComplexDouble>() {
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<TensileHalf>((rand()%7) - 3); }
 #endif
-template<> uint32_t tensileGetRandom<uint32_t>() { 
-   int8_t t0 = static_cast<int8_t>((rand()%7) - 3); 
-   int8_t t1 = static_cast<int8_t>((rand()%7) - 3); 
-   int8_t t2 = static_cast<int8_t>((rand()%7) - 3); 
-   int8_t t3 = static_cast<int8_t>((rand()%7) - 3); 
+template<> uint32_t tensileGetRandom<uint32_t>() {
+   int8_t t0 = static_cast<int8_t>((rand()%7) - 3);
+   int8_t t1 = static_cast<int8_t>((rand()%7) - 3);
+   int8_t t2 = static_cast<int8_t>((rand()%7) - 3);
+   int8_t t3 = static_cast<int8_t>((rand()%7) - 3);
    int8_t t1x4[4] = {t0, t1, t2, t3};
-   uint32_t tmp; 
+   uint32_t tmp;
    memcpy(&tmp, t1x4, sizeof(uint32_t));
-   return tmp; 
+   return tmp;
 }
 template<> int32_t tensileGetRandom<int32_t>() { return static_cast<int32_t>((rand()%7) - 3); }
 template<> float tensileGetRandom<float>() { return static_cast<float>((rand()%201) - 100); }
@@ -142,20 +142,20 @@ template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetTrig<TensileHalf>(int i) { return static_cast<TensileHalf>(sin(i)); }
 #endif
-template<> uint32_t tensileGetTrig<uint32_t>(int i) { 
-   int8_t t0 = static_cast<int8_t>((rand()%7) - 3); 
-   int8_t t1 = static_cast<int8_t>((rand()%7) - 3); 
-   int8_t t2 = static_cast<int8_t>((rand()%7) - 3); 
-   int8_t t3 = static_cast<int8_t>((rand()%7) - 3); 
+template<> uint32_t tensileGetTrig<uint32_t>(int i) {
+   int8_t t0 = static_cast<int8_t>((rand()%7) - 3);
+   int8_t t1 = static_cast<int8_t>((rand()%7) - 3);
+   int8_t t2 = static_cast<int8_t>((rand()%7) - 3);
+   int8_t t3 = static_cast<int8_t>((rand()%7) - 3);
    int8_t t1x4[4] = {t0, t1, t2, t3};
-   uint32_t tmp; 
+   uint32_t tmp;
    memcpy(&tmp, t1x4, sizeof(uint32_t));
-   return tmp; 
+   return tmp;
 }
-template<> int32_t tensileGetTrig<int32_t>(int i) { return static_cast<int32_t>((rand()%7) - 3); }
-template<> float tensileGetTrig<float>(int i) { return static_cast<float>(sin(i)); }
-template<> tensile_bfloat16 tensileGetTrig<tensile_bfloat16>(int i) { return sin(static_cast<tensile_bfloat16>(i)); }
-template<> double tensileGetTrig<double>(int i) { return static_cast<double>(sin(i)); }
+template<> int32_t tensileGetTrig<int32_t>(int i) { return rand() % 7 - 3; }
+template<> float tensileGetTrig<float>(int i) { return sin(i); }
+template<> tensile_bfloat16 tensileGetTrig<tensile_bfloat16>(int i) { return tensile_bfloat16(sinf(i)); }
+template<> double tensileGetTrig<double>(int i) { return sin(i); }
 template<> TensileComplexFloat tensileGetTrig<TensileComplexFloat>(int i) {
   TensileComplexFloat r;
   TENSILEREAL(r) = tensileGetTrig<float>(i);
@@ -531,6 +531,3 @@ template<> std::string tensileToString(TensileHalf v){
 #endif
 template<> std::string tensileToString(tensile_bfloat16 v){
   return tensileToString(static_cast<float>(v)); }
-
-
-
