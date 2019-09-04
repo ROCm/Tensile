@@ -73,7 +73,7 @@ namespace Tensile
     {
     public:
         Hardware();
-        __host__ virtual ~Hardware();
+        virtual ~Hardware();
 
         virtual std::string description() const = 0;
     };
