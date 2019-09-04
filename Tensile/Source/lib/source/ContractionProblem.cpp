@@ -862,7 +862,7 @@ namespace Tensile
     }
 
     ContractionInputs::ContractionInputs() = default;
-    ContractionInputs::~ContractionInputs() = default;
+    __host__ __device__ ContractionInputs::~ContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
