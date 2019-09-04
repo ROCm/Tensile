@@ -45,10 +45,9 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
           #- TailLoop: [False]
       ForkParameters:
-        #- KernelLanguage: ["Assembly", "Source"]
         - KernelLanguage: ["Source"]
         - PrefetchLocalRead: [False,True]
-        - PrefetchGlobalRead: [False,True]
+        - PrefetchGlobalRead: [False]
         - GlobalSplitU: [2,3,4,5]
         - ThreadTile:
           - [ 2, 2 ]
