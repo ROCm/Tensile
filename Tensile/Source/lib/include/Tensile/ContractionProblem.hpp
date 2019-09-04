@@ -246,7 +246,7 @@ namespace Tensile
 
         TypedContractionInputs() = default;
         TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
-                               Alpha _alpha, Beta _beta) = default;
+                               Alpha _alpha, Beta _beta);
         ~TypedContractionInputs() = default;
         
         A const* a = nullptr;

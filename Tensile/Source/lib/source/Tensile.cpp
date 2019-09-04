@@ -35,12 +35,6 @@
 
 namespace Tensile
 {
-    TENSILE_API Problem::~Problem();
-    TENSILE_API ProblemInputs::~ProblemInputs();
-    TENSILE_API Hardware::Hardware();
-    TENSILE_API Hardware::~Hardware();
-    TENSILE_API Solution::~Solution();
-    TENSILE_API SolutionAdapter::~SolutionAdapter();
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
