@@ -861,6 +861,15 @@ namespace Tensile
         return stream >> bound.a >> comma >> bound.b;
     }
 
+    ContractionInputs::ContractionInputs() = default;
+    ContractionInputs::~ContractionInputs() = default;
+
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
+
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default;    
+
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
             A const* _a, B const* _b, C const* _c, D * _d,

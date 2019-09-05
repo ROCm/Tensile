@@ -41,6 +41,8 @@ namespace Tensile
     {
     }
 
+    TENSILE_API AMDGPU::~AMDGPU() = default;
+
     TENSILE_API bool AMDGPU::runsKernelTargeting(AMDGPU::Processor other) const
     {
         if(other > this->processor)

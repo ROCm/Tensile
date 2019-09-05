@@ -76,6 +76,8 @@ namespace Tensile
             m_problems = createProblems();
         }
 
+        ClientProblemFactory::~ClientProblemFactory() = default;
+
         std::vector<ContractionProblem> const& ClientProblemFactory::problems() const
         {
             return m_problems;

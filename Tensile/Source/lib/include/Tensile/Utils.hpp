@@ -116,7 +116,7 @@ namespace Tensile
     {
     public:
         StreamRead(std::string const& value, bool except=true);
-        ~StreamRead() = default;
+        ~StreamRead();
 
         bool read(std::istream & stream);
 

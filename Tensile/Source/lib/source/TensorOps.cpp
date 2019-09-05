@@ -28,6 +28,7 @@ namespace Tensile
 {
     std::map<std::string, TensorOp::Type>  TensorOp::typeNames;
 
+    TensorOp::TensorOp() = default;
     TensorOp::TensorOp(Type type)
         : type(type)
     {}

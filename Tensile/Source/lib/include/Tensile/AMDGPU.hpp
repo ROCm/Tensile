@@ -44,7 +44,7 @@ namespace Tensile
 
         AMDGPU();
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
-        ~AMDGPU() = default;
+        ~AMDGPU();
 
         Processor   processor = Processor::gfx900;
         int         computeUnitCount = 0;

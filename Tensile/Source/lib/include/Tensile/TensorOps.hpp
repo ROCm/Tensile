@@ -48,7 +48,7 @@ namespace Tensile
 
         Type type = Type::None;
 
-        TensorOp() = default;
+        TensorOp();
         TensorOp(Type type);
 
         static TensorOp ComplexConjugate() { return TensorOp(Type::ComplexConjugate); }

@@ -230,8 +230,8 @@ namespace Tensile
 
     struct TENSILE_API ContractionInputs: public ProblemInputs
     {
-        ContractionInputs() = default;
-        ~ContractionInputs() = default;
+        ContractionInputs();
+        ~ContractionInputs();
     };
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
@@ -244,10 +244,10 @@ namespace Tensile
         using AlphaType = Alpha;
         using BetaType = Beta;
 
-        TypedContractionInputs() = default;
+        TypedContractionInputs();
         TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
                                Alpha _alpha, Beta _beta);
-        ~TypedContractionInputs() = default;
+        ~TypedContractionInputs();
         
         A const* a = nullptr;
         B const* b = nullptr;
