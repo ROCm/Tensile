@@ -649,6 +649,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
+
+        # These cases loop back and run the prefetch loop again
+        # we need an extra barrier to ensure that the ds_reads from previous iteration
+        # have finished before we generate the prefetch for the next summation index.
+        if kernel["PrefetchAcrossPersistent"] or self.nestedSummationLoops:
+          kl.append(self.syncThreads(kernel))
+
       if self.enable["LocalWrite"]:
         # local write
         kl.append(self.comment("local write a"))
@@ -1407,6 +1414,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kernel["PrefetchGlobalRead"] and \
         not kernel["SuppressNoLoadLoop"] and \
         kernel["PrefetchAcrossPersistent"]
+
+
+    # TODO - for PackSummationDims=1, then don't need this barrier since there is not a nested loop
+    self.nestedSummationLoops = kernel["ProblemType"]["NumIndicesSummation"] > 1
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
