@@ -42,7 +42,8 @@ namespace Tensile
     TENSILE_API Hardware::~Hardware() = default;
     TENSILE_API Solution::~Solution() = default;
     TENSILE_API SolutionAdapter::~SolutionAdapter() = default;
-    
+
+#ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename)
     {

@@ -868,7 +868,7 @@ namespace Tensile
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default;    
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default; 
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
