@@ -29,6 +29,7 @@
 #include <cassert>
 
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
 #include <numeric>
 #include <vector>

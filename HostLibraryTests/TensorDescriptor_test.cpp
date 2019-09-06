@@ -28,6 +28,8 @@
 
 #include <Tensile/TensorDescriptor.hpp>
 
+#include <cstddef>
+
 using namespace Tensile;
 
 TEST(TensorDescriptor, Simple)

@@ -28,6 +28,8 @@
 
 #include <Tensile/hip/HipUtils.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client

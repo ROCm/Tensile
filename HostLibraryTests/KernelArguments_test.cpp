@@ -28,6 +28,8 @@
 
 #include <Tensile/KernelArguments.hpp>
 
+#include <cstddef>
+
 using namespace Tensile;
 
 TEST(KernelArguments, Simple)

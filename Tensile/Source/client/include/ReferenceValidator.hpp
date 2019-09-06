@@ -35,6 +35,8 @@
 
 #include "DataInitialization.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client

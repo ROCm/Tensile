@@ -27,6 +27,8 @@
 #include "ClientProblemFactory.hpp"
 #include "DataInitialization.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client
@@ -73,7 +75,6 @@ namespace Tensile
 
             m_problems = createProblems();
         }
-
 
         ClientProblemFactory::~ClientProblemFactory() = default;
 

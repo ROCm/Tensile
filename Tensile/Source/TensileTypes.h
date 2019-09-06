@@ -28,6 +28,8 @@
 #include <math.h>
 #include "tensile_bfloat16.h"
 
+#include <cstddef>
+
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"

@@ -26,6 +26,8 @@
 
 #include <ResultFileReporter.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client

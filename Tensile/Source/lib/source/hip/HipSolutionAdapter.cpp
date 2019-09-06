@@ -24,7 +24,10 @@
  *
  *******************************************************************************/
 
+#include <hip/hcc_detail/hip_runtime.h>
 #include <hip/hip_runtime.h>
+
+#include <cstddef>
 
 #if 0
 hipError_t hipHccModuleLaunchKernel(hipFunction_t f, uint32_t globalWorkSizeX,

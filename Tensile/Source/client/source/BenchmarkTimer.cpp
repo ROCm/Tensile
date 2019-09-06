@@ -32,6 +32,7 @@
 #include <Tensile/hip/HipUtils.hpp>
 
 #include <csignal>
+#include <cstddef>
 
 namespace Tensile
 {

@@ -30,6 +30,7 @@
 #include <Tensile/ContractionProblem.hpp>
 
 #include <array>
+#include <cstddef>
 #include <vector>
 
 namespace Tensile

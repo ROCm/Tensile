@@ -33,6 +33,7 @@
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
 
+#include <cstddef>
 #include <map>
 
 namespace Tensile
