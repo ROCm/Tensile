@@ -22,6 +22,7 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <cstddef>
 
 extern const char indexChars[];
 

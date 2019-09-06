@@ -32,6 +32,8 @@
 #include "ResultReporter_fwd.hpp"
 #include "TimingEvents.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client

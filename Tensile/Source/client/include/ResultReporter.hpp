@@ -28,6 +28,7 @@
 
 #include "RunListener.hpp"
 
+#include <cstddef>
 #include <string>
 
 namespace Tensile

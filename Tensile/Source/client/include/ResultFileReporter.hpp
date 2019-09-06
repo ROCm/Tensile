@@ -31,6 +31,8 @@
 
 #include <boost/program_options.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client

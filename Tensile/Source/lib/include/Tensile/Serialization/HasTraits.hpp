@@ -28,6 +28,8 @@
 
 #include <Tensile/Serialization/Base.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Serialization

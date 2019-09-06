@@ -29,6 +29,7 @@
 #include "ResultReporter.hpp"
 #include "CSVStackFile.hpp"
 
+#include <cstddef>
 #include <string>
 #include <unordered_set>
 

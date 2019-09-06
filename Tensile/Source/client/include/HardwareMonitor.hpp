@@ -27,6 +27,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <future>
 #include <thread>
 #include <tuple>

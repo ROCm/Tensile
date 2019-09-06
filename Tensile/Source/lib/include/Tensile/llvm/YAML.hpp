@@ -31,6 +31,8 @@
 
 #include <llvm/ObjectYAML/YAML.h>
 
+#include <cstddef>
+
 namespace llvm
 {
     namespace yaml

@@ -21,6 +21,7 @@
 
 #include <Tensile/KernelArguments.hpp>
 
+#include <cstddef>
 #include <iomanip>
 
 namespace Tensile

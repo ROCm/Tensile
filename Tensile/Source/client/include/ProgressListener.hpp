@@ -30,6 +30,8 @@
 
 #include "ResultReporter.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client

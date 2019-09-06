@@ -19,6 +19,8 @@
  * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <mutex>
+
 #include <Tensile/TensorOps.hpp>
 #include <Tensile/Utils.hpp>
 
@@ -95,7 +97,7 @@ namespace Tensile
         return stream << t.type;
     }
 
-    std::istream& operator>>(std::istream& stream, TensorOp      & t)
+    std::istream& operator>>(std::istream& stream, TensorOp & t)
     {
         return stream >> t.type;
     }
@@ -105,7 +107,7 @@ namespace Tensile
         return stream << ToString(t);
     }
 
-    std::istream& operator>>(std::istream& stream, TensorOp::Type      & t)
+    std::istream& operator>>(std::istream& stream, TensorOp::Type & t)
     {
         std::string typeName;
         stream >> typeName;

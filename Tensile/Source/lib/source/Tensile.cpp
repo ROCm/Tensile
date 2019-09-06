@@ -35,6 +35,7 @@
 
 namespace Tensile
 {
+
     TENSILE_API Problem::~Problem() = default;
     TENSILE_API ProblemInputs::~ProblemInputs() = default;
     TENSILE_API Hardware::Hardware() = default;
