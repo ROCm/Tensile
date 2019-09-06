@@ -229,9 +229,19 @@ template< >
 int tensileMultiply( int a, int b ) {
   return a*b;
 }
+
+template< >
+unsigned int tensileMultiply( int a, int b ) {
+  return a*b;
+}
 // unsigned int
 template< >
 unsigned int tensileMultiply( unsigned int a, unsigned int b ) {
+  return a*b;
+}
+
+template< >
+unsigned int tensileMultiply( int a, unsigned int b ) {
   return a*b;
 }
 // mixed tensile_bfloat16 float
