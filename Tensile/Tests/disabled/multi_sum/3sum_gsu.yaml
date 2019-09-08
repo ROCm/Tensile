@@ -64,14 +64,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          #- Range: [ [1,1,64], [8], [1,4], [32] ]
-            #conv -n 64 -c 256 -H 14 -W 14 -k 1024
-            # NCWH : batch=64,   I=H*W,   cout=256,   cin=1024
-            # Sum0=N, Sum1=Cin, Free0=14*14, Free1=k
-            #- Range: [ [16], [16], [1,1,4], [32] ] # TESTME
-            #- Range: [ [16,1,128], [16], [1,1,4], [32] ] # TESTME
-            #- Exact: [ 32, 32, 2, 4]
           - Exact: [ 16, 16, 2, 4, 8]
-          - Range: [ [16], [16], [2,2], [1,1,32], [8]] ## TESTME - gsu
-            #- Range: [ [16], [16], [1,2], [1,1,32]] ## TESTME - gsu
-            #- Exact: [ 196, 256, 64, 1024]
+          - Range: [ [16], [16], [2], [1,1,32], [8]]
+          - Range: [ [16], [16], [1,1,4], [1,1,32]] ## TESTME - gsu
+          - Range: [ [127,1,129], 0, [2], [1,1,8], [1,1,16]]

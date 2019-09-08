@@ -51,7 +51,8 @@ BenchmarkProblems:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
-        - StaggerU: [0]
+          - [ 16, 16, 1 ]
+        - StaggerU: [0,32]
         - DepthU: [ 4,8]
         - VectorWidth: [1,-1]
         - FractionalLoad: [0,1]
