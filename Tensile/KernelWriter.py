@@ -1154,6 +1154,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False)
 
+    if self.staggerU and self.nestedSummationLoops:
+      kl.append(self.comment("remove stagger offsets"))
+      kl.append(self.removeStagger(kernel, tensorParametersA))
+      kl.append(self.removeStagger(kernel, tensorParametersB))
+
 
     ########################################
     # Tail Loop
@@ -1172,7 +1177,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["GlobalRead"]:
         # tail: global read
         kl.append(self.calculateLoopNumIter(kernel, -1, False))
-        if self.staggerU:
+        if self.staggerU and not self.nestedSummationLoops:
           kl.append(self.comment("remove stagger offsets for tail loop"))
           kl.append(self.removeStagger(kernel, tensorParametersA))
           kl.append(self.removeStagger(kernel, tensorParametersB))
