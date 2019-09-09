@@ -1725,7 +1725,7 @@ class Solution:
           else:
             first = False
           name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
-              Solution.getParameterValueAbbreviation(state[key]) )
+              Solution.getParameterValueAbbreviation(key, state[key]) )
     return name
 
   ########################################
@@ -1789,7 +1789,7 @@ class Solution:
 
   ########################################
   @ staticmethod
-  def getParameterValueAbbreviation( value ):
+  def getParameterValueAbbreviation( key, value ):
     if isinstance(value, str):
       return ''.join([c for c in value if c.isupper()])
     elif isinstance(value, bool):
@@ -1801,17 +1801,17 @@ class Solution:
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):
       return str(value)
-    elif isinstance(value, list):
-      abbrev = ""
-      for i in range(0, len(value)):
-        abbrev += Solution.getParameterValueAbbreviation(value[i])
-        if i < len(value)-1:
-          abbrev += "_"
-      return abbrev
-    elif isinstance(value, tuple):
+    elif isinstance(value, tuple) or key == 'ISA':
       abbrev = ""
       for i in range(0, len(value)):
         abbrev += str(value[i])
+      return abbrev
+    elif isinstance(value, list):
+      abbrev = ""
+      for i in range(0, len(value)):
+        abbrev += Solution.getParameterValueAbbreviation(key, value[i])
+        if i < len(value)-1:
+          abbrev += "_"
       return abbrev
     else:
       printExit("Parameter \"%s\" is new object type" % str(value) )

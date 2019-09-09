@@ -1,4 +1,4 @@
-mnGlobalParameters:
+GlobalParameters:
   MinimumRequiredVersion: 4.4.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True

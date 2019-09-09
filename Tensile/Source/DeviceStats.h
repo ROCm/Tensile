@@ -226,34 +226,58 @@ void tensileInitDeviceStats() {
 
 float tensileGetDeviceTemp(unsigned int deviceId) {
 #if Tensile_RUNTIME_LANGUAGE_HIP
-  return tensile::Devices::getDevices()[deviceId].getTemp();
-#else
-  return -1;
+  try
+  {
+    return tensile::Devices::getDevices()[deviceId].getTemp();
+  }
+  catch(std::ios_base::failure &)
+  {
+    // Pass through to return -1
+  }
 #endif
+  return -1;
 }
 
 int tensileGetDeviceFanSpeed(unsigned int deviceId) {
 #if Tensile_RUNTIME_LANGUAGE_HIP
-  return tensile::Devices::getDevices()[deviceId].getFanSpeed();
-#else
-  return -1;
+  try
+  {
+    return tensile::Devices::getDevices()[deviceId].getFanSpeed();
+  }
+  catch(std::ios_base::failure &)
+  {
+    // Pass through to return -1
+  }
 #endif
+  return -1;
 }
 
 int tensileGetDeviceCoreClock(unsigned int deviceId) {
 #if Tensile_RUNTIME_LANGUAGE_HIP
-  return tensile::Devices::getDevices()[deviceId].getCoreClock();
-#else
-  return -1;
+  try
+  {
+    return tensile::Devices::getDevices()[deviceId].getCoreClock();
+  }
+  catch(std::ios_base::failure &)
+  {
+    // Pass through to return -1
+  }
 #endif
+  return -1;
 }
 
 int tensileGetDeviceMemClock(unsigned int deviceId) {
 #if Tensile_RUNTIME_LANGUAGE_HIP
-  return tensile::Devices::getDevices()[deviceId].getMemClock();
-#else
-  return -1;
+  try
+  {
+    return tensile::Devices::getDevices()[deviceId].getMemClock();
+  }
+  catch(std::ios_base::failure &)
+  {
+    // Pass through to return -1
+  }
 #endif
+  return -1;
 }
 
 #endif // DEVICE_STATS
