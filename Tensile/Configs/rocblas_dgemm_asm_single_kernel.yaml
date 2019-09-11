@@ -8,7 +8,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 0
+  NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -36,6 +36,7 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
+        - ProblemSizes: [{"Range": [ [280], 0, 0 ]}]
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
@@ -62,6 +63,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [5760], [5760], [1], [5760] ]
+          #- Range: [ [5760], [5760], [1], [5760] ]
+          - Range: [ [576], [576], [1], [576] ]
 
   ########################################

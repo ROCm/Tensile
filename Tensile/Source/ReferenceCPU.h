@@ -27,7 +27,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <assert.h>
-
+#include <cstddef>
 
 /*******************************************************************************
  * Reference Tensor Contraction

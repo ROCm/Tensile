@@ -28,6 +28,8 @@
 #include <math.h>
 #include "tensile_bfloat16.h"
 
+#include <cstddef>
+
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"
@@ -359,6 +361,7 @@ private:
   // Data members:
   SizeType _sizes[NumSizes];
   bool     _equalStrides;
+  uint32_t _db;
 };
 
 //-------------
@@ -425,10 +428,14 @@ class ProblemType
 public:
   ProblemType(const std::vector<int> &indicesFree,
               const std::vector<int> &indicesSummation,
-              const std::vector<int> &indicesBatch)
+              const std::vector<int> &indicesBatch,
+              const std::vector<int> &indexAssignmentsA,
+              const std::vector<int> &indexAssignmentsB)
     : _indicesFree(indicesFree),
       _indicesSummation(indicesSummation),
-      _indicesBatch(indicesBatch)
+      _indicesBatch(indicesBatch),
+      _indexAssignmentsA(indexAssignmentsA),
+      _indexAssignmentsB(indexAssignmentsB)
   {
   }
 
@@ -439,10 +446,15 @@ public:
     return std::find(_indicesBatch.begin(), _indicesBatch.end(), idx) != _indicesBatch.end();
   };
 
+  const std::vector<int> indexAssignmentsA() const { return _indexAssignmentsA; }
+  const std::vector<int> indexAssignmentsB() const { return _indexAssignmentsB; }
+
 private:
   const std::vector<int> _indicesFree;
   const std::vector<int> _indicesSummation;
   const std::vector<int> _indicesBatch;
+  const std::vector<int> _indexAssignmentsA;
+  const std::vector<int> _indexAssignmentsB;
 };
 
 
@@ -460,13 +472,23 @@ struct ProblemProperties {
                     unsigned free0ElementMultiple,
                     unsigned free1ElementMultiple,
                     int approxSize,
-                    bool equalStrides)
+                    bool equalStrides,
+                    bool allBatchAStridesAreZero,
+                    bool allBatchBStridesAreZero)
     : _summationElementMultiple(summationElementMultiple),
       _free0ElementMultiple(free0ElementMultiple),
       _free1ElementMultiple(free1ElementMultiple),
       _approxSize(approxSize),
-      _equalStrides(equalStrides)
-     {}
+      _equalStrides(equalStrides),
+      _allBatchAStridesAreZero(allBatchAStridesAreZero),
+      _allBatchBStridesAreZero(allBatchBStridesAreZero),
+      _db(0)
+     {
+       const char *db = std::getenv("TENSILE_DB");
+       if (db) {
+         _db = strtol(db,nullptr,0);
+       }
+     }
 
   // Constructor used to compute assertions for a specified problem size
   template<class ProblemDimsType>
@@ -514,16 +536,70 @@ struct ProblemProperties {
 
     _equalStrides = ((pdims.strideD(0) == pdims.strideC(0)) &&
                      (pdims.strideD(1) == pdims.strideC(1)));
+
+    _allBatchAStridesAreZero = 1;
+    int strideIdx = 0;
+    for (auto &idx : props->indexAssignmentsA()) {
+      bool isb = props->isBatchIdx(idx);
+      // Would need to fix for UseInitialStrides
+      auto stride = strideIdx ==0 ? 1 : pdims.strideA(strideIdx-1);
+      if (props->isBatchIdx(idx) and stride != 0) {
+        _allBatchAStridesAreZero = 0;
+      }
+      strideIdx++;
+    }
+
+    _allBatchBStridesAreZero = 1;
+    strideIdx = 0;
+    for (auto &idx : props->indexAssignmentsB()) {
+      bool isb = props->isBatchIdx(idx);
+      // Would need to fix for UseInitialStrides
+      auto stride = strideIdx ==0 ? 1 : pdims.strideB(strideIdx-1);
+      if (props->isBatchIdx(idx) and stride != 0) {
+        _allBatchBStridesAreZero = 0;
+      }
+      strideIdx++;
+    }
+
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const ProblemProperties &solutionRequirements) const {
-    return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
-           (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
-           (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
-           ((this->_approxSize) >= solutionRequirements._approxSize) &&
-           ((this->_equalStrides) == solutionRequirements._equalStrides);
+      bool rv = (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
+                (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
+                (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
+                ((this->_approxSize) >= solutionRequirements._approxSize) &&
+                ((this->_equalStrides) == solutionRequirements._equalStrides) &&
+                ((this->_allBatchAStridesAreZero) >= solutionRequirements._allBatchAStridesAreZero) &&
+                ((this->_allBatchBStridesAreZero) >= solutionRequirements._allBatchBStridesAreZero)
+                ;
+
+      if(this->_db & 0x10)
+      {
+          if(!rv)
+          {
+#define check_print(name, oper) \
+              if(!(this->name oper solutionRequirements.name)) \
+              { \
+                  std::cout << #name << "failed: !(" << this->name << #oper << solutionRequirements.name << ")" << std::endl; \
+              }
+
+              std::cout << "Assertion failed:" << std::endl;
+              check_print(_summationElementMultiple, >=);
+              check_print(_free0ElementMultiple, >=);
+              check_print(_free1ElementMultiple, >=);
+              check_print(_approxSize, >=);
+              check_print(_equalStrides, ==);
+#undef check_print
+          }
+          else
+          {
+              std::cout << "Satisfied asserts!" << std::endl;
+          }
+      }
+
+      return rv;
   }
 
   unsigned _summationElementMultiple;
@@ -531,6 +607,9 @@ struct ProblemProperties {
   unsigned _free1ElementMultiple;
   int      _approxSize;
   bool     _equalStrides;
+  bool     _allBatchAStridesAreZero; // for problems: true if all batchA strides are 0. Solutions: true if all batchA strides must be 0 to run the kernel. Prob,Soln:  x,0: ok:  0,1: FAILED_ASSERT, 1,1: OK .  P>=S
+  bool     _allBatchBStridesAreZero; // true if all batchB strides are 0
+  uint32_t _db;
 };
 
 

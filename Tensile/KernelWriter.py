@@ -1741,8 +1741,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     tensorParametersA["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x1 else 0
     tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
-    tensorParametersA["PackedIndices"] = kernel["PackedC0Indices"]
-    tensorParametersB["PackedIndices"] = kernel["PackedC1Indices"]
+    tensorParametersA["PackedIndices"] = kernel["PackedC0IndicesX"]
+    tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
 
 
   ##############################################################################

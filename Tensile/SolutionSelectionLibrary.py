@@ -19,24 +19,11 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+from .Common import printExit
 from .SolutionStructs import Solution
-from . import SolutionLibrary
-from . import Utils
 from . import YAMLIO
-from . import __version__
 
-from copy import deepcopy
-from sys import stdout
-import array
 import csv
-import os
-import time
-
-try:
-  import yaml
-except ImportError:
-  printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
 
 def getSummationKeys(header):
   keys=[]
@@ -60,7 +47,6 @@ def analyzeSolutionSelection( problemType, problemSizeGroups):
   allSolutions = []
 
   for problemSizeGroup in problemSizeGroups:
-    problemSizes = problemSizeGroup[0]
     dataFileName = problemSizeGroup[3]
     dataFileNameList.append(dataFileName)
     solutionsFileName = problemSizeGroup[2]

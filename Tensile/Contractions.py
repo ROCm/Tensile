@@ -19,11 +19,14 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+from .DataType import DataType
 from . import Hardware
 from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
-from .Utils import state
+from .Utils import state, state_key_ordering
 
+
+@state_key_ordering
 class FreeIndex:
     StateKeys = ['a', 'b', 'ca', 'cb', 'da', 'db']
 
@@ -35,6 +38,7 @@ class FreeIndex:
         self.da = da
         self.db = db
 
+@state_key_ordering
 class BatchIndex:
     StateKeys = ['a', 'b', 'c', 'd']
     def __init__(self, a=None, b=None, c=None, d=None):
@@ -43,6 +47,7 @@ class BatchIndex:
         self.c = c
         self.d = d
 
+@state_key_ordering
 class BoundIndex:
     StateKeys = ['a', 'b']
     def __init__(self, a=None, b=None):
@@ -51,7 +56,8 @@ class BoundIndex:
 
 
 class ProblemType:
-    StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType']
+    StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
+                 'useBeta', 'highPrecisionAccumulate']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -91,25 +97,33 @@ class ProblemType:
                 assert value is not None
 
         rv = cls()
-        rv.freeIndices = freeIndices
-        rv.batchIndices = batchIndices
-        rv.boundIndices = boundIndices
+        rv.indices = indices
+        rv.freeIndices = sorted(freeIndices)
+        rv.batchIndices = sorted(batchIndices)
+        rv.boundIndices = sorted(boundIndices)
         rv.aDims = len(d['IndexAssignmentsA'])
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
         rv.dDims = rv.cDims
-        
-        try:
-            assert d['DataType'] == 0
-            if 'DestDataType' in d:
-                assert d['DestDataType'] == 0
-        except AssertionError:
-            pass
-            #print("DataType mismatch!")
-        rv.aType = 'Float'
-        rv.bType = 'Float'
-        rv.cType = 'Float'
-        rv.dType = 'Float'
+
+        rv.aConjugate = d['ComplexConjugateA']
+        rv.bConjugate = d['ComplexConjugateB']
+
+        srcType = DataType(d['DataType'])
+        dstType = DataType(d['DestDataType']) if 'DestDataType' in d else srcType
+
+        rv.aType = srcType
+        rv.bType = srcType
+        rv.cType = dstType
+        rv.dType = dstType
+
+        rv.highPrecisionAccumulate = False
+        if 'HighPrecisionAccumulate' in d:
+            rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
+
+        rv.useBeta = True
+        if 'UseBeta' in d:
+            rv.useBeta = d['UseBeta']
 
         rv.batched = d['Batched']
 
@@ -168,32 +182,31 @@ class ProblemType:
     def operationIdentifier(self):
         (aNames, bNames, cNames, dNames, sumNames) = self.indexNames
 
-        return '_'.join(['Contraction', sumNames,
-                         'A'+aNames,
-                         'B'+bNames,
-                         'C'+cNames,
-                         'D'+dNames])
+        aOp = 'C' if self.aConjugate else ''
+        bOp = 'C' if self.bConjugate else ''
 
-    def predicate(self, includeOperation=False, includeType=False):
+        return '_'.join(['Contraction', sumNames,
+                         'A' + aNames + aOp,
+                         'B' + bNames + bOp,
+                         'C' + cNames,
+                         'D' + dNames])
+
+    def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
 
-        if not self.batched:
-            predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
+        #if includeBatch and not self.batched:
+        #    predicates.append(ProblemPredicate("BatchSizeEqual", index=0, value=1))
 
         if includeOperation:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
+            if not self.useBeta:
+                predicates.append(ProblemPredicate("BetaZero"));
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
+            predicates.append(ProblemPredicate("HighPrecisionAccumulate", value=self.highPrecisionAccumulate))
 
-        if len(predicates) == 0:
-            return None
-
-        if len(predicates) == 1:
-            return predicates[0]
-
-        return ProblemPredicate('And', value=predicates)
-
+        return predicates
 
 class ProblemPredicate(Properties.Predicate):
     @classmethod
@@ -203,9 +216,9 @@ class ProblemPredicate(Properties.Predicate):
             if value == 0 or value == 1:
                 return None
             elif value == 2:
-                return cls('MaxProblemSizeGreaterThan', value=32)
+                return cls('MaxProblemSizeGreaterThan', value=1)
             elif value == 3:
-                return None
+                return cls('MaxProblemSizeGreaterThan', value=32)
             else:
                 raise RuntimeError("Unknown Approx size: {}".format(value))
 
@@ -233,6 +246,12 @@ class ProblemPredicate(Properties.Predicate):
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
+    @classmethod
+    def FromOriginalState(cls, d, problemType, morePreds=[]):
+        problemTypePreds = problemType.predicates(True, True, True)
+
+        return super().FromOriginalState(d, problemTypePreds + morePreds)
+
 class SizeMapping:
     StateKeys = ['workGroup',
                  'macroTile',
@@ -241,7 +260,10 @@ class SizeMapping:
                  'staggerU',
                  'globalSplitU',
                  'staggerStrideShift',
-                 'workGroupMapping']
+                 'workGroupMapping',
+                 'persistentKernel',
+                 'sourceKernel',
+                 ]
 
     @classmethod
     def FromOriginalState(cls, d):
@@ -252,7 +274,9 @@ class SizeMapping:
                    staggerU           = d['StaggerU'] if 'StaggerU' in d else 0,
                    depthU             = d['DepthU'],
                    globalSplitU       = d['GlobalSplitU'],
-                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0
+                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
+                   persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
+                   sourceKernel       = d['KernelLanguage'] == 'Source',
                    )
 
     @classmethod
@@ -279,7 +303,7 @@ class Solution:
     HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromOriginalState(cls, d, deviceInfo):
+    def FromOriginalState(cls, d, deviceInfo=None):
         rv = cls()
 
 
@@ -288,8 +312,7 @@ class Solution:
 
         rv.problemType = ProblemType.FromOriginalState(d['ProblemType'])
 
-
-        rv.problemPredicate = ProblemPredicate.FromOriginalState(d)
+        rv.problemPredicate = ProblemPredicate.FromOriginalState(d, rv.problemType)
 
         if 'DebugKernel' in d:
             rv.debugKernel = d['DebugKernel']
@@ -306,10 +329,12 @@ class Solution:
             rv.ideals = {}
 
         if d['KernelLanguage'] == 'Assembly':
-            d['ISA'] = tuple(map(int,deviceInfo[1][3:6]))
-            #print(d['ISA'])
+            if 'ISA' not in d:
+                d['ISA'] = list(map(int,deviceInfo[1][3:6]))
+
+            rv.hardwarePredicate = Hardware.HardwarePredicate.FromISA(d['ISA'])
         else:
-            d['ISA'] = (0,0,0)
+            d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
 

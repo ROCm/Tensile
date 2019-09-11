@@ -27,7 +27,6 @@ from subprocess import Popen, PIPE
 import itertools
 import math
 import os.path
-import platform
 import subprocess
 import sys
 import time
@@ -80,7 +79,7 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
 ########################################
-# optimization knob controls 
+# optimization knob controls
 ########################################
 
 globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&LDS in each unroll iteration into n smaller groups..
@@ -95,7 +94,7 @@ globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is m
 # serial-in-u will use a sequence that increments in the K dimension
 # This is a predictable patterns that can be checked as the kernel runs to detect
 # when the wrong data is being used.
-# trig_float initializes with the sin function to have non-zero values in the mantissa 
+# trig_float initializes with the sin function to have non-zero values in the mantissa
 # and exponent. It cannot be used for int8 or int32. Need to use tensileAlmostEqual
 # not tensileEqual for checking the result.
 globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  Can be overridden by the DataInitTypeA or DataInitTypeB.  Eventually DataInitTypeAB will be retired.
@@ -134,12 +133,14 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["BuildCodeObjects"] = False      # Build code object files when creating library.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8)]             # assembly kernels writer supports these architectures
+globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
+globalParameters["NewClient"] = 1                                 # Run new client
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
+globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -213,7 +214,7 @@ validParameters = {
 
     # for transposes, this option governs how short-vectors should be read from global and written to lds
     # it is impossible to transpose data while operating on short-vectors for GlobalRead,LocalWrite and LocalRead; an odd number of those must be transposing and operating on vector components.
-    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds 
+    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds
     # =True means read short-vector from global and write its components to lds
     # =False means read vector components from global so that a full short-vector can be written to lds
     # both options were supported until a refactoring of the short-vector code (necessary to enable assembly) broke it. Since =True always seems to be faster, no time has been spend on fixing =False
@@ -288,7 +289,7 @@ validParameters = {
     # 2 = interleave two stores after required macs have completed execution
     "OptNoLoadLoop":               [0, 1, 2],
 
-    # Prefetch across persistent kernel iterations - the no-load-loop computes the 
+    # Prefetch across persistent kernel iterations - the no-load-loop computes the
     # tile assignment and next global read offset and launches the buffer loads for
     # the next tile in the sequence.
     "PrefetchAcrossPersistent":    [0, 1],
@@ -529,11 +530,13 @@ validParameters = {
 
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
+    # The byte address of the last element in the packed array must fit in 2^32.
     # 0x0 = each workgroup works on a single batch dim.
     # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
     #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
     # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
     #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    # 0x3 = pack batch dims into both A and B. Could support any stride for A and B. (Not supported yet)
     "PackBatchDims":             [0,1,2],
 
     # Pack free dimensions
@@ -550,7 +553,7 @@ validParameters = {
     # 0x2 : VectorWidth must not span tensor dim
     "PackGranularity": [2],
 
-    # Controls desiredwidth of loads from global memory -> LDS.
+    # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
@@ -560,23 +563,16 @@ validParameters = {
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
-    # The load width is closely related to the width of local stores so VectorWidth controls local write width.
+    # The global load width is closely related to the width of local stores so
+    # GlobalReadVectorWidth also ontrols local write width.
     # Local read width also matches since VectorWidth consec elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
-    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
+    # -1 means use the largest vector width up to 128 bits.
+    # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-
-    # Minimum guaranteed global store vector width
-    # Tensile will allocate additional VGPR in Global Store phase if needed to
-    # ensure that writes can be written with MinWriteVectorWidth.
-    # If requested global write vector width is larger than MinGlobalWriteVectorWidth,
-    # then additional
-    # or the granted gwvw == MinGlobalWriteVectorWidth.
-    # MinGlobalWriteVectorWidth=-1 chooses a sensible default of 2 for half and
-    # one for other types.
-    "MinGlobalWriteVectorWidth":      [-1, 1, 2, 4, 8 ],
-
+    # If False, store 1 element per instruction.
+    # If True, store vector-width elements per instruction.
     "VectorStore":                    [False, True],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
@@ -657,7 +653,7 @@ validParameters = {
     "ReplacementKernel":          [False, True],
 
     "MinVgprNumber":                list(range(0,256)),
-    
+
     "MaxVgprNumber":                list(range(0,257)),
     }
 
@@ -675,7 +671,6 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadB":                   [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"MinGlobalWriteVectorWidth": [ -1 ] },
     {"VectorStore":               [ True ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
@@ -827,7 +822,7 @@ defaultProblemType = {
     #  - CPU reference model does not yet support zero-padding
     #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
     #  - ZeroPad requires that the ElementEdge <= 2^32:
-    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32 
+    #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32
     #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
 
     #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
@@ -1066,18 +1061,19 @@ def assignGlobalParameters( config ):
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
-  if platform.linux_distribution()[0] == "Ubuntu":
-    process = Popen(["dpkg", "-l", "hcc"], stdout=PIPE)
-    if process.returncode:
-      printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
 
-    line = process.stdout.readline().decode()
-    while line != "":
-      packageIdx = line.find("hcc")
-      if packageIdx >= 0:
-        globalParameters["HccVersion"] = line.split()[2]
-        break
-      line = process.stdout.readline().decode()
+  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
+  # The alternative would be to install the `distro` package.
+  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  try:
+    output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+
+    for line in output.split('\n'):
+      if 'hcc' in line:
+        globalParameters['HccVersion'] = line.split()[2]
+
+  except (subprocess.CalledProcessError, OSError) as e:
+      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hcc', e))
 
   for key in config:
     value = config[key]
@@ -1109,8 +1105,7 @@ def CPUThreadCount(enable=True):
   if not enable or globalParameters["CpuThreads"] == 0:
     return 0
   else:
-    import multiprocessing
-    cpu_count = multiprocessing.cpu_count()
+    cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 0:
         return cpu_count*abs(cpuThreads)

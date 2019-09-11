@@ -17,8 +17,8 @@ def readRequirementsFromTxt():
   return requirements
 
 def readVersionFromInit():
-  fileStr = open(os.path.join("Tensile", "__init__.py")).read()
-  return re.search("__version__ = ['\"]([^'\"]+)['\"]", fileStr).group(1)
+    import Tensile
+    return Tensile.__version__
 
 setup(
   name="Tensile",
@@ -30,15 +30,17 @@ setup(
   install_requires=readRequirementsFromTxt(),
   python_requires='>=3.5',
   packages=["Tensile"],
-  package_data={ "Tensile": ["Tensile/Source/*", "Tensile/Configs/*"] },
-  data_files=[ ("cmake", ["Tensile/Source/TensileConfig.cmake", "Tensile/Source/TensileConfigVersion.cmake"]) ],
+  package_data={ "Tensile": ["Tensile/cmake/*"] },
+  data_files=[ ("cmake", ["Tensile/cmake/TensileConfig.cmake", "Tensile/cmake/TensileConfigVersion.cmake"]) ],
   include_package_data=True,
   entry_points={"console_scripts": [
     # user runs a benchmark
-    "tensile = Tensile.Tensile:main",
+    "Tensile = Tensile.Tensile:main",
     "tensileBenchmarkLibraryClient = Tensile.TensileBenchmarkLibraryClient:main",
     # CMake calls this to create Tensile.lib
     "TensileCreateLibrary = Tensile.TensileCreateLibrary:TensileCreateLibrary",
+
+    "TensileGetPath = Tensile:PrintTensileRoot",
     # automatic benchmarking for rocblas
     "tensile_rocblas_sgemm = Tensile.Tensile:TensileROCBLASSGEMM",
     "tensile_rocblas_dgemm = Tensile.Tensile:TensileROCBLASDGEMM",

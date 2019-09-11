@@ -20,8 +20,7 @@
 ################################################################################
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
-from .SolutionStructs import Solution
-from .SolutionWriter import SolutionWriter
+from . import ClientExecutable
 from . import YAMLIO
 
 import os
@@ -55,8 +54,7 @@ def main( config ):
       "KernelHeader.h",
       "Tools.h",
       "CMakeLists.txt",
-      "TensileConfig.cmake",
-      "TensileConfigVersion.cmake"
+      "TensileCreateLibrary.cmake",
       ]
 
   for f in filesToCopy:
@@ -145,14 +143,18 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
   runScriptFile = open(runScriptName, "w")
   echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
-    runScriptFile.write("#!/bin/sh\n")
+    runScriptFile.write("#!/bin/bash\n\n")
   q = "" if os.name == "nt" else "\""
+
+  runScriptFile.write("set -ex\n")
+
   runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake")
   # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
-      % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
+  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
   if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
@@ -173,13 +175,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
         % ("ON" if globalParameters["ShortNames"] else "OFF"))
   if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" \
-        % globalParameters["CMakeCXXFlags"] )
+    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
   if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" \
-        % globalParameters["CMakeCFlags"] )
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" \
-      % (globalParameters["CMakeBuildType"]))
+    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+  runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
@@ -200,6 +200,9 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
         runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
+
+      runScriptFile.write("set +e\n")
+
       runScriptFile.write("./client")
 
     if globalParameters["DataInitTypeA"] == -1 :
@@ -231,7 +234,30 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
         clp += " " + globalParameters["ClientArgs"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
-    runScriptFile.write("ERR=$?\n")
+    runScriptFile.write("ERR1=$?\n")
+
+    if globalParameters["NewClient"]:
+      newClientExe = ClientExecutable.getClientExecutable()
+      configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
+      runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+      runScriptFile.write("ERR2=$?\n\n")
+    else:
+      runScriptFile.write("ERR2=0\n")
+
+    runScriptFile.write("""
+ERR=0
+if [[ $ERR1 -ne 0 ]]
+then
+    echo one
+    ERR=$ERR1
+fi
+if [[ $ERR2 -ne 0 ]]
+then
+    echo two
+    ERR=$ERR2
+fi
+""")
+
     if os.name != "nt":
       if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
@@ -284,6 +310,102 @@ def checkConstStride(constStrideMap, keyIdx):
       finalVal = val
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
+
+def problemSizeParams(solution, problemSize):
+    numIndices = len(solution.problemType.indices)
+
+    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+
+    if len(problemSize) == numIndices:
+        return [problemSizeArg]
+    elif len(problemSize) == numIndices + 4:
+        return [problemSizeArg,
+                ('a-strides', problemSize[numIndices+2]),
+                ('b-strides', problemSize[numIndices+3]),
+                ('c-strides', problemSize[numIndices+0]),
+                ('d-strides', problemSize[numIndices+1])]
+
+    raise RuntimeError(
+        "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
+            ', '.join(map(str, problemSize))))
+
+
+def dataInitName(num):
+    if num == 0: return 'Zero'
+    if num == 1: return 'One'
+    if num == 2: return 'Two'
+    if num == 3: return 'Random'
+    if num == 4: return 'NaN'
+
+def dataInitParams(problemType):
+    initA = globalParameters['DataInitTypeA']
+    initB = globalParameters['DataInitTypeB']
+    initC = globalParameters['DataInitTypeC']
+    initD = globalParameters['DataInitTypeD']
+    initAlpha = globalParameters['DataInitTypeAlpha']
+    initBeta  = globalParameters['DataInitTypeBeta']
+
+    if not problemType.useBeta:
+        initBeta = 0
+
+    if initA == -1: initA = globalParameters['DataInitTypeAB']
+    if initB == -1: initB = globalParameters['DataInitTypeAB']
+
+    return [('init-a',     dataInitName(initA)),
+            ('init-b',     dataInitName(initB)),
+            ('init-c',     dataInitName(initC)),
+            ('init-d',     dataInitName(initD)),
+            ('init-alpha', dataInitName(initAlpha)),
+            ('init-beta',  dataInitName(initBeta))]
+
+def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles):
+
+    filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+    with open(filename, "w") as f:
+        def param(key, value):
+            f.write("{}={}\n".format(key, value))
+
+        sourceDir = os.path.join(stepBaseDir, "source")
+        libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
+        param("library-file", libraryFile)
+        for coFile in codeObjectFiles:
+            param("code-object", os.path.join(sourceDir,coFile))
+
+        param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+
+        newSolution = next(iter(newLibrary.solutions.values()))
+        param('problem-identifier', newSolution.problemType.operationIdentifier)
+        param('a-type',     newSolution.problemType.aType.toEnum())
+        param('b-type',     newSolution.problemType.bType.toEnum())
+        param('c-type',     newSolution.problemType.cType.toEnum())
+        param('d-type',     newSolution.problemType.dType.toEnum())
+        param('alpha-type', newSolution.problemType.dType.toEnum())
+        param('beta-type',  newSolution.problemType.dType.toEnum())
+
+        param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
+
+        for problemSize in problemSizes.sizes:
+            for key,value in problemSizeParams(newSolution, problemSize):
+                param(key,value)
+            #param('problem-size', ','.join(map(str,problemSize)))
+
+        param("device-idx",               globalParameters["Device"])
+
+        for key,value in dataInitParams(newSolution.problemType):
+            param(key, value)
+
+        param("c-equal-d",                globalParameters["CEqualD"])
+
+        param("print-valids",             globalParameters["ValidationPrintValids"])
+        param("print-max",                globalParameters["ValidationMaxToPrint"])
+        param("num-benchmarks",           globalParameters["NumBenchmarks"])
+        param("num-elements-to-validate", globalParameters["NumElementsToValidate"])
+        param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
+        param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
+        param("use-gpu-timer",            globalParameters["KernelTime"])
+        if not globalParameters["KernelTime"]:
+            param("num-warmups", 1)
+        param("sleep-percent",            globalParameters["SleepPercent"])
 
 
 ################################################################################
@@ -375,12 +497,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   problemTypesForDataType = {} # for data type
   schedulesForProblemType = {} # for problem type
   functionInfo = [] # dataTypeIdx, problemTypeIdx, idxWithinDataType, idxWithinProblemType
-  tileSelection = False
+  #tileSelection = False
 
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     dataType = problemType["DataType"]
-    tileSelection = problemType["TileAwareSelection"]
+    #tileSelection = problemType["TileAwareSelection"]
 
     destDataType = problemType["DestDataType"]
     destDataTypes[dataType] = destDataType
@@ -682,7 +804,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumD = problemSizes.maxD
     maximumC = problemSizes.maxC
     maximumA = problemSizes.maxA 
-    maximumB = problemSizes.maxC 
+    maximumB = problemSizes.maxB 
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
@@ -731,13 +853,16 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      h += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %s} }" % \
+      h += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %s, %d, %d} }" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
           solution["AssertFree1ElementMultiple"],
           solution["AssertMinApproxSize"],
-          "true" if solution["LdcEqualsLdd"] else "false" )
+          "true" if solution["LdcEqualsLdd"] else "false",
+          solution["PackBatchDims"]==2, \
+          solution["PackBatchDims"]==1, \
+          )
       if i < len(solutions)-1:
         h += ","
       h += "\n"
@@ -1010,7 +1135,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "  static const ProblemType problemType( "
     h += listToInitializer(problemType["IndicesFree"]) + ", "
     h += listToInitializer(problemType["IndicesSummation"]) + ", "
-    h += listToInitializer(problemType["IndicesBatch"])
+    h += listToInitializer(problemType["IndicesBatch"]) + ', '
+    h += listToInitializer(problemType["IndexAssignmentsA"]) + ', '
+    h += listToInitializer(problemType["IndexAssignmentsB"])
     h += ");\n"
     # create problem size - TODO could move this up to the caller
     h += "  ProblemDims_%s pdims(" % problemType

@@ -20,6 +20,10 @@
 ################################################################################
 # This script only gets called by CMake
 
+if __name__ == "__main__":
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead.")
+    exit(1)
+
 from . import Common
 from . import EmbeddedData
 from . import Utils
@@ -59,18 +63,21 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
 
     return (err, src, header, kernelName)
 
-def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath):
+def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
+    assemblyKernels = list([k for k in kernels if k['KernelLanguage'] == 'Assembly'])
+    if len(assemblyKernels) == 0:
+        return []
 
     if globalParameters["MergeFiles"]:
         archs = collections.defaultdict(list)
-        for k in kernels:
-            archs[k['ISA']].append(k)
+        for k in assemblyKernels:
+            archs[tuple(k['ISA'])].append(k)
 
         coFiles = []
         for arch, archKernels in archs.items():
-            objectFiles = list([os.path.join(asmDir, kernelWriterAssembly.getKernelName(k) + '.o') \
+            objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
                                 for k in archKernels \
                                 if k['KernelLanguage'] == 'Assembly'])
             if len(objectFiles) == 0:
@@ -79,17 +86,15 @@ def getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, ker
             archName = 'gfx'+''.join(map(str,arch))
             coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-            subprocess.check_call(args)
+            subprocess.check_call(args, cwd=asmDir)
             coFiles.append(coFile)
 
         return coFiles
 
     else:
-        assemblyKernels = list([kernelWriterAssembly.getKernelName(k) for k in kernels if k['KernelLanguage'] == 'Assembly'])
-        if len(assemblyKernels) == 0:
-            return []
-        origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernels]
-        newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernels]
+        assemblyKernelNames = [kernelWriterAssembly.getKernelName(k) for k in assemblyKernels]
+        origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
+        newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
             shutil.copyfile(src, dst)
 
@@ -125,15 +130,15 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     if (CxxCompiler == 'hcc'):
 
-      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags', '--shared']).decode().split(' ')
+      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags']).decode().split(' ')
       # when HCC_HOME is defined -I/opt/rocm/include is *not* part of
       # hcc-config --cxxflags; so we need hipconfig -C to be safe
       hipFlags += subprocess.check_output([which('hipconfig'), '-C']).decode().split(' ')
       hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
 
-      hipFlags += ['-I', outputPath]
+      hipFlags += ['-I', outputPath, '-fPIC']
 
-      compileArgs = [which('hcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', objectFilepath]
+      compileArgs = [which('hcc')] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
 
       linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
       extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
@@ -171,12 +176,10 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     return destCOs
 
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels, outputPath):
-    sourceKernelFiles = [f for (f,k) in zip(kernelFiles, kernels) if 'KernelLanguage' not in k or k["KernelLanguage"] == "Source"]
+def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
+    args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
 
-    sourceKernelFiles = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), sourceKernelFiles)
-
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, sourceKernelFiles, "Compiling source kernels",
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
                                  method=lambda x: x.starmap)
 
     return itertools.chain.from_iterable(coFiles)
@@ -259,7 +262,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
 def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelsBetaOnly, \
-    solutionWriter, kernelWriterSource, kernelWriterAssembly):
+    solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
   start = time.time()
 
   codeObjectFiles = []
@@ -318,6 +321,14 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
 
+  kernelsToBuild = list(kernels)
+  if errorTolerant:
+      def success(kernel):
+          writer = kernelWriterAssembly if kernel['KernelLanguage'] == 'Assembly' else kernelWriterSource
+          kernelName = writer.getKernelName(kernel)
+          return kernelName not in kernelsWithBuildErrs
+      kernelsToBuild = list(filter(success, kernelsToBuild))
+
   if False:#len(kernelsWithBuildErrs) > 0:
     print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
@@ -354,9 +365,10 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelSourceFile.close()
     kernelHeaderFile.close()
 
-  if globalParameters["BuildCodeObjects"]:
-    codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, kernels + kernelsBetaOnly, outputPath)
-    codeObjectFiles += getAssemblyCodeObjectFiles(kernels, kernelsBetaOnly, kernelWriterSource, kernelWriterAssembly, outputPath)
+  kernelsToBuild += kernelsBetaOnly
+
+  codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
+  codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
@@ -554,7 +566,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "static const ProblemType problemType_%s( " % problemType
     s += listToInitializer(problemType["IndicesFree"]) + ", "
     s += listToInitializer(problemType["IndicesSummation"]) + ", "
-    s += listToInitializer(problemType["IndicesBatch"])
+    s += listToInitializer(problemType["IndicesBatch"]) + ", "
+    s += listToInitializer(problemType["IndexAssignmentsA"]) + ", "
+    s += listToInitializer(problemType["IndexAssignmentsB"])
     s += ");\n"
 
     s += "\n"
@@ -722,13 +736,15 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d} }%s // %d" % \
+    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d, %d, %d} }%s // %d" % \
       (solutionName, solutionName, \
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
         solution["AssertMinApproxSize"], \
         solution["LdcEqualsLdd"], \
+        solution["PackBatchDims"]==2, \
+        solution["PackBatchDims"]==1, \
         "," if i < len(solutionsForSchedule)-1 else "", \
         i)
     s += "\n"
@@ -934,8 +950,8 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       action="store", default="hcc")
-  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", action="store", default="V2")
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hcc")
+  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V2")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -967,8 +983,6 @@ def TensileCreateLibrary():
 
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
   print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
-
-  globalParameters["BuildCodeObjects"] = True
 
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
@@ -1074,18 +1088,11 @@ def TensileCreateLibrary():
           embedFile.embed_file(newMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
-          for co in codeObjectFiles:
+          for co in Utils.tqdm(codeObjectFiles):
               embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
                                    key=args.EmbedLibraryKey)
 
   print1("# Tensile Library Writer DONE")
   print1(HR)
   print1("")
-
-################################################################################
-# Main
-################################################################################
-if __name__ == "__main__":
-    print("This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead.")
-    exit(1)
 

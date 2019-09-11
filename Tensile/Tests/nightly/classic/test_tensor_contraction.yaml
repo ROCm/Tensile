@@ -7,7 +7,7 @@ GlobalParameters:
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  LibraryPrintDebug: False
+  LibraryPrintDebug: True
   NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
@@ -93,9 +93,9 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: True
       NumIndicesC: 2
-      IndexAssignmentsA: [4, 3, 0, 2]
-      IndexAssignmentsB: [4, 3, 2, 1]
-      # C[ij] = Sum[klm] A[mlik] * B[mlkj]
+      IndexAssignmentsA: [2, 3, 0, 4]
+      IndexAssignmentsB: [2, 3, 4, 1]
+      # C[ij] = Sum[klm] A[klim] * B[klmj]
       # Free Indices: [i, j]
       # Batch Indices:
       # Sum Indices: k, l, m
@@ -122,7 +122,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [63,1,65], [63,1,65], [2,1,3], [2,1,3], [15,1,17] ]
+          - Range: [ [63,1,65], [63,1,65], [15,1,17], [2,1,3], [2,1,3] ]
 
   - # 6-D Image Convolution
     - # ProblemType
@@ -131,14 +131,14 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: True
       NumIndicesC: 3
-      IndexAssignmentsA: [5, 4, 0, 1, 3]  # n(s), m(s), i(f), j(b), l(s)
-      IndexAssignmentsB: [5, 4, 1, 3, 2]  # n(s), m(s), j(b), l(s), k(f)
-      # C[ijk] = Sum[lmn] A[nmijl] * B[nmjlk]
+      IndexAssignmentsA: [3, 4, 0, 1, 5]  # n(s), m(s), i(f), j(b), l(s)
+      IndexAssignmentsB: [3, 4, 1, 5, 2]  # n(s), m(s), j(b), l(s), k(f)
+      # C[ijk] = Sum[lmn] A[lmijn] * B[lmjnk]
       # Free Indices: [i, k]
       # Batch Indices: j
       # Sum Indices: l, m, n
       # Translate to traditional conv notation:
-      # i=H*W, j=N, k=Cout, l=Cin, m=R, n=S
+      # i=H*W, j=N, k=Cout, l=S, m=R, n=Cin
       # Need one more free dimension to decouple H,W.
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -163,4 +163,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [63,1,65], [2,1,3], [63,1,65], [2,1,3], [2,1,3], [15,1,17] ]
+          - Range: [ [63,1,65], [2,1,3], [63,1,65], [15,1,17], [2,1,3], [2,1,3] ]
