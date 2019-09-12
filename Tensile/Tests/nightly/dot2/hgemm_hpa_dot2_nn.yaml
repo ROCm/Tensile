@@ -66,7 +66,6 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
           - [ 16, 8, 1 ]
           - [ 32, 8, 1 ]
-          - [ 16, 4, 1 ]
           - [ 32, 4, 1 ]
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1]
@@ -80,8 +79,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [          [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
-          - Range: [ [64, 64, 64,  700], [64, 64, 64,  700], [1], [256, 1024, 1024, 4096] ] # small
+          - Range: [          [64, 128], [64, 64, 64, 2000], [1], [256, 1024, 1024, 2000] ] # skinny-0
+          - Range: [ [64, 64, 64,  700], [64, 64, 64,  700], [1], [256, 1024, 1024, 2000] ] # small
 
   ########################################
   # NN - Large
@@ -117,7 +116,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # large
+          - Range: [ [64, 64, 64, 2000], [64, 64, 64, 2000], [1], [256, 1024, 1024, 2000] ] # large
 
   ########################################
   # NN - VectorWidth Correctness
@@ -151,9 +150,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [               [64],               [64], [1], [256, 1024, 1024, 4096] ] # corner
-          - Range: [               [64], [64, 64, 64, 3000], [1], [256, 1024, 1024, 4096] ] # skinny-0
-          - Range: [ [64, 64, 64, 3000],               [64], [1], [256, 1024, 1024, 4096] ] # skinny-1
+          - Range: [               [64],               [64], [1], [256, 1024, 1024, 2000] ] # corner
+          - Range: [               [64], [64, 64, 64, 2000], [1], [256, 1024, 1024, 2000] ] # skinny-0
+          - Range: [ [64, 64, 64, 2000],               [64], [1], [256, 1024, 1024, 2000] ] # skinny-1
 
   ########################################
   # NN - Batch
