@@ -67,7 +67,7 @@ tensileCI:
         }
     }
 
-    tensile.timeout.test = 10
+    tensile.timeout.test = 600
 
     def test_dir = auxiliary.isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
     def testCommand =
