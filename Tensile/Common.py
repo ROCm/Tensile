@@ -794,6 +794,7 @@ defaultProblemType = {
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
     #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],
+    "SetConstStrideB":          [],
 
     # ZeroPad:
     # Zero-pad will add leading and trailing "pad" elements to the specified free

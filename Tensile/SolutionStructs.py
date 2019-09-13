@@ -633,6 +633,8 @@ class Solution:
           problemType["UseInitialStrides"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
+      kernel["ProblemType"]["SetConstStrideB"] = \
+          problemType["SetConstStrideB"]
       kernel["ProblemType"]["ZeroPadA"] = \
           problemType["ZeroPadA"]
       kernel["ProblemType"]["ZeroPadB"] = \
