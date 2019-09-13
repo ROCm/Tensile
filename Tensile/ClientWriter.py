@@ -315,18 +315,40 @@ def problemSizeParams(solution, problemSize):
 
     problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
 
-    if len(problemSize) == numIndices:
-        return [problemSizeArg]
-    elif len(problemSize) == numIndices + 4:
-        return [problemSizeArg,
-                ('a-strides', problemSize[numIndices+2]),
-                ('b-strides', problemSize[numIndices+3]),
-                ('c-strides', problemSize[numIndices+0]),
-                ('d-strides', problemSize[numIndices+1])]
+    astrides = [-1] * solution.problemType.aDims
+    for setc in solution.problemType.setConstStrideA:
+        astrides[setc[0]] = setc[1]
 
-    raise RuntimeError(
-        "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
+    bstrides = [-1] * solution.problemType.bDims
+    for setc in solution.problemType.setConstStrideB:
+        bstrides[setc[0]] = setc[1]
+
+    if len(problemSize) == numIndices:
+      rv = [problemSizeArg]
+    elif len(problemSize) == numIndices + 4:
+        if astrides[1] == -1:
+          astrides[1] = problemSize[numIndices+2]
+        else:
+          raise RuntimeError("problem-specified lda(%u) conflicts with setConstStrideA(%u)" % \
+              (astrides[1], problemSize[numIndice+2]))
+
+        if bstrides[1] == -1:
+          bstrides[1] = problemSize[numIndices+3]
+        else:
+          raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
+              (bstrides[1], problemSize[numIndice+3]))
+
+        rv = [problemSizeArg]
+        rv.append(('a-strides', ",".join(map(str, astrides))))
+        rv.append(('b-strides', ",".join(map(str, bstrides))))
+        rv.append(('c-strides', "-1," + str(problemSize[numIndices+0])))
+        rv.append(('d-strides', "-1," + str(problemSize[numIndices+1])))
+    else:
+        raise RuntimeError(
+            "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
             ', '.join(map(str, problemSize))))
+
+    return rv
 
 
 def dataInitName(num):

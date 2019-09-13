@@ -55,46 +55,28 @@ namespace Tensile {
             TENSILE_ASSERT_EXC(m_sizes[i] > 0);
         }
 
-        bool calculateStride = m_strides.empty();
-        if(m_strides.size() == 1 && m_sizes.size() > 1)
-        {
-            calculateStride = true;
-            size_t ld = m_strides[0];
+        const size_t useDefault = static_cast<size_t>(-1);
 
-            m_strides.resize(m_sizes.size(), 0);
-            m_strides[0] = 1;
-            m_strides[1] = ld;
+        m_strides.resize(m_sizes.size(), useDefault);
+        if (m_strides[0] == useDefault) {
+          m_strides[0] = 1;
         }
-        else if(calculateStride)
-        {
-            m_strides.resize(m_sizes.size(), 0);
-            m_strides[0] = 1;
-        }
-        else
-        {
-            TENSILE_ASSERT_EXC(m_sizes.size() == m_strides.size());
-            TENSILE_ASSERT_EXC(m_strides[0] > 0);
-        }
-
         m_totalLogicalElements = m_sizes[0];
 
         for(int i = 1; i < m_sizes.size(); i++)
         {
             m_totalLogicalElements *= m_sizes[i];
 
-            auto minStride = m_strides[i-1] * m_sizes[i-1];
-
-            if(calculateStride)
+            if(m_strides[i] == useDefault)
             {
-                m_strides[i] = std::max(minStride, m_strides[i]);
-            }
-            else
-            {
-                TENSILE_ASSERT_EXC(m_strides[i] >= minStride);
+                m_strides[i] = m_strides[i-1] * m_sizes[i-1];
             }
         }
 
-        m_totalAllocatedElements = m_strides.back() * m_sizes.back();
+        m_totalAllocatedElements = 1;
+        for(int i = 0; i < m_sizes.size(); i++)
+          m_totalAllocatedElements += m_strides[i] * (m_sizes[i]-1);
+        //std::cout << "Tensor:  " << *this << " totalElem=" << m_totalAllocatedElements << "\n";
     }
 
     bool TensorDescriptor::operator==(const TensorDescriptor& rhs) const

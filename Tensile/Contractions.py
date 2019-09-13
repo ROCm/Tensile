@@ -121,6 +121,11 @@ class ProblemType:
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
 
+        if 'SetConstStrideA' in d:
+            rv.setConstStrideA = d['SetConstStrideA']
+        if 'SetConstStrideB' in d:
+            rv.setConstStrideB = d['SetConstStrideB']
+
         rv.useBeta = True
         if 'UseBeta' in d:
             rv.useBeta = d['UseBeta']
