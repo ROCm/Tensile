@@ -517,6 +517,9 @@ validParameters = {
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
     "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
 
+    # assume atomics always work correctly.
+    "DisableAtomicFail": [False, True],
+
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
     #       - Recommended min is enough WG to use all resources on the CU
@@ -730,6 +733,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },

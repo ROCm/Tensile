@@ -149,22 +149,20 @@ namespace Tensile
                 }
             };
 
-            struct LeadingSizesGreaterOrEqual: public Predicate_CRTP<LeadingSizesGreaterOrEqual, ContractionProblem>
+            struct LeadingFreeSizesGreaterOrEqual: public Predicate_CRTP<LeadingFreeSizesGreaterOrEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = true };
                 size_t value;
 
-                LeadingSizesGreaterOrEqual() = default;
-                LeadingSizesGreaterOrEqual(size_t value): value(value) {}
+                LeadingFreeSizesGreaterOrEqual() = default;
+                LeadingFreeSizesGreaterOrEqual(size_t value): value(value) {}
 
-                static std::string Type() { return "LeadingSizesGreaterOrEqual"; }
+                static std::string Type() { return "LeadingFreeSizesGreaterOrEqual"; }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.a().sizes()[0] >= value
-                        && problem.b().sizes()[0] >= value
-                        && problem.c().sizes()[0] >= value
-                        && problem.d().sizes()[0] >= value;
+                    return problem.freeSizeA(0) >= value
+                        && problem.freeSizeB(0) >= value;
                 }
             };
 

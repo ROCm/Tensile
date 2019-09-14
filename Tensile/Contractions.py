@@ -225,7 +225,7 @@ class ProblemPredicate(Properties.Predicate):
         if key.endswith('Multiple'):
             if value == 1:
                 return None
-            
+
             if key == "AssertFree0ElementMultiple":
                 tag = "FreeSizeAMultiple"
                 index = 0
@@ -241,7 +241,7 @@ class ProblemPredicate(Properties.Predicate):
             return cls(tag, index=index, value=value)
 
         if key == 'VectorWidth' and value > 1:
-            return cls('LeadingSizesGreaterOrEqual', value=value)
+            return cls('LeadingFreeSizesGreaterOrEqual', value=value)
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
