@@ -468,7 +468,7 @@ class ProblemSizes:
             e = dictionary[sizeTypeKey]
             if len(e) == problemType["TotalIndices"]:
               if problemType["OperationType"] == "GEMM":
-                e += [0, 0, 0, 0]
+                e += [-1, -1, -1, -1]
               self.exacts.append(tuple(e))
             elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
               self.exacts.append(tuple(e))
