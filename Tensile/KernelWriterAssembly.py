@@ -929,6 +929,9 @@ class KernelWriterAssembly(KernelWriter):
         elif kernel["ProblemType"]["DataType"].isInt8x4():
             # numRegisters for Int8x4 = numRegisters for float = 1
             self.bpeCinternal = int(self.bpr* kernel["ProblemType"]["DataType"].numRegisters())
+        elif kernel["ProblemType"]["DataType"].isBFloat16():
+            self.bpeCinternal = int(self.bpr*1)
+            print("need_replacement_kernel %s" % self.kernelName)
         else:
             print("HighPrecisionAccumulate only valid when DataType is half, Int8x4.")
             self.bpeCinternal = int(self.bpr*\
