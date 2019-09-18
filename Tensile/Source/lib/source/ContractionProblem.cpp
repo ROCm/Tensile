@@ -861,17 +861,18 @@ namespace Tensile
         return stream >> bound.a >> comma >> bound.b;
     }
 
-    ContractionInputs::ContractionInputs() = default;
-    ContractionInputs::~ContractionInputs() = default;
+    TENSILE_API HIPCC_BUILD ProblemInputs::~ProblemInputs() = default;
+    HIPCC_BUILD ContractionInputs::ContractionInputs() = default;
+    HIPCC_BUILD ContractionInputs::~ContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
+    HIPCC_BUILD TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default; 
+    HIPCC_BUILD TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default; 
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
+    HIPCC_BUILD TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
             A const* _a, B const* _b, C const* _c, D * _d,
             Alpha _alpha, Beta _beta)
         : a(_a), b(_b), c(_c), d(_d), alpha(_alpha), beta(_beta)

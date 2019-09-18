@@ -28,11 +28,11 @@ endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
-target_link_libraries(TensileClient TensileHost Boost::program_options rocm_smi)
+target_link_libraries(TensileClient TensileHost ${Boost_LIBRARIES} rocm_smi)
 
 add_executable(tensile_client main.cpp)
 
-target_link_libraries(tensile_client TensileHost TensileClient Boost::program_options)
+target_link_libraries(tensile_client TensileHost TensileClient ${Boost_LIBRARIES})
 if(OpenMP_FOUND)
     target_link_libraries(tensile_client "${OpenMP_EXE_LINKER_FLAGS}")
 endif()

@@ -182,7 +182,7 @@ namespace Tensile
                 m_csvOutput.pop();
             }
 
-            virtual void finalizeReport()
+            virtual void finalizeReport() override
             {
             }
 
