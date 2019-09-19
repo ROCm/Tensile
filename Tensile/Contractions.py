@@ -213,7 +213,7 @@ class ProblemPredicate(Properties.Predicate):
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
         # TODO - change to use SetConstStrideB
-        if key == 'PackBatchDims':
+        if key == 'PackBatchDims' and value==1:
             return cls("StrideBEqual", index=2, value=0)
         if key == 'AssertMinApproxSize':
             if value == 0 or value == 1:
