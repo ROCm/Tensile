@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 // This shared library is available at https://github.com/ROCmSoftwarePlatform/rocJENKINS/
-@Library('rocJenkins') _
+@Library('rocJenkins@testRocBLAS') _
 
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
@@ -99,8 +99,34 @@ tensileCI:
             junit "${project.paths.project_build_prefix}/*_tests.xml"
         }
     }
+    
     def packageCommand = null
+    def credentials = auxiliary.getCredentials()      
 
-    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
+    def rocblasCompileCommand = 
+    {
+        platform, project->
+        
+        def rocblasCommand = platform.buildRocblas(credentials[0], credentials[1], "${project.paths.project_build_prefix}", platform.jenkinsLabel)
+    
+        platform.runCommand(this, rocblasHelper[0])
+    }
+
+    def testType = auxiliary.isJobStartedByTimer() ? "nightly" : "pre_checkin"
+    def rocblasTestCommand = 
+    {
+        platform, project->
+        try
+        {
+            def rocblasCommand = platform.testRocblas(testType,"${project.paths.project_build_prefix}/rocBLAS/build/release/clients/staging", platform.jenkinsLabel)
+            platform.runCommand(this, rocblasCommand)
+        }
+        finally
+        {
+            junit "${project.paths.project_build_prefix}/rocBLAS/build/release/clients/staging/*.xml"
+        }
+    }
+    
+    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand, rocblasCompileCommand, rocblasTestCommand)
 
 }
