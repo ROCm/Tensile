@@ -166,6 +166,58 @@ namespace Tensile
                 }
             };
 
+            struct StrideAEqual: public Predicate_CRTP<StrideAEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                StrideAEqual() = default;
+                StrideAEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "StrideAEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.a().strides()[index] == value ;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.a().strides()[index] << " == " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct StrideBEqual: public Predicate_CRTP<StrideBEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                StrideBEqual() = default;
+                StrideBEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "StrideBEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.b().strides()[index] == value ;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.b().strides()[index] << " == " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct CDStridesEqual: public Predicate_CRTP<CDStridesEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = false };
