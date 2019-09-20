@@ -68,7 +68,7 @@ globalParameters["ForceRedoBenchmarkProblems"] = True # if False and benchmarkin
 globalParameters["ForceRedoLibraryLogic"] = True      # if False and library logic already analyzed, then library logic will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
-globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
+globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
@@ -517,6 +517,9 @@ validParameters = {
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
     "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
 
+    # assume atomics always work correctly.
+    "DisableAtomicFail": [False, True],
+
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
     #       - Recommended min is enough WG to use all resources on the CU
@@ -730,6 +733,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },

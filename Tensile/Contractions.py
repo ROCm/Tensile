@@ -212,6 +212,9 @@ class ProblemPredicate(Properties.Predicate):
     @classmethod
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
+        # TODO - change to use SetConstStrideB
+        if key == 'PackBatchDims' and value==1:
+            return cls("StrideBEqual", index=2, value=0)
         if key == 'AssertMinApproxSize':
             if value == 0 or value == 1:
                 return None
@@ -225,7 +228,7 @@ class ProblemPredicate(Properties.Predicate):
         if key.endswith('Multiple'):
             if value == 1:
                 return None
-            
+
             if key == "AssertFree0ElementMultiple":
                 tag = "FreeSizeAMultiple"
                 index = 0
@@ -241,7 +244,7 @@ class ProblemPredicate(Properties.Predicate):
             return cls(tag, index=index, value=value)
 
         if key == 'VectorWidth' and value > 1:
-            return cls('LeadingSizesGreaterOrEqual', value=value)
+            return cls('LeadingFreeSizesGreaterOrEqual', value=value)
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))

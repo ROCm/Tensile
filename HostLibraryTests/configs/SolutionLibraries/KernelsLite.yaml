@@ -24782,7 +24782,7 @@ solutions:
     type: And
     value:
     - {type: MaxProblemSizeGreaterThan, value: 32}
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -24845,7 +24845,7 @@ solutions:
     type: And
     value:
     - {type: MaxProblemSizeGreaterThan, value: 32}
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -24970,7 +24970,7 @@ solutions:
     type: And
     value:
     - {type: MaxProblemSizeGreaterThan, value: 32}
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25030,7 +25030,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25092,7 +25092,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25154,7 +25154,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25216,7 +25216,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25278,7 +25278,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25340,7 +25340,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25402,7 +25402,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25463,7 +25463,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25525,7 +25525,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25587,7 +25587,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25649,7 +25649,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25711,7 +25711,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25773,7 +25773,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25834,7 +25834,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25896,7 +25896,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -25957,7 +25957,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26018,7 +26018,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26080,7 +26080,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26142,7 +26142,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26204,7 +26204,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26265,7 +26265,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26327,7 +26327,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26389,7 +26389,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26451,7 +26451,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26513,7 +26513,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26575,7 +26575,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26637,7 +26637,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26698,7 +26698,7 @@ solutions:
   problemPredicate:
     type: And
     value:
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26760,7 +26760,7 @@ solutions:
     type: And
     value:
     - {type: MaxProblemSizeGreaterThan, value: 32}
-    - {type: LeadingSizesGreaterOrEqual, value: 4}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 4}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26823,7 +26823,7 @@ solutions:
     type: And
     value:
     - {type: MaxProblemSizeGreaterThan, value: 32}
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bljk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]
@@ -26948,7 +26948,7 @@ solutions:
     type: And
     value:
     - {type: MaxProblemSizeGreaterThan, value: 32}
-    - {type: LeadingSizesGreaterOrEqual, value: 2}
+    - {type: LeadingFreeSizesGreaterOrEqual, value: 2}
     - {type: OperationIdentifierEqual, value: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
     - type: TypesEqual
       value: [Float, Float, Float, Float]

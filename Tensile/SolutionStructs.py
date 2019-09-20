@@ -188,9 +188,13 @@ class ProblemType:
       else:
         printExit("invalid index %u (expected summation but not (inA and inB))" % i)
     # print index assignments
-    #print1("IndicesFree:  %s" % state["IndicesFree"])
-    #print1("IndicesBatch: %s" % state["IndicesBatch"])
-    #print1("IndicesSum:   %s" % state["IndicesSummation"])
+    if 0:
+      print1("IndicesFree:  %s" % state["IndicesFree"])
+      print1("IndicesBatch: %s" % state["IndicesBatch"])
+      print1("IndicesSum:   %s" % state["IndicesSummation"])
+      print1("IndexAssignmentsA:   %s" % state["IndexAssignmentsA"])
+      print1("IndexAssignmentsB:   %s" % state["IndexAssignmentsB"])
+
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
@@ -1566,18 +1570,15 @@ class Solution:
           reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
                   (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
+    # these work everywhere, no special restrictions
+    state["AssertMinApproxSize"] = 0
     if state["KernelLanguage"] == "Assembly":
-      # Asm kernels only work if all dims are > 32
-      state["AssertMinApproxSize"] = 1
       if state["VectorWidth"] > 1:
         # VW>1 kernels require dims>1
         state["AssertMinApproxSize"] = 3
     elif state["VectorWidth"] > 1:
       # VW>1 kernels require dims>1
       state["AssertMinApproxSize"] = 2
-    else:
-      # these work everywhere, no special restrictions
-      state["AssertMinApproxSize"] = 0
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
