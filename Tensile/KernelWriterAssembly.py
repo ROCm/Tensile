@@ -2683,6 +2683,7 @@ class KernelWriterAssembly(KernelWriter):
         if i==0 and not kernel["ProblemType"]["UseInitialStrides"]:
           # slide into next address calc - can do addr = pendingOffset + nextAddrCalc
           pendingOffset = offset
+          writeDirectToAddr = 0
         else:
           # tile index or unroll vgpr
           if offsetIsVgpr:
