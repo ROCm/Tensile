@@ -35,28 +35,54 @@
 
 using namespace Tensile;
 
-TEST(LibraryPerformanceTest, CreateProblem)
+struct LibraryPerformanceTest: public ::testing::TestWithParam<std::string>
+{
+};
+
+TEST_P(LibraryPerformanceTest, CreateProblem)
 {
     for(int i = 0; i < 1000; i++)
         RandomGEMM();
 }
 
-TEST(LibraryPerformanceTest, LoadLibrary)
+TEST_P(LibraryPerformanceTest, LoadLibrary)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("KernelsLiteMixed.yaml").native());
+    auto filename = GetParam();
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File(filename).native());
 }
 
-TEST(LibraryPerformanceTest, FindSolution)
+TEST_P(LibraryPerformanceTest, FindSolution)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("KernelsLiteMixed.yaml").native());
-    AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
+    auto filename = GetParam();
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::File(filename).native());
 
-    for(int i = 0; i < 10000; i++)
     {
-        auto problem = RandomGEMM();
+        AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
+        for(int i = 0; i < 10000; i++)
+        {
+            auto problem = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
 
-        auto solution = library->findBestSolution(problem, hardware);
+            //ASSERT_NE(solution, nullptr);
+        }
+    }
 
-        //ASSERT_NE(solution, nullptr);
+    {
+        AMDGPU hardware(AMDGPU::Processor::gfx1010, 64, "Navi");
+        for(int i = 0; i < 10000; i++)
+        {
+            auto problem = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
+
+            //ASSERT_NE(solution, nullptr);
+        }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(LLVM, LibraryPerformanceTest,
+        ::testing::Values(
+            "KernelsLite.yaml",
+            "KernelsLiteMixed.yaml",
+            "KernelsLiteNavi.yaml"
+            ));
+

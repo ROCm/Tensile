@@ -472,6 +472,8 @@ class KernelWriterAssembly(KernelWriter):
       rv += ['-mno-code-object-v3' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-v3']
 
     rv += ['-mcpu=gfx' + ''.join(map(str,isa))]
+    if isa == (10,1,0):
+      rv += ['-mwavefrontsize64']
 
     rv += moreArgs
 
@@ -903,6 +905,7 @@ class KernelWriterAssembly(KernelWriter):
     self.memoryInstructions[(8,0,3)] = self.memoryInstructions[(9,0,0)]
     self.memoryInstructions[(9,0,6)] = self.memoryInstructions[(9,0,0)]
     self.memoryInstructions[(9,0,8)] = self.memoryInstructions[(9,0,0)]
+    self.memoryInstructions[(10,1,0)] = self.memoryInstructions[(9,0,0)]
 
     if self.version == (9,0,0):
       self.mixinst = "v_mad_mix_f32"
@@ -2087,6 +2090,9 @@ class KernelWriterAssembly(KernelWriter):
       group_segment_size = kernel["LdsNumElements"] * self.bpeAB
     kStr += "  %s %u // lds bytes%s" \
       % ( tWord, group_segment_size, self.endLine )
+
+    if self.version == (10,1,0):
+      kStr += "  wavefront_size = 6 // 64-thread wavefronts%s" % self.endLine
 
     if globalParameters["CodeObjectVersion"] == "V2":
       # other
@@ -4778,8 +4784,9 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(dummy)
       #kStr += dump(vgpr(sgId))
       #kStr += dump(vgpr(numIter))
-      kStr += inst("v_cmpx_lt_u32", "vcc", \
+      kStr += inst("v_cmp_lt_u32", "vcc", \
           vgpr(sgId), vgpr(numIter), "sgId < numIter")
+      kStr += inst("s_and_b64", "exec", "vcc", "exec", "set exec mask")
       self.vgprPool.checkIn(tmpVgpr)
       #self.tailNumIter = numIter
       #self.vgprPool.checkIn(numIter)
@@ -4790,8 +4797,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # LSU mask for this iteration
     if tailLoop and kernel["LocalSplitU"] > 1:
-      kStr += inst("v_cmpx_lt_u32", "vcc", \
+      kStr += inst("v_cmp_lt_u32", "vcc", \
           vgpr(sgId), vgpr(numIter), "sgId < numIter")
+      kStr += inst("s_and_b64", "exec", "vcc", "exec", "set exec mask")
       kStr += inst("_v_add_co_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
           vgpr(sgId), "sgId+=LSU")
       self.vgprPool.checkIn(sgId)
@@ -5562,10 +5570,11 @@ class KernelWriterAssembly(KernelWriter):
 
               else: # Not buffer load, ie 'flat' load
                 # mask if current address if in bounds
-                kStr += inst("v_cmpx_lt_u64", "vcc", \
+                kStr += inst("v_cmp_lt_u64", "vcc", \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
                     vgpr(maxAddrVgpr,2), \
                     "addr < maxAddr")
+                kStr += inst("s_and_b64", "exec", "vcc", "exec", "set exec mask")
 
                 # load one element from address
                 kStr += self.chooseGlobalRead(False, \
@@ -6440,8 +6449,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment("shift d%u r=%u v=%u"%(tP["idx"], r, vectorIdx))
         kStr += "label_%04u:%s" % (sviLabels[r-1][vectorIdx], self.endLine)
         # mask if last thread in thread#-tile column
-        kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
+        kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
           vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
+        kStr += inst("s_and_b64", "exec", sgpr(tmpSgpr,2), "exec", "set exec mask")
         tto = kernel["ThreadTile%u"%((tP["idx"]+1)%2)] # thread tile orthogonal
         for tt in range(0, tto):
           for s in range(0, r):

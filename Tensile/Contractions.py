@@ -329,10 +329,7 @@ class Solution:
             rv.ideals = {}
 
         if d['KernelLanguage'] == 'Assembly':
-            if 'ISA' not in d:
-                d['ISA'] = list(map(int,deviceInfo[1][3:6]))
-
-            rv.hardwarePredicate = Hardware.HardwarePredicate.FromISA(d['ISA'])
+            d['ISA'] = Common.gfxArch(deviceInfo[1])
         else:
             d['ISA'] = [0,0,0]
 
