@@ -41,7 +41,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 RUN pip3 install wheel && pip3 install tox pyyaml
 
 # docker pipeline runs containers with particular uid
-# create a jenkins user with this specific uid so it can use sudo priviledges
+# create a jenkins user with this specific uid so it can use sudo privileges
 # Grant any member of sudo group password-less sudo privileges
 RUN useradd --create-home -u ${user_uid} -o -G video --shell /bin/bash jenkins && \
     echo '%video   ALL=(ALL) NOPASSWD:ALL' | tee /etc/sudoers.d/sudo-nopasswd && \
