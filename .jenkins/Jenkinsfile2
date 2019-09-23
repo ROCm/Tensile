@@ -28,12 +28,14 @@ import java.nio.file.Path;
 
 tensileCI:
 {
-    def tensile = new rocProject('Tensile')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DCMAKE_CXX_FLAGS=-Werror -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
+    def tensile = new rocProject('TensileRocBLAS')
+    
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900 && ubuntu','gfx906 && ubuntu'], tensile)
 
     boolean formatCheck = false
+
+    tensile.timeout.test = 600
 
     def compileCommand =
     {
@@ -67,41 +69,34 @@ tensileCI:
         }
     }
 
-    tensile.timeout.test = 600
+    def rocblasCompileCommand = 
+    {
+        platform, project->
+        
+        def rocblasCommand = platform.buildRocblas("${project.paths.project_build_prefix}", platform.jenkinsLabel)
+    
+        platform.runCommand(this, rocblasCommand)
+    }
 
-    def test_dir = auxiliary.isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
-    def testCommand =
+    def testType = auxiliary.isJobStartedByTimer() ? "nightly" : "checkin"
+    def rocblasTestCommand = 
     {
         platform, project->
         try
         {
-            def command = """#!/usr/bin/env bash
-                    set -x
-
-                    hostname
-
-                    export PATH=/opt/rocm/bin:$PATH
-                    cd ${project.paths.project_build_prefix}
-
-                    pushd build
-                    ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-
-                    popd
-                    tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
-                    date    
-                """
-            platform.runCommand(this, command)
+            def rocblasCommand = platform.testRocblas(testType,"${project.paths.project_build_prefix}/../rocblas/build/release/clients/staging", platform.jenkinsLabel)
+            platform.runCommand(this, rocblasCommand)
         }
         finally
         {
-            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-            junit "${project.paths.project_build_prefix}/*_tests.xml"
+            junit "${project.paths.project_build_prefix}/rocBLAS/build/release/clients/staging/*.xml"
         }
     }
-    
+
+    def testCommand = null
     def packageCommand = null
     
     buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand, rocblasCompileCommand, rocblasTestCommand)
 
 }
+
