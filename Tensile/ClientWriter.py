@@ -148,48 +148,50 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
   runScriptFile.write("set -ex\n")
 
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake")
-  # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
-  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
-  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
-  if globalParameters["EnableHalf"]:
-    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
-  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
-  else:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
-  if forBenchmark:
-    # for benchmark client
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-  else:
-    # for library client
-    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
-    runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-    runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
-        % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
-    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-        % ("ON" if globalParameters["ShortNames"] else "OFF"))
-  if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
-  if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
-  runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
-  # for both
-  if os.name == "nt":
-    runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-  runScriptFile.write(" ../source\n")
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake --build . --config %s%s\n" \
-      % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") )
+  if globalParameters["NewClient"] < 2:
+    runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
+        % (echoLine, q, HR, q, q, q, q, HR, q))
+    runScriptFile.write("cmake")
+    # runtime and kernel language
+    runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+    runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
+    runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+    if globalParameters["EnableHalf"]:
+      runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+    if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+    else:
+      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
+    if forBenchmark:
+      # for benchmark client
+      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
+    else:
+      # for library client
+      runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
+      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
+      runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
+      runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
+          % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
+      runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
+          % ("ON" if globalParameters["ShortNames"] else "OFF"))
+    if globalParameters["CMakeCXXFlags"]:
+      runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
+    if globalParameters["CMakeCFlags"]:
+      runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+    runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
+    runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
+    # for both
+    if os.name == "nt":
+      runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
+    runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
+        % ("ON" if globalParameters["MergeFiles"] else "OFF"))
+    runScriptFile.write(" ../source\n")
+    runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
+        % (echoLine, q, HR, q, q, q, q, HR, q))
+    runScriptFile.write("cmake --build . --config %s%s\n" \
+        % (globalParameters["CMakeBuildType"], " -- -j 8" \
+        if os.name != "nt" else "") )
+
   if forBenchmark:
     if os.name == "nt":
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
@@ -208,32 +210,36 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
         globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
     if globalParameters["DataInitTypeB"] == -1 :
         globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
-    clp = ""
-    clp += " --platform-idx %u" % globalParameters["Platform"]
-    clp += " --device-idx %u" % globalParameters["Device"]
-    clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
-    clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
-    clp += " --init-d %u" % globalParameters["DataInitTypeD"]
-    clp += " --init-c %u" % globalParameters["DataInitTypeC"]
-    clp += " --init-a %u" % globalParameters["DataInitTypeA"]
-    clp += " --init-b %u" % globalParameters["DataInitTypeB"]
-    clp += " --c-equal-d %u" % globalParameters["CEqualD"]
-    clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
-    clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
-    clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
-    clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
-    clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
-    clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
-    clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
-    clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
-    clp += " --benchmark-solutions %u" % enableTileSelection
-    if "ClientArgs" in globalParameters:
-      clientParams = globalParameters["ClientArgs"]
-      if clientParams:
-        clp += " " + globalParameters["ClientArgs"]
-    runScriptFile.write(clp)
-    runScriptFile.write("\n")
-    runScriptFile.write("ERR1=$?\n")
+
+    if globalParameters["NewClient"] < 2:
+      clp = ""
+      clp += " --platform-idx %u" % globalParameters["Platform"]
+      clp += " --device-idx %u" % globalParameters["Device"]
+      clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
+      clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
+      clp += " --init-d %u" % globalParameters["DataInitTypeD"]
+      clp += " --init-c %u" % globalParameters["DataInitTypeC"]
+      clp += " --init-a %u" % globalParameters["DataInitTypeA"]
+      clp += " --init-b %u" % globalParameters["DataInitTypeB"]
+      clp += " --c-equal-d %u" % globalParameters["CEqualD"]
+      clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
+      clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
+      clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
+      clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
+      clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
+      clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
+      clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
+      clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
+      clp += " --benchmark-solutions %u" % enableTileSelection
+      if "ClientArgs" in globalParameters:
+        clientParams = globalParameters["ClientArgs"]
+        if clientParams:
+          clp += " " + globalParameters["ClientArgs"]
+      runScriptFile.write(clp)
+      runScriptFile.write("\n")
+      runScriptFile.write("ERR1=$?\n")
+    else:
+      runScriptFile.write("ERR1=0\n")
 
     if globalParameters["NewClient"]:
       newClientExe = ClientExecutable.getClientExecutable()
