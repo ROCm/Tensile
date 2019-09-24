@@ -317,11 +317,11 @@ def problemSizeParams(solution, problemSize):
 
     astrides = [-1] * solution.problemType.aDims
     for setc in solution.problemType.setConstStrideA:
-        astrides[setc[0]] = setc[1]
+        astrides[solution.problemType.indices[setc[0]].a] = setc[1]
 
     bstrides = [-1] * solution.problemType.bDims
     for setc in solution.problemType.setConstStrideB:
-        bstrides[setc[0]] = setc[1]
+        bstrides[solution.problemType.indices[setc[0]].b] = setc[1]
 
     rv = [problemSizeArg]
     if len(problemSize) == numIndices:
