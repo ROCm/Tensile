@@ -2255,8 +2255,8 @@ class KernelWriterAssembly(KernelWriter):
            kernel["ProblemType"]["DataType"].isSingleComplex():
         kStr += self.v2Argument(                         "alpha", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
       elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-        kStr += self.v2Argument(                         "alpha_real", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
-        kStr += self.v2Argument(                         "alpha_imag", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
+        kStr += self.v2Argument(                    "alpha_real", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 8
+        kStr += self.v2Argument(                    "alpha_imag", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 8
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
@@ -2265,10 +2265,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.v2Argument(                        "beta",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
         elif kernel["ProblemType"]["DataType"].isDouble() or \
              kernel["ProblemType"]["DataType"].isSingleComplex():
-          kStr += self.v2Argument(                          "beta", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
+          kStr += self.v2Argument(                        "beta", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
         elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-          kStr += self.v2Argument(                          "beta_real", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
-          kStr += self.v2Argument(                          "beta_imag", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 4
+          kStr += self.v2Argument(                   "beta_real", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 8
+          kStr += self.v2Argument(                   "beta_imag", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += 8
 
       for i in range(0, self.numSgprStridesD):
         kStr += self.v2Argument(                   "strideD%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -2356,6 +2356,9 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["ProblemType"]["DataType"].isDouble() or \
            kernel["ProblemType"]["DataType"].isSingleComplex():
         kStr += self.v3Argument(                         "alpha", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+      elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+        kStr += self.v3Argument(                    "alpha_real", cptSize, offset,      "by_value", cptValueType); offset += 8
+        kStr += self.v3Argument(                    "alpha_imag", cptSize, offset,      "by_value", cptValueType); offset += 8
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
@@ -2364,7 +2367,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.v3Argument(                        "beta",       4, offset,      "by_value", cptValueType); offset += 4
         elif kernel["ProblemType"]["DataType"].isDouble() or \
              kernel["ProblemType"]["DataType"].isSingleComplex():
-          kStr += self.v3Argument(                          "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+          kStr += self.v3Argument(                        "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+        elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+          kStr += self.v3Argument(                  "alpha_real", cptSize, offset,      "by_value", cptValueType); offset += 8
+          kStr += self.v3Argument(                  "alpha_imag", cptSize, offset,      "by_value", cptValueType); offset += 8
 
       for i in range(0, self.numSgprStridesD):
         kStr += self.v3Argument(                   "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
