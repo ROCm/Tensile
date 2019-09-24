@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 // This shared library is available at https://github.com/ROCmSoftwarePlatform/rocJENKINS/
-@Library('rocJenkins@testRocBLAS') _
+@Library('rocJenkins') _
 
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
@@ -28,7 +28,7 @@ import java.nio.file.Path;
 
 tensileCI:
 {
-    def tensile = new rocProject('TensileRocBLAS')
+    def tensile = new rocProject('rocBLAS')
     
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900 && ubuntu','gfx906 && ubuntu'], tensile)
@@ -37,39 +37,7 @@ tensileCI:
 
     tensile.timeout.test = 600
 
-    def compileCommand =
-    {
-        platform, project->
-        try
-        {
-            project.paths.construct_build_prefix()
-
-            def command = """#!/usr/bin/env bash
-                    set -ex
-
-                    hostname
-
-                    export PATH=/opt/rocm/bin:$PATH
-                    cd ${project.paths.project_build_prefix}
-
-                    mkdir build
-                    pushd build
-                    ${project.paths.build_command}
-                    make -j
-
-                    popd
-                    tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e lint
-                    """
-
-            platform.runCommand(this, command)
-        }
-        finally
-        {
-        }
-    }
-
-    def rocblasCompileCommand = 
+    def compileCommand = 
     {
         platform, project->
         
@@ -79,12 +47,12 @@ tensileCI:
     }
 
     def testType = auxiliary.isJobStartedByTimer() ? "nightly" : "checkin"
-    def rocblasTestCommand = 
+    def testCommand = 
     {
         platform, project->
         try
         {
-            def rocblasCommand = platform.testRocblas(testType,"${project.paths.project_build_prefix}/../rocblas/build/release/clients/staging", platform.jenkinsLabel)
+            def rocblasCommand = platform.testRocblas(testType,"${project.paths.project_build_prefix}/build/release/clients/staging", platform.jenkinsLabel)
             platform.runCommand(this, rocblasCommand)
         }
         finally
@@ -92,11 +60,10 @@ tensileCI:
             junit "${project.paths.project_build_prefix}/rocBLAS/build/release/clients/staging/*.xml"
         }
     }
-
-    def testCommand = null
+    
     def packageCommand = null
     
-    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand, rocblasCompileCommand, rocblasTestCommand)
+    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
 
 }
 
