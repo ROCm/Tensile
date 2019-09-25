@@ -337,13 +337,13 @@ def problemSizeParams(solution, problemSize):
           astrides[1] = problemSize[numIndices+2]
         else:
           raise RuntimeError("problem-specified lda(%u) conflicts with setConstStrideA(%u)" % \
-              (astrides[1], problemSize[numIndice+2]))
+              (astrides[1], problemSize[numIndices+2]))
 
         if bstrides[1] == -1:
           bstrides[1] = problemSize[numIndices+3]
         else:
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
-              (bstrides[1], problemSize[numIndice+3]))
+              (bstrides[1], problemSize[numIndices+3]))
 
         rv.append(('d-strides', "-1," + str(problemSize[numIndices+1])))
         rv.append(('c-strides', "-1," + str(problemSize[numIndices+0])))
