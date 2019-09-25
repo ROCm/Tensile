@@ -43,7 +43,7 @@ namespace Tensile
         public:
             void addListener(std::shared_ptr<RunListener> listener);
 
-            void setReporter(std::shared_ptr<ResultReporter> reporter);
+            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override;
 
             virtual bool needMoreBenchmarkRuns() const override;
             virtual void preBenchmarkRun() override;
