@@ -952,15 +952,43 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
     return exePath
   return None
 
-# Try to assemble the asmString for the specified target processor
-# Success is defined as assembler returning no error code or stderr/stdout
+def GetAsmCaps(isaVersion):
+  """ Determine assembler capabilities by testing short instructions sequences """
+  rv = {}
+  rv["SupportedISA"] = tryAssembler(isaVersion, "", "")
+  rv["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"] = tryAssembler(isaVersion, "", "v_add_nc_u32 v0,v0,1")
+  rv["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
+  if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
+    rv["MaxVmcnt"] = 63
+  elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
+    rv["MaxVmcnt"] = 15
+  else:
+    rv["MaxVmcnt"] = 0
+
+  rv["SupportedSource"] = (isaVersion != (10,1,0))
+
+  return rv
+
+def GetArchCaps(isaVersion):
+  rv = {}
+  rv["HasEccHalf"] = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
+
+  return rv
 
 def tryAssembler(isaVersion, options, asmString):
-  if isaVersion == 'gfx1010':
+  """
+  Try to assemble the asmString for the specified target processor
+  Success is defined as assembler returning no error code or stderr/stdout
+  """
+  if isaVersion == (10,1,0):
     options += ' -mwavefrontsize64'
 
   asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
-             % (globalParameters["AssemblerPath"], isaVersion, options)
+             % (globalParameters["AssemblerPath"], gfxName(isaVersion), options)
 
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
 
@@ -994,7 +1022,12 @@ def gfxArch(name):
 
     major = int(ipart)
 
-    return (major, minor, step)
+    rv = (major, minor, step)
+
+    return rv
+
+def gfxName(arch):
+    return 'gfx' + ''.join(map(str,arch))
 
 ################################################################################
 # Assign Global Parameters
@@ -1053,33 +1086,16 @@ def assignGlobalParameters( config ):
     if process.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
-  # Determine assembler capabilities by testing short instructions sequences:
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
-  for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
-    globalParameters["AsmCaps"][v] = {}
-    globalParameters["ArchCaps"][v] = {}
-    isaVersion = "gfx" + "".join(map(str,v))
-    globalParameters["AsmCaps"][v]["SupportedISA"] = tryAssembler(isaVersion, "", "")
-    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
-    globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-    globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
-    globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
-    globalParameters["AsmCaps"][v]["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
-    if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
-      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 63
-    elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
-      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 15
-    else:
-      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 0
+  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
+    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
+    globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
-    caps = ""
-    for k in globalParameters["AsmCaps"][v]:
-      caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
-
-    print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
-    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6) or v==(9,0,8))
-    print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))
+    asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
+    archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
+    print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+    print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of

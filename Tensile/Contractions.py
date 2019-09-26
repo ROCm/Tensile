@@ -25,6 +25,7 @@ from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state, state_key_ordering
 
+from . import Common
 
 @state_key_ordering
 class FreeIndex:

@@ -801,6 +801,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
+    self.AsmBugs["ExplicitNC"] = globalParameters["AsmCaps"][self.version]["HasExplicitNC"]
 
     if not globalParameters["AsmCaps"][self.version]["HasDirectToLds"]:
       kernel["DirectToLdsA"] = False
@@ -2389,7 +2390,9 @@ class KernelWriterAssembly(KernelWriter):
     # add w/o carry-out.  On older arch, vcc is still written
     kStr += "\n"
     kStr += ".macro _v_add_u32 dst, src0, src1, dpp=" + self.endLine
-    if self.AsmBugs["ExplicitCO"]:
+    if self.AsmBugs["ExplicitNC"]:
+        kStr += "   v_add_nc_u32 \dst, \src0 \src1 \dpp" + self.endLine
+    elif self.AsmBugs["ExplicitCO"]:
         kStr += "   v_add_u32 \dst, \src0, \src1 \dpp" + self.endLine
     else:
         kStr += "   v_add_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine

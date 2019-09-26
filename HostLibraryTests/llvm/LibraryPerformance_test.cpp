@@ -48,13 +48,13 @@ TEST_P(LibraryPerformanceTest, CreateProblem)
 TEST_P(LibraryPerformanceTest, LoadLibrary)
 {
     auto filename = GetParam();
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File(filename).native());
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
 }
 
 TEST_P(LibraryPerformanceTest, FindSolution)
 {
     auto filename = GetParam();
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::File(filename).native());
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
 
     {
         AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
