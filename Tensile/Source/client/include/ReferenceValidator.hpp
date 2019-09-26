@@ -73,7 +73,7 @@ namespace Tensile
             virtual void   preSyncs() override {}
             virtual void   postSyncs() override {}
 
-            virtual size_t numEnqueuesPerSync() { return 0; }
+            virtual size_t numEnqueuesPerSync() override { return 0; }
             virtual void   setNumEnqueuesPerSync(size_t count) override {}
             virtual void   preEnqueues() override {}
             virtual void   postEnqueues(TimingEvents const& startEvents,

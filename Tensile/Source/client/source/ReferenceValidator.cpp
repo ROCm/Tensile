@@ -57,7 +57,7 @@ namespace Tensile
                      || m_printTensorD;
         }
 
-        bool ReferenceValidator::needMoreBenchmarkRuns() const override
+        bool ReferenceValidator::needMoreBenchmarkRuns() const
         {
             if(m_enabled && m_numBenchmarkRuns == 0)
                 return true;
@@ -65,11 +65,11 @@ namespace Tensile
             return false;
         }
 
-        void ReferenceValidator::preBenchmarkRun() override
+        void ReferenceValidator::preBenchmarkRun()
         {
         }
 
-        void ReferenceValidator::postBenchmarkRun() override
+        void ReferenceValidator::postBenchmarkRun()
         {
             m_numBenchmarkRuns++;
         }
@@ -120,7 +120,7 @@ namespace Tensile
 
         void ReferenceValidator::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
                                                  TimingEvents const& startEvents,
-                                                 TimingEvents const&  stopEvents) override
+                                                 TimingEvents const&  stopEvents)
         {
             if(m_enabled && !m_validatedSolution)
             {

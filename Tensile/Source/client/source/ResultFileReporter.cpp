@@ -72,27 +72,27 @@ namespace Tensile
             }
         }
 
-        void ResultFileReporter::reportValue_string(std::string const& key, std::string const& value) override
+        void ResultFileReporter::reportValue_string(std::string const& key, std::string const& value)
         {
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_uint(  std::string const& key, uint64_t value) override
+        void ResultFileReporter::reportValue_uint(  std::string const& key, uint64_t value)
         {
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_int(   std::string const& key, int64_t value) override
+        void ResultFileReporter::reportValue_int(   std::string const& key, int64_t value)
         {
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_double(std::string const& key, double value) override
+        void ResultFileReporter::reportValue_double(std::string const& key, double value)
         {
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override
+        void ResultFileReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value)
         {
             if(key == ResultKey::ProblemSizes)
             {
@@ -112,18 +112,18 @@ namespace Tensile
             }
         }
 
-        void ResultFileReporter::postProblem() override
+        void ResultFileReporter::postProblem()
         {
             m_output.writeCurrentRow();
         }
 
-        void ResultFileReporter::postSolution() override
+        void ResultFileReporter::postSolution()
         {
             m_solutionName = "";
             m_invalidSolution = false;
         }
 
-        void ResultFileReporter::finalizeReport() override
+        void ResultFileReporter::finalizeReport()
         {
         }
     }

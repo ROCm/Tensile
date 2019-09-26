@@ -52,14 +52,14 @@ namespace Tensile
             m_monitor->addFanSpeedMonitor();
         }
 
-        void   HardwareMonitorListener::preEnqueues() override
+        void   HardwareMonitorListener::preEnqueues()
         {
             if(!m_useGPUTimer)
                 m_monitor->start();
         }
 
         void   HardwareMonitorListener::postEnqueues(TimingEvents const& startEvents,
-                                                     TimingEvents const&  stopEvents) override
+                                                     TimingEvents const&  stopEvents)
         {
             if(m_useGPUTimer)
             {
@@ -73,7 +73,7 @@ namespace Tensile
 
         void   HardwareMonitorListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
                                                          TimingEvents const& startEvents,
-                                                         TimingEvents const&  stopEvents) override
+                                                         TimingEvents const&  stopEvents)
         {
             m_monitor->wait();
 

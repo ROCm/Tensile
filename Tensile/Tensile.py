@@ -121,6 +121,8 @@ def Tensile(userArgs):
       help="use serial kernel and solution names")
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
+  argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
+      action="store", default="hcc", help="select which compiler to use")
   # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
@@ -175,6 +177,8 @@ def Tensile(userArgs):
     globalParameters["ShortNames"] = True
   if args.noMergeFiles:
     globalParameters["MergeFiles"] = False
+  if args.CxxCompiler:
+    globalParameters['CxxCompiler'] = args.CxxCompiler
   print1("")
 
   # Execute Steps in the config script

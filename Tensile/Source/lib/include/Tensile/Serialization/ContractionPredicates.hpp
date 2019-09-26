@@ -62,6 +62,8 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::BoundSizeMultiple         >(),
                     Base::template Pair<Predicates::Contraction::MaxProblemSizeGreaterThan >(),
                     Base::template Pair<Predicates::Contraction::LeadingFreeSizesGreaterOrEqual>(),
+                    Base::template Pair<Predicates::Contraction::StrideAEqual              >(),
+                    Base::template Pair<Predicates::Contraction::StrideBEqual              >(),
                     Base::template Pair<Predicates::Contraction::CDStridesEqual            >(),
                     Base::template Pair<Predicates::Contraction::LDCEqualsLDD              >(),
                     Base::template Pair<Predicates::Contraction::BetaZero                  >(),
@@ -113,6 +115,14 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::LeadingFreeSizesGreaterOrEqual, IO>:
         public AutoMappingTraits<Predicates::Contraction::LeadingFreeSizesGreaterOrEqual, IO> {};
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::StrideAEqual, IO>:
+        public AutoMappingTraits<Predicates::Contraction::StrideAEqual, IO> {};
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::StrideBEqual, IO>:
+        public AutoMappingTraits<Predicates::Contraction::StrideBEqual, IO> {};
 
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::CDStridesEqual, IO>:

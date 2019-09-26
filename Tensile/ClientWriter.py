@@ -166,8 +166,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
   else:
     # for library client
-    runScriptFile.write(" -DTensile_ROOT=%s" \
-        % os.path.join(globalParameters["ScriptPath"], "bin") )
+    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
     runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \

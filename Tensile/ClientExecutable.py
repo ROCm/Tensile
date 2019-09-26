@@ -54,7 +54,7 @@ def clientExecutableEnvironment():
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_NEW_CLIENT': 'ON',
-               'CMAKE_CXX_COMPILER': '/opt/rocm/bin/hcc'}
+               'CMAKE_CXX_COMPILER': os.path.join('/opt/rocm/bin/', globalParameters['CxxCompiler'])}
 
     return CMakeEnvironment(sourceDir, buildDir, **options)
 
