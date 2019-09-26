@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 // This shared library is available at https://github.com/ROCmSoftwarePlatform/rocJENKINS/
-@Library('rocJenkins@testRocBLAS') _
+@Library('rocJenkins') _
 
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
@@ -102,6 +102,6 @@ tensileCI:
     
     def packageCommand = null
     
-    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand, rocblasCompileCommand, rocblasTestCommand)
+    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
 
 }
