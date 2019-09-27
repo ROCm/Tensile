@@ -29,7 +29,6 @@ import java.nio.file.Path;
 tensileCI:
 {
     def rocblas = new rocProject('rocBLAS')
-    def tensile = new rocProject('Tensile')
 
     rocblas.paths.build_command = "./install.sh -lasm_ci -c -t../Tensile"
     
@@ -46,13 +45,17 @@ tensileCI:
         
         project.paths.construct_build_prefix()
         
+        def rocblasCheckout = platform.checkoutSecondaryProject(project.paths.name)
+
         rocblas.paths.build_command = platform.jenkinsLabel.contains('hip-clang') ? './install.sh -lasm_ci -c -t../Tensile --hip-clang' : './install.sh -lasm_ci -c -t../Tensile'
         rocblas.compiler.compiler_path = platform.jenkinsLabel.contains('hip-clang') ? '/opt/rocm/bin/hipcc' : '/opt/rocm/bin/hcc'        
         String sudo = platform.jenkinsLabel.contains('sles') ? 'sudo' : ''        
-
+                
         def command = """#!/usr/bin/env bash
                     set -x
                     cd ${project.paths.project_build_prefix}
+                    ${rocblasCheckout}
+                    cd ${project.paths.name}
                     export PATH=/opt/rocm/bin:$PATH
                     LD_LIBRARY_PATH=/opt/rocm/hcc/lib CXX=${rocblas.compiler.compiler_path} ${sudo} ${project.paths.build_command}
                 """
@@ -70,7 +73,7 @@ tensileCI:
         {
             def command = """#!/usr/bin/env bash
                         set -x
-                        cd ${project.paths.project_build_prefix}/build/release/clients/staging
+                        cd ${project.paths.project_build_prefix}/${project.paths.name}/build/release/clients/staging
                         LD_LIBRARY_PATH=/opt/rocm/hcc/lib ${sudo} ./example-sscal
                         LD_LIBRARY_PATH=/opt/rocm/hcc/lib GTEST_LISTENER=NO_PASS_LINE_IN_LOG ${sudo} ./rocblas-test --gtest_output=xml --gtest_color=yes  --gtest_filter=-*known_bug*
                     """
@@ -79,13 +82,13 @@ tensileCI:
         }
         finally
         {
-            junit "${project.paths.project_build_prefix}/build/release/clients/staging/*.xml"
+            junit "${project.paths.project_build_prefix}/${project.paths.name}/build/release/clients/staging/*.xml"
         }
     }
     
     def packageCommand = null
     
-    buildProject(rocblas, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand, tensile)
+    buildProject(rocblas, formatCheck, nodes.dockerArray, nodes2.dockerArray, compileCommand, testCommand, packageCommand)
 
 }
 
