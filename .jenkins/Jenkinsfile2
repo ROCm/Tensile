@@ -88,7 +88,7 @@ tensileCI:
     
     def packageCommand = null
     
-    buildProject(rocblas, formatCheck, nodes.dockerArray, nodes2.dockerArray, compileCommand, testCommand, packageCommand)
+    buildProject(rocblas, formatCheck, nodes.dockerArray, compileCommand, testCommand, packageCommand)
 
 }
 
