@@ -100,6 +100,7 @@ namespace Tensile
     class TENSILE_API TensorDescriptor
     {
     public:
+        static const size_t UseDefaultStride;
 
         TensorDescriptor();
 
@@ -128,7 +129,7 @@ namespace Tensile
                          std::initializer_list<size_t> sizes)
             : m_sizes(sizes),
               m_dataType(t)
-        
+
         {
             this->calculate();
         }
@@ -155,12 +156,13 @@ namespace Tensile
 
         /**
          * Returns the number of elements of padding in the given dimension (0 if unpadded).
+         * May be negative if stride is less than size
          */
-        size_t dimensionPadding(size_t dim) const;
+        int64_t dimensionPadding(size_t dim) const;
 
         /**
          * Collapses dimensions in the interval [begin, end).
-         * 
+         *
          * preconditions:
          * - end >= begin
          * - begin < dimensions()
@@ -261,6 +263,7 @@ namespace Tensile
         const size_t maxDims=8;
         if(desc.dimensions() > maxDims)
             throw std::runtime_error("Fix this function to work with dimensions > 8");
+        // Use techniques from Reference.cpp with CoordCount to increase dimension support
 
         std::vector<size_t> is(maxDims,0);
         std::vector<size_t> sizes = desc.sizes();

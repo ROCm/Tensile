@@ -34,6 +34,8 @@
 #include <Tensile/Utils.hpp>
 
 namespace Tensile {
+    const size_t TensorDescriptor::UseDefaultStride = static_cast<size_t>(-1);
+
 
     TensorDescriptor::TensorDescriptor()
     {
@@ -55,10 +57,9 @@ namespace Tensile {
             TENSILE_ASSERT_EXC(m_sizes[i] > 0);
         }
 
-        const size_t useDefault = static_cast<size_t>(-1);
 
-        m_strides.resize(m_sizes.size(), useDefault);
-        if (m_strides[0] == useDefault) {
+        m_strides.resize(m_sizes.size(), UseDefaultStride);
+        if (m_strides[0] == UseDefaultStride) {
           m_strides[0] = 1;
         }
         m_totalLogicalElements = m_sizes[0];
@@ -67,7 +68,7 @@ namespace Tensile {
         {
             m_totalLogicalElements *= m_sizes[i];
 
-            if(m_strides[i] == useDefault)
+            if(m_strides[i] == UseDefaultStride)
             {
                 m_strides[i] = m_strides[i-1] * m_sizes[i-1];
             }
@@ -101,7 +102,7 @@ namespace Tensile {
         calculate();
     }
 
-    size_t TensorDescriptor::dimensionPadding(size_t dim) const
+    int64_t TensorDescriptor::dimensionPadding(size_t dim) const
     {
         TENSILE_ASSERT_EXC(dim < dimensions());
 
