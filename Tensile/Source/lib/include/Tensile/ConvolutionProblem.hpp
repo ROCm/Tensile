@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Tensile/Tensile.hpp>
+#include <Tensile/ContractionProblem_fwd.hpp>
 #include <vector>
 
 namespace Tensile
@@ -33,7 +34,7 @@ namespace Tensile
     {
     public:
         static const size_t MaxNumSpatialDims=3;
-        static const size_t InvalidPos=-1;
+        static const size_t InvalidPos;
         enum class TensorFormat
         {
             NCHW, NHWC, CNHW, // Activation Formats
@@ -52,7 +53,8 @@ namespace Tensile
         class TENSILE_API ActivationFormat : public BaseFormat {
         public:
             ActivationFormat();
-            void FromIdentifier(std::string identifier, size_t numSpatialDims, std::vector<size_t> *filters);
+            void FromIdentifier(std::string identifier, size_t formatNumSpatialDims,
+                    size_t numSpatialDims, std::vector<size_t> *filters);
             std::string description() const;
 
             size_t batchPosition() const { return m_batchPosition; };
@@ -61,28 +63,36 @@ namespace Tensile
             // fi is filter index 0...MaxNumSpatialDims.
             // Returns position of specified filter in current Tensor or InvalidPos if filter is 1 and thus
             // no tensor dim required.
-            size_t filterPosition(int filterIndex) const   { return m_filterPositions[filterIndex]; };
-            size_t spatialPosition(int index) const   { return m_spatialPositions[index]; };
+            const std::vector<size_t> filterPositions() const  { return m_filterPositions; };
+            const std::vector<size_t> spatialPositions() const { return m_spatialPositions; };
          private:
             size_t m_batchPosition;
             size_t m_channelPosition;
+
+            // 0,1,2 order is X,Y,Z
+            // always MaxNumSpatialDims elements.  Positions may be InvalidPos
             std::vector<size_t> m_filterPositions;
+
+            // 0,1,2 order is X,Y,Z
+            // size is number of spatial dims, no extra InvalidPos values
             std::vector<size_t> m_spatialPositions;
         };
 
         class TENSILE_API WeightFormat : public BaseFormat {
         public:
             WeightFormat();
-            void FromIdentifier(std::string identifier, bool transposeCK, size_t numSpatialDims, 
+            void FromIdentifier(std::string identifier, bool transposeCK, size_t numSpatialDims,
                     std::vector<size_t> *filters);
 
             std::string description() const;
             size_t coutPosition() const   { return m_coutPosition; };
             size_t cinPosition() const   { return m_cinPosition; };
-            size_t filterPosition(int filterIndex) const   { return m_filterPositions[filterIndex]; };
+            const std::vector<size_t> filterPositions() const { return m_filterPositions; };
         private:
             size_t m_cinPosition;
             size_t m_coutPosition;
+            // 0,1,2 order is X,Y,Z
+            // always MaxNumSpatialDims elements.  Positions may be InvalidPos
             std::vector<size_t> m_filterPositions;
         };
 
@@ -102,8 +112,11 @@ namespace Tensile
         ConvolutionProblem() {}
 
         void FromIdentifier(std::string identifier);
+        void validate(const ContractionProblem &problem) const;
 
-        std::vector<size_t> filter() const { return m_filter;};
+        const std::vector<size_t> filter() const { return m_filters;};
+        const std::vector<size_t> stride() const { return m_strides;};
+        const std::vector<size_t> dilation() const { return m_dilations;};
 
         const ActivationFormat &tensorA() const { return m_tensorA; };
         const ComboFormat &tensorB() const { return m_tensorB; };
@@ -118,19 +131,19 @@ namespace Tensile
         std::string const& operationIdentifier()   const { return m_operationIdentifier; }
 
     private:
-        std::string m_operationIdentifier;
+        std::string m_operationIdentifier; // ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
 
-        std::vector<size_t> m_filter;
-        std::vector<size_t> m_stride;
-        std::vector<size_t> m_dilation;
+        // 0,1,2 order is W,H,D(act) or X,Y,Z(weights)
+        std::vector<size_t> m_filters;
+        std::vector<size_t> m_strides;
+        std::vector<size_t> m_dilations;
         std::vector<size_t> m_padStart;
         std::vector<size_t> m_padEnd;
 
         size_t m_groups = 1;
 
-        size_t m_numSpatialDims = 0;
         size_t m_numFilterDims = 0;
-        bool   m_packSpatial = false;
+        size_t m_numSpatialDims = 0;
 
         ActivationFormat m_tensorA;
         ComboFormat      m_tensorB;

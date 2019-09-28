@@ -198,8 +198,8 @@ for i in validThreadTileSides:
     validThreadTiles.append([i, j])
 
 validTensorAFormats = ('NCHW', 'NHWC', 'CNHW')
-validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX")
-validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX")
+validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX", "CYXK")
+validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX", "CYXK")
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -814,11 +814,11 @@ defaultProblemType = {
     # For OperationType == Convolution*
     # *HW and *YX   create solution with 2 spatial dimensions.
     # *DHW and *ZYX create solution with 3 spatial dimensions.
-    "TensorAFormat":           "NCHW",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW
-    "TensorBFormat":           "KCYX",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW /
-                                        # KCYX, CKYX, KCZYX, CKZYX
-    "TensorDFormat":           "NCHW",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW /
-                                        # KCYX, CKYX, KCZYX, CKZYX
+    "TensorAFormat":           "NCHW",  # NCHW, NHWC, CNHW
+    "TensorBFormat":           "KCYX",  # NCHW, NHWC, CNHW /
+                                        # KCYX, CKYX, CYXK
+    "TensorDFormat":           "NCHW",  # NCHW, NHWC, CNHW
+                                        # KCYX, CKYX, CYXK
 
     # Each of the parms below specifies dimensions separated by 'x".
     # -  The notation follows 'convolution' convention so fastest-moving dimensions are last,

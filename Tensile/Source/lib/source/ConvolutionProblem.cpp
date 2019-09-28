@@ -22,6 +22,7 @@
  */
 
 #include <Tensile/ConvolutionProblem.hpp>
+#include <Tensile/ContractionProblem.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/lexical_cast.hpp>
@@ -30,76 +31,79 @@
 
 namespace Tensile
 {
+    const size_t ConvolutionProblem::InvalidPos=-1;
     ConvolutionProblem::ActivationFormat::ActivationFormat() :
-        m_filterPositions(MaxNumSpatialDims,0),
-        m_spatialPositions(MaxNumSpatialDims,0)
+        m_filterPositions(MaxNumSpatialDims,0)
     {
     }
     void ConvolutionProblem::ActivationFormat::FromIdentifier(std::string identifier,
-            size_t numSpatialDims, std::vector<size_t> *filters)
+            size_t formatNumSpatialDims, size_t numSpatialDims, std::vector<size_t> *filters)
     {
         // summation dimensions immediately follow the spatial dim(s)
         m_formatIdentifier = identifier;
         if (identifier == "NCHW")
         {
-            assert(numSpatialDims == 2);
+            assert(formatNumSpatialDims == 2);
             m_format = TensorFormat::NCHW;
 
-            size_t filterPosition = 0;
+            size_t position = 0;
             if (filters)
-                for (auto fi=0;fi<filters->size();fi++)
+                for (int fi=filters->size()-1; fi>=0; fi--)
                 {
                     if ((*filters)[fi] != 1)
-                        m_filterPositions[fi] = filterPosition++;
+                        m_filterPositions[fi] = position++;
                     else
                         m_filterPositions[fi] = InvalidPos;
                 }
+            for (auto si=0; si<numSpatialDims; si++)
+                m_spatialPositions.push_back(position++);
 
-            // assume spatial dimensions are collapsed here:
-            m_spatialPositions[0] = filterPosition;
-            m_channelPosition = m_spatialPositions[0] + 1;
-            m_batchPosition = m_channelPosition + 1;
-
+            m_channelPosition = position++;
+            m_batchPosition = position++;
         }
         else if (identifier == "NHWC")
         {
-            assert(numSpatialDims == 2);
+            assert(formatNumSpatialDims == 2);
             m_format = TensorFormat::NHWC;
 
             m_channelPosition = 0;
 
-            size_t filterPosition = m_channelPosition+1;
+            size_t position = m_channelPosition+1;
             if (filters)
-                for (auto fi=0;fi<filters->size();fi++)
+                for (int fi=filters->size()-1; fi>=0; fi--)
                 {
                     if ((*filters)[fi] != 1)
-                        m_filterPositions[fi] = filterPosition++;
+                        m_filterPositions[fi] = position++;
                     else
                         m_filterPositions[fi] = InvalidPos;
                 }
 
             // assume spatial dimensions are collapsed here:
-            m_spatialPositions[0] = filterPosition;
-            m_batchPosition = m_spatialPositions[0] + 1;
+            std::cout << "FIXME\n";
+            for (auto si=0; si<numSpatialDims; si++)
+                m_spatialPositions.push_back(position++);
+            m_batchPosition = position++;
         }
         else if (identifier == "CNHW")
         {
-            assert(numSpatialDims == 2);
+            assert(formatNumSpatialDims == 2);
             m_format = TensorFormat::CNHW;
 
-            size_t filterPosition = 0;
+            size_t position = 0;
             if (filters)
-                for (auto fi=0;fi<filters->size();fi++)
+                for (int fi=filters->size()-1; fi>=0; fi--)
                 {
                     if ((*filters)[fi] != 1)
-                        m_filterPositions[fi] = filterPosition++;
+                        m_filterPositions[fi] = position++;
                     else
                         m_filterPositions[fi] = InvalidPos;
                 }
             // assume spatial dimensions are collapsed here:
-            m_spatialPositions[0] = filterPosition;
-            m_batchPosition   = m_spatialPositions[0] + 1;
-            m_channelPosition = m_batchPosition + 1;
+            std::cout << "FIXME\n";
+            for (auto si=0; si<numSpatialDims; si++)
+                m_spatialPositions.push_back(position++);
+            m_batchPosition   = position++;
+            m_channelPosition = position++;
         }
         else
         {
@@ -107,22 +111,35 @@ namespace Tensile
                 identifier);
         }
     }
+
     std::string ConvolutionProblem::ActivationFormat::description() const
     {
         std::ostringstream rv;
         rv << m_formatIdentifier << "_"
            << " batchPosition=" << m_batchPosition
-           << " channelPosition=" << m_channelPosition
-           << " spatialPosition=" << m_spatialPositions[0]
-           << " filterPosition=" << m_filterPositions[0] << "," << m_filterPositions[1] << "," << m_filterPositions[2];
+           << " channelPosition=" << m_channelPosition;
+        rv << " spatialPositions[0,1,2]=";
+        for (auto i=0;i<m_spatialPositions.size();i++)
+        {
+            if (i!=0)
+                rv << ",";
+            rv << static_cast<int>(m_spatialPositions[i]);
+        }
+
+        rv << " filterPosition[0,1,2]="
+           << static_cast<int64_t>(m_filterPositions[0]) << ","
+           << static_cast<int64_t>(m_filterPositions[1]) << ","
+           << static_cast<int64_t>(m_filterPositions[2]);
         return rv.str();
     }
+
     ConvolutionProblem::WeightFormat::WeightFormat() :
         m_filterPositions(MaxNumSpatialDims,0)
     {
     }
+
     void ConvolutionProblem::WeightFormat::FromIdentifier(std::string identifier, bool transposeCK,
-            size_t numSpatialDims, std::vector<size_t> *filters)
+            size_t formatNumSpatialDims, std::vector<size_t> *filters)
     {
         m_formatIdentifier = identifier;
         if (identifier == "KCYX")
@@ -136,23 +153,27 @@ namespace Tensile
         if ((identifier == "KCYX" and !transposeCK) ||
             (identifier == "CKYX" and  transposeCK)) {
 
-            size_t filterPosition = 0;
+            assert(formatNumSpatialDims == 2);
+
+            size_t position = 0;
             if (filters)
-                for (auto fi=0;fi<filters->size();fi++)
+                // Weight dims are assigned in reverse order for optimal Tensile summation processing
+                for (int fi=filters->size()-1; fi>=0; fi--)
                 {
                     if ((*filters)[fi] != 1)
-                        m_filterPositions[fi] = filterPosition++;
+                        m_filterPositions[fi] = position++;
                     else
                         m_filterPositions[fi] = InvalidPos;
                 }
-            m_cinPosition = filterPosition;
-            m_coutPosition = m_cinPosition+1;
+            m_cinPosition = position++;
+            m_coutPosition = position;
 
         } else if ((identifier == "CKYX" and !transposeCK) ||
                    (identifier == "KCYX" and  transposeCK)) {
-            size_t filterPosition = 0;
+            assert(formatNumSpatialDims == 2);
+            size_t filterPosition = 0; // TODO -> change to position
             if (filters)
-                for (auto fi=0;fi<filters->size();fi++)
+                for (int fi=filters->size()-1; fi>=0; fi--)
                 {
                     if ((*filters)[fi] != 1)
                         m_filterPositions[fi] = filterPosition++;
@@ -170,9 +191,12 @@ namespace Tensile
     {
         std::ostringstream rv;
         rv << m_formatIdentifier << "_"
-           << " coutIndex=" << m_coutPosition
-           << " cinIndex=" << m_cinPosition
-           << " filterPositions=" << m_filterPositions[0] << "," << m_filterPositions[1] << "," << m_filterPositions[2];
+           << " coutPosition=" << m_coutPosition
+           << " cinPosition=" << m_cinPosition
+           << " filterPositions="
+                << static_cast<int64_t>(m_filterPositions[0]) << ","
+                << static_cast<int64_t>(m_filterPositions[1]) << ","
+                << static_cast<int64_t>(m_filterPositions[2]);
         return rv.str();
     }
 
@@ -187,7 +211,7 @@ namespace Tensile
         throw std::runtime_error(std::string("Invalid convolution identifier- must have at least 3 sections:") + identifier);
 
       m_operationIdentifier = parts[0];
-      m_numSpatialDims = parts[1].size()-2;
+      size_t formatNumSpatialDims = parts[1].size()-2;
 
       for (auto part = parts.begin() + 4; part != parts.end(); part++)
       {
@@ -196,52 +220,52 @@ namespace Tensile
           boost::split(flags, *part, boost::algorithm::is_any_of(":"));
           assert(flags.size() == 2); // must be key:value pair
 
-          m_filter.resize(MaxNumSpatialDims, 1);
-          m_stride.resize(MaxNumSpatialDims, 1);
-          m_dilation.resize(MaxNumSpatialDims, 1);
+          m_filters.resize(MaxNumSpatialDims, 1);
+          m_strides.resize(MaxNumSpatialDims, 1);
+          m_dilations.resize(MaxNumSpatialDims, 1);
           m_padStart.resize(MaxNumSpatialDims, 0);
           m_padEnd.resize(MaxNumSpatialDims, 0);
 
-          if (flags[0] == "ps")
-            m_packSpatial = boost::lexical_cast<int>(flags[1]);
+          if (flags[0] == "spatial")
+            m_numSpatialDims = boost::lexical_cast<size_t>(flags[1]);
           else if (flags[0] == "filter")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
-            int i = MaxNumSpatialDims-m_numSpatialDims;
+            int i = formatNumSpatialDims;
             for (auto x : xvals) {
-              m_filter[i++] = boost::lexical_cast<size_t>(x);
+              m_filters.at(--i) = boost::lexical_cast<size_t>(x);
             }
           }
           else if (flags[0] == "stride")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
-            int i = MaxNumSpatialDims-m_numSpatialDims;
+            int i = formatNumSpatialDims;
             for (auto x : xvals) {
-              m_stride[i++] = boost::lexical_cast<size_t>(x);
+              m_strides.at(--i) = boost::lexical_cast<size_t>(x);
             }
           }
           else if (flags[0] == "dilation")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
-            int i = MaxNumSpatialDims-m_numSpatialDims;
+            int i = formatNumSpatialDims;
             for (auto x : xvals) {
-              m_dilation[i++] = boost::lexical_cast<size_t>(x);
+              m_dilations.at(--i) = boost::lexical_cast<size_t>(x);
             }
           }
           else if (flags[0] == "padStart")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
-            int i = MaxNumSpatialDims-m_numSpatialDims;
+            int i = formatNumSpatialDims;
             for (auto x : xvals) {
-              m_padStart[i++] = boost::lexical_cast<size_t>(x);
+              m_padStart.at(--i) = boost::lexical_cast<size_t>(x);
             }
           }
           else if (flags[0] == "padEnd")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
-            int i = MaxNumSpatialDims-m_numSpatialDims;
+            int i = formatNumSpatialDims;
             for (auto x : xvals) {
-              m_padEnd[i++] = boost::lexical_cast<size_t>(x);
+              m_padEnd.at(--i) = boost::lexical_cast<size_t>(x);
             }
           }
           else if (flags[0] == "groups")
@@ -257,7 +281,7 @@ namespace Tensile
 
       // Compute number of expected filter summation dims (for non-unit filters)
       m_numFilterDims = 0; // TODO-.backward-weights
-      for (auto f : m_filter)
+      for (auto f : m_filters)
       {
         if (f != 1)
           m_numFilterDims++;
@@ -265,16 +289,92 @@ namespace Tensile
 
       if (m_operationIdentifier == "ConvolutionForward" || m_operationIdentifier=="ConvolutionBackwardData")
       {
-          m_tensorA.FromIdentifier(parts[1], m_numSpatialDims, &m_filter);
+          m_tensorA.FromIdentifier(parts[1], formatNumSpatialDims, m_numSpatialDims, &m_filters);
           m_tensorB.weightsW().FromIdentifier(parts[2], m_operationIdentifier=="ConvolutionBackwardData",
-              m_numSpatialDims, &m_filter);
-          m_tensorD.activationW().FromIdentifier(parts[3], m_numSpatialDims, nullptr);
+               formatNumSpatialDims, &m_filters);
+          m_tensorD.activationW().FromIdentifier(parts[3], formatNumSpatialDims, m_numSpatialDims, nullptr);
       }
       else
       {
           throw std::runtime_error(std::string("Invalid operation identifier:") +
               m_operationIdentifier);
       }
+    }
+
+    void ConvolutionProblem::validate(const ContractionProblem &problem) const
+    {
+        if (1)
+        {
+            std::cout << "validate::\n";
+
+            std::cout << "  freeAIndices: ";
+            for (auto i : problem.freeIndicesA())
+                std::cout << i << ",";
+
+            std::cout << "\n  freeBIndices";
+            for (auto i : problem.freeIndicesB())
+                std::cout << i << ",";
+
+            std::cout << "\n  batchIndices: ";
+            for (auto i : problem.batchIndices())
+                std::cout << i << ",";
+
+            std::cout << "\n  summationIndicies: ";
+            for (auto i : problem.boundIndices())
+                std::cout << i << ",";
+
+            std::cout << "\n";
+
+            if (m_operationIdentifier == "ConvolutionForward")
+            {
+                std::cout << "  tensorA:" << tensorA().description() << "\n";
+                std::cout << "  tensorB:" << tensorB().weights().description() << "\n";
+            }
+            else
+            {
+                throw std::runtime_error(std::string("Unsupported operation identifier for check") +
+                    m_operationIdentifier);
+            }
+        }
+
+        // Ensure positions are where we expect them to be in the convolution tensor description:
+        assert(problem.batchIndices().end() !=
+            std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
+            [this](const ContractionProblem::BatchIndex &bi)
+            {return bi.a == this->tensorA().batchPosition();}));
+
+        assert(problem.boundIndices().end() !=
+            std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+            [this](const ContractionProblem::BoundIndex &bi)
+            {return bi.a == this->tensorA().channelPosition();}));
+        if (m_operationIdentifier == "ConvolutionForward")
+        {
+            for (int i=0; i<ConvolutionProblem::MaxNumSpatialDims; i++)
+            {
+                auto const filterPositionA = tensorA().filterPositions()[i];
+                if (filterPositionA != ConvolutionProblem::InvalidPos)
+                    assert(problem.boundIndices().end() !=
+                        std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                        [filterPositionA](const ContractionProblem::BoundIndex &bi)
+                        {return bi.a == filterPositionA;}));
+
+                auto const filterPositionB = tensorB().weights().filterPositions()[i];
+                if (filterPositionB != ConvolutionProblem::InvalidPos)
+                    assert(problem.boundIndices().end() !=
+                        std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                        [filterPositionB](const ContractionProblem::BoundIndex &bi)
+                        {return bi.b == filterPositionB;}));
+            }
+            for (auto s : tensorA().spatialPositions())
+                assert(problem.freeIndicesA().end() !=
+                    std::find_if(problem.freeIndicesA().begin(), problem.freeIndicesA().end(),
+                    [s](const ContractionProblem::FreeIndex &bi)
+                    {return bi.isA && bi.i == s;}));
+        }
+        else
+          throw std::runtime_error(std::string("Unsupported operation identifier for check") +
+              m_operationIdentifier);
+
     }
 
     template <typename T>
@@ -296,9 +396,9 @@ namespace Tensile
 
         rv << operationIdentifier() ;
 
-        rv << "_filter:" << delimitedVector(m_filter, "x");
-        rv << "_stride:" << delimitedVector(m_stride, "x");
-        rv << "_dilation:" << delimitedVector(m_dilation, "x");
+        rv << "_filter:" << delimitedVector(m_filters, "x");
+        rv << "_stride:" << delimitedVector(m_strides, "x");
+        rv << "_dilation:" << delimitedVector(m_dilations, "x");
         rv << "_padStart:" << delimitedVector(m_padStart, "x");
         rv << "_padEnd:" << delimitedVector(m_padEnd, "x");
 

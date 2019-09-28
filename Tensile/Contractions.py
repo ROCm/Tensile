@@ -63,8 +63,10 @@ class ProblemType:
         batchIndices = []
         boundIndices = []
 
-        if d.convolution:
+        try:
             cls.convolution = d.convolution
+        except AttributeError:
+            cls.convolution = None
 
         for i in d['IndicesSummation']:
             bi = BoundIndex()
@@ -327,11 +329,15 @@ class Solution:
     def FromOriginalState(cls, d, deviceInfo=None):
         rv = cls()
 
+        rv.originalSolution = OriginalSolution(d)
 
         if 'SolutionNameMin' in d:
             rv.name = d['SolutionNameMin']
 
         rv.problemType = ProblemType.FromOriginalState(d['ProblemType'])
+
+        # hacky, can just construct Convolution yet again?
+        rv.problemType.convolution = rv.originalSolution["ProblemType"].convolution
 
         rv.problemPredicate = ProblemPredicate.FromOriginalState(d, rv.problemType)
 
@@ -357,7 +363,6 @@ class Solution:
         else:
             d['ISA'] = [0,0,0]
 
-        rv.originalSolution = OriginalSolution(d)
 
         return rv
 
