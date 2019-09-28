@@ -251,7 +251,7 @@ namespace Tensile
             size_t coutCount = problem.b().sizes()[convProblem.tensorB().weights().coutPosition()];
 
             // Setup filter counts, translate -1 to the filter dim from problem size
-            std::vector<size_t> fcount(ConvolutionProblem::MaxNumSpatialDims,0);
+            std::vector<size_t> fcount(ConvolutionProblem::MaxNumSpatialDims,1);
             for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
             {
                 auto const filterPositionA = convProblem.tensorA().filterPosition(fi);

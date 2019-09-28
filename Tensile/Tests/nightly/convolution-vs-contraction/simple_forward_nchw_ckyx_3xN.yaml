@@ -1,8 +1,8 @@
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  PrintLevel: 1
   CMakeBuildType: Debug
+  PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
@@ -19,35 +19,37 @@ GlobalParameters:
   DataInitTypeBeta: 0
   DataInitTypeAlpha: 1
   KernelTime: True
-  LibraryPrintDebug: 0
+  LibraryPrintDebug: 1
   #RuntimeLanguage: ["OCL"]
   #PrintTensorC : 2
   PrintSolutionRejectionReason: 1
   ConvolutionVsContraction: 1
-  PrintSolutionRejectionReason: 1
-  PrintTensorA: 1
+  PrintConvolutionUsage: 1
+  PrintTensorA: 0
   NewClient: 2
-
 
 BenchmarkProblems:
 
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      TensorAFormat: CNHW
+      TensorAFormat: NCHW
+      TensorBFormat: CKYX
+      TensorDFormat:  NCHW
+      Filter: 3xN
       DataType: s
       DestDataType: s
       Batched: 0
       UseBeta: False
 
-    - # BenchmarkProblemSizeGroup - Assembly
+    - # BenchmarkProblemSizeGroup
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         #- KernelLanguage: ["Assembly"]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
@@ -65,6 +67,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [2], [4], [3], [6] ]
-          #- Range: [ [16,4,64], [32], [1,1,16], [8] ]
+          - Exact: [ 6, 2, 1, 2, 4, 3] # HW, Cout, Batch, Cin, FilterY
 

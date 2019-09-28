@@ -199,7 +199,7 @@ for i in validThreadTileSides:
 
 validTensorAFormats = ('NCHW', 'NHWC', 'CNHW')
 validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX")
-validOutputTensorFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX")
+validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX")
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -817,7 +817,7 @@ defaultProblemType = {
     "TensorAFormat":           "NCHW",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW
     "TensorBFormat":           "KCYX",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW /
                                         # KCYX, CKYX, KCZYX, CKZYX
-    "OutputFormat":            "NCHW",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW /
+    "TensorDFormat":           "NCHW",  # NCHW, NHWC, CNHW, NCDHW, NDHWC, CNDHW /
                                         # KCYX, CKYX, KCZYX, CKZYX
 
     # Each of the parms below specifies dimensions separated by 'x".

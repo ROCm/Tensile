@@ -33,7 +33,7 @@ BenchmarkProblems:
       OperationType: ConvolutionForward
       TensorAFormat: NCHW
       TensorBFormat: KCYX
-      OutputFormat: CNHW
+      TensorDFormat: CNHW
       DataType: s
       DestDataType: s
 
