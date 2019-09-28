@@ -29,8 +29,6 @@ import java.nio.file.Path;
 tensileCI:
 {
     def rocblas = new rocProject('rocBLAS')
-
-    rocblas.paths.build_command = "./install.sh -lasm_ci -c -t../Tensile"
     
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900 && ubuntu','gfx906 && ubuntu'], rocblas)
@@ -47,7 +45,7 @@ tensileCI:
         
         def rocblasCheckout = platform.checkoutSecondaryProject(project.name)
 
-        rocblas.paths.build_command = platform.jenkinsLabel.contains('hip-clang') ? './install.sh -lasm_ci -c -t../Tensile --hip-clang' : './install.sh -lasm_ci -c -t../Tensile'
+        rocblas.paths.build_command = platform.jenkinsLabel.contains('hip-clang') ? "./install.sh -lasm_ci -c -t${project.paths.project_build_prefix}/../../../../.. --hip-clang" : "./install.sh -lasm_ci -c -t${project.paths.project_build_prefix}/../../../../.."
         rocblas.compiler.compiler_path = platform.jenkinsLabel.contains('hip-clang') ? '/opt/rocm/bin/hipcc' : '/opt/rocm/bin/hcc'        
         String sudo = platform.jenkinsLabel.contains('sles') ? 'sudo' : ''        
                 
@@ -73,7 +71,7 @@ tensileCI:
         {
             def command = """#!/usr/bin/env bash
                         set -x
-                        cd ${project.paths.project_build_prefix}/${project.name}/build/release/clients/staging
+                        cd ${project.paths.project_build_prefix}/../../../../build/release/clients/staging
                         LD_LIBRARY_PATH=/opt/rocm/hcc/lib ${sudo} ./example-sscal
                         LD_LIBRARY_PATH=/opt/rocm/hcc/lib GTEST_LISTENER=NO_PASS_LINE_IN_LOG ${sudo} ./rocblas-test --gtest_output=xml --gtest_color=yes  --gtest_filter=-*known_bug*
                     """
@@ -82,7 +80,7 @@ tensileCI:
         }
         finally
         {
-            junit "${project.paths.project_build_prefix}/${project.name}/build/release/clients/staging/*.xml"
+            junit "${project.paths.project_build_prefix}/../../../../build/release/clients/staging/*.xml"
         }
     }
     
