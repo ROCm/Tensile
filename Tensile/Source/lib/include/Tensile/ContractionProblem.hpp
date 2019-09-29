@@ -48,12 +48,10 @@ namespace Tensile
          */
         struct FreeIndex
         {
-            size_t a;  //< Dimension of A for this index.
-            size_t b;  //< Dimension of B for this index.
-            size_t ca; //< Dimension of C which corresponds to A in this index.
-            size_t cb; //< Dimension of C which corresponds to B in this index.
-            size_t da; //< Dimension of D which corresponds to A in this index.
-            size_t db; //< Dimension of D which corresponds to B in this index.
+            bool isA;  //< True=index is in A; False=index is in B
+            size_t i;  //< Dimension in A or B (depending on isA)
+            size_t c; //< Dimension of C which corresponds for this index
+            size_t d; //< Dimension of D which corresponds for this index
         };
         using FreeIndices = std::vector<FreeIndex>;
 
@@ -136,6 +134,7 @@ namespace Tensile
 
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
+
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
 
@@ -160,6 +159,8 @@ namespace Tensile
         TensorOps const& cOps() const { return m_cOps; }
         TensorOps const& dOps() const { return m_dOps; }
 
+        FreeIndices  const&  freeIndicesA() const { return m_freeIndicesA; }
+        FreeIndices  const&  freeIndicesB() const { return m_freeIndicesB; }
         FreeIndices  const&  freeIndices() const { return m_freeIndices; }
         BatchIndices const& batchIndices() const { return m_batchIndices; }
         BoundIndices const& boundIndices() const { return m_boundIndices; }
@@ -200,12 +201,14 @@ namespace Tensile
         bool m_transB;
         bool m_highPrecisionAccumulate = false;
 
-        FreeIndices m_freeIndices;
+        FreeIndices  m_freeIndicesA; // in same order as IndexAssignmentsA
+        FreeIndices  m_freeIndicesB; // in same order as IndexAssignmentsB
+        FreeIndices  m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
 
-        std::vector<size_t> m_freeSizeA;
-        std::vector<size_t> m_freeSizeB;
+        std::vector<size_t> m_freeSizesA;
+        std::vector<size_t> m_freeSizesB;
         std::vector<size_t> m_batchSizes;
         std::vector<size_t> m_boundSizes;
 
