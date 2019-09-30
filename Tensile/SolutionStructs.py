@@ -185,12 +185,10 @@ class Convolution:
       # Set index assignment for output space
       # Memory order for output space is NumCindices...0 with 0 the fastest-moving dim.
       if self.tensorDFormat in ('NCHW','NCDHW'):
-        sidx = 0
         kidx = len(sdims)
         nidx = kidx+1
         cidx = nidx+1
       elif self.tensorDFormat in ("CNHW", "CNDHW"):
-        sidx = 0
         nidx = len(sdims)
         kidx = nidx+1
         cidx = kidx+1
@@ -201,7 +199,6 @@ class Convolution:
       for (fi,filterValue) in enumerate(self.filter[::-1]):
         if filterValue != 1:
           sumIdx = sumIdx+1
-          fi2 = self.formatNumSpatialDims-3-fi
           filterChar = chr(ord('Z')+self.formatNumSpatialDims-3-fi)
           filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
           prevChar = ['1', 'W', 'W*H']
@@ -223,7 +220,7 @@ class Convolution:
       if self.tensorAFormat in ("NCHW", "NCDHW"):
         self.registerA( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum,cdim)] + spatialDims + filterDims )
       elif self.tensorAFormat in ("NHWC", "NDHWC"):
-        self.registerA( [(nidx,Fbs.Batch,ndim)] + spatialDims + filterDims + [(cidx,Fbd.Sum,cdim)] )
+        self.registerA( [(nidx,Fbs.Batch,ndim)] + spatialDims + filterDims + [(cidx,Fbs.Sum,cdim)] )
       elif self.tensorAFormat in ("CNHW", "CNDHW"):
         self.registerA( [(cidx,Fbs.Sum,cdim), (nidx,Fbs.Batch,ndim)] + spatialDims + filterDims )
       else:
