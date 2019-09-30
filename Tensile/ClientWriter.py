@@ -148,48 +148,50 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
   runScriptFile.write("set -ex\n")
 
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake")
-  # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
-  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
-  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
-  if globalParameters["EnableHalf"]:
-    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
-  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
-  else:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
-  if forBenchmark:
-    # for benchmark client
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-  else:
-    # for library client
-    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
-    runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-    runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
-        % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
-    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-        % ("ON" if globalParameters["ShortNames"] else "OFF"))
-  if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
-  if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
-  runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
-  # for both
-  if os.name == "nt":
-    runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-  runScriptFile.write(" ../source\n")
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake --build . --config %s%s\n" \
-      % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") )
+  if globalParameters["NewClient"] < 2:
+    runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
+        % (echoLine, q, HR, q, q, q, q, HR, q))
+    runScriptFile.write("cmake")
+    # runtime and kernel language
+    runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+    runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
+    runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+    if globalParameters["EnableHalf"]:
+      runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+    if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+    else:
+      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
+    if forBenchmark:
+      # for benchmark client
+      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
+    else:
+      # for library client
+      runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
+      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
+      runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
+      runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
+          % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
+      runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
+          % ("ON" if globalParameters["ShortNames"] else "OFF"))
+    if globalParameters["CMakeCXXFlags"]:
+      runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
+    if globalParameters["CMakeCFlags"]:
+      runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+    runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
+    runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
+    # for both
+    if os.name == "nt":
+      runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
+    runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
+        % ("ON" if globalParameters["MergeFiles"] else "OFF"))
+    runScriptFile.write(" ../source\n")
+    runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
+        % (echoLine, q, HR, q, q, q, q, HR, q))
+    runScriptFile.write("cmake --build . --config %s%s\n" \
+        % (globalParameters["CMakeBuildType"], " -- -j 8" \
+        if os.name != "nt" else "") )
+
   if forBenchmark:
     if os.name == "nt":
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
@@ -208,32 +210,36 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
         globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
     if globalParameters["DataInitTypeB"] == -1 :
         globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
-    clp = ""
-    clp += " --platform-idx %u" % globalParameters["Platform"]
-    clp += " --device-idx %u" % globalParameters["Device"]
-    clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
-    clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
-    clp += " --init-d %u" % globalParameters["DataInitTypeD"]
-    clp += " --init-c %u" % globalParameters["DataInitTypeC"]
-    clp += " --init-a %u" % globalParameters["DataInitTypeA"]
-    clp += " --init-b %u" % globalParameters["DataInitTypeB"]
-    clp += " --c-equal-d %u" % globalParameters["CEqualD"]
-    clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
-    clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
-    clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
-    clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
-    clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
-    clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
-    clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
-    clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
-    clp += " --benchmark-solutions %u" % enableTileSelection
-    if "ClientArgs" in globalParameters:
-      clientParams = globalParameters["ClientArgs"]
-      if clientParams:
-        clp += " " + globalParameters["ClientArgs"]
-    runScriptFile.write(clp)
-    runScriptFile.write("\n")
-    runScriptFile.write("ERR1=$?\n")
+
+    if globalParameters["NewClient"] < 2:
+      clp = ""
+      clp += " --platform-idx %u" % globalParameters["Platform"]
+      clp += " --device-idx %u" % globalParameters["Device"]
+      clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
+      clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
+      clp += " --init-d %u" % globalParameters["DataInitTypeD"]
+      clp += " --init-c %u" % globalParameters["DataInitTypeC"]
+      clp += " --init-a %u" % globalParameters["DataInitTypeA"]
+      clp += " --init-b %u" % globalParameters["DataInitTypeB"]
+      clp += " --c-equal-d %u" % globalParameters["CEqualD"]
+      clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
+      clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
+      clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
+      clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
+      clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
+      clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
+      clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
+      clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
+      clp += " --benchmark-solutions %u" % enableTileSelection
+      if "ClientArgs" in globalParameters:
+        clientParams = globalParameters["ClientArgs"]
+        if clientParams:
+          clp += " " + globalParameters["ClientArgs"]
+      runScriptFile.write(clp)
+      runScriptFile.write("\n")
+      runScriptFile.write("ERR1=$?\n")
+    else:
+      runScriptFile.write("ERR1=0\n")
 
     if globalParameters["NewClient"]:
       newClientExe = ClientExecutable.getClientExecutable()
@@ -315,18 +321,41 @@ def problemSizeParams(solution, problemSize):
 
     problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
 
-    if len(problemSize) == numIndices:
-        return [problemSizeArg]
-    elif len(problemSize) == numIndices + 4:
-        return [problemSizeArg,
-                ('a-strides', problemSize[numIndices+2]),
-                ('b-strides', problemSize[numIndices+3]),
-                ('c-strides', problemSize[numIndices+0]),
-                ('d-strides', problemSize[numIndices+1])]
+    astrides = [-1] * solution.problemType.aDims
+    for setc in solution.problemType.setConstStrideA:
+        astrides[solution.problemType.indices[setc[0]].a] = setc[1]
 
-    raise RuntimeError(
-        "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
+    bstrides = [-1] * solution.problemType.bDims
+    for setc in solution.problemType.setConstStrideB:
+        bstrides[solution.problemType.indices[setc[0]].b] = setc[1]
+
+    rv = [problemSizeArg]
+    if len(problemSize) == numIndices:
+      None
+    elif len(problemSize) == numIndices + 4:
+        if astrides[1] == -1:
+          astrides[1] = problemSize[numIndices+2]
+        else:
+          raise RuntimeError("problem-specified lda(%u) conflicts with setConstStrideA(%u)" % \
+              (astrides[1], problemSize[numIndices+2]))
+
+        if bstrides[1] == -1:
+          bstrides[1] = problemSize[numIndices+3]
+        else:
+          raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
+              (bstrides[1], problemSize[numIndices+3]))
+
+        rv.append(('d-strides', "-1," + str(problemSize[numIndices+1])))
+        rv.append(('c-strides', "-1," + str(problemSize[numIndices+0])))
+    else:
+        raise RuntimeError(
+            "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
             ', '.join(map(str, problemSize))))
+
+    rv.append(('a-strides', ",".join(map(str, astrides))))
+    rv.append(('b-strides', ",".join(map(str, bstrides))))
+
+    return rv
 
 
 def dataInitName(num):
@@ -1103,16 +1132,23 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
 
     for i in range(0,lastStrideB):
-      h += "  unsigned int strideB%u%s = 1" % (i, \
-          indexChars[problemType["IndexAssignmentsB"][i]])
-      for j in range(0, i):
-        h += " * ("
-        if j == 0:
-          h += "(ldb != std::numeric_limits<unsigned int>::max()) ? ldb : "
-        h+= "std::max(minStrides[%i], sizes[%i]))" % \
-          (problemType["IndexAssignmentsB"][j],
-           problemType["IndexAssignmentsB"][j])
-      h += ";\n"
+      idx = problemType["IndexAssignmentsB"][i]
+      constStride = checkConstStride(problemType["SetConstStrideB"], idx)
+      if constStride != None:
+        h += "  unsigned int strideB%u%s = %d; //SetConstStrideB\n" % (i,
+          indexChars[problemType["IndexAssignmentsB"][i]],
+          constStride)
+      else:
+        h += "  unsigned int strideB%u%s = 1" % (i, \
+            indexChars[problemType["IndexAssignmentsB"][i]])
+        for j in range(0, i):
+          h += " * ("
+          if j == 0:
+            h += "(ldb != std::numeric_limits<unsigned int>::max()) ? ldb : "
+          h+= "std::max(minStrides[%i], sizes[%i]))" % \
+            (problemType["IndexAssignmentsB"][j],
+             problemType["IndexAssignmentsB"][j])
+        h += ";\n"
     h += "  if (stride_b != std::numeric_limits<unsigned int>::max())  strideB%u%s = stride_b;\n" % (lastStrideB-1, indexChars[problemType["IndexAssignmentsB"][lastStrideB-1]])
 
     for i in range(0, problemType["TotalIndices"]):

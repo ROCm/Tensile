@@ -494,10 +494,6 @@ namespace Tensile
 
     void ContractionProblem::normalize()
     {
-        std::sort(m_freeIndices.begin(),  m_freeIndices.end());
-        std::sort(m_batchIndices.begin(), m_batchIndices.end());
-        std::sort(m_boundIndices.begin(), m_boundIndices.end());
-
         m_maxProblemSize = 0;
 
         m_freeSizeA.resize(m_freeIndices.size());

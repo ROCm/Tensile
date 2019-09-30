@@ -98,9 +98,9 @@ class ProblemType:
 
         rv = cls()
         rv.indices = indices
-        rv.freeIndices = sorted(freeIndices)
-        rv.batchIndices = sorted(batchIndices)
-        rv.boundIndices = sorted(boundIndices)
+        rv.freeIndices = freeIndices
+        rv.batchIndices = batchIndices
+        rv.boundIndices = boundIndices
         rv.aDims = len(d['IndexAssignmentsA'])
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
@@ -120,6 +120,11 @@ class ProblemType:
         rv.highPrecisionAccumulate = False
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
+
+        if 'SetConstStrideA' in d:
+            rv.setConstStrideA = d['SetConstStrideA']
+        if 'SetConstStrideB' in d:
+            rv.setConstStrideB = d['SetConstStrideB']
 
         rv.useBeta = True
         if 'UseBeta' in d:
