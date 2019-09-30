@@ -67,6 +67,14 @@ globalParameters["ValidationPrintValids"] = False # print matches too
 globalParameters["ForceRedoBenchmarkProblems"] = True # if False and benchmarking already complete, then benchmarking will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryLogic"] = True      # if False and library logic already analyzed, then library logic will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
+
+# Compare CPU reference convolution model vs golden tensor contracton model
+# Useful to test if conversion from tensor contraction is working as expected
+# In this mode, the filter,stride,dilation are specified in the problem type.
+# If the problem type uses constant Filter,Stride,Dilation,Pad* (ie these are not 'N'), then the
+# specified constant MUST match the dimension in the problem or the tensile runtime will assert.
+# The batch size, spatial dims, Cin, and Cout are always read from the problem description.
+globalParameters["ConvolutionVsContraction"] = False
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
@@ -112,6 +120,7 @@ globalParameters["DebugKernel"] = False           # assembly only, kernel gets b
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
 
 # Tensor printing controls:
+globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info
 globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = 0          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
@@ -188,6 +197,9 @@ for i in validThreadTileSides:
   for j in validThreadTileSides:
     validThreadTiles.append([i, j])
 
+validTensorAFormats = ('NCHW', 'NHWC', 'CNHW')
+validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX", "CYXK")
+validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX", "CYXK")
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -767,7 +779,7 @@ for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
 defaultProblemType = {
     # =GEMM uses TransposeA,B paramters and makes the problem type more readeable for users
     # =TensorContraction  requires specifying
-    "OperationType":            "GEMM",
+    "OperationType":            "GEMM",           # GEMM, TensorContraction, ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
@@ -779,7 +791,7 @@ defaultProblemType = {
     "ComplexConjugateA":        False,            # complex data should be conjugated for "C" transpose case
     "ComplexConjugateB":        False,
 
-    # for gemm description
+    # for OperationType == GEMM
     "TransposeA":               False,            # =True means transA="T" or "C", =False means transA = "N"
     "TransposeB":               True,
     "Batched":                  False,            # add batching dimension
@@ -788,7 +800,7 @@ defaultProblemType = {
     # - Indices < NumIndicesC are Free or Batch indices and appear in C and D
     # - Indices which appear in both A and B, and are < NumIndicesC are batch.  A and B must have same number of batch indices.
     # - Indices which appear in both A and B, and are >= NumIndicesC are summation. A and B must have same number of summation indices.
-    # - Indicies which appear in A or B (but not both), are Free.  A and B may have different numbers of free indices.
+    # - Indices which appear in A or B (but not both), are Free.  A and B may have different numbers of free indices.
     # - Summation loops are nested from smallest index number to largest, with the largest summation index as the 'unroll' loop.
     # - Memory order of C and D matrices is always 0..NumIndicesC-1, with 0 as the fastest-moving.
     #   - By choosing index assignments the output can be 'transposed'.  For example if IA=[1,2] IB=[0,2] then 0 is the coalesced dim for C/D.
@@ -798,6 +810,43 @@ defaultProblemType = {
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
+
+    # For OperationType == Convolution*
+    # *HW and *YX   create solution with 2 spatial dimensions.
+    # *DHW and *ZYX create solution with 3 spatial dimensions.
+    "TensorAFormat":           "NCHW",  # NCHW, NHWC, CNHW
+    "TensorBFormat":           "KCYX",  # NCHW, NHWC, CNHW /
+                                        # KCYX, CKYX, CYXK
+    "TensorDFormat":           "NCHW",  # NCHW, NHWC, CNHW
+                                        # KCYX, CKYX, CYXK
+
+    # Each of the parms below specifies dimensions separated by 'x".
+    # -  The notation follows 'convolution' convention so fastest-moving dimensions are last,
+    #    and should mirror the order of the spatial dimension in the activation format.
+    #    For example, in NCHW format Filter=3x1 is 3 in the H dimension and 1 in the W dimension.
+    # -  2 or 3 dimensions are supported 'Filter:3x1' or 'Filter:3x3x1'.
+    # - Use an integer to create a kernel with a compile-time constant
+    #   Use "N" to create flexible kernel the value provided at runtime via appropriate
+    #   size and stride values.
+    # - 0 specifies the default.  Defaults below shown for 2 spatial dimensions; a 3-dimensional
+    #   default will be created if the formats request 3 spacial dimensions.
+    "Filter":                   0, # examples: 1x1,3x3,1x7,7x1,NxN,Nx5,3x3x3.  Default=1x1.
+    "Stride":                   0, # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1.
+    "Dilation":                 0, # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1.
+
+    # Pad at start of each filter dimension. Recommend 0x0 when possible or NxN otherwise.
+    # (performance difference from compile-time padding is not significant)
+    "PadStart":                 0, # examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0
+    # Pad at end of each filter dimension
+    "PadEnd":                   0,# examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0.
+
+    # For grouped convolutions:
+    "GroupCount":               1,
+
+    # pack spatial dims (d,h,w) into single tensor dim
+    # This is preferred for cases where these dimensions are packed in memory
+    # since it reduces addressing overhead and will produce a more efficient kernel
+    "PackedSpatialDims":       True,
 
     # List of pairs of [index, constValue].
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
