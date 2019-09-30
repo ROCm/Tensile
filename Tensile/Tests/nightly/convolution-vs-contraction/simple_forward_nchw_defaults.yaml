@@ -24,8 +24,9 @@ GlobalParameters:
   #PrintTensorC : 2
   PrintSolutionRejectionReason: 1
   ConvolutionVsContraction: 1
-  PrintSolutionRejectionReason: 1
-  PrintTensorA: 1
+  PrintConvolutionUsage: 1
+
+  #PrintTensorA: 1
 
 
 BenchmarkProblems:
