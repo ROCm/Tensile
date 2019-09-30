@@ -784,7 +784,16 @@ defaultProblemType = {
     "TransposeB":               True,
     "Batched":                  False,            # add batching dimension
 
-    # for tensor contraction description
+    # for OperationType == TensorContraction
+    # - Indices < NumIndicesC are Free or Batch indices and appear in C and D
+    # - Indices which appear in both A and B, and are < NumIndicesC are batch.  A and B must have same number of batch indices.
+    # - Indices which appear in both A and B, and are >= NumIndicesC are summation. A and B must have same number of summation indices.
+    # - Indicies which appear in A or B (but not both), are Free.  A and B may have different numbers of free indices.
+    # - Summation loops are nested from smallest index number to largest, with the largest summation index as the 'unroll' loop.
+    # - Memory order of C and D matrices is always 0..NumIndicesC-1, with 0 as the fastest-moving.
+    #   - By choosing index assignments the output can be 'transposed'.  For example if IA=[1,2] IB=[0,2] then 0 is the coalesced dim for C/D.
+    #   - Likewise batch index may be assigned between two free indices to control the output order, ie to write in CNHW format.
+    #   - For example : IA=[0,1,3] IB=[2,1,3].  0,2 are free indices;  1 is batch.
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,

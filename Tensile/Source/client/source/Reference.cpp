@@ -53,7 +53,8 @@ namespace Tensile
         template <typename Inputs, typename Accumulator>
         void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs)
         {
-            auto const& freeIndices = problem.freeIndices();
+            auto const& freeIndicesA = problem.freeIndicesA();
+            auto const& freeIndicesB = problem.freeIndicesB();
             auto const& batchIndices = problem.batchIndices();
             auto const& boundIndices = problem.boundIndices();
 
@@ -73,8 +74,8 @@ namespace Tensile
                 if(op.type == TensorOp::Type::ComplexConjugate)
                     bConjugate = true;
 
-            std::vector<size_t> freeASize(problem.freeIndices().size());
-            std::vector<size_t> freeBSize(problem.freeIndices().size());
+            std::vector<size_t> freeASize(problem.freeIndicesA().size());
+            std::vector<size_t> freeBSize(problem.freeIndicesB().size());
             std::vector<size_t> batchSize(problem.batchIndices().size());
             std::vector<size_t> boundSize(problem.boundIndices().size());
 
@@ -102,9 +103,9 @@ namespace Tensile
                 std::vector<size_t> batch(problem.batchIndices().size());
                 CoordNumbered(batchNum, batch.begin(), batch.end(), batchSize.begin(), batchSize.end());
 
-                std::vector<size_t> freeA(problem.freeIndices().size());
+                std::vector<size_t> freeA(problem.freeIndicesA().size());
                 CoordNumbered(freeANum, freeA.begin(), freeA.end(), freeASize.begin(), freeASize.end());
-                std::vector<size_t> freeB(problem.freeIndices().size());
+                std::vector<size_t> freeB(problem.freeIndicesB().size());
                 CoordNumbered(freeBNum, freeB.begin(), freeB.end(), freeBSize.begin(), freeBSize.end());
 
                 for(int i = 0; i < batch.size(); i++)
@@ -117,16 +118,16 @@ namespace Tensile
 
                 for(int i = 0; i < freeA.size(); i++)
                 {
-                    aCoord[freeIndices[i].a ] = freeA[i];
-                    cCoord[freeIndices[i].ca] = freeA[i];
-                    dCoord[freeIndices[i].da] = freeA[i];
+                    aCoord[freeIndicesA[i].i] = freeA[i];
+                    cCoord[freeIndicesA[i].c] = freeA[i];
+                    dCoord[freeIndicesA[i].d] = freeA[i];
                 }
 
                 for(int i = 0; i < freeB.size(); i++)
                 {
-                    bCoord[freeIndices[i].b ] = freeB[i];
-                    cCoord[freeIndices[i].cb] = freeB[i];
-                    dCoord[freeIndices[i].db] = freeB[i];
+                    bCoord[freeIndicesB[i].i] = freeB[i];
+                    cCoord[freeIndicesB[i].c] = freeB[i];
+                    dCoord[freeIndicesB[i].d] = freeB[i];
                 }
 
 

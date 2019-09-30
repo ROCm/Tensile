@@ -90,9 +90,12 @@ namespace Tensile
         rv.numWorkGroups.x = 1;
         rv.numWorkGroups.y = 1;
 
-        for(size_t i = 0; i < problem.freeIndices().size(); i++)
+        for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
         {
             rv.numWorkGroups.x *= problem.freeSizeA(i);
+        }
+        for(size_t i = 0; i < problem.freeIndicesB().size(); i++)
+        {
             rv.numWorkGroups.y *= problem.freeSizeB(i);
         }
 
