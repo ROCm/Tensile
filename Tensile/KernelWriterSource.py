@@ -91,7 +91,7 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
     # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
-    self.useMagicNumber = False
+    self.useMagicNumber = True
     self.db={}
     self.db["PrintStagger"] = 0
 
