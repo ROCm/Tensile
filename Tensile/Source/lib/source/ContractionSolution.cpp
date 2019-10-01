@@ -56,10 +56,9 @@ namespace Tensile
         return staggerUIter;
     }
 
-    uint32_t ContractionSolution::magicNumber(uint32_t x) const
+    uint32_t ContractionSolution::magicNumber(uint32_t x, unsigned magicShift) const
     {
         // TODO: bozo, review
-        uint32_t magicShift = 31;
         return (1L<<magicShift) / x + 1;
     }
 
@@ -69,6 +68,11 @@ namespace Tensile
                                                              Hardware                     const& hardware) const
     {
         TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
+        static const int smallNumMagicShift=31;
+        static const int largeNumMagicShift=33; // TODO, may need to compute this dynamically
+
+        bool packIndicesA = (problem.freeIndicesA().size() > 1) || sizeMapping.packBatchDims & 0x1;
+        bool packIndicesB = (problem.freeIndicesB().size() > 1) || sizeMapping.packBatchDims & 0x2;
 
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
@@ -99,12 +103,19 @@ namespace Tensile
             rv.numWorkGroups.y *= problem.freeSizeB(i);
         }
 
-        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
-
         rv.numWorkGroups.z = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
-            rv.numWorkGroups.z *= problem.batchSize(i);
+        {
+            if (packIndicesA)
+                rv.numWorkGroups.x *= problem.batchSize(i);
+            if (packIndicesB)
+                rv.numWorkGroups.y *= problem.batchSize(i);
+            if (!packIndicesA && !packIndicesB)
+                rv.numWorkGroups.z *= problem.batchSize(i);
+        }
+
+        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
@@ -177,11 +188,42 @@ namespace Tensile
             idx++;
         }
 
+        if (packIndicesA)
+            // Pack in all non-summation indices, except don't need magic number for the last one
+            for (auto idx=0; idx<problem.a().dimensions()-1;idx++)
+            {
+                auto isSum = std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                                [idx](const ContractionProblem::BoundIndex &bi)
+                                {return bi.a == idx;});
+
+                if (isSum != problem.boundIndices().end())
+                {
+                    auto size = a.sizes()[idx];
+                    rv.args.append<uint32_t>(concatenate("magicNumberSize_",idx), magicNumber(size, largeNumMagicShift));
+                    rv.args.append<uint32_t>(concatenate("magicShiftSize_",idx), largeNumMagicShift);
+                }
+            }
+        if (packIndicesB)
+            // Pack in all non-summation indices, except don't need magic number for the last one
+            for (auto idx=0; idx<problem.b().dimensions()-1;idx++)
+            {
+                auto isSum = std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                                [idx](const ContractionProblem::BoundIndex &bi)
+                                {return bi.b == idx;});
+
+                if (isSum != problem.boundIndices().end())
+                {
+                    auto size = b.sizes()[idx];
+                    rv.args.append<uint32_t>(concatenate("magicNumberSize_",idx), magicNumber(size, largeNumMagicShift));
+                    rv.args.append<uint32_t>(concatenate("magicShiftSize_",idx), largeNumMagicShift);
+                }
+            }
+
         rv.args.append< int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
-        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(problemNumGroupTiles0));
+        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(problemNumGroupTiles0, smallNumMagicShift));
 
         if(!isSourceKernel())
         {
@@ -197,7 +239,7 @@ namespace Tensile
                 wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
                 if(wgmRemainder1 == 0)
                     wgmRemainder1 = sizeMapping.workGroupMapping;
-                magicNumberWgmRemainder1 = magicNumber(wgmRemainder1);
+                magicNumberWgmRemainder1 = magicNumber(wgmRemainder1, smallNumMagicShift);
             }
 
             rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
