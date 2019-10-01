@@ -332,10 +332,11 @@ class Solution:
         else:
             rv.ideals = {}
 
-        if d['KernelLanguage'] == 'Assembly':
-            d['ISA'] = Common.gfxArch(deviceInfo[1])
-        else:
-            d['ISA'] = [0,0,0]
+        if 'ISA' not in d:
+            if d['KernelLanguage'] == 'Assembly':
+                d['ISA'] = Common.gfxArch(deviceInfo[1])
+            else:
+                d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
 
