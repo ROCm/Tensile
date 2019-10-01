@@ -6,6 +6,9 @@ def test_strideb0_pack_tn(tmpdir):
 def test_simple_stridea0_pack(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("nightly/pack_tensor_dims/simple_stridea0_pack.yaml"), tmpdir.strpath])
 
+def test_multi_free2(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("nightly/pack_tensor_dims/multi_free2.yaml"), tmpdir.strpath])
+
 def test_simple_strideb0_pack(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("nightly/pack_tensor_dims/simple_strideb0_pack.yaml"), tmpdir.strpath])
 
