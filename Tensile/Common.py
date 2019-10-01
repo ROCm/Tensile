@@ -135,7 +135,7 @@ globalParameters["ShortNames"] = False            # on windows kernel names can 
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # Run new client
+globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -784,7 +784,16 @@ defaultProblemType = {
     "TransposeB":               True,
     "Batched":                  False,            # add batching dimension
 
-    # for tensor contraction description
+    # for OperationType == TensorContraction
+    # - Indices < NumIndicesC are Free or Batch indices and appear in C and D
+    # - Indices which appear in both A and B, and are < NumIndicesC are batch.  A and B must have same number of batch indices.
+    # - Indices which appear in both A and B, and are >= NumIndicesC are summation. A and B must have same number of summation indices.
+    # - Indicies which appear in A or B (but not both), are Free.  A and B may have different numbers of free indices.
+    # - Summation loops are nested from smallest index number to largest, with the largest summation index as the 'unroll' loop.
+    # - Memory order of C and D matrices is always 0..NumIndicesC-1, with 0 as the fastest-moving.
+    #   - By choosing index assignments the output can be 'transposed'.  For example if IA=[1,2] IB=[0,2] then 0 is the coalesced dim for C/D.
+    #   - Likewise batch index may be assigned between two free indices to control the output order, ie to write in CNHW format.
+    #   - For example : IA=[0,1,3] IB=[2,1,3].  0,2 are free indices;  1 is batch.
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
@@ -794,6 +803,7 @@ defaultProblemType = {
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
     #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],
+    "SetConstStrideB":          [],
 
     # ZeroPad:
     # Zero-pad will add leading and trailing "pad" elements to the specified free

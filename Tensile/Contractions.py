@@ -29,15 +29,13 @@ from . import Common
 
 @state_key_ordering
 class FreeIndex:
-    StateKeys = ['a', 'b', 'ca', 'cb', 'da', 'db']
+    StateKeys = ['isA', 'i', 'c', 'd']
 
-    def __init__(self, a=None, b=None, ca=None, cb=None, da=None, db=None):
-        self.a = a
-        self.b = b
-        self.ca = ca
-        self.cb = cb
-        self.da = da
-        self.db = db
+    def __init__(self, isA, i=None, c=None, d=None):
+        self.isA = isA
+        self.i = i # index into A or B (depending on isA)
+        self.c = c
+        self.d = d
 
 @state_key_ordering
 class BatchIndex:
@@ -66,24 +64,26 @@ class ProblemType:
         batchIndices = []
         boundIndices = []
 
-        for i in d['IndicesBatch']:
-            bi = BatchIndex(c=i, d=i)
-            indices[i] = bi
-            batchIndices.append(bi)
-
         for i in d['IndicesSummation']:
             bi = BoundIndex()
             indices[i] = bi
             boundIndices.append(bi)
 
-        for idx in range(0, len(d['IndicesFree']), 2):
-            ia = d['IndicesFree'][idx]
-            ib = d['IndicesFree'][idx+1]
-            fi = FreeIndex(ca=ia, cb=ib, da=ia, db=ib)
-
-            indices[ia] = fi
-            indices[ib] = fi
-            freeIndices.append(fi)
+        for i in range(0,d["NumIndicesC"]):
+            if i in d['IndicesBatch']:
+                bi = BatchIndex(c=i, d=i)
+                indices[i] = bi
+                batchIndices.append(bi)
+            else:
+                assert i in d['IndicesFree']
+                if i in d['IndexAssignmentsA']:
+                    fi = FreeIndex(isA=True, i=d["IndexAssignmentsA"].index(i), c=i, d=i)
+                elif i in d['IndexAssignmentsB']:
+                    fi = FreeIndex(isA=False, i=d["IndexAssignmentsB"].index(i), c=i, d=i)
+                else:
+                    raise RuntimeError("free index %u not in ia or ib"%i)
+                indices[i] = fi
+                freeIndices.append(fi)
 
         for ia, ic in enumerate(d['IndexAssignmentsA']):
             indices[ic].a = ia
@@ -99,9 +99,9 @@ class ProblemType:
 
         rv = cls()
         rv.indices = indices
-        rv.freeIndices = sorted(freeIndices)
-        rv.batchIndices = sorted(batchIndices)
-        rv.boundIndices = sorted(boundIndices)
+        rv.freeIndices = freeIndices
+        rv.batchIndices = batchIndices
+        rv.boundIndices = boundIndices
         rv.aDims = len(d['IndexAssignmentsA'])
         rv.bDims = len(d['IndexAssignmentsB'])
         rv.cDims = d['NumIndicesC']
@@ -122,6 +122,11 @@ class ProblemType:
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
 
+        if 'SetConstStrideA' in d:
+            rv.setConstStrideA = d['SetConstStrideA']
+        if 'SetConstStrideB' in d:
+            rv.setConstStrideB = d['SetConstStrideB']
+
         rv.useBeta = True
         if 'UseBeta' in d:
             rv.useBeta = d['UseBeta']
@@ -131,6 +136,7 @@ class ProblemType:
         return rv
 
     def __init__(self, freeIndices=None, batchIndices=None, boundIndices=None, aDims=None, bDims=None, cDims=None, dDims=None):
+        self.convolution = None
         self.freeIndices  = freeIndices
         self.batchIndices = batchIndices
         self.boundIndices = boundIndices
@@ -155,10 +161,11 @@ class ProblemType:
         index += len(sumNames)
 
         for free in self.freeIndices:
-            aNames[free.a ] = dNames[free.da]
-            bNames[free.b ] = dNames[free.db]
-            cNames[free.ca] = dNames[free.da]
-            cNames[free.cb] = dNames[free.db]
+            if free.isA:
+                aNames[free.i ] = dNames[free.d]
+            else:
+                bNames[free.i ] = dNames[free.d]
+            cNames[free.c] = dNames[free.d]
 
         for batch in self.batchIndices:
             name = dNames[batch.d]

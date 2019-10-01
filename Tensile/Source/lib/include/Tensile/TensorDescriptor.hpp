@@ -100,6 +100,7 @@ namespace Tensile
     class TENSILE_API TensorDescriptor
     {
     public:
+        static const size_t UseDefaultStride;
 
         TensorDescriptor();
 
@@ -128,7 +129,7 @@ namespace Tensile
                          std::initializer_list<size_t> sizes)
             : m_sizes(sizes),
               m_dataType(t)
-        
+
         {
             this->calculate();
         }
@@ -155,12 +156,13 @@ namespace Tensile
 
         /**
          * Returns the number of elements of padding in the given dimension (0 if unpadded).
+         * May be negative if stride is less than size
          */
-        size_t dimensionPadding(size_t dim) const;
+        int64_t dimensionPadding(size_t dim) const;
 
         /**
          * Collapses dimensions in the interval [begin, end).
-         * 
+         *
          * preconditions:
          * - end >= begin
          * - begin < dimensions()
@@ -258,26 +260,36 @@ namespace Tensile
     template <typename T>
     void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
     {
-        if(desc.dimensions() != 3)
-            throw std::runtime_error("Fix this function to work with dimensions != 3");
+        const size_t maxDims=8;
+        if(desc.dimensions() > maxDims)
+            throw std::runtime_error("Fix this function to work with dimensions > 8");
+        // Use techniques from Reference.cpp with CoordCount to increase dimension support
 
-        std::vector<size_t> index3{0,0,0};
+        std::vector<size_t> is(maxDims,0);
+        std::vector<size_t> sizes = desc.sizes();
+        sizes.resize(maxDims,1);
 
-        stream << "Tensor("
-            << desc.sizes()[0] << ", "
-            << desc.sizes()[1] << ", "
-            << desc.sizes()[2] << ")";
+        stream << "Tensor(";
+        for (auto s : desc.sizes())
+            stream << s << ", ";
+        stream  << " data_ptr: " << data;
 
-       stream << std::endl;
+        stream << std::endl;
 
-        for(index3[2] = 0; index3[2] < desc.sizes()[2]; index3[2]++)
+        for(is[7] = 0; is[7] < sizes[7]; is[7]++)
+        for(is[6] = 0; is[6] < sizes[6]; is[6]++)
+        for(is[5] = 0; is[5] < sizes[5]; is[5]++)
+        for(is[4] = 0; is[4] < sizes[4]; is[4]++)
+        for(is[3] = 0; is[3] < sizes[3]; is[3]++)
+        for(is[2] = 0; is[2] < desc.sizes()[2]; is[2]++)
         {
             stream << "[" << std::endl;
-            for(index3[0] = 0; index3[0] < desc.sizes()[0]; index3[0]++)
+            for(is[0] = 0; is[0] < desc.sizes()[0]; is[0]++)
             {
-                for(index3[1] = 0; index3[1] < desc.sizes()[1]; index3[1]++)
+                for(is[1] = 0; is[1] < desc.sizes()[1]; is[1]++)
                 {
-                    size_t idx = desc.index(index3);
+                    std::vector<size_t> validIs(is.begin(), is.begin()+desc.dimensions());
+                    size_t idx = desc.index(validIs);
                     stream << data[idx] << " ";
                 }
                 stream << std::endl;

@@ -39,12 +39,14 @@ namespace Tensile
                                                         size_t ldd, size_t dStride,
                                                         double beta)
     {
-        Tensile::ContractionProblem::FreeIndices  free(1);
+        Tensile::ContractionProblem::FreeIndices  free(2);
         Tensile::ContractionProblem::BoundIndices bound(1);
         Tensile::ContractionProblem::BatchIndices batch(1);
 
-        free[0].ca = free[0].da = 0;
-        free[0].cb = free[0].db = 1;
+        free[0].isA=true;
+        free[0].i = free[0].c = free[0].d = 0;
+        free[1].isA=false;
+        free[1].i = free[1].c = free[1].d = 1;
 
         batch[0].a = batch[0].b = batch[0].c = batch[0].d = 2;
 
@@ -53,26 +55,26 @@ namespace Tensile
         if(transA)
         {
             a = TensorDescriptor(aType, {k, m, batchSize}, {1, lda, aStride});
-            free[0].a = 1;
+            free[0].i = 1;
             bound[0].a = 0;
         }
         else
         {
             a = TensorDescriptor(aType, {m, k, batchSize}, {1, lda, aStride});
-            free[0].a = 0;
+            free[0].i = 0;
             bound[0].a = 1;
         }
 
         if(transB)
         {
             b = TensorDescriptor(bType, {n, k, batchSize}, {1, ldb, bStride});
-            free[0].b = 0;
+            free[1].i = 0;
             bound[0].b = 1;
         }
         else
         {
             b = TensorDescriptor(bType, {k, n, batchSize}, {1, ldb, bStride});
-            free[0].b = 1;
+            free[1].i = 1;
             bound[0].b = 0;
         }
 
@@ -94,40 +96,42 @@ namespace Tensile
     {
         if(colMajor) throw std::runtime_error("Column major not yet implemented.");
 
-        FreeIndex free;
+        Tensile::ContractionProblem::FreeIndices  free(2);
         BoundIndex bound;
 
-        free.ca = free.da = 0;
-        free.cb = free.db = 1;
+        free[0].isA=true;
+        free[0].i = free[0].c = free[0].d = 0;
+        free[1].isA=false;
+        free[1].i = free[1].c = free[1].d = 1;
 
         TensorDescriptor a, b, c, d;
         if(transA)
         {
             a = TensorDescriptor(DataType::Float, {k, m}, {1, lda});
-            free.a = 1;
+            free[0].i = 1;
             bound.a = 0;
         }
         else
         {
             a = TensorDescriptor(DataType::Float, {m, k}, {1, lda});
-            free.a = 0;
+            free[0].i = 0;
             bound.a = 1;
         }
 
         if(transB)
         {
             b = TensorDescriptor(DataType::Float, {n, k}, {1, ldb});
-            free.b = 0;
+            free[1].i = 0;
             bound.b = 1;
         }
         else
         {
             b = TensorDescriptor(DataType::Float, {k, n}, {1, ldb});
-            free.b = 1;
+            free[1].i = 1;
             bound.b = 0;
         }
 
-        FreeIndices freeIndices{free};
+        FreeIndices  freeIndices{free};
         BatchIndices batchIndices;
         BoundIndices boundIndices{bound};
 
@@ -154,35 +158,37 @@ namespace Tensile
                                                 TensorDescriptor const& d, TensorOps const& dOps,
                                                 double beta)
     {
-        FreeIndex free;
+        Tensile::ContractionProblem::FreeIndices  free(2);
         BoundIndex bound;
 
-        free.ca = free.da = 0;
-        free.cb = free.db = 1;
+        free[0].isA=true;
+        free[0].i = free[0].c = free[0].d = 0;
+        free[1].isA=false;
+        free[1].i = free[1].c = free[1].d = 1;
 
         if(transA)
         {
-            free.a = 1;
+            free[0].i = 1;
             bound.a = 0;
         }
         else
         {
-            free.a = 0;
+            free[0].i = 0;
             bound.a = 1;
         }
 
         if(transB)
         {
-            free.b = 0;
+            free[1].i = 0;
             bound.b = 1;
         }
         else
         {
-            free.b = 1;
+            free[1].i = 1;
             bound.b = 0;
         }
 
-        FreeIndices freeIndices{free};
+        FreeIndices  freeIndices{free};
         BatchIndices batchIndices;
         BoundIndices boundIndices{bound};
 
@@ -191,7 +197,7 @@ namespace Tensile
         return ContractionProblem(a, aOps, b, bOps, c, cOps, d, cOps, freeIndices, batchIndices, boundIndices, beta);
     }
 
-    void ContractionProblem::IdentifierToIndices(std::string  const& identifier, 
+    void ContractionProblem::IdentifierToIndices(std::string  const& identifier,
                                                  FreeIndices       & freeIndices,
                                                  BatchIndices      & batchIndices,
                                                  BoundIndices      & boundIndices,
@@ -287,9 +293,6 @@ namespace Tensile
         allIndices.insert(c.begin(), c.end());
         allIndices.insert(d.begin(), d.end());
 
-        bool freeHasA = true;
-        bool freeHasB = true;
-
         for(char index: allIndices)
         {
             size_t aIndex = a.find(index);
@@ -310,38 +313,22 @@ namespace Tensile
             else if(aIndex != std::string::npos && bIndex == std::string::npos
                  && cIndex != std::string::npos && dIndex != std::string::npos)
             {
-                if(freeHasA && freeHasB)
-                {
-                    free.resize(free.size()+1);
-                    freeHasB = false;
-                }
-                else if(freeHasA)
-                {
-                    throw std::runtime_error(concatenate("Inconsistent free index pairing: ", identifier));
-                }
+                free.resize(free.size()+1);
 
-                free.back().a = aIndex;
-                free.back().ca = cIndex;
-                free.back().da = dIndex;
-                freeHasA = true;
+                free.back().isA = true;
+                free.back().i = aIndex;
+                free.back().c = cIndex;
+                free.back().d = dIndex;
             }
             else if(aIndex == std::string::npos && bIndex != std::string::npos
                  && cIndex != std::string::npos && dIndex != std::string::npos)
             {
-                if(freeHasA && freeHasB)
-                {
-                    free.resize(free.size()+1);
-                    freeHasA = false;
-                }
-                else if(freeHasB)
-                {
-                    throw std::runtime_error(concatenate("Inconsistent free index pairing: ", identifier));
-                }
+                free.resize(free.size()+1);
 
-                free.back().b = bIndex;
-                free.back().cb = cIndex;
-                free.back().db = dIndex;
-                freeHasB = true;
+                free.back().isA = false;
+                free.back().i = bIndex;
+                free.back().c = cIndex;
+                free.back().d = dIndex;
             }
         }
         freeIndices  = std::move(free);
@@ -399,10 +386,12 @@ namespace Tensile
 
         for(auto const& free: freeIndices)
         {
-            maxA = std::max(maxA, free.a);
-            maxB = std::max(maxB, free.b);
-            maxC = std::max({maxC, free.ca, free.cb});
-            maxD = std::max({maxD, free.da, free.db});
+            if (free.isA)
+                maxA = std::max(maxA, free.i);
+            else
+                maxB = std::max(maxB, free.i);
+            maxC = std::max(maxC, free.c);
+            maxD = std::max(maxD, free.d);
         }
 
         for(auto const& batch: batchIndices)
@@ -423,17 +412,14 @@ namespace Tensile
 
         for(auto const& free: freeIndices)
         {
-            size_t indexSizeA = indexSizes.at(free.da);
-            size_t indexSizeB = indexSizes.at(free.db);
+            size_t indexSize = indexSizes.at(free.d);
+            if (free.isA)
+                aSizes[free.i] = indexSize;
+            else
+                bSizes[free.i] = indexSize;
 
-            aSizes[free.a] = indexSizeA;
-            bSizes[free.b] = indexSizeB;
-
-            cSizes[free.ca] = indexSizeA;
-            cSizes[free.cb] = indexSizeB;
-
-            dSizes[free.da] = indexSizeA;
-            dSizes[free.db] = indexSizeB;
+            cSizes[free.c] = indexSize;
+            dSizes[free.d] = indexSize;
         }
 
         for(auto const& batch: batchIndices)
@@ -494,28 +480,36 @@ namespace Tensile
 
     void ContractionProblem::normalize()
     {
-        std::sort(m_freeIndices.begin(),  m_freeIndices.end());
-        std::sort(m_batchIndices.begin(), m_batchIndices.end());
-        std::sort(m_boundIndices.begin(), m_boundIndices.end());
-
         m_maxProblemSize = 0;
 
-        m_freeSizeA.resize(m_freeIndices.size());
-        m_freeSizeB.resize(m_freeIndices.size());
         m_batchSizes.resize(m_batchIndices.size());
         m_boundSizes.resize(m_boundIndices.size());
 
         for(int i = 0; i < m_freeIndices.size(); i++)
         {
-            m_freeSizeA[i] = std::max({m_a.sizes()[m_freeIndices[i].a],
-                                       m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].ca],
-                                       m_d.sizes()[m_freeIndices[i].da]});
+            size_t maxSize=0; // TODO - aren't these all the same?
+            if (m_freeIndices[i].isA)
+            {
+                m_freeIndicesA.push_back(m_freeIndices[i]);
+                maxSize = std::max({m_a.sizes()[m_freeIndices[i].i],
+                             m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].c],
+                             m_d.sizes()[m_freeIndices[i].d]});
+                m_freeSizesA.push_back(maxSize);
+                assert(m_a.sizes()[m_freeIndices[i].i] == m_d.sizes()[m_freeIndices[i].d]);
+                assert(maxSize == m_a.sizes()[m_freeIndices[i].i]);
+            }
+            else
+            {
+                m_freeIndicesB.push_back(m_freeIndices[i]);
+                maxSize = std::max({m_b.sizes()[m_freeIndices[i].i],
+                                    m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].c],
+                                    m_d.sizes()[m_freeIndices[i].d]});
+                m_freeSizesB.push_back(maxSize);
+                assert(m_b.sizes()[m_freeIndices[i].i] == m_d.sizes()[m_freeIndices[i].d]);
+                assert(maxSize == m_b.sizes()[m_freeIndices[i].i]);
+            }
 
-            m_freeSizeB[i] = std::max({m_b.sizes()[m_freeIndices[i].b],
-                                       m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].cb],
-                                       m_d.sizes()[m_freeIndices[i].db]});
-
-            m_maxProblemSize = std::max({m_maxProblemSize, m_freeSizeA[i], m_freeSizeB[i]});
+            m_maxProblemSize = std::max(m_maxProblemSize, maxSize);
         }
 
         for(int i = 0; i < m_batchIndices.size(); i++)
@@ -557,30 +551,32 @@ namespace Tensile
 
         for(FreeIndex const& free: m_freeIndices)
         {
-            TENSILE_ASSERT_EXC(free.a  < m_a.dimensions());
-            TENSILE_ASSERT_EXC(free.b  < m_b.dimensions());
-            TENSILE_ASSERT_EXC(free.da < m_d.dimensions());
-            TENSILE_ASSERT_EXC(free.db < m_d.dimensions());
+            if (free.isA)
+            {
+                aUseCount[free.i]++;
+                TENSILE_ASSERT_EXC(free.i  < m_a.dimensions());
+                TENSILE_ASSERT_EXC(m_a.sizes()[free.i] == m_d.sizes()[free.d]);
+            }
+            else
+            {
+                bUseCount[free.i]++;
+                TENSILE_ASSERT_EXC(free.i  < m_b.dimensions());
+                TENSILE_ASSERT_EXC(m_b.sizes()[free.i] == m_d.sizes()[free.d]);
+            }
 
-            aUseCount[free.a]++;
-            bUseCount[free.b]++;
-
-            dUseCount[free.da]++;
-            dUseCount[free.db]++;
-
-            TENSILE_ASSERT_EXC(m_a.sizes()[free.a] == m_d.sizes()[free.da]);
-            TENSILE_ASSERT_EXC(m_b.sizes()[free.b] == m_d.sizes()[free.db]);
+            TENSILE_ASSERT_EXC(free.d < m_d.dimensions());
+            dUseCount[free.d]++;
 
             if(!m_c.empty())
             {
-                TENSILE_ASSERT_EXC(free.ca < m_c.dimensions());
-                TENSILE_ASSERT_EXC(free.cb < m_c.dimensions());
+                TENSILE_ASSERT_EXC(free.c < m_c.dimensions());
 
-                cUseCount[free.ca]++;
-                cUseCount[free.cb]++;
+                cUseCount[free.c]++;
 
-                TENSILE_ASSERT_EXC(m_a.sizes()[free.a] == m_c.sizes()[free.ca]);
-                TENSILE_ASSERT_EXC(m_b.sizes()[free.b] == m_c.sizes()[free.cb]);
+                if (free.isA)
+                    TENSILE_ASSERT_EXC(m_a.sizes()[free.i] == m_c.sizes()[free.c]);
+                else
+                    TENSILE_ASSERT_EXC(m_b.sizes()[free.i] == m_c.sizes()[free.c]);
             }
         }
 
@@ -650,12 +646,12 @@ namespace Tensile
 
     size_t ContractionProblem::freeSizeA(size_t idx) const
     {
-        return m_freeSizeA[idx];
+        return m_freeSizesA.at(idx);
     }
 
     size_t ContractionProblem::freeSizeB(size_t idx) const
     {
-        return m_freeSizeB[idx];
+        return m_freeSizesB.at(idx);
     }
 
     size_t ContractionProblem::batchSize(size_t idx) const
@@ -677,10 +673,10 @@ namespace Tensile
     {
         size_t rv = flopsPerMac();
 
-        for(auto size: m_freeSizeA)
+        for(auto size: m_freeSizesA)
             rv *= size;
 
-        for(auto size: m_freeSizeB)
+        for(auto size: m_freeSizesB)
             rv *= size;
 
         for(auto size: m_batchSizes)
@@ -720,12 +716,13 @@ namespace Tensile
 
         for(auto const& free: m_freeIndices)
         {
-            aNames[free.a] = dNames[free.da];
-            bNames[free.b] = dNames[free.db];
+            if (free.isA)
+                aNames[free.i] = dNames[free.d];
+            else
+                bNames[free.i] = dNames[free.d];
             if(!m_c.empty())
             {
-                cNames[free.ca] = dNames[free.da];
-                cNames[free.cb] = dNames[free.db];
+                cNames[free.c] = dNames[free.d];
             }
         }
 
@@ -815,9 +812,8 @@ namespace Tensile
 
     std::ostream & operator<<(std::ostream & stream, ContractionProblem::FreeIndex  const& free)
     {
-        return stream << "{a=" << free.a << " b=" << free.b
-                      << " ca=" << free.ca << " cb=" << free.cb
-                      << " da=" << free.da << " db=" << free.db << "}";
+        return stream << "{isA=" << free.isA << " i=" << free.i
+                      << " c=" << free.c << " d=" << free.d << "}";
     }
     std::ostream & operator<<(std::ostream & stream, ContractionProblem::BatchIndex const& batch)
     {
@@ -838,12 +834,10 @@ namespace Tensile
     std::istream & operator>>(std::istream & stream, ContractionProblem::FreeIndex       & free)
     {
         StreamRead comma(",");
-        return stream   >> free.a
-               >> comma >> free.b
-               >> comma >> free.ca
-               >> comma >> free.cb
-               >> comma >> free.da
-               >> comma >> free.db;
+        return stream   >> free.isA
+               >> comma >> free.i
+               >> comma >> free.c
+               >> comma >> free.d;
     }
 
     std::istream & operator>>(std::istream & stream, ContractionProblem::BatchIndex      & batch)

@@ -39,12 +39,10 @@ namespace Tensile
 
         static int compare(ContractionProblem::FreeIndex const& lhs, ContractionProblem::FreeIndex const& rhs)
         {
-            return LexicographicCompare(lhs.da, rhs.da,
-                                        lhs.db, rhs.db,
-                                        lhs.ca, rhs.ca,
-                                        lhs.cb, rhs.cb,
-                                        lhs.a,  rhs.a,
-                                        lhs.b,  rhs.b);
+            return LexicographicCompare(lhs.d, rhs.d,
+                                        lhs.c, rhs.c,
+                                        lhs.i,  rhs.i,
+                                        lhs.isA,  rhs.isA);
         }
     };
 
