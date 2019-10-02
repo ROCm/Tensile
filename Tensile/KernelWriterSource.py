@@ -20,7 +20,7 @@
 ################################################################################
 
 from .DataType import DataType
-from .SolutionStructs import isPackedIndex,isExtractableIndex
+from .SolutionStructs import isPackedIndex
 from .Common import globalParameters, printExit
 from .KernelWriter import KernelWriter
 
@@ -1162,7 +1162,7 @@ class KernelWriterSource(KernelWriter):
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
-      if isExtractableIndex(kernel, index):
+      if isPackedIndex(kernel, index):
         continue
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
@@ -1341,7 +1341,7 @@ class KernelWriterSource(KernelWriter):
                       (para if tP["tlu"] else perp), \
                       (sPara if tP["tlu"] else sPerp) )
                 else:
-                  if isExtractableIndex(kernel, index):
+                  if isPackedIndex(kernel, index):
                     # pass vector per-tensor-dim offset (rather than scalar wg)
                     if index in problemType["IndicesBatch"] and not tP["PackBatchDims"]:
                       # pass 0, this is is the non-packed batch dim and must be 0
@@ -2434,7 +2434,7 @@ class KernelWriterSource(KernelWriter):
       if i != index0 and i != index1:
         kStr += "  unsigned int globalC%s = " \
             % (self.indexChars[i])
-        if isExtractableIndex(kernel,i):
+        if isPackedIndex(kernel,i):
           kStr += "0; // define, will be set below%s" % (self.endLine)
         else:
           kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
@@ -2545,7 +2545,7 @@ class KernelWriterSource(KernelWriter):
           kStr += "flattenedGlobalC0;"
         elif i == index1 and len(kernel["PackedC1IndicesX"])==1:
           kStr += "flattenedGlobalC1;"
-        elif isExtractableIndex(kernel,i):
+        elif isPackedIndex(kernel,i):
           kStr += "0; // will be set below"
         else:
           #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
