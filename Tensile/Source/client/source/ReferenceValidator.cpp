@@ -49,12 +49,14 @@ namespace Tensile
             m_printTensorB = args["print-tensor-b"].as<bool>();
             m_printTensorC = args["print-tensor-c"].as<bool>();
             m_printTensorD = args["print-tensor-d"].as<bool>();
+            m_printTensorRef = args["print-tensor-ref"].as<bool>();
 
             m_enabled = m_elementsToValidate != 0
                      || m_printTensorA
                      || m_printTensorB
                      || m_printTensorC
-                     || m_printTensorD;
+                     || m_printTensorD
+                     || m_printTensorRef;
         }
 
         bool ReferenceValidator::needMoreBenchmarkRuns() const
@@ -209,7 +211,9 @@ namespace Tensile
             if(!m_enabled || m_validatedSolution)
                 return;
 
-            if(m_printTensorA || m_printTensorB || m_printTensorC || m_printTensorD)
+            if(m_printTensorA || m_printTensorB
+            || m_printTensorC || m_printTensorD
+            || m_printTensorRef)
                 printTensorsTyped(reference, result);
 
             if(m_elementsToValidate != 0)
@@ -229,6 +233,7 @@ namespace Tensile
             if(m_printTensorB) requiredBufferSize = std::max(requiredBufferSize, m_problem.b().totalAllocatedBytes());
             if(m_printTensorC) requiredBufferSize = std::max(requiredBufferSize, m_problem.c().totalAllocatedBytes());
             if(m_printTensorD) requiredBufferSize = std::max(requiredBufferSize, m_problem.d().totalAllocatedBytes());
+            if(m_printTensorRef) requiredBufferSize = std::max(requiredBufferSize, m_problem.d().totalAllocatedBytes());
 
             if(m_cpuResultBuffer.size() < requiredBufferSize)
                 m_cpuResultBuffer.resize(requiredBufferSize);
@@ -263,6 +268,11 @@ namespace Tensile
                 auto const* buffer = reinterpret_cast<typename TypedInputs::DType const*>(m_cpuResultBuffer.data());
 
                 m_reporter->logTensor(LogLevel::Verbose, "D", buffer, m_problem.d());
+            }
+
+            if(m_printTensorRef)
+            {
+                m_reporter->logTensor(LogLevel::Verbose, "Ref", reference.d, m_problem.d());
             }
         }
 

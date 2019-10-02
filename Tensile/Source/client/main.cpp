@@ -123,6 +123,7 @@ namespace Tensile
                 ("print-tensor-b",           po::value<bool>()->default_value(false), "Print tensor B.")
                 ("print-tensor-c",           po::value<bool>()->default_value(false), "Print tensor C.")
                 ("print-tensor-d",           po::value<bool>()->default_value(false), "Print tensor D.")
+                ("print-tensor-ref",         po::value<bool>()->default_value(false), "Print reference result tensor.")
 
                 ("device-idx",               po::value<int>()->default_value(0), "Device index")
                 ("use-default-stream",       po::value<bool>()->default_value(false), "Use default Hip stream to run kernels.")
@@ -356,7 +357,7 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<ProgressListener>());
 
     listeners.addListener(std::make_shared<BenchmarkTimer>(args));
-    listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
+    //listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
     reporters->addReporter(LogReporter::Default(args));
