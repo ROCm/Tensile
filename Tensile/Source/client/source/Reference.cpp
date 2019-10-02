@@ -85,18 +85,10 @@ namespace Tensile
             for(int i = 0; i < batchSize.size(); i++) batchSize[i] = problem.batchSize(i);
             for(int i = 0; i < boundSize.size(); i++) boundSize[i] = problem.boundSize(i);
 
-            //auto batchCount = CoordCount(batchSize.begin(), batchSize.end());
-            //auto freeACount = CoordCount(freeASize.begin(), freeASize.end());
-            //auto freeBCount = CoordCount(freeBSize.begin(), freeBSize.end());
             auto boundCount = CoordCount(boundSize.begin()+1, boundSize.end());
 
-            auto dCount = d.totalLogicalElements();
-            //for(size_t batchNum = 0; batchNum < batchCount; batchNum++)
-            //for(size_t freeANum = 0; freeANum < freeACount; freeANum++)
-            //for(size_t freeBNum = 0; freeBNum < freeBCount; freeBNum++)
-
 #pragma omp parallel for
-            for(size_t dNum = 0; dNum < dCount; dNum += validationStride)
+            for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
             {
                 std::vector<size_t> aCoord(a.dimensions());
                 std::vector<size_t> bCoord(b.dimensions());
