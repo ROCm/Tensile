@@ -204,7 +204,6 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
       runScriptFile.write("set +e\n")
 
-      runScriptFile.write("./client")
 
     if globalParameters["DataInitTypeA"] == -1 :
         globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
@@ -212,6 +211,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
         globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
 
     if globalParameters["NewClient"] < 2:
+      runScriptFile.write("./client")
       clp = ""
       clp += " --platform-idx %u" % globalParameters["Platform"]
       clp += " --device-idx %u" % globalParameters["Device"]
@@ -244,7 +244,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     if globalParameters["NewClient"]:
       newClientExe = ClientExecutable.getClientExecutable()
       configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
-      runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+      runScriptFile.write("{} --config-file {}\n".format(newClientExe, configFile))
       runScriptFile.write("ERR2=$?\n\n")
     else:
       runScriptFile.write("ERR2=0\n")
