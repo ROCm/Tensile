@@ -51,7 +51,8 @@ namespace Tensile
         };
 
         template <typename Inputs, typename Accumulator>
-        void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs)
+        void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs,
+                                                              size_t validationStride)
         {
             auto const& freeIndicesA = problem.freeIndicesA();
             auto const& freeIndicesB = problem.freeIndicesB();
@@ -84,52 +85,48 @@ namespace Tensile
             for(int i = 0; i < batchSize.size(); i++) batchSize[i] = problem.batchSize(i);
             for(int i = 0; i < boundSize.size(); i++) boundSize[i] = problem.boundSize(i);
 
-
-            auto batchCount = CoordCount(batchSize.begin(), batchSize.end());
-            auto freeACount = CoordCount(freeASize.begin(), freeASize.end());
-            auto freeBCount = CoordCount(freeBSize.begin(), freeBSize.end());
+            //auto batchCount = CoordCount(batchSize.begin(), batchSize.end());
+            //auto freeACount = CoordCount(freeASize.begin(), freeASize.end());
+            //auto freeBCount = CoordCount(freeBSize.begin(), freeBSize.end());
             auto boundCount = CoordCount(boundSize.begin()+1, boundSize.end());
 
-#pragma omp parallel for collapse(3)
-            for(size_t batchNum = 0; batchNum < batchCount; batchNum++)
-            for(size_t freeANum = 0; freeANum < freeACount; freeANum++)
-            for(size_t freeBNum = 0; freeBNum < freeBCount; freeBNum++)
+            auto dCount = d.totalLogicalElements();
+            //for(size_t batchNum = 0; batchNum < batchCount; batchNum++)
+            //for(size_t freeANum = 0; freeANum < freeACount; freeANum++)
+            //for(size_t freeBNum = 0; freeBNum < freeBCount; freeBNum++)
+
+#pragma omp parallel for
+            for(size_t dNum = 0; dNum < dCount; dNum += validationStride)
             {
-                std::vector<size_t> aCoord(problem.a().dimensions());
-                std::vector<size_t> bCoord(problem.b().dimensions());
-                std::vector<size_t> cCoord(problem.c().dimensions());
-                std::vector<size_t> dCoord(problem.d().dimensions());
+                std::vector<size_t> aCoord(a.dimensions());
+                std::vector<size_t> bCoord(b.dimensions());
+                std::vector<size_t> cCoord(c.dimensions());
+                std::vector<size_t> dCoord(d.dimensions());
 
-                std::vector<size_t> batch(problem.batchIndices().size());
-                CoordNumbered(batchNum, batch.begin(), batch.end(), batchSize.begin(), batchSize.end());
+                CoordNumbered(dNum, dCoord.begin(), dCoord.end(), d.sizes().begin(), d.sizes().end());
 
-                std::vector<size_t> freeA(problem.freeIndicesA().size());
-                CoordNumbered(freeANum, freeA.begin(), freeA.end(), freeASize.begin(), freeASize.end());
-                std::vector<size_t> freeB(problem.freeIndicesB().size());
-                CoordNumbered(freeBNum, freeB.begin(), freeB.end(), freeBSize.begin(), freeBSize.end());
-
-                for(int i = 0; i < batch.size(); i++)
+                for(size_t i = 0; i < problem.batchIndices().size(); i++)
                 {
-                    aCoord[batchIndices[i].a] = batch[i];
-                    bCoord[batchIndices[i].b] = batch[i];
-                    cCoord[batchIndices[i].c] = batch[i];
-                    dCoord[batchIndices[i].d] = batch[i];
+                    auto const& idx = problem.batchIndices()[i];
+                    size_t coord = dCoord[idx.d];
+
+                    aCoord[idx.a] = coord;
+                    bCoord[idx.b] = coord;
+                    cCoord[idx.c] = coord;
                 }
 
-                for(int i = 0; i < freeA.size(); i++)
+                for(size_t i = 0; i < problem.freeIndices().size(); i++)
                 {
-                    aCoord[freeIndicesA[i].i] = freeA[i];
-                    cCoord[freeIndicesA[i].c] = freeA[i];
-                    dCoord[freeIndicesA[i].d] = freeA[i];
-                }
+                    auto const& idx = problem.freeIndices()[i];
+                    size_t coord = dCoord[idx.d];
 
-                for(int i = 0; i < freeB.size(); i++)
-                {
-                    bCoord[freeIndicesB[i].i] = freeB[i];
-                    cCoord[freeIndicesB[i].c] = freeB[i];
-                    dCoord[freeIndicesB[i].d] = freeB[i];
-                }
+                    cCoord[idx.c] = coord;
 
+                    if(idx.isA)
+                        aCoord[idx.i] = coord;
+                    else
+                        bCoord[idx.i] = coord;
+                }
 
                 Accumulator value(0);
 
@@ -168,7 +165,8 @@ namespace Tensile
             }
         }
 
-        void SolveCPU(ContractionProblem const& problem, ContractionInputs const& inputs)
+        void SolveCPU(ContractionProblem const& problem, ContractionInputs const& inputs,
+                      size_t validationStride)
         {
             if(problem.a().dataType() == DataType::Float
             && problem.b().dataType() == DataType::Float
@@ -176,7 +174,7 @@ namespace Tensile
             && problem.d().dataType() == DataType::Float)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<float>>::SolveCPU(problem, typedInputs);
+                return ReferenceSolution<TypedContractionInputs<float>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::Double
                  && problem.b().dataType() == DataType::Double
@@ -184,7 +182,7 @@ namespace Tensile
                  && problem.d().dataType() == DataType::Double)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<double> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<double>>::SolveCPU(problem, typedInputs);
+                return ReferenceSolution<TypedContractionInputs<double>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::ComplexFloat
                  && problem.b().dataType() == DataType::ComplexFloat
@@ -192,7 +190,7 @@ namespace Tensile
                  && problem.d().dataType() == DataType::ComplexFloat)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<std::complex<float>>>::SolveCPU(problem, typedInputs);
+                return ReferenceSolution<TypedContractionInputs<std::complex<float>>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::ComplexDouble
                  && problem.b().dataType() == DataType::ComplexDouble
@@ -200,7 +198,7 @@ namespace Tensile
                  && problem.d().dataType() == DataType::ComplexDouble)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<std::complex<double>>>::SolveCPU(problem, typedInputs);
+                return ReferenceSolution<TypedContractionInputs<std::complex<double>>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::Half
                  && problem.b().dataType() == DataType::Half
@@ -210,9 +208,9 @@ namespace Tensile
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
-                    return ReferenceSolution<TypedContractionInputs<Half>, float>::SolveCPU(problem, typedInputs);
+                    return ReferenceSolution<TypedContractionInputs<Half>, float>::SolveCPU(problem, typedInputs, validationStride);
                 else
-                    return ReferenceSolution<TypedContractionInputs<Half>>::SolveCPU(problem, typedInputs);
+                    return ReferenceSolution<TypedContractionInputs<Half>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::Int8x4
                  && problem.b().dataType() == DataType::Int8x4
@@ -220,7 +218,7 @@ namespace Tensile
                  && problem.d().dataType() == DataType::Int32)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>::SolveCPU(problem, typedInputs);
+                return ReferenceSolution<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::Int32
                  && problem.b().dataType() == DataType::Int32
@@ -228,7 +226,7 @@ namespace Tensile
                  && problem.d().dataType() == DataType::Int32)
             {
                 auto const& typedInputs = dynamic_cast<TypedContractionInputs<int32_t> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<int32_t>>::SolveCPU(problem, typedInputs);
+                return ReferenceSolution<TypedContractionInputs<int32_t>>::SolveCPU(problem, typedInputs, validationStride);
             }
             else if(problem.a().dataType() == DataType::BFloat16
                  && problem.b().dataType() == DataType::BFloat16
@@ -238,9 +236,9 @@ namespace Tensile
                 auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
-                    return ReferenceSolution<BFloat16ContractionInputs, float>::SolveCPU(problem, typedInputs);
+                    return ReferenceSolution<BFloat16ContractionInputs, float>::SolveCPU(problem, typedInputs, validationStride);
                 else
-                    return ReferenceSolution<BFloat16ContractionInputs>::SolveCPU(problem, typedInputs);
+                    return ReferenceSolution<BFloat16ContractionInputs>::SolveCPU(problem, typedInputs, validationStride);
             }
             else
             {

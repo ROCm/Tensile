@@ -80,7 +80,11 @@ namespace Tensile
             {
                 m_problem = problem;
                 m_referenceInputs = m_dataInit->prepareCPUInputs();
-                SolveCPU(problem, *m_referenceInputs);
+                m_validationStride = 1;
+                if(m_elementsToValidate > 0 && m_elementsToValidate < problem.d().totalLogicalElements())
+                    m_validationStride = NextPrime(problem.d().totalAllocatedElements() / m_elementsToValidate);
+
+                SolveCPU(problem, *m_referenceInputs, m_validationStride);
             }
         }
 
@@ -278,10 +282,6 @@ namespace Tensile
             using Type = typename TypedInputs::DType;
             Type const* resultBuffer = reinterpret_cast<Type const*>(m_cpuResultBuffer.data());
 
-            size_t validationStride = 1;
-            if(m_elementsToValidate > 0 && m_elementsToValidate < tensor.totalLogicalElements())
-                validationStride = NextPrime(tensor.totalAllocatedElements() / m_elementsToValidate);
-
             int printed = 0;
 
             bool doPrint = m_printMax < 0 || printed < m_printMax;
@@ -319,7 +319,7 @@ namespace Tensile
                 }
             };
 
-            if(validationStride == 1)
+            if(m_validationStride == 1)
             {
                 std::vector<size_t> coord(tensor.dimensions());
                 size_t outerCount = CoordCount(tensor.sizes().begin()+1, tensor.sizes().end());
@@ -343,7 +343,7 @@ namespace Tensile
             else
             {
                 std::vector<size_t> coord(tensor.dimensions());
-                for(size_t elemNumber = 0; elemNumber < tensor.totalLogicalElements(); elemNumber += validationStride)
+                for(size_t elemNumber = 0; elemNumber < tensor.totalLogicalElements(); elemNumber += m_validationStride)
                 {
                     CoordNumbered(elemNumber, coord.begin(), coord.end(), tensor.sizes().begin(), tensor.sizes().end());
                     size_t elemIndex = tensor.index(coord);

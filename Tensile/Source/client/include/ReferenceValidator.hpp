@@ -108,6 +108,7 @@ namespace Tensile
             int  m_elementsToValidate;
             bool m_printValids;
             int  m_printMax;
+            int  m_validationStride;
 
             bool m_printTensorA;
             bool m_printTensorB;
