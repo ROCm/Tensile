@@ -1254,7 +1254,7 @@ def pushWorkingPath( foldername ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
-  ensurePath( globalParameters["WorkingPath"] )
+  return ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
   # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
