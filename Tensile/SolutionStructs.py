@@ -567,15 +567,14 @@ def isPackedIndex(ks, index, batchMask=0x3):
          index in problemType["IndicesBatch"] and (ks["PackBatchDims"] & batchMask)
 
 def isExtractableIndex(ks, index, tc='x'):
-  xA = index in ks['PackedC0IndicesX'] and len(ks['PackedC0IndicesX'])>1
-  xB = index in ks['PackedC1IndicesX'] and len(ks['PackedC1IndicesX'])>1
+  xA = index in ks['PackedC0IndicesX'][:-1]
+  xB = index in ks['PackedC1IndicesX'][:-1]
   if tc=='A':
     return xA
   elif tc=='B':
     return xB
   else:
     return xA or xB
-
 
 ################################################################################
 # Solution
