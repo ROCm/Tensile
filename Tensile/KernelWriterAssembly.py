@@ -2018,6 +2018,37 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+  def defineCMPXMacros(self, kernel):
+    """
+    Navi's cmpx instruction writes only to EXEC, not to SGPRs or to VCC.
+    For now, replicate old behaviour with two instructions.
+    """
+    kStr = "\n"
+    def macro(op, dtype):
+      dict = {'op': op, 'dtype': dtype}
+      mStr = ".macro _v_cmpx_{op}_{dtype} dst, src0, src1=".format(**dict) + self.endLine
+      if self.version == (10,1,0):
+        if False:
+          mStr += r"v_cmpx_{op}_{dtype} \src0 \src1".format(**dict) + self.endLine
+        else:
+          mStr += r"v_cmp_{op}_{dtype} \dst \src0 \src1".format(**dict) + self.endLine
+          mStr += r"s_mov_b64 exec \dst" + self.endLine
+      else:
+        mStr += r"v_cmpx_{op}_{dtype} \dst \src0 \src1 ".format(**dict) + self.endLine
+      mStr += ".endm" + self.endLine
+      return mStr
+
+    ops = ['lt', 'eq', 'le', 'gt', 'lg', 'ge', 'o', 'u']
+    dtypes = list([sg + ln
+              for sg in ['i','u']
+              for ln in ['16', '32', '64']])
+
+    return self.endLine + \
+           self.endLine.join([macro(op, dtype)
+                              for op in ops
+                              for dtype in dtypes])
+
+
   ##############################################################################
   # Function Signature
   # called after rest of code
@@ -2349,7 +2380,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "      - 2%s" % self.endLine
       kStr += "      - 0%s" % self.endLine
       kStr += "    .args:%s" % self.endLine
-      offset = 0;
+      offset = 0
 
       if globalParameters["DebugKernel"]:
         kStr += self.v3Argument(                    'AddressDbg',     '8', offset, "global_buffer","struct", "generic"); offset += 8
@@ -2442,58 +2473,58 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("Asm syntax workarounds")
     kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_add_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_add_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
     # add w/o carry-out.  On older arch, vcc is still written
     kStr += "\n"
     kStr += ".macro _v_add_u32 dst, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitNC"]:
-        kStr += "   v_add_nc_u32 \dst, \src0 \src1 \dpp" + self.endLine
+        kStr += r"   v_add_nc_u32 \dst, \src0 \src1 \dpp" + self.endLine
     elif self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_add_u32 \dst, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_add_u32 \dst, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_add_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_add_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
     kStr += "\n"
     kStr += ".macro _v_sub_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_sub_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
     kStr += "\n"
     # sub w/o carry-out.  On older arch, vcc is still written.
     kStr += ".macro _v_sub_u32 dst, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_sub_u32 \dst, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_u32 \dst, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_sub_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
     kStr += "\n"
     kStr += ".macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+        kStr += r"   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+        kStr += r"   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
     # Use combined add+shift, where available:
     kStr += "\n"
     kStr += ".macro _v_add_lshl_u32 dst, src0, src1, shiftCnt" + self.endLine
     if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
-      kStr += "    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+      kStr += r"    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
       if self.AsmBugs["ExplicitCO"]:
-        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+        kStr += r"    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
       else:
-        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
-      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+        kStr += r"    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+      kStr += r"    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
     kStr += ".endm" + self.endLine
 
 
@@ -2501,14 +2532,17 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
     kStr += ".macro _v_lshl_add_u32 dst, src0, src1, shiftCnt" + self.endLine
     if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
-      kStr += "    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+      kStr += r"    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
-      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+      kStr += r"    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
       if self.AsmBugs["ExplicitCO"]:
-        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+        kStr += r"    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
       else:
-        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+        kStr += r"    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
     kStr += ".endm" + self.endLine
+
+    kStr += self.defineCMPXMacros(kernel)
+
 
 
     # Performs a division using 'magic number' computed on host
@@ -4858,9 +4892,8 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(dummy)
       #kStr += dump(vgpr(sgId))
       #kStr += dump(vgpr(numIter))
-      kStr += inst("v_cmp_lt_u32", "vcc", \
+      kStr += inst("_v_cmp_lt_u32", "vcc", \
           vgpr(sgId), vgpr(numIter), "sgId < numIter")
-      kStr += inst("s_and_b64", "exec", "vcc", "exec", "set exec mask")
       self.vgprPool.checkIn(tmpVgpr)
       #self.tailNumIter = numIter
       #self.vgprPool.checkIn(numIter)
@@ -4871,9 +4904,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # LSU mask for this iteration
     if tailLoop and kernel["LocalSplitU"] > 1:
-      kStr += inst("v_cmp_lt_u32", "vcc", \
+      kStr += inst("_v_cmpx_lt_u32", "vcc", \
           vgpr(sgId), vgpr(numIter), "sgId < numIter")
-      kStr += inst("s_and_b64", "exec", "vcc", "exec", "set exec mask")
       kStr += inst("_v_add_co_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
           vgpr(sgId), "sgId+=LSU")
       self.vgprPool.checkIn(sgId)
@@ -5665,11 +5697,10 @@ class KernelWriterAssembly(KernelWriter):
 
               else: # Not buffer load, ie 'flat' load
                 # mask if current address if in bounds
-                kStr += inst("v_cmp_lt_u64", "vcc", \
+                kStr += inst("_v_cmpx_lt_u64", "vcc", \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
                     vgpr(maxAddrVgpr,2), \
                     "addr < maxAddr")
-                kStr += inst("s_and_b64", "exec", "vcc", "exec", "set exec mask")
 
                 # load one element from address
                 kStr += self.chooseGlobalRead(False, \
@@ -6544,9 +6575,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment("shift d%u r=%u v=%u"%(tP["idx"], r, vectorIdx))
         kStr += "label_%04u:%s" % (sviLabels[r-1][vectorIdx], self.endLine)
         # mask if last thread in thread#-tile column
-        kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
+        kStr += inst("_v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
           vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
-        kStr += inst("s_and_b64", "exec", sgpr(tmpSgpr,2), "exec", "set exec mask")
         tto = kernel["ThreadTile%u"%((tP["idx"]+1)%2)] # thread tile orthogonal
         for tt in range(0, tto):
           for s in range(0, r):
