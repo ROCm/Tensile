@@ -80,7 +80,7 @@ if(TENSILE_USE_HIP)
     target_compile_definitions(TensileHost PUBLIC TENSILE_USE_HIP)
 
     #add_subdirectory(client)
-    target_link_libraries( TensileHost PUBLIC ${HSA_LIBRARIES} hip::host )
+    target_link_libraries( TensileHost PUBLIC ${HSA_LIBRARIES} hip::device )
 
 endif()
 
