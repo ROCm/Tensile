@@ -20,7 +20,7 @@
 ################################################################################
 
 from .DataType import DataType
-from .SolutionStructs import isPackedIndex
+from .SolutionStructs import isPackedIndex,isExtractableIndex
 from .Common import globalParameters, printExit
 from .KernelWriter import KernelWriter
 
@@ -1162,7 +1162,7 @@ class KernelWriterSource(KernelWriter):
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
-      if isPackedIndex(kernel, index):
+      if isExtractableIndex(kernel, index):
         continue
       kStr += "  unsigned int wg" + self.indexChars[index] \
           + " = ( " + self.getGroupIdStr + "(2)"
@@ -1209,16 +1209,12 @@ class KernelWriterSource(KernelWriter):
 
         # Create additional vector address components for any packed dimensions
         lastGro = flattenedOffset
-        firstPrintedIdx = 1
         lastIdx = -1
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
           if idx < kernel["ProblemType"]["NumIndicesC"]:
             gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
 
-            if firstPrintedIdx:
-              firstPrintedIdx = 0
-              kStr += "  unsigned int %s = %s;%s" % (gro, flattenedOffset, self.endLine)
-            elif isPackedIndex(kernel,idx, tP["PackBatchDims"]):
+            if isExtractableIndex(kernel,idx, tc):
               if self.useMagicNumber:
                 c = globalParameters["IndexChars"][lastIdx]
                 kStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
@@ -1229,6 +1225,8 @@ class KernelWriterSource(KernelWriter):
                 kStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
                         % (gro, lastGro, self.indexChars[lastIdx], self.endLine)
                 kStr += "  %s %%= size%s;%s" % (lastGro, self.indexChars[lastIdx], self.endLine)
+            else:
+              kStr += "  unsigned int %s = %s;%s" % (gro, flattenedOffset, self.endLine)
               #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
             lastGro = gro
             lastIdx = idx
@@ -1337,7 +1335,7 @@ class KernelWriterSource(KernelWriter):
                       (para if tP["tlu"] else perp), \
                       (sPara if tP["tlu"] else sPerp) )
                 else:
-                  if isPackedIndex(kernel, index):
+                  if isExtractableIndex(kernel, index):
                     # pass vector per-tensor-dim offset (rather than scalar wg)
                     if index in problemType["IndicesBatch"] and not tP["PackBatchDims"]:
                       # pass 0, this is is the non-packed batch dim and must be 0
@@ -2430,7 +2428,7 @@ class KernelWriterSource(KernelWriter):
       if i != index0 and i != index1:
         kStr += "  unsigned int globalC%s = " \
             % (self.indexChars[i])
-        if isPackedIndex(kernel,i):
+        if isExtractableIndex(kernel,i):
           kStr += "0; // define, will be set below%s" % (self.endLine)
         else:
           kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
@@ -2541,7 +2539,7 @@ class KernelWriterSource(KernelWriter):
           kStr += "flattenedGlobalC0;"
         elif i == index1 and len(kernel["PackedC1IndicesX"])==1:
           kStr += "flattenedGlobalC1;"
-        elif isPackedIndex(kernel,i):
+        elif isExtractableIndex(kernel,i):
           kStr += "0; // will be set below"
         else:
           #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
