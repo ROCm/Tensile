@@ -91,7 +91,7 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
     # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
-    self.useMagicNumber = False
+    self.useMagicNumber = True
     self.db={}
     self.db["PrintStagger"] = 0
 
@@ -1209,16 +1209,21 @@ class KernelWriterSource(KernelWriter):
 
         # Create additional vector address components for any packed dimensions
         lastGro = flattenedOffset
-        firstPrintedIdx = 1
+        firstPrintedIdx=1
         lastIdx = -1
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
-          if idx < kernel["ProblemType"]["NumIndicesC"]:
+          if idx < kernel["ProblemType"]["NumIndicesC"] and isPackedIndex(kernel, idx, tP["PackBatchDims"]):
             gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
-
+            # unpacked batch dims do not to declare a GRO ; they use WG
+            # packed batch dims and free dims do need a GRO defined here, and may need to 'unpack'
+            # process in order of index assignments for A/B.
             if firstPrintedIdx:
+              # no unpacking from prev needed:
               firstPrintedIdx = 0
               kStr += "  unsigned int %s = %s;%s" % (gro, flattenedOffset, self.endLine)
-            elif isPackedIndex(kernel,idx, tP["PackBatchDims"]):
+              #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
+            else:
+              # if another free dim or a packed batch dim
               if self.useMagicNumber:
                 c = globalParameters["IndexChars"][lastIdx]
                 kStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
@@ -1229,7 +1234,6 @@ class KernelWriterSource(KernelWriter):
                 kStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
                         % (gro, lastGro, self.indexChars[lastIdx], self.endLine)
                 kStr += "  %s %%= size%s;%s" % (lastGro, self.indexChars[lastIdx], self.endLine)
-              #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
             lastGro = gro
             lastIdx = idx
 

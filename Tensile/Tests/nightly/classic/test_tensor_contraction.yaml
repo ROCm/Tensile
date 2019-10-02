@@ -7,13 +7,13 @@ GlobalParameters:
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  LibraryPrintDebug: True
+  LibraryPrintDebug: False
   NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
+  ExitOnFails: 1  # Some solutions fail so just ensure we find one good solution
   # In IndexAssignments, the fastest moving dimension is listed first.
 
 BenchmarkProblems:
@@ -106,7 +106,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
       ForkParameters:
-        - PrefetchGlobalRead: [False, True]
+        - PrefetchGlobalRead: [False]
         - PrefetchLocalRead: [False, True]
         - ThreadTile:
           - [ 4, 8 ]
@@ -147,7 +147,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
       ForkParameters:
-        - PrefetchGlobalRead: [False, True]
+        - PrefetchGlobalRead: [False]
         - PrefetchLocalRead: [False, True]
         - ThreadTile:
           - [ 4, 8 ]

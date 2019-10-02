@@ -1,7 +1,7 @@
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Release
+  CMakeBuildType: Debug
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -19,41 +19,40 @@ GlobalParameters:
   DataInitTypeBeta: 0
   KernelTime: True
   LibraryPrintDebug: 0
-  #RuntimeLanguage: ["OCL"]
-  #PrintTensorC : 2
   ClientArgs: "--stride_b 0"
+  CpuThreads: 0
 
 BenchmarkProblems:
 
-  - # sgemm NT
-    - # ProblemType
-      OperationType: GEMM
+  -
+    -
+      OperationType: TensorContraction
       DataType: s
       DestDataType: s
-      TransposeA: False
-      TransposeB: True
       UseBeta: True
-      Batched: True
+      NumIndicesC : 4
+      IndexAssignmentsA : [1, 0, 4, 3]
+      IndexAssignmentsB : [4, 2, 3]
+      SetConstStrideA : []
+      SetConstStrideB : [[3, 0]]
+      UseBeta : False
+      UseInitialStrides : False
 
     -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
       ForkParameters:
+        #- KernelLanguage: ["Source","Assembly"]
         - ThreadTile:
-          - [ 4, 4 ]
-          - [ 6, 8 ]
-          - [ 8, 8 ]
+          - [ 2, 2 ]
         - WorkGroup:
           - [  8, 8, 1 ]
-          - [  8, 8, 4 ]
-          - [  16, 8, 1 ]
+            #- [  16, 8, 1 ]
         - DepthU: [8]
-        - GlobalReadVectorWidth: [1,4]
-        - VectorWidth: [1,4]
-        - WorkGroupMapping: [0,1,8]
+        - GlobalReadVectorWidth: [1]
+        - VectorWidth: [1]
 
         - FractionalLoad: [1]
         - PackBatchDims: [1]  # pack into A
@@ -63,5 +62,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [124,4,132], [126,1,130], [1,1,4], [8,5,16] ]
-
+            - Range: [ [124,4,132], [124,4,132], [4], [1], [16]]
+            - Range: [ [124,4,132], [124,4,132], [4], [6], [16]]

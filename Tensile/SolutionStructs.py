@@ -566,6 +566,16 @@ def isPackedIndex(ks, index, batchMask=0x3):
   return index in problemType["IndicesFree"] and ks["PackFreeDims"] or \
          index in problemType["IndicesBatch"] and (ks["PackBatchDims"] & batchMask)
 
+def isExtractableIndex(ks, index, tc='x'):
+  xA = index in ks['PackedC0IndicesX'][:-1]
+  xB = index in ks['PackedC1IndicesX'][:-1]
+  if tc=='A':
+    return xA
+  elif tc=='B':
+    return xB
+  else:
+    return xA or xB
+
 ################################################################################
 # Solution
 ################################################################################
@@ -1047,6 +1057,25 @@ class Solution:
     # Pack all the dimensions (batch and free) of A into grid[0]
     assert(isPackedIndex(state, problemType["Index0"], 0x1))
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
+
+    if state["PackBatchDims"]==1:
+        for bi in problemType["IndicesBatch"]:
+            found = False
+            for setc in problemType["SetConstStrideB"]:
+                if setc[0]==bi and setc[1]==0:
+                    found = True
+            if not found:
+                print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
+                problemType["SetConstStrideB"].append([bi,0])
+    if state["PackBatchDims"]==2:
+        for bi in problemType["IndicesBatch"]:
+            found = False
+            for setc in problemType["SetConstStrideA"]:
+                if setc[0]==bi and setc[1]==0:
+                    found = True
+            if not found:
+                print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)
+                problemType["SetConstStrideA"].append([bi,0])
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
