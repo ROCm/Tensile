@@ -374,16 +374,17 @@ namespace Tensile
                 std::cout  << "SolveCPUConvolution:\n";
                 std::cout  << "  tensorA=" << convProblem.tensorA().description() << "\n";
                 std::cout  << "  tensorB=" << convProblem.tensorB().weights().description() << "\n";
-                std::cout << "  cout=" <<  coutCount;
-                for (auto s : scount)
-                    std::cout << " spatial =" << s;
                 std::cout
-                    << " cout=" <<  coutCount
-                    << " filter_zyx="
+                    << " batchCount=" << batchCount
+                    << " coutCount=" <<  coutCount
+                    << " scalarCount_dhw="
+                    << scount[2] << "x"
+                    << scount[1] << "x"
+                    << scount[0]
+                    << " filterCount_zyx="
                     << fcount[2] << "x"
                     << fcount[1] << "x"
                     << fcount[0]
-                    << " batchCount=" << batchCount
                     << " cinCount=" << cinCount
                     << "\n";
             }
@@ -465,7 +466,7 @@ namespace Tensile
                     if (db & 0x1) {
                         std::cout   << "output: [n,s,cout=" << n << "," << "," << cout << "]"
                                     << " s[2,1,0]=" << s[2] << ","<< s[1] << "," << s[0]
-                                    << "dIndex=" << dIndex
+                                    << " dIndex=" << dIndex
                                     << " value=" << value
                                     << "\n";
                     }
