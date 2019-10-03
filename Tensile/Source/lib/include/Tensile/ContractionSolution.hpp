@@ -130,7 +130,8 @@ namespace Tensile
                              Inputs   const& inputs,
                              Hardware const& hardware) const;
 
-        uint32_t magicNumber(uint32_t x, unsigned int magicShift) const;
+        uint32_t magicNumber(uint32_t x, uint32_t *magicShift) const;
+        uint32_t smallMagicNumber(uint32_t x) const;
     };
 
 }
