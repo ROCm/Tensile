@@ -161,6 +161,10 @@ namespace Tensile
         TensorOps const& cOps() const { return m_cOps; }
         TensorOps const& dOps() const { return m_dOps; }
 
+        // IndexList data contains index data for the main lists, or -1 if the index is a different type.
+        // For example, freeIndicesA will have a length equal to the dimension of A.
+        // If the first dimension of A is free, freeIndices()[freeIndicesA()[0]] will contain the FreeIndex mapping.
+        // If a particular dimension of A is not free, it will have an index of -1.
         IndexList    const& freeIndicesA() const { return m_freeIndicesA; }
         IndexList    const& freeIndicesB() const { return m_freeIndicesB; }
         FreeIndices  const& freeIndices() const { return m_freeIndices; }
