@@ -2028,8 +2028,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
         % (self.version[0], self.version[1], self.version[2], self.endLine)
     if globalParameters["CodeObjectVersion"] == "V3":
-      kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s\"%s" \
-        % ("".join(map(str,self.version)), self.endLine)
+      kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s%s\"%s" \
+        % ("".join(map(str,self.version)), \
+        "+sram-ecc" if self.version == (9,0,8) else "",  self.endLine)
 
     kStr += ".text%s" % self.endLine
     kStr += ".protected %s%s" % (self.kernelName, self.endLine)
