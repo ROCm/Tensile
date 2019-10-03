@@ -10,7 +10,7 @@
 /* Begin Kernel                           */
 /******************************************/
 
-.amdgcn_target "amdgcn-amd-amdhsa--gfx908"
+.amdgcn_target "amdgcn-amd-amdhsa--gfx908+sram-ecc"
 .text
 .protected Cijk_Alik_Bljk_BH_MT64x128x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASEM8_BL1_DTL0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT4_8_USFGRO1_VAW1_VW4_WG16_16_1_WGM8
 .globl Cijk_Alik_Bljk_BH_MT64x128x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASEM8_BL1_DTL0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT4_8_USFGRO1_VAW1_VW4_WG16_16_1_WGM8
