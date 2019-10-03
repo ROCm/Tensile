@@ -75,8 +75,8 @@ namespace Tensile
                 if(op.type == TensorOp::Type::ComplexConjugate)
                     bConjugate = true;
 
-            std::vector<size_t> freeASize(problem.freeIndicesA().size());
-            std::vector<size_t> freeBSize(problem.freeIndicesB().size());
+            std::vector<size_t> freeASize(problem.freeSizesA().size());
+            std::vector<size_t> freeBSize(problem.freeSizesB().size());
             std::vector<size_t> batchSize(problem.batchIndices().size());
             std::vector<size_t> boundSize(problem.boundIndices().size());
 

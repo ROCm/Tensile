@@ -272,6 +272,7 @@ class SizeMapping:
                  'staggerStrideShift',
                  'workGroupMapping',
                  'packBatchDims',
+                 'packFreeDims',
                  'persistentKernel',
                  'sourceKernel',
                  ]
@@ -287,6 +288,7 @@ class SizeMapping:
                    globalSplitU       = d['GlobalSplitU'],
                    staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
                    packBatchDims      = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
+                   packFreeDims       = d['PackFreeDims'] if 'PackFreeDims' in d else 0,
                    persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
                    sourceKernel       = d['KernelLanguage'] == 'Source',
                    )
