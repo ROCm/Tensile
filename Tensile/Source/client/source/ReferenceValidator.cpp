@@ -409,12 +409,16 @@ namespace Tensile
 
             if(m_elementsToValidate != 0)
             {
-                if(m_errorInConvolutionVsContraction) {
+                if(m_errorInConvolutionVsContraction)
+                {
                     m_errorsReported++;
                     m_reporter->report(ResultKey::Validation, "FAILED_CONV");
-                } else if(m_errorInSolution)
-                    //m_errorsReported++;
+                }
+                else if(m_errorInSolution)
+                {
+                    m_errorsReported++;
                     m_reporter->report(ResultKey::Validation, "FAILED");
+                }
                 else
                     m_reporter->report(ResultKey::Validation, "PASSED");
             }
