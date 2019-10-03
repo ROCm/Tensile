@@ -182,7 +182,8 @@ class Convolution:
     else:
       sdims = []
       schars = ['W','H','D']
-      for si in range(0,self.formatNumSpatialDims):
+      # sdims[0] is W
+      for si in range(self.formatNumSpatialDims):
         sc=schars[si]
         sdims.append(Convolution.Dimension(sc,  \
             'Spatial %s. size#T#=%s/stride%s(#S%d#) strideA#T#=stride%s(#S0#).'%(sc,sc,sc,si,sc), \
@@ -226,8 +227,9 @@ class Convolution:
           filterDims.append( (sumIdx, Fbs.Sum, filterDim) )
 
       spatialDims = []
+      # reverse dims  so can pass spatialDims to register functions in 'convolution' order
       for si,sdim in enumerate(sdims):
-        spatialDims.append((si, Fbs.Free, sdim))
+        spatialDims.insert(0, (si, Fbs.Free, sdim))
       self.numSpatialDims = len(spatialDims) # dims actually used in the tensor
 
       if self.tensorAFormat in ("NCHW", "NCDHW"):
