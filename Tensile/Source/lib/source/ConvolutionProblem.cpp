@@ -117,7 +117,6 @@ namespace Tensile
            << " filterPosition=" << m_filterPositions[0] << "," << m_filterPositions[1] << "," << m_filterPositions[2];
         return rv.str();
     }
-
     ConvolutionProblem::WeightFormat::WeightFormat() :
         m_filterPositions(MaxNumSpatialDims,0)
     {
@@ -276,8 +275,6 @@ namespace Tensile
           throw std::runtime_error(std::string("Invalid operation identifier:") +
               m_operationIdentifier);
       }
-
-
     }
 
     template <typename T>
@@ -304,7 +301,6 @@ namespace Tensile
         rv << "_dilation:" << delimitedVector(m_dilation, "x");
         rv << "_padStart:" << delimitedVector(m_padStart, "x");
         rv << "_padEnd:" << delimitedVector(m_padEnd, "x");
-
 
         return rv.str();
     }
