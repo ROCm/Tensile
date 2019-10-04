@@ -31,7 +31,8 @@ BenchmarkProblems:
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      TensorAFormat: NCHW
+      ConvolutionConfig:
+        - TensorAFormat: NCHW
       DataType: s
       DestDataType: s
       Batched: 0

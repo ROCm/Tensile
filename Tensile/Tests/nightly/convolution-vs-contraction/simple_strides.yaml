@@ -33,12 +33,13 @@ BenchmarkProblems:
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      TensorAFormat: NCHW
-      TensorBFormat: KCYX
-      TensorDFormat: NCHW
-      Filter: Nx7  # filterY specified at runtime
-      Stride: 1x2
-      Dilation: 1x1
+      ConvolutionConfig::
+        - TensorAFormat: NCHW
+        - TensorBFormat: KCYX
+        - TensorDFormat: NCHW
+        - Filter: Nx7  # filterY specified at runtime
+        - Stride: 1x2
+        - Dilation: 1x1
 
       PackedSpatialDims: 0
       #PadStart: Nx0  # runtime padStart specification

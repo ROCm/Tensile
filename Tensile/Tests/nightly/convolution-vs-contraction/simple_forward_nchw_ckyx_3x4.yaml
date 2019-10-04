@@ -33,10 +33,11 @@ BenchmarkProblems:
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      TensorAFormat: NCHW
-      TensorBFormat: CKYX
-      TensorDFormat:  NCHW
-      Filter: 3x4
+      ConvolutionConfig:
+        - TensorAFormat: NCHW
+        - TensorBFormat: CKYX
+        - TensorDFormat:  NCHW
+        - Filter: 3x4
       DataType: s
       DestDataType: s
       Batched: 0

@@ -34,7 +34,8 @@ BenchmarkProblems:
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      #Filter: [3,3]
+      ConvolutionConfig:
+        #Filter: [3,3]
       DataType: s
       DestDataType: s
       Batched: 0

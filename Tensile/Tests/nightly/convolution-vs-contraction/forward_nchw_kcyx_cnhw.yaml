@@ -31,9 +31,10 @@ BenchmarkProblems:
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      TensorAFormat: NCHW
-      TensorBFormat: KCYX
-      TensorDFormat: CNHW
+      ConvolutionConfig:
+        - TensorAFormat: NCHW
+        - TensorBFormat: KCYX
+        - TensorDFormat: CNHW
       DataType: s
       DestDataType: s
 
