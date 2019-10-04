@@ -4,7 +4,7 @@ from Tensile.SolutionStructs import Convolution
 # content of test_sample.py
 def test_nchw_defaults():
     z={} # problemType definition
-    conv = Convolution(z, 'ConvolutionForward',
+    Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
                       })
     assert(z['NumIndicesC']==3)
@@ -15,7 +15,7 @@ def test_nchw_defaults():
 
 def test_cnhw_defaults():
     z={} # problemType definition
-    conv = Convolution(z, 'ConvolutionForward',
+    Convolution(z, 'ConvolutionForward',
               config={
                       'TensorAFormat': 'CNHW',
                       })
@@ -27,7 +27,7 @@ def test_cnhw_defaults():
 
 def test_nhwc_defaults():
     z={} # problemType definition
-    conv = Convolution(z, 'ConvolutionForward',
+    Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NHWC',
                       })
     assert(z['NumIndicesC']==3)
@@ -38,7 +38,7 @@ def test_nhwc_defaults():
 
 def test_nchw_packed_spatial0():
     z={} # problemType definition
-    conv = Convolution(z, 'ConvolutionForward',
+    Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
                       'PackedSpatialDims': 0
                       })
@@ -50,7 +50,7 @@ def test_nchw_packed_spatial0():
 
 def test_nchw_packed_strides():
     z={} # problemType definition
-    conv = Convolution(z, 'ConvolutionForward',
+    Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
                       'Stride': 'NxN',
                       })
@@ -62,7 +62,7 @@ def test_nchw_packed_strides():
 
 def test_nchw_packed_strides3D():
     z={} # problemType definition
-    conv = Convolution(z, 'ConvolutionForward',
+    Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCDHW',
                       'TensorBFormat': 'KCZYX',
                       'TensorDFormat': 'NCDHW',
@@ -77,6 +77,6 @@ def test_nchw_packed_strides3D():
 def test_bad_config():
     z={} # problemType definition
     with pytest.raises(Exception):
-        conv = Convolution(z, 'ConvolutionForward',
+        Convolution(z, 'ConvolutionForward',
                   config={'FUBAR': '0',
                       })

@@ -63,7 +63,6 @@ class SolutionWriter:
       solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
     return solutionName
 
-
   ##############################################################################
   # getSourceString
   ##############################################################################
@@ -251,12 +250,16 @@ class SolutionWriter:
 
     for idxChar in solution["PackedC0IdxChars"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
+      s += "%suint64_t magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1;\n" \
           % (t, idxChar, idxChar, idxChar)
+      s += "%sif (magicNumberSize%s >> 32) { magicShiftSize%s=31; magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1;}\n" \
+          % (t, idxChar, idxChar, idxChar, idxChar, idxChar)
     for idxChar in solution["PackedC1IdxChars"][:-1]:
       s += "%sunsigned magicShiftSize%s = 33; // bozo, review\n" % (t, idxChar)
-      s += "%sunsigned magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1; // bozo, review\n" \
+      s += "%suint64_t magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1;\n" \
               % (t, idxChar, idxChar, idxChar)
+      s += "%sif (magicNumberSize%s >> 32) { magicShiftSize%s=31; magicNumberSize%s = (1L<<magicShiftSize%s) / size%s + 1;}\n" \
+          % (t, idxChar, idxChar, idxChar, idxChar, idxChar)
 
     s += "%sunsigned int macroTile0 = static_cast<unsigned int>(groupSize[0] * threadTile[0]);\n" % (t)
     s += "%sunsigned int macroTile1 = static_cast<unsigned int>(groupSize[1] * threadTile[1]);\n" % (t)
@@ -625,7 +628,7 @@ class SolutionWriter:
         s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
         s += "%sprintf(\"  tensor2dSizeB== %%lu\\n\", tensor2dSizeB );\n" % (t)
         for idxChar in solution["PackedC0IdxChars"][:-1]:
-          s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
+          s += "%sprintf(\"  magicNumberSize%s== 0x%%lx, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
               % (t, idxChar, idxChar, idxChar, idxChar)
         for idxChar in solution["PackedC1IdxChars"][:-1]:
           s += "%sprintf(\"  magicNumberSize%s== 0x%%x, magicShiftSize%s== %%u)\\n\",  magicNumberSize%s, magicShiftSize%s);\n" \
@@ -702,10 +705,10 @@ class SolutionWriter:
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
           for idxChar in solution["PackedC0IdxChars"][:-1]:
-            s += "%s,magicNumberSize%s\n" % (t, idxChar)
+            s += "%s,static_cast<uint32_t>(magicNumberSize%s)\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
           for idxChar in solution["PackedC1IdxChars"][:-1]:
-            s += "%s,magicNumberSize%s\n" % (t, idxChar)
+            s += "%s,static_cast<uint32_t>(magicNumberSize%s)\n" % (t, idxChar)
             s += "%s,magicShiftSize%s\n" % (t, idxChar)
           s += "%s,staggerUIter\n" % (t)
           #persistent:
@@ -782,10 +785,10 @@ class SolutionWriter:
 
           # Magic numbers for packed indices:
           for idxChar in solution["PackedC0IdxChars"][:-1]:
-            s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
+            s += "%shipFunctionArgs.magicNumberSize%s = static_cast<uint32_t>(magicNumberSize)%s;\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
           for idxChar in solution["PackedC1IdxChars"][:-1]:
-            s += "%shipFunctionArgs.magicNumberSize%s = magicNumberSize%s;\n" % (t, idxChar, idxChar)
+            s += "%shipFunctionArgs.magicNumberSize%s = static_cast<uint32_t>(magicNumberSize)%s;\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
           if globalParameters["LibraryPrintDebug"]:
             s += """

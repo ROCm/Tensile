@@ -56,11 +56,11 @@ BenchmarkProblems:
 
         - FractionalLoad: [1]
         - PackBatchDims: [1]  # pack into A
-        - AssertFree0ElementMultiple: [4]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+            - Range: [ [1,1,8], [1,1,8], [4], [1], [16]]  # small ones to test magix number range
             - Range: [ [124,4,132], [124,4,132], [4], [1], [16]]
             - Range: [ [124,4,132], [124,4,132], [4], [6], [16]]
