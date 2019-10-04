@@ -124,22 +124,26 @@ class Convolution:
     self.groupCount = config.get("GroupCount", 1)
 
     # Index assignment have fastest-moving first
-    ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T#=N.  strideB#T#=0.', DimAB.BothAB)
-    kdim = Convolution.Dimension('K',   'Cout. size#T#=Cout.', DimAB.OnlyB)
+    ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.', DimAB.BothAB)
+    kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.', DimAB.OnlyB)
     if self.packSpatialDims:
       sdims = [Convolution.Dimension('HW', \
-          'Spatially packed HW. size#T#=H*W/strideW(#S0#). strideA#T#=strideW(#S0#).', \
+          'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).', \
           DimAB.OnlyA)]
     else:
       sdims = []
-      schars = ['W','H','D']
+      schars = [1,'W','H','D']
       # sdims[0] is W
       for si in range(self.formatNumSpatialDims):
-        sc=schars[si]
+        sc=schars[si+1]
+        if si==0:
+            strideMsg = "stride%s(#S0)"%sc
+        else:
+            strideMsg = "%s_in*stride%s(#S%d)"%(schars[si],sc,si)
         sdims.append(Convolution.Dimension(sc,  \
-            'Spatial %s. size#T#=%s/stride%s(#S%d#) strideA#T#=stride%s(#S0#).'%(sc,sc,sc,si,sc), \
+            'Spatial %s. size#T=%s_o strideA#T=%s.'%(sc,sc,strideMsg), \
             DimAB.OnlyA))
-    cdim = Convolution.Dimension('C',   'Cin.  size#T#=Cin.  stride#T#=1', DimAB.BothAB)
+    cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1', DimAB.BothAB)
 
     if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
       # Make index assignments following standard Tensile Index assignment rules (see Common.py)
@@ -171,7 +175,7 @@ class Convolution:
             dilationStr = str(self.dilation[fi])
           else:
             dilationStr = "TBD"
-          filterMsg = "Filter%s. size#T#=Filter%s(%s). strideA#T#=Dilation%s(%s)*%s." \
+          filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(%s)*%s." \
               % (filterChar, filterChar, filterValueStr, filterChar, dilationStr, \
                  prevChar[self.formatNumSpatialDims-fi-1])
           filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.BothAB, strideA=self.dilation[fi])
@@ -291,15 +295,19 @@ class Convolution:
       if dim != None:
         tensileChar = globalParameters['IndexChars'][idx]
         usage = str(dim)
-        usage = usage.replace('#T#', tensileChar)
-        usage = usage.replace('#S0#', str(self.stride[0]))
-        usage = usage.replace('#S1#', str(self.stride[1]))
-        usage = usage.replace('#D0#', str(self.dilation[0]))
+        usage = usage.replace('#T', tensileChar)
+        for i in range(len(self.stride)):
+            usage = usage.replace('#S%d'%i, str(self.stride[i]) if self.stride[i]>=0 else 'TBD')
+        for i in range(len(self.dilation)):
+            usage = usage.replace('#D%d'%i, str(self.dilation[i]) if self.dilation[i]>=0 else 'TBD')
         print("  %d('%c') :   %s" % (idx, tensileChar, usage))
+
     print ()
-    print ("- 'Spatial sizes D,H,W refer to size of OUTPUT tensor.")
-    print ("- '(TBD)' indicates the parm is flexible and must be specified at runtime.")
-    print ("- '(i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
+    print ("- Spatial sizes D_i, H_i, W_i refer to size of INPUT dimension.")
+    print ("- Spatial sizes D_o, H_o, W_o refer to size of OUTPUT dimension.")
+    print ("     For example W_o =  (W_i - X - padStart - padEnd + 1)/stride")
+    print ("- (TBD)' indicates the parm is flexible and must be specified at runtime.")
+    print ("- (i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
     print ("  The runtime value must match the compile-time value.")
     print ("- Unspecified strides use default stride value:")
     print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0")
@@ -446,9 +454,12 @@ class ProblemType:
   ########################################
   def initConvolution(self, config, convolutionType):
     convolutionConfig = {}
-    for dict in config['ConvolutionConfig']:
-      for k,v in dict.items():
-        convolutionConfig[k] = v
+    try:
+      for dict in config['ConvolutionConfig']:
+        for k,v in dict.items():
+          convolutionConfig[k] = v
+    except KeyError:
+        raise RuntimeError ("OperationType %s must include ConvolutioConfig section in ProblemType"%convolutionType)
 
     self.convolution = Convolution(self, convolutionType, convolutionConfig)
     self["NumIndicesLD"] = 0
