@@ -21,7 +21,7 @@
 
 import sys,traceback
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats
+from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -137,9 +137,12 @@ class Convolution:
         elif fbs==Fbs.Sum and idx not in sumIndices:
           raise RuntimeError ("dimension %d('%s') expected to be summation dimension" % (idx, dim.shortChar))
 
-  def __init__(self, problemTypeOut, config):
-    convolutionType = config['OperationType']
+  def __init__(self, problemTypeOut, convolutionType, config):
     self.convolutionType = convolutionType
+
+    for k in config:
+      if k not in validConvolutionConfig:
+        raise RuntimeError ("unknown convolution config field '%s'"%k)
 
     self.tensorAFormat  = config.get("TensorAFormat",  "NCHW")
     assert self.tensorAFormat in validTensorAFormats
@@ -171,6 +174,8 @@ class Convolution:
             ==len(self.padStart)==len(self.padEnd))
 
     self.indexAssignments = [None] * 20 # max dimensions
+
+    self.groupCount = config.get("GroupCount", 1)
 
     # Index assignment have fastest-moving first
     ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T#=N.  strideB#T#=0.', DimAB.BothAB)
@@ -439,7 +444,12 @@ class ProblemType:
 
   ########################################
   def initConvolution(self, config, convolutionType):
-    self.convolution = Convolution(self, config)
+    convolutionConfig = {}
+    for dict in config['ConvolutionConfig']:
+      for k,v in dict.items():
+        convolutionConfig[k] = v
+
+    self.convolution = Convolution(self, convolutionType, convolutionConfig)
     self["NumIndicesLD"] = 0
     self["UseBeta"] = False
 
@@ -964,6 +974,8 @@ class Solution:
           problemType["ZeroPadA"]
       kernel["ProblemType"]["ZeroPadB"] = \
           problemType["ZeroPadB"]
+      kernel["ProblemType"]["ConvolutionConfig"] = \
+          problemType["ConvolutionConfig"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernel["KernelLanguage"] = "Source"
       kernels.append(kernel)
