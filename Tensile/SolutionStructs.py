@@ -72,6 +72,16 @@ class Convolution:
     def __repr__(self):
       return self.shortChar
 
+  SummaryProperties=[\
+        'OperationType','DestDataType','DataType','HighPrecisionAccumulate',\
+        'TensorAFormat','TensorBFormat','TensorDFormat',\
+        'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
+        'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
+        'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
+        'SetConstStrideA', 'SetConstStrideB',\
+        'UseBeta', 'UseInitialStrides',\
+        ]
+
   def dimxParm(self, config, parmName, default):
     parm =config.get(parmName)
     if not parm:
@@ -101,6 +111,7 @@ class Convolution:
         usage = usage.replace('#D0#', str(self.dilation[0]))
         print("  %d('%c') :   %s" % (idx, tensileChar, usage))
     print ()
+    print ("- 'Spatial sizes D,H,W refer to dimension of OUTPUT tensor.")
     print ("- '(TBD)' indicates the parm is flexible and must be specified at runtime.")
     print ("- '(i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
     print ("  The runtime value must match the compile-time value.")
@@ -109,16 +120,12 @@ class Convolution:
 
     print ()
     print ("ProblemType Definition:")
-    for k in (
-        'OperationType','DestDataType','DataType','HighPrecisionAccumulate',\
-        'TensorAFormat','TensorBFormat','TensorDFormat',\
-        'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
-        'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
-        'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
-        'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStrides',\
-        ):
-      print ("  ", k, ":", problemType.state[k])
+    for k in Convolution.SummaryProperties:
+      try:
+        print ("  ", k, ":", problemType[k])
+      except KeyError:
+        pass
+
 
   def checkDims(self, freeIndices, batchIndices, sumIndices):
     for dimList in (self.indexA, self.indexB):
@@ -130,7 +137,8 @@ class Convolution:
         elif fbs==Fbs.Sum and idx not in sumIndices:
           raise RuntimeError ("dimension %d('%s') expected to be summation dimension" % (idx, dim.shortChar))
 
-  def __init__(self, problemTypeOut, config, convolutionType):
+  def __init__(self, problemTypeOut, config):
+    convolutionType = config['OperationType']
     self.convolutionType = convolutionType
 
     self.tensorAFormat  = config.get("TensorAFormat",  "NCHW")
@@ -182,19 +190,24 @@ class Convolution:
     cdim = Convolution.Dimension('C',   'Cin.  size#T#=Cin.  stride#T#=1', DimAB.BothAB)
 
     if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
-      # Set index assignment for output space
-      # Memory order for output space is NumCindices...0 with 0 the fastest-moving dim.
-      if self.tensorDFormat in ('NCHW','NCDHW'):
+      # Make index assignments following standard Tensile Index assignment rules (see Common.py)
+      # - Indices < NumCindices are batch or free indices and are present in TensorD
+      # - Indices >= NumCindices are summation indices.  cidx is cin / summation so must be after nidx
+      # - Memory order for TensorD is NumCindices...0, with 0 the fastest-moving dim.
+      # Specific assignments to A and B (and associated impact on memory order of those tensors) is
+      # specified by order of parms to registerA and registerB below.
+      if self.tensorDFormat in ('NCHW','NCDHW', 'NHWC','NDHWC'):
         kidx = len(sdims)
         nidx = kidx+1
         cidx = nidx+1
       elif self.tensorDFormat in ("CNHW", "CNDHW"):
+        # need to re-order batch dim to control memory order in output space
         nidx = len(sdims)
         kidx = nidx+1
         cidx = kidx+1
 
-      # Create summation dimensions for non-unit filters:
-      sumIdx = cidx
+      sumIdx = cidx # cidx is first summation index, filter summations follow as needed
+      # Create summation dimensions for non-unit filters and assign summation indices
       filterDims = []
       for (fi,filterValue) in enumerate(self.filter[::-1]):
         if filterValue != 1:
@@ -277,13 +290,15 @@ class Convolution:
 
     #self.printUsage(problemTypeOut)
 
-  # registerA and registerB:
-  # Provide a list of indices in convolution order - these will be reversed when assigned to IndexAssignmentsAB
-  # Each tuple in the list is (idx,fbs,dim).
-  #  - idx is the tensor index
-  #  - fbs indicates if the tensor is expected to be Free,Sum,or Batch.  This is used for later check.
-  #  - dim is Convolution.Dimension class that describes the dimension (for Usage info)
   def registerA(self, dimList):
+    """
+    Provide a list of indices in convolution order - these will be reversed when assigned to IndexAssignmentsAB
+    The order of items in the list determines the IndexAssignment order.
+    Each tuple in the list is (idx,fbs,dim).
+     - idx is the tensor index
+     - fbs indicates if the tensor is expected to be Free,Sum,or Batch.  This is used for later check.
+     - dim is Convolution.Dimension class that describes the dimension (for Usage info)
+    """
     for (idx,fbs,dim) in dimList:
       if dim.dimAB not in (DimAB.OnlyA, DimAB.BothAB):
         raise RuntimeError ("dimension '%s' can't be registered to TensorA" % dim.shortChar)
@@ -292,6 +307,7 @@ class Convolution:
     self.indexA = dimList
 
   def registerB(self, dimList):
+    """ See registerA """
     for (idx,fbs,dim) in dimList:
       if dim.dimAB not in (DimAB.OnlyB, DimAB.BothAB):
         raise RuntimeError ("dimension '%s' can't be registered to TensorB" % dim.shortChar)
@@ -421,7 +437,7 @@ class ProblemType:
 
   ########################################
   def initConvolution(self, config, convolutionType):
-    self.convolution = Convolution(self, config, convolutionType)
+    self.convolution = Convolution(self, config)
     self["NumIndicesLD"] = 0
     self["UseBeta"] = False
 
