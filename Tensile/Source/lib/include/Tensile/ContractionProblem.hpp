@@ -43,17 +43,17 @@ namespace Tensile
 
         ContractionProblem() = default;
 
+        using IndexList = std::vector<int>;
+
         /**
          * Represents a pair of free indices in a tensor contraction.
          */
         struct FreeIndex
         {
-            size_t a;  //< Dimension of A for this index.
-            size_t b;  //< Dimension of B for this index.
-            size_t ca; //< Dimension of C which corresponds to A in this index.
-            size_t cb; //< Dimension of C which corresponds to B in this index.
-            size_t da; //< Dimension of D which corresponds to A in this index.
-            size_t db; //< Dimension of D which corresponds to B in this index.
+            bool isA;  //< True=index is in A; False=index is in B
+            size_t i;  //< Dimension in A or B (depending on isA)
+            size_t c; //< Dimension of C which corresponds for this index
+            size_t d; //< Dimension of D which corresponds for this index
         };
         using FreeIndices = std::vector<FreeIndex>;
 
@@ -136,6 +136,7 @@ namespace Tensile
 
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
+
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
 
@@ -160,9 +161,22 @@ namespace Tensile
         TensorOps const& cOps() const { return m_cOps; }
         TensorOps const& dOps() const { return m_dOps; }
 
-        FreeIndices  const&  freeIndices() const { return m_freeIndices; }
+        // IndexList data contains index data for the main lists, or -1 if the index is a different type.
+        // For example, freeIndicesA will have a length equal to the dimension of A.
+        // If the first dimension of A is free, freeIndices()[freeIndicesA()[0]] will contain the FreeIndex mapping.
+        // If a particular dimension of A is not free, it will have an index of -1.
+        IndexList    const& freeIndicesA() const { return m_freeIndicesA; }
+        IndexList    const& freeIndicesB() const { return m_freeIndicesB; }
+        FreeIndices  const& freeIndices() const { return m_freeIndices; }
+        IndexList    const& batchIndicesA() const { return m_batchIndicesA; }
+        IndexList    const& batchIndicesB() const { return m_batchIndicesB; }
         BatchIndices const& batchIndices() const { return m_batchIndices; }
+        IndexList    const& boundIndicesA() const { return m_boundIndicesA; }
+        IndexList    const& boundIndicesB() const { return m_boundIndicesB; }
         BoundIndices const& boundIndices() const { return m_boundIndices; }
+
+        std::vector<size_t> const& freeSizesA() const { return m_freeSizesA; }
+        std::vector<size_t> const& freeSizesB() const { return m_freeSizesB; }
 
         double beta() const { return m_beta; }
 
@@ -200,12 +214,18 @@ namespace Tensile
         bool m_transB;
         bool m_highPrecisionAccumulate = false;
 
-        FreeIndices m_freeIndices;
+        std::vector<int> m_freeIndicesA; // in same order as IndexAssignmentsA
+        std::vector<int> m_freeIndicesB; // in same order as IndexAssignmentsB
+        FreeIndices  m_freeIndices;
+        std::vector<int> m_batchIndicesA;
+        std::vector<int> m_batchIndicesB;
         BatchIndices m_batchIndices;
+        std::vector<int> m_boundIndicesA;
+        std::vector<int> m_boundIndicesB;
         BoundIndices m_boundIndices;
 
-        std::vector<size_t> m_freeSizeA;
-        std::vector<size_t> m_freeSizeB;
+        std::vector<size_t> m_freeSizesA;
+        std::vector<size_t> m_freeSizesB;
         std::vector<size_t> m_batchSizes;
         std::vector<size_t> m_boundSizes;
 
@@ -230,8 +250,8 @@ namespace Tensile
 
     struct TENSILE_API ContractionInputs: public ProblemInputs
     {
-        ContractionInputs();
-        ~ContractionInputs();
+        HIPCC_BUILD ContractionInputs();
+        virtual HIPCC_BUILD ~ContractionInputs();
     };
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
@@ -244,10 +264,10 @@ namespace Tensile
         using AlphaType = Alpha;
         using BetaType = Beta;
 
-        TypedContractionInputs();
-        TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
+        HIPCC_BUILD TypedContractionInputs();
+        HIPCC_BUILD TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
                                Alpha _alpha, Beta _beta);
-        ~TypedContractionInputs();
+        HIPCC_BUILD ~TypedContractionInputs();
         
         A const* a = nullptr;
         B const* b = nullptr;

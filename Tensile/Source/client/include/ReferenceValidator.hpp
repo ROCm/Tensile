@@ -35,6 +35,8 @@
 
 #include "DataInitialization.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client
@@ -71,7 +73,7 @@ namespace Tensile
             virtual void   preSyncs() override {}
             virtual void   postSyncs() override {}
 
-            virtual size_t numEnqueuesPerSync() { return 0; }
+            virtual size_t numEnqueuesPerSync() override { return 0; }
             virtual void   setNumEnqueuesPerSync(size_t count) override {}
             virtual void   preEnqueues() override {}
             virtual void   postEnqueues(TimingEvents const& startEvents,
@@ -106,6 +108,7 @@ namespace Tensile
             int  m_elementsToValidate;
             bool m_printValids;
             int  m_printMax;
+            int  m_validationStride;
 
             bool m_printTensorA;
             bool m_printTensorB;

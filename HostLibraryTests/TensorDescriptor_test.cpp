@@ -28,6 +28,8 @@
 
 #include <Tensile/TensorDescriptor.hpp>
 
+#include <cstddef>
+
 using namespace Tensile;
 
 TEST(TensorDescriptor, Simple)
@@ -48,17 +50,32 @@ TEST(TensorDescriptor, Simple)
     EXPECT_EQ(t.index(3,4,1), 3 + 4*11 + 11*13);
 }
 
+TEST(TensorDescriptor, OverlappingStrides)
+{
+    TensorDescriptor t(DataType::Float, {4,6,3}, {1,4,1});
+
+    EXPECT_EQ(t.dimensions(), 3);
+    EXPECT_EQ(t.sizes(),   std::vector<size_t>({4,6,3}));
+    EXPECT_EQ(t.strides(), std::vector<size_t>({1,4,1}));
+
+    EXPECT_EQ(t.dimensionPadding(0), 0);
+    EXPECT_EQ(t.dimensionPadding(1), 0);
+
+    EXPECT_EQ(t.totalLogicalElements(),   4*6*3);
+    EXPECT_EQ(t.totalAllocatedElements(), 4*6+(3-1));
+    EXPECT_EQ(t.totalAllocatedBytes(),    (4*6+(3-1))*4);
+}
+
 TEST(TensorDescriptor, Padded)
 {
     TensorDescriptor t(DataType::Float, {11,13,17,4}, {1, 16, 16*13, 16*13*17});
 
     EXPECT_EQ(t.dimensions(), 4);
     EXPECT_EQ(t.sizes(),   std::vector<size_t>({11,13,17,4}));
-    EXPECT_EQ(t.strides(), std::vector<size_t>({1,16,16*13,16*13*17}));
+    EXPECT_EQ(t.strides(), std::vector<size_t>({1, 16,16*13,16*13*17}));
 
     EXPECT_EQ(t.totalLogicalElements(),   11*13*17*4);
-    EXPECT_EQ(t.totalAllocatedElements(), 16*13*17*4);
-    EXPECT_EQ(t.totalAllocatedBytes(),    16*13*17*4*4);
+    EXPECT_EQ(t.totalAllocatedElements(), 1 + 1*(11-1) + 16*(13-1) + (16*13)*(17-1) + (16*13*17)*(4-1));
 
     EXPECT_EQ(t.dimensionPadding(0), 0);
     EXPECT_EQ(t.dimensionPadding(1), 5);
@@ -66,7 +83,41 @@ TEST(TensorDescriptor, Padded)
     EXPECT_EQ(t.dimensionPadding(3), 0);
 
     EXPECT_EQ(t.index(3,4,1,2), 3 + 4*16 + 16*13 + 16*13*17*2);
+}
 
+TEST(TensorDescriptor, SimplePadded)
+{
+    TensorDescriptor t(DataType::Float, {4,5}, {1,8});
+
+    EXPECT_EQ(t.dimensions(), 2);
+    EXPECT_EQ(t.sizes(),   std::vector<size_t>({4,5}));
+    EXPECT_EQ(t.strides(), std::vector<size_t>({1,8}));  // default 1,4
+
+    EXPECT_EQ(t.dimensionPadding(0), 0);
+    EXPECT_EQ(t.dimensionPadding(1), 4);
+
+    EXPECT_EQ(t.totalLogicalElements(),   4*5);
+    EXPECT_EQ(t.totalAllocatedElements(), 4+8*(5-1));
+    //EXPECT_EQ(t.totalAllocatedBytes(),    (4*6+(3-1))*4);
+
+}
+
+TEST(TensorDescriptor, SimpleStrideZero)
+{
+    TensorDescriptor t(DataType::Float, {4,5,6},
+        {TensorDescriptor::UseDefaultStride,TensorDescriptor::UseDefaultStride,0});
+
+    EXPECT_EQ(t.dimensions(), 3);
+    EXPECT_EQ(t.sizes(),   std::vector<size_t>({4,5,6}));
+    EXPECT_EQ(t.strides(), std::vector<size_t>({1,4,0}));  // default 1,4
+
+    EXPECT_EQ(t.dimensionPadding(0), 0);
+    EXPECT_EQ(t.dimensionPadding(1), 0);
+    EXPECT_EQ(t.dimensionPadding(2), -20);
+
+    EXPECT_EQ(t.totalLogicalElements(),   4*5*6);
+    EXPECT_EQ(t.totalAllocatedElements(), 4*5);
+    EXPECT_EQ(t.totalAllocatedBytes(),    4*5*4);
 }
 
 TEST(TensorDescriptor, CollapseDims1)
@@ -177,13 +228,19 @@ TEST(TensorDescriptor, IncrementCoord2d)
                              dims.begin(), dims.end()), true);
 }
 
-TEST(TensorDescriptor, LowerDimOnly)
+TEST(TensorDescriptor, DefaultLowerDims)
 {
-    TensorDescriptor desc(DataType::Float, {4,5,6}, {5});
-    TensorDescriptor desc2(DataType::Float, {4,5,6});
-
+    TensorDescriptor desc(DataType::Float, {4,5,6}, {static_cast<size_t>(-1),5});
     EXPECT_EQ(desc.dimensions(), 3);
     EXPECT_EQ(desc.sizes(), std::vector<size_t>({4,5,6}));
     EXPECT_EQ(desc.strides(), std::vector<size_t>({1,5,25}));
+}
+
+TEST(TensorDescriptor, LowerDimOnly)
+{
+    TensorDescriptor desc(DataType::Float, {4,5,6}, {5});
+    EXPECT_EQ(desc.dimensions(), 3);
+    EXPECT_EQ(desc.sizes(), std::vector<size_t>({4,5,6}));
+    EXPECT_EQ(desc.strides(), std::vector<size_t>({5,20,100}));
 }
 

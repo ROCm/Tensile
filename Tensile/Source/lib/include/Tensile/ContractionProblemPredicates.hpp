@@ -30,6 +30,7 @@
 #include <Tensile/ContractionProblem.hpp>
 
 #include <array>
+#include <cstddef>
 #include <vector>
 
 namespace Tensile
@@ -148,22 +149,72 @@ namespace Tensile
                 }
             };
 
-            struct LeadingSizesGreaterOrEqual: public Predicate_CRTP<LeadingSizesGreaterOrEqual, ContractionProblem>
+            struct LeadingFreeSizesGreaterOrEqual: public Predicate_CRTP<LeadingFreeSizesGreaterOrEqual, ContractionProblem>
             {
                 enum { HasIndex = false, HasValue = true };
                 size_t value;
 
-                LeadingSizesGreaterOrEqual() = default;
-                LeadingSizesGreaterOrEqual(size_t value): value(value) {}
+                LeadingFreeSizesGreaterOrEqual() = default;
+                LeadingFreeSizesGreaterOrEqual(size_t value): value(value) {}
 
-                static std::string Type() { return "LeadingSizesGreaterOrEqual"; }
+                static std::string Type() { return "LeadingFreeSizesGreaterOrEqual"; }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.a().sizes()[0] >= value
-                        && problem.b().sizes()[0] >= value
-                        && problem.c().sizes()[0] >= value
-                        && problem.d().sizes()[0] >= value;
+                    return problem.freeSizeA(0) >= value
+                        && problem.freeSizeB(0) >= value;
+                }
+            };
+
+            struct StrideAEqual: public Predicate_CRTP<StrideAEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                StrideAEqual() = default;
+                StrideAEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "StrideAEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.a().strides()[index] == value ;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.a().strides()[index] << " == " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct StrideBEqual: public Predicate_CRTP<StrideBEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                StrideBEqual() = default;
+                StrideBEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "StrideBEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.b().strides()[index] == value ;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.b().strides()[index] << " == " << value << ") == " << rv;
+
+                    return rv;
                 }
             };
 

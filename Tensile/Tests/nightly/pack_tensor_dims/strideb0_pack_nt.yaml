@@ -34,13 +34,13 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: True
       Batched: True
+      SetConstStrideB: [[2,0]]
 
     -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
       ForkParameters:
         - ThreadTile:
           - [ 4, 4 ]
@@ -53,7 +53,7 @@ BenchmarkProblems:
         - DepthU: [8]
         - GlobalReadVectorWidth: [1,4]
         - VectorWidth: [1,4]
-        - WorkGroupMapping: [0,1,8]
+        - WorkGroupMapping: [1,8]
 
         - FractionalLoad: [1]
         - PackBatchDims: [1]  # pack into A

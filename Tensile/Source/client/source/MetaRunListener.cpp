@@ -32,6 +32,8 @@
 #include "RunListener.hpp"
 #include "ResultReporter.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client
@@ -151,7 +153,7 @@ namespace Tensile
                 (*iter)->validateWarmups(inputs, startEvents, stopEvents);
         }
 
-        size_t MetaRunListener::numSyncs() override
+        size_t MetaRunListener::numSyncs()
         {
             size_t count = 0;
             for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)

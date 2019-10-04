@@ -18,10 +18,13 @@ GlobalParameters:
   DataInitTypeC: 2
   DataInitTypeBeta: 0
   KernelTime: True
-  LibraryPrintDebug: 0
-  #RuntimeLanguage: ["OCL"]
-  #PrintTensorC : 2
+  LibraryPrintDebug: 1
+  #PrintTensorA: 1
+  #PrintTensorB: 1
+  #PrintTensorD: 1
+  PrintSolutionRejectionReason: 1
   ClientArgs: "--stride_b 0"
+
 
 BenchmarkProblems:
 
@@ -34,21 +37,21 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: True
       Batched: True
+      SetConstStrideB: [[2,0]]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
       ForkParameters:
+        #- KernelLanguage: ["Source", "Assembly"]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
           - [ 8, 8 ]
         - WorkGroup:
           - [  8, 8,  1 ]
-        - DepthU: [2]
+        - DepthU: [4]
         - GlobalReadVectorWidth: [1]
         - VectorWidth: [4]
         - WorkGroupMapping: [0]
@@ -61,9 +64,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [16,4,64], [32], [1,1,4], [8] ]
-          #- Range: [ [20,4,20], [32], [4,1,4], [8] ]
-          #- Range: [ [64], [32], [2], [8] ]
-          #- Range: [ [16], [32], [2], [8] ] # easy?
-          #- Range: [ [16], [32], [3], [8] ] # easy2?
+          - Range: [ [32], [32], [32], [48] ]
+            #- Range: [ [16], [32], [16], [8] ]
+          #- Range: [ [16,4,64], [32], [1,1,16], [8] ]
 

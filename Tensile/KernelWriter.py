@@ -649,6 +649,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
+
+        # These cases loop back and run the prefetch loop again
+        # we need an extra barrier to ensure that the ds_reads from previous iteration
+        # have finished before we generate the prefetch for the next summation index.
+        if kernel["PrefetchAcrossPersistent"] or self.nestedSummationLoops:
+          kl.append(self.syncThreads(kernel))
+
       if self.enable["LocalWrite"]:
         # local write
         kl.append(self.comment("local write a"))
@@ -882,152 +889,152 @@ class KernelWriter(metaclass=abc.ABCMeta):
         ## 8x8 -> split into group of 16 MAC(s)
         ## supports only PLR=0
         ###############################################################################
-        if kernel["PrefetchLocalRead"] or  (not globalParameters["UnrollLoopEfficiencyEnable"]):
+        if kernel["PrefetchLocalRead"] or (not globalParameters["UnrollLoopEfficiencyEnable"]):
           subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                           self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
                           pointerCode, waitCode, macIterCode)
           kl.append(subIterCode) # add scheduled "other", local reads, local writes
         else:
-           macIterCode = Code.Module()
-           MacitemsReorder = []
-           if self.enable["MAC"]:
-             luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
-             macIterCode.addCode(self.macCode(kernel, luIdx, kernel["InnerUnroll"] ))
-           MacIteritems = macIterCode.flatitems()
-           #remove last and second entry from list if AggressiveMode is set
-           # re-insert them back later
-           if (kernel["AggressivePerfMode"]):
-             MacIteritems = MacIteritems[:-1]
-             MacIteritems.pop(1)
-           #print("number MacItems\n",len(MacIteritems))
-           waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
-           blockWidth = tensorParametersA["localReadInstruction"].blockWidth
-           numVectorsPerTileA = (kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]/kernel["VectorWidth"])
-           numReadsPerVectorA = (kernel["VectorWidth"] * tensorParametersA["bpe"] ) / (blockWidth*4)
-           numVectorsPerTileB = (kernel["ThreadTile%u"%tensorParametersB["tensorIdx"]]/kernel["VectorWidth"])
-           TotalnumLdsFetches = numVectorsPerTileA*numReadsPerVectorA + numVectorsPerTileB*numReadsPerVectorA
-           waitLocalWrite = -1
-           waitLocalRead  = 0
-           ## Rules for applying kernel["UnrollLoopEfficiencyEnable"]
-           ## if A+B fetches <= 3 no split approach
-           if not TotalnumLdsFetches > 3:
-             subIterCode = self.makeSubIterSchedule(kernel, localReads, \
-                          self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
-                          pointerCode, waitCode, macIterCode)
-           else:
-             if ((kernel["ThreadTile0"] == 6 and kernel["ThreadTile1"] == 4) or
-                (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 6)):
-               numGroups = 2   #group0 = 8 MAC(s)  #group1 = 16 MAC(s) (6x4 - 4x2)
-               # ldsItems for splitting lds(s)
-               ldsItems = ([[4,2],[2,2]]) if kernel["ThreadTile0"] == 6 else ([[2,4],[2,2]])
-               macItems = [8,16]
-               waitCntItems = [0,0]
-             elif (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4):
-               numGroups = 2   #group0 = 8 MAC(s)  #group1 = 8  MAC(s) 2)
-               ldsItems = ([[4,2],[0,2]])
-               macItems = [8,8]
-               waitCntItems = [0,0]
-             elif (kernel["ThreadTile0"] == 6 and kernel["ThreadTile1"] == 6):
-               numGroups = 2   #group0 = 8 MAC(s)  #group1 = 16 MAC(s) 2)
-               ldsItems = ([[4,4],[2,2]])
-               macItems = [16,20]
-               waitCntItems = [0,0]
-             elif ((kernel["ThreadTile0"] == 8 and kernel["ThreadTile1"] == 4) or
-                (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 8)):
-               numGroups = 2   #group0 = 16 MAC(s)  #group1 = 16 MAC(s) 2)
-               ldsItems = ([[4,4],[4,0]]) if kernel["ThreadTile0"] == 8 else ([[4,4],[0,4]])
-               macItems = [16,16]
-               waitCntItems = [0,0]
-             elif (kernel["ThreadTile0"] == 8 and kernel["ThreadTile1"] == 8):
-               numGroups = 2   #group0 = 8 MAC(s)  #group1 = 8 MAC(s) 2)
-               #ldsItems = ([[4,4],[4,4]])
-               macItems = [16,48]
-               waitCntItems = [0,0]
-             AitemsToReorder = localReadsA.flatitems()
-             BitemsToReorder = localReadsB.flatitems()
-             ##reorder code?? based on LDS fetch
-             ## works for 2 groups.. needs fix for moer than 2 groups
-             for iter in range(0,numGroups):
-               endIdx   = ldsItems[iter][0] if iter == 0 else kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]
-               startIdx = 0  if iter == 0 else ldsItems[iter-1][1]
-               for Bitems in range(startIdx, startIdx+ldsItems[iter][1]):
-                 for Aitems in range(0, endIdx):
-                   idx = Aitems+(kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]*Bitems)
-                   MacitemsReorder.append(MacIteritems[idx])
-                 if (iter != 0):
-                   for Bitems in range(0, ldsItems[iter-1][1]):
-                     for Aitems in range(ldsItems[iter-1][0], kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]):
-                        MacitemsReorder.append(MacIteritems[Aitems+((kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]])*Bitems)])
-             #print("Total number mac items A(%u)\n",len(MacitemsReorder))
-             #print("Total number ds items A(%u)\n"%(TotalnumLdsFetches))
-             #print("number ds items A_B(%u .. %u)\n"%(len(AitemsToReorder),len(BitemsToReorder)))
-             #reorder LDS fetches so order in which A+B fetches matches MAC blob
-             #e.g 8x4 original order in DGEMM case A[0-1]A[2-3]A[4-5]A[6-7]B[0-1][2-3]
-             #we want to re-order them into A[0-1][2-3]B[0-1]B[2-3];  In all other except
-             #DGEMM type, number of LDS fetches <=4 so no need for LDS re-order
-             if self.enable["LocalRead"] and TotalnumLdsFetches > 4:
-               localReads = Code.Module()
-               for iter in range(0,numGroups):
-                 if len(AitemsToReorder):
-                   localReads.addText(self.comment("local read a"))
-                   numLocalReads = roundUp((ldsItems[iter][0])/kernel["VectorWidth"])
-                   ##print("number ds items A(%u..%u)\n"%(iter,numLocalReads))
-                   for idx in range(0,numLocalReads):
-                     localReads.addCode(AitemsToReorder[0])
-                     AitemsToReorder = AitemsToReorder[1:]
-                 if len(BitemsToReorder):
-                   numLocalReads = roundUp(ldsItems[iter][1]/kernel["VectorWidth"])
-                   ##print("number ds items B(%u..%u)\n"%(iter,numLocalReads))
-                   localReads.addText(self.comment("local read b"))
-                   for items in range(0,numLocalReads):
-                     localReads.addCode(BitemsToReorder[0])
-                     BitemsToReorder = BitemsToReorder[1:]
-                 if iter == 0:
-                   waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidth"] + (ldsItems[iter][1])/kernel["VectorWidth"])
-                 elif iter+1 != numGroups:
-                   waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidth"] + (ldsItems[iter][1])/kernel["VectorWidth"] + waitCntItems[iter-1])
-                 else:
-                   waitCntItems[iter] = 0
-                 #print("Waitcnt(%u..%u)\n"%(iter,waitCntItems[iter]))
-             for iter in range(0,numGroups):
-               #Mac Code
-               #place holder for future work Instruction class for generting MAC instruction
-               #FMAInstruction = MacInstruction(globalParameters["CurrentISA"])
-               subIterCode = Code.Module()
-               waitCode = Code.Module()
-               macIterCodeGrp = Code.Module()
-               doOnce = False
-               if self.enable["MAC"]:
-                 numMacItems = macItems[iter]
-                 for Items in range(0,numMacItems):
-                   macItem = MacitemsReorder.pop(0)
-                   macIterCodeGrp.addCode(macItem)
-                   ## add s_setprio 1 when AggressivePerfMode ==1 as second instruction for second-last blob macCode
-                   if (kernel["AggressivePerfMode"] and not doOnce):
-                       macIterCodeGrp.addInst("s_setprio ","1","Raise priority while processing macs")
-                       doOnce = True
-                 ## add s_setprio 0 when AggressivePerfMode ==1 as last instruction
-                 if (kernel["AggressivePerfMode"]):
-                   macIterCodeGrp.addInst("s_setprio ","0","Reset priority after macs")
-               #print("ReadWaitcnt(%u..%u)\n"%(iter,waitCntItems[iter]))
-               #print("WriteCodeCount(%d..%u)\n",u,self.perIterLocalWriteCode[u].count())
-               if (iter == 0):
-                 if self.enable["Wait"]:
-                   #calculate lgkmcnt value including read+write for first iteration
-                   waitCntVal = waitCntItems[iter] + 1 if (self.perIterLocalWriteCode[u].count()>0) else waitCntItems[iter]
-                   # read + write instructions lgkmcnt (1=> for write)
-                   # build waitCnt using new lgkmcnt
-                   waitCode = Code.WaitCnt(waitCntVal,-1,"wait for prior local read")
-                 subIterCode = self.makeSubIterSchedule(kernel, localReads, \
-                          self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
-                          pointerCode, waitCode, macIterCodeGrp)
-               else:
-                   #last group only pointer + localWrite Code
-                 if self.enable["Wait"]:
-                   waitCode = Code.WaitCnt(waitCntItems[iter],-1,"wait for prior local read & local writes")
-                 subIterCode.addCode(waitCode)
-                 subIterCode.addCode(macIterCodeGrp)
-               kl.append(subIterCode) # add scheduled "other", local reads, local writes
+          macIterCode = Code.Module()
+          MacitemsReorder = []
+          if self.enable["MAC"]:
+            luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
+            macIterCode.addCode(self.macCode(kernel, luIdx, kernel["InnerUnroll"] ))
+          MacIteritems = macIterCode.flatitems()
+          #remove last and second entry from list if AggressiveMode is set
+          # re-insert them back later
+          if (kernel["AggressivePerfMode"]):
+            MacIteritems = MacIteritems[:-1]
+            MacIteritems.pop(1)
+          #print("number MacItems\n",len(MacIteritems))
+          waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
+          blockWidth = tensorParametersA["localReadInstruction"].blockWidth
+          numVectorsPerTileA = (kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]/kernel["VectorWidth"])
+          numReadsPerVectorA = (kernel["VectorWidth"] * tensorParametersA["bpe"] ) / (blockWidth*4)
+          numVectorsPerTileB = (kernel["ThreadTile%u"%tensorParametersB["tensorIdx"]]/kernel["VectorWidth"])
+          TotalnumLdsFetches = numVectorsPerTileA*numReadsPerVectorA + numVectorsPerTileB*numReadsPerVectorA
+          waitLocalWrite = -1
+          waitLocalRead  = 0
+          ## Rules for applying kernel["UnrollLoopEfficiencyEnable"]
+          ## if A+B fetches <= 3 no split approach
+          if not TotalnumLdsFetches > 3:
+            subIterCode = self.makeSubIterSchedule(kernel, localReads, \
+                         self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
+                         pointerCode, waitCode, macIterCode)
+          else:
+            if ((kernel["ThreadTile0"] == 6 and kernel["ThreadTile1"] == 4) or
+               (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 6)):
+              numGroups = 2   #group0 = 8 MAC(s)  #group1 = 16 MAC(s) (6x4 - 4x2)
+              # ldsItems for splitting lds(s)
+              ldsItems = ([[4,2],[2,2]]) if kernel["ThreadTile0"] == 6 else ([[2,4],[2,2]])
+              macItems = [8,16]
+              waitCntItems = [0,0]
+            elif (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4):
+              numGroups = 2   #group0 = 8 MAC(s)  #group1 = 8  MAC(s) 2)
+              ldsItems = ([[4,2],[0,2]])
+              macItems = [8,8]
+              waitCntItems = [0,0]
+            elif (kernel["ThreadTile0"] == 6 and kernel["ThreadTile1"] == 6):
+              numGroups = 2   #group0 = 8 MAC(s)  #group1 = 16 MAC(s) 2)
+              ldsItems = ([[4,4],[2,2]])
+              macItems = [16,20]
+              waitCntItems = [0,0]
+            elif ((kernel["ThreadTile0"] == 8 and kernel["ThreadTile1"] == 4) or
+               (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 8)):
+              numGroups = 2   #group0 = 16 MAC(s)  #group1 = 16 MAC(s) 2)
+              ldsItems = ([[4,4],[4,0]]) if kernel["ThreadTile0"] == 8 else ([[4,4],[0,4]])
+              macItems = [16,16]
+              waitCntItems = [0,0]
+            elif (kernel["ThreadTile0"] == 8 and kernel["ThreadTile1"] == 8):
+              numGroups = 2   #group0 = 8 MAC(s)  #group1 = 8 MAC(s) 2)
+              #ldsItems = ([[4,4],[4,4]])
+              macItems = [16,48]
+              waitCntItems = [0,0]
+            AitemsToReorder = localReadsA.flatitems()
+            BitemsToReorder = localReadsB.flatitems()
+            ##reorder code?? based on LDS fetch
+            ## works for 2 groups.. needs fix for moer than 2 groups
+            for iter in range(0,numGroups):
+              endIdx   = ldsItems[iter][0] if iter == 0 else kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]
+              startIdx = 0  if iter == 0 else ldsItems[iter-1][1]
+              for Bitems in range(startIdx, startIdx+ldsItems[iter][1]):
+                for Aitems in range(0, endIdx):
+                  idx = Aitems+(kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]*Bitems)
+                  MacitemsReorder.append(MacIteritems[idx])
+                if (iter != 0):
+                  for Bitems in range(0, ldsItems[iter-1][1]):
+                    for Aitems in range(ldsItems[iter-1][0], kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]):
+                       MacitemsReorder.append(MacIteritems[Aitems+((kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]])*Bitems)])
+            #print("Total number mac items A(%u)\n",len(MacitemsReorder))
+            #print("Total number ds items A(%u)\n"%(TotalnumLdsFetches))
+            #print("number ds items A_B(%u .. %u)\n"%(len(AitemsToReorder),len(BitemsToReorder)))
+            #reorder LDS fetches so order in which A+B fetches matches MAC blob
+            #e.g 8x4 original order in DGEMM case A[0-1]A[2-3]A[4-5]A[6-7]B[0-1][2-3]
+            #we want to re-order them into A[0-1][2-3]B[0-1]B[2-3];  In all other except
+            #DGEMM type, number of LDS fetches <=4 so no need for LDS re-order
+            if self.enable["LocalRead"] and TotalnumLdsFetches > 4:
+              localReads = Code.Module()
+              for iter in range(0,numGroups):
+                if len(AitemsToReorder):
+                  localReads.addText(self.comment("local read a"))
+                  numLocalReads = roundUp((ldsItems[iter][0])/kernel["VectorWidth"])
+                  ##print("number ds items A(%u..%u)\n"%(iter,numLocalReads))
+                  for idx in range(0,numLocalReads):
+                    localReads.addCode(AitemsToReorder[0])
+                    AitemsToReorder = AitemsToReorder[1:]
+                if len(BitemsToReorder):
+                  numLocalReads = roundUp(ldsItems[iter][1]/kernel["VectorWidth"])
+                  ##print("number ds items B(%u..%u)\n"%(iter,numLocalReads))
+                  localReads.addText(self.comment("local read b"))
+                  for items in range(0,numLocalReads):
+                    localReads.addCode(BitemsToReorder[0])
+                    BitemsToReorder = BitemsToReorder[1:]
+                if iter == 0:
+                  waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidth"] + (ldsItems[iter][1])/kernel["VectorWidth"])
+                elif iter+1 != numGroups:
+                  waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidth"] + (ldsItems[iter][1])/kernel["VectorWidth"] + waitCntItems[iter-1])
+                else:
+                  waitCntItems[iter] = 0
+                #print("Waitcnt(%u..%u)\n"%(iter,waitCntItems[iter]))
+            for iter in range(0,numGroups):
+              #Mac Code
+              #place holder for future work Instruction class for generting MAC instruction
+              #FMAInstruction = MacInstruction(globalParameters["CurrentISA"])
+              subIterCode = Code.Module()
+              waitCode = Code.Module()
+              macIterCodeGrp = Code.Module()
+              doOnce = False
+              if self.enable["MAC"]:
+                numMacItems = macItems[iter]
+                for Items in range(0,numMacItems):
+                  macItem = MacitemsReorder.pop(0)
+                  macIterCodeGrp.addCode(macItem)
+                  ## add s_setprio 1 when AggressivePerfMode ==1 as second instruction for second-last blob macCode
+                  if (kernel["AggressivePerfMode"] and not doOnce):
+                      macIterCodeGrp.addInst("s_setprio ","1","Raise priority while processing macs")
+                      doOnce = True
+                ## add s_setprio 0 when AggressivePerfMode ==1 as last instruction
+                if (kernel["AggressivePerfMode"]):
+                  macIterCodeGrp.addInst("s_setprio ","0","Reset priority after macs")
+              #print("ReadWaitcnt(%u..%u)\n"%(iter,waitCntItems[iter]))
+              #print("WriteCodeCount(%d..%u)\n",u,self.perIterLocalWriteCode[u].count())
+              if (iter == 0):
+                if self.enable["Wait"]:
+                  #calculate lgkmcnt value including read+write for first iteration
+                  waitCntVal = waitCntItems[iter] + 1 if (self.perIterLocalWriteCode[u].count()>0) else waitCntItems[iter]
+                  # read + write instructions lgkmcnt (1=> for write)
+                  # build waitCnt using new lgkmcnt
+                  waitCode = Code.WaitCnt(waitCntVal,-1,"wait for prior local read")
+                subIterCode = self.makeSubIterSchedule(kernel, localReads, \
+                         self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
+                         pointerCode, waitCode, macIterCodeGrp)
+              else:
+                  #last group only pointer + localWrite Code
+                if self.enable["Wait"]:
+                  waitCode = Code.WaitCnt(waitCntItems[iter],-1,"wait for prior local read & local writes")
+                subIterCode.addCode(waitCode)
+                subIterCode.addCode(macIterCodeGrp)
+              kl.append(subIterCode) # add scheduled "other", local reads, local writes
       kl.append(self.closeString(kernel))
       kl.append(self.openString(kernel))
 
@@ -1147,6 +1154,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False)
 
+    if self.staggerU and self.nestedSummationLoops:
+      kl.append(self.comment("remove stagger offsets"))
+      kl.append(self.removeStagger(kernel, tensorParametersA))
+      kl.append(self.removeStagger(kernel, tensorParametersB))
+
 
     ########################################
     # Tail Loop
@@ -1165,7 +1177,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["GlobalRead"]:
         # tail: global read
         kl.append(self.calculateLoopNumIter(kernel, -1, False))
-        if self.staggerU:
+        if self.staggerU and not self.nestedSummationLoops:
           kl.append(self.comment("remove stagger offsets for tail loop"))
           kl.append(self.removeStagger(kernel, tensorParametersA))
           kl.append(self.removeStagger(kernel, tensorParametersB))
@@ -1407,6 +1419,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kernel["PrefetchGlobalRead"] and \
         not kernel["SuppressNoLoadLoop"] and \
         kernel["PrefetchAcrossPersistent"]
+
+
+    # TODO - for PackSummationDims=1, then don't need this barrier since there is not a nested loop
+    self.nestedSummationLoops = kernel["ProblemType"]["NumIndicesSummation"] > 1
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
@@ -2496,6 +2512,7 @@ for codeObjectFileName in codeObjectFileNames:
     kernelFileName_txt = "%s.s.txt" % kernelName
     SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
     REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
+    if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
     REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
 
     if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:

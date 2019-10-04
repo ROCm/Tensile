@@ -34,14 +34,15 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: True
       Batched: True
+      SetConstStrideA: [[2,0]]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
       ForkParameters:
+        - KernelLanguage: ["Source","Assembly"]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:

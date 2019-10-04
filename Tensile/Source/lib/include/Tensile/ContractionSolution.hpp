@@ -22,6 +22,7 @@
 #pragma once
 
 #include <memory>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -91,6 +92,9 @@ namespace Tensile
             size_t staggerStrideShift;
             int workGroupMapping;
 
+            size_t packBatchDims;
+            size_t packFreeDims;
+
             size_t persistentKernel;
 
             bool sourceKernel;
@@ -128,7 +132,12 @@ namespace Tensile
                              Inputs   const& inputs,
                              Hardware const& hardware) const;
 
-        uint32_t magicNumber(uint32_t x) const;
+        uint32_t magicNumber(uint32_t x, unsigned int magicShift) const;
+
+        bool isPackedIndex(const std::vector<int>& fIdx,
+                           const std::vector<int>& bIdx,
+                           int index,
+                           int batchMask) const;
     };
 
 }

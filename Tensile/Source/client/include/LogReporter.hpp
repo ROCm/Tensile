@@ -29,6 +29,7 @@
 #include "ResultReporter.hpp"
 #include "CSVStackFile.hpp"
 
+#include <cstddef>
 #include <string>
 #include <unordered_set>
 
@@ -181,7 +182,7 @@ namespace Tensile
                 m_csvOutput.pop();
             }
 
-            virtual void finalizeReport()
+            virtual void finalizeReport() override
             {
             }
 

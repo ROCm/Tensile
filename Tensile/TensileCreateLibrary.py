@@ -77,7 +77,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 
         coFiles = []
         for arch, archKernels in archs.items():
-            objectFiles = list([os.path.join(asmDir, kernelWriterAssembly.getKernelName(k) + '.o') \
+            objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
                                 for k in archKernels \
                                 if k['KernelLanguage'] == 'Assembly'])
             if len(objectFiles) == 0:
@@ -86,7 +86,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             archName = 'gfx'+''.join(map(str,arch))
             coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-            subprocess.check_call(args)
+            subprocess.check_call(args, cwd=asmDir)
             coFiles.append(coFile)
 
         return coFiles
@@ -207,11 +207,11 @@ def prepAsm():
     # cannot use globalParameters["CurrentISA"] because it might be (0,0,0)
     defaultIsa = (9,0,0)
     assemblerFile.write( \
-      "${ASM} -x assembler -target amdgcn--amdhsa %s $@ -c -o $f.o $f.s\n" % \
+      "${ASM} -x assembler -target amdgcn-amd-amdhsa %s $@ -c -o $f.o $f.s\n" % \
       ("-mno-code-object-v3" if \
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
-      globalParameters["CodeObjectVersion"] == "V2" else ""))
-    assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
+      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-v3"))
+    assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
 
@@ -566,7 +566,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "static const ProblemType problemType_%s( " % problemType
     s += listToInitializer(problemType["IndicesFree"]) + ", "
     s += listToInitializer(problemType["IndicesSummation"]) + ", "
-    s += listToInitializer(problemType["IndicesBatch"])
+    s += listToInitializer(problemType["IndicesBatch"]) + ", "
+    s += listToInitializer(problemType["IndexAssignmentsA"]) + ", "
+    s += listToInitializer(problemType["IndexAssignmentsB"])
     s += ");\n"
 
     s += "\n"
@@ -734,13 +736,15 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d} }%s // %d" % \
+    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d, %d, %d} }%s // %d" % \
       (solutionName, solutionName, \
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
         solution["AssertMinApproxSize"], \
         solution["LdcEqualsLdd"], \
+        solution["PackBatchDims"]==2, \
+        solution["PackBatchDims"]==1, \
         "," if i < len(solutionsForSchedule)-1 else "", \
         i)
     s += "\n"

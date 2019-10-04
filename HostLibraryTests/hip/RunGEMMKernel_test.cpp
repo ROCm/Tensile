@@ -43,6 +43,7 @@
 
 #include <Reference.hpp>
 
+#include <cstddef>
 #include <random>
 
 using namespace Tensile;

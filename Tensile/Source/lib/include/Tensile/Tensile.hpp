@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>
@@ -51,7 +52,7 @@ namespace Tensile
     class TENSILE_API ProblemInputs
     {
     public:
-        virtual ~ProblemInputs();
+        virtual HIPCC_BUILD ~ProblemInputs();
 
     };
 

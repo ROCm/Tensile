@@ -29,6 +29,7 @@
 #include "RunListener.hpp"
 
 #include <chrono>
+#include <cstddef>
 
 #include <boost/program_options.hpp>
 

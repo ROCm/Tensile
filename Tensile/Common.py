@@ -67,8 +67,16 @@ globalParameters["ValidationPrintValids"] = False # print matches too
 globalParameters["ForceRedoBenchmarkProblems"] = True # if False and benchmarking already complete, then benchmarking will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryLogic"] = True      # if False and library logic already analyzed, then library logic will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
+
+# Compare CPU reference convolution model vs golden tensor contracton model
+# Useful to test if conversion from tensor contraction is working as expected
+# In this mode, the filter,stride,dilation are specified in the problem type.
+# If the problem type uses constant Filter,Stride,Dilation,Pad* (ie these are not 'N'), then the
+# specified constant MUST match the dimension in the problem or the tensile runtime will assert.
+# The batch size, spatial dims, Cin, and Cout are always read from the problem description.
+globalParameters["ConvolutionVsContraction"] = False
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
-globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
+globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
@@ -112,6 +120,7 @@ globalParameters["DebugKernel"] = False           # assembly only, kernel gets b
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
 
 # Tensor printing controls:
+globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info
 globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = 0          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
@@ -135,6 +144,7 @@ globalParameters["ShortNames"] = False            # on windows kernel names can 
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
+globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -187,6 +197,11 @@ for i in validThreadTileSides:
   for j in validThreadTileSides:
     validThreadTiles.append([i, j])
 
+validTensorAFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
+validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW', \
+                        'KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
+validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW', \
+                        'KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -516,6 +531,9 @@ validParameters = {
     #   this will create a set of kernels with progessively more pieces of the kernel disabled
     "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
 
+    # assume atomics always work correctly.
+    "DisableAtomicFail": [False, True],
+
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
     #       - Recommended min is enough WG to use all resources on the CU
@@ -552,7 +570,7 @@ validParameters = {
     # 0x2 : VectorWidth must not span tensor dim
     "PackGranularity": [2],
 
-    # Controls desiredwidth of loads from global memory -> LDS.
+    # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
@@ -562,23 +580,16 @@ validParameters = {
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
-    # The load width is closely related to the width of local stores so VectorWidth controls local write width.
+    # The global load width is closely related to the width of local stores so
+    # GlobalReadVectorWidth also ontrols local write width.
     # Local read width also matches since VectorWidth consec elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
-    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
+    # -1 means use the largest vector width up to 128 bits.
+    # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-
-    # Minimum guaranteed global store vector width
-    # Tensile will allocate additional VGPR in Global Store phase if needed to
-    # ensure that writes can be written with MinWriteVectorWidth.
-    # If requested global write vector width is larger than MinGlobalWriteVectorWidth,
-    # then additional
-    # or the granted gwvw == MinGlobalWriteVectorWidth.
-    # MinGlobalWriteVectorWidth=-1 chooses a sensible default of 2 for half and
-    # one for other types.
-    "MinGlobalWriteVectorWidth":      [-1, 1, 2, 4, 8 ],
-
+    # If False, store 1 element per instruction.
+    # If True, store vector-width elements per instruction.
     "VectorStore":                    [False, True],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
@@ -677,7 +688,6 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadB":                   [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"MinGlobalWriteVectorWidth": [ -1 ] },
     {"VectorStore":               [ True ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
@@ -737,6 +747,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },
@@ -764,13 +775,55 @@ for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
+# valid fields in ConvolutionConfig and explanations:
+validConvolutionConfig= [
+    # For OperationType == Convolution*
+    # Examples: NCHW, NHWC, NCDHW, more
+    # *HW* and *YX*   create solution with 2 spatial dimensions.
+    # *DHW* and *ZYX* create solution with 3 spatial dimensions.
+    "TensorAFormat",           # see validTensorAFormats
+    "TensorBFormat",           # see validTensorBFormats
+    "TensorDFormat",           # see validTensorDFormats
+
+    # Each of the parms below specifies dimensions separated by 'x".
+    # -  The notation follows 'convolution' convention so fastest-moving dimensions are last,
+    #    and should mirror the order of the spatial dimension in the activation format.
+    #    For example, in NCHW format Filter=3x1 is 3 in the H dimension and 1 in the W dimension.
+    # -  2 or 3 dimensions are supported 'Filter:3x1' or 'Filter:3x3x1'.
+    # - Use an integer to create a kernel with a compile-time constant
+    #   Use "N" to create flexible kernel the value provided at runtime via appropriate
+    #   size and stride values.
+    # - 0 specifies the default.  Defaults below shown for 2 spatial dimensions; a 3-dimensional
+    #   default will be created if the formats request 3 spacial dimensions.
+    "Filter",                   # examples: 1x1,3x3,1x7,7x1,NxN,Nx5,3x3x3.  Default=1x1/1x1x1.
+    "Stride",                   # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1/1x1x1.
+    "Dilation",                 # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1/1x1x1.
+
+    # Pad at start of each filter dimension. Recommend 0x0 when possible or NxN otherwise.
+    # (performance difference from compile-time padding is not significant)
+    "PadStart",                 # examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0/0x0x0.
+    # Pad at end of each filter dimension
+    "PadEnd",                   # examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0/0x0x0.
+
+    # For grouped convolutions:
+    "GroupCount",
+
+    # pack spatial dims (d,h,w) into single tensor dim
+    # This is preferred for cases where these dimensions are packed in memory
+    # since it reduces addressing overhead and will produce a more efficient kernel
+    # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
+    "PackedSpatialDims",
+    ]
+
 ################################################################################
 # Default Problem Type
 ################################################################################
 defaultProblemType = {
     # =GEMM uses TransposeA,B paramters and makes the problem type more readeable for users
     # =TensorContraction  requires specifying
-    "OperationType":            "GEMM",
+    "OperationType":            "GEMM",           # GEMM, TensorContraction, ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
+
+    "ConvolutionConfig":        [],               # See validConvolutionConfig
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
@@ -782,12 +835,21 @@ defaultProblemType = {
     "ComplexConjugateA":        False,            # complex data should be conjugated for "C" transpose case
     "ComplexConjugateB":        False,
 
-    # for gemm description
+    # for OperationType == GEMM
     "TransposeA":               False,            # =True means transA="T" or "C", =False means transA = "N"
     "TransposeB":               True,
     "Batched":                  False,            # add batching dimension
 
-    # for tensor contraction description
+    # for OperationType == TensorContraction
+    # - Indices < NumIndicesC are Free or Batch indices and appear in C and D
+    # - Indices which appear in both A and B, and are < NumIndicesC are batch.  A and B must have same number of batch indices.
+    # - Indices which appear in both A and B, and are >= NumIndicesC are summation. A and B must have same number of summation indices.
+    # - Indices which appear in A or B (but not both), are Free.  A and B may have different numbers of free indices.
+    # - Summation loops are nested from smallest index number to largest, with the largest summation index as the 'unroll' loop.
+    # - Memory order of C and D matrices is always 0..NumIndicesC-1, with 0 as the fastest-moving.
+    #   - By choosing index assignments the output can be 'transposed'.  For example if IA=[1,2] IB=[0,2] then 0 is the coalesced dim for C/D.
+    #   - Likewise batch index may be assigned between two free indices to control the output order, ie to write in CNHW format.
+    #   - For example : IA=[0,1,3] IB=[2,1,3].  0,2 are free indices;  1 is batch.
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
@@ -797,6 +859,7 @@ defaultProblemType = {
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
     #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],
+    "SetConstStrideB":          [],
 
     # ZeroPad:
     # Zero-pad will add leading and trailing "pad" elements to the specified free

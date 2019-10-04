@@ -31,6 +31,8 @@
 #include <Tensile/PropertyMatching.hpp>
 #include <Tensile/ContractionProblemProperties.hpp>
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Serialization

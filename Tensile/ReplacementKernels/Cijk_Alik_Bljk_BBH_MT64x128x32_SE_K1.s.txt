@@ -19,16 +19,16 @@ Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1:
 .amd_kernel_code_t
   is_ptr64 = 1
   enable_sgpr_kernarg_segment_ptr = 1
-  kernarg_segment_byte_size = 76 // bytes of kern args
+  kernarg_segment_byte_size = 148 // bytes of kern args
   workitem_vgpr_count = 108 // vgprs
   wavefront_sgpr_count = 98 // sgprs
-  compute_pgm_rsrc1_vgprs = 26 // floor((67-1)/4)
-  compute_pgm_rsrc1_sgprs = 13 // floor((98-1)/8)
+  compute_pgm_rsrc1_vgprs = 26 // floor((108-1)/4)
+  compute_pgm_rsrc1_sgprs = 12 // floor((98-1)/8)
   compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg
   compute_pgm_rsrc2_tgid_x_en = 1 // wg.x
   compute_pgm_rsrc2_tgid_y_en = 1 // wg.y
   compute_pgm_rsrc2_tgid_z_en = 1 // wg.z
-  workgroup_group_segment_byte_size = 36864// lds bytes
+  workgroup_group_segment_byte_size = 30000// lds bytes
   compute_pgm_rsrc2_user_sgpr = 2 // vcc
   kernarg_segment_alignment = 4
   group_segment_alignment = 4
@@ -48,8 +48,8 @@ Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1:
 .amd_amdgpu_hsa_metadata
 Version: [ 1, 0 ]
 Kernels:
-  - Name: Cijk_Alik_Bjlk_HH_MT64x128x32_SE_K1
-    SymbolName: 'Cijk_Alik_Bjlk_HH_MT64x128x32_SE_K1@kd'
+  - Name: Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1
+    SymbolName: 'Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1@kd'
     Language: OpenCL C
     LanguageVersion: [ 2, 0 ]
     Args:
@@ -93,6 +93,11 @@ Kernels:
         ValueType:       Struct
         AddrSpaceQual:   Generic
       - Name:            alpha
+        Size:            4
+        Align:           4
+        ValueKind:       ByValue
+        ValueType:       F32
+      - Name:            beta
         Size:            4
         Align:           4
         ValueKind:       ByValue
@@ -188,13 +193,13 @@ Kernels:
         ValueKind:       ByValue
         ValueType:       U32
     CodeProps:
-      KernargSegmentSize: 76
+      KernargSegmentSize: 148
       GroupSegmentFixedSize: 28672
       PrivateSegmentFixedSize: 0
       KernargSegmentAlign:  8
       WavefrontSize:        64
       NumSGPRs:             98
-      NumVGPRs:             67
+      NumVGPRs:             108
       MaxFlatWorkGroupSize: 256
 .end_amd_amdgpu_hsa_metadata
 
@@ -315,167 +320,30 @@ _v_add_co_u32 v[\vgprAddr+0], vcc, v[\vgprTmp+0], v[\vgprOffset1J] // accumulate
 _v_add_co_u32 v[\vgprAddr+0], vcc, 0x4, v[\vgprAddr+0] // add prepad for pointer shift
 v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .endm
+ //****************
+ // start kernel
 
-/******************************************/
-/* Dynamic Scalar Divide: vQuotient=vDividend/vDivisor; vRemainder=vDividend%vDivisor; */
-/******************************************/
-.macro DYNAMIC_VECTOR_DIVIDE vQuotient vRemainder vDividend vDivisor vTmp0 vTmp1 sTmp
-v_cvt_f32_u32 v[\vQuotient], v[\vDivisor]          // 
-v_rcp_f32 v[\vQuotient], v[\vQuotient]             // 
-v_mul_f32 v[\vQuotient], 0x4f800000, v[\vQuotient] // 
-v_cvt_u32_f32 v[\vQuotient], v[\vQuotient]         // 
-v_mul_lo_u32 v[\vRemainder], v[\vDivisor], v[\vQuotient] // 
-v_mul_hi_u32 v[\vTmp0], v[\vDivisor], v[\vQuotient] // 
-_v_sub_co_u32 v[\vTmp1], vcc, 0x0, v[\vRemainder]  // 
-v_cmp_ne_i32 s[\sTmp:\sTmp+1], 0x0, v[\vTmp0]      // 
-v_cndmask_b32 v[\vRemainder], v[\vTmp1], v[\vRemainder], s[\sTmp:\sTmp+1] // 
-v_mul_hi_u32 v[\vRemainder], v[\vRemainder], v[\vQuotient] // 
-_v_sub_co_u32 v[\vTmp0], vcc, v[\vQuotient], v[\vRemainder] // 
-_v_add_co_u32 v[\vQuotient], vcc, v[\vQuotient], v[\vRemainder] // 
-v_cndmask_b32 v[\vQuotient], v[\vQuotient], v[\vTmp0], s[\sTmp:\sTmp+1] // 
-v_mul_hi_u32 v[\vQuotient], v[\vQuotient], v[\vDividend] // 
-v_mul_lo_u32 v[\vRemainder], v[\vQuotient], v[\vDivisor] // 
-_v_sub_co_u32 v[\vTmp0], vcc, v[\vDividend], v[\vRemainder] // 
-v_cmp_ge_u32 s[\sTmp:\sTmp+1], v[\vDividend], v[\vRemainder] // 
-_v_add_co_u32 v[\vRemainder], vcc, 0x1, v[\vQuotient] // 
-_v_add_co_u32 v[\vTmp1], vcc, -1, v[\vQuotient]    // 
-v_cmp_le_u32 vcc, v[\vDivisor], v[\vTmp0]          // 
-s_and_b64 vcc, s[\sTmp:\sTmp+1], vcc               // 
-v_cndmask_b32 v[\vQuotient], v[\vQuotient], v[\vRemainder], vcc // 
-v_cndmask_b32 v[\vQuotient], v[\vTmp1], v[\vQuotient], s[\sTmp:\sTmp+1] // 
-v_cmp_ne_i32 vcc, 0x0, v[\vDivisor]                // 
-v_cndmask_b32 v[\vQuotient], -1, v[\vQuotient], vcc // final result
-v_mul_lo_u32 v[\vRemainder], v[\vQuotient], v[\vDivisor] // 
-_v_sub_co_u32 v[\vRemainder], vcc, v[\vDividend], v[\vRemainder] // final result
-.endm
-
-/******************************************/
-/* 4x8 thread-tile                        */
-/******************************************/
-.macro MAC_4x8_X0
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[0] iui=0
-s_setprio 1 // Raise priority while processing macs
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[1]
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[4]
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[5]
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[2] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[3]
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[6]
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[7]
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[8] iui=0
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[9]
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[12]
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[13]
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[10] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[11]
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[14]
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[15]
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[16] iui=0
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[17]
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[20]
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[21]
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[18] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[19]
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[22]
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[23]
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[24] iui=0
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[25]
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[28]
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[29]
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[26] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[27]
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[30]
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[31]
-s_setprio 0 // Reset priority after macs
-.endm
-.macro MAC_4x8_X1
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[0] iui=0
-s_setprio 1 // Raise priority while processing macs
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[1]
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[4]
-v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[5]
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[2] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[3]
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[6]
-v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[7]
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[8] iui=0
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[9]
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[12]
-v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[13]
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[10] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[11]
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[14]
-v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[15]
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[16] iui=0
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[17]
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[20]
-v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[21]
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[18] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[19]
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[22]
-v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[23]
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[24] iui=0
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[25]
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[28]
-v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[29]
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[26] iui=0
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[27]
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[30]
-v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[31]
-s_setprio 0 // Reset priority after macs
-.endm
+.long 0xC0020680, 0x00000008
+.long 0xC00206C0, 0x0000000C
+.long 0xC0020D00, 0x00000028
+.long 0xC0020D40, 0x0000002C
+.long 0xC0020C00, 0x00000050
+.long 0xC0020C40, 0x00000054
 .long 0xBEFC00FF, 0x00003000
 .long 0x7EC80300
 .long 0x26CA00BF
-.long 0xC0020600, 0x00000000
-.long 0xC0020640, 0x00000004
-.long 0xC0020680, 0x00000008
-.long 0xC00206C0, 0x0000000C
-.long 0xC0020700, 0x00000010
-.long 0xC0020740, 0x00000014
-.long 0xC0020800, 0x00000018
-.long 0xC0020840, 0x0000001C
-.long 0xC0020880, 0x00000020
-.long 0xC00208C0, 0x00000024
-.long 0xC0020D00, 0x00000028
-.long 0xC0020D40, 0x0000002C
-.long 0xC0020D80, 0x00000030
-.long 0xC0020DC0, 0x00000034
-.long 0xC0020A00, 0x00000038
-.long 0xC0020A40, 0x0000003C
-.long 0xC0020A40, 0x0000003C
-.long 0xC0020900, 0x00000040
-.long 0xC0020940, 0x00000044
-.long 0xC0020980, 0x00000048
-.long 0xC00209C0, 0x0000004C
-.long 0xC0020C00, 0x00000050
-.long 0xC0020C40, 0x00000054
-.long 0xC0020C80, 0x00000058
-.long 0xC0020CC0, 0x0000005C
-.long 0xC0020A80, 0x00000060
-.long 0xC0020AC0, 0x00000064
-.long 0xC0020B00, 0x00000068
-.long 0xC0020B40, 0x0000006C
-.long 0xC0020F00, 0x00000070
-.long 0xC0020140, 0x00000074
-.long 0xC0020180, 0x00000078
-.long 0xC0021080, 0x00000084
-.long 0xC00210C0, 0x00000088
-.long 0xC0021100, 0x0000008C
-.long 0xBF8CC07F
-.long 0xBF8CC07F
 .long 0x2004C886
 .long 0x7E9C0502
+.long 0xBF8CC07F
+.long 0xC0020C80, 0x00000058
+.long 0xC0020CC0, 0x0000005C
+.long 0xC0020D80, 0x00000030
+.long 0xC0020DC0, 0x00000034
+.long 0xC0020700, 0x00000010
+.long 0xC0020740, 0x00000014
 .long 0xBE880034
 .long 0xBE890035
 .long 0xBE8B00FF, 0x00020000
-.long 0x80B8541A
-.long 0x80B9551A
-.long 0x8EB88138
-.long 0x80388438
-.long 0x82398039
-.long 0xBF068039
-.long 0x850AFF38, 0x80000000
 .long 0xBE8A00FF, 0x80000000
 .long 0x9254C030
 .long 0x92545402
@@ -494,29 +362,18 @@ s_setprio 0 // Reset priority after macs
 .long 0x68A6A447
 .long 0x68A8A647
 .long 0x68AAA847
-.long 0xD1130001, 0x00013F65
-.long 0xD285005E, 0x00020290
-.long 0x20020282
-.long 0xD2850001, 0x00020282
-.long 0x68BCBD01
-.long 0x2002CA85
-.long 0x68BCBD01
-.long 0x24BCBC82
-.long 0x68BCBC80
-.long 0x68BEBCFF, 0x00001080
 .long 0xBED800FF, 0x00000420
 .long 0x9258584E
+.long 0xBEFC0058
 .long 0x8159FF58, 0x00001080
+.long 0xE0511000, 0x80023052
+.long 0xE0511108, 0x80023153
+.long 0xE0511210, 0x80023254
+.long 0xE0511318, 0x80023355
+.long 0xBF8CC07F
 .long 0xBE8C0036
 .long 0xBE8D0037
 .long 0xBE8F00FF, 0x00020000
-.long 0x80BA541C
-.long 0x80BB551C
-.long 0x8EBA813A
-.long 0x803A843A
-.long 0x823B803B
-.long 0xBF06803B
-.long 0x850EFF3A, 0x80000000
 .long 0xBE8E00FF, 0x80000000
 .long 0x9254FF32, 0x00000080
 .long 0x92545403
@@ -539,6 +396,44 @@ s_setprio 0 // Reset priority after macs
 .long 0x68B6B44A
 .long 0x68B8B64A
 .long 0x68BAB84A
+.long 0xBEDA00FF, 0x00000840
+.long 0x925A5A4E
+.long 0x815AFF5A, 0x00002100
+.long 0xBEFC005A
+.long 0x815BFF5A, 0x00002100
+.long 0xE0511000, 0x80034456
+.long 0xE0511108, 0x80034557
+.long 0xE0511210, 0x80034658
+.long 0xE0511318, 0x80034759
+.long 0xE0511420, 0x8003485A
+.long 0xE0511528, 0x8003495B
+.long 0xE0511630, 0x80034A5C
+.long 0xE0511738, 0x80034B5D
+.long 0xC0020800, 0x00000018
+.long 0xC0020840, 0x0000001C
+.long 0xC0020880, 0x00000020
+.long 0xC00208C0, 0x00000024
+.long 0xC0020600, 0x00000000
+.long 0xC0020640, 0x00000004
+.long 0xC0020A00, 0x00000038
+.long 0xC0020900, 0x00000040
+.long 0xC0020940, 0x00000044
+.long 0xC0020980, 0x00000048
+.long 0xC00209C0, 0x0000004C
+.long 0xC0020A80, 0x00000060
+.long 0xC0020AC0, 0x00000064
+.long 0xC0020B00, 0x00000068
+.long 0xC0020B40, 0x0000006C
+.long 0xD1130001, 0x00013F65
+.long 0xD285005E, 0x00020290
+.long 0x20020282
+.long 0xD2850001, 0x00020282
+.long 0x68BCBD01
+.long 0x2002CA85
+.long 0x68BCBD01
+.long 0x24BCBC82
+.long 0x68BCBC80
+.long 0x68BEBCFF, 0x00001080
 .long 0xD1130001, 0x00013F65
 .long 0xD2850060, 0x00020290
 .long 0x20020282
@@ -551,330 +446,13 @@ s_setprio 0 // Reset priority after macs
 .long 0x68C0C054
 .long 0x68C0C0FF, 0x00002100
 .long 0x68C2C0FF, 0x00002100
-.long 0xBEDA00FF, 0x00000840
-.long 0x925A5A4E
-.long 0x815AFF5A, 0x00002100
-.long 0x815BFF5A, 0x00002100
 .long 0x925488FF, 0x00000108
 .long 0x815C545A
 .long 0x815D545B
-.long 0xBEFC0058
-.long 0xBF8CC07F
-.long 0xE0511000, 0x80023052
-.long 0xE0511108, 0x80023153
-.long 0xE0511210, 0x80023254
-.long 0xE0511318, 0x80023355
-.long 0xBEFC005A
-.long 0xBF800000
-.long 0xE0511000, 0x80034456
-.long 0xE0511108, 0x80034557
-.long 0xE0511210, 0x80034658
-.long 0xE0511318, 0x80034759
-.long 0xE0511420, 0x8003485A
-.long 0xE0511528, 0x8003495B
-.long 0xE0511630, 0x80034A5C
-.long 0xE0511738, 0x80034B5D
-.long 0xD3D94000, 0x18000080
-.long 0xD3D94001, 0x18000080
-.long 0xD3D94002, 0x18000080
-.long 0xD3D94003, 0x18000080
-.long 0xD3D94004, 0x18000080
-.long 0xD3D94005, 0x18000080
-.long 0xD3D94006, 0x18000080
-.long 0xD3D94007, 0x18000080
-.long 0xD3D94008, 0x18000080
-.long 0xD3D94009, 0x18000080
-.long 0xD3D9400A, 0x18000080
-.long 0xD3D9400B, 0x18000080
-.long 0xD3D9400C, 0x18000080
-.long 0xD3D9400D, 0x18000080
-.long 0xD3D9400E, 0x18000080
-.long 0xD3D9400F, 0x18000080
-.long 0xD3D94010, 0x18000080
-.long 0xD3D94011, 0x18000080
-.long 0xD3D94012, 0x18000080
-.long 0xD3D94013, 0x18000080
-.long 0xD3D94014, 0x18000080
-.long 0xD3D94015, 0x18000080
-.long 0xD3D94016, 0x18000080
-.long 0xD3D94017, 0x18000080
-.long 0xD3D94018, 0x18000080
-.long 0xD3D94019, 0x18000080
-.long 0xD3D9401A, 0x18000080
-.long 0xD3D9401B, 0x18000080
-.long 0xD3D9401C, 0x18000080
-.long 0xD3D9401D, 0x18000080
-.long 0xD3D9401E, 0x18000080
-.long 0xD3D9401F, 0x18000080
 .long 0x68A4A4C0
 .long 0x68A6A6C0
 .long 0x68A8A8C0
 .long 0x68AAAAC0
-.long 0x68ACACC0
-.long 0x68AEAEC0
-.long 0x68B0B0C0
-.long 0x68B2B2C0
-.long 0x68B4B4C0
-.long 0x68B6B6C0
-.long 0x68B8B8C0
-.long 0x68BABAC0
-.long 0xBEFC0059
-.long 0xBF8C0F78
-.long 0xBF8A0000
-.long 0xE0511000, 0x80023052
-.long 0xE0511108, 0x80023153
-.long 0xE0511210, 0x80023254
-.long 0xE0511318, 0x80023355
-.long 0xD86C0000, 0x2000005E
-.long 0xD86C0840, 0x2100005E
-.long 0xD86C0008, 0x2200005E
-.long 0xD86C0848, 0x2300005E
-.long 0xD86C0010, 0x2400005E
-.long 0xD86C0850, 0x2500005E
-.long 0xD86C0018, 0x2600005E
-.long 0xD86C0858, 0x2700005E
-.long 0xBF8C0F74
-.long 0xBEFC005B
-.long 0xBF800000
-.long 0xE0511000, 0x80034456
-.long 0xE0511108, 0x80034557
-.long 0xE0511210, 0x80034658
-.long 0xE0511318, 0x80034759
-.long 0xE0511420, 0x8003485A
-.long 0xE0511528, 0x8003495B
-.long 0xE0511630, 0x80034A5C
-.long 0xE0511738, 0x80034B5D
-.long 0xD86C0000, 0x34000060
-.long 0xD86C0008, 0x35000060
-.long 0xD86C0010, 0x36000060
-.long 0xD86C0018, 0x37000060
-.long 0xD86C0020, 0x38000060
-.long 0xD86C0028, 0x39000060
-.long 0xD86C0030, 0x3A000060
-.long 0xD86C0038, 0x3B000060
-.long 0x8F2E852D
-.long 0x80AE2E80
-.long 0xBF06802E
-.long 0xBF85023F
-.long 0xBF8CC47F
-.long 0xD3EC0000, 0x04026920
-.long 0xD86C0020, 0x2800005E
-.long 0xD86C0860, 0x2900005E
-.long 0xD86C0028, 0x2A00005E
-.long 0xD86C0868, 0x2B00005E
-.long 0xD3EC0010, 0x04426921
-.long 0xD86C0030, 0x2C00005E
-.long 0xD86C0870, 0x2D00005E
-.long 0xD86C0038, 0x2E00005E
-.long 0xD86C0878, 0x2F00005E
-.long 0xBEFC0058
-.long 0xD3EC0000, 0x04026B22
-.long 0x68A4A4C0
-.long 0x68A6A6C0
-.long 0x68A8A8C0
-.long 0x68AAAAC0
-.long 0x68ACACC0
-.long 0x68AEAEC0
-.long 0x68B0B0C0
-.long 0x68B2B2C0
-.long 0x68B4B4C0
-.long 0x68B6B6C0
-.long 0x68B8B8C0
-.long 0x68BABAC0
-.long 0xD3EC0010, 0x04426B23
-.long 0xD3EC0000, 0x04026D24
-.long 0xD3EC0010, 0x04426D25
-.long 0xD3EC0000, 0x04026F26
-.long 0xD3EC0010, 0x04426F27
-.long 0xBF8CC07F
-.long 0xBF8C0F78
-.long 0xBF8A0000
-.long 0xD3EC0000, 0x04027128
-.long 0xE0511000, 0x80023052
-.long 0xD86C0000, 0x2000005F
-.long 0xD86C0840, 0x2100005F
-.long 0xE0511108, 0x80023153
-.long 0xD86C0008, 0x2200005F
-.long 0xD86C0848, 0x2300005F
-.long 0xE0511210, 0x80023254
-.long 0xD86C0010, 0x2400005F
-.long 0xD86C0850, 0x2500005F
-.long 0xD3EC0010, 0x04427129
-.long 0xE0511318, 0x80023355
-.long 0xD86C0018, 0x2600005F
-.long 0xD86C0858, 0x2700005F
-.long 0xBEFC005A
-.long 0xBF8C0F78
-.long 0xD3EC0000, 0x0402732A
-.long 0xE0511000, 0x80034456
-.long 0xE0511108, 0x80034557
-.long 0xE0511210, 0x80034658
-.long 0xE0511318, 0x80034759
-.long 0xBF8C0F78
-.long 0xD3EC0010, 0x0442732B
-.long 0xE0511420, 0x8003485A
-.long 0xD86C0000, 0x3C000061
-.long 0xD86C0008, 0x3D000061
-.long 0xE0511528, 0x8003495B
-.long 0xD86C0010, 0x3E000061
-.long 0xD86C0018, 0x3F000061
-.long 0xE0511630, 0x80034A5C
-.long 0xD86C0020, 0x40000061
-.long 0xD86C0028, 0x41000061
-.long 0xD3EC0000, 0x0402752C
-.long 0xE0511738, 0x80034B5D
-.long 0xD86C0030, 0x42000061
-.long 0xD86C0038, 0x43000061
-.long 0xD3EC0010, 0x0442752D
-.long 0xD3EC0000, 0x0402772E
-.long 0xD3EC0010, 0x0442772F
-.long 0x802E812E
-.long 0xBF8CC47F
-.long 0xD3EC0000, 0x04027920
-.long 0xD86C0020, 0x2800005F
-.long 0xD86C0860, 0x2900005F
-.long 0xD86C0028, 0x2A00005F
-.long 0xD86C0868, 0x2B00005F
-.long 0xD3EC0010, 0x04427921
-.long 0xD86C0030, 0x2C00005F
-.long 0xD86C0870, 0x2D00005F
-.long 0xD86C0038, 0x2E00005F
-.long 0xD86C0878, 0x2F00005F
-.long 0xBEFC0059
-.long 0xD3EC0000, 0x04027B22
-.long 0x68A4A4C0
-.long 0x68A6A6C0
-.long 0x68A8A8C0
-.long 0x68AAAAC0
-.long 0x68ACACC0
-.long 0x68AEAEC0
-.long 0x68B0B0C0
-.long 0x68B2B2C0
-.long 0x68B4B4C0
-.long 0x68B6B6C0
-.long 0x68B8B8C0
-.long 0x68BABAC0
-.long 0xD3EC0010, 0x04427B23
-.long 0xD3EC0000, 0x04027D24
-.long 0xD3EC0010, 0x04427D25
-.long 0xD3EC0000, 0x04027F26
-.long 0xD3EC0010, 0x04427F27
-.long 0xBF8CC07F
-.long 0xBF8C0F78
-.long 0xBF8A0000
-.long 0xD3EC0000, 0x04028128
-.long 0xE0511000, 0x80023052
-.long 0xD86C0000, 0x2000005E
-.long 0xD86C0840, 0x2100005E
-.long 0xE0511108, 0x80023153
-.long 0xD86C0008, 0x2200005E
-.long 0xD86C0848, 0x2300005E
-.long 0xE0511210, 0x80023254
-.long 0xD86C0010, 0x2400005E
-.long 0xD86C0850, 0x2500005E
-.long 0xD3EC0010, 0x04428129
-.long 0xE0511318, 0x80023355
-.long 0xD86C0018, 0x2600005E
-.long 0xD86C0858, 0x2700005E
-.long 0xBEFC005B
-.long 0xBF8C0F78
-.long 0xD3EC0000, 0x0402832A
-.long 0xE0511000, 0x80034456
-.long 0xE0511108, 0x80034557
-.long 0xE0511210, 0x80034658
-.long 0xE0511318, 0x80034759
-.long 0xBF8C0F78
-.long 0xD3EC0010, 0x0442832B
-.long 0xE0511420, 0x8003485A
-.long 0xD86C0000, 0x34000060
-.long 0xD86C0008, 0x35000060
-.long 0xE0511528, 0x8003495B
-.long 0xD86C0010, 0x36000060
-.long 0xD86C0018, 0x37000060
-.long 0xE0511630, 0x80034A5C
-.long 0xD86C0020, 0x38000060
-.long 0xD86C0028, 0x39000060
-.long 0xD3EC0000, 0x0402852C
-.long 0xE0511738, 0x80034B5D
-.long 0xD86C0030, 0x3A000060
-.long 0xD86C0038, 0x3B000060
-.long 0xD3EC0010, 0x0442852D
-.long 0xD3EC0000, 0x0402872E
-.long 0xD3EC0010, 0x0442872F
-.long 0x802E812E
-.long 0xBF00C22E
-.long 0xBF84FF04
-.long 0xBF8CC47F
-.long 0xD3EC0000, 0x04026920
-.long 0xD86C0020, 0x2800005E
-.long 0xD86C0860, 0x2900005E
-.long 0xD86C0028, 0x2A00005E
-.long 0xD86C0868, 0x2B00005E
-.long 0xD3EC0010, 0x04426921
-.long 0xD86C0030, 0x2C00005E
-.long 0xD86C0870, 0x2D00005E
-.long 0xD86C0038, 0x2E00005E
-.long 0xD86C0878, 0x2F00005E
-.long 0xD3EC0000, 0x04026B22
-.long 0xD3EC0010, 0x04426B23
-.long 0xD3EC0000, 0x04026D24
-.long 0xD3EC0010, 0x04426D25
-.long 0xD3EC0000, 0x04026F26
-.long 0xD3EC0010, 0x04426F27
-.long 0xBF8CC07F
-.long 0xBF8C0F78
-.long 0xBF8A0000
-.long 0xD3EC0000, 0x04027128
-.long 0xD86C0000, 0x2000005F
-.long 0xD86C0840, 0x2100005F
-.long 0xD86C0008, 0x2200005F
-.long 0xD86C0848, 0x2300005F
-.long 0xD3EC0010, 0x04427129
-.long 0xD86C0010, 0x2400005F
-.long 0xD86C0850, 0x2500005F
-.long 0xD86C0018, 0x2600005F
-.long 0xD86C0858, 0x2700005F
-.long 0xBF8C0F70
-.long 0xD3EC0000, 0x0402732A
-.long 0xD3EC0010, 0x0442732B
-.long 0xD86C0000, 0x3C000061
-.long 0xD86C0008, 0x3D000061
-.long 0xD3EC0000, 0x0402752C
-.long 0xD86C0010, 0x3E000061
-.long 0xD86C0018, 0x3F000061
-.long 0xD3EC0010, 0x0442752D
-.long 0xD86C0020, 0x40000061
-.long 0xD86C0028, 0x41000061
-.long 0xD3EC0000, 0x0402772E
-.long 0xD86C0030, 0x42000061
-.long 0xD86C0038, 0x43000061
-.long 0xD3EC0010, 0x0442772F
-.long 0xBF8CC47F
-.long 0xD3EC0000, 0x04027920
-.long 0xD86C0020, 0x2800005F
-.long 0xD86C0860, 0x2900005F
-.long 0xD86C0028, 0x2A00005F
-.long 0xD86C0868, 0x2B00005F
-.long 0xD3EC0010, 0x04427921
-.long 0xD86C0030, 0x2C00005F
-.long 0xD86C0870, 0x2D00005F
-.long 0xD86C0038, 0x2E00005F
-.long 0xD86C0878, 0x2F00005F
-.long 0xD3EC0000, 0x04027B22
-.long 0xD3EC0010, 0x04427B23
-.long 0xD3EC0000, 0x04027D24
-.long 0xD3EC0010, 0x04427D25
-.long 0xD3EC0000, 0x04027F26
-.long 0xD3EC0010, 0x04427F27
-.long 0xBF8CC07F
-.long 0xD3EC0000, 0x04028128
-.long 0xD3EC0010, 0x04428129
-.long 0xD3EC0000, 0x0402832A
-.long 0xD3EC0010, 0x0442832B
-.long 0xD3EC0000, 0x0402852C
-.long 0xD3EC0010, 0x0442852D
-.long 0xD3EC0000, 0x0402872E
-.long 0xD3EC0010, 0x0442872F
 .long 0xBE900022
 .long 0xBE910023
 .long 0xBE9200FF, 0x80000000
@@ -910,6 +488,317 @@ s_setprio 0 // Reset priority after macs
 .long 0x925402C0
 .long 0x32400C54
 .long 0xD1FE0068, 0x02064520
+.long 0xBEFC0059
+.long 0xD3D94000, 0x18000080
+.long 0xD3D94001, 0x18000080
+.long 0xD3D94002, 0x18000080
+.long 0xD3D94003, 0x18000080
+.long 0xD3D94004, 0x18000080
+.long 0xD3D94005, 0x18000080
+.long 0xD3D94006, 0x18000080
+.long 0xD3D94007, 0x18000080
+.long 0xD3D94008, 0x18000080
+.long 0xD3D94009, 0x18000080
+.long 0xD3D9400A, 0x18000080
+.long 0xD3D9400B, 0x18000080
+.long 0xD3D9400C, 0x18000080
+.long 0xD3D9400D, 0x18000080
+.long 0xD3D9400E, 0x18000080
+.long 0xD3D9400F, 0x18000080
+.long 0xE0511000, 0x80023052
+.long 0xE0511108, 0x80023153
+.long 0xE0511210, 0x80023254
+.long 0xE0511318, 0x80023355
+.long 0xBEFC005B
+.long 0x68ACACC0
+.long 0x68AEAEC0
+.long 0x68B0B0C0
+.long 0x68B2B2C0
+.long 0x68B4B4C0
+.long 0x68B6B6C0
+.long 0x68B8B8C0
+.long 0x68BABAC0
+.long 0xE0511000, 0x80034456
+.long 0xE0511108, 0x80034557
+.long 0xE0511210, 0x80034658
+.long 0xE0511318, 0x80034759
+.long 0xD3D94010, 0x18000080
+.long 0xD3D94011, 0x18000080
+.long 0xD3D94012, 0x18000080
+.long 0xD3D94013, 0x18000080
+.long 0xD3D94014, 0x18000080
+.long 0xD3D94015, 0x18000080
+.long 0xD3D94016, 0x18000080
+.long 0xD3D94017, 0x18000080
+.long 0xD3D94018, 0x18000080
+.long 0xD3D94019, 0x18000080
+.long 0xD3D9401A, 0x18000080
+.long 0xD3D9401B, 0x18000080
+.long 0xD3D9401C, 0x18000080
+.long 0xD3D9401D, 0x18000080
+.long 0xD3D9401E, 0x18000080
+.long 0xD3D9401F, 0x18000080
+.long 0xE0511420, 0x8003485A
+.long 0xE0511528, 0x8003495B
+.long 0xE0511630, 0x80034A5C
+.long 0xE0511738, 0x80034B5D
+.long 0xBF8CC07F
+.long 0xBF8C4F74
+.long 0xBF8A0000
+.long 0xD86C0000, 0x2000005E
+.long 0xD86C0840, 0x2100005E
+.long 0xD86C0008, 0x2200005E
+.long 0xD86C0848, 0x2300005E
+.long 0xBF8C0F7C
+.long 0xD86C0000, 0x34000060
+.long 0xD86C0008, 0x35000060
+.long 0xD86C0010, 0x36000060
+.long 0xD86C0018, 0x37000060
+.long 0x8F2E852D
+.long 0x80AE2E80
+.long 0xBF06802E
+.long 0xBF850231
+.long 0xBF8CC27F
+.long 0xD3EC0000, 0x04026920
+.long 0xD86C0010, 0x2400005E
+.long 0xD86C0850, 0x2500005E
+.long 0xD86C0018, 0x2600005E
+.long 0xD86C0858, 0x2700005E
+.long 0xD3EC0010, 0x04426921
+.long 0xD86C0020, 0x2800005E
+.long 0xD86C0860, 0x2900005E
+.long 0xD86C0020, 0x38000060
+.long 0xD86C0028, 0x39000060
+.long 0xBEFC0058
+.long 0xD3EC0000, 0x04026B22
+.long 0xD86C0028, 0x2A00005E
+.long 0xD86C0868, 0x2B00005E
+.long 0xD86C0030, 0x3A000060
+.long 0xD86C0038, 0x3B000060
+.long 0xD3EC0010, 0x04426B23
+.long 0xD86C0038, 0x2E00005E
+.long 0xD86C0878, 0x2F00005E
+.long 0xD86C0030, 0x2C00005E
+.long 0xD86C0870, 0x2D00005E
+.long 0xBF8CCE7F
+.long 0xD3EC0000, 0x04026D24
+.long 0x68A4A4C0
+.long 0x68A6A6C0
+.long 0x68A8A8C0
+.long 0x68AAAAC0
+.long 0xD3EC0010, 0x04426D25
+.long 0x68ACACC0
+.long 0x68AEAEC0
+.long 0x68B0B0C0
+.long 0x68B2B2C0
+.long 0xBF8CCC7F
+.long 0xD3EC0000, 0x04026F26
+.long 0x68B4B4C0
+.long 0x68B6B6C0
+.long 0x68B8B8C0
+.long 0x68BABAC0
+.long 0xD3EC0010, 0x04426F27
+.long 0xBF8CC87F
+.long 0xD3EC0000, 0x04027128
+.long 0xE0511000, 0x80023052
+.long 0xE0511108, 0x80023153
+.long 0xD3EC0010, 0x04427129
+.long 0xE0511210, 0x80023254
+.long 0xE0511318, 0x80023355
+.long 0xBEFC005A
+.long 0xBF8CC47F
+.long 0xD3EC0000, 0x0402732A
+.long 0xE0511000, 0x80034456
+.long 0xE0511108, 0x80034557
+.long 0xE0511210, 0x80034658
+.long 0xD3EC0010, 0x0442732B
+.long 0xE0511318, 0x80034759
+.long 0xE0511420, 0x8003485A
+.long 0xE0511528, 0x8003495B
+.long 0xBF8CC07F
+.long 0xD3EC0000, 0x0402752C
+.long 0xE0511630, 0x80034A5C
+.long 0xE0511738, 0x80034B5D
+.long 0xD3EC0010, 0x0442752D
+.long 0xBF8C4F74
+.long 0xBF8A0000
+.long 0xD3EC0000, 0x0402772E
+.long 0xD86C0000, 0x2000005F
+.long 0xD86C0840, 0x2100005F
+.long 0xD86C0008, 0x2200005F
+.long 0xD86C0848, 0x2300005F
+.long 0xD3EC0010, 0x0442772F
+.long 0xBF8C0F7C
+.long 0xD86C0000, 0x3C000061
+.long 0xD86C0008, 0x3D000061
+.long 0xD86C0010, 0x3E000061
+.long 0xD86C0018, 0x3F000061
+.long 0x802E812E
+.long 0xBF8CC27F
+.long 0xD3EC0000, 0x04027920
+.long 0xD86C0010, 0x2400005F
+.long 0xD86C0850, 0x2500005F
+.long 0xD86C0018, 0x2600005F
+.long 0xD86C0858, 0x2700005F
+.long 0xD3EC0010, 0x04427921
+.long 0xD86C0020, 0x2800005F
+.long 0xD86C0860, 0x2900005F
+.long 0xD86C0020, 0x40000061
+.long 0xD86C0028, 0x41000061
+.long 0xBEFC0059
+.long 0xD3EC0000, 0x04027B22
+.long 0xD86C0028, 0x2A00005F
+.long 0xD86C0868, 0x2B00005F
+.long 0xD86C0030, 0x42000061
+.long 0xD86C0038, 0x43000061
+.long 0xD3EC0010, 0x04427B23
+.long 0xD86C0038, 0x2E00005F
+.long 0xD86C0878, 0x2F00005F
+.long 0xD86C0030, 0x2C00005F
+.long 0xD86C0870, 0x2D00005F
+.long 0xBF8CCE7F
+.long 0xD3EC0000, 0x04027D24
+.long 0x68A4A4C0
+.long 0x68A6A6C0
+.long 0x68A8A8C0
+.long 0x68AAAAC0
+.long 0xD3EC0010, 0x04427D25
+.long 0x68ACACC0
+.long 0x68AEAEC0
+.long 0x68B0B0C0
+.long 0x68B2B2C0
+.long 0xBF8CCC7F
+.long 0xD3EC0000, 0x04027F26
+.long 0x68B4B4C0
+.long 0x68B6B6C0
+.long 0x68B8B8C0
+.long 0x68BABAC0
+.long 0xD3EC0010, 0x04427F27
+.long 0xBF8CC87F
+.long 0xD3EC0000, 0x04028128
+.long 0xE0511000, 0x80023052
+.long 0xE0511108, 0x80023153
+.long 0xD3EC0010, 0x04428129
+.long 0xE0511210, 0x80023254
+.long 0xE0511318, 0x80023355
+.long 0xBEFC005B
+.long 0xBF8CC47F
+.long 0xD3EC0000, 0x0402832A
+.long 0xE0511000, 0x80034456
+.long 0xE0511108, 0x80034557
+.long 0xE0511210, 0x80034658
+.long 0xD3EC0010, 0x0442832B
+.long 0xE0511318, 0x80034759
+.long 0xE0511420, 0x8003485A
+.long 0xE0511528, 0x8003495B
+.long 0xBF8CC07F
+.long 0xD3EC0000, 0x0402852C
+.long 0xE0511630, 0x80034A5C
+.long 0xE0511738, 0x80034B5D
+.long 0xD3EC0010, 0x0442852D
+.long 0xBF8C4F74
+.long 0xBF8A0000
+.long 0xD3EC0000, 0x0402872E
+.long 0xD86C0000, 0x2000005E
+.long 0xD86C0840, 0x2100005E
+.long 0xD86C0008, 0x2200005E
+.long 0xD86C0848, 0x2300005E
+.long 0xD3EC0010, 0x0442872F
+.long 0xBF8C0F7C
+.long 0xD86C0000, 0x34000060
+.long 0xD86C0008, 0x35000060
+.long 0xD86C0010, 0x36000060
+.long 0xD86C0018, 0x37000060
+.long 0x802E812E
+.long 0xBF00C22E
+.long 0xBF84FEFE
+.long 0xBF8CC27F
+.long 0xD3EC0000, 0x04026920
+.long 0xD86C0010, 0x2400005E
+.long 0xD86C0850, 0x2500005E
+.long 0xD86C0018, 0x2600005E
+.long 0xD86C0858, 0x2700005E
+.long 0xD3EC0010, 0x04426921
+.long 0xD86C0020, 0x2800005E
+.long 0xD86C0860, 0x2900005E
+.long 0xD86C0020, 0x38000060
+.long 0xD86C0028, 0x39000060
+.long 0xD3EC0000, 0x04026B22
+.long 0xD86C0028, 0x2A00005E
+.long 0xD86C0868, 0x2B00005E
+.long 0xD86C0030, 0x3A000060
+.long 0xD86C0038, 0x3B000060
+.long 0xD3EC0010, 0x04426B23
+.long 0xD86C0030, 0x2C00005E
+.long 0xD86C0870, 0x2D00005E
+.long 0xD86C0038, 0x2E00005E
+.long 0xD86C0878, 0x2F00005E
+.long 0xBF8CCE7F
+.long 0xD3EC0000, 0x04026D24
+.long 0xD3EC0010, 0x04426D25
+.long 0xBF8CCC7F
+.long 0xD3EC0000, 0x04026F26
+.long 0xD3EC0010, 0x04426F27
+.long 0xBF8CC87F
+.long 0xD3EC0000, 0x04027128
+.long 0xD3EC0010, 0x04427129
+.long 0xBF8CC47F
+.long 0xD3EC0000, 0x0402732A
+.long 0xD3EC0010, 0x0442732B
+.long 0xBF8CC07F
+.long 0xD3EC0000, 0x0402752C
+.long 0xD3EC0010, 0x0442752D
+.long 0xBF8C0F78
+.long 0xBF8A0000
+.long 0xD3EC0000, 0x0402772E
+.long 0xD86C0000, 0x2000005F
+.long 0xD86C0840, 0x2100005F
+.long 0xD86C0008, 0x2200005F
+.long 0xD86C0848, 0x2300005F
+.long 0xD3EC0010, 0x0442772F
+.long 0xBF8C0F70
+.long 0xD86C0000, 0x3C000061
+.long 0xD86C0008, 0x3D000061
+.long 0xD86C0010, 0x3E000061
+.long 0xD86C0018, 0x3F000061
+.long 0xBF8CC27F
+.long 0xD3EC0000, 0x04027920
+.long 0xD86C0010, 0x2400005F
+.long 0xD86C0850, 0x2500005F
+.long 0xD86C0018, 0x2600005F
+.long 0xD86C0858, 0x2700005F
+.long 0xD3EC0010, 0x04427921
+.long 0xD86C0020, 0x2800005F
+.long 0xD86C0860, 0x2900005F
+.long 0xD86C0020, 0x40000061
+.long 0xD86C0028, 0x41000061
+.long 0xD3EC0000, 0x04027B22
+.long 0xD86C0028, 0x2A00005F
+.long 0xD86C0868, 0x2B00005F
+.long 0xD86C0030, 0x42000061
+.long 0xD86C0038, 0x43000061
+.long 0xD3EC0010, 0x04427B23
+.long 0xD86C0030, 0x2C00005F
+.long 0xD86C0870, 0x2D00005F
+.long 0xD86C0038, 0x2E00005F
+.long 0xD86C0878, 0x2F00005F
+.long 0xBF8CCE7F
+.long 0xD3EC0000, 0x04027D24
+.long 0xD3EC0010, 0x04427D25
+.long 0xBF8CCC7F
+.long 0xD3EC0000, 0x04027F26
+.long 0xD3EC0010, 0x04427F27
+.long 0xBF8CC87F
+.long 0xD3EC0000, 0x04028128
+.long 0xD3EC0010, 0x04428129
+.long 0xBF8CC47F
+.long 0xD3EC0000, 0x0402832A
+.long 0xD3EC0010, 0x0442832B
+.long 0xBF8CC07F
+.long 0xD3EC0000, 0x0402852C
+.long 0xD3EC0010, 0x0442852D
+.long 0xD3EC0000, 0x0402872E
+.long 0xD3EC0010, 0x0442872F
 .long 0xD3D84000, 0x18000100
 .long 0xD3D84001, 0x18000101
 .long 0xD3D84002, 0x18000102

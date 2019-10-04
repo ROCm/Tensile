@@ -28,6 +28,8 @@
 
 #include "RunListener.hpp"
 
+#include <cstddef>
+
 namespace Tensile
 {
     namespace Client
@@ -40,37 +42,37 @@ namespace Tensile
                 m_reporters.push_back(reporter);
             }
 
-            virtual void reportValue_string(std::string const& key, std::string const& value)
+            virtual void reportValue_string(std::string const& key, std::string const& value) override
             {
                 for(auto r: m_reporters)
                     r->reportValue_string(key, value);
             }
 
-            virtual void reportValue_uint(std::string const& key, uint64_t value)
+            virtual void reportValue_uint(std::string const& key, uint64_t value) override
             {
                 for(auto r: m_reporters)
                     r->reportValue_uint(key, value);
             }
 
-            virtual void reportValue_int(std::string const& key, int64_t value)
+            virtual void reportValue_int(std::string const& key, int64_t value) override
             {
                 for(auto r: m_reporters)
                     r->reportValue_int(key, value);
             }
 
-            virtual void reportValue_double(std::string const& key, double value)
+            virtual void reportValue_double(std::string const& key, double value) override
             {
                 for(auto r: m_reporters)
                     r->reportValue_double(key, value);
             }
 
-            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value)
+            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override
             {
                 for(auto r: m_reporters)
                     r->reportValue_sizes(key, value);
             }
 
-            virtual bool logAtLevel(LogLevel level)
+            virtual bool logAtLevel(LogLevel level) override
             {
                 for(auto r: m_reporters)
                     if(r->logAtLevel(level))
@@ -78,13 +80,13 @@ namespace Tensile
                 return false;
             }
 
-            virtual void logMessage(LogLevel level, std::string const& message)
+            virtual void logMessage(LogLevel level, std::string const& message) override
             {
                 for(auto r: m_reporters)
                     r->logMessage(level, message);
             }
 
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor)
+            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor) override
             {
                 for(auto r: m_reporters)
                     r->logTensor(level, name, data, tensor);

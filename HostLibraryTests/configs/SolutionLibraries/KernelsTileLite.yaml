@@ -86,7 +86,7 @@ solutions:
     WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
     fractionalPerpOverhangB: '0'}
   name: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_K1_USFGRO0
-  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemPredicate: {type: LeadingFreeSizesGreaterOrEqual, value: 4}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bljk_Cijk_Dijk}
   sizeMapping:
     depthU: 16
@@ -137,7 +137,7 @@ solutions:
     WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
     fractionalPerpOverhangB: '0'}
   name: Cijk_Alik_Bljk_SB_MT64x64x16_SE_K1_USFGRO1
-  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemPredicate: {type: LeadingFreeSizesGreaterOrEqual, value: 4}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Alik_Bljk_Cijk_Dijk}
   sizeMapping:
     depthU: 16
@@ -188,7 +188,7 @@ solutions:
     WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
     fractionalPerpOverhangB: '0'}
   name: Cijk_Ailk_Bjlk_SB_MT64x64x16_SE_K1_USFGRO0
-  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemPredicate: {type: LeadingFreeSizesGreaterOrEqual, value: 4}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Ailk_Bjlk_Cijk_Dijk}
   sizeMapping:
     depthU: 16
@@ -239,7 +239,7 @@ solutions:
     WorkGroupMappingType: B, _staggerStrideShift: '2', fractionalPerpOverhangA: '0',
     fractionalPerpOverhangB: '0'}
   name: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_K1_USFGRO0
-  problemPredicate: {type: LeadingSizesGreaterOrEqual, value: 4}
+  problemPredicate: {type: LeadingFreeSizesGreaterOrEqual, value: 4}
   problemType: {aType: Float, bType: Float, cType: Float, dType: Float, operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk}
   sizeMapping:
     depthU: 16

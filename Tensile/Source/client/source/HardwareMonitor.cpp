@@ -27,6 +27,7 @@
 #include "HardwareMonitor.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <iomanip>
 #include <unistd.h>
 
