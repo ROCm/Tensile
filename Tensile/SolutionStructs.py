@@ -245,17 +245,17 @@ class Convolution:
 
       transposeCK =  convolutionType=="ConvolutionBackwardData"
       ndim.strideB = 0
-      if self.tensorBFormat == "KCYX" and not transposeCK or\
-         self.tensorBFormat == "CKYX" and transposeCK:
+      if self.tensorBFormat in ("KCYX",'KCZYX') and not transposeCK or\
+         self.tensorBFormat in ("CKYX",'CKZYX') and transposeCK:
         self.registerB( [(nidx,Fbs.Batch,ndim), (kidx,Fbs.Free,kdim), (cidx,Fbs.Sum,cdim)] + filterDims )
-      elif self.tensorBFormat == "CKYX" and not transposeCK or\
-           self.tensorBFormat == "KCYX" and transposeCK:
+      elif self.tensorBFormat in ("CKYX",'CKZYX') and not transposeCK or\
+           self.tensorBFormat in ("KCYX",'KCZYX') and transposeCK:
         self.registerB( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum, cdim), (kidx,Fbs.Free,kdim)] + filterDims )
-      elif self.tensorBFormat == "CYXK" and not transposeCK or\
-           self.tensorBFormat == "KYXC" and transposeCK:
+      elif self.tensorBFormat in ("CYXK",'CZYXK') and not transposeCK or\
+           self.tensorBFormat in ("KYXC",'KZYXC') and transposeCK:
         self.registerB( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum, cdim)] + filterDims + [(kidx,Fbs.Free,kdim)] )
-      elif self.tensorBFormat == "KYXC" and not transposeCK or\
-           self.tensorBFormat == "CYXK" and transposeCK:
+      elif self.tensorBFormat in ("KYXC",'KZYXC') and not transposeCK or\
+           self.tensorBFormat in ("CYXK",'CZYXK') and transposeCK:
         self.registerB( [(nidx,Fbs.Batch,ndim), (kidx,Fbs.Free, kdim)] + filterDims + [(cidx,Fbs.Sum,cdim)] )
       else:
         raise RuntimeError ("unknown weight format '%s'"%self.tensorBFormat)
