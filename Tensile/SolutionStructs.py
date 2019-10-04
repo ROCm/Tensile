@@ -629,6 +629,12 @@ class ProblemType:
       return result
     return not result
 
+  def get(self, key, default=None):
+    try:
+      return self.state[key]
+    except:
+      return default
+
 def sizeRange(start, *args, **kwargs):
     value = start
     increment = 1
@@ -653,12 +659,6 @@ def sizeRange(start, *args, **kwargs):
         yield value
         value += increment
         increment += progression
-
-  def get(self, key, default=None):
-    try:
-      return self.state[key]
-    except:
-      return default
 
 class ProblemSizeRangeOld:
 
