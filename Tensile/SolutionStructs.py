@@ -1066,7 +1066,7 @@ class Solution:
                     found = True
             if not found:
                 print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
-                problemType["SetConstStrideB"].append([bi,0])
+                #problemType["SetConstStrideB"].append([bi,0])
     if state["PackBatchDims"]==2:
         for bi in problemType["IndicesBatch"]:
             found = False
@@ -1075,7 +1075,7 @@ class Solution:
                     found = True
             if not found:
                 print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)
-                problemType["SetConstStrideA"].append([bi,0])
+                #problemType["SetConstStrideA"].append([bi,0])
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
