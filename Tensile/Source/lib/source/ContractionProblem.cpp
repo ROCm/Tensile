@@ -485,19 +485,12 @@ namespace Tensile
         m_batchSizes.resize(m_batchIndices.size());
         m_boundSizes.resize(m_boundIndices.size());
 
-        m_freeIndicesA.resize(m_a.dimensions(), -1);
-        m_freeIndicesB.resize(m_b.dimensions(), -1);
-        m_batchIndicesA.resize(m_a.dimensions(), -1);
-        m_batchIndicesB.resize(m_b.dimensions(), -1);
-        m_boundIndicesA.resize(m_a.dimensions(), -1);
-        m_boundIndicesB.resize(m_b.dimensions(), -1);
-
         for(int i = 0; i < m_freeIndices.size(); i++)
         {
             size_t maxSize=0; // TODO - aren't these all the same?
             if (m_freeIndices[i].isA)
             {
-                m_freeIndicesA[m_freeIndices[i].i] = i;
+                m_freeIndicesA.push_back(m_freeIndices[i]);
                 maxSize = std::max({m_a.sizes()[m_freeIndices[i].i],
                              m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].c],
                              m_d.sizes()[m_freeIndices[i].d]});
@@ -507,7 +500,7 @@ namespace Tensile
             }
             else
             {
-                m_freeIndicesB[m_freeIndices[i].i] = i;
+                m_freeIndicesB.push_back(m_freeIndices[i]);
                 maxSize = std::max({m_b.sizes()[m_freeIndices[i].i],
                                     m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].c],
                                     m_d.sizes()[m_freeIndices[i].d]});
@@ -521,8 +514,6 @@ namespace Tensile
 
         for(int i = 0; i < m_batchIndices.size(); i++)
         {
-            m_batchIndicesA[m_batchIndices[i].a] = i;
-            m_batchIndicesB[m_batchIndices[i].b] = i;
             m_batchSizes[i] = std::max({m_a.sizes()[m_batchIndices[i].a],
                                         m_b.sizes()[m_batchIndices[i].b],
                                         m_c.empty() ? 0 : m_c.sizes()[m_batchIndices[i].c],
@@ -531,8 +522,6 @@ namespace Tensile
 
         for(int i = 0; i < m_boundIndices.size(); i++)
         {
-            m_boundIndicesA[m_boundIndices[i].a] = i;
-            m_boundIndicesB[m_boundIndices[i].b] = i;
             m_boundSizes[i] = std::max(m_a.sizes()[m_boundIndices[i].a],
                                        m_b.sizes()[m_boundIndices[i].b]);
 
