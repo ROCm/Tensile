@@ -197,9 +197,11 @@ for i in validThreadTileSides:
   for j in validThreadTileSides:
     validThreadTiles.append([i, j])
 
-validTensorAFormats = ('NCHW', 'NHWC', 'CNHW')
-validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX", "CYXK")
-validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'KCYX', "CKYX", "CYXK")
+validTensorAFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
+validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW', \
+                        'KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
+validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW', \
+                        'KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -773,6 +775,46 @@ for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
+# valid fields in ConvolutionConfig and explanations:
+validConvolutionConfig= [
+    # For OperationType == Convolution*
+    # Examples: NCHW, NHWC, NCDHW, more
+    # *HW* and *YX*   create solution with 2 spatial dimensions.
+    # *DHW* and *ZYX* create solution with 3 spatial dimensions.
+    "TensorAFormat",           # see validTensorAFormats
+    "TensorBFormat",           # see validTensorBFormats
+    "TensorDFormat",           # see validTensorDFormats
+
+    # Each of the parms below specifies dimensions separated by 'x".
+    # -  The notation follows 'convolution' convention so fastest-moving dimensions are last,
+    #    and should mirror the order of the spatial dimension in the activation format.
+    #    For example, in NCHW format Filter=3x1 is 3 in the H dimension and 1 in the W dimension.
+    # -  2 or 3 dimensions are supported 'Filter:3x1' or 'Filter:3x3x1'.
+    # - Use an integer to create a kernel with a compile-time constant
+    #   Use "N" to create flexible kernel the value provided at runtime via appropriate
+    #   size and stride values.
+    # - 0 specifies the default.  Defaults below shown for 2 spatial dimensions; a 3-dimensional
+    #   default will be created if the formats request 3 spacial dimensions.
+    "Filter",                   # examples: 1x1,3x3,1x7,7x1,NxN,Nx5,3x3x3.  Default=1x1/1x1x1.
+    "Stride",                   # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1/1x1x1.
+    "Dilation",                 # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1/1x1x1.
+
+    # Pad at start of each filter dimension. Recommend 0x0 when possible or NxN otherwise.
+    # (performance difference from compile-time padding is not significant)
+    "PadStart",                 # examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0/0x0x0.
+    # Pad at end of each filter dimension
+    "PadEnd",                   # examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0/0x0x0.
+
+    # For grouped convolutions:
+    "GroupCount",
+
+    # pack spatial dims (d,h,w) into single tensor dim
+    # This is preferred for cases where these dimensions are packed in memory
+    # since it reduces addressing overhead and will produce a more efficient kernel
+    # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
+    "PackedSpatialDims",
+    ]
+
 ################################################################################
 # Default Problem Type
 ################################################################################
@@ -780,6 +822,8 @@ defaultProblemType = {
     # =GEMM uses TransposeA,B paramters and makes the problem type more readeable for users
     # =TensorContraction  requires specifying
     "OperationType":            "GEMM",           # GEMM, TensorContraction, ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
+
+    "ConvolutionConfig":        [],               # See validConvolutionConfig
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
@@ -810,43 +854,6 @@ defaultProblemType = {
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
-
-    # For OperationType == Convolution*
-    # *HW and *YX   create solution with 2 spatial dimensions.
-    # *DHW and *ZYX create solution with 3 spatial dimensions.
-    "TensorAFormat":           "NCHW",  # NCHW, NHWC, CNHW
-    "TensorBFormat":           "KCYX",  # NCHW, NHWC, CNHW /
-                                        # KCYX, CKYX, CYXK
-    "TensorDFormat":           "NCHW",  # NCHW, NHWC, CNHW
-                                        # KCYX, CKYX, CYXK
-
-    # Each of the parms below specifies dimensions separated by 'x".
-    # -  The notation follows 'convolution' convention so fastest-moving dimensions are last,
-    #    and should mirror the order of the spatial dimension in the activation format.
-    #    For example, in NCHW format Filter=3x1 is 3 in the H dimension and 1 in the W dimension.
-    # -  2 or 3 dimensions are supported 'Filter:3x1' or 'Filter:3x3x1'.
-    # - Use an integer to create a kernel with a compile-time constant
-    #   Use "N" to create flexible kernel the value provided at runtime via appropriate
-    #   size and stride values.
-    # - 0 specifies the default.  Defaults below shown for 2 spatial dimensions; a 3-dimensional
-    #   default will be created if the formats request 3 spacial dimensions.
-    "Filter":                   0, # examples: 1x1,3x3,1x7,7x1,NxN,Nx5,3x3x3.  Default=1x1.
-    "Stride":                   0, # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1.
-    "Dilation":                 0, # examples 1x1,2x2,1xN, 2x2x2.  Default=1x1.
-
-    # Pad at start of each filter dimension. Recommend 0x0 when possible or NxN otherwise.
-    # (performance difference from compile-time padding is not significant)
-    "PadStart":                 0, # examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0
-    # Pad at end of each filter dimension
-    "PadEnd":                   0,# examples:1x1, 2x3, 2x2x2, NxN.  Default=0x0.
-
-    # For grouped convolutions:
-    "GroupCount":               1,
-
-    # pack spatial dims (d,h,w) into single tensor dim
-    # This is preferred for cases where these dimensions are packed in memory
-    # since it reduces addressing overhead and will produce a more efficient kernel
-    "PackedSpatialDims":       True,
 
     # List of pairs of [index, constValue].
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
