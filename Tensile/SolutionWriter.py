@@ -785,10 +785,10 @@ class SolutionWriter:
 
           # Magic numbers for packed indices:
           for idxChar in solution["PackedC0IdxChars"][:-1]:
-            s += "%shipFunctionArgs.magicNumberSize%s = static_cast<uint32_t>(magicNumberSize)%s;\n" % (t, idxChar, idxChar)
+            s += "%shipFunctionArgs.magicNumberSize%s = static_cast<uint32_t>(magicNumberSize%s);\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
           for idxChar in solution["PackedC1IdxChars"][:-1]:
-            s += "%shipFunctionArgs.magicNumberSize%s = static_cast<uint32_t>(magicNumberSize)%s;\n" % (t, idxChar, idxChar)
+            s += "%shipFunctionArgs.magicNumberSize%s = static_cast<uint32_t>(magicNumberSize%s);\n" % (t, idxChar, idxChar)
             s += "%shipFunctionArgs.magicShiftSize%s = magicShiftSize%s;\n" % (t, idxChar, idxChar)
           if globalParameters["LibraryPrintDebug"]:
             s += """
