@@ -127,22 +127,28 @@ class Convolution:
     ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.', DimAB.BothAB)
     kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.', DimAB.OnlyB)
     if self.packSpatialDims:
+      constStrideA = -1 # default no const
+      if self.stride[0] != -1:
+        constStrideA=self.stride[0]
       sdims = [Convolution.Dimension('HW', \
           'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).', \
-          DimAB.OnlyA)]
+          DimAB.OnlyA, strideA=constStrideA)]
     else:
       sdims = []
       schars = [1,'W','H','D']
       # sdims[0] is W
       for si in range(self.formatNumSpatialDims):
         sc=schars[si+1]
+        constStrideA = -1 # default no const
         if si==0:
+            if self.stride[si] != -1:
+                constStrideA=self.stride[si]
             strideMsg = "stride%s(#S0)"%sc
         else:
             strideMsg = "%s_in*stride%s(#S%d)"%(schars[si],sc,si)
         sdims.append(Convolution.Dimension(sc,  \
             'Spatial %s. size#T=%s_o strideA#T=%s.'%(sc,sc,strideMsg), \
-            DimAB.OnlyA))
+            DimAB.OnlyA, strideA=constStrideA))
     cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1', DimAB.BothAB)
 
     if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
@@ -237,12 +243,11 @@ class Convolution:
       if dim.strideB != -1:
         problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
 
-    if 0 in [x[0] for x in problemTypeOut["SetConstStrideA"]] or \
-       0 in [x[0] for x in problemTypeOut["SetConstStrideB"]]:
-     print ("warning: need UseInitialStrides")
-     #problemTypeOut["UseInitialStrides"] = 1
-   #else:
-     #problemTypeOut["UseInitialStrides"] = 0
+    if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
+       [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
+      problemTypeOut["UseInitialStrides"] = 0
+    else:
+      problemTypeOut["UseInitialStrides"] = 1
 
 
     #self.printUsage(problemTypeOut)
