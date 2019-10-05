@@ -55,7 +55,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStrides']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -126,6 +126,10 @@ class ProblemType:
         rv.highPrecisionAccumulate = False
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
+
+        rv.useInitialStrides = False
+        if 'UseInitialStrides' in d:
+            rv.useInitialStrides = d['UseInitialStrides']
 
         if 'SetConstStrideA' in d:
             rv.setConstStrideA = d['SetConstStrideA']

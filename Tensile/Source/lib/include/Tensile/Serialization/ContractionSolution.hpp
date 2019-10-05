@@ -108,6 +108,7 @@ namespace Tensile
                 iot::mapRequired(io, "dType", s.dType);
                 iot::mapRequired(io, "useBeta", s.useBeta);
                 iot::mapRequired(io, "highPrecisionAccumulate", s.highPrecisionAccumulate);
+                iot::mapRequired(io, "useInitialStrides", s.useInitialStrides);
             }
 
             const static bool flow = false;
