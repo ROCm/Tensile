@@ -1,5 +1,6 @@
 import pytest, logging
 from Tensile.SolutionStructs import Convolution
+from YamlBuilder.YamlBuilder import YamlBuilder
 log =logging.getLogger("testlog")
 
 # content of test_sample.py
@@ -15,8 +16,10 @@ def test_nchw_defaults(request):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2,0]])
     assert(z['UseInitialStrides']==False)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_cnhw_defaults():
+def test_cnhw_defaults(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'CNHW',
@@ -28,8 +31,10 @@ def test_cnhw_defaults():
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[1, 0]])
     assert(z['UseInitialStrides']==False)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nhwc_defaults():
+def test_nhwc_defaults(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NHWC',
@@ -41,8 +46,10 @@ def test_nhwc_defaults():
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
     assert(z['UseInitialStrides']==False)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_packed_spatial0():
+def test_nchw_packed_spatial0(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -55,8 +62,10 @@ def test_nchw_packed_spatial0():
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==False)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_tbd_strides():
+def test_nchw_tbd_strides(request):
 
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -70,8 +79,10 @@ def test_nchw_tbd_strides():
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_const_strides():
+def test_nchw_const_strides(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -84,8 +95,10 @@ def test_nchw_const_strides():
     assert(z['SetConstStrideA']==[[0,2]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_const_use_initial_strides():
+def test_nchw_const_use_initial_strides(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -98,8 +111,10 @@ def test_nchw_const_use_initial_strides():
     assert(z['SetConstStrideA']==[[0,3]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_filter():
+def test_nchw_filter(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -110,11 +125,12 @@ def test_nchw_filter():
     assert(z['NumIndicesC']==3)
     assert(z['IndexAssignmentsA']==[5, 4, 0, 3, 2])
     assert(z['IndexAssignmentsB']==[5, 4, 3, 1, 2])
-    # TODO - should have const size here too
     assert(z['SetConstStrideA']==[[0,1], [5,1]])
     assert(z['SetConstStrideB']==[[2,0]])
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_dilation():
+def test_nchw_dilation(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -126,8 +142,10 @@ def test_nchw_dilation():
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_nchw_stride_filter():
+def test_nchw_stride_filter(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -140,8 +158,10 @@ def test_nchw_stride_filter():
     assert(z['IndexAssignmentsB']==[6, 5, 4, 2, 3])
     assert(z['SetConstStrideA']==[[6,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_ncdhw_packed_strides3d_defaults():
+def test_ncdhw_packed_strides3d_defaults(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCDHW',
@@ -153,8 +173,10 @@ def test_ncdhw_packed_strides3d_defaults():
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[4, 0]])
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_ncdhw_packed_strides_filter3d():
+def test_ncdhw_packed_strides_filter3d(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCDHW',
@@ -169,8 +191,10 @@ def test_ncdhw_packed_strides_filter3d():
     assert(z['IndexAssignmentsB']==[8,7,6, 5, 3, 4])
     assert(z['SetConstStrideA']==[[8,1]])
     assert(z['SetConstStrideB']==[[4, 0]])
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
 
-def test_ncdhw_packed_strides3d():
+def test_ncdhw_packed_strides3d(request):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCDHW',
@@ -184,3 +208,5 @@ def test_ncdhw_packed_strides3d():
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[4, 0]])
+    if request.config.getoption("--run_client"):
+        YamlBuilder.run_tensile_client(request, conv, z)
