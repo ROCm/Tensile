@@ -281,7 +281,7 @@ class Convolution:
 
     problemTypeOut["IndexAssignmentsA"] = [x[0] for x in self.indexA[::-1]]
     problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB[::-1]]
-
+    problemTypeOut["UseBeta"] = False # MI kernels don't use beta
 
     problemTypeOut["SetConstStrideA"]=[]
     for (idx,fbs,dim) in self.indexA:
@@ -295,9 +295,9 @@ class Convolution:
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStrides"] = 0
+      problemTypeOut["UseInitialStrides"] = False
     else:
-      problemTypeOut["UseInitialStrides"] = 1
+      problemTypeOut["UseInitialStrides"] = True
 
     #self.printUsage(problemTypeOut)
 
