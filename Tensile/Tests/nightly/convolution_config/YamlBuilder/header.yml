@@ -12,10 +12,6 @@ GlobalParameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  Platform: 0
-  Device: 0
   KernelTime: True
-  PinClocks: True
-  DataInitTypeBeta : 0
   SolutionSelectionAlg: 1
   NewClient: 2
