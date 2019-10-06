@@ -87,9 +87,6 @@ namespace Tensile
     {
         TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
 
-        bool packIndicesA = (problem.freeIndicesA().size() > 1) || sizeMapping.packBatchDims & 0x1;
-        bool packIndicesB = (problem.freeIndicesB().size() > 1) || sizeMapping.packBatchDims & 0x2;
-
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
         TensorDescriptor const& c = problem.c();
@@ -122,11 +119,11 @@ namespace Tensile
         rv.numWorkGroups.z = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
         {
-            if (packIndicesA)
+            if (sizeMapping.packBatchDims & 0x1)
                 rv.numWorkGroups.x *= problem.batchSize(i);
-            if (packIndicesB)
+            if (sizeMapping.packBatchDims & 0x2)
                 rv.numWorkGroups.y *= problem.batchSize(i);
-            if (!packIndicesA && !packIndicesB)
+            if (!sizeMapping.packBatchDims)
                 rv.numWorkGroups.z *= problem.batchSize(i);
         }
 
@@ -208,7 +205,7 @@ namespace Tensile
             }
         }
 
-        if (packIndicesA)
+        if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x2)
         {
             std::vector<size_t> packedIndices;
 
@@ -222,7 +219,7 @@ namespace Tensile
 
                 bool nonPackableBatch = false;
                 // TODO - base this check on if the batch is SetConstStrideA=0 - if so, don't pack
-                if (sizeMapping.packBatchDims & 0x2)
+                if (!(sizeMapping.packBatchDims & 0x2))
                 {
                     nonPackableBatch = problem.batchIndices().end() !=
                                  std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
@@ -243,7 +240,7 @@ namespace Tensile
                 rv.args.append<uint32_t>(concatenate("magicShiftSizeA_",idx), magicShift);
             }
         }
-        if (packIndicesB)
+        if (problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x1)
         {
             std::vector<size_t> packedIndices;
             // Pack in all non-summation indices, except don't need magic number for the last one
@@ -256,7 +253,7 @@ namespace Tensile
 
                 bool nonPackableBatch = false;
                 // TODO - base this check on if the batch is SetConstStrideB=0 - if so, don't pack
-                if (sizeMapping.packBatchDims & 0x1)
+                if (!(sizeMapping.packBatchDims & 0x1))
                 {
                     nonPackableBatch = problem.batchIndices().end() !=
                                  std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
