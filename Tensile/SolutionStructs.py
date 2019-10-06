@@ -135,7 +135,10 @@ class Convolution:
 
     self.tensorAFormat  = config.get("TensorAFormat",  "NCHW")
     assert self.tensorAFormat in validTensorAFormats
-    self.tensorBFormat = config.get("TensorBFormat", "KCYX")
+    self.formatNumSpatialDims = len(self.tensorAFormat)-2
+    assert (self.formatNumSpatialDims>=2 and self.formatNumSpatialDims<=3)
+
+    self.tensorBFormat = config.get("TensorBFormat", "KCYX" if self.formatNumSpatialDims==2 else "KCZYX")
     assert self.tensorBFormat in validTensorBFormats
     self.tensorDFormat = config.get("TensorDFormat", self.tensorAFormat)
     if self.tensorDFormat == 0:
@@ -143,8 +146,6 @@ class Convolution:
     assert self.tensorDFormat in validTensorDFormats
     assert len(self.tensorAFormat) == len(self.tensorBFormat) == len(self.tensorDFormat)
 
-    self.formatNumSpatialDims = len(self.tensorAFormat)-2
-    assert (self.formatNumSpatialDims>=1 and self.formatNumSpatialDims<=3)
 
     # index 0,1,2 = W,H,D = X,Y,Z
     self.filter   = self.dimxParm(config, "Filter",1)
