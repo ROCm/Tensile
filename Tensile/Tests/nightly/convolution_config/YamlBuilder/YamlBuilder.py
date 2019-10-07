@@ -5,6 +5,7 @@ import Tensile.Tensile as Tensile
 
 
 class YamlBuilder:
+
     @staticmethod
     def catFile(outfile,fname):
         with open(fname) as infile:
@@ -27,12 +28,59 @@ class YamlBuilder:
             outfile.write("         - ProblemSizes:\n")
 
             numDims = 1 + max(max(problemType["IndexAssignmentsA"]),max(problemType["IndexAssignmentsB"]))
-            problemSize=[32]*numDims
+            if numDims>6:
+                problemSize=[16]*numDims
+            else:
+                problemSize=[32]*numDims
             outfile.write("           - Exact: [" + ', '.join([str(d) for d in problemSize]) + "]\n")
 
     @staticmethod
-    def run_tensile_client(request, conv, problemType):
+    def run_tensile_client(request, conv, problemType, tensile_dir):
+        print ("TD=", tensile_dir)
         testYamlFile = os.path.join(request.fspath.dirname, "Yamls", request.node.name +".yaml")
         YamlBuilder.write_yaml(request, testYamlFile, conv, problemType, dataType='s')
-        Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), "/tmp"])
+        Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
+
+    setupHeader="""
+GlobalParameters:
+  MinimumRequiredVersion: 4.2.0
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: True
+  NumElementsToValidate: 1000
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  DataInitTypeBeta : 0
+  SolutionSelectionAlg: 1
+  NewClient: 2
+  CpuThreads: 0
+BenchmarkProblems:
+  -
+    -
+      OperationType: TensorContraction
+      DataType: s
+      IndexAssignmentsA: [0, 2]
+      IndexAssignmentsB: [2, 1]
+      NumIndicesC: 2
+      UseBeta: False
+      UseInitialStrides: True
+    -
+      BenchmarkCommonParameters:
+      ForkParameters:
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [4, 4, 4]
+"""
 
