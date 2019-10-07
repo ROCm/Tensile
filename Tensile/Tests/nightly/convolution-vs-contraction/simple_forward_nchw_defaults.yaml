@@ -25,6 +25,7 @@ GlobalParameters:
   PrintSolutionRejectionReason: 1
   ConvolutionVsContraction: 1
   PrintConvolutionUsage: 1
+  NewClient: 2
 
   #PrintTensorA: 1
 
@@ -35,7 +36,6 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: ConvolutionForward
       ConvolutionConfig:
-        #Filter: [3,3]
       DataType: s
       DestDataType: s
       Batched: 0

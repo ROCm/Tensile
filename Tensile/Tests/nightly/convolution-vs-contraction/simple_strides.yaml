@@ -33,7 +33,7 @@ BenchmarkProblems:
   - # sgemm NT
     - # ProblemType
       OperationType: ConvolutionForward
-      ConvolutionConfig::
+      ConvolutionConfig:
         - TensorAFormat: NCHW
         - TensorBFormat: KCYX
         - TensorDFormat: NCHW
@@ -74,7 +74,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # HW, Batch, Cout, Cin, FilterY, FilterX
-          - Exact: [ 16, 7, 8, 16, 32, 7, 3]
+          - Exact: [ 16, 7, 8, 16, 7, 3]
 
 #  0('I') :     'W' : Spatial W. sizeI=W strideAI=strideW(2)
 #  1('J') :     'H' : Spatial H. sizeJ=H strideAJ=strideW(2)

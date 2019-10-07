@@ -455,11 +455,12 @@ class ProblemType:
   def initConvolution(self, config, convolutionType):
     convolutionConfig = {}
     try:
-      for dict in config['ConvolutionConfig']:
-        for k,v in dict.items():
-          convolutionConfig[k] = v
+      if config['ConvolutionConfig'] != None:
+        for dict in config['ConvolutionConfig']:
+          for k,v in dict.items():
+            convolutionConfig[k] = v
     except KeyError:
-        raise RuntimeError ("OperationType %s must include ConvolutioConfig section in ProblemType"%convolutionType)
+      raise RuntimeError ("OperationType %s must include ConvolutioConfig section in ProblemType"%convolutionType)
 
     self.convolution = Convolution(self, convolutionType, convolutionConfig)
     self["NumIndicesLD"] = 0
