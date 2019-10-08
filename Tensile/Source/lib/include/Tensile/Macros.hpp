@@ -32,3 +32,8 @@
 #define TENSILE_API __attribute__ ((visibility("default")))
 #endif
 
+#ifdef __HIPCC__
+#define HIPCC_BUILD __host__ __device__
+#else
+#define HIPCC_BUILD
+#endif

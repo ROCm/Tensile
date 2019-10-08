@@ -30,18 +30,19 @@ BenchmarkProblems:
       OperationType: GEMM
       DataType: s
       DestDataType: s
-      TransposeA: False
-      TransposeB: True
+      TransposeA: True
+      TransposeB: False
       UseBeta: True
       Batched: True
+      SetConstStrideB: [[2,0]]
 
     -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
       ForkParameters:
+        #- KernelLanguage: ["Source","Assembly"]
         - ThreadTile:
           - [ 4, 4 ]
           - [ 6, 8 ]

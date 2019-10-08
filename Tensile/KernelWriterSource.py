@@ -91,7 +91,7 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
     # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
-    self.useMagicNumber = False
+    self.useMagicNumber = True
     self.db={}
     self.db["PrintStagger"] = 0
 
@@ -1209,16 +1209,21 @@ class KernelWriterSource(KernelWriter):
 
         # Create additional vector address components for any packed dimensions
         lastGro = flattenedOffset
-        firstPrintedIdx = 1
+        firstPrintedIdx=1
         lastIdx = -1
         for idx in kernel["ProblemType"]["IndexAssignments%s"%tc]:
-          if idx < kernel["ProblemType"]["NumIndicesC"]:
+          if idx < kernel["ProblemType"]["NumIndicesC"] and isPackedIndex(kernel, idx, tP["PackBatchDims"]):
             gro = "globalReadOffset%s%s_%u_%u" % (tc, self.indexChars[idx], l, s)
-
+            # unpacked batch dims do not to declare a GRO ; they use WG
+            # packed batch dims and free dims do need a GRO defined here, and may need to 'unpack'
+            # process in order of index assignments for A/B.
             if firstPrintedIdx:
+              # no unpacking from prev needed:
               firstPrintedIdx = 0
               kStr += "  unsigned int %s = %s;%s" % (gro, flattenedOffset, self.endLine)
-            elif isPackedIndex(kernel,idx, tP["PackBatchDims"]):
+              #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
+            else:
+              # if another free dim or a packed batch dim
               if self.useMagicNumber:
                 c = globalParameters["IndexChars"][lastIdx]
                 kStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
@@ -1229,7 +1234,6 @@ class KernelWriterSource(KernelWriter):
                 kStr += "  unsigned int %s = %s / size%s; // extract packed index%s" \
                         % (gro, lastGro, self.indexChars[lastIdx], self.endLine)
                 kStr += "  %s %%= size%s;%s" % (lastGro, self.indexChars[lastIdx], self.endLine)
-              #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
             lastGro = gro
             lastIdx = idx
 
@@ -1400,24 +1404,40 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graIncrements(self, kernel, loopIdx, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    kStr += "%s%s globalReadInc%s%s = (%s)stride%s%s" \
-        % (self.indent, self.int64Str, tP["tensorChar"], loopChar, \
-        self.int64Str, tP["tensorChar"], loopChar)
+    declStr = "%s%s globalReadInc%s%s = (%s)stride%s%s" \
+        % (self.indent, self.int64Str, tc, loopChar, \
+        self.int64Str, tc, loopChar)
     if loopIdx==self.unrollIdx:
+      kStr += declStr
       kStr += "*LOCAL_DEPTHU"
       if kernel["GlobalSplitU"] > 1 \
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
-      # print 1 or 0 subtracts:
-      for j in range(loopIdx+1, \
-          min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-        tmpChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][j]]
-        kStr += " - stride%s%s*(size%s%s" % (tP["tensorChar"], tmpChar, tmpChar, "/LOCAL_DEPTHU)*LOCAL_DEPTHU" if loopIdx == self.unrollIdx-1 else ")")
-        #kStr += " - stride%s%s*(size%s-1)" % (tP["tensorChar"], tmpChar, tmpChar)
+      # For Source kernel the address moves during the unroll loop
+      # but not during the tail loop - so higher-order summations
+      # need to only subtrace the increments performed in the unroll
+      # loop (truncate the iterations that are handled in tail loop).
+      tmpChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx+1]]
+      if loopIdx+1 == self.unrollIdx:
+        # special case needs to adjust (subtract) address incs made during unroll loop
+        if kernel["GlobalSplitU"] > 1:
+          numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
+          kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
+                  % (numIter, tmpChar) + self.endLine
+          kStr += self.calculateLoopNumIterGsu(kernel, numIter, True)
+          numIter += "*GLOBAL_SPLITU"
+        else:
+          numIter = "size%s/LOCAL_DEPTHU" % tmpChar
+        kStr += declStr
+        kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
+      else:
+        # other summation that does not immediately wrap the unroll inc:
+        kStr += declStr
+        kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
@@ -1709,6 +1729,34 @@ class KernelWriterSource(KernelWriter):
 
 
   ##############################################################################
+  # Emit code to compute loop iterations for GSU.
+  # If the unroll summation size is not evenly divisible by GSU, then
+  # some of the CUs working on same output space may perform different
+  # numbers of unroll loop iterations.  Account for that here.
+  # This is a separate function since the graInc for multiple summations
+  # needs to know the #loop iters as well, so this code allows the
+  # code to be replicated in multiple places.
+  ##############################################################################
+  def calculateLoopNumIterGsu(self, kernel, iterVar, hidden):
+    kStr = ""
+    if hidden:
+      kStr += self.indent + "{" + self.endLine
+    kStr += "%sunsigned int numIterMyWg = %s / GLOBAL_SPLITU;%s" \
+        % (self.indent, iterVar, self.endLine)
+    kStr += "%sunsigned int numIterPerWgRemainder = %s %% GLOBAL_SPLITU;%s" \
+        % (self.indent, iterVar, self.endLine)
+    kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
+        % (self.indent, self.endLine)
+    kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
+    kStr += "%s}%s" % (self.indent, self.endLine)
+    kStr += "%s%s = numIterMyWg;%s" \
+        % (self.indent, iterVar, self.endLine)
+    if hidden:
+      kStr += self.indent + "}" + self.endLine
+    return kStr
+
+
+  ##############################################################################
   # Calculate Loop Num Iterations
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx, isPap):
@@ -1739,16 +1787,7 @@ class KernelWriterSource(KernelWriter):
       kStr += ";%s" % self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
-        kStr += "%sunsigned int numIterMyWg = numIter%s / GLOBAL_SPLITU;%s" \
-            % (self.indent, self.unrollChar, self.endLine)
-        kStr += "%sunsigned int numIterPerWgRemainder = numIter%s %% GLOBAL_SPLITU;%s" \
-            % (self.indent, self.unrollChar, self.endLine)
-        kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
-            % (self.indent, self.endLine)
-        kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
-        kStr += "%s}%s" % (self.indent, self.endLine)
-        kStr += "%snumIter%s = numIterMyWg;%s" \
-            % (self.indent, self.unrollChar, self.endLine)
+        kStr += self.calculateLoopNumIterGsu(kernel, "numIter%s"%self.unrollChar, False)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
 
       problemType = kernel["ProblemType"]
