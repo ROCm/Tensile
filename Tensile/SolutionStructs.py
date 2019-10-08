@@ -966,15 +966,9 @@ class ProblemSizes:
             else:
               printExit("ExactSize %s doesn't match indices of ProblemType %s" \
                   % (e, problemType) )
-            if problemType.convolution:
-                conv = problemType.convolution
-                (refSizes,refStrides) = conv.makeProblem(True, e[conv.dimIdx('N')], e[conv.dimIdx('C')], e[conv.dimIdx('K')])
-                for i in range(len(refSizes)):
-                    if (refSizes[i] != e[i]):
-                        raise RuntimeError (
-                                "In exact '%s', at position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s'"%\
-                                (e, i, e[i], refSizes[i], conv.convolutionChar(i)))
 
+            if problemType.convolution:
+              self.checkConvolutionParms(problemType.convolution, e)
 
           elif sizeTypeKey == "MinStride":
             e = dictionary[sizeTypeKey]
@@ -989,9 +983,15 @@ class ProblemSizes:
           else:
             printExit("ProblemSize Type %s not supported"%sizeTypeKey)
 
-    if not self.minStrides: 
+    if not self.minStrides:
       # set harmless default mins of 0
       self.minStrides = ([0]* problemType["TotalIndices"])
+
+    if problemType.convolution:
+      for r in self.ranges:
+        for e in r.problemSizes:
+          if e[0] != 2880: # skip bogus default configs?
+            self.checkConvolutionParms(problemType.convolution, e)
 
     # not the ideal spot, but convert leading dims that are below the minimum size
     if problemType["OperationType"] == "GEMM":
@@ -1041,6 +1041,14 @@ class ProblemSizes:
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
+
+  def checkConvolutionParms(self, conv, e):
+    (refSizes,refStrides) = conv.makeProblem(True, e[conv.dimIdx('N')], e[conv.dimIdx('C')], e[conv.dimIdx('K')])
+    for i in range(len(refSizes)):
+        if (refSizes[i] != e[i]):
+            raise RuntimeError (
+              "problem '%s', at position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s'"%\
+              (e, i, e[i], refSizes[i], conv.convolutionChar(i)))
 
   def convertLeadingDims(self, problemSize):
     return problemSize[:self.problemType["NumIndicesC"]+1] + \
