@@ -27,19 +27,17 @@ class YamlBuilder:
             YamlBuilder.catFile(outfile, os.path.join(yaml_dir,"solutions/sgemm_1.yml"))
             outfile.write("         - ProblemSizes:\n")
 
-            numDims = 1 + max(max(problemType["IndexAssignmentsA"]),max(problemType["IndexAssignmentsB"]))
-            if numDims>6:
-                problemSize=[16]*numDims
-            else:
-                problemSize=[32]*numDims
-            outfile.write("           - Exact: [" + ', '.join([str(d) for d in problemSize]) + "]\n")
+            (problemSizes,problemStrides) = conv.makeProblem(8, 32, 16, [14]*conv.formatNumSpatialDims)
+            outfile.write("           - Exact: [" + ', '.join([str(d) for d in problemSizes]) + "]\n")
 
     @staticmethod
     def run_tensile_client(request, conv, problemType, tensile_dir):
         print ("TD=", tensile_dir)
-        testYamlFile = os.path.join(request.fspath.dirname, "Yamls", request.node.name +".yaml")
-        YamlBuilder.write_yaml(request, testYamlFile, conv, problemType, dataType='s')
-        Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
+        if request.config.getoption("--run_client") > 0:
+            testYamlFile = os.path.join(request.fspath.dirname, "Yamls", request.node.name +".yaml")
+            YamlBuilder.write_yaml(request, testYamlFile, conv, problemType, dataType='s')
+            if request.config.getoption("--run_client") > 1:
+                Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
 
     setupHeader="""
 GlobalParameters:

@@ -20,6 +20,7 @@
 ################################################################################
 
 import sys,traceback
+from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
 from copy import deepcopy
@@ -95,6 +96,8 @@ class Convolution:
         ]
 
   def __init__(self, problemTypeOut, convolutionType, config):
+
+    self.convolutionDims={};
     self.convolutionType = convolutionType
 
     for k in config:
@@ -235,10 +238,11 @@ class Convolution:
     if convolutionType=="ConvolutionBackwardWeights":
       # index assignments - create filter dims
       filterDims = []
+      #import pdb; pdb.set_trace()
       for (fi,filterValue) in enumerate(self.filter):
         if filterValue != 1:
           prevChar = ['1', 'W', 'W*H']
-          filterChar = chr(ord('Z')+self.formatNumSpatialDims-3-fi)
+          filterChar = chr(ord('X')+fi)
           filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
           filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
               % (filterChar, filterChar, filterValueStr, filterChar, fi,\
@@ -301,6 +305,59 @@ class Convolution:
 
     #self.printUsage(problemTypeOut)
 
+  def makeProblem(self, n, c, k, spatialIn=None):
+    """
+    Generate valid problem dims
+
+    TBD values are assumes to be 1 (filter/dilation/stride) or 0(pad) via abs(..) function
+    """
+    numDims = 1 + max(max([x[0] for x in self.indexA]), max([x[0] for x in self.indexB]))
+    sizes = [-1]*numDims
+    astrides = [-1]*numDims
+
+    sizes[self.convolutionDims['N'][0]]=n
+    sizes[self.convolutionDims['C'][0]]=c
+    sizes[self.convolutionDims['K'][0]]=k
+
+    if spatialIn==None:
+      try:
+        spatialIn = self.spatial
+      except AttributeError:
+        raise RuntimeError ("problemSize must specify spatial parms or set ConvolutionConfig.spatial")
+
+    if len(spatialIn) != self.formatNumSpatialDims:
+      raise RuntimeError ("len(spatialIn=", spatialIn, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
+
+    padStart = [0 if p<0 else p for p in self.padStart]
+    padEnd   = [0 if p<0 else p for p in self.padEnd]
+
+    # convert to Output dimensions:
+    spatialOut=[0]*len(spatialIn)
+    for i in range(self.formatNumSpatialDims):
+      spatialOut[i] = (spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i])
+
+    #import pdb; pdb.set_trace()
+    for fi,fr in enumerate(self.filter):
+      if fr != 1 and fr != -1:
+        pos = self.convolutionDims[chr(ord('X')+fi)][0]
+        sizes[pos] = fr
+        astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.stride[fi])
+
+    if self.numSpatialDims==1:
+      spatialName="DHW"[3-self.formatNumSpatialDims:]
+      pos=self.convolutionDims[spatialName][0]
+      sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
+      astrides[pos] = abs(self.stride[0])
+    else:
+      for si,sout in enumerate(spatialOut):
+        spatialChars=['W','H','D']
+        pos = self.convolutionDims[spatialChars[si]][0]
+        sizes[pos] = sout
+        astrides[pos]=abs(self.stride[0]) if si==0 else spatialIn[si-1]*abs(self.stride[si])
+
+    assert all(i!=-1 for i in sizes)
+    return ([int(x) for x in sizes],[int(x) for x in astrides])
+
   def registerA(self, dimList):
     """
     Provide a list of indices in convolution order - these will be reversed when assigned to IndexAssignmentsAB
@@ -315,6 +372,7 @@ class Convolution:
         raise RuntimeError ("dimension '%s' can't be registered to TensorA" % dim.shortChar)
       #print("registerA idx=", idx, "dim=", dim)
       self.indexAssignments[idx] = (fbs,dim)
+      self.convolutionDims[dim.shortChar] = (idx,dim)
     self.indexA = dimList
 
   def registerB(self, dimList):
@@ -324,6 +382,8 @@ class Convolution:
         raise RuntimeError ("dimension '%s' can't be registered to TensorB" % dim.shortChar)
       #print("B", idx, dim)
       self.indexAssignments[idx] = (fbs,dim)
+      self.convolutionDims[dim.shortChar] = (idx,dim)
+
     self.indexB = dimList
 
   def dimxParm(self, config, parmName, default):

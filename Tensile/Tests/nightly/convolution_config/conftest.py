@@ -22,8 +22,8 @@ def tensile_client(tmpdir_factory):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--run_client", action="store_true", default=False,
-        help="generate YAML and run tensile client")
+        "--run_client", action="store", type="int", default=0,
+        help="1=generate YAML 2=run tensile_client")
 
 def pytest_configure(config):
     #import settings

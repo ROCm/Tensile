@@ -47,7 +47,7 @@ def test_nchw_backwardweights_filter1x3(request, tensile_client):
     if request.config.getoption("--run_client"):
         YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
-def test_nchw_backwardweights_filter3x3(request, tensile_client):
+def test_nchw_backwardweights_filter3x5(request, tensile_client):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
