@@ -309,7 +309,13 @@ class Convolution:
 
     #self.printUsage(problemTypeOut)
 
-  def makeProblem(self, n, c, k, spatialIn=None):
+  def dimIdx(self, convolutionChar):
+    return self.convolutionDims[convolutionChar][0]
+
+  def convolutionChar(self, dimIdx):
+    return self.indexAssignments[dimIdx][1].shortChar
+
+  def makeProblem(self, keepTbd, n, c, k, spatialIn=None):
     """
     Generate valid problem dims
 
@@ -327,40 +333,64 @@ class Convolution:
       if self.spatial != None:
         spatialIn = self.spatial
       else:
-        raise RuntimeError ("problemSize must specify spatial parms or set ConvolutionConfig.spatial")
+        if keepTbd:
+          spatialIn = [-1]*self.formatNumSpatialDims
+        else:
+          raise RuntimeError ("problemSize must specify spatial parms or set ConvolutionConfig.spatial")
 
     if len(spatialIn) != self.formatNumSpatialDims:
       raise RuntimeError ("len(spatialIn=", spatialIn, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
 
+    spatialTbd = not all(i!=-1 for i in spatialIn)
+    filterTbd = not all(i!=-1 for i in self.filter)
+    strideTbd = not all(i!=-1 for i in self.stride)
+    dilationTbd = not all(i!=-1 for i in self.dilation)
+    padTbd = not all(i!=-1 for i in self.padStart) or not all(i!=-1 for i in self.padEnd)
+
+    # convert any TBD<0 to default 0
     padStart = [0 if p<0 else p for p in self.padStart]
     padEnd   = [0 if p<0 else p for p in self.padEnd]
 
     # convert to Output dimensions:
     spatialOut=[0]*len(spatialIn)
     for i in range(self.formatNumSpatialDims):
-      spatialOut[i] = (spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i])
+      if keepTbd and (spatialTbd or filterTbd or strideTbd or padTbd):
+        spatialOut[i] = -1
+      else:
+        spatialOut[i] = int((spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i]))
 
     #import pdb; pdb.set_trace()
     for fi,fr in enumerate(self.filter):
       if fr != 1 and fr != -1:
         pos = self.convolutionDims[chr(ord('X')+fi)][0]
         sizes[pos] = fr
-        astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.stride[fi])
+        if keepTbd and (dilationTbd or strideTbd):
+          astrides[pos] = -1
+        else:
+          astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.stride[fi])
 
     if self.numSpatialDims==1:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
       pos=self.convolutionDims[spatialName][0]
       sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
-      astrides[pos] = abs(self.stride[0])
+      if keepTbd and strideTbd:
+        astrides[pos] = -1
+      else:
+        astrides[pos] = abs(self.stride[0])
     else:
       for si,sout in enumerate(spatialOut):
         spatialChars=['W','H','D']
         pos = self.convolutionDims[spatialChars[si]][0]
         sizes[pos] = sout
-        astrides[pos]=abs(self.stride[0]) if si==0 else spatialIn[si-1]*abs(self.stride[si])
+        if keepTbd and (spatialTbd or strideTbd):
+          astrides[pos]=-1
+        else:
+          astrides[pos]=abs(self.stride[0]) if si==0 else spatialIn[si-1]*abs(self.stride[si])
 
-    assert all(i!=-1 for i in sizes)
-    return ([int(x) for x in sizes],[int(x) for x in astrides])
+    if not keepTbd:
+      assert all(i!=-1 for i in sizes)
+
+    return (sizes, astrides)
 
   def registerA(self, dimList):
     """
@@ -458,6 +488,8 @@ class Convolution:
     id += "_spatialDims:" + str(self.numSpatialDims)
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
+    else:
+      raise RuntimeError ("convolution-vs-contraction requires ConvolutionConfig['Spatial']")
     id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
     id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
     id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])
@@ -934,6 +966,15 @@ class ProblemSizes:
             else:
               printExit("ExactSize %s doesn't match indices of ProblemType %s" \
                   % (e, problemType) )
+            if problemType.convolution:
+                conv = problemType.convolution
+                (refSizes,refStrides) = conv.makeProblem(True, e[conv.dimIdx('N')], e[conv.dimIdx('C')], e[conv.dimIdx('K')])
+                for i in range(len(refSizes)):
+                    if (refSizes[i] != e[i]):
+                        raise RuntimeError (
+                                "In exact '%s', at position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s'"%\
+                                (e, i, e[i], refSizes[i], conv.convolutionChar(i)))
+
 
           elif sizeTypeKey == "MinStride":
             e = dictionary[sizeTypeKey]

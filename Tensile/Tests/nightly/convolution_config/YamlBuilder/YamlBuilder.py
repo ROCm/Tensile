@@ -27,7 +27,7 @@ class YamlBuilder:
             YamlBuilder.catFile(outfile, os.path.join(yaml_dir,"solutions/sgemm_1.yml"))
             outfile.write("         - ProblemSizes:\n")
 
-            (problemSizes,problemStrides) = conv.makeProblem(8, 32, 16, [14]*conv.formatNumSpatialDims)
+            (problemSizes,problemStrides) = conv.makeProblem(False, 8, 32, 16, [14]*conv.formatNumSpatialDims)
             outfile.write("           - Exact: [" + ', '.join([str(d) for d in problemSizes]) + "]\n")
 
     @staticmethod
