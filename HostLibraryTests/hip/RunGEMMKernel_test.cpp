@@ -473,8 +473,9 @@ TestLibraries(bool debug)
     {
         auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("kernels_lite/TensileLibrary.yaml").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
-        adapter->loadCodeObjectFile(TestData::Instance().file("kernels_lite/TensileLibrary_gfx900.co").native());
-        adapter->loadCodeObjectFile(TestData::Instance().file("kernels_lite/TensileLibrary_gfx906.co").native());
+        for(auto file: TestData::Instance().glob("kernels_lite/TensileLibrary_*.co"))
+            adapter->loadCodeObjectFile(file.native());
+
         rv.emplace_back(library, adapter, false);
     }
 
