@@ -52,7 +52,7 @@ namespace Tensile
     class TENSILE_API ProblemInputs
     {
     public:
-        virtual HIPCC_BUILD ~ProblemInputs();
+        virtual ~ProblemInputs();
 
     };
 

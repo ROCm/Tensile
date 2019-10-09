@@ -233,8 +233,8 @@ namespace Tensile
 
     struct TENSILE_API ContractionInputs: public ProblemInputs
     {
-        HIPCC_BUILD ContractionInputs();
-        virtual HIPCC_BUILD ~ContractionInputs();
+        ContractionInputs();
+        virtual ~ContractionInputs();
     };
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
@@ -247,10 +247,10 @@ namespace Tensile
         using AlphaType = Alpha;
         using BetaType = Beta;
 
-        HIPCC_BUILD TypedContractionInputs();
-        HIPCC_BUILD TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
+        TypedContractionInputs();
+        TypedContractionInputs(A const* _a, B const* _b, C const* _c, D * _d,
                                Alpha _alpha, Beta _beta);
-        HIPCC_BUILD ~TypedContractionInputs();
+        ~TypedContractionInputs();
         
         A const* a = nullptr;
         B const* b = nullptr;
