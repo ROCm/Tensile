@@ -1,0 +1,46 @@
+# This dockerfile is meant to serve as a Tensile tuning base image.
+
+FROM ubuntu:16.04
+LABEL maintainer=peng.sun@amd.com
+
+# Install tuning dependencies
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl \
+  && curl -sL http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | apt-key add - \
+  && printf "deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main" | tee /etc/apt/sources.list.d/rocm.list \
+  && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  sudo libelf1 libomp-dev llvm-6.0-dev python-pip python3-pip python3-tk git vim rocm-dev build-essential \
+  wget rocm_smi64 python-yaml pciutils kmod cmake libboost-all-dev zlib1g-dev  
+
+# Install rocm pkgs
+RUN apt-get update --allow-insecure-repositories && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
+    rocm-dev rocm-utils \
+    rocfft miopen-hip miopengemm rocblas hipblas rocrand rccl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set environment variables for ROCm pkgs
+ENV HCC_HOME=$ROCM_PATH/hcc
+ENV HIP_PATH=$ROCM_PATH/hip
+ENV OPENCL_ROOT=$ROCM_PATH/opencl
+ENV PATH="$HCC_HOME/bin:$HIP_PATH/bin:${PATH}"
+ENV PATH="$ROCM_PATH/bin:${PATH}"
+ENV PATH="$OPENCL_ROOT/bin:${PATH}"
+ARG HCC_HOME=/opt/rocm/hcc
+ARG HIP_PATH=/opt/rocm/hip
+ARG PATH=$HCC_HOME/bin:$HIP_PATH/bin:$PATH
+ARG ROCM_PATH=/opt/rocm
+
+# Install python dependencies for tuning
+RUN pip install --upgrade pip
+RUN pip3 install --upgrade pip
+RUN pip install setuptools
+RUN pip3 install setuptools
+RUN pip install pandas openpyxl PyYAML
+RUN pip3 install pandas matplotlib PyYAML
+
+# Fetch a sample tuning config and apply provisioning
+RUN cd ~ && git clone https://github.com/ROCmSoftwarePlatform/Tensile.git 
+RUN cd ~/Tensile && git checkout 1dcb53829aa8ad451d225f85e88612ca7a37ba5a
+RUN cd ~/Tensile && wget https://www.dropbox.com/s/108e3zejfvixmoz/lstm-rocblas-configs.log && ./tuning/scripts/provision_tuning.sh -w tensile_tuning -z ~/Tensile/lstm-rocblas-configs.log -o lstm.yaml -y sgemm -l vega20
+RUN cd ~/Tensile/tensile_tuning/tensile/Tensile && ./doit-all.sh
