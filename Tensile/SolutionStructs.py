@@ -138,9 +138,8 @@ class Convolution:
     assert (len(self.filter)==len(self.stride)==len(self.dilation) \
             ==len(self.padStart)==len(self.padEnd))
 
-    self.indexAssignments = [None] * 20 # max dimensions
-
     self.groupCount = config.get("GroupCount", 1)
+    self.indexAssignments = []
 
     # Index assignment have fastest-moving first
     ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.', DimAB.BothAB)
@@ -189,20 +188,23 @@ class Convolution:
 
       sumIdx = cidx # cidx is first summation index, filter summations follow as needed
       # Create summation dimensions for non-unit filters and assign summation indices
+
+      assert(len(self.filter)) == self.formatNumSpatialDims
       filterDims = []
-      for (fi,filterValue) in enumerate(self.filter[::-1]):
+      for (rfi,filterValue) in enumerate(self.filter[::-1]):
         if filterValue != 1:
+          fi = self.formatNumSpatialDims - rfi -1 # forward filter index, 0...
           sumIdx = sumIdx+1
-          filterChar = chr(ord('W')+self.formatNumSpatialDims-fi)
+          filterChar = chr(ord('X')+fi)
           filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
           prevChar = ['1', 'W', 'W*H']
           # TODO - stride setconst maybe applies only for NCHW/CNHW format not NHWC
           # can modify message here based on format or position of indices?
           filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
               % (filterChar, filterChar, filterValueStr, filterChar, fi, \
-                 prevChar[self.formatNumSpatialDims-fi-1])
+                 prevChar[fi])
           filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.BothAB,
-                       strideA=self.dilation[fi] if  fi==self.formatNumSpatialDims-1 else -1)
+                       strideA=self.dilation[fi] if  fi==0 else -1)
           filterDims.append( (sumIdx, Fbs.Sum, filterDim) )
 
       spatialDims = []
@@ -287,19 +289,25 @@ class Convolution:
 
       problemTypeOut["NumIndicesC"] = 2+len(filterDims)
 
-    problemTypeOut["IndexAssignmentsA"] = [x[0] for x in self.indexA[::-1]]
-    problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB[::-1]]
+    # convert from convolution order to tensor order:
+    self.indexA.reverse()
+    self.indexB.reverse()
+
+    problemTypeOut["IndexAssignmentsA"] = [x[0] for x in self.indexA]
+    problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB]
     problemTypeOut["UseBeta"] = False # MI kernels don't use beta
 
     problemTypeOut["SetConstStrideA"]=[]
     for (idx,fbs,dim) in self.indexA:
       if dim.strideA != -1:
         problemTypeOut["SetConstStrideA"].append([idx,dim.strideA])
+    problemTypeOut["SetConstStrideA"].sort()
 
     problemTypeOut["SetConstStrideB"]=[]
     for (idx,fbs,dim) in self.indexB:
       if dim.strideB != -1:
         problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
+    problemTypeOut["SetConstStrideB"].sort()
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
@@ -355,24 +363,32 @@ class Convolution:
     spatialOut=[0]*len(spatialIn)
     for i in range(self.formatNumSpatialDims):
       if keepTbd and (spatialTbd or filterTbd or strideTbd or padTbd):
+        spatialTbd = 1
         spatialOut[i] = -1
       else:
         spatialOut[i] = int((spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i]))
 
     #import pdb; pdb.set_trace()
-    for fi,fr in enumerate(self.filter):
-      if fr != 1 and fr != -1:
+    for fi,filterValue in enumerate(self.filter):
+      if filterValue != 1 and filterValue != -1:
         pos = self.convolutionDims[chr(ord('X')+fi)][0]
-        sizes[pos] = fr
+        if keepTbd and filterTbd:
+          sizes[pos] = -1
+        else:
+          sizes[pos] = filterValue
+
         if keepTbd and (dilationTbd or strideTbd):
           astrides[pos] = -1
         else:
-          astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.stride[fi])
+          astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.dilation[fi])
 
     if self.numSpatialDims==1:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
       pos=self.convolutionDims[spatialName][0]
-      sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
+      if keepTbd and spatialTbd:
+        sizes[pos] = -1
+      else:
+        sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
       if keepTbd and strideTbd:
         astrides[pos] = -1
       else:
@@ -381,7 +397,11 @@ class Convolution:
       for si,sout in enumerate(spatialOut):
         spatialChars=['W','H','D']
         pos = self.convolutionDims[spatialChars[si]][0]
-        sizes[pos] = sout
+        if keepTbd and spatialTbd:
+          sizes[pos] = -1
+        else:
+          sizes[pos] = sout
+
         if keepTbd and (spatialTbd or strideTbd):
           astrides[pos]=-1
         else:
@@ -390,7 +410,12 @@ class Convolution:
     if not keepTbd:
       assert all(i!=-1 for i in sizes)
 
-    return (sizes, astrides)
+    # translate to strides for A tensor in IndexAssignmentsA order:
+    orderedStrides=[]
+    for (idx,fbs,dim) in self.indexA:
+      orderedStrides.append(astrides[idx])
+
+    return (sizes, orderedStrides)
 
   def registerA(self, dimList):
     """
@@ -405,6 +430,10 @@ class Convolution:
       if dim.dimAB not in (DimAB.OnlyA, DimAB.BothAB):
         raise RuntimeError ("dimension '%s' can't be registered to TensorA" % dim.shortChar)
       #print("registerA idx=", idx, "dim=", dim)
+      try:
+        self.indexAssignments[idx] = None
+      except IndexError:
+        self.indexAssignments.extend([None]*(1+idx-len(self.indexAssignments)))
       self.indexAssignments[idx] = (fbs,dim)
       self.convolutionDims[dim.shortChar] = (idx,dim)
     self.indexA = dimList
@@ -415,6 +444,10 @@ class Convolution:
       if dim.dimAB not in (DimAB.OnlyB, DimAB.BothAB):
         raise RuntimeError ("dimension '%s' can't be registered to TensorB" % dim.shortChar)
       #print("B", idx, dim)
+      try:
+        self.indexAssignments[idx] = None
+      except IndexError:
+        self.indexAssignments.extend([None]*(1+idx-len(self.indexAssignments)))
       self.indexAssignments[idx] = (fbs,dim)
       self.convolutionDims[dim.shortChar] = (idx,dim)
 
@@ -440,7 +473,6 @@ class Convolution:
     print("Tensile Index Assignments and Usage:")
     print("   Tensile    : ConvChar: Explanation/Usage")
     for (idx,dim2) in enumerate(self.indexAssignments):
-      if dim2 != None:
         (fbs,dim)=dim2
         tensileChar = globalParameters['IndexChars'][idx]
         usage = str(dim)
@@ -486,6 +518,7 @@ class Convolution:
     id += "_" + self.tensorBFormat
     id += "_" + self.tensorDFormat
     id += "_spatialDims:" + str(self.numSpatialDims)
+    id += "_indices:" + '.'.join([x[1].shortChar for x in self.indexAssignments])
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
     else:
@@ -967,9 +1000,6 @@ class ProblemSizes:
               printExit("ExactSize %s doesn't match indices of ProblemType %s" \
                   % (e, problemType) )
 
-            if problemType.convolution:
-              self.checkConvolutionParms(problemType.convolution, e)
-
           elif sizeTypeKey == "MinStride":
             e = dictionary[sizeTypeKey]
             if len(e) != problemType["TotalIndices"]:
@@ -986,12 +1016,6 @@ class ProblemSizes:
     if not self.minStrides:
       # set harmless default mins of 0
       self.minStrides = ([0]* problemType["TotalIndices"])
-
-    if problemType.convolution:
-      for r in self.ranges:
-        for e in r.problemSizes:
-          if e[0] != 2880: # skip bogus default configs?
-            self.checkConvolutionParms(problemType.convolution, e)
 
     # not the ideal spot, but convert leading dims that are below the minimum size
     if problemType["OperationType"] == "GEMM":
@@ -1042,13 +1066,6 @@ class ProblemSizes:
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
 
-  def checkConvolutionParms(self, conv, e):
-    (refSizes,refStrides) = conv.makeProblem(True, e[conv.dimIdx('N')], e[conv.dimIdx('C')], e[conv.dimIdx('K')])
-    for i in range(len(refSizes)):
-        if (refSizes[i] != e[i]):
-            raise RuntimeError (
-              "problem '%s', at position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s'"%\
-              (e, i, e[i], refSizes[i], conv.convolutionChar(i)))
 
   def convertLeadingDims(self, problemSize):
     return problemSize[:self.problemType["NumIndicesC"]+1] + \

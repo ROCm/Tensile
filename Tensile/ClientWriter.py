@@ -316,7 +316,36 @@ def checkConstStride(constStrideMap, keyIdx):
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
 
+def normalizeConvolution(conv, problemSize, astrides):
+    (refSize,refAStrides) = conv.makeProblem(True, problemSize[conv.dimIdx('N')],
+                                problemSize[conv.dimIdx('C')], problemSize[conv.dimIdx('K')])
+
+    print ("Ref Size=",refSize,"astride=",refAStrides)
+
+    for i in range(len(refSize)):
+        if (refSize[i]!=-1 and refSize[i] != problemSize[i]):
+            raise RuntimeError (
+                    "probleme'%s'/ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
+              (problemSize, refSize, i, problemSize[i], refSize[i], conv.convolutionChar(i)))
+
+    if globalParameters["ConvolutionVsContraction"]:
+      copyConvStrides = True
+      if copyConvStrides:
+          for i in range(len(refAStrides)):
+              if astrides[i]==-1:
+                  astrides[i] = refAStrides[i] # copy reference
+              elif astrides[i] != refAStrides[i]:
+                  raise RuntimeError (
+                    "at position %d problem strides (%s) don't match reference conv strides(%s)" \
+                            % (i, astrides, refAStrides))
+      elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
+        raise RuntimeError (
+            "specified convolution uses strides that can't be represented in current Exact problem size format. Requires StrideA=", refAStrides)
+
+    return (problemSize, astrides)
+
 def problemSizeParams(solution, problemSize):
+
     numIndices = len(solution.problemType.indices)
 
     problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
@@ -351,6 +380,10 @@ def problemSizeParams(solution, problemSize):
         raise RuntimeError(
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
             ', '.join(map(str, problemSize))))
+
+
+    if solution.problemType.convolution:
+        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, problemSize, astrides)
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
