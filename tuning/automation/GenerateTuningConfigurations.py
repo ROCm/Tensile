@@ -218,7 +218,7 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList):
         scheme["LdsPadA"] = [0, -1]
         scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme) 
-	appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4]])
+        appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[32,8,4],[8,32,4]])
         #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[8,16,4],[16,8,2],[16,8,4],[8,8,1],
         #    [8,8,2],[8,8,4],[4,16,4],[16,4,4],[4,8,8],[8,4,8],[4,4,4],[4,4,8]])
@@ -261,7 +261,7 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList):
 
 def OutputConfigs(problemMapper, configPath, outputName, library):
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     configDefs = {}
 
@@ -332,7 +332,7 @@ def generateRunScript(fileNames, outputPath):
     scriptNames = ""
 
     for fileName in fileNames:
-    	fileBaseName = os.path.basename(fileName)
+        fileBaseName = os.path.basename(fileName)
         namePart, _ = os.path.splitext(fileBaseName)
         scriptNames = "%s %s" % (scriptNames, namePart)
 
@@ -353,7 +353,7 @@ done
 
 def OutputScript(problemMapper, scriptPath, namePart):
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     scriptFileNames = []
     for key in keys:
@@ -373,7 +373,7 @@ def OutputScript(problemMapper, scriptPath, namePart):
 
 def OutputProblemDefinitions(problemMapper, sizePath, namePart):
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     for key in keys:
         lineDefinitions = problemMapper[key]
