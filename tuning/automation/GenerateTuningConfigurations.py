@@ -261,7 +261,7 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList):
 
 def OutputConfigs(problemMapper, configPath, outputName, library):
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     configDefs = {}
 
@@ -353,7 +353,7 @@ done
 
 def OutputScript(problemMapper, scriptPath, namePart):
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     scriptFileNames = []
     for key in keys:
@@ -373,7 +373,7 @@ def OutputScript(problemMapper, scriptPath, namePart):
 
 def OutputProblemDefinitions(problemMapper, sizePath, namePart):
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     for key in keys:
         lineDefinitions = problemMapper[key]
