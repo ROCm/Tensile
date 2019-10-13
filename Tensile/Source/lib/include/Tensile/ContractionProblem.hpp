@@ -44,6 +44,20 @@ namespace Tensile
         ContractionProblem() = default;
 
         /**
+         * Zero-padding description
+         */
+        struct ZeroPad
+        {
+          size_t  anchorIndex;
+          size_t  boundIndex;
+          size_t  leadingPad;
+          size_t  trailingPad;
+
+          std::string description() const;
+        };
+        using ZeroPads = std::vector<ZeroPad>;
+
+        /**
          * Represents a pair of free indices in a tensor contraction.
          */
         struct FreeIndex
@@ -69,20 +83,14 @@ namespace Tensile
          */
         struct BoundIndex
         {
+            BoundIndex(size_t xa=0, size_t xb=0, size_t xlpa=0, size_t xlpb=0)
+                : a(xa), b(xb), aLeadingPad(xlpa), bLeadingPad(xlpb) {};
             size_t a, b;
+            size_t aLeadingPad;
+            size_t bLeadingPad;
         };
         using BoundIndices = std::vector<BoundIndex>;
 
-        struct ZeroPad
-        {
-          size_t anchorIndex;
-          size_t boundIndex;
-          int    leadingPad;
-          int    trailingPad;
-
-          std::string description() const;
-        };
-        using ZeroPads = std::vector<ZeroPad>;
 
         virtual std::string description() const;
 
@@ -148,6 +156,27 @@ namespace Tensile
 
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
+
+        // Translate specified index into a position of that index in the d tensor.
+        // Since d tensor order is always index order this is 1:1 translation if the 
+        // index is in-bounds:
+        size_t toDPos(size_t idx) const
+        {
+            if (idx < d().dimensions())
+                return idx;
+            else
+                throw std::runtime_error("requested index not in D");
+        }
+
+        size_t toBoundsPos(size_t idx) const
+        {
+            if (idx < d().dimensions())
+                throw std::runtime_error("invalid bounds index (is free or batch)");
+            else if (idx > d().dimensions()+boundIndices().size())
+                throw std::runtime_error("invalid bounds index (out-of-bounds)");
+            else
+                return idx-d().dimensions();
+        }
 
         std::vector<size_t> const& problemSizes() const { return m_problemSizes; }
 

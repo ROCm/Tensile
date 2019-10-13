@@ -321,7 +321,7 @@ namespace Tensile
             else if(aIndex != std::string::npos && bIndex != std::string::npos
                  && cIndex == std::string::npos && dIndex == std::string::npos)
             {
-                bound.push_back(BoundIndex{aIndex, bIndex});
+                bound.push_back(BoundIndex{aIndex, bIndex, 0, 0});
             }
             else if(aIndex != std::string::npos && bIndex == std::string::npos
                  && cIndex != std::string::npos && dIndex != std::string::npos)
@@ -540,6 +540,11 @@ namespace Tensile
 
             m_maxProblemSize = std::max(m_maxProblemSize, m_boundSizes[i]);
         }
+
+        for (auto zp : m_aZeroPads)
+            m_boundIndices[toBoundsPos(zp.boundIndex)].aLeadingPad = zp.leadingPad;
+        for (auto zp : m_bZeroPads)
+            m_boundIndices[toBoundsPos(zp.boundIndex)].bLeadingPad = zp.leadingPad;
 
         getIndexNames(m_aNames, m_bNames, m_cNames, m_dNames, m_sumNames);
 

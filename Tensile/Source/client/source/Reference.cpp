@@ -91,10 +91,10 @@ namespace Tensile
 #pragma omp parallel for
             for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
             {
-                std::vector<size_t> aCoord(a.dimensions());
-                std::vector<size_t> bCoord(b.dimensions());
-                std::vector<size_t> cCoord(c.dimensions());
-                std::vector<size_t> dCoord(d.dimensions());
+                std::vector<int64_t> aCoord(a.dimensions());
+                std::vector<int64_t> bCoord(b.dimensions());
+                std::vector<int64_t> cCoord(c.dimensions());
+                std::vector<int64_t> dCoord(d.dimensions());
 
                 CoordNumbered(dNum, dCoord.begin(), dCoord.end(), d.sizes().begin(), d.sizes().end());
 
@@ -125,11 +125,13 @@ namespace Tensile
 
                 for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
                 {
-                    std::vector<size_t> bound(problem.boundIndices().size());
+                    std::vector<int64_t> bound(problem.boundIndices().size());
                     CoordNumbered(boundNum, bound.begin()+1, bound.end(), boundSize.begin()+1, boundSize.end());
 
                     for(int i = 1; i < bound.size(); i++)
                     {
+                        aCoord[boundIndices[i].a] = bound[i]-problem.boundIndices()[i].aLeadingPad;
+                        bCoord[boundIndices[i].b] = bound[i]-problem.boundIndices()[i].bLeadingPad;
                         aCoord[boundIndices[i].a] = bound[i];
                         bCoord[boundIndices[i].b] = bound[i];
                     }
@@ -142,8 +144,38 @@ namespace Tensile
 
                     for(size_t i = 0; i < boundSize[0]; i++)
                     {
-                        auto aVal = Transform<typename Inputs::AType>::Input(inputs.a[aIndex + (i * aStride)], aConjugate);
-                        auto bVal = Transform<typename Inputs::BType>::Input(inputs.b[bIndex + (i * bStride)], bConjugate);
+                        bool aInZeroPad = false;
+                        for (auto zp : problem.aZeroPad())
+                        {
+                            int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + bound[problem.toBoundsPos(zp.boundIndex)];
+                            int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
+                                                     boundSize.at(problem.toBoundsPos(zp.boundIndex)) -
+                                                     zp.trailingPad;
+                            if ((anchorRelCoord < zp.leadingPad) || anchorRelCoord >= elementEdge)
+                            {
+                                aInZeroPad = true;
+                                break;
+                            }
+                        }
+                        bool bInZeroPad = false;
+                        for (auto zp : problem.bZeroPad())
+                        {
+                            int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + bound[problem.toBoundsPos(zp.boundIndex)];
+                            int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
+                                                     boundSize.at(problem.toBoundsPos(zp.boundIndex)) -
+                                                     zp.trailingPad;
+                            if ((anchorRelCoord < zp.leadingPad) || anchorRelCoord >= elementEdge)
+                            {
+                                bInZeroPad = true;
+                                break;
+                            }
+                        }
+                        typename Inputs::AType aVal(0);
+                        typename Inputs::BType bVal(0);
+                        if (!aInZeroPad)
+                            aVal = Transform<typename Inputs::AType>::Input(inputs.a[aIndex + (i * aStride)], aConjugate);
+                        if (!bInZeroPad)
+                            bVal = Transform<typename Inputs::BType>::Input(inputs.b[bIndex + (i * bStride)], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
                     }
