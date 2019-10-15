@@ -51,6 +51,21 @@ namespace Tensile
             }
         };
 
+        bool inZeroPad(ContractionProblem const &problem, ContractionProblem::ZeroPad const &zp,
+                       const std::vector<int64_t> &dCoord, int64_t sumOffset)
+        {
+            if (zp.valid()) {
+                int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + sumOffset;
+                int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
+                                         problem.boundSize(problem.toBoundsPos(zp.boundIndex)) -
+                                         zp.trailingPad - 1;
+                //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " leadingPad="<< zp.leadingPad<< " edge="<< elementEdge<< " trailingPad="<< zp.trailingPad << "\n";
+                return (anchorRelCoord < zp.leadingPad || anchorRelCoord >= elementEdge);
+            } else {
+                return false;
+            }
+        }
+
         template <typename Inputs, typename Accumulator>
         void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem, Inputs const& inputs,
                                                               size_t validationStride)
@@ -127,13 +142,20 @@ namespace Tensile
                 {
                     std::vector<int64_t> bound(problem.boundIndices().size());
                     CoordNumbered(boundNum, bound.begin()+1, bound.end(), boundSize.begin()+1, boundSize.end());
+                    bool aInZeroPad = false;
+                    bool bInZeroPad = false;
 
                     for(int i = 1; i < bound.size(); i++)
                     {
-                        aCoord[boundIndices[i].a] = bound[i]-problem.boundIndices()[i].aLeadingPad;
-                        bCoord[boundIndices[i].b] = bound[i]-problem.boundIndices()[i].bLeadingPad;
-                        aCoord[boundIndices[i].a] = bound[i];
-                        bCoord[boundIndices[i].b] = bound[i];
+                        auto const &zpA = problem.boundIndices()[i].aZeroPad;
+                        auto const &zpB = problem.boundIndices()[i].bZeroPad;
+                        aCoord[boundIndices[i].a] = bound[i] - zpA.leadingPad;
+                        bCoord[boundIndices[i].b] = bound[i] - zpB.leadingPad;
+
+                        if (zpA.valid() && inZeroPad(problem, zpA, dCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
+                            aInZeroPad = true;
+                        if (zpB.valid() && inZeroPad(problem, zpB, dCoord, bound.at(problem.toBoundsPos(zpB.boundIndex))))
+                            bInZeroPad = true;
                     }
 
                     auto aIndex = a.index(aCoord);
@@ -144,40 +166,26 @@ namespace Tensile
 
                     for(size_t i = 0; i < boundSize[0]; i++)
                     {
-                        bool aInZeroPad = false;
-                        for (auto zp : problem.aZeroPad())
-                        {
-                            int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + bound[problem.toBoundsPos(zp.boundIndex)];
-                            int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
-                                                     boundSize.at(problem.toBoundsPos(zp.boundIndex)) -
-                                                     zp.trailingPad;
-                            if ((anchorRelCoord < zp.leadingPad) || anchorRelCoord >= elementEdge)
-                            {
-                                aInZeroPad = true;
-                                break;
-                            }
-                        }
-                        bool bInZeroPad = false;
-                        for (auto zp : problem.bZeroPad())
-                        {
-                            int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + bound[problem.toBoundsPos(zp.boundIndex)];
-                            int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
-                                                     boundSize.at(problem.toBoundsPos(zp.boundIndex)) -
-                                                     zp.trailingPad;
-                            if ((anchorRelCoord < zp.leadingPad) || anchorRelCoord >= elementEdge)
-                            {
-                                bInZeroPad = true;
-                                break;
-                            }
-                        }
+                        auto const &zpA = problem.boundIndices()[0].aZeroPad;
+                        auto const &zpB = problem.boundIndices()[0].bZeroPad;
+
                         typename Inputs::AType aVal(0);
                         typename Inputs::BType bVal(0);
-                        if (!aInZeroPad)
-                            aVal = Transform<typename Inputs::AType>::Input(inputs.a[aIndex + (i * aStride)], aConjugate);
-                        if (!bInZeroPad)
-                            bVal = Transform<typename Inputs::BType>::Input(inputs.b[bIndex + (i * bStride)], bConjugate);
+                        if (!aInZeroPad && !inZeroPad(problem, zpA, dCoord, i))
+                            aVal = Transform<typename Inputs::AType>::Input(
+                                    inputs.a[aIndex + (i * aStride) - zpA.leadingPad], aConjugate);
+                        if (!bInZeroPad && !inZeroPad(problem, zpB, dCoord, i))
+                            bVal = Transform<typename Inputs::BType>::Input(
+                                    inputs.b[bIndex + (i * bStride) - zpB.leadingPad], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
+
+                        bool innerZpa = inZeroPad(problem, zpA, dCoord, i);
+                        if (0) {
+                            std::cout << "dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
+                                    << " innerZpa=" << innerZpa << " aindex=" << aIndex << " +offset="
+                                    << (i * aStride) - zpA.leadingPad << "\n";
+                        }
                     }
                 }
 

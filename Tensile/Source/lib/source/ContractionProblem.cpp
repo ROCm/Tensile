@@ -321,7 +321,7 @@ namespace Tensile
             else if(aIndex != std::string::npos && bIndex != std::string::npos
                  && cIndex == std::string::npos && dIndex == std::string::npos)
             {
-                bound.push_back(BoundIndex{aIndex, bIndex, 0, 0});
+                bound.push_back(BoundIndex{aIndex, bIndex});
             }
             else if(aIndex != std::string::npos && bIndex == std::string::npos
                  && cIndex != std::string::npos && dIndex != std::string::npos)
@@ -364,7 +364,7 @@ namespace Tensile
 
         TensorOps aOps, bOps, cOps, dOps;
 
-        IdentifierToIndices(operationIdentifier, 
+        IdentifierToIndices(operationIdentifier,
                             freeIndices,
                             batchIndices,
                             boundIndices,
@@ -491,6 +491,18 @@ namespace Tensile
         normalize();
     }
 
+    void ContractionProblem::addAZeroPad(const ZeroPad &zp)
+    {
+        m_aZeroPads.push_back(zp);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
+    }
+
+    void ContractionProblem::addBZeroPad(const ZeroPad &zp)
+    {
+        m_bZeroPads.push_back(zp);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
+    }
+
     void ContractionProblem::normalize()
     {
         m_maxProblemSize = 0;
@@ -542,9 +554,9 @@ namespace Tensile
         }
 
         for (auto zp : m_aZeroPads)
-            m_boundIndices[toBoundsPos(zp.boundIndex)].aLeadingPad = zp.leadingPad;
+            m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
         for (auto zp : m_bZeroPads)
-            m_boundIndices[toBoundsPos(zp.boundIndex)].bLeadingPad = zp.leadingPad;
+            m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
 
         getIndexNames(m_aNames, m_bNames, m_cNames, m_dNames, m_sumNames);
 
@@ -558,6 +570,7 @@ namespace Tensile
 
         m_problemSizes.insert(m_problemSizes.end(), m_c.sizes().begin(), m_c.sizes().end());
         m_problemSizes.insert(m_problemSizes.end(), m_boundSizes.begin(), m_boundSizes.end());
+
     }
 
     void ContractionProblem::consistencyCheck() const

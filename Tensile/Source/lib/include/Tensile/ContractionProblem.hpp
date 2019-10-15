@@ -48,12 +48,16 @@ namespace Tensile
          */
         struct ZeroPad
         {
-          size_t  anchorIndex;
-          size_t  boundIndex;
-          size_t  leadingPad;
-          size_t  trailingPad;
+            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t lp=0, int64_t tp=0) : 
+                anchorIndex(ai), boundIndex(bi), leadingPad(lp), trailingPad(tp) {};
 
-          std::string description() const;
+            int32_t  anchorIndex;
+            int32_t  boundIndex;
+            int64_t  leadingPad;
+            int64_t  trailingPad;
+
+            bool valid() const { return anchorIndex != -1; };
+            std::string description() const;
         };
         using ZeroPads = std::vector<ZeroPad>;
 
@@ -83,11 +87,10 @@ namespace Tensile
          */
         struct BoundIndex
         {
-            BoundIndex(size_t xa=0, size_t xb=0, size_t xlpa=0, size_t xlpb=0)
-                : a(xa), b(xb), aLeadingPad(xlpa), bLeadingPad(xlpb) {};
+            BoundIndex(size_t xa=0, size_t xb=0) : a(xa), b(xb) {};
             size_t a, b;
-            size_t aLeadingPad;
-            size_t bLeadingPad;
+            ZeroPad aZeroPad;
+            ZeroPad bZeroPad;
         };
         using BoundIndices = std::vector<BoundIndex>;
 
@@ -206,9 +209,10 @@ namespace Tensile
         BoundIndices const& boundIndices() const { return m_boundIndices; }
 
         ZeroPads const& aZeroPad() const { return m_aZeroPads;}
-        ZeroPads      & aZeroPad()       { return m_aZeroPads;}
         ZeroPads const& bZeroPad() const { return m_bZeroPads;}
-        ZeroPads      & bZeroPad()       { return m_bZeroPads;}
+
+        void addAZeroPad(const ZeroPad &zp);
+        void addBZeroPad(const ZeroPad &zp);
 
         double beta() const { return m_beta; }
 

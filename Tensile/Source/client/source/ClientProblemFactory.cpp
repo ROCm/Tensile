@@ -119,7 +119,9 @@ namespace Tensile
                     if (zp.size() % 4 != 0)
                         throw std::runtime_error("zero-pad must contain tuples of 4 values");
                     for (int zi=0; zi<zp.size(); zi+=4) {
-                        rv.back().aZeroPad().push_back(ContractionProblem::ZeroPad({zp[zi+0],zp[zi+1],zp[zi+2], zp[zi+3]}));
+                        rv.back().addAZeroPad(ContractionProblem::ZeroPad(
+                                    {static_cast<int32_t>(zp[zi+0]), static_cast<int32_t>(zp[zi+1]),
+                                     static_cast<int64_t>(zp[zi+2]), static_cast<int64_t>(zp[zi+3])}));
                     }
                 }
                 if (i<m_bZeroPads.size())
@@ -128,7 +130,9 @@ namespace Tensile
                     if (zp.size() % 4 != 0)
                         throw std::runtime_error("zero-pad must contain tuples of 4 values");
                     for (int zi=0; zi<zp.size(); zi+=4) {
-                        rv.back().bZeroPad().push_back(ContractionProblem::ZeroPad({zp[zi+0],zp[zi+1],zp[zi+2], zp[zi+3]}));
+                        rv.back().addBZeroPad(ContractionProblem::ZeroPad(
+                                    {static_cast<int32_t>(zp[zi+0]), static_cast<int32_t>(zp[zi+1]),
+                                     static_cast<int64_t>(zp[zi+2]), static_cast<int64_t>(zp[zi+3])}));
                     }
                 }
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
