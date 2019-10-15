@@ -4,23 +4,25 @@ GlobalParameters:
   KernelTime: True
 
 BenchmarkProblems:
-  - # zgemm TN
+  - # cgemm CT
     - # ProblemType
       OperationType: GEMM
-      DataType: z
-      DestDataType: z
-      ComputeDataType: z
+      DataType: c
+      DestDataType: c
+      ComputeDataType: c
       TransposeA: True
-      TransposeB: False
+      TransposeB: True
+      ComplexConjugateA: True
+      ComplexConjugateB: False
       UseBeta: True
       Batched: True
 
-    - # BenchmarkProblemSizeGroup - Assembly
+    - # BenchmarkProblemSizeGroup - Source
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Assembly"]
+        - KernelLanguage: ["Source"]
       ForkParameters:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]

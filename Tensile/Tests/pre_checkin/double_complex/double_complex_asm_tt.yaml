@@ -1,8 +1,7 @@
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  NumElementsToValidate: -1
+  NumElementsToValidate: 128
   KernelTime: True
-  PrintSolutionRejectionReason: True
 
 BenchmarkProblems:
   - # zgemm TT
@@ -16,7 +15,7 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    - # BenchmarkProblemSizeGroup - Source
+    - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
@@ -26,7 +25,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 4 ]
+          - [ 2, 4 ]
         - WorkGroup:
           - [  8,  8,  1 ]
         - DepthU: [8]
@@ -39,27 +38,3 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [127,1,129], 0, [2], [63,1,65] ]
-
-#   - # BenchmarkProblemSizeGroup - Source
-#     InitialSolutionParameters:
-#     BenchmarkCommonParameters:
-#       - LoopTail: [True]
-#       - EdgeType: ["ShiftPtr"]
-#     ForkParameters:
-#       - KernelLanguage: ["Source"]
-#       - PrefetchLocalRead: [False]
-#       - PrefetchGlobalRead: [False]
-#       - ThreadTile:
-#         - [ 4, 2 ]
-#       - WorkGroup:
-#         - [  8,  8,  1 ]
-#       - DepthU: [16]
-#       - VectorWidth: [-1]
-#       - AssertSummationElementMultiple: [1,2]
-#       - AssertFree0ElementMultiple: [1,2]
-#     BenchmarkForkParameters:
-#     JoinParameters:
-#     BenchmarkJoinParameters:
-#     BenchmarkFinalParameters:
-#       - ProblemSizes:
-#         - Range: [ [127,1,129], 0, [2], [63,1,65] ]
