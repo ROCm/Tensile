@@ -241,14 +241,7 @@ class ProblemPredicate(Properties.Predicate):
         if key == 'PackBatchDims' and value==1:
             return cls("StrideBEqual", index=2, value=0)
         if key == 'AssertMinApproxSize':
-            if value == 0 or value == 1:
-                return None
-            elif value == 2:
-                return cls('MaxProblemSizeGreaterThan', value=1)
-            elif value == 3:
-                return cls('MaxProblemSizeGreaterThan', value=32)
-            else:
-                raise RuntimeError("Unknown Approx size: {}".format(value))
+            return None
 
         if key.endswith('Multiple'):
             if value == 1:

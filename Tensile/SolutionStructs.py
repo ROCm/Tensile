@@ -2131,13 +2131,6 @@ class Solution:
 
     # these work everywhere, no special restrictions
     state["AssertMinApproxSize"] = 0
-    if state["KernelLanguage"] == "Assembly":
-      if state["VectorWidth"] > 1:
-        # VW>1 kernels require dims>1
-        state["AssertMinApproxSize"] = 3
-    elif state["VectorWidth"] > 1:
-      # VW>1 kernels require dims>1
-      state["AssertMinApproxSize"] = 2
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
