@@ -204,14 +204,13 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
       runScriptFile.write("set +e\n")
 
-      runScriptFile.write("./client")
-
     if globalParameters["DataInitTypeA"] == -1 :
         globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
     if globalParameters["DataInitTypeB"] == -1 :
         globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
 
     if globalParameters["NewClient"] < 2:
+      runScriptFile.write("./client")
       clp = ""
       clp += " --platform-idx %u" % globalParameters["Platform"]
       clp += " --device-idx %u" % globalParameters["Device"]
