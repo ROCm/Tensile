@@ -239,6 +239,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       runScriptFile.write("\n")
       runScriptFile.write("ERR1=$?\n")
     else:
+      runScriptFile.write("\n")
       runScriptFile.write("ERR1=0\n")
 
     if globalParameters["NewClient"]:
