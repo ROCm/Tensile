@@ -1,25 +1,21 @@
 GlobalParameters:
   EnqueuesPerSync: 1
-  NumElementsToValidate: 1
+  NumElementsToValidate: -1
   KernelTime: True
   #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  DataInitTypeA: 5
-  DataInitTypeB: 1
+  DataInitTypeA: 3
+  DataInitTypeB: 3
   DataInitTypeAlpha: 1
   PrintSolutionRejectionReason: 1
   PrintWinnersOnly: 1
   PrintTensorA: 1
-  #PrintTensorB: 1
   PrintTensorD: 2
   CpuThreads: 0
-  #LibraryPrintDebug: 1
+  NewClient: 2
 
 BenchmarkProblems:
-  ########################################
-  # NT - standard
-  ########################################
   -
     - # ProblemType
       OperationType: TensorContraction
@@ -29,7 +25,7 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 0, 2 ]
       IndexAssignmentsB: [ 2, 1 ]
-      ZeroPadA: [ [0, 2,   2, 3] ]  # zero-pad dimension and 2 values, format will change
+      ZeroPadA: [ [0, 2,   2, 3] ]
       SetConstStrideA: [ [2, 1] ]
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -37,7 +33,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - KernelLanguage: ["Source", "Assembly"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:

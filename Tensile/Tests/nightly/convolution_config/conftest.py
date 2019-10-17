@@ -28,7 +28,7 @@ def tensile_client(tmpdir_factory):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--run_client", action="store", type="int", default=0,
+        "--run_client", action="store", type=int, default=0,
         help='''
         0=test Tensile.Convolution,
         1=generate YAML,
