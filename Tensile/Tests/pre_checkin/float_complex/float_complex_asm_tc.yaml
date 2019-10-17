@@ -4,14 +4,16 @@ GlobalParameters:
   KernelTime: True
 
 BenchmarkProblems:
-  - # zgemm TN
+  - # cgemm TC
     - # ProblemType
       OperationType: GEMM
-      DataType: z
-      DestDataType: z
-      ComputeDataType: z
+      DataType: c
+      DestDataType: c
+      ComputeDataType: c
       TransposeA: True
-      TransposeB: False
+      TransposeB: True
+      ComplexConjugateA: False
+      ComplexConjugateB: True
       UseBeta: True
       Batched: True
 
