@@ -117,6 +117,12 @@ class ProblemType:
         rv.cType = dstType
         rv.dType = dstType
 
+        rv.alphaType = dstType
+        rv.betaType = dstType
+        if dstType.isBFloat16():
+            rv.alphaType = DataType(dstType.single)
+            rv.betaType  = DataType(dstType.single)
+
         rv.highPrecisionAccumulate = False
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
