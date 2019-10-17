@@ -104,7 +104,7 @@ for file in ${aggregated_files}; do
   filename=$(basename "$file")
   namepart="${filename%-aggregated.*}"
 
-  python3.5 ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
+  python ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
 done
 
 aggregated_files=$(ls ${NEW_AGGREGATED}/*aggregated*)
@@ -112,7 +112,7 @@ for file in ${aggregated_files}; do
   filename=$(basename "$file")
   namepart="${filename%-aggregated.*}"
 
-  python3.5 ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
+  python ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
 done
 
 
