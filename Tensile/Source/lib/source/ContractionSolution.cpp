@@ -56,11 +56,28 @@ namespace Tensile
         return staggerUIter;
     }
 
-    uint32_t ContractionSolution::magicNumber(uint32_t x) const
+    // Return magic number.  If magicShift is 0, compute and return it.
+    uint32_t ContractionSolution::magicNumber(uint32_t x, uint32_t *magicShift) const
     {
-        // TODO: bozo, review
-        uint32_t magicShift = 31;
-        return (1L<<magicShift) / x + 1;
+        uint64_t magicNum;
+        *magicShift = 33;
+        magicNum = (1L<<*magicShift) / x + 1;
+        if ((magicNum >> 32) != 0) {
+            *magicShift= 31;
+            magicNum = (1L<<*magicShift) / x + 1;
+        }
+
+        assert(magicNum >> 32 == 0);  // ensure magic number fits
+        return static_cast<uint32_t>(magicNum);
+    }
+
+    uint32_t ContractionSolution::smallMagicNumber(uint32_t x) const
+    {
+        uint64_t magicNum;
+        const int smallMagicShift=31;
+        magicNum = (1L<<smallMagicShift) / x + 1;
+        assert(magicNum >> 32 == 0);  // ensure magic number fits
+        return static_cast<uint32_t>(magicNum);
     }
 
     template <typename TypedInputs>
@@ -69,6 +86,9 @@ namespace Tensile
                                                              Hardware                     const& hardware) const
     {
         TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
+
+        bool packIndicesA = (problem.freeIndicesA().size() > 1) || sizeMapping.packBatchDims & 0x1;
+        bool packIndicesB = (problem.freeIndicesB().size() > 1) || sizeMapping.packBatchDims & 0x2;
 
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
@@ -99,12 +119,19 @@ namespace Tensile
             rv.numWorkGroups.y *= problem.freeSizeB(i);
         }
 
-        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
-
         rv.numWorkGroups.z = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
-            rv.numWorkGroups.z *= problem.batchSize(i);
+        {
+            if (packIndicesA)
+                rv.numWorkGroups.x *= problem.batchSize(i);
+            if (packIndicesB)
+                rv.numWorkGroups.y *= problem.batchSize(i);
+            if (!packIndicesA && !packIndicesB)
+                rv.numWorkGroups.z *= problem.batchSize(i);
+        }
+
+        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
@@ -170,18 +197,90 @@ namespace Tensile
         for(size_t i = 1; i < b.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
 
-        int idx=0;
-        for(auto size: problem.problemSizes())
         {
-            rv.args.append<uint32_t>(concatenate("size_",idx), size);
-            idx++;
+            int idx=0;
+            for(auto size: problem.problemSizes())
+            {
+                rv.args.append<uint32_t>(concatenate("size_",idx), size);
+                idx++;
+            }
+        }
+
+        if (packIndicesA)
+        {
+            std::vector<size_t> packedIndices;
+
+            // TODO -move packedIndices calc to problem decode.
+            for (auto idx=0; idx<problem.a().dimensions(); idx++)
+            {
+                bool isSum = problem.boundIndices().end() !=
+                              std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                                [idx](const ContractionProblem::BoundIndex &bi)
+                                {return bi.a == idx;});
+
+                bool nonPackableBatch = false;
+                // TODO - base this check on if the batch is SetConstStrideA=0 - if so, don't pack
+                if (sizeMapping.packBatchDims & 0x2)
+                {
+                    nonPackableBatch = problem.batchIndices().end() !=
+                                 std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
+                                    [idx](const ContractionProblem::BatchIndex &bi)
+                                    {return bi.a == idx;});
+                }
+
+                if (!isSum && !nonPackableBatch)
+                    packedIndices.push_back(idx);
+            }
+            // Pack in all non-summation indices, except don't need magic number for the last one
+            for (auto pi=packedIndices.begin(); pi!=packedIndices.end()-1; pi++)
+            {
+                auto idx = *pi;
+                auto size = a.sizes()[idx];
+                uint32_t magicShift;
+                rv.args.append<uint32_t>(concatenate("magicNumberSizeA_",idx), magicNumber(size, &magicShift));
+                rv.args.append<uint32_t>(concatenate("magicShiftSizeA_",idx), magicShift);
+            }
+        }
+        if (packIndicesB)
+        {
+            std::vector<size_t> packedIndices;
+            // Pack in all non-summation indices, except don't need magic number for the last one
+            for (auto idx=0; idx<problem.b().dimensions(); idx++)
+            {
+                bool isSum = problem.boundIndices().end() !=
+                             std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                                [idx](const ContractionProblem::BoundIndex &bi)
+                                {return bi.b == idx;});
+
+                bool nonPackableBatch = false;
+                // TODO - base this check on if the batch is SetConstStrideB=0 - if so, don't pack
+                if (sizeMapping.packBatchDims & 0x1)
+                {
+                    nonPackableBatch = problem.batchIndices().end() !=
+                                 std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
+                                    [idx](const ContractionProblem::BatchIndex &bi)
+                                    {return bi.b == idx;});
+                }
+
+                if (!isSum && !nonPackableBatch)
+                    packedIndices.push_back(idx);
+            }
+            // Pack in all non-summation indices, except don't need magic number for the last one
+            for (auto pi=packedIndices.begin(); pi!=packedIndices.end()-1; pi++)
+            {
+                auto idx = *pi;
+                auto size = b.sizes()[idx];
+                uint32_t magicShift;
+                rv.args.append<uint32_t>(concatenate("magicNumberSizeB_",idx), magicNumber(size, &magicShift));
+                rv.args.append<uint32_t>(concatenate("magicShiftSizeB_",idx), magicShift);
+            }
         }
 
         rv.args.append< int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
-        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", magicNumber(problemNumGroupTiles0));
+        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0", smallMagicNumber(problemNumGroupTiles0));
 
         if(!isSourceKernel())
         {
@@ -197,7 +296,7 @@ namespace Tensile
                 wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
                 if(wgmRemainder1 == 0)
                     wgmRemainder1 = sizeMapping.workGroupMapping;
-                magicNumberWgmRemainder1 = magicNumber(wgmRemainder1);
+                magicNumberWgmRemainder1 = smallMagicNumber(wgmRemainder1);
             }
 
             rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);

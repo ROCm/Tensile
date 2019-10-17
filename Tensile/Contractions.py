@@ -272,6 +272,7 @@ class SizeMapping:
                  'globalSplitU',
                  'staggerStrideShift',
                  'workGroupMapping',
+                 'packBatchDims',
                  'persistentKernel',
                  'sourceKernel',
                  ]
@@ -286,6 +287,7 @@ class SizeMapping:
                    depthU             = d['DepthU'],
                    globalSplitU       = d['GlobalSplitU'],
                    staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
+                   packBatchDims      = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
                    persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
                    sourceKernel       = d['KernelLanguage'] == 'Source',
                    )

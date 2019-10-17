@@ -88,10 +88,10 @@ namespace Tensile
         template <typename Inputs, typename Accumulator = typename Inputs::DType>
         struct ReferenceSolution
         {
-            static void SolveCPU(ContractionProblem const& contraction, Inputs const& inputs);
+            static void SolveCPU(ContractionProblem const& contraction, Inputs const& inputs, size_t validationStride = 1);
         };
 
-        void SolveCPU(ContractionProblem const& contraction, ContractionInputs const& inputs);
+        void SolveCPU(ContractionProblem const& contraction, ContractionInputs const& inputs, size_t validationStride = 1);
     }
 }
 

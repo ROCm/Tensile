@@ -831,7 +831,7 @@ def RunMain():
 
     problemMapper = ProcessFile(inputFileName)
 
-    keys = problemMapper.keys()
+    keys = list(problemMapper.keys())
 
     for key in keys:
         lineDefinitions = problemMapper[key]

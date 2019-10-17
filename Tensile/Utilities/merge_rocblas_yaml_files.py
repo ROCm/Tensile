@@ -284,7 +284,7 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
     # kernel configuration
     kernelIndex = exact[1][0]
     
-    if replicationMapping.has_key(kernelIndex):
+    if kernelIndex in replicationMapping:
       exact[1][0] = replicationMapping[kernelIndex]
     
     filteredExactLogicExact.append(exact)
