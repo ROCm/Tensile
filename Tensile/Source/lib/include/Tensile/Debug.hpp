@@ -39,6 +39,11 @@ namespace Tensile
 
         bool printKernelArguments() const;
 
+        // 3 levels of debugging for the convolution reference debug
+        bool printConvolutionReference1() const;
+        bool printConvolutionReference2() const;
+        bool printConvolutionReference3() const;
+
     private:
         friend LazySingleton<Debug>;
 

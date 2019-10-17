@@ -56,6 +56,21 @@ namespace Tensile
         return value & 0x40;
     }
 
+    bool Debug::printConvolutionReference1() const
+    {
+        return value & 0x100;
+    }
+    bool Debug::printConvolutionReference2() const
+    {
+        return value & 0x200;
+    }
+    bool Debug::printConvolutionReference3() const
+    {
+        return value & 0x400;
+    }
+
+
+
     Debug::Debug()
         : value(DEBUG_SM)
     {

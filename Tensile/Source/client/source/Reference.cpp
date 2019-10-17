@@ -22,6 +22,7 @@
  */
 
 #include "Reference.hpp"
+#include "Tensile/Debug.hpp"
 
 #include <cstddef>
 
@@ -244,7 +245,9 @@ namespace Tensile
         void ReferenceSolution<Inputs, Accumulator>::SolveCPUConvolution(ConvolutionProblem const &convProblem,
                 ContractionProblem const& problem, Inputs const& inputs)
         {
-            const unsigned db = 0x0;
+            const bool db1 = Debug::Instance().printConvolutionReference1();
+            const bool db2 = Debug::Instance().printConvolutionReference2();
+
             // Counts are the loop counters max values:
             size_t batchCount = problem.a().sizes()[convProblem.tensorA().batchPosition()];
             size_t cinCount = problem.a().sizes()[convProblem.tensorA().channelPosition()];
@@ -370,7 +373,7 @@ namespace Tensile
             };
             TensorDescriptor filterTensor(problem.b().dataType(), filterDims.begin(), filterDims.end());
 
-            if (db & 0x1) {
+            if (db1) {
                 std::cout  << "SolveCPUConvolution:\n";
                 std::cout  << "  tensorA=" << convProblem.tensorA().description() << "\n";
                 std::cout  << "  tensorB=" << convProblem.tensorB().weights().description() << "\n";
@@ -443,7 +446,7 @@ namespace Tensile
                         auto bIndex = filterTensor.index(bCoord);
                         auto bVal = Transform<typename Inputs::BType>::Input(inputs.b[bIndex], false);
 
-                        if (db & 0x2) {
+                        if (db2) {
                             std::cout   << "  n,cin,s,cout="
                                         << n << "," << cin << "," << "," << cout << ","
                                         << " s[2,1,0]=" << s[2] << ","<< s[1] << "," << s[0]
@@ -463,7 +466,7 @@ namespace Tensile
                         dCoord.at(convProblem.tensorD().activation().spatialPositions()[i]) = s[i];
 
                     auto dIndex = outputTensor.index(dCoord);
-                    if (db & 0x1) {
+                    if (db1) {
                         std::cout   << "output: [n,s,cout=" << n << "," << "," << cout << "]"
                                     << " s[2,1,0]=" << s[2] << ","<< s[1] << "," << s[0]
                                     << " dIndex=" << dIndex
