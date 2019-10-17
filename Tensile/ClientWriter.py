@@ -407,8 +407,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param('b-type',     newSolution.problemType.bType.toEnum())
         param('c-type',     newSolution.problemType.cType.toEnum())
         param('d-type',     newSolution.problemType.dType.toEnum())
-        param('alpha-type', newSolution.problemType.dType.toEnum())
-        param('beta-type',  newSolution.problemType.dType.toEnum())
+        param('alpha-type', newSolution.problemType.alphaType.toEnum())
+        param('beta-type',  newSolution.problemType.betaType.toEnum())
 
         param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
 
