@@ -63,11 +63,6 @@ class ProblemType:
         batchIndices = []
         boundIndices = []
 
-        try:
-            cls.convolution = d.convolution
-        except AttributeError:
-            cls.convolution = None
-
         for i in d['IndicesSummation']:
             bi = BoundIndex()
             indices[i] = bi
