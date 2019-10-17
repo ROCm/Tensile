@@ -113,6 +113,7 @@ namespace Tensile
                 ("init-d",                   po::value<InitMode>()->default_value(InitMode::Zero), "Initialization for D")
                 ("init-alpha",               po::value<InitMode>()->default_value(InitMode::Two), "Initialization for alpha")
                 ("init-beta",                po::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
+                ("pristine-on-gpu",          po::value<bool>()->default_value(false), "Keep a pristine copy of inputs on GPU for performance")
                 ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
 
                 ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")

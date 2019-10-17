@@ -108,7 +108,7 @@ namespace Tensile
                 }
                 else
                 {
-                    m_cpuInputs = allocNewCPUInputs(m_cpuInputsPristine);
+                    m_cpuInputs = allocNewCPUInputs();
                     copyInputs(m_cpuInputs, m_cpuInputsPristine);
                 }
 
@@ -159,12 +159,10 @@ namespace Tensile
             {
                 auto rv = allocNewGPUInputs();
                 std::shared_ptr<ManagedInputs> source;
-                if(m_cpuInputsPristine)
-                    source = m_cpuInputsPristine;
-                else
-                    source = prepareCPUInputsTyped();
+                if(!m_cpuInputsPristine)
+                    m_cpuInputsPristine = createNewCPUInputs();
 
-                copyInputs(rv, source);
+                copyInputs(rv, m_cpuInputsPristine);
 
                 return rv;
             }
@@ -333,9 +331,12 @@ namespace Tensile
                 if(!m_cEqualsD && dst->managedD != src->managedD)
                     HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
 
+                //HIP_CHECK_EXC(hipDeviceSynchronize());
+
                 dst->alpha = src->alpha;
                 dst->beta = src->beta;
             }
+
             void copyD(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
                 hipMemcpyKind kind = copyKind(dst, src);

@@ -46,6 +46,15 @@ namespace Tensile
             ClientProblemFactory(po::variables_map const& args);
             ~ClientProblemFactory();
 
+            ClientProblemFactory(ContractionProblem const& problem)
+                : m_problems({problem})
+            {}
+
+            template <typename Iterator>
+            ClientProblemFactory(Iterator begin, Iterator end)
+                : m_problems(begin, end)
+            {}
+
             std::vector<ContractionProblem> const& problems() const;
 
 

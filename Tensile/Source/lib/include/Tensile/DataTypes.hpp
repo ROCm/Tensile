@@ -54,12 +54,6 @@ namespace Tensile
         Count
     };
 
-    template <typename T>
-    DataType GetDataType();
-
-    template <>
-    inline DataType GetDataType<float>() { return DataType::Float; }
-
     std::string ToString(DataType d);
     std::string TypeAbbrev(DataType d);
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
@@ -116,6 +110,20 @@ namespace Tensile
         static inline std::string Name()   { return ToString(Enum); }
         static inline std::string Abbrev() { return TypeAbbrev(Enum); }
     };
+
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    constexpr DataType BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::Enum;
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    constexpr size_t BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::ElementSize;
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    constexpr size_t BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::Packing;
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    constexpr size_t BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::SegmentSize;
+
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    constexpr bool BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::IsComplex;
+    template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
+    constexpr bool BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::IsIntegral;
 
     template<> struct TypeInfo<float >: public BaseTypeInfo<float,  DataType::Float,  1, false, false> {};
     template<> struct TypeInfo<double>: public BaseTypeInfo<double, DataType::Double, 1, false, false> {};
