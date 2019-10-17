@@ -60,21 +60,18 @@ namespace Tensile
             size_t batchPosition() const { return m_batchPosition; };
             size_t channelPosition() const   { return m_channelPosition; };
 
-            // fi is filter index 0...MaxNumSpatialDims.
-            // Returns position of specified filter in current Tensor or InvalidPos if filter is 1 and thus
-            // no tensor dim required.
             const std::vector<size_t> filterPositions() const  { return m_filterPositions; };
             const std::vector<size_t> spatialPositions() const { return m_spatialPositions; };
          private:
             size_t m_batchPosition;
             size_t m_channelPosition;
 
-            // 0,1,2 order is X,Y,Z
-            // always MaxNumSpatialDims elements.  Positions may be InvalidPos
+            //! 0,1,2 order is X,Y,Z
+            //! always MaxNumSpatialDims elements.  Positions may be InvalidPos
             std::vector<size_t> m_filterPositions;
 
-            // 0,1,2 order is X,Y,Z
-            // size is number of spatial dims, no extra InvalidPos values
+            //! 0,1,2 order is X,Y,Z
+            //! size is number of spatial dims, no extra InvalidPos values
             std::vector<size_t> m_spatialPositions;
         };
 
@@ -91,12 +88,12 @@ namespace Tensile
         private:
             size_t m_cinPosition;
             size_t m_coutPosition;
-            // 0,1,2 order is X,Y,Z
-            // always MaxNumSpatialDims elements.  Positions may be InvalidPos
+            //! 0,1,2 order is X,Y,Z
+            //! always MaxNumSpatialDims elements.  Positions may be InvalidPos
             std::vector<size_t> m_filterPositions;
         };
 
-        // Use for tensorB and output which can take either format
+        //! Use for tensorB and output which can take either format
         struct ComboFormat {
             const ActivationFormat &activation() const { return m_activation; };
             const WeightFormat &weights() const { return m_weights; };
@@ -105,8 +102,6 @@ namespace Tensile
          private:
             ActivationFormat m_activation;
             WeightFormat     m_weights;
-            //ComboFormat() {};
-            //~ComboFormat() {};
         };
 
         ConvolutionProblem() {}
@@ -122,18 +117,19 @@ namespace Tensile
         const ComboFormat &tensorB() const { return m_tensorB; };
         const ComboFormat &tensorD() const { return m_tensorD; };
 
-        // Number of spatial dims after packing.
+        //! Number of spatial dims after packing.
         size_t numSpatialDims() const { return m_numSpatialDims;}
-        // number of filter summation dimensions.  (filter=1 does not require dedicated sum dim)
+        //! number of filter summation dimensions.  (filter=1 does not require dedicated sum dim)
         size_t numFilterDims() const { return m_numFilterDims;}
 
         std::string description() const;
         std::string const& operationIdentifier()   const { return m_operationIdentifier; }
 
     private:
-        std::string m_operationIdentifier; // ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
+        //! ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
+        std::string m_operationIdentifier;
 
-        // 0,1,2 order is W,H,D(act) or X,Y,Z(weights)
+        //! 0,1,2 order is W,H,D(act) or X,Y,Z(weights)
         std::vector<size_t> m_filters;
         std::vector<size_t> m_strides;
         std::vector<size_t> m_dilations;
