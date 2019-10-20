@@ -170,7 +170,7 @@ else:
 
 globalParameters["CodeObjectVersion"] = "V2"
 globalParameters["CxxCompiler"] = "hcc"
-globalParameters["Architecture"] = "vega20"
+globalParameters["Architecture"] = "_"
 
 # might be deprecated
 globalParameters["EnableHalf"] = False

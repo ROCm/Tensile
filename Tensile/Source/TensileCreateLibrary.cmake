@@ -26,10 +26,10 @@ include(CMakeParseArguments)
 ################################################################################
 function(TensileCreateLibraryCmake
     Tensile_LOGIC_PATH
-    Tensile_ARCHITECTURE
     Tensile_RUNTIME_LANGUAGE
     Tensile_COMPILER
     Tensile_CODE_OBJECT_VERSION
+    Tensile_ARCHITECTURE
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
@@ -63,13 +63,13 @@ function(TensileCreateLibraryCmake
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
 
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--architecture=${Tensile_ARCHITECTURE}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--cxx-compiler=${Tensile_COMPILER}")
 
   # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
     ${Tensile_LOGIC_PATH}
-    ${Tensile_ARCHITECTURE}
     ${Tensile_SOURCE_PATH}
     ${Tensile_RUNTIME_LANGUAGE}
     )
