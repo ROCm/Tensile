@@ -117,6 +117,11 @@ function(TensileCreateLibraryCmake
     target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx900 )
   elseif( Tensile_HIP_ISA MATCHES "vega20" )
     target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx906 )
+  else()
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx803 )
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx900 )
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx906 )
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx908 )
   endif()
   if( Tensile_MERGE_FILES )
     target_include_directories(Tensile
