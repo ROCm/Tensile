@@ -79,7 +79,8 @@ def main( config ):
   logicFiles = [os.path.join(libraryLogicPath, f) for f \
       in os.listdir(libraryLogicPath) \
       if (os.path.isfile(os.path.join(libraryLogicPath, f)) \
-      and os.path.splitext(f)[1]==".yaml")]
+      and os.path.splitext(f)[1]==".yaml") \
+      and globalParameters["Architecture"] in os.path.splitext(f)[0]] 
   print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
@@ -170,6 +171,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
       runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
       runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
+      runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
       runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
           % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
       runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \

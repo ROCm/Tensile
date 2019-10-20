@@ -26,6 +26,7 @@ include(CMakeParseArguments)
 ################################################################################
 function(TensileCreateLibraryCmake
     Tensile_LOGIC_PATH
+    Tensile_ARCHITECTURE
     Tensile_RUNTIME_LANGUAGE
     Tensile_COMPILER
     Tensile_CODE_OBJECT_VERSION
@@ -35,6 +36,7 @@ function(TensileCreateLibraryCmake
 
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
+  message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
 
   set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
@@ -67,6 +69,7 @@ function(TensileCreateLibraryCmake
   # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
     ${Tensile_LOGIC_PATH}
+    ${Tensile_ARCHITECTURE}
     ${Tensile_SOURCE_PATH}
     ${Tensile_RUNTIME_LANGUAGE}
     )
@@ -105,10 +108,16 @@ function(TensileCreateLibraryCmake
   set(options)
   add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
   # specify gpu targets
-  set(Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
-  foreach( target ${Tensile_HIP_ISA} )
-    target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
-  endforeach()
+  set(Tensile_HIP_ISA ${Tensile_ARCHITECTURE})
+  if( Tensile_HIP_ISA MATCHES "arcturus" )  
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx908 )
+  elseif( Tensile_HIP_ISA MATCHES "fiji" )
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx803 )
+  elseif( Tensile_HIP_ISA MATCHES "vega10" ) 
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx900 )
+  elseif( Tensile_HIP_ISA MATCHES "vega20" )
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=gfx906 )
+  endif()
   if( Tensile_MERGE_FILES )
     target_include_directories(Tensile
       PUBLIC $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}> )

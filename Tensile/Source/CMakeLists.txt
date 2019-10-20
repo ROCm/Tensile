@@ -178,6 +178,7 @@ else()
       include(${CMAKE_SOURCE_DIR}/TensileCreateLibrary.cmake)
       TensileCreateLibraryCmake(
         ${Tensile_LOGIC_PATH}           # path
+	${Tensile_ARCHITECTURE}         # arcturus, fiji, vega10, or vega20
         ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
         ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
