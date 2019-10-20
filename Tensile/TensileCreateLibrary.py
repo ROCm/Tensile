@@ -992,7 +992,8 @@ def TensileCreateLibrary():
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
       if (os.path.isfile(os.path.join(logicPath, f)) \
       and os.path.splitext(f)[1]==".yaml") \
-      and arguments["Architecture"] in os.path.splitext(f)[0]]
+      and arguments["Architecture"] in os.path.splitext(f)[0] \
+      or "hip" in os.path.splitext(f)[0]]
 
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:

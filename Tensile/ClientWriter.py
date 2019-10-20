@@ -80,7 +80,8 @@ def main( config ):
       in os.listdir(libraryLogicPath) \
       if (os.path.isfile(os.path.join(libraryLogicPath, f)) \
       and os.path.splitext(f)[1]==".yaml") \
-      and globalParameters["Architecture"] in os.path.splitext(f)[0]] 
+      and globalParameters["Architecture"] in os.path.splitext(f)[0] \
+      or "hip" in os.path.splitext(f)[0]]
   print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
