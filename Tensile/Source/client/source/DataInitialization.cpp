@@ -180,6 +180,7 @@ namespace Tensile
               m_cMaxElements(0),
               m_dMaxElements(0),
               m_cEqualsD(args["c-equal-d"].as<bool>()),
+              m_convolutionVsContraction(args["convolution-vs-contraction"].as<bool>()),
               m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
         {
             for(auto const& problem: problemFactory.problems())

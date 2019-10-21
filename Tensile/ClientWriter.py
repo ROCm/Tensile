@@ -204,7 +204,6 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
       runScriptFile.write("set +e\n")
 
-      runScriptFile.write("./client")
 
     if globalParameters["DataInitTypeA"] == -1 :
         globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
@@ -212,6 +211,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
         globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
 
     if globalParameters["NewClient"] < 2:
+      runScriptFile.write("./client")
       clp = ""
       clp += " --platform-idx %u" % globalParameters["Platform"]
       clp += " --device-idx %u" % globalParameters["Device"]
@@ -402,6 +402,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
 
         newSolution = next(iter(newLibrary.solutions.values()))
+        if newSolution.problemType.convolution:
+            param('convolution-identifier', newSolution.problemType.convolution.identifier())
         param('problem-identifier', newSolution.problemType.operationIdentifier)
         param('a-type',     newSolution.problemType.aType.toEnum())
         param('b-type',     newSolution.problemType.bType.toEnum())
@@ -424,6 +426,15 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
         param("c-equal-d",                globalParameters["CEqualD"])
 
+        if globalParameters["PrintTensorA"]:
+          param("print-tensor-a",         1);
+        if globalParameters["PrintTensorB"]:
+          param("print-tensor-b",         1);
+        if globalParameters["PrintTensorC"]:
+          param("print-tensor-c",         1);
+        if globalParameters["PrintTensorD"]:
+          param("print-tensor-d",         1);
+
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
         param("num-benchmarks",           globalParameters["NumBenchmarks"])
@@ -431,6 +442,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
         if not globalParameters["KernelTime"]:
             param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])

@@ -32,6 +32,7 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
+#include <Tensile/ConvolutionProblem.hpp>
 
 #include "DataInitialization.hpp"
 
@@ -83,10 +84,10 @@ namespace Tensile
                                             TimingEvents const&  stopEvents) override {}
 
             template <typename TypedInputs>
-            void validateTyped(TypedInputs const& reference, TypedInputs const& result);
+            bool validateTyped(TypedInputs const& reference, TypedInputs const& result);
 
             template <typename TypedInputs>
-            void checkResultsTyped(TypedInputs const& reference, TypedInputs const& result);
+            bool checkResultsTyped(TypedInputs const& reference, TypedInputs const& result);
 
             template <typename TypedInputs>
             void printTensorsTyped(TypedInputs const& reference, TypedInputs const& result);
@@ -98,6 +99,8 @@ namespace Tensile
         private:
             std::shared_ptr<DataInitialization> m_dataInit;
             std::shared_ptr<ContractionInputs> m_referenceInputs;
+
+            ConvolutionProblem m_convolutionProblem;
 
             std::vector<uint8_t> m_cpuResultBuffer;
 
@@ -115,11 +118,17 @@ namespace Tensile
             bool m_printTensorC;
             bool m_printTensorD;
 
+            bool m_convolutionVsContraction;
+
             int m_numBenchmarkRuns = 0;
 
             bool m_validatedSolution = false;
             bool m_errorInSolution = false;
             bool m_error = false;
+            bool m_errorInConvolutionVsContraction = false;
+            size_t  m_errorsReported = 0;
+
+            bool validateSolution(std::shared_ptr<ContractionInputs> inputs);
         };
     }
 }
