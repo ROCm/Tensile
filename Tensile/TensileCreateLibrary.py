@@ -952,7 +952,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hcc")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V2")
-  argParser.add_argument("--architecture",	     dest="Architecture",      choices=["arcturus", "fiji", "vega10", "vega20", "_"], action="store", default="_")
+  argParser.add_argument("--architecture",	     dest="Architecture",      choices=["all", "arcturus", "fiji", "hip", "vega10", "vega20"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -985,9 +985,18 @@ def TensileCreateLibrary():
 
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
   print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
+  print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])  
 
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
+
+  # change architecture values to handle special cases where there is a mismatch  
+  if arguments["Architecture"] == "all":
+    arguments["Architecture"] = "_"
+  elif arguments["Architecture"] == "hip":
+    arguments["Architecture"] = "none"
+  elif arguments["Architecture"] == "fiji":
+    arguments["Architecture"] = "r9nano"
 
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
       if (os.path.isfile(os.path.join(logicPath, f)) \

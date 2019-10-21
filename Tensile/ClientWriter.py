@@ -73,6 +73,13 @@ def main( config ):
         os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
         globalParameters["WorkingPath"] )
 
+  if globalParameters["Architecture"] == "all":
+    globalParameters["Architecture"] = "_"
+  elif globalParameters["Architecture"] == "hip":
+    globalParameters["Architecture"] = "none"
+  elif globalParameters["Architecture"] == "fiji":
+    globalParameters["Architecture"] = "r9nano"
+
   ##############################################################################
   # Read Logic Files
   ##############################################################################
