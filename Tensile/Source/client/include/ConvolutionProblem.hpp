@@ -61,17 +61,18 @@ namespace Tensile
             size_t channelPosition() const   { return m_channelPosition; };
 
             const std::vector<size_t> filterPositions() const  { return m_filterPositions; };
+
+            // 0,1,2 order is X,Y,Z
+            // size is number of spatial dims, no extra InvalidPos values
             const std::vector<size_t> spatialPositions() const { return m_spatialPositions; };
          private:
             size_t m_batchPosition;
             size_t m_channelPosition;
 
-            //! 0,1,2 order is X,Y,Z
-            //! always MaxNumSpatialDims elements.  Positions may be InvalidPos
-            std::vector<size_t> m_filterPositions;
 
             //! 0,1,2 order is X,Y,Z
             //! size is number of spatial dims, no extra InvalidPos values
+            std::vector<size_t> m_filterPositions;
             std::vector<size_t> m_spatialPositions;
         };
 

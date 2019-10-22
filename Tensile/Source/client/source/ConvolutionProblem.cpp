@@ -48,7 +48,7 @@ namespace Tensile
 
             size_t position = 0;
             if (filters)
-                for (int fi=filters->size()-1; fi>=0; fi--)
+                for (int fi=0; fi<filters->size(); fi++)
                 {
                     if ((*filters)[fi] != 1)
                         m_filterPositions[fi] = position++;
@@ -70,7 +70,7 @@ namespace Tensile
 
             size_t position = m_channelPosition+1;
             if (filters)
-                for (int fi=filters->size()-1; fi>=0; fi--)
+                for (int fi=0; fi<filters->size(); fi++)
                 {
                     if ((*filters)[fi] != 1)
                         m_filterPositions[fi] = position++;
@@ -91,7 +91,7 @@ namespace Tensile
 
             size_t position = 0;
             if (filters)
-                for (int fi=filters->size()-1; fi>=0; fi--)
+                for (int fi=0; fi<filters->size(); fi++)
                 {
                     if ((*filters)[fi] != 1)
                         m_filterPositions[fi] = position++;
@@ -158,7 +158,7 @@ namespace Tensile
             size_t position = 0;
             if (filters)
                 // Weight dims are assigned in reverse order for optimal Tensile summation processing
-                for (int fi=filters->size()-1; fi>=0; fi--)
+                for (int fi=0; fi<filters->size(); fi++)
                 {
                     if ((*filters)[fi] != 1)
                         m_filterPositions[fi] = position++;
@@ -173,7 +173,7 @@ namespace Tensile
             assert(formatNumSpatialDims == 2);
             size_t filterPosition = 0; // TODO -> change to position
             if (filters)
-                for (int fi=filters->size()-1; fi>=0; fi--)
+                for (int fi=0; fi<filters->size(); fi++)
                 {
                     if ((*filters)[fi] != 1)
                         m_filterPositions[fi] = filterPosition++;
@@ -229,6 +229,9 @@ namespace Tensile
 
           if (flags[0] == "spatialDims")
             m_numSpatialDims = boost::lexical_cast<size_t>(flags[1]);
+          else if (flags[0] == "indices")
+          {
+          }
           else if (flags[0] == "spatial")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
@@ -336,8 +339,8 @@ namespace Tensile
 
             if (m_operationIdentifier == "ConvolutionForward")
             {
-                std::cout << "  tensorA:" << tensorA().description() << "\n";
-                std::cout << "  tensorB:" << tensorB().weights().description() << "\n";
+                std::cout << "  convProblem.tensorA        :" << tensorA().description() << "\n";
+                std::cout << "  convProblem.tensorB.weights:" << tensorB().weights().description() << "\n";
             }
             else
             {
