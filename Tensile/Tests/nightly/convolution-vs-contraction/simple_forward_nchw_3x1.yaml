@@ -1,0 +1,69 @@
+# benchmark assembly and source kernels
+GlobalParameters:
+  MinimumRequiredVersion: 4.2.0
+  CMakeBuildType: Debug
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  NumElementsToValidate: -1
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  DataInitTypeC: 2
+  DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
+  KernelTime: True
+  LibraryPrintDebug: 1
+  #RuntimeLanguage: ["OCL"]
+  #PrintTensorC : 2
+  PrintSolutionRejectionReason: 1
+  ConvolutionVsContraction: 1
+  PrintConvolutionUsage: 1
+  #PrintTensorA: 1
+  NewClient: 2
+
+BenchmarkProblems:
+
+  - # sgemm NT
+    - # ProblemType
+      OperationType: ConvolutionForward
+      ConvolutionConfig:
+        - Filter: 3x1
+      DataType: s
+      DestDataType: s
+      Batched: 0
+      UseBeta: False
+
+    - # BenchmarkProblemSizeGroup
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        #- KernelLanguage: ["Assembly"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ThreadTile:
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [  8, 8,  1 ]
+        - DepthU: [4]
+        - GlobalReadVectorWidth: [1]
+        - VectorWidth: [-1]
+        - WorkGroupMapping: [0]
+
+        #- PackBatchDims: [1]
+        #- PackGranularity: [2]
+        #- AssertFree0ElementMultiple: [4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 6, 2, 1, 2, 3] # HW, Cout, Batch, Cin, FilterY
+

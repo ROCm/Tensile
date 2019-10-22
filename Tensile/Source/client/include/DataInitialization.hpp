@@ -69,6 +69,7 @@ namespace Tensile
             ~DataInitialization();
 
             virtual std::shared_ptr<ContractionInputs> prepareCPUInputs() = 0;
+            virtual std::shared_ptr<ContractionInputs> cpuConvInputs() const = 0;
             virtual std::shared_ptr<ContractionInputs> prepareGPUInputs() = 0;
 
             template <typename T>
@@ -121,6 +122,8 @@ namespace Tensile
             size_t m_dMaxElements;
 
             bool m_cEqualsD;
+            bool m_convolutionVsContraction;
+
 
             /// If true, we will allocate an extra copy of the inputs on the GPU.
             /// This will improve performance as we don't have to copy from the CPU

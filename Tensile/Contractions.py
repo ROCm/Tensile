@@ -355,6 +355,8 @@ class Solution:
             d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
+        # hacky, can just construct Convolution yet again?
+        rv.problemType.convolution = rv.originalSolution["ProblemType"].convolution
 
         return rv
 
