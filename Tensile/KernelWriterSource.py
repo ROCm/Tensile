@@ -1802,8 +1802,8 @@ class KernelWriterSource(KernelWriter):
       if zpA:
         freeDim = zpA[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Trailing + 1);" \
-            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Leading + zeroPadA%s_Trailing + 1);" \
+            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
             + self.endLine
       if zpB:
         freeDim = zpB[0]
