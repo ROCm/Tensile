@@ -70,7 +70,7 @@ function(TensileCreateLibraryFiles
 
   # Tensile_ROOT can be specified instead of using the installed path.
   set(options NO_MERGE_FILES SHORT_FILE_NAMES)
-  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX)
+  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX Tensile_CODE_OBJECT_VERSION Tensile_COMPILER Tensile_ARCHITECTURE)
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -101,6 +101,24 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--embed-library-key=${Tensile_EMBED_KEY}")
   endif()
 
+  if(Tensile_CODE_OBJECT_VERSION STREQUAL "")
+    set(Options ${Options} "--code-object-version=V2")
+  else()
+    set(Options ${Options} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
+  endif()
+  
+  if(Tensile_COMPILER STREQUAL "")
+    set(Options ${Options} "--cxx-compiler=hcc")
+  else()
+    set(Options ${Options} "--cxx-compiler=${Tensile_COMPILER}")
+  endif()
+  
+  if(Tensile_ARCHITECTURE STREQUAL "")
+    set(Options ${Options} "--architecture=all")
+  else()
+    set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
+  endif()
+  
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
