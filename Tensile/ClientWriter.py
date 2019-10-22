@@ -28,6 +28,8 @@ from subprocess import Popen
 from shutil import copy as shutil_copy
 from shutil import rmtree
 
+from .Contractions import FreeIndex
+
 
 ################################################################################
 # Main
@@ -352,11 +354,21 @@ def problemSizeParams(solution, problemSize):
 
     astrides = [-1] * solution.problemType.aDims
     for setc in solution.problemType.setConstStrideA:
-        astrides[solution.problemType.indices[setc[0]].a] = setc[1]
+        index = solution.problemType.indices[setc[0]]
+        if type(index) == FreeIndex:
+            assert(index.isA)
+            astrides[index.i] = setc[1]
+        else:
+            astrides[index.a] = setc[1]
 
     bstrides = [-1] * solution.problemType.bDims
     for setc in solution.problemType.setConstStrideB:
-        bstrides[solution.problemType.indices[setc[0]].b] = setc[1]
+        index = solution.problemType.indices[setc[0]]
+        if type(index) == FreeIndex:
+            assert(not index.isA)
+            bstrides[index.i] = setc[1]
+        else:
+            bstrides[index.b] = setc[1]
 
     rv = [problemSizeArg]
     if len(problemSize) == numIndices:

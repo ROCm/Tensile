@@ -599,6 +599,8 @@ class ProblemType:
         (freeDim, sumDim, leading, trailing) = zp
         if freeDim not in self.state["IndicesFree"]:
           printExit("ZeroPad%s=%s dim=%u is not a free index"%(tc, zp, freeDim))
+        if freeDim not in self.state["IndexAssignments%s"%tc]:
+          printExit("ZeroPad%s=%s dim=%u is not in IndexAssignments%s"%(tc, zp, freeDim, tc))
         if sumDim not in self.state["IndicesSummation"]:
           printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
         if freeDim in freeDims:
@@ -607,6 +609,12 @@ class ProblemType:
         if sumDim in sumDims:
           printExit("ZeroPad%s=%s sumDim=%u occurs in more than one tuple"%(tc, zp, sumDim))
         sumDims[sumDim] = 1
+
+    for tc in ('A', 'B'):
+      for setc in self["SetConstStride%s"%tc] :
+          (anchorDim, stride) = setc[:2]
+          if anchorDim not in self.state["IndexAssignments%s"%tc]:
+              printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, setc, anchorDim, tc))
 
 
 
