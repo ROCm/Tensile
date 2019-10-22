@@ -119,6 +119,10 @@ class Convolution:
     assert len(self.tensorAFormat) == len(self.tensorBFormat) == len(self.tensorDFormat)
 
     # index 0,1,2 = W,H,D = X,Y,Z
+    if config.get("Spatial",None):
+      self.spatial  = self.dimxParm(config, "Spatial",-1)
+    else:
+      self.spatial = None
     self.filter   = self.dimxParm(config, "Filter",1)
     self.stride   = self.dimxParm(config, "Stride",1)
     self.dilation = self.dimxParm(config, "Dilation",1)
@@ -320,9 +324,9 @@ class Convolution:
     sizes[self.convolutionDims['K'][0]]=k
 
     if spatialIn==None:
-      try:
+      if self.spatial != None:
         spatialIn = self.spatial
-      except AttributeError:
+      else:
         raise RuntimeError ("problemSize must specify spatial parms or set ConvolutionConfig.spatial")
 
     if len(spatialIn) != self.formatNumSpatialDims:
@@ -451,7 +455,9 @@ class Convolution:
     id += "_" + self.tensorAFormat
     id += "_" + self.tensorBFormat
     id += "_" + self.tensorDFormat
-    id += "_spatial:" + str(self.numSpatialDims)
+    id += "_spatialDims:" + str(self.numSpatialDims)
+    if self.spatial:
+      id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
     id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
     id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
     id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])

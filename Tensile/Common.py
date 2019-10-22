@@ -814,6 +814,7 @@ validConvolutionConfig= [
     # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
     "PackedSpatialDims",
 
+    # Input spatial dimensions (D,H,W)
     # Optional parameter for debug and testing.  This does not impact kernel generation.
     # If set,then each problem dimension size/stride will be checked to ensure they are
     # correctly specified. (TBD)

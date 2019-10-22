@@ -220,14 +220,23 @@ namespace Tensile
           boost::split(flags, *part, boost::algorithm::is_any_of(":"));
           assert(flags.size() == 2); // must be key:value pair
 
+          m_spatials.resize(MaxNumSpatialDims, -1);
           m_filters.resize(MaxNumSpatialDims, 1);
           m_strides.resize(MaxNumSpatialDims, 1);
           m_dilations.resize(MaxNumSpatialDims, 1);
           m_padStart.resize(MaxNumSpatialDims, 0);
           m_padEnd.resize(MaxNumSpatialDims, 0);
 
-          if (flags[0] == "spatial")
+          if (flags[0] == "spatialDims")
             m_numSpatialDims = boost::lexical_cast<size_t>(flags[1]);
+          else if (flags[0] == "spatial")
+          {
+            boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
+            int i = formatNumSpatialDims;
+            for (auto x : xvals) {
+              m_spatials.at(--i) = boost::lexical_cast<size_t>(x);
+            }
+          }
           else if (flags[0] == "filter")
           {
             boost::split(xvals, flags[1], boost::algorithm::is_any_of("x"));
