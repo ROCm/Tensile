@@ -381,12 +381,16 @@ def problemSizeParams(solution, problemSize):
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
             ', '.join(map(str, problemSize))))
 
-
     if solution.problemType.convolution:
         (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, problemSize, astrides)
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
+
+    if len(solution.problemType.zeroPadA):
+        rv.append(('a-zero-pads', '; '.join([','.join(map(str,zp)) for zp in solution.problemType.zeroPadA])))
+    if len(solution.problemType.zeroPadB):
+        rv.append(('b-zero-pads', '; '.join([','.join(map(str,zp)) for zp in solution.problemType.zeroPadB])))
 
     return rv
 

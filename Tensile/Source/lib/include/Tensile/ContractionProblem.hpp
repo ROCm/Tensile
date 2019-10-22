@@ -73,6 +73,17 @@ namespace Tensile
         };
         using BoundIndices = std::vector<BoundIndex>;
 
+        struct ZeroPad
+        {
+          size_t anchorIndex;
+          size_t boundIndex;
+          int    leadingPad;
+          int    trailingPad;
+
+          std::string description() const;
+        };
+        using ZeroPads = std::vector<ZeroPad>;
+
         virtual std::string description() const;
 
         static ContractionProblem GEMM_Strides(bool transA, bool transB,
@@ -165,6 +176,11 @@ namespace Tensile
         BatchIndices const& batchIndices() const { return m_batchIndices; }
         BoundIndices const& boundIndices() const { return m_boundIndices; }
 
+        ZeroPads const& aZeroPad() const { return m_aZeroPads;}
+        ZeroPads      & aZeroPad()       { return m_aZeroPads;}
+        ZeroPads const& bZeroPad() const { return m_bZeroPads;}
+        ZeroPads      & bZeroPad()       { return m_bZeroPads;}
+
         double beta() const { return m_beta; }
 
         std::string const& aNames()   const { return m_aNames; }
@@ -206,6 +222,9 @@ namespace Tensile
         FreeIndices  m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
+
+        ZeroPads     m_aZeroPads;
+        ZeroPads     m_bZeroPads;
 
         std::vector<size_t> m_freeSizesA;
         std::vector<size_t> m_freeSizesB;

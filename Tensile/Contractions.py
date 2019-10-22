@@ -131,10 +131,18 @@ class ProblemType:
         if 'UseInitialStrides' in d:
             rv.useInitialStrides = d['UseInitialStrides']
 
+        rv.setConstStrideA = []
         if 'SetConstStrideA' in d:
             rv.setConstStrideA = d['SetConstStrideA']
+        rv.setConstStrideB = []
         if 'SetConstStrideB' in d:
             rv.setConstStrideB = d['SetConstStrideB']
+        rv.zeroPadA=[]
+        if 'ZeroPadA' in d:
+            rv.zeroPadA = d['ZeroPadA']
+        rv.zeroPadB=[]
+        if 'ZeroPadB' in d:
+            rv.zeroPadB = d['ZeroPadB']
 
         rv.useBeta = True
         if 'UseBeta' in d:

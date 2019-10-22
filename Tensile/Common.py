@@ -871,7 +871,7 @@ defaultProblemType = {
     "SetConstStrideB":          [],
 
     # ZeroPad:
-    # Zero-pad will add leading and trailing "pad" elements to the specified free
+    # Zero-pad will add leading and trailing "pad" elements to the specified 'anchor'
     # dimension when accessed by specified summation dimension.
     #
     # Format is list of tuples of [freeDim, sumDim, padLeading, padTrailing].
@@ -893,7 +893,7 @@ defaultProblemType = {
     # - Strides:
     #   - SummationStride is applied to compute the element address before checking the regions.
     #   - FreeStride is applied to the computation of the Start element, padLeading, and padTrailing.
-    #   -  No memory access is performed for elements in the Pad regions.
+    #   - No memory access is performed for elements in the Pad regions.
     #   - The Pad regions are handled by manipulating the tensor addressing and are not visible in actual memory.
     #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
     #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.

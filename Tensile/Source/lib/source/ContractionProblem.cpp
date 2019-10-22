@@ -30,6 +30,19 @@
 
 namespace Tensile
 {
+    std::string ContractionProblem::ZeroPad::description() const
+    {
+        std::ostringstream rv;
+
+        rv << "anchorIndex: " << anchorIndex
+           << " boundIndex: "  << boundIndex
+           << " leadingPad: "  << leadingPad
+           << " trailingPad: " << trailingPad;
+
+        return rv.str();
+    }
+
+
     ContractionProblem ContractionProblem::GEMM_Strides(bool transA, bool transB,
                                                         DataType aType, DataType bType, DataType cType, DataType dType,
                                                         size_t m, size_t n, size_t k, size_t batchSize,

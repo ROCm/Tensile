@@ -142,21 +142,33 @@ namespace Tensile
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
 
-                ("a-strides",                vector_default_empty<std::string>(), "A strides. Unspecified means no padding, "
+                ("a-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
+                                                                                  "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("b-strides",                vector_default_empty<std::string>(), "B strides. Unspecified means no padding, "
+                ("b-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
+                                                                                  "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("c-strides",                vector_default_empty<std::string>(), "C strides. Unspecified means no padding, "
+                ("c-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
+                                                                                  "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("d-strides",                vector_default_empty<std::string>(), "D strides. Unspecified means no padding, "
+                ("d-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
+                                                                                  "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
+
+                ("a-zero-pads",                vector_default_empty<std::string>(), "Comma-separated tuple(s) of anchor dim,"
+                                                                                  "summation dim, leading pad, trailing pad."
+                                                                                  "Each tuple must be separated with a semi-colon.")
+
+                ("b-zero-pads",                vector_default_empty<std::string>(), "Comma-separated tuple(s) of anchor dim,"
+                                                                                  "summation dim, leading pad, trailing pad."
+                                                                                  "Each tuple must be separated with a semi-colon.")
 
                 ("a-ops",                    vector_default_empty<TensorOp>(), "Operations applied to A.")
                 ("b-ops",                    vector_default_empty<TensorOp>(), "Operations applied to B.")
@@ -165,7 +177,7 @@ namespace Tensile
 
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
-                
+
                 ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
@@ -233,22 +245,20 @@ namespace Tensile
         std::vector<size_t> split_ints(std::string const& value)
         {
             std::vector<std::string> parts;
-            boost::split(parts, value, boost::algorithm::is_any_of(","));
+            boost::split(parts, value, boost::algorithm::is_any_of(",;"));
 
             std::vector<size_t> rv;
             rv.reserve(parts.size());
 
             for(auto const& part: parts)
-                rv.push_back(boost::lexical_cast<size_t>(part));
+                if (part != "")
+                  rv.push_back(boost::lexical_cast<size_t>(part));
 
             return rv;
         }
 
         void parse_arg_ints(po::variables_map & args, std::string const& name)
         {
-            //if(args[name].empty())
-            //    return;
-
             auto inValue = args[name].as<std::vector<std::string>>();
 
             std::vector<std::vector<size_t>> outValue;
@@ -312,6 +322,8 @@ namespace Tensile
             parse_arg_ints(args, "b-strides");
             parse_arg_ints(args, "c-strides");
             parse_arg_ints(args, "d-strides");
+            parse_arg_ints(args, "a-zero-pads");
+            parse_arg_ints(args, "b-zero-pads");
 
             return args;
         }
