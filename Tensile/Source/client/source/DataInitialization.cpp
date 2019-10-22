@@ -180,9 +180,11 @@ namespace Tensile
               m_cMaxElements(0),
               m_dMaxElements(0),
               m_cEqualsD(args["c-equal-d"].as<bool>()),
-              m_convolutionVsContraction(args["convolution-vs-contraction"].as<bool>()),
               m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
         {
+            if (args.count("convolution-vs-contraction"))
+                m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
+
             for(auto const& problem: problemFactory.problems())
             {
                 m_aMaxElements = std::max(m_aMaxElements, problem.a().totalLogicalElements());
