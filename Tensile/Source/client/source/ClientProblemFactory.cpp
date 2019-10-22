@@ -114,8 +114,6 @@ namespace Tensile
 
             }
 
-            std::cout << "TensorProb:\n" << rv.back() << "\n"; // bs-print
-
             return rv;
         }
     }
