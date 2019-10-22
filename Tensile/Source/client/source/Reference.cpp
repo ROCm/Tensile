@@ -248,6 +248,9 @@ namespace Tensile
             const bool db1 = Debug::Instance().printConvolutionReference1();
             const bool db2 = Debug::Instance().printConvolutionReference2();
 
+            if (static_cast<typename Inputs::DType>(inputs.beta) != static_cast<typename Inputs::DType>(0.0))
+              throw std::runtime_error ("convolution requires beta==0");
+
             // Counts are the loop counters max values:
             size_t batchCount = problem.a().sizes()[convProblem.tensorA().batchPosition()];
             size_t cinCount = problem.a().sizes()[convProblem.tensorA().channelPosition()];
@@ -476,7 +479,7 @@ namespace Tensile
                                     << " value=" << value
                                     << "\n";
                     }
-                    inputs.d[dIndex] = static_cast<typename Inputs::DType>(value);
+                    inputs.d[dIndex] = static_cast<typename Inputs::DType>(inputs.alpha) * static_cast<typename Inputs::DType>(value);
                 }
             }
         }

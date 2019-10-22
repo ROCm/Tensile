@@ -16,8 +16,7 @@ def test_nchw_defaults(request,tensile_client):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2,0]])
     assert(z['UseInitialStrides']==False)
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_cnhw_defaults(request,tensile_client):
     z={} # problemType definition
@@ -31,8 +30,7 @@ def test_cnhw_defaults(request,tensile_client):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[1, 0]])
     assert(z['UseInitialStrides']==False)
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nhwc_defaults(request,tensile_client):
     z={} # problemType definition
@@ -46,8 +44,7 @@ def test_nhwc_defaults(request,tensile_client):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
     assert(z['UseInitialStrides']==False)
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_packed_spatial0(request,tensile_client):
     z={} # problemType definition
@@ -62,8 +59,7 @@ def test_nchw_packed_spatial0(request,tensile_client):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==False)
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_tbd_strides(request,tensile_client):
 
@@ -79,8 +75,7 @@ def test_nchw_tbd_strides(request,tensile_client):
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_const_strides(request, tensile_client):
     z={} # problemType definition
@@ -96,8 +91,7 @@ def test_nchw_const_strides(request, tensile_client):
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
 
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_const_use_initial_strides(request,tensile_client):
     z={} # problemType definition
@@ -112,8 +106,7 @@ def test_nchw_const_use_initial_strides(request,tensile_client):
     assert(z['SetConstStrideA']==[[0,3]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_filter(request,tensile_client):
     z={} # problemType definition
@@ -128,8 +121,7 @@ def test_nchw_filter(request,tensile_client):
     assert(z['IndexAssignmentsB']==[5, 4, 3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1], [5,1]])
     assert(z['SetConstStrideB']==[[2,0]])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_dilation(request,tensile_client):
     z={} # problemType definition
@@ -143,8 +135,7 @@ def test_nchw_dilation(request,tensile_client):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_stride_filter(request,tensile_client):
     z={} # problemType definition
@@ -159,8 +150,7 @@ def test_nchw_stride_filter(request,tensile_client):
     assert(z['IndexAssignmentsB']==[6, 5, 4, 2, 3])
     assert(z['SetConstStrideA']==[[6,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_ncdhw_packed_strides3d_defaults(request,tensile_client):
     z={} # problemType definition
@@ -174,8 +164,7 @@ def test_ncdhw_packed_strides3d_defaults(request,tensile_client):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[4, 0]])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_ncdhw_packed_strides_filter3d(request,tensile_client):
     z={} # problemType definition
@@ -192,8 +181,7 @@ def test_ncdhw_packed_strides_filter3d(request,tensile_client):
     assert(z['IndexAssignmentsB']==[8,7,6, 5, 3, 4])
     assert(z['SetConstStrideA']==[[8,1]])
     assert(z['SetConstStrideB']==[[4, 0]])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_ncdhw_packed_strides3d(request,tensile_client):
     z={} # problemType definition
@@ -209,5 +197,4 @@ def test_ncdhw_packed_strides3d(request,tensile_client):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[4, 0]])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)

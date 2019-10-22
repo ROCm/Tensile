@@ -325,7 +325,7 @@ def normalizeConvolution(conv, problemSize, astrides):
     for i in range(len(refSize)):
         if (refSize[i]!=-1 and refSize[i] != problemSize[i]):
             raise RuntimeError (
-                    "probleme'%s'/ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
+                    "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
               (problemSize, refSize, i, problemSize[i], refSize[i], conv.convolutionChar(i)))
 
     if globalParameters["ConvolutionVsContraction"]:

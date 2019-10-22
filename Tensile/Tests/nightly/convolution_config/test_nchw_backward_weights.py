@@ -7,6 +7,7 @@ def test_nchw_backwardweights_defaults(request, tensile_client):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
+                      'Spatial' : '14x14',
                       })
     log.debug(conv.printUsage(z))
     assert(z['NumIndicesC']==2)
@@ -14,8 +15,8 @@ def test_nchw_backwardweights_defaults(request, tensile_client):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[3,1]])
     assert(z['SetConstStrideB']==[])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    #assert(conv.identifier() == "foo")
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_backwardweights_filter3x1(request, tensile_client):
     z={} # problemType definition
@@ -29,8 +30,7 @@ def test_nchw_backwardweights_filter3x1(request, tensile_client):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(z['SetConstStrideA']==[[3,1]])
     #assert(z['SetConstStrideB']==[])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_backwardweights_filter1x3(request, tensile_client):
     z={} # problemType definition
@@ -44,8 +44,7 @@ def test_nchw_backwardweights_filter1x3(request, tensile_client):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(z['SetConstStrideA']==[[3,1]])
     #assert(z['SetConstStrideB']==[])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
 
 def test_nchw_backwardweights_filter3x5(request, tensile_client):
     z={} # problemType definition
@@ -59,5 +58,4 @@ def test_nchw_backwardweights_filter3x5(request, tensile_client):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     #assert(z['SetConstStrideA']==[[3,1]])
     #assert(z['SetConstStrideB']==[])
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)

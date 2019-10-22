@@ -99,6 +99,7 @@ class Convolution:
 
     self.convolutionDims={};
     self.convolutionType = convolutionType
+    self.config = config
 
     for k in config:
       if k not in validConvolutionConfig:
