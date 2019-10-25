@@ -175,7 +175,7 @@ namespace Tensile
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr, bool convolutionVsContraction=false)
+            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr)
             {
                 std::shared_ptr<AType> a;
                 std::shared_ptr<BType> b;
@@ -197,7 +197,7 @@ namespace Tensile
                         throw std::runtime_error("out of host memory allocating b");
                 }
 
-                if(m_cEqualsD || !pristine || convolutionVsContraction)
+                if(m_cEqualsD || !pristine)
                 {
                     c = std::shared_ptr<CType>((CType *)std::malloc(TypeInfo<CType>::ElementSize * m_cMaxElements), std::free);
                     if (c==nullptr)
