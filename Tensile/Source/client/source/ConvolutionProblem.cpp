@@ -228,9 +228,24 @@ namespace Tensile
                 fcount[fi] = problemFilterSize;
             }
         }
-
     }
 
+    std::string ConvolutionProblem::LoopCounts::description() const
+    {
+        std::ostringstream rv;
+        rv  << "batchCount=" << batchCount
+            << " coutCount=" << coutCount
+            << " scalarCount_dhw="
+            << scount[2] << "x"
+            << scount[1] << "x"
+            << scount[0]
+            << " filterCount_zyx="
+            << fcount[2] << "x"
+            << fcount[1] << "x"
+            << fcount[0]
+            << " cinCount=" << cinCount;
+        return rv.str();
+    }
 
     void ConvolutionProblem::FromIdentifier(std::string identifier)
     {
@@ -344,6 +359,122 @@ namespace Tensile
               m_operationIdentifier);
       }
     }
+
+    TensorDescriptor ConvolutionProblem::setupDataActivation(ConvolutionProblem::LoopCounts const& counts,
+                                                         ContractionProblem const& problem) const
+    {
+        // Mimic the expected dimension order in formatA:
+        std::vector<size_t>  activationDims;
+        std::vector<int64_t> activationStri;
+        switch (formatA().format()) {
+            case ConvolutionProblem::TensorFormat::NCHW:
+                for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
+                    if (formatA().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
+                    {
+                        activationDims.push_back(counts.fcount[fi]);
+                        activationStri.push_back(fi==0 ?
+                            dilation().at(fi) :
+                            dilation().at(fi) *
+                              spatials().at(fi-1));
+                    }
+                for (int si=0; si<formatA().spatialPositions().size(); si++)
+                {
+                    activationDims.push_back(counts.scount[si]);
+                    activationStri.push_back(si==0 ?
+                            stride().at(si) :
+                            stride().at(si) * spatials().at(si-1));
+                }
+                activationDims.push_back(problem.a().sizes()[formatA().channelPosition()]);
+                activationStri.push_back(-1);
+                activationDims.push_back(problem.a().sizes()[formatA().batchPosition()]);
+                activationStri.push_back(-1);
+                break;
+            case ConvolutionProblem::TensorFormat::NHWC:
+                assert(0); // need strides
+                activationDims.push_back(problem.a().sizes()[formatA().channelPosition()]);
+                for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
+                    if (formatA().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
+                        activationDims.push_back(counts.fcount[fi]);
+                for (int si=0; si<formatA().spatialPositions().size(); si++)
+                    activationDims.push_back(counts.scount[si]);
+                activationDims.push_back(problem.a().sizes()[formatA().batchPosition()]);
+            case ConvolutionProblem::TensorFormat::CNHW:
+                assert(0); // need strides
+                for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
+                    if (formatA().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
+                        activationDims.push_back(counts.fcount[fi]);
+                for (int si=0; si<formatA().spatialPositions().size(); si++)
+                    activationDims.push_back(counts.scount[si]);
+                activationDims.push_back(problem.a().sizes()[formatA().batchPosition()]);
+                activationDims.push_back(problem.a().sizes()[formatA().channelPosition()]);
+                break;
+            default:
+                throw std::runtime_error ("unknown formatA");
+        };
+        TensorDescriptor rv(problem.a().dataType(),
+                                activationDims.begin(), activationDims.end(),
+                                activationStri.begin(), activationStri.end());
+        return rv;
+    }
+
+
+    TensorDescriptor ConvolutionProblem::setupDataOutput(ConvolutionProblem::LoopCounts const& counts,
+                                                             ContractionProblem const& problem) const
+    {
+        std::vector<size_t> outputDims;
+        switch (formatD().activation().format()) {
+            case ConvolutionProblem::TensorFormat::NCHW:
+                for (int si=0; si<formatA().spatialPositions().size(); si++)
+                    outputDims.push_back(counts.scount[si]);
+                outputDims.push_back(problem.d().sizes()[formatD().activation().channelPosition()]);
+                outputDims.push_back(problem.d().sizes()[formatD().activation().batchPosition()]);
+                break;
+            case ConvolutionProblem::TensorFormat::NHWC:
+                outputDims.push_back(problem.d().sizes()[formatD().activation().channelPosition()]);
+                for (int si=0; si<formatA().spatialPositions().size(); si++)
+                    outputDims.push_back(counts.scount[si]);
+                outputDims.push_back(problem.d().sizes()[formatD().activation().batchPosition()]);
+                break;
+            case ConvolutionProblem::TensorFormat::CNHW:
+                for (int si=0; si<formatA().spatialPositions().size(); si++)
+                    outputDims.push_back(counts.scount[si]);
+                outputDims.push_back(problem.d().sizes()[formatD().activation().batchPosition()]);
+                outputDims.push_back(problem.d().sizes()[formatD().activation().channelPosition()]);
+                break;
+            default:
+                throw std::runtime_error ("unknown formatD");
+        };
+        TensorDescriptor rv(problem.d().dataType(), outputDims.begin(), outputDims.end());
+        return rv;
+    }
+
+
+    TensorDescriptor ConvolutionProblem::setupForwardWeights(ConvolutionProblem::LoopCounts const& counts,
+                                                             ContractionProblem const& problem) const
+    {
+        std::vector<size_t> filterDims;
+        switch (formatB().weights().format()) {
+            case ConvolutionProblem::TensorFormat::KCYX:
+                for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
+                    if (formatB().weights().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
+                        filterDims.push_back(counts.fcount[fi]);
+                filterDims.push_back(problem.b().sizes()[formatB().weights().cinPosition()]);
+                filterDims.push_back(problem.b().sizes()[formatB().weights().coutPosition()]);
+                break;
+            case ConvolutionProblem::TensorFormat::CKYX:
+                for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
+                    if (formatB().weights().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
+                        filterDims.push_back(counts.fcount[fi]);
+                filterDims.push_back(problem.b().sizes()[formatB().weights().coutPosition()]);
+                filterDims.push_back(problem.b().sizes()[formatB().weights().cinPosition()]);
+                break;
+            default:
+                throw std::runtime_error ("unknown formatB");
+        };
+        TensorDescriptor rv(problem.b().dataType(), filterDims.begin(), filterDims.end());
+        return rv;
+    }
+
 
     void ConvolutionProblem::validate(const ContractionProblem &problem) const
     {

@@ -25,6 +25,7 @@
 
 #include <Tensile/Tensile.hpp>
 #include <Tensile/ContractionProblem_fwd.hpp>
+#include <Tensile/TensorDescriptor_fwd.hpp>
 #include <vector>
 
 namespace Tensile
@@ -109,6 +110,7 @@ namespace Tensile
           LoopCounts() : scount(MaxNumSpatialDims,1), fcount(MaxNumSpatialDims,1) {};
           void setupForData(ConvolutionProblem const& convProblem,
                            ContractionProblem const& problem);
+          std::string description() const;
           size_t batchCount;
           size_t cinCount;
           size_t coutCount;
@@ -119,6 +121,12 @@ namespace Tensile
         ConvolutionProblem() {}
 
         void FromIdentifier(std::string identifier);
+        TensorDescriptor setupDataActivation(LoopCounts const& counts,
+                             ContractionProblem const& problem) const;
+        TensorDescriptor setupDataOutput(LoopCounts const& counts,
+                             ContractionProblem const& problem) const;
+        TensorDescriptor setupForwardWeights(LoopCounts const& counts,
+                             ContractionProblem const& problem) const;
         void validate(const ContractionProblem &problem) const;
 
         const std::vector<size_t> spatials() const { return m_spatials;};
