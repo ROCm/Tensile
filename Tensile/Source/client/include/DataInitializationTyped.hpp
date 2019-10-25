@@ -113,8 +113,8 @@ namespace Tensile
                 }
 
                 if (m_convolutionVsContraction and !m_cpuConvInputs) {
-                  m_cpuConvInputs = allocNewCPUInputs(m_cpuInputsPristine, true);
-                  initializeCPUInputs(*m_cpuConvInputs);
+                  m_cpuConvInputs = allocNewCPUInputs();
+                  copyInputs(m_cpuConvInputs, m_cpuInputsPristine);
                 }
 
                 return m_cpuInputs;
@@ -170,7 +170,6 @@ namespace Tensile
                 std::shared_ptr<ManagedInputs> source;
                 if(!m_cpuInputsPristine)
                     m_cpuInputsPristine = createNewCPUInputs();
-
                 copyInputs(rv, m_cpuInputsPristine);
 
                 return rv;
