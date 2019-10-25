@@ -1,4 +1,4 @@
-import os,sys
+import os
 import pytest
 import Tensile.Tensile as Tensile
 from YamlBuilder.YamlBuilder import YamlBuilder

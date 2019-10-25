@@ -1,6 +1,4 @@
 import os
-import pytest
-from Tensile.SolutionStructs import Convolution
 import Tensile.Tensile as Tensile
 
 

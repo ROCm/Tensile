@@ -111,6 +111,7 @@ class Convolution:
     assert (self.formatNumSpatialDims>=2 and self.formatNumSpatialDims<=3)
 
     self.tensorBFormat = config.get("TensorBFormat", "KCYX" if self.formatNumSpatialDims==2 else 'KCZYX')
+    assert self.tensorBFormat in validTensorBFormats
     self.tensorDFormat = config.get("TensorDFormat",
           'KCYX' if convolutionType=='ConvolutionBackwardWeights' else self.tensorAFormat)
 

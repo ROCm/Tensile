@@ -2032,7 +2032,6 @@ class KernelWriterSource(KernelWriter):
               guarded = 1
               (freeDim, sumDim) = zp[:2]
               sumChar = self.indexChars[sumDim]
-              freeDimChar = self.indexChars[freeDim]
               globalReadOffset = "globalReadOffset%s_%u_%u_%u_%u + %u" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0);
               kStr += "( ( (int64_t)(elementCounter%s * stride%s%s + %s) < 0)" \
