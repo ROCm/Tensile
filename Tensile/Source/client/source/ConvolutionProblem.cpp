@@ -200,6 +200,38 @@ namespace Tensile
         return rv.str();
     }
 
+    // Setup for forward or backward data
+    void ConvolutionProblem::LoopCounts::setupForData(
+        ConvolutionProblem const& convProblem, ContractionProblem const& problem)
+    {
+        batchCount = problem.a().sizes()[convProblem.formatA().batchPosition()];
+        cinCount = problem.a().sizes()[convProblem.formatA().channelPosition()];
+        coutCount = problem.b().sizes()[convProblem.formatB().weights().coutPosition()];
+        for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
+        {
+            auto spatialPositionA = convProblem.formatA().spatialPositions()[si];
+            auto const problemSpatialSize = problem.a().sizes()[spatialPositionA];
+            scount[si] = problemSpatialSize;
+        }
+
+        // Setup filter counts, translate -1 to the filter dim from problem size
+        // fcount[0] is X
+        for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
+        {
+            auto const filterPositionA = convProblem.formatA().filterPositions()[fi];
+            if (filterPositionA != ConvolutionProblem::InvalidPos)
+            {
+                auto const convFilterSize = convProblem.filter()[fi]; // filter from convolution-identifier
+                auto const problemFilterSize = problem.a().sizes()[filterPositionA];
+                if (convFilterSize != -1)
+                  assert(convFilterSize == problemFilterSize);
+                fcount[fi] = problemFilterSize;
+            }
+        }
+
+    }
+
+
     void ConvolutionProblem::FromIdentifier(std::string identifier)
     {
       // example identifier: ConvolutionForward_NCHW_KCHW_NCHW_filter:3x3x1_stride:1x1x1_dilation:1x1x1_groups:1

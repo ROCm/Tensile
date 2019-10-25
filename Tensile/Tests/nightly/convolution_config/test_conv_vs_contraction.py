@@ -3,7 +3,11 @@ from Tensile.SolutionStructs import Convolution
 from YamlBuilder.YamlBuilder import YamlBuilder
 log =logging.getLogger("testlog")
 
-def test_simple(request,tensile_client):
+"""
+These tests run the convolution-vs-contraction mode always, 
+"""
+
+def test_simple(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -13,9 +17,9 @@ def test_simple(request,tensile_client):
                       'Spatial': '17x31',
                       })
     log.debug(conv.printUsage(z))
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_stride1x2(request,tensile_client):
+def test_stride1x2(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -25,9 +29,9 @@ def test_stride1x2(request,tensile_client):
                       'Spatial': '17x31',
                       })
     log.debug(conv.printUsage(z))
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_stride2x1(request,tensile_client):
+def test_stride2x1(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -37,9 +41,9 @@ def test_stride2x1(request,tensile_client):
                       'Spatial': '17x31',
                       })
     log.debug(conv.printUsage(z))
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_stride2x3(request,tensile_client):
+def test_stride2x3(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -49,9 +53,9 @@ def test_stride2x3(request,tensile_client):
                       'Spatial': '17x31',
                       })
     log.debug(conv.printUsage(z))
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_filter1x2(request,tensile_client):
+def test_filter1x2(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -62,10 +66,10 @@ def test_filter1x2(request,tensile_client):
                       })
 
     log.debug(conv.printUsage(z))
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
 
-def test_filter2x1(request,tensile_client):
+def test_filter2x1(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -74,8 +78,11 @@ def test_filter2x1(request,tensile_client):
                       'Dilation': '1x1',
                       'Spatial': '17x31',
                       })
+    log.debug(conv.printUsage(z))
+    #TODO - re-enable this test
+    #YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_filter2x3(request,tensile_client):
+def test_filter2x3(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -84,8 +91,10 @@ def test_filter2x3(request,tensile_client):
                       'Dilation': '1x1',
                       'Spatial': '17x31',
                       })
+    log.debug(conv.printUsage(z))
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_dilation1x2(request,tensile_client):
+def test_dilation1x2(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -94,8 +103,10 @@ def test_dilation1x2(request,tensile_client):
                       'Dilation': '1x2',
                       'Spatial': '17x31',
                       })
+    log.debug(conv.printUsage(z))
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_dilation2x1(request,tensile_client):
+def test_dilation2x1(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -104,8 +115,10 @@ def test_dilation2x1(request,tensile_client):
                       'Dilation': '2x1',
                       'Spatial': '17x31',
                       })
+    log.debug(conv.printUsage(z))
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_dilation2x3(request,tensile_client):
+def test_dilation2x3(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -114,8 +127,10 @@ def test_dilation2x3(request,tensile_client):
                       'Dilation': '2x3',
                       'Spatial': '17x31',
                       })
+    log.debug(conv.printUsage(z))
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_filter_stride_dilation_0(request,tensile_client):
+def test_filter_stride_dilation_0(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -126,16 +141,16 @@ def test_filter_stride_dilation_0(request,tensile_client):
                       'Dilation': '2x3',
                       'Spatial': '17x31',
                       })
-    log.debug(conv.printUsage(z))
     assert(z['NumIndicesC']==4)
     assert(z['IndexAssignmentsA']==[6,5, 0,1, 4,3])
     assert(z['IndexAssignmentsB']==[6,5, 4, 2, 3])
     assert(z['SetConstStrideA']==[[0,3], [6,3]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStrides']==True)
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    log.debug(conv.printUsage(z))
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_filter_stride_dilation_1(request,tensile_client):
+def test_filter_stride_dilation_1(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -145,4 +160,4 @@ def test_filter_stride_dilation_1(request,tensile_client):
                       'Spatial': '27x51',
                       })
     log.debug(conv.printUsage(z))
-    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client)
+    YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)

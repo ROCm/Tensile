@@ -3,7 +3,7 @@ from Tensile.SolutionStructs import Convolution
 from YamlBuilder.YamlBuilder import YamlBuilder
 log =logging.getLogger("testlog")
 
-def test_nchw_backwardweights_defaults(request, tensile_client):
+def test_nchw_backwardweights_defaults(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
@@ -16,9 +16,9 @@ def test_nchw_backwardweights_defaults(request, tensile_client):
     assert(z['SetConstStrideA']==[[3,1]])
     assert(z['SetConstStrideB']==[])
     #assert(conv.identifier() == "foo")
-    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_nchw_backwardweights_filter3x1(request, tensile_client):
+def test_nchw_backwardweights_filter3x1(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
@@ -30,9 +30,9 @@ def test_nchw_backwardweights_filter3x1(request, tensile_client):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(z['SetConstStrideA']==[[3,1]])
     #assert(z['SetConstStrideB']==[])
-    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_nchw_backwardweights_filter1x3(request, tensile_client):
+def test_nchw_backwardweights_filter1x3(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
@@ -44,9 +44,9 @@ def test_nchw_backwardweights_filter1x3(request, tensile_client):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(z['SetConstStrideA']==[[3,1]])
     #assert(z['SetConstStrideB']==[])
-    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
-def test_nchw_backwardweights_filter3x5(request, tensile_client):
+def test_nchw_backwardweights_filter3x5(request, tensile_client_dir, tmp_path):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
@@ -58,4 +58,4 @@ def test_nchw_backwardweights_filter3x5(request, tensile_client):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     #assert(z['SetConstStrideA']==[[3,1]])
     #assert(z['SetConstStrideB']==[])
-    YamlBuilder.run_tensile_client(request, conv, z, tensile_client)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)

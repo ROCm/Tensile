@@ -105,6 +105,17 @@ namespace Tensile
             WeightFormat     m_weights;
         };
 
+        struct TENSILE_API LoopCounts {
+          LoopCounts() : scount(MaxNumSpatialDims,1), fcount(MaxNumSpatialDims,1) {};
+          void setupForData(ConvolutionProblem const& convProblem,
+                           ContractionProblem const& problem);
+          size_t batchCount;
+          size_t cinCount;
+          size_t coutCount;
+          std::vector<size_t> scount;
+          std::vector<size_t> fcount;
+        };
+
         ConvolutionProblem() {}
 
         void FromIdentifier(std::string identifier);

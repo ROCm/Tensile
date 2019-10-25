@@ -14,9 +14,9 @@ class YamlBuilder:
     def write_problem_sizes(conv, outfile):
         outfile.write("         - ProblemSizes:\n")
 
-        try:
+        if conv.spatial:
             spatialIn = conv.spatial
-        except KeyError:
+        else:
             spatialIn = [14]*conv.formatNumSpatialDims
         # replace any TBD spatials with something:
         spatialIn = [x if x>0 else 42 for x in spatialIn]
@@ -59,30 +59,37 @@ class YamlBuilder:
             for k in sorted(problemType.keys()):
                 outfile.write("      %s: %s\n" % (k,problemType[k]))
 
+            # TODO - could modify this to support other problem types or optimizations
             YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir,"solutions/sgemm_1.yml"))
             YamlBuilder.write_problem_sizes(conv, outfile)
 
 
     @staticmethod
-    def run_tensile_client(request, conv, problemType, tensile_dir):
+    def run_tensile_client(request, conv, problemType, tensile_dir, tmp_path):
+        """
+        Run the tensile client with contraction yaml and compare vs CPU reference
+        """
         run_client = request.config.getoption("--run_client")
 
         if run_client>=3:
-            YamlBuilder.run_convolution_vs_contraction(request,conv,problemType, tensile_dir)
+            YamlBuilder.run_convolution_vs_contraction(request,conv,problemType, tensile_dir, tmp_path)
 
         if run_client>=1:
-            testYamlFile = os.path.join(request.fspath.dirname, "Yamls", request.node.name +".yaml")
+            testYamlFile = os.path.join(str(tmp_path), request.node.name +".contraction.yaml")
             YamlBuilder.write_yaml(request, testYamlFile, conv, problemType, dataType='s')
             if run_client>=2:
                 Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
 
     @staticmethod
-    def run_convolution_vs_contraction(request, conv, problemType, tensile_dir):
+    def run_convolution_vs_contraction(request, conv, problemType, tensile_dir, tmp_path):
+        """
+        Run the tensile client with a convolution yaml and run the convolution-vs-contraction mode
+        """
         run_client = request.config.getoption("--run_client")
 
-        testYamlFile = os.path.join(request.fspath.dirname, "Yamls", request.node.name +".conv.yaml")
-        YamlBuilder.write_conv_yaml(request, testYamlFile, conv, problemType, dataType='s')
-        Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
+        testConvYamlFile = os.path.join(str(tmp_path), request.node.name +".conv.yaml")
+        YamlBuilder.write_conv_yaml(request, testConvYamlFile, conv, problemType, dataType='s')
+        Tensile.Tensile([Tensile.TensileTestPath(testConvYamlFile), str(tensile_dir)])
 
 
     setupHeader="""

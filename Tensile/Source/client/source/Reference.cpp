@@ -282,7 +282,7 @@ namespace Tensile
         // A is activation, B is weights
         // Assume packed.
         template <typename Inputs, typename Accumulator>
-        void ReferenceSolution<Inputs, Accumulator>::SolveCPUConvolution(ConvolutionProblem const &convProblem,
+        void ReferenceSolution<Inputs, Accumulator>::SolveCPUConvolution(ConvolutionProblem const& convProblem,
                 ContractionProblem const& problem, Inputs const& inputs)
         {
             const bool db1 = Debug::Instance().printConvolutionReference1();
@@ -291,34 +291,11 @@ namespace Tensile
             if (static_cast<typename Inputs::DType>(inputs.beta) != static_cast<typename Inputs::DType>(0.0))
               throw std::runtime_error ("convolution requires beta==0");
 
-            // Counts are the loop counters max values:
-            size_t batchCount = problem.a().sizes()[convProblem.formatA().batchPosition()];
-            size_t cinCount = problem.a().sizes()[convProblem.formatA().channelPosition()];
-            size_t coutCount = problem.b().sizes()[convProblem.formatB().weights().coutPosition()];
+            ConvolutionProblem::LoopCounts counts;
+            counts.setupForData(convProblem, problem);
 
-            std::vector<size_t> scount(ConvolutionProblem::MaxNumSpatialDims,1);
-            for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
-            {
-                auto spatialPositionA = convProblem.formatA().spatialPositions()[si];
-                auto const problemSpatialSize = problem.a().sizes()[spatialPositionA];
-                scount[si] = problemSpatialSize;
-            }
+            //convProblem.setupForData(counts, problem)
 
-            // Setup filter counts, translate -1 to the filter dim from problem size
-            // fcount[0] is X
-            std::vector<size_t> fcount(ConvolutionProblem::MaxNumSpatialDims,1);
-            for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
-            {
-                auto const filterPositionA = convProblem.formatA().filterPositions()[fi];
-                if (filterPositionA != ConvolutionProblem::InvalidPos)
-                {
-                    auto const convFilterSize = convProblem.filter()[fi]; // filter from convolution-identifier
-                    auto const problemFilterSize = problem.a().sizes()[filterPositionA];
-                    if (convFilterSize != -1)
-                      assert(convFilterSize == problemFilterSize);
-                    fcount[fi] = problemFilterSize;
-                }
-            }
 
             // Mimic the expected dimension order in formatA:
             std::vector<size_t>  activationDims;
@@ -328,7 +305,7 @@ namespace Tensile
                     for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
                         if (convProblem.formatA().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
                         {
-                            activationDims.push_back(fcount[fi]);
+                            activationDims.push_back(counts.fcount[fi]);
                             activationStri.push_back(fi==0 ?
                                 convProblem.dilation().at(fi) :
                                 convProblem.dilation().at(fi) *
@@ -336,7 +313,7 @@ namespace Tensile
                         }
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
                     {
-                        activationDims.push_back(scount[si]);
+                        activationDims.push_back(counts.scount[si]);
                         activationStri.push_back(si==0 ?
                                 convProblem.stride().at(si) :
                                 convProblem.stride().at(si) * convProblem.spatials().at(si-1));
@@ -351,17 +328,17 @@ namespace Tensile
                     activationDims.push_back(problem.a().sizes()[convProblem.formatA().channelPosition()]);
                     for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
                         if (convProblem.formatA().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
-                            activationDims.push_back(fcount[fi]);
+                            activationDims.push_back(counts.fcount[fi]);
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
-                        activationDims.push_back(scount[si]);
+                        activationDims.push_back(counts.scount[si]);
                     activationDims.push_back(problem.a().sizes()[convProblem.formatA().batchPosition()]);
                 case ConvolutionProblem::TensorFormat::CNHW:
                     assert(0); // need strides
                     for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
                         if (convProblem.formatA().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
-                            activationDims.push_back(fcount[fi]);
+                            activationDims.push_back(counts.fcount[fi]);
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
-                        activationDims.push_back(scount[si]);
+                        activationDims.push_back(counts.scount[si]);
                     activationDims.push_back(problem.a().sizes()[convProblem.formatA().batchPosition()]);
                     activationDims.push_back(problem.a().sizes()[convProblem.formatA().channelPosition()]);
                     break;
@@ -376,19 +353,19 @@ namespace Tensile
             switch (convProblem.formatD().activation().format()) {
                 case ConvolutionProblem::TensorFormat::NCHW:
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
-                        outputDims.push_back(scount[si]);
+                        outputDims.push_back(counts.scount[si]);
                     outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().channelPosition()]);
                     outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().batchPosition()]);
                     break;
                 case ConvolutionProblem::TensorFormat::NHWC:
                     outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().channelPosition()]);
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
-                        outputDims.push_back(scount[si]);
+                        outputDims.push_back(counts.scount[si]);
                     outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().batchPosition()]);
                     break;
                 case ConvolutionProblem::TensorFormat::CNHW:
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
-                        outputDims.push_back(scount[si]);
+                        outputDims.push_back(counts.scount[si]);
                     outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().batchPosition()]);
                     outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().channelPosition()]);
                     break;
@@ -402,14 +379,14 @@ namespace Tensile
                 case ConvolutionProblem::TensorFormat::KCYX:
                     for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
                         if (convProblem.formatB().weights().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
-                            filterDims.push_back(fcount[fi]);
+                            filterDims.push_back(counts.fcount[fi]);
                     filterDims.push_back(problem.b().sizes()[convProblem.formatB().weights().cinPosition()]);
                     filterDims.push_back(problem.b().sizes()[convProblem.formatB().weights().coutPosition()]);
                     break;
                 case ConvolutionProblem::TensorFormat::CKYX:
                     for (int fi=0; fi<ConvolutionProblem::MaxNumSpatialDims; fi++)
                         if (convProblem.formatB().weights().filterPositions()[fi] != ConvolutionProblem::InvalidPos)
-                            filterDims.push_back(fcount[fi]);
+                            filterDims.push_back(counts.fcount[fi]);
                     filterDims.push_back(problem.b().sizes()[convProblem.formatB().weights().coutPosition()]);
                     filterDims.push_back(problem.b().sizes()[convProblem.formatB().weights().cinPosition()]);
                     break;
@@ -424,17 +401,17 @@ namespace Tensile
                 std::cout  << "  formatB=" << convProblem.formatB().weights().description() << "\n";
                 std::cout  << "  activationTensor=" << activationTensor << "\n";
                 std::cout
-                    << " batchCount=" << batchCount
-                    << " coutCount=" <<  coutCount
+                    << " batchCount=" << counts.batchCount
+                    << " coutCount=" <<  counts.coutCount
                     << " scalarCount_dhw="
-                    << scount[2] << "x"
-                    << scount[1] << "x"
-                    << scount[0]
+                    << counts.scount[2] << "x"
+                    << counts.scount[1] << "x"
+                    << counts.scount[0]
                     << " filterCount_zyx="
-                    << fcount[2] << "x"
-                    << fcount[1] << "x"
-                    << fcount[0]
-                    << " cinCount=" << cinCount
+                    << counts.fcount[2] << "x"
+                    << counts.fcount[1] << "x"
+                    << counts.fcount[0]
+                    << " cinCount=" << counts.cinCount
                     << "\n";
             }
 
@@ -442,18 +419,18 @@ namespace Tensile
             // and filter formats
             std::vector<size_t> s(ConvolutionProblem::MaxNumSpatialDims,0);
             std::vector<size_t> f(ConvolutionProblem::MaxNumSpatialDims,0);
-            for (size_t cout = 0; cout<coutCount; cout++)
-            for (s[2]=0; s[2]<scount[2]; s[2]++)
-            for (s[1]=0; s[1]<scount[1]; s[1]++)
-            for (s[0]=0; s[0]<scount[0]; s[0]++)
+            for (size_t cout = 0; cout<counts.coutCount; cout++)
+            for (s[2]=0; s[2]<counts.scount[2]; s[2]++)
+            for (s[1]=0; s[1]<counts.scount[1]; s[1]++)
+            for (s[0]=0; s[0]<counts.scount[0]; s[0]++)
             {
-                for (size_t n = 0; n<batchCount; n++)
+                for (size_t n = 0; n<counts.batchCount; n++)
                 {
                     Accumulator value(0);
-                    for (size_t cin = 0; cin<cinCount; cin++)
-                    for (f[2] = 0; f[2]<fcount[2]; f[2]++)
-                    for (f[1] = 0; f[1]<fcount[1]; f[1]++)
-                    for (f[0] = 0; f[0]<fcount[0]; f[0]++)
+                    for (size_t cin = 0; cin<counts.cinCount; cin++)
+                    for (f[2] = 0; f[2]<counts.fcount[2]; f[2]++)
+                    for (f[1] = 0; f[1]<counts.fcount[1]; f[1]++)
+                    for (f[0] = 0; f[0]<counts.fcount[0]; f[0]++)
                     {
                         // Save coordinates from the looop and compute memeory index
                         // Each component stores in appropriate memory order
