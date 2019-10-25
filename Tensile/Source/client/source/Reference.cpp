@@ -301,7 +301,7 @@ namespace Tensile
             {
                 auto spatialPositionA = convProblem.tensorA().spatialPositions()[si];
                 auto const problemSpatialSize = problem.a().sizes()[spatialPositionA];
-                scount[si++] = problemSpatialSize;
+                scount[si] = problemSpatialSize;
             }
 
             // Setup filter counts, translate -1 to the filter dim from problem size
