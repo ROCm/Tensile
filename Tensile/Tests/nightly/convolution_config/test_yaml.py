@@ -17,5 +17,4 @@ def test_yaml(request, tensile_client_dir, tmp_path):
     assert(z['SetConstStrideB']==[[2,0]])
     assert(z['UseInitialStrides']==False)
 
-    if request.config.getoption("--run_client"):
-        YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
+    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)

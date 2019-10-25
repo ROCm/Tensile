@@ -15,7 +15,6 @@ def test_nchw_backwardweights_defaults(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[3,1]])
     assert(z['SetConstStrideB']==[])
-    #assert(conv.identifier() == "foo")
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_backwardweights_filter3x1(request, tensile_client_dir, tmp_path):
@@ -28,8 +27,8 @@ def test_nchw_backwardweights_filter3x1(request, tensile_client_dir, tmp_path):
     assert(z['NumIndicesC']==3)
     assert(z['IndexAssignmentsA']==[4, 0, 1, 3])
     assert(z['IndexAssignmentsB']==[4, 2, 3])
-    #assert(z['SetConstStrideA']==[[3,1]])
-    #assert(z['SetConstStrideB']==[])
+    assert(z['SetConstStrideA']==[[4,1]])
+    assert(z['SetConstStrideB']==[])
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_backwardweights_filter1x3(request, tensile_client_dir, tmp_path):
@@ -43,7 +42,7 @@ def test_nchw_backwardweights_filter1x3(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsA']==[4, 0, 1, 3])
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(z['SetConstStrideA']==[[3,1]])
-    #assert(z['SetConstStrideB']==[])
+    assert(z['SetConstStrideB']==[])
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_backwardweights_filter3x5(request, tensile_client_dir, tmp_path):
@@ -57,5 +56,5 @@ def test_nchw_backwardweights_filter3x5(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsA']==[5, 0, 1, 2, 4])
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     #assert(z['SetConstStrideA']==[[3,1]])
-    #assert(z['SetConstStrideB']==[])
+    assert(z['SetConstStrideB']==[])
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)

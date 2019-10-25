@@ -67,15 +67,15 @@ class YamlBuilder:
         """
         Run the tensile client with contraction yaml and compare vs CPU reference
         """
-        run_client = request.config.getoption("--run_client")
+        level = request.config.getoption("--level")
 
-        if run_client>=3:
+        if level>=3:
             YamlBuilder.run_convolution_vs_contraction(request,conv,problemType, tensile_dir, tmp_path)
 
-        if run_client>=1:
+        if level>=1:
             testYamlFile = os.path.join(str(tmp_path), request.node.name +".contraction.yaml")
             YamlBuilder.write_yaml(request, testYamlFile, conv, problemType, dataType='s')
-            if run_client>=2:
+            if level>=2:
                 Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
 
     @staticmethod
@@ -83,13 +83,12 @@ class YamlBuilder:
         """
         Run the tensile client with a convolution yaml and run the convolution-vs-contraction mode
         """
-        run_client = request.config.getoption("--run_client")
-
         testConvYamlFile = os.path.join(str(tmp_path), request.node.name +".conv.yaml")
         YamlBuilder.write_conv_yaml(request, testConvYamlFile, conv, problemType, dataType='s')
         Tensile.Tensile([Tensile.TensileTestPath(testConvYamlFile), str(tensile_dir)])
 
 
+# This header is used to build the shared client:
     setupHeader="""
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0

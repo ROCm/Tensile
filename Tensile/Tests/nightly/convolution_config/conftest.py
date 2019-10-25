@@ -15,7 +15,7 @@ def tensile_client_dir(tmpdir_factory):
     """
 
     tensile_client_dir = ""
-    if args['run_client'] >= 2:
+    if args['level'] >= 2:
         if args['client_dir']:
             tensile_client_dir=os.path.abspath(args['client_dir'])
         else:
@@ -30,7 +30,7 @@ def tensile_client_dir(tmpdir_factory):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--run_client", action="store", type=int, default=2,
+        "--level", action="store", type=int, default=2,
         help='''
         0= test Tensile.Convolution class;
         1= 0 plus generate YAML;
@@ -43,7 +43,7 @@ def pytest_addoption(parser):
         help="directory that contains existing client build")
 
 def pytest_configure(config):
-    args["run_client"] = config.getoption('--run_client')
+    args["level"] = config.getoption('--level')
     args["client_dir"] = config.getoption('--client_dir')
 
     print ("client=dir=", str(config.getoption("--client_dir")))
