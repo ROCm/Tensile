@@ -304,7 +304,7 @@ namespace Tensile
           m_formatA.FromIdentifier(parts[1], formatNumSpatialDims, m_numSpatialDims, &m_filters);
           m_formatB.weightsW().FromIdentifier(parts[2], m_operationIdentifier=="ConvolutionBackwardData",
                formatNumSpatialDims, &m_filters);
-          m_tensorD.activationW().FromIdentifier(parts[3], formatNumSpatialDims, m_numSpatialDims, nullptr);
+          m_formatD.activationW().FromIdentifier(parts[3], formatNumSpatialDims, m_numSpatialDims, nullptr);
       }
       else
       {

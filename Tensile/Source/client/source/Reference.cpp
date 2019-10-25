@@ -373,24 +373,24 @@ namespace Tensile
                                     activationStri.begin(), activationStri.end());
 
             std::vector<size_t> outputDims;
-            switch (convProblem.tensorD().activation().format()) {
+            switch (convProblem.formatD().activation().format()) {
                 case ConvolutionProblem::TensorFormat::NCHW:
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
                         outputDims.push_back(scount[si]);
-                    outputDims.push_back(problem.d().sizes()[convProblem.tensorD().activation().channelPosition()]);
-                    outputDims.push_back(problem.d().sizes()[convProblem.tensorD().activation().batchPosition()]);
+                    outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().channelPosition()]);
+                    outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().batchPosition()]);
                     break;
                 case ConvolutionProblem::TensorFormat::NHWC:
-                    outputDims.push_back(problem.d().sizes()[convProblem.tensorD().activation().channelPosition()]);
+                    outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().channelPosition()]);
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
                         outputDims.push_back(scount[si]);
-                    outputDims.push_back(problem.d().sizes()[convProblem.tensorD().activation().batchPosition()]);
+                    outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().batchPosition()]);
                     break;
                 case ConvolutionProblem::TensorFormat::CNHW:
                     for (int si=0; si<convProblem.formatA().spatialPositions().size(); si++)
                         outputDims.push_back(scount[si]);
-                    outputDims.push_back(problem.d().sizes()[convProblem.tensorD().activation().batchPosition()]);
-                    outputDims.push_back(problem.d().sizes()[convProblem.tensorD().activation().channelPosition()]);
+                    outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().batchPosition()]);
+                    outputDims.push_back(problem.d().sizes()[convProblem.formatD().activation().channelPosition()]);
                     break;
                 default:
                     throw std::runtime_error ("unknown formatD");
@@ -506,10 +506,10 @@ namespace Tensile
                         value += static_cast<Accumulator>(aVal * bVal);
                     }
                     std::vector<size_t> dCoord(outputTensor.dimensions(),0);
-                    dCoord.at(convProblem.tensorD().activation().batchPosition()) = n;
-                    dCoord.at(convProblem.tensorD().activation().channelPosition()) = cout;
-                    for (auto i=0; i<convProblem.tensorD().activation().spatialPositions().size(); i++)
-                        dCoord.at(convProblem.tensorD().activation().spatialPositions()[i]) = s[i];
+                    dCoord.at(convProblem.formatD().activation().batchPosition()) = n;
+                    dCoord.at(convProblem.formatD().activation().channelPosition()) = cout;
+                    for (auto i=0; i<convProblem.formatD().activation().spatialPositions().size(); i++)
+                        dCoord.at(convProblem.formatD().activation().spatialPositions()[i]) = s[i];
 
                     auto dIndex = outputTensor.index(dCoord);
                     if (db1) {

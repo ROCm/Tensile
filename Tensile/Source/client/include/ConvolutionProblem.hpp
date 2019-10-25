@@ -117,7 +117,7 @@ namespace Tensile
 
         const ActivationFormat &formatA() const { return m_formatA; };
         const ComboFormat &formatB() const { return m_formatB; };
-        const ComboFormat &tensorD() const { return m_tensorD; };
+        const ComboFormat &formatD() const { return m_formatD; };
 
         //! Number of spatial dims after packing.
         size_t numSpatialDims() const { return m_numSpatialDims;}
@@ -146,7 +146,7 @@ namespace Tensile
 
         ActivationFormat m_formatA;
         ComboFormat      m_formatB;
-        ComboFormat      m_tensorD; // output tensor
+        ComboFormat      m_formatD; // output tensor
     };
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ConvolutionProblem const& convolution);
