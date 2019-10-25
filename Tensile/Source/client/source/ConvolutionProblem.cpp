@@ -207,7 +207,7 @@ namespace Tensile
       boost::split(parts, identifier, boost::algorithm::is_any_of("_"));
 
       if (parts.size() < 4)
-        // id, formatA, tensorb, outputTensor
+        // id, formatA, formatB, outputTensor
         throw std::runtime_error(std::string("Invalid convolution identifier- must have at least 3 sections:") + identifier);
 
       m_operationIdentifier = parts[0];
@@ -302,7 +302,7 @@ namespace Tensile
       if (m_operationIdentifier == "ConvolutionForward" || m_operationIdentifier=="ConvolutionBackwardData")
       {
           m_formatA.FromIdentifier(parts[1], formatNumSpatialDims, m_numSpatialDims, &m_filters);
-          m_tensorB.weightsW().FromIdentifier(parts[2], m_operationIdentifier=="ConvolutionBackwardData",
+          m_formatB.weightsW().FromIdentifier(parts[2], m_operationIdentifier=="ConvolutionBackwardData",
                formatNumSpatialDims, &m_filters);
           m_tensorD.activationW().FromIdentifier(parts[3], formatNumSpatialDims, m_numSpatialDims, nullptr);
       }
@@ -340,7 +340,7 @@ namespace Tensile
             if (m_operationIdentifier == "ConvolutionForward")
             {
                 std::cout << "  convProblem.formatA        :" << formatA().description() << "\n";
-                std::cout << "  convProblem.tensorB.weights:" << tensorB().weights().description() << "\n";
+                std::cout << "  convProblem.formatB.weights:" << formatB().weights().description() << "\n";
             }
             else
             {
@@ -370,7 +370,7 @@ namespace Tensile
                         [filterPositionA](const ContractionProblem::BoundIndex &bi)
                         {return bi.a == filterPositionA;}));
 
-                auto const filterPositionB = tensorB().weights().filterPositions()[i];
+                auto const filterPositionB = formatB().weights().filterPositions()[i];
                 if (filterPositionB != ConvolutionProblem::InvalidPos)
                     assert(problem.boundIndices().end() !=
                         std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),

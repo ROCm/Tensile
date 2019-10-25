@@ -94,7 +94,7 @@ namespace Tensile
             std::vector<size_t> m_filterPositions;
         };
 
-        //! Use for tensorB and output which can take either format
+        //! Use for formatB and output which can take either format
         struct ComboFormat {
             const ActivationFormat &activation() const { return m_activation; };
             const WeightFormat &weights() const { return m_weights; };
@@ -116,7 +116,7 @@ namespace Tensile
         const std::vector<size_t> dilation() const { return m_dilations;};
 
         const ActivationFormat &formatA() const { return m_formatA; };
-        const ComboFormat &tensorB() const { return m_tensorB; };
+        const ComboFormat &formatB() const { return m_formatB; };
         const ComboFormat &tensorD() const { return m_tensorD; };
 
         //! Number of spatial dims after packing.
@@ -145,7 +145,7 @@ namespace Tensile
         size_t m_numSpatialDims = 0;
 
         ActivationFormat m_formatA;
-        ComboFormat      m_tensorB;
+        ComboFormat      m_formatB;
         ComboFormat      m_tensorD; // output tensor
     };
 
