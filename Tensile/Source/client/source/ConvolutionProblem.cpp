@@ -207,7 +207,7 @@ namespace Tensile
       boost::split(parts, identifier, boost::algorithm::is_any_of("_"));
 
       if (parts.size() < 4)
-        // id, tensora, tensorb, outputTensor
+        // id, formatA, tensorb, outputTensor
         throw std::runtime_error(std::string("Invalid convolution identifier- must have at least 3 sections:") + identifier);
 
       m_operationIdentifier = parts[0];
@@ -301,7 +301,7 @@ namespace Tensile
 
       if (m_operationIdentifier == "ConvolutionForward" || m_operationIdentifier=="ConvolutionBackwardData")
       {
-          m_tensorA.FromIdentifier(parts[1], formatNumSpatialDims, m_numSpatialDims, &m_filters);
+          m_formatA.FromIdentifier(parts[1], formatNumSpatialDims, m_numSpatialDims, &m_filters);
           m_tensorB.weightsW().FromIdentifier(parts[2], m_operationIdentifier=="ConvolutionBackwardData",
                formatNumSpatialDims, &m_filters);
           m_tensorD.activationW().FromIdentifier(parts[3], formatNumSpatialDims, m_numSpatialDims, nullptr);
@@ -339,7 +339,7 @@ namespace Tensile
 
             if (m_operationIdentifier == "ConvolutionForward")
             {
-                std::cout << "  convProblem.tensorA        :" << tensorA().description() << "\n";
+                std::cout << "  convProblem.formatA        :" << formatA().description() << "\n";
                 std::cout << "  convProblem.tensorB.weights:" << tensorB().weights().description() << "\n";
             }
             else
@@ -353,17 +353,17 @@ namespace Tensile
         assert(problem.batchIndices().end() !=
             std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
             [this](const ContractionProblem::BatchIndex &bi)
-            {return bi.a == this->tensorA().batchPosition();}));
+            {return bi.a == this->formatA().batchPosition();}));
 
         assert(problem.boundIndices().end() !=
             std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
             [this](const ContractionProblem::BoundIndex &bi)
-            {return bi.a == this->tensorA().channelPosition();}));
+            {return bi.a == this->formatA().channelPosition();}));
         if (m_operationIdentifier == "ConvolutionForward")
         {
             for (int i=0; i<ConvolutionProblem::MaxNumSpatialDims; i++)
             {
-                auto const filterPositionA = tensorA().filterPositions()[i];
+                auto const filterPositionA = formatA().filterPositions()[i];
                 if (filterPositionA != ConvolutionProblem::InvalidPos)
                     assert(problem.boundIndices().end() !=
                         std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
@@ -377,7 +377,7 @@ namespace Tensile
                         [filterPositionB](const ContractionProblem::BoundIndex &bi)
                         {return bi.b == filterPositionB;}));
             }
-            for (auto s : tensorA().spatialPositions())
+            for (auto s : formatA().spatialPositions())
                 assert(problem.freeIndicesA().end() !=
                     std::find_if(problem.freeIndicesA().begin(), problem.freeIndicesA().end(),
                     [s](const ContractionProblem::FreeIndex &bi)

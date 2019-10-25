@@ -115,7 +115,7 @@ namespace Tensile
         const std::vector<size_t> stride() const { return m_strides;};
         const std::vector<size_t> dilation() const { return m_dilations;};
 
-        const ActivationFormat &tensorA() const { return m_tensorA; };
+        const ActivationFormat &formatA() const { return m_formatA; };
         const ComboFormat &tensorB() const { return m_tensorB; };
         const ComboFormat &tensorD() const { return m_tensorD; };
 
@@ -144,7 +144,7 @@ namespace Tensile
         size_t m_numFilterDims = 0;
         size_t m_numSpatialDims = 0;
 
-        ActivationFormat m_tensorA;
+        ActivationFormat m_formatA;
         ComboFormat      m_tensorB;
         ComboFormat      m_tensorD; // output tensor
     };
