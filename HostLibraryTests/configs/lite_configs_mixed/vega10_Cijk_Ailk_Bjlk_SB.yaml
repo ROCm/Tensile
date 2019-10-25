@@ -2,7 +2,8 @@
 - vega10
 - gfx900
 - [Device 6863, Device 6862, Device 687f, Device 6860, Device 6861, 'Vega 10 XTX [Radeon
-    Vega Frontier Edition]', 'Vega [Radeon RX Vega]', 'Vega 10 [Radeon Instinct MI25]']
+    Vega Frontier Edition]', 'Vega [Radeon RX Vega]', 'Vega 10 [Radeon Instinct MI25]',
+    Vega, Device 6864]
 - AssignedDerivedParameters: true
   Batched: true
   ComplexConjugateA: false
@@ -27,8 +28,8 @@
   NumIndicesBatch: 1
   NumIndicesC: 3
   NumIndicesFree: 2
-  NumIndicesSummation: 1
   NumIndicesLD: 4
+  NumIndicesSummation: 1
   OperationType: GEMM
   SilentHighPrecisionAccumulate: false
   TLUA: true
@@ -166,8 +167,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
@@ -330,8 +331,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
@@ -494,8 +495,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
@@ -662,8 +663,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
@@ -829,8 +830,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
@@ -996,8 +997,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
@@ -1163,8 +1164,8 @@
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
-      NumIndicesSummation: 1
       NumIndicesLD: 4
+      NumIndicesSummation: 1
       OperationType: GEMM
       SilentHighPrecisionAccumulate: false
       TLUA: true
