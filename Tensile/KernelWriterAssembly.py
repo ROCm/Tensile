@@ -718,8 +718,6 @@ class KernelWriterAssembly(KernelWriter):
     self.do["NullKernel"]  = dkp >= 9 or dkp == -9
 
     self.kernel = kernel
-    self.tPA = tPA
-    self.tPB = tPB
 
     # init these here in case some kernel pieces are disabled for performance exploration:
     tPA["localReadOffset"] = 0
@@ -5400,8 +5398,9 @@ class KernelWriterAssembly(KernelWriter):
   #   self.unrollIdx, or an idx from 0..NumIndicesSummation
   # prefetchIndex is >0 (1...PrefetchGlobalRead) if this increment follows a
   #   global prefetch or 0 otherwise
+  # incs is number of increments to perform
   ##############################################################################
-  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex, incs=1):
     if not self.do["GlobalInc"]: return ""
     tc = tP["tensorChar"]
     loopChar = self.indexChars[ \
