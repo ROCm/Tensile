@@ -37,10 +37,17 @@
 
 namespace Tensile
 {
+    struct ExactSelectionTableEntry
+    {
+        std::vector<size_t> key;
+        int value;
+    };
+
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct GranularitySelectionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         std::map<int,std::shared_ptr<MySolution>> solutions;
+        std::map<std::vector<size_t>,int> exactMap;
 
         static std::string Type() { return "GranularitySelection"; }
         virtual std::string type() const override { return Type(); }
@@ -57,9 +64,25 @@ namespace Tensile
         {
             const bool debug = Debug::Instance().printPropertyEvaluation();
 
+            std::vector<size_t> key; 
+            size_t M = problem.freeSizeA(0);
+            key.push_back(M);
+            size_t N = problem.freeSizeB(0);
+            key.push_back(N);
+            size_t NumBatches = problem.batchSize(0);
+            key.push_back(NumBatches);
+            size_t K = problem.boundSize(0);
+            key.push_back(K);
+            
+            if (this->exactMap.find(key) != this->exactMap.end())
+            {
+                int index = this->exactMap.at(key);
+                return solutions.at(index);
+            }
+
             this->description();
 
-            double bestPerformance = std::numeric_limits<double>::max();
+            double bestPerformance = 0.0;  
             auto iter = solutions.begin();
             if(iter == solutions.end())
                 return std::shared_ptr<MySolution>();
@@ -69,7 +92,7 @@ namespace Tensile
                 bestPerformance = bestSolution->projectedPerformance(problem);
 
             iter++;
-
+            
             if(debug)
             {
                 std::cout << "best performance: " << bestPerformance << std::endl;
@@ -100,7 +123,6 @@ namespace Tensile
                 }
                 iter++;
             }
-
             return bestSolution;
         }
 
