@@ -1594,7 +1594,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
       loopChar = self.indexChars[loopIdx]
-      kStr += "%sunsigned int numIter%s;%s" \
+      kStr += "%sint numIter%s;%s" \
           % (self.indent, loopChar, self.endLine)
     return kStr
 
