@@ -21,7 +21,7 @@
  * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <Tensile/ConvolutionProblem.hpp>
+#include <ConvolutionProblem.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
