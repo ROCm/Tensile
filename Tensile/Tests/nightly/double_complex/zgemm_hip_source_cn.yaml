@@ -43,3 +43,24 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [126,1,130], 0, [2], [62,1,66] ]
 
+    - # Regression test - Source
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - LoopTail: [True]
+        - EdgeType: ["ShiftPtr"]
+        - DepthU: [16]
+        - VectorWidth: [1]
+      ForkParameters:
+        - KernelLanguage: ["Source"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [False]
+        - ThreadTile:
+          - [ 2, 16 ]
+        - WorkGroup:
+          - [ 8,  8, 1 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1, 1, 1, 64 ]
