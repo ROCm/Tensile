@@ -30,7 +30,6 @@ endif()
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
-    source/ConvolutionProblem.cpp
     source/ContractionProblem.cpp
     source/ContractionSolution.cpp
     source/DataTypes.cpp
