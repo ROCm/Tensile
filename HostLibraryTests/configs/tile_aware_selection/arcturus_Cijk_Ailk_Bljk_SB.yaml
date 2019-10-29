@@ -1,9 +1,7 @@
 - {MinimumRequiredVersion: 4.13.0}
-- vega10
-- gfx900
-- [Device 6863, Device 6862, Device 687f, Device 6860, Device 6861, 'Vega 10 XTX [Radeon
-    Vega Frontier Edition]', 'Vega [Radeon RX Vega]', 'Vega 10 [Radeon Instinct MI25]',
-    Vega, Device 6864]
+- arcturus
+- gfx908
+- [Device 7380, Device 7388, Device 738c]
 - AssignedDerivedParameters: true
   Batched: true
   ComplexConjugateA: false
@@ -84,7 +82,7 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: false
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
+    ISA: [9, 0, 8]
     Ideals: {32: 5738.83, 64: 8510.38, 96: 8810.57, 128: 9132.7, 256: 9369.45, 512: 9613.36,
       1024: 9691.51, 2048: 9685.3, 4096: 9786.43, 8192: 10164.5, 16192: 9124.15}
     InnerUnroll: 1
@@ -265,7 +263,7 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: false
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
+    ISA: [9, 0, 8]
     Ideals: {32: 1.25244, 64: 421.299, 96: 615.464, 128: 805.52, 256: 1536.43, 512: 2783.58,
       1024: 4633.6, 2048: 6930.91, 4096: 8550.04, 8192: 10180.7, 16192: 9461.62}
     InnerUnroll: 1
@@ -446,7 +444,7 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: false
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
+    ISA: [9, 0, 8]
     Ideals: {32: 6208.62, 64: 7904.53, 96: 8924.75, 128: 9424.01, 256: 10351.5, 512: 10824.8,
       1024: 11132.5, 2048: 11619.9, 4096: 11714.0, 8192: 12082.0, 16192: 12154.1}
     InnerUnroll: 1
@@ -627,7 +625,7 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: false
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
+    ISA: [9, 0, 8]
     Ideals: {32: 221.194, 64: 387.729, 96: 671.256, 128: 920.669, 256: 1838.0, 512: 3260.5,
       1024: 6096.51, 2048: 7862.09, 4096: 9984.71, 8192: 11218.7, 16192: 12191.6}
     InnerUnroll: 1
@@ -808,7 +806,7 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: false
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
+    ISA: [9, 0, 8]
     Ideals: {32: 2595.78, 64: 4059.95, 96: 4855.24, 128: 5375.57, 256: 6279.78, 512: 6961.8,
       1024: 7229.96, 2048: 7074.15, 4096: 7131.13, 8192: 7582.23, 16192: 7700.57}
     InnerUnroll: 1
@@ -989,7 +987,7 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: false
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
+    ISA: [9, 0, 8]
     Ideals: {32: 212.399, 64: 423.147, 96: 607.134, 128: 789.276, 256: 1456.47, 512: 2479.28,
       1024: 3675.6, 2048: 5018.26, 4096: 6750.5, 8192: 6807.74, 16192: 7942.98}
     InnerUnroll: 1

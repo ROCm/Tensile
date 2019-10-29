@@ -1,9 +1,7 @@
 - {MinimumRequiredVersion: 4.13.0}
-- vega10
-- gfx900
-- [Device 6863, Device 6862, Device 687f, Device 6860, Device 6861, 'Vega 10 XTX [Radeon
-    Vega Frontier Edition]', 'Vega [Radeon RX Vega]', 'Vega 10 [Radeon Instinct MI25]',
-    Vega, Device 6864]
+- arcturus
+- gfx908
+- [Device 7380, Device 7388, Device 738c]
 - AssignedDerivedParameters: true
   Batched: true
   ComplexConjugateA: false
@@ -17,12 +15,12 @@
   Index01A: 0
   Index01B: 1
   Index1: 1
-  IndexAssignmentsA: [0, 3, 2]
-  IndexAssignmentsB: [3, 1, 2]
+  IndexAssignmentsA: [3, 0, 2]
+  IndexAssignmentsB: [1, 3, 2]
   IndexAssignmentsLD: [4, 5, 6, 7]
   IndexUnroll: 3
-  IndexUnrollA: 1
-  IndexUnrollB: 0
+  IndexUnrollA: 0
+  IndexUnrollB: 1
   IndicesBatch: [2]
   IndicesFree: [0, 1]
   IndicesSummation: [3]
@@ -35,16 +33,16 @@
   SetConstStrideA: []
   SetConstStrideB: []
   SilentHighPrecisionAccumulate: false
-  TLUA: true
-  TLUB: false
+  TLUA: false
+  TLUB: true
   Tensor0: 0
   Tensor1: 1
   TileA: 0
   TileAwareSelection: true
   TileB: 1
   TotalIndices: 4
-  TransposeA: false
-  TransposeB: false
+  TransposeA: true
+  TransposeB: true
   UseBeta: true
   UseInitialStrides: false
   ZeroPadA: []
@@ -82,22 +80,22 @@
     GlobalSplitUSummationAssignmentRoundRobin: true
     GlobalSplitUWorkGroupMappingRoundRobin: false
     GlobalWriteVectorWidth: 4
-    GuaranteeNoPartialA: false
-    GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
-    Ideals: {32: 5738.83, 64: 8510.38, 96: 8810.57, 128: 9132.7, 256: 9369.45, 512: 9613.36,
-      1024: 9691.51, 2048: 9685.3, 4096: 9786.43, 8192: 10164.5, 16192: 9124.15}
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: false
+    ISA: [9, 0, 8]
+    Ideals: {32: 5692.67, 64: 8510.38, 96: 8822.78, 128: 9142.53, 256: 9369.48, 512: 9591.65,
+      1024: 9676.35, 2048: 9658.46, 4096: 9774.83, 8192: 10180.3, 16192: 9464.3}
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
-    LSCA: 64
-    LSCB: 16
-    LSPA: 16
-    LSPB: 64
-    LVCA: 16
-    LVCB: 4
-    LVPA: 4
-    LVPB: 16
+    LSCA: 16
+    LSCB: 64
+    LSPA: 64
+    LSPB: 16
+    LVCA: 4
+    LVCB: 16
+    LVPA: 16
+    LVPB: 4
     LdcEqualsLdd: true
     LdsNumElements: 4096
     LdsNumElementsAlignedA: 1024
@@ -167,12 +165,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA: [3, 0, 2]
+      IndexAssignmentsB: [1, 3, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexUnroll: 3
-      IndexUnrollA: 1
-      IndexUnrollB: 0
+      IndexUnrollA: 0
+      IndexUnrollB: 1
       IndicesBatch: [2]
       IndicesFree: [0, 1]
       IndicesSummation: [3]
@@ -185,16 +183,16 @@
       SetConstStrideA: []
       SetConstStrideB: []
       SilentHighPrecisionAccumulate: false
-      TLUA: true
-      TLUB: false
+      TLUA: false
+      TLUB: true
       Tensor0: 0
       Tensor1: 1
       TileA: 0
       TileAwareSelection: true
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
-      TransposeB: false
+      TransposeA: true
+      TransposeB: true
       UseBeta: true
       UseInitialStrides: false
       ZeroPadA: []
@@ -204,7 +202,7 @@
     ScheduleIterAlg: 1
     ScheduleLocalWrite: 1
     SolutionIndex: 0
-    SolutionNameMin: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_TT4_4_WG16_16_1
+    SolutionNameMin: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_GSU1_TT4_4_WG16_16_1
     StaggerU: 32
     StaggerUMapping: 0
     StaggerUStride: 256
@@ -263,22 +261,22 @@
     GlobalSplitUSummationAssignmentRoundRobin: true
     GlobalSplitUWorkGroupMappingRoundRobin: false
     GlobalWriteVectorWidth: 4
-    GuaranteeNoPartialA: false
-    GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
-    Ideals: {32: 1.25244, 64: 421.299, 96: 615.464, 128: 805.52, 256: 1536.43, 512: 2783.58,
-      1024: 4633.6, 2048: 6930.91, 4096: 8550.04, 8192: 10180.7, 16192: 9461.62}
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: false
+    ISA: [9, 0, 8]
+    Ideals: {32: 1.25941, 64: 418.683, 96: 613.686, 128: 798.703, 256: 1515.6, 512: 2686.94,
+      1024: 4356.15, 2048: 6273.41, 4096: 7869.05, 8192: 8419.6, 16192: 8640.26}
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
-    LSCA: 64
-    LSCB: 16
-    LSPA: 16
-    LSPB: 64
-    LVCA: 16
-    LVCB: 4
-    LVPA: 4
-    LVPB: 16
+    LSCA: 16
+    LSCB: 64
+    LSPA: 64
+    LSPB: 16
+    LVCA: 4
+    LVCB: 16
+    LVPA: 16
+    LVPB: 4
     LdcEqualsLdd: true
     LdsNumElements: 4096
     LdsNumElementsAlignedA: 1024
@@ -348,12 +346,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA: [3, 0, 2]
+      IndexAssignmentsB: [1, 3, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexUnroll: 3
-      IndexUnrollA: 1
-      IndexUnrollB: 0
+      IndexUnrollA: 0
+      IndexUnrollB: 1
       IndicesBatch: [2]
       IndicesFree: [0, 1]
       IndicesSummation: [3]
@@ -366,16 +364,16 @@
       SetConstStrideA: []
       SetConstStrideB: []
       SilentHighPrecisionAccumulate: false
-      TLUA: true
-      TLUB: false
+      TLUA: false
+      TLUB: true
       Tensor0: 0
       Tensor1: 1
       TileA: 0
       TileAwareSelection: true
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
-      TransposeB: false
+      TransposeA: true
+      TransposeB: true
       UseBeta: true
       UseInitialStrides: false
       ZeroPadA: []
@@ -385,7 +383,7 @@
     ScheduleIterAlg: 1
     ScheduleLocalWrite: 1
     SolutionIndex: 1
-    SolutionNameMin: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_TT4_4_WG16_16_1
+    SolutionNameMin: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_GSU4_TT4_4_WG16_16_1
     StaggerU: 32
     StaggerUMapping: 0
     StaggerUStride: 256
@@ -444,22 +442,22 @@
     GlobalSplitUSummationAssignmentRoundRobin: true
     GlobalSplitUWorkGroupMappingRoundRobin: false
     GlobalWriteVectorWidth: 4
-    GuaranteeNoPartialA: false
-    GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
-    Ideals: {32: 6208.62, 64: 7904.53, 96: 8924.75, 128: 9424.01, 256: 10351.5, 512: 10824.8,
-      1024: 11132.5, 2048: 11619.9, 4096: 11714.0, 8192: 12082.0, 16192: 12154.1}
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: false
+    ISA: [9, 0, 8]
+    Ideals: {32: 6097.22, 64: 7860.64, 96: 9122.89, 128: 9421.42, 256: 10310.7, 512: 10854.2,
+      1024: 11133.4, 2048: 11596.6, 4096: 11881.6, 8192: 12163.8, 16192: 12404.8}
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
-    LSCA: 128
-    LSCB: 16
-    LSPA: 8
-    LSPB: 64
-    LVCA: 32
-    LVCB: 4
-    LVPA: 2
-    LVPB: 16
+    LSCA: 16
+    LSCB: 128
+    LSPA: 64
+    LSPB: 8
+    LVCA: 4
+    LVCB: 32
+    LVPA: 16
+    LVPB: 2
     LdcEqualsLdd: true
     LdsNumElements: 8192
     LdsNumElementsAlignedA: 2048
@@ -529,12 +527,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA: [3, 0, 2]
+      IndexAssignmentsB: [1, 3, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexUnroll: 3
-      IndexUnrollA: 1
-      IndexUnrollB: 0
+      IndexUnrollA: 0
+      IndexUnrollB: 1
       IndicesBatch: [2]
       IndicesFree: [0, 1]
       IndicesSummation: [3]
@@ -547,16 +545,16 @@
       SetConstStrideA: []
       SetConstStrideB: []
       SilentHighPrecisionAccumulate: false
-      TLUA: true
-      TLUB: false
+      TLUA: false
+      TLUB: true
       Tensor0: 0
       Tensor1: 1
       TileA: 0
       TileAwareSelection: true
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
-      TransposeB: false
+      TransposeA: true
+      TransposeB: true
       UseBeta: true
       UseInitialStrides: false
       ZeroPadA: []
@@ -566,7 +564,7 @@
     ScheduleIterAlg: 1
     ScheduleLocalWrite: 1
     SolutionIndex: 2
-    SolutionNameMin: Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_TT8_8_WG16_16_1
+    SolutionNameMin: Cijk_Alik_Bjlk_SB_MT128x128x16_SE_GSU1_TT8_8_WG16_16_1
     StaggerU: 32
     StaggerUMapping: 0
     StaggerUStride: 256
@@ -625,22 +623,22 @@
     GlobalSplitUSummationAssignmentRoundRobin: true
     GlobalSplitUWorkGroupMappingRoundRobin: false
     GlobalWriteVectorWidth: 4
-    GuaranteeNoPartialA: false
-    GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
-    Ideals: {32: 221.194, 64: 387.729, 96: 671.256, 128: 920.669, 256: 1838.0, 512: 3260.5,
-      1024: 6096.51, 2048: 7862.09, 4096: 9984.71, 8192: 11218.7, 16192: 12191.6}
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: false
+    ISA: [9, 0, 8]
+    Ideals: {32: 221.529, 64: 379.772, 96: 687.855, 128: 938.628, 256: 1843.99, 512: 3398.55,
+      1024: 5680.5, 2048: 7871.78, 4096: 9834.78, 8192: 10804.4, 16192: 11993.7}
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
-    LSCA: 128
-    LSCB: 16
-    LSPA: 8
-    LSPB: 64
-    LVCA: 32
-    LVCB: 4
-    LVPA: 2
-    LVPB: 16
+    LSCA: 16
+    LSCB: 128
+    LSPA: 64
+    LSPB: 8
+    LVCA: 4
+    LVCB: 32
+    LVPA: 16
+    LVPB: 2
     LdcEqualsLdd: true
     LdsNumElements: 8192
     LdsNumElementsAlignedA: 2048
@@ -710,12 +708,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA: [3, 0, 2]
+      IndexAssignmentsB: [1, 3, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexUnroll: 3
-      IndexUnrollA: 1
-      IndexUnrollB: 0
+      IndexUnrollA: 0
+      IndexUnrollB: 1
       IndicesBatch: [2]
       IndicesFree: [0, 1]
       IndicesSummation: [3]
@@ -728,16 +726,16 @@
       SetConstStrideA: []
       SetConstStrideB: []
       SilentHighPrecisionAccumulate: false
-      TLUA: true
-      TLUB: false
+      TLUA: false
+      TLUB: true
       Tensor0: 0
       Tensor1: 1
       TileA: 0
       TileAwareSelection: true
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
-      TransposeB: false
+      TransposeA: true
+      TransposeB: true
       UseBeta: true
       UseInitialStrides: false
       ZeroPadA: []
@@ -747,7 +745,7 @@
     ScheduleIterAlg: 1
     ScheduleLocalWrite: 1
     SolutionIndex: 3
-    SolutionNameMin: Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU4_TT8_8_WG16_16_1
+    SolutionNameMin: Cijk_Alik_Bjlk_SB_MT128x128x16_SE_GSU4_TT8_8_WG16_16_1
     StaggerU: 32
     StaggerUMapping: 0
     StaggerUStride: 256
@@ -806,22 +804,22 @@
     GlobalSplitUSummationAssignmentRoundRobin: true
     GlobalSplitUWorkGroupMappingRoundRobin: false
     GlobalWriteVectorWidth: 4
-    GuaranteeNoPartialA: false
-    GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
-    Ideals: {32: 2595.78, 64: 4059.95, 96: 4855.24, 128: 5375.57, 256: 6279.78, 512: 6961.8,
-      1024: 7229.96, 2048: 7074.15, 4096: 7131.13, 8192: 7582.23, 16192: 7700.57}
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: false
+    ISA: [9, 0, 8]
+    Ideals: {32: 2576.88, 64: 4006.33, 96: 4793.13, 128: 5295.14, 256: 5867.64, 512: 6280.94,
+      1024: 6478.57, 2048: 5977.59, 4096: 6364.19, 8192: 6202.96, 16192: 7189.04}
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
-    LSCA: 64
-    LSCB: 16
-    LSPA: 16
-    LSPB: 64
-    LVCA: 16
-    LVCB: 4
-    LVPA: 4
-    LVPB: 16
+    LSCA: 16
+    LSCB: 64
+    LSPA: 64
+    LSPB: 16
+    LVCA: 4
+    LVCB: 16
+    LVPA: 16
+    LVPB: 4
     LdcEqualsLdd: true
     LdsNumElements: 16384
     LdsNumElementsAlignedA: 1024
@@ -891,12 +889,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA: [3, 0, 2]
+      IndexAssignmentsB: [1, 3, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexUnroll: 3
-      IndexUnrollA: 1
-      IndexUnrollB: 0
+      IndexUnrollA: 0
+      IndexUnrollB: 1
       IndicesBatch: [2]
       IndicesFree: [0, 1]
       IndicesSummation: [3]
@@ -909,16 +907,16 @@
       SetConstStrideA: []
       SetConstStrideB: []
       SilentHighPrecisionAccumulate: false
-      TLUA: true
-      TLUB: false
+      TLUA: false
+      TLUB: true
       Tensor0: 0
       Tensor1: 1
       TileA: 0
       TileAwareSelection: true
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
-      TransposeB: false
+      TransposeA: true
+      TransposeB: true
       UseBeta: true
       UseInitialStrides: false
       ZeroPadA: []
@@ -928,7 +926,7 @@
     ScheduleIterAlg: 1
     ScheduleLocalWrite: 1
     SolutionIndex: 4
-    SolutionNameMin: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_TT8_8_WG8_8_4
+    SolutionNameMin: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_GSU1_TT8_8_WG8_8_4
     StaggerU: 32
     StaggerUMapping: 0
     StaggerUStride: 256
@@ -987,22 +985,22 @@
     GlobalSplitUSummationAssignmentRoundRobin: true
     GlobalSplitUWorkGroupMappingRoundRobin: false
     GlobalWriteVectorWidth: 4
-    GuaranteeNoPartialA: false
-    GuaranteeNoPartialB: true
-    ISA: [9, 0, 0]
-    Ideals: {32: 212.399, 64: 423.147, 96: 607.134, 128: 789.276, 256: 1456.47, 512: 2479.28,
-      1024: 3675.6, 2048: 5018.26, 4096: 6750.5, 8192: 6807.74, 16192: 7942.98}
+    GuaranteeNoPartialA: true
+    GuaranteeNoPartialB: false
+    ISA: [9, 0, 8]
+    Ideals: {32: 212.42, 64: 418.807, 96: 616.119, 128: 807.665, 256: 1415.8, 512: 2381.77,
+      1024: 3430.99, 2048: 4555.79, 4096: 5901.02, 8192: 6005.52, 16192: 6646.43}
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
-    LSCA: 64
-    LSCB: 16
-    LSPA: 16
-    LSPB: 64
-    LVCA: 16
-    LVCB: 4
-    LVPA: 4
-    LVPB: 16
+    LSCA: 16
+    LSCB: 64
+    LSPA: 64
+    LSPB: 16
+    LVCA: 4
+    LVCB: 16
+    LVPA: 16
+    LVPB: 4
     LdcEqualsLdd: true
     LdsNumElements: 16384
     LdsNumElementsAlignedA: 1024
@@ -1072,12 +1070,12 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA: [3, 0, 2]
+      IndexAssignmentsB: [1, 3, 2]
       IndexAssignmentsLD: [4, 5, 6, 7]
       IndexUnroll: 3
-      IndexUnrollA: 1
-      IndexUnrollB: 0
+      IndexUnrollA: 0
+      IndexUnrollB: 1
       IndicesBatch: [2]
       IndicesFree: [0, 1]
       IndicesSummation: [3]
@@ -1090,16 +1088,16 @@
       SetConstStrideA: []
       SetConstStrideB: []
       SilentHighPrecisionAccumulate: false
-      TLUA: true
-      TLUB: false
+      TLUA: false
+      TLUB: true
       Tensor0: 0
       Tensor1: 1
       TileA: 0
       TileAwareSelection: true
       TileB: 1
       TotalIndices: 4
-      TransposeA: false
-      TransposeB: false
+      TransposeA: true
+      TransposeB: true
       UseBeta: true
       UseInitialStrides: false
       ZeroPadA: []
@@ -1109,7 +1107,7 @@
     ScheduleIterAlg: 1
     ScheduleLocalWrite: 1
     SolutionIndex: 5
-    SolutionNameMin: Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_TT8_8_WG8_8_4
+    SolutionNameMin: Cijk_Alik_Bjlk_SB_MT64x64x16_SE_GSU4_TT8_8_WG8_8_4
     StaggerU: 32
     StaggerUMapping: 0
     StaggerUStride: 256
