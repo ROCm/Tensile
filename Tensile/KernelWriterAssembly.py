@@ -3855,7 +3855,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
     # Output : tileStart[0:1] have offset in elements from the 2D start of the tile.
-    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile; 
+    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile;
     # This is used to compute the limit.
     # Later we modify tileStart to include batch and higher-order dims and add this to SRD.
 

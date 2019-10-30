@@ -157,9 +157,9 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            uint64_t tensor2dSizeC = c.dimensions() <= 2 ? c.totalAllocatedElements() : c.strides().at(2);
-            uint64_t tensor2dSizeA = a.dimensions() <= 2 ? a.totalAllocatedElements() : a.strides().at(2);
-            uint64_t tensor2dSizeB = b.dimensions() <= 2 ? b.totalAllocatedElements() : b.strides().at(2);
+            uint64_t tensor2dSizeC = 0;
+            uint64_t tensor2dSizeA = (sizeMapping.packBatchDims & 0x1) ? a.totalAllocatedElements() : problem.allocatedElementsNonBatchA() ;
+            uint64_t tensor2dSizeB = (sizeMapping.packBatchDims & 0x2) ? b.totalAllocatedElements() : problem.allocatedElementsNonBatchB() ;
 
             rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
             rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
