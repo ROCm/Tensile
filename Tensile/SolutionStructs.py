@@ -612,10 +612,10 @@ class ProblemType:
         sumDims[sumDim] = 1
 
     for tc in ('A', 'B'):
-      for setc in self["SetConstStride%s"%tc] :
-          (anchorDim, stride) = setc[:2]
+      for sc in self["SetConstStride%s"%tc] :
+          (anchorDim, stride) = sc[:2]
           if anchorDim not in self.state["IndexAssignments%s"%tc]:
-              printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, setc, anchorDim, tc))
+              printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, sc, anchorDim, tc))
 
 
 
@@ -1598,8 +1598,8 @@ class Solution:
     if state["PackBatchDims"]==1:
         for bi in problemType["IndicesBatch"]:
             found = False
-            for setc in problemType["SetConstStrideB"]:
-                if setc[0]==bi and setc[1]==0:
+            for sc in problemType["SetConstStrideB"]:
+                if sc[0]==bi and sc[1]==0:
                     found = True
             if not found:
                 print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
@@ -1607,8 +1607,8 @@ class Solution:
     if state["PackBatchDims"]==2:
         for bi in problemType["IndicesBatch"]:
             found = False
-            for setc in problemType["SetConstStrideA"]:
-                if setc[0]==bi and setc[1]==0:
+            for sc in problemType["SetConstStrideA"]:
+                if sc[0]==bi and sc[1]==0:
                     found = True
             if not found:
                 print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)

@@ -353,22 +353,22 @@ def problemSizeParams(solution, problemSize):
     problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
 
     astrides = [-1] * solution.problemType.aDims
-    for setc in solution.problemType.setConstStrideA:
-        index = solution.problemType.indices[setc[0]]
+    for sc in solution.problemType.setConstStrideA:
+        index = solution.problemType.indices[sc[0]]
         if type(index) == FreeIndex:
             assert(index.isA)
-            astrides[index.i] = setc[1]
+            astrides[index.i] = sc[1]
         else:
-            astrides[index.a] = setc[1]
+            astrides[index.a] = sc[1]
 
     bstrides = [-1] * solution.problemType.bDims
-    for setc in solution.problemType.setConstStrideB:
-        index = solution.problemType.indices[setc[0]]
+    for sc in solution.problemType.setConstStrideB:
+        index = solution.problemType.indices[sc[0]]
         if type(index) == FreeIndex:
             assert(not index.isA)
-            bstrides[index.i] = setc[1]
+            bstrides[index.i] = sc[1]
         else:
-            bstrides[index.b] = setc[1]
+            bstrides[index.b] = sc[1]
 
     rv = [problemSizeArg]
     if len(problemSize) == numIndices:
