@@ -1,13 +1,13 @@
 GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0
-  NumElementsToValidate: 1
+  NumElementsToValidate: -1
+  CMakeBuildType: Debug
   KernelTime: True
-  #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  DataInitTypeA: 3
-  DataInitTypeB: 3
+  DataInitTypeA: 1
+  DataInitTypeB: 1
   DataInitTypeC: 4
   DataInitTypeAlpha: 2
   DataInitTypeBeta: 0
@@ -17,7 +17,7 @@ GlobalParameters:
   PrintTensorB: 0
   PrintTensorD: 0
   CpuThreads: 0
-  #ClientArgs: "--stride_c 0"
+  NewClient: 2
 
 BenchmarkProblems:
   ########################################
@@ -30,8 +30,8 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: False
       NumIndicesC: 2
-      IndexAssignmentsA: [ 4, 3, 0, 2]
-      IndexAssignmentsB: [ 4, 3, 1, 2]
+      IndexAssignmentsA: [ 3, 0, 2]
+      IndexAssignmentsB: [ 3, 1, 2]
       # 3 is Cin, 2 is batch index converted to a second summation index
       #
       # Standard batched NT is :
@@ -47,24 +47,25 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
           #- TailLoop: [False]
       ForkParameters:
+        #- KernelLanguage: ["Source", "Assembly"]
         #- KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
-        - GlobalSplitU: [1,2,4]
+        - GlobalSplitU: [1]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
         - StaggerU: [0]
         - StaggerUMapping: [0]
-        - DepthU: [ 4]
+        - DepthU: [ 8]
         - VectorWidth: [1]
         - FractionalLoad: [0]
+        - WorkGroupMapping: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 16, 16, 2, 4, 8]
-          - Range: [ [16], [16], [2], [1,1,32], [8]]
-          - Range: [ [16], [16], [1,1,4], [1,1,32]] ## TESTME - gsu
-          - Range: [ [127,1,129], 0, [2], [1,1,8], [1,1,16]]
+          - Exact: [ 16, 16, 2, 4]
+            #- Exact: [ 16, 16, 2, 5]
+            #- Exact: [ 16, 16, 2, 8]
