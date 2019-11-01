@@ -151,7 +151,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
   if globalParameters["NewClient"] < 2:
     runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
         % (echoLine, q, HR, q, q, q, q, HR, q))
-    runScriptFile.write("cmake3")
+    runScriptFile.write("cmake")
     # runtime and kernel language
     runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
     runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
@@ -188,7 +188,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write(" ../source\n")
     runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
         % (echoLine, q, HR, q, q, q, q, HR, q))
-    runScriptFile.write("cmake3 --build . --config %s%s\n" \
+    runScriptFile.write("cmake --build . --config %s%s\n" \
         % (globalParameters["CMakeBuildType"], " -- -j 8" \
         if os.name != "nt" else "") )
 

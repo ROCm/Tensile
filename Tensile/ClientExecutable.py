@@ -33,7 +33,7 @@ class CMakeEnvironment:
         self.options = options
 
     def generate(self):
-        args = ['cmake3']
+        args = ['cmake']
         args += itertools.chain.from_iterable([ ['-D', '{}={}'.format(key, value)] for key,value in self.options.items()])
         args += [self.sourceDir]
 
