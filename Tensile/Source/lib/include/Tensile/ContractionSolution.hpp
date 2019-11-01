@@ -50,7 +50,7 @@ namespace Tensile
 
         bool isSourceKernel() const;
 
-        virtual double projectedPerformance(Problem const& problem) const;
+        virtual double projectedPerformance(Problem const& problem, Hardware const& hardware) const;
 
         bool solves(Problem const& problem,
                     Problem  const& inputs,

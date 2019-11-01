@@ -481,7 +481,7 @@ namespace Tensile
         }
     }
 
-    double ContractionSolution::projectedPerformance(Problem const& problem) const
+    double ContractionSolution::projectedPerformance(Problem const& problem, Hardware const& hardware) const
     {
         double M = problem.freeSizeA(0);
         double N = problem.freeSizeB(0);
@@ -510,7 +510,15 @@ namespace Tensile
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
         double NumCUs = 64;
-        double GlobalSplitU = sizeMapping.globalSplitU;
+
+	AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
+
+        if (pAMDGPU != nullptr)
+        {                     //computeUnitCount
+            NumCUs = pAMDGPU->computeUnitCount;
+        }
+
+	double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU = sizeMapping.workGroupSize.z;
         double IdealGranularityPerf = closestKPerformance;
 
