@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 // This shared library is available at https://github.com/ROCmSoftwarePlatform/rocJENKINS/
-@Library('rocJenkins') _
+@Library('rocJenkins@ubuntu18') _
 
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
@@ -31,7 +31,7 @@ tensileCI:
     def tensile = new rocProject('Tensile')
     tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DCMAKE_CXX_FLAGS=-Werror -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
-    def nodes = new dockerNodes(['gfx900 && ubuntu', 'gfx906 && ubuntu', 'gfx908 && ubuntu'], tensile)
+    def nodes = new dockerNodes(['gfx900 && ubuntu16', 'gfx906 && ubuntu16', 'gfx908 && ubuntu16', 'gfx900 && ubuntu18', 'gfx906 && ubuntu18'], tensile)
 
     boolean formatCheck = false
 
