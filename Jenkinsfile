@@ -75,6 +75,7 @@ tensileCI:
         platform, project->
         try
         {
+	    def pyenv = platform.jenkinsLabel.contains('ubuntu18'} ? "py36" : "py35"
             def command = """#!/usr/bin/env bash
                     set -ex
 
@@ -88,7 +89,7 @@ tensileCI:
 
                     popd
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
+                    tox -vv --workdir /tmp/.tensile-tox -e ${pyenv} -- Tensile/UnitTests ${test_dir}
                     date
                 """
             platform.runCommand(this, command)
