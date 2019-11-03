@@ -75,7 +75,7 @@ tensileCI:
         platform, project->
         try
         {
-	    def pyenv = platform.jenkinsLabel.contains('ubuntu18'} ? "py36" : "py35"
+	    def pyenv = platform.jenkinsLabel.contains('ubuntu18') ? "py36" : "py35"
             def command = """#!/usr/bin/env bash
                     set -ex
 
