@@ -949,7 +949,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
           solution["AssertFree1ElementMultiple"],
-          solution["AssertMinApproxSize"],
+          0,
           "true" if solution["LdcEqualsLdd"] else "false",
           solution["PackBatchDims"]==2, \
           solution["PackBatchDims"]==1, \

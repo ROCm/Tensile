@@ -424,9 +424,6 @@ validParameters = {
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
-    # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
-    "AssertMinApproxSize" : [0,1,2],
-
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -722,7 +719,6 @@ defaultBenchmarkCommonParameters = [
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
-    {"AssertMinApproxSize":        [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 

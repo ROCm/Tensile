@@ -742,7 +742,7 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
-        solution["AssertMinApproxSize"], \
+        0, \
         solution["LdcEqualsLdd"], \
         solution["PackBatchDims"]==2, \
         solution["PackBatchDims"]==1, \
