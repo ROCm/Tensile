@@ -351,11 +351,11 @@ class Convolution:
     if len(spatialIn) != self.formatNumSpatialDims:
       raise RuntimeError ("len(spatialIn=", spatialIn, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
 
-    spatialTbd = not all(i!=-1 for i in spatialIn)
-    filterTbd = not all(i!=-1 for i in self.filter)
-    strideTbd = not all(i!=-1 for i in self.stride)
-    dilationTbd = not all(i!=-1 for i in self.dilation)
-    padTbd = not all(i!=-1 for i in self.padStart) or not all(i!=-1 for i in self.padEnd)
+    spatialTbd = -1 in spatialIn
+    filterTbd = -1 in self.filter
+    strideTbd = -1 in self.stride
+    dilationTbd = -1 in self.dilation
+    padTbd = -1 in self.padStart or -1 in self.padEnd
 
     # convert any TBD<0 to default 0
     padStart = [0 if p<0 else p for p in self.padStart]
