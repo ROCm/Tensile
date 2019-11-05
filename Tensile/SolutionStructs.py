@@ -325,6 +325,22 @@ class Convolution:
   def convolutionChar(self, dimIdx):
     return self.indexAssignments[dimIdx][1].shortChar
 
+  @property
+  def filterTbd(self):
+    return -1 in self.filter
+
+  @property
+  def strideTbd(self):
+    return -1 in self.stride
+
+  @property
+  def dilationTbd(self):
+    return -1 in self.dilation
+
+  @property
+  def padTbd(self):
+    return -1 in self.padStart or -1 in self.padEnd
+
   def makeProblem(self, keepTbd, n, c, k, spatialIn=None):
     """
     Generate valid problem dims
@@ -352,10 +368,6 @@ class Convolution:
       raise RuntimeError ("len(spatialIn=", spatialIn, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
 
     spatialTbd = -1 in spatialIn
-    filterTbd = -1 in self.filter
-    strideTbd = -1 in self.stride
-    dilationTbd = -1 in self.dilation
-    padTbd = -1 in self.padStart or -1 in self.padEnd
 
     # convert any TBD<0 to default 0
     padStart = [0 if p<0 else p for p in self.padStart]
