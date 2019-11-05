@@ -1793,14 +1793,7 @@ class KernelWriterSource(KernelWriter):
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
       if kernel["PackSummationDims"]:
-        if loopIdx==self.unrollIdx:
-          kStr += self.indent + "numIter%s = (size%s" % (loopChar, loopChar)
-          for os in range(self.otherSummations):
-            otherSumChar = self.indexChars[problemType["IndicesSummation"][os]]
-            kStr += "*size%s" % otherSumChar
-          kStr += ") / LOCAL_DEPTHU;" + self.endLine
-        else:
-          kStr += self.indent + "numIter%s = 0;" % loopChar + self.endLine
+        kStr += self.indent + "numIter%s = 0;" % loopChar + self.endLine
       else:
         kStr += self.indent + "numIter%s = size%s" \
             % (loopChar, loopChar)
@@ -1840,6 +1833,7 @@ class KernelWriterSource(KernelWriter):
   # Open Loop
   ##############################################################################
   def openLoop(self, kernel, loopIdx):
+    problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -1852,10 +1846,16 @@ class KernelWriterSource(KernelWriter):
       assert(not kernel["PackSummationDims"])
     else:
       if kernel["PackSummationDims"] and loopIdx==self.unrollIdx and not tailLoop:
-        kStr += self.indent + "unsigned int psdIter=0; // packed summation dim iterator" + self.endLine
+        kStr += self.indent + "unsigned int psdIter=%d*LOCAL_DEPTHU; // packed summation dim iterator" % (kernel["PrefetchGlobalRead"]) + self.endLine
+        totalIters = "(size%s" % self.unrollChar
+        for os in range(self.otherSummations):
+          otherSumChar = self.indexChars[problemType["IndicesSummation"][os]]
+          totalIters += "*size%s" % otherSumChar
+        totalIters += ")"
         kStr += self.indent \
-                + "while (psdIter++ < numIter%s-%d) {" % (loopChar, kernel["PrefetchGlobalRead"]) \
+                + "while (psdIter < %s) {" % (totalIters) \
                 + self.endLine
+        kStr += self.indent + "  " + "psdIter += LOCAL_DEPTHU;" + self.endLine
       else:
         kStr += "%swhile (numIter%s-- > %u) {%s" \
             % (self.indent, loopChar, \
@@ -1889,31 +1889,6 @@ class KernelWriterSource(KernelWriter):
         else:
           incAmount = "1"
         kStr += "%selementCounter%s += %s;" % (self.indent, loopChar, incAmount) + self.endLine
-
-    if loopIdx>0 and kernel["PackSummationDims"] and self.actualSummationLoops==1:
-      unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
-      remainder = "(psdIter * LOCAL_DEPTHU)"
-      lastChar = unrollChar
-      for os in range(self.otherSummations):
-        # Only get here if we are packing summation dims
-        otherSumDim  = problemType["IndicesSummation"][os]
-        otherSumChar = self.indexChars[otherSumDim]
-        if os==0:
-          kStr += self.indent + "unsigned int newNumIter%s = %s/size%s;" % (otherSumChar, remainder, lastChar) + self.endLine
-
-        if os != self.otherSummations-1:
-          kStr += self.indent
-          if os==0:
-            kStr += "unsigned int "
-          kStr += "psdRemainder = %s %% size%s;" % (remainder, lastChar) + self.endLine
-          remainder = "psdRemainder"
-
-        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPA, prefetchIndex=0, \
-                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
-        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPB, prefetchIndex=0, \
-                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
-        kStr += self.indent + "numIter%s = newNumIter%s;" % (otherSumChar, otherSumChar) + self.endLine
-        lastChar = otherSumChar
 
     self.indent = self.indent[2:]
     if kernel["LoopDoWhile"]:
@@ -2054,6 +2029,36 @@ class KernelWriterSource(KernelWriter):
     incB = Code.Module("globalReadIncrementB")
     incB.addText(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
     imod.addCode(incB)
+
+    if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
+      kStr = ""
+      problemType = kernel["ProblemType"]
+      unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
+      if prefetchIndex>0:
+        remainder = "(LOCAL_DEPTHU)"
+      else:
+        remainder = "(psdIter)"
+      lastChar = unrollChar
+      for os in range(self.otherSummations):
+        # Only get here if we are packing summation dims
+        otherSumDim  = problemType["IndicesSummation"][os]
+        otherSumChar = self.indexChars[otherSumDim]
+        kStr += self.indent + "unsigned int newNumIter%s = %s/size%s;" % (otherSumChar, remainder, lastChar) + self.endLine
+
+        if os != self.otherSummations-1:
+          kStr += self.indent
+          if os==0:
+            kStr += "unsigned int "
+          kStr += "psdRemainder = %s %% size%s;" % (remainder, lastChar) + self.endLine
+          remainder = "psdRemainder"
+
+        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPA, prefetchIndex=0, \
+                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
+        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPB, prefetchIndex=0, \
+                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
+        kStr += self.indent + "numIter%s = newNumIter%s;" % (otherSumChar, otherSumChar) + self.endLine
+        lastChar = otherSumChar
+      incB.addText(kStr)
 
     return imod
 
