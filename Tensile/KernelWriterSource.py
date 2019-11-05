@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+from . import Code
 from .DataType import DataType
 from .SolutionStructs import isPackedIndex
 from .Common import globalParameters, printExit
@@ -2041,6 +2042,20 @@ class KernelWriterSource(KernelWriter):
           #      or tP["ruc"]) else "/VECTOR_WIDTH", \
           #      self.endLine)
     return kStr
+
+
+  def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
+    imod = Code.Module("globalReadIncrementAB%s")
+
+    incA = Code.Module("globalReadIncrementA")
+    incA.addText(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+    imod.addCode(incA)
+
+    incB = Code.Module("globalReadIncrementB")
+    incB.addText(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
+    imod.addCode(incB)
+
+    return imod
 
   ##############################################################################
   # Global Read: Do It A/B

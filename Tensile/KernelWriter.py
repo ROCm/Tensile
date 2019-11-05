@@ -81,14 +81,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopUnroll"]) ]
-    
+    globalReadIncACode = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
+    globalReadIncBCode = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
+
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
       # put everything in the header:
       self.unrollLoopHeaderCode.addCode(self.globalReadACode)
       self.unrollLoopHeaderCode.addCode(self.globalReadBCode)
-      self.unrollLoopHeaderCode.addCode(self.globalReadIncACode)
-      self.unrollLoopHeaderCode.addCode(self.globalReadIncBCode)
+      self.unrollLoopHeaderCode.addCode(globalReadIncACode)
+      self.unrollLoopHeaderCode.addCode(globalReadIncBCode)
     else:
       self.unrollLoopHeaderCode.addCode(self.globalReadACode.header)
       self.unrollLoopHeaderCode.addCode(self.globalReadBCode.header)
@@ -110,8 +112,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
                       list(self.globalReadBCode.middle.items())
-      itemsToSched.append(self.globalReadIncACode)
-      itemsToSched.append(self.globalReadIncBCode)
+      itemsToSched.append(globalReadIncACode)
+      itemsToSched.append(globalReadIncBCode)
 
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
@@ -512,8 +514,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
       if self.enable["GlobalReadInc"]:
-        kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, pfi))
-        kl.append(self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, pfi))
+        kl.append(self.globalReadIncrementAB(kernel, self.unrollIdx, pfi))
 
     kl.append(self.comment3("End setupNewTile"))
 
@@ -716,11 +717,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["GlobalReadInc"]:
         # unrolled loop: increment global read addresses
-        self.globalReadIncACode = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersA, 0)
-        self.globalReadIncBCode = self.globalReadIncrement(kernel, self.unrollIdx, tensorParametersB, 0)
+        self.globalReadIncrements = self.globalReadIncrementAB(kernel, self.unrollIdx, 0)
       else:
-        self.globalReadIncACode = Code.Module()
-        self.globalReadIncBCode = Code.Module()
+        self.globalReadIncrements = Code.Module()
+        self.globalReadIncrements.addCode(Code.Module("globalReadIncrementA"))
+        self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
 
       if self.enable["LocalWrite"]:
         self.localWriteACode = self.localWriteDo(kernel, tensorParametersA)
@@ -1244,10 +1245,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # extra summation loops: global increment and close
     for i in reversed(range(self.otherSummationLoops)):
-      kl.append(self.comment("global read inc a"))
-      kl.append(self.globalReadIncrement(kernel, i, tensorParametersA, 0))
-      kl.append(self.comment("global read inc b"))
-      kl.append(self.globalReadIncrement(kernel, i, tensorParametersB, 0))
+      kl.append(self.comment("global read inc AB"))
+      kl.append(self.globalReadIncrementAB(kernel, i, 0))
       kl.append(self.closeLoop(kernel, i, True))
 
     kl.append(self.endSummation(kernel))
@@ -2200,7 +2199,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Global Read: Increment A/B
   ##############################################################################
   @abc.abstractmethod
-  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex, incs=1):
+  def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     return ""
 
   ##############################################################################

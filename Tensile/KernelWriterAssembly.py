@@ -5487,6 +5487,12 @@ class KernelWriterAssembly(KernelWriter):
 
     return imod
 
+  def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
+    imod = Code.Module("globalReadIncrementAB%s")
+    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
+    return imod
+
 
   ##############################################################################
   # Global Read:
