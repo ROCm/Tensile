@@ -1772,8 +1772,16 @@ class KernelWriterSource(KernelWriter):
     loopChar = self.indexChars[loopDim]
     if tailLoop:
       kStr += self.endLine + "  /* Compute tail loop num iter */" + self.endLine
-      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
-          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
+      if kernel["PackSummationDims"]:
+          totalIters = "(size%s" % self.unrollChar
+          for os in range(self.otherSummations):
+            otherSumChar = self.indexChars[problemType["IndicesSummation"][os]]
+            totalIters += "*size%s" % otherSumChar
+          totalIters += ")"
+      else:
+          totalIters = "size%s" % self.unrollChar
+      kStr += "%snumIter%s = (((%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
+          % (self.indent, self.unrollChar, totalIters, self.endLine)
       if kernel["GlobalSplitU"] > 1:
         kStr += "%sif (gsuSumIdx != numIterPerWgRemainder) {%s" \
             % (self.indent, self.endLine)
@@ -1881,7 +1889,7 @@ class KernelWriterSource(KernelWriter):
           incAmount = "1"
         kStr += "%selementCounter%s += %s;" % (self.indent, loopChar, incAmount) + self.endLine
 
-    if self.actualSummationLoops==1:
+    if loopIdx>0 and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
       remainder = "(psdIter * LOCAL_DEPTHU)"
       lastChar = unrollChar
