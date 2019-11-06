@@ -1378,6 +1378,14 @@ class Solution:
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
 
+    if state["MatrixInstruction"]:
+      if state["MatrixInstruction"][0] != -1:
+        if len(state["MatrixInstruction"]) == 4:
+          state["MatrixInstM"] = state["MatrixInstruction"][0]
+          state["MatrixInstN"] = state["MatrixInstruction"][1]
+          state["MatrixInstK"] = state["MatrixInstruction"][2]
+          state["MatrixInstB"] = state["MatrixInstruction"][3]
+
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False
     state["DirectToLdsB"] = False
@@ -2056,6 +2064,10 @@ class Solution:
     requiredParameters["MacroTile1"] = False # always prepended
     requiredParameters["DepthU"] = False # always prepended
     requiredParameters["LdcEqualsLdd"] = False # always prepended
+    requiredParameters["MatrixInstM"] = False # always prepended
+    requiredParameters["MatrixInstN"] = False # always prepended
+    requiredParameters["MatrixInstK"] = False # always prepended
+    requiredParameters["MatrixInstB"] = False # always prepended
     requiredParameters["Kernel"] = True # distinguish kernels from solutions
                                         # for single-source compilation
     return requiredParameters
@@ -2084,6 +2096,10 @@ class Solution:
       name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
+    if "MatrixInstM" in state:
+      name += "%s%ux%ux%ux%u_" \
+          % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"] )
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"

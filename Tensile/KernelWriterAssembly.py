@@ -931,7 +931,7 @@ class KernelWriterAssembly(KernelWriter):
             self.bpeCinternal = int(self.bpr* kernel["ProblemType"]["DataType"].numRegisters())
         elif kernel["ProblemType"]["DataType"].isBFloat16():
             self.bpeCinternal = int(self.bpr*1)
-            print("need_replacement_kernel %s" % self.kernelName)
+            # print("need_replacement_kernel %s" % self.kernelName)
         else:
             print("HighPrecisionAccumulate only valid when DataType is half, Int8x4.")
             self.bpeCinternal = int(self.bpr*\
@@ -1831,6 +1831,17 @@ class KernelWriterAssembly(KernelWriter):
       if beAggressive:
         kStr += "s_setprio 0 // Reset priority after macs%s" % self.endLine
 
+    # bfloat16
+    elif kernel["ProblemType"]["DataType"].isBFloat16():
+      if self.version == (9,0,8):
+        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          kStr += ""
+        else:
+          kStr += ""
+      else:
+        printExit("Bfloat16 not supported for arch=%u" % self.version )
+
+
     # integer i8
     elif kernel["ProblemType"]["DataType"].isInt8x4():
       for b in range(0, kernel["ThreadTile1"]):
@@ -2260,6 +2271,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic"); ka_size += 8
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.v2Argument(                         "alpha",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
@@ -2270,6 +2282,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += self.v2Argument(                        "beta",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
@@ -2358,6 +2371,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.v3Argument(                         "alpha",       4, offset,      "by_value", cptValueType); offset += 4
@@ -2368,6 +2382,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += self.v3Argument(                        "beta",       4, offset,      "by_value", cptValueType); offset += 4
@@ -2989,6 +3004,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # for half precision or smaller, data is padded to fill up 32-bits
       if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.getKernArg("Alpha")
@@ -3004,6 +3020,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += inst("s_load_dword", sgpr("Beta"), \
@@ -5078,6 +5095,7 @@ class KernelWriterAssembly(KernelWriter):
     beAggressive = kernel["AggressivePerfMode"]
     macIdx = 0
 
+    # half precision
     if kernel["ProblemType"]["DataType"].isHalf():
       for blockB in range(0, kernel["ThreadTile1"]//2):
         for blockA in range(0, kernel["ThreadTile0"]//2):
@@ -5085,6 +5103,7 @@ class KernelWriterAssembly(KernelWriter):
           if beAggressive and not doOnce:
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
+
     # integer i8
     elif kernel["ProblemType"]["DataType"].isInt8x4():
       for blockB in range(0, kernel["ThreadTile1"]):
@@ -5093,6 +5112,7 @@ class KernelWriterAssembly(KernelWriter):
           if beAggressive and not doOnce:
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
+
     # single precision
     elif kernel["ProblemType"]["DataType"].isSingle():
       for blockB in range(0, kernel["ThreadTile1"]):
@@ -5106,7 +5126,7 @@ class KernelWriterAssembly(KernelWriter):
           if macIdx == kernel["PerformanceSyncLocation"]:
             imod.addInst("s_barrier ","extra barrier for performance")
           macIdx += 1
-    
+
     # double precision
     elif kernel["ProblemType"]["DataType"].isDouble():
       for blockB in range(0, kernel["ThreadTile1"]):
@@ -5183,6 +5203,10 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), sgpr(tmpSgpr), "alpha == 1.0?")
           else: # HPA
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+
+        elif kernel["ProblemType"]["DataType"].isBFloat16():
+          kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+
         elif kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
 
@@ -5578,7 +5602,8 @@ class KernelWriterAssembly(KernelWriter):
             # for each component in vector
             while r < loadWidth*self.bpr//tP["bpe"]:
               numElementsPerLoad = 1
-              if kernel["ProblemType"]["DataType"].isHalf():
+              if kernel["ProblemType"]["DataType"].isHalf() or \
+                 kernel["ProblemType"]["DataType"].isBFloat16():
                 if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
                   # Pack two FP16 values into a single load dword x2
                   numElementsPerLoad = 2
@@ -5632,7 +5657,8 @@ class KernelWriterAssembly(KernelWriter):
 
                 offset = r * tP["bpe"]
                 hi16 = 0
-                if kernel["ProblemType"]["DataType"].isHalf():
+                if kernel["ProblemType"]["DataType"].isHalf() or \
+                   kernel["ProblemType"]["DataType"].isBFloat16():
                   if numElementsPerLoad==2:
                     # Pack two FP16 values into a single load dword x2
                     r += 1 # skip next element since we loaded 2X here

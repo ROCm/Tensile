@@ -190,7 +190,6 @@ for numThreads in range(64, 1025, 64):
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
 
-
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
@@ -211,6 +210,10 @@ depthUs.extend(list(range(2,512+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
+
+# TODO: will have to add all valid instruction combinations, for now add the type we're implementing
+validMatrixInstructions = [[], [-1], [32,32,4,1], [32,32,2,2], [16,16,8,1], [16,16,2,4]]
+
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
     "LoopTail":                   [ False, True ], # tail loop handles non multiples of unrolled summation loop
@@ -514,6 +517,11 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+    # MatrixInstruction: (M x N x K x B)
+    # XDLOPS tile definition, only valid for gfx908
+    # If empty, do not use these instructions
+    "MatrixInstruction":          validMatrixInstructions,
+
     # If positive, each switch includes switches <= the specified switch.
     # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
     # If negative, setting is precise and will disable only the specified code piece.
@@ -747,6 +755,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"MatrixInstruction":         [ [] ] },
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
