@@ -1,11 +1,11 @@
 GlobalParameters:
   EnqueuesPerSync: 1
-  NumElementsToValidate: 1
+  NumElementsToValidate: -1
   KernelTime: True
   #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  DataInitTypeA: 5
+  DataInitTypeA: 1
   DataInitTypeB: 1
   DataInitTypeAlpha: 1
   PrintSolutionRejectionReason: 1
@@ -14,7 +14,9 @@ GlobalParameters:
   #PrintTensorB: 1
   PrintTensorD: 2
   CpuThreads: 0
-  #LibraryPrintDebug: 1
+  LibraryPrintDebug: 0
+  NewClient: 2
+  CMakeBuildType: Debug
 
 BenchmarkProblems:
   ########################################
@@ -29,7 +31,7 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 0, 2 ]
       IndexAssignmentsB: [ 2, 1 ]
-      ZeroPadA: [[0, 2,   3, 2]]  # zero-pad dimension and 2 values, format will change
+      ZeroPadA: [[0, 2,   0, 2]]  # zero-pad dimension and 2 values, format will change
       SetConstStrideA: [ [2, 1] ]
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -37,11 +39,11 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - KernelLanguage: ["Source","Assembly"]
-        - PrefetchLocalRead: [False]
+        - KernelLanguage: ["Source"]
+        - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 2, 2 ]
+          - [ 4, 4 ]
             #- [ 8, 8 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
@@ -56,4 +58,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [16], [8], [5] ]
+          - Range: [ [4], [4], [6] ]

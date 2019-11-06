@@ -106,7 +106,7 @@ namespace Tensile
             template <typename T, InitMode Mode>
             void initArray(T * array, size_t elements)
             {
-                for(int i = 0; i < elements; i++)
+                for(size_t i = 0; i < elements; i++)
                 {
                     array[i] = getValue<T, Mode>();
                 }

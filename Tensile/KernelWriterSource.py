@@ -1331,12 +1331,15 @@ class KernelWriterSource(KernelWriter):
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
             kStr += "  %s %s = GLOBAL_OFFSET_%s( " \
-                % (self.uint64Str, gro, tP["tensorChar"])
+                % (self.int64Str, gro, tP["tensorChar"])
             for i in range(0, len(tP["ia"])):
               index = tP["ia"][i]
+              zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[0] == i), None)
+              if zp:
+                kStr += "static_cast<int64_t>"
               if index < kernel["ProblemType"]["NumIndicesC"]:
                 if index == tP["tileIdx"]:
-                  kStr += "globalReadOffset%s%s_%u_%u" \
+                  kStr += "(globalReadOffset%s%s_%u_%u)" \
                       % (tP["tensorChar"], tP["tileChar"], \
                       (para if tP["tlu"] else perp), \
                       (sPara if tP["tlu"] else sPerp) )
@@ -1347,7 +1350,7 @@ class KernelWriterSource(KernelWriter):
                       # pass 0, this is is the non-packed batch dim and must be 0
                       kStr += "0"
                     else:
-                      kStr += "globalReadOffset%s%s_%u_%u" \
+                      kStr += "(globalReadOffset%s%s_%u_%u)" \
                           % (tc, \
                           self.indexChars[index],
                           (para if tP["tlu"] else perp), \
@@ -1357,14 +1360,13 @@ class KernelWriterSource(KernelWriter):
                     kStr += "wg" + self.indexChars[index]
               else: # summation index
                 if index == kernel["ProblemType"]["IndexUnroll"]:
-                  kStr += "globalReadOffset%s%s_%u_%u" \
+                  kStr += "(globalReadOffset%s%s_%u_%u)" \
                       % (tP["tensorChar"], self.unrollChar, \
                       (perp if tP["tlu"] else para), \
                       (sPerp if tP["tlu"] else sPara) )
                 else:
-                  kStr += "globalReadOffset%s%s" \
+                  kStr += "(globalReadOffset%s%s)" \
                       % (tP["tensorChar"], self.indexChars[index])
-              zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[0] == i), None)
               if zp:
                 # subtract pad - this both helps efficiently detect OOB on the summation start and also
                 # corrects the valid offsets for the leading pad.
@@ -1794,14 +1796,14 @@ class KernelWriterSource(KernelWriter):
       zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
       zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
       if zpA or zpB:
-        kStr += "%sunsigned int elementCounter%s = 0;" \
+        kStr += "%sint elementCounter%s = 0;" \
             % (self.indent, loopChar) \
             + self.endLine
       if zpA:
         freeDim = zpA[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Trailing + 1);" \
-            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Leading + zeroPadA%s_Trailing + 1);" \
+            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
             + self.endLine
       if zpB:
         freeDim = zpB[0]
@@ -2028,11 +2030,14 @@ class KernelWriterSource(KernelWriter):
               if guarded:
                 kStr += " || "
               guarded = 1
-              sumDim = zp[1]
+              (freeDim, sumDim) = zp[:2]
               sumChar = self.indexChars[sumDim]
               globalReadOffset = "globalReadOffset%s_%u_%u_%u_%u + %u" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0);
-              kStr += "( (elementCounter%s * stride%s%s + %s) >= elementEdge%s%s )" \
+              kStr += "( ( (int64_t)(elementCounter%s * stride%s%s + %s) < 0)" \
+                      % (sumChar, tc, sumChar, globalReadOffset)
+              #kStr += ")"
+              kStr += " || ( (elementCounter%s * stride%s%s + %s) >= elementEdge%s%s ))" \
                       % (sumChar, tc, sumChar, globalReadOffset, tc, sumChar)
 
             # guard around edge

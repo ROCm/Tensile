@@ -1,29 +1,26 @@
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Release
+  CMakeBuildType: Debug
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  NumElementsToValidate: -1
+  NumElementsToValidate: 1000
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  DataInitTypeA: 3
-  DataInitTypeB: 3
+  DataInitTypeA: 1
+  DataInitTypeB: 1
   DataInitTypeC: 2
   DataInitTypeBeta: 0
   KernelTime: True
   LibraryPrintDebug: 0
-  #RuntimeLanguage: ["OCL"]
-  PrintTensorD : 2
-  ClientArgs: "--stride_b 0"
   CpuThreads: 0
-  NewClient: 2
+  PrintSolutionRejectionReason: 1
 
 BenchmarkProblems:
 
@@ -33,11 +30,11 @@ BenchmarkProblems:
       DataType: s
       DestDataType: s
       UseBeta: True
-      #SetConstStrideB: [[2,0]]
-      NumIndicesC: 4
-      IndexAssignmentsA: [0, 2, 3, 4]
-      IndexAssignmentsB: [   1, 4, 3]
-      SetConstStrideB: [[3,0]]
+      NumIndicesC : 2
+      IndexAssignmentsA : [0, 2 ]
+      IndexAssignmentsB : [2, 1]
+      UseBeta : False
+      UseInitialStrides : True
 
     -
       InitialSolutionParameters:
@@ -45,24 +42,26 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        #- KernelLanguage: ["Source","Assembly"]
+        - KernelLanguage: ["Assembly"]
         - ThreadTile:
-          - [ 4, 4 ]
-          - [ 8, 8 ]
+          - [ 2, 2 ]
         - WorkGroup:
-          - [  8, 8, 4 ]
-          - [  16, 8, 1 ]
+          - [  8, 8, 1 ]
+            #- [  16, 8, 1 ]
         - DepthU: [8]
-        - GlobalReadVectorWidth: [1,4]
-        - VectorWidth: [1,4]
-        - WorkGroupMapping: [1,8]
+        - GlobalReadVectorWidth: [1]
+        - VectorWidth: [1]
 
-        - FractionalLoad: [1]
-        - PackBatchDims: [1]  # pack into A
-        - AssertFree0ElementMultiple: [4]
+        - FractionalLoad: [0]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [124,4,132], [127,1,129], [4], [4], [16]]
+            - Range: [ [8,8,16], [16], [24]]
+            - Range: [ [128], [128], [32]]
+              #- Range: [ [124,4,132], [124,4,132], [4], [6], [16]]
+              #
+
+# Source works but assembly fails (data mismatch).
+# Likely something in the GLOBAL_ADDRESS macro, also double-check parm passing.

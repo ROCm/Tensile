@@ -113,8 +113,8 @@ namespace Tensile
                 }
 
                 if (m_convolutionVsContraction and !m_cpuConvInputs) {
-                  m_cpuConvInputs = allocNewCPUInputs(m_cpuInputsPristine, true);
-                  initializeCPUInputs(*m_cpuConvInputs);
+                  m_cpuConvInputs = allocNewCPUInputs();
+                  copyInputs(m_cpuConvInputs, m_cpuInputsPristine);
                 }
 
                 return m_cpuInputs;
@@ -170,13 +170,12 @@ namespace Tensile
                 std::shared_ptr<ManagedInputs> source;
                 if(!m_cpuInputsPristine)
                     m_cpuInputsPristine = createNewCPUInputs();
-
                 copyInputs(rv, m_cpuInputsPristine);
 
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr, bool convolutionVsContraction=false)
+            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr)
             {
                 std::shared_ptr<AType> a;
                 std::shared_ptr<BType> b;
@@ -191,12 +190,18 @@ namespace Tensile
                 else
                 {
                     a = std::shared_ptr<AType>((AType *)std::malloc(TypeInfo<AType>::ElementSize * m_aMaxElements), std::free);
+                    if (a==nullptr)
+                        throw std::runtime_error("out of host memory allocating a");
                     b = std::shared_ptr<BType>((BType *)std::malloc(TypeInfo<BType>::ElementSize * m_bMaxElements), std::free);
+                    if (a==nullptr)
+                        throw std::runtime_error("out of host memory allocating b");
                 }
 
-                if(m_cEqualsD || !pristine || convolutionVsContraction)
+                if(m_cEqualsD || !pristine)
                 {
                     c = std::shared_ptr<CType>((CType *)std::malloc(TypeInfo<CType>::ElementSize * m_cMaxElements), std::free);
+                    if (c==nullptr)
+                        throw std::runtime_error("out of host memory allocating c");
                 }
                 else
                 {
@@ -214,6 +219,8 @@ namespace Tensile
                 else
                 {
                     d = std::shared_ptr<DType>((DType *)std::malloc(TypeInfo<DType>::ElementSize * m_dMaxElements), std::free);
+                    if (d==nullptr)
+                        throw std::runtime_error("out of host memory allocating d");
                 }
 
                 auto alpha = static_cast<AlphaType>(0);

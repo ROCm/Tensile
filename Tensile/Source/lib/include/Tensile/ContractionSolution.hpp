@@ -106,6 +106,7 @@ namespace Tensile
             DataType cType = DataType::Float;
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
+            bool useInitialStrides = false;
             bool useBeta = true;
         };
 
