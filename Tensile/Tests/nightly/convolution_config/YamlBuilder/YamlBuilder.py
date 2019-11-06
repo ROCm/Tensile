@@ -19,7 +19,7 @@ class YamlBuilder:
         # replace any TBD spatials with something:
         spatialIn = [x if x>0 else 42 for x in spatialIn]
 
-        if not all(i!=-1 for i in conv.filter):
+        if -1 in conv.filter:
             raise RuntimeError('Filter must be completely specified, not "%s"'%conv.config['Filter'])
 
         (problemSizes,problemStrides) = conv.makeProblem(False, 8, 32, 16, spatialIn)

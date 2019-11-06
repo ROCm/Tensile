@@ -343,9 +343,17 @@ class Convolution:
 
   def makeProblem(self, keepTbd, n, c, k, spatialIn=None):
     """
-    Generate valid problem dims
+    Generate valid problem dims for specified convolution
+    Return [ [sizes],[stridesA] ]
 
-    TBD values are assumes to be 1 (filter/dilation/stride) or 0(pad) via abs(..) function
+    If keepTbd is true, then makeProblem will compute known values but return -1 for unknowns.
+    For example, a constant filter parm can be used to compute some tensor sizes.  One the other hand,
+    if spatial dims are not specified, then this function cannot compute the associated dimension size
+    or stride and will leave them as -1.
+      - -1 sizes are invalid and should be ignored by caller; however the other sizes can be used as a reference
+      - -1 strides are valid.  (The client will compute a sensible default for -1 strides)
+
+    TBD values are assumed to be 1 (filter/dilation/stride) or 0(pad) via abs(..) function
     """
     numDims = 1 + max(max([x[0] for x in self.indexA]), max([x[0] for x in self.indexB]))
     sizes = [-1]*numDims

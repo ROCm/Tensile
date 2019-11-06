@@ -322,8 +322,6 @@ def normalizeConvolution(conv, problemSize, astrides):
     (refSize,refAStrides) = conv.makeProblem(True, problemSize[conv.dimIdx('N')],
                                 problemSize[conv.dimIdx('C')], problemSize[conv.dimIdx('K')])
 
-    print ("Ref Size=",refSize,"astride=",refAStrides)
-
     for i in range(len(refSize)):
         if (refSize[i]!=-1 and refSize[i] != problemSize[i]):
             raise RuntimeError (
