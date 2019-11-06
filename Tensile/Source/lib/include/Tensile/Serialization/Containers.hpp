@@ -32,6 +32,7 @@
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
+#include <Tensile/GranularitySelectionLibrary.hpp>
 
 #include <cstddef>
 #include <map>
@@ -152,6 +153,8 @@ namespace Tensile
         struct SequenceTraits<std::vector<__VA_ARGS__>, IO>: \
         public DefaultSequenceTraits<std::vector<__VA_ARGS__>, IO, flow> \
         { }
+
+        TENSILE_SERIALIZE_VECTOR(true, ExactSelectionTableEntry);
 
         TENSILE_SERIALIZE_VECTOR(true,
                 Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
