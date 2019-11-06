@@ -376,7 +376,7 @@ class Convolution:
     # convert to Output dimensions:
     spatialOut=[0]*len(spatialIn)
     for i in range(self.formatNumSpatialDims):
-      if keepTbd and (spatialTbd or filterTbd or strideTbd or padTbd):
+      if keepTbd and (spatialTbd or self.filterTbd or self.strideTbd or self.padTbd):
         spatialTbd = 1
         spatialOut[i] = -1
       else:
@@ -386,12 +386,12 @@ class Convolution:
     for fi,filterValue in enumerate(self.filter):
       if filterValue != 1 and filterValue != -1:
         pos = self.convolutionDims[chr(ord('X')+fi)][0]
-        if keepTbd and filterTbd:
+        if keepTbd and self.filterTbd:
           sizes[pos] = -1
         else:
           sizes[pos] = filterValue
 
-        if keepTbd and (dilationTbd or strideTbd):
+        if keepTbd and (self.dilationTbd or self.strideTbd):
           astrides[pos] = -1
         else:
           astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.dilation[fi])
@@ -403,7 +403,7 @@ class Convolution:
         sizes[pos] = -1
       else:
         sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
-      if keepTbd and strideTbd:
+      if keepTbd and self.strideTbd:
         astrides[pos] = -1
       else:
         astrides[pos] = abs(self.stride[0])
@@ -416,7 +416,7 @@ class Convolution:
         else:
           sizes[pos] = sout
 
-        if keepTbd and (spatialTbd or strideTbd):
+        if keepTbd and (spatialTbd or self.strideTbd):
           astrides[pos]=-1
         else:
           astrides[pos]=abs(self.stride[0]) if si==0 else spatialIn[si-1]*abs(self.stride[si])
