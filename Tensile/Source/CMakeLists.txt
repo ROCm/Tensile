@@ -41,6 +41,7 @@ if(TENSILE_NEW_CLIENT)
     endif()
 
     if(TENSILE_USE_OPENMP)
+        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
         find_package(OpenMP)
         if (OPENMP_FOUND)
             set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")

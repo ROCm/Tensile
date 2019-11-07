@@ -136,21 +136,23 @@ namespace Tensile
             }
 
             template <typename T>
-            void logTensorTyped(LogLevel level, std::string const& name, T const* data, TensorDescriptor const& tensor)
+            void logTensorTyped(LogLevel level, std::string const& name, T const* data, TensorDescriptor const& tensor, T const * ptrVal)
             {
                 if(logAtLevel(level))
                 {
                     m_stream << name << ": " << tensor << std::endl;
-                    WriteTensor(m_stream, data, tensor);
+                    WriteTensor(m_stream, data, tensor, ptrVal);
                 }
             }
 
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor) override
+            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor, void const* ptrVal) override
             {
                 if(logAtLevel(level))
                 {
                     if(tensor.dataType() == DataType::Float)
-                        logTensorTyped(level, name, reinterpret_cast<float const*>(data), tensor);
+                        logTensorTyped(level, name,
+                                       reinterpret_cast<float const*>(data), tensor, 
+                                       reinterpret_cast<float const*>(ptrVal));
                     else
                         throw std::runtime_error(concatenate("Can't log tensor of type ", tensor.dataType()));
                 }

@@ -174,6 +174,7 @@ globalParameters["CxxCompiler"] = "hcc"
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+globalParameters["NewClientArgs"] = ""
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
@@ -1132,7 +1133,7 @@ def assignGlobalParameters( config ):
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   if globalParameters["AssemblerPath"] is None:
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc");
+    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
   globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
 

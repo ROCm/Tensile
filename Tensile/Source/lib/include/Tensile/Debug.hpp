@@ -39,6 +39,8 @@ namespace Tensile
 
         bool printKernelArguments() const;
 
+        bool printEmbeddedDataInit() const;
+
     private:
         friend LazySingleton<Debug>;
 

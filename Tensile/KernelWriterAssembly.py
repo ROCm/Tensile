@@ -29,6 +29,7 @@ from .Utils import ceil_divide, roundUpToNearestMultiple
 from math import log, ceil, trunc, modf
 from copy import deepcopy
 import collections
+import math
 import traceback
 
 ################################################################################
@@ -301,10 +302,10 @@ class RegisterPool:
   def checkFinalState(self):
     for si in range(0,len(self.pool)):
       if self.pool[si].status == self.statusInUse:
-        printWarning("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
-            %(si, self.pool[si].tag))
         if self.printRP:
           print(self.state())
+        raise RuntimeError("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
+            %(si, self.pool[si].tag))
 
   ########################################
   # State
@@ -770,7 +771,7 @@ class KernelWriterAssembly(KernelWriter):
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
     # appropriate vmwnts into the stores so they issue as loads become available
-    self.interleaveStoreVmcnt = 1 and kernel["BufferStore"]
+    self.interleaveStoreVmcnt = 0 and kernel["BufferStore"]
 
 
     # if >0, shift the start of the SRD left by specified #elements (not bytes)
@@ -2029,12 +2030,12 @@ class KernelWriterAssembly(KernelWriter):
       mStr = ".macro _v_cmpx_{op}_{dtype} dst, src0, src1=".format(**dict) + self.endLine
       if self.version == (10,1,0):
         if False:
-          mStr += r"v_cmpx_{op}_{dtype} \src0 \src1".format(**dict) + self.endLine
+          mStr += r"   v_cmpx_{op}_{dtype} \src0 \src1".format(**dict) + self.endLine
         else:
-          mStr += r"v_cmp_{op}_{dtype} \dst \src0 \src1".format(**dict) + self.endLine
-          mStr += r"s_mov_b64 exec \dst" + self.endLine
+          mStr += r"   v_cmp_{op}_{dtype} \dst \src0 \src1".format(**dict) + self.endLine
+          mStr += r"   s_mov_b64 exec \dst" + self.endLine
       else:
-        mStr += r"v_cmpx_{op}_{dtype} \dst \src0 \src1 ".format(**dict) + self.endLine
+        mStr += r"   v_cmpx_{op}_{dtype} \dst \src0 \src1 ".format(**dict) + self.endLine
       mStr += ".endm" + self.endLine
       return mStr
 
@@ -2171,7 +2172,10 @@ class KernelWriterAssembly(KernelWriter):
       % ( tWord, group_segment_size, self.endLine )
 
     if self.version == (10,1,0):
-      kStr += "  wavefront_size = 6 // 64-thread wavefronts%s" % self.endLine
+      if globalParameters["CodeObjectVersion"] == "V2":
+        kStr += "  wavefront_size = 6 // 64-thread wavefronts%s" % self.endLine
+      else:
+        kStr += "  .amdhsa_wavefront_size32 0 // 64-thread wavefronts%s" % self.endLine
 
     if globalParameters["CodeObjectVersion"] == "V2":
       # other
@@ -2509,7 +2513,9 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += "\n"
     kStr += ".macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=" + self.endLine
-    if self.AsmBugs["ExplicitCO"]:
+    if self.AsmBugs["ExplicitNC"]:
+        kStr += r"   v_add_co_ci_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+    elif self.AsmBugs["ExplicitCO"]:
         kStr += r"   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     else:
         kStr += r"   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
@@ -2553,9 +2559,9 @@ class KernelWriterAssembly(KernelWriter):
     #   - dstIdx+1 cannot be same as dividend.  dividend+0 can be same as dividend and this may be useful for chaining divides.
     kStr += self.comment3("Magic div and mod functions")
     kStr += ".macro V_MAGIC_DIV dstIdx, dividend, magicNumber, magicShift" + self.endLine
-    kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
-    kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
-    kStr += "    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
+    kStr += r"    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+    kStr += r"    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
+    kStr += r"    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
     kStr += ".endm" + self.endLine
 
     ########################################
@@ -2687,12 +2693,14 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"] or kernel["BufferStore"]:
       kStr += self.comment1("2GB limit - set offsets to -1 to exceed this and clamp")
       kStr += self.macroRegister("BufferLimit", "0x80000000")
-      kStr += self.comment1("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
-      kStr += self.macroRegister("Srd127_96",   "0x0020000")
       #TODO-64 : This is max 32-bit negative value, the tail loop
       # does incrementally step through the GRO and increment GRO
       # which are initialized with this value
       kStr += self.macroRegister("BufferOOB", "0x80000000")
+
+      srdUpperValue = Code.SrdUpperValue(self.version)
+      kStr += self.comment3("Bits 127:96 of SRD.\n" + srdUpperValue.desc())
+      kStr += self.macroRegister("Srd127_96", str(srdUpperValue))
 
     ########################################
     # Global Offsets
@@ -3049,8 +3057,8 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["ProblemType"]["DataType"].isHalf() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
-          kStr += inst("s_load_dword", sgpr("Beta"), \
-              sgpr("KernArgAddress",2), hex(self.kernArgOffset), "load beta" )
+          #kStr += inst("s_load_dword", sgpr("Beta"), \
+          #    sgpr("KernArgAddress",2), hex(self.kernArgOffset), "load beta" )
           kStr += self.getKernArg("Beta+0")
         elif kernel["ProblemType"]["DataType"].isDouble() or \
              kernel["ProblemType"]["DataType"].isSingleComplex():
@@ -3962,7 +3970,7 @@ class KernelWriterAssembly(KernelWriter):
     if wroteTileStart:
       kStr += inst("s_lshl_b64", sgpr(tileStart,2), sgpr(tileStart,2), log2(bpe), "tileStart *= BPE")
       kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), sgpr(tileStart+0), "SRD base = Address+ tileStart0")
-      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), sgpr(tileStart+1), "SRD base = Address+ tileStart1");
+      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), sgpr(tileStart+1), "SRD base = Address+ tileStart1")
     else:
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
@@ -4000,7 +4008,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_mov_b32", vgpr(t), 0x54, "")
         kStr += self.assert_ne(sgpr(stmp+0), vgpr(t) )
         self.vgprPool.checkIn(t)
-
 
     return kStr
 
@@ -4893,7 +4900,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(dummy)
       #kStr += dump(vgpr(sgId))
       #kStr += dump(vgpr(numIter))
-      kStr += inst("_v_cmp_lt_u32", "vcc", \
+      kStr += inst("_v_cmpx_lt_u32", "vcc", \
           vgpr(sgId), vgpr(numIter), "sgId < numIter")
       self.vgprPool.checkIn(tmpVgpr)
       #self.tailNumIter = numIter
@@ -5077,11 +5084,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.sgprPool.initTmps(self.initSgprValue)
 
     if self.db["ConservativeWaitCnt"] & 0x10:
-      kStr += "s_barrier // debug\n"
-      kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+      kStr += "s_barrier // debug" + self.endLine
+      kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)" + self.endLine
+      kStr += "s_waitcnt_vscnt null, 0" + self.endLine
 
     if kernel["SuppressNoLoadLoop"]:
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
+      kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
     return kStr
 
@@ -5948,6 +5957,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x1:
         imod.footer.addInst( "s_barrier", "debug")
         imod.footer.addInst( "s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "conservative wait")
+        imod.footer.addInst( "s_waitcnt_vscnt", "null", "0", "stores")
         imod.footer.addInst( "s_barrier", "debug")
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
@@ -6252,6 +6262,7 @@ class KernelWriterAssembly(KernelWriter):
     if 0 and tP["isB"]: # post-lds-write
     #if 0 and self.localWriteDoCnt >= 0:
       localWriteCode.addInst( "s_waitcnt lgkmcnt(0) & vmcnt(0)", "")
+      localWriteCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
       localWriteCode.addInst("s_barrier", "dump LDS" )
       localWriteCode.addText(self.assert_ne(sgpr("WorkGroup0"),1))
       #localWriteCode.addText(self.assert_eq(sgpr("LoopCounters+0"), 1))
@@ -6392,6 +6403,7 @@ class KernelWriterAssembly(KernelWriter):
         # TODO - handle vector-load
         if self.db["CheckValue1%s"%tc]:
             localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
+            localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
             if kernel["ProblemType"]["DataType"].isHalf():
               localReadCode.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
             elif kernel["ProblemType"]["DataType"].isInt8x4() or \
@@ -6683,11 +6695,11 @@ class KernelWriterAssembly(KernelWriter):
   def complexDeclareTmpRegisters(self, kernel):
     kStr = ""
     return kStr
-    if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
-      kStr += "  float type_mac_tmp" + self.endLine
-    if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
-      kStr += "  double type_mac_tmp" + self.endLine
-    return kStr
+    #if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
+    #  kStr += "  float type_mac_tmp" + self.endLine
+    #if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
+    #  kStr += "  double type_mac_tmp" + self.endLine
+    #return kStr
 
   ##############################################################################
   # isLds = true if querying about LDS operations (which can use dword operations)
@@ -6836,6 +6848,7 @@ class KernelWriterAssembly(KernelWriter):
             # ds_write value
             #kStr += dump(vgpr(regIdx))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
+    kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     kStr += self.syncThreads(kernel, "post-lsu local write")
     #kStr += self.dumpLds(kernel, 0, 16)
     #kStr += self.bomb(5)
@@ -6865,6 +6878,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("ds_read_b32", vgpr("ValuC+%u"%regIdx), \
                 vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all reads")
+    kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     self.vgprPool.checkIn(baseAddr)
     return kStr
 
@@ -8254,7 +8268,7 @@ class KernelWriterAssembly(KernelWriter):
         numSgprs = self.ss.cfg.fixedSgprsPerBatch + self.ss.cfg.numSgprsPerElement*numElementsPerBatch
         kStr += self.comment("allocate %u sgpr. perBatch=%u perElement=%u elements=%u"%\
             (numSgprs, self.ss.cfg.fixedSgprsPerBatch, self.ss.cfg.numSgprsPerElement, numElementsPerBatch))
-        tmpSgpr = self.getTmpSgpr(numSgprs);
+        tmpSgpr = self.getTmpSgpr(numSgprs)
         elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
 
         for batchIdx in range(0, numBatches):
@@ -8292,6 +8306,8 @@ class KernelWriterAssembly(KernelWriter):
   # rpv = regs per vector
     rpv = bpl/4.0
 
+    extraFields += " glc, slc, dlc"
+
     if useBuffer:
       tailFields = "offen offset:%u"%offset
       if extraFields != "":
@@ -8328,12 +8344,15 @@ class KernelWriterAssembly(KernelWriter):
       else:
         assert ("chooseGlobalRead: bad bpl")
 
-  # create the store instruction for requested vector width and other parms
-  #
-  # rpv = regs per vector
   ##############################################################################
   def chooseGlobalWrite(self, useBuffer, bps, srcVgpr, rpv, \
                         addr0, addr1, offset, extraFields, hi16=0):
+    """
+    create the store instruction for requested vector width and other parms
+   
+    rpv = regs per vector
+    """
+
     kStr = ""
 
     if useBuffer:
@@ -8371,10 +8390,12 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Add stores for the element with addrCalc and sumIdx.
-  # tmpS01 is a single :temp sGPR
   ##############################################################################
   def addStore(self, kernel, ss, addrCalc, sumIdx, tmpS01):
+    """
+    Add stores for the element with addrCalc and sumIdx.
+    tmpS01 is a single :temp sGPR
+    """
     kStr = ""
     if self.do["GlobalWrite"]:
       # perform vector stores here, so no VI indexing.
@@ -8553,6 +8574,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
       kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
+      kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
       kStr += "s_barrier // debug\n"
     if not edge and self.db["ForceEdgeStores"]>=2:
       kStr += self.bomb() # should not get here
@@ -8725,6 +8747,7 @@ class KernelWriterAssembly(KernelWriter):
       # wait for batched load
       # TODO - we are always atomic here?
       kStr += inst("s_waitcnt", "vmcnt(0)", "wait C (atomic)" )
+      kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       ########################################
       # first attempt write
@@ -8773,6 +8796,7 @@ class KernelWriterAssembly(KernelWriter):
       ########################################
       # wait for first attempt write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
+      kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       ########################################
       # check first attempt
@@ -8864,6 +8888,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # wait for batched write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
+      kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       # check batched write success
       kStr += self.comment("apply masks and check for success")
@@ -8914,6 +8939,7 @@ class KernelWriterAssembly(KernelWriter):
       # wait for batched load
       if beta and not interleaveStoreVmcnt:
         kStr += inst("s_waitcnt", "vmcnt(0)", "wait C")
+        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       kStr += self.comment("apply mask, calc new C and issue write")
       for elementIdx in range(0, len(batchElements)):
@@ -8974,8 +9000,8 @@ class KernelWriterAssembly(KernelWriter):
             elif kernel["ProblemType"]["DataType"].isInt8x4():
               # assume we will need to replace v_mac_f32 with v_add_u32 and s_mul_lo_i32
               # v_mad_i32_i24
-#             kStr += inst("v_mad_i32_i24", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), vgpr("ValuC+%u"%sumIdxV), \
-#                 "finalSum = sum*alpha + C*beta")
+              #kStr += inst("v_mad_i32_i24", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), vgpr("ValuC+%u"%sumIdxV), \
+              #    "finalSum = sum*alpha + C*beta")
               kStr += inst("v_mul_lo_i32", vgpr(dataV+0), sgpr("Beta"), vgpr(dataV+0), \
                   "C = C*beta")
               kStr += inst("v_add_u32", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), vgpr("ValuC+%u"%sumIdxV), \
@@ -9024,6 +9050,7 @@ class KernelWriterAssembly(KernelWriter):
       if self.db["CheckStoreC"]>=0:
         # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
+        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
         for elementIdx in range(0, len(batchElements)):
           addr = ss.elementAddr[elementIdx].addrVgpr
           sumIdx = ss.elementSumIdx[elementIdx]
@@ -9053,6 +9080,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*4, \
                       addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
+        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
         # Add checks for expected values:
         kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["CheckStoreC"], "expected value")
@@ -9072,6 +9100,7 @@ class KernelWriterAssembly(KernelWriter):
       if self.db["ConservativeWaitCnt"] & 0x40:
         kStr += "s_barrier // debug\n"
         kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
+        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
         kStr += "s_barrier // debug\n"
 
     # return registers to pool:
@@ -9223,6 +9252,7 @@ class KernelWriterAssembly(KernelWriter):
        (self.db["ConservativeWaitCnt"] & 0x8) and skipLocalRead  != -1:
         imod = Code.Module("ConservativeWaitCnt")
         imod.addInst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "debug %s"%comment )
+        imod.addInst("s_waitcnt_vscnt", "null", "0", "writes")
         imod.addInst("s_barrier", "debug" )
         return imod
 
@@ -9258,6 +9288,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.comment("dump lds state")
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
+      kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
       kStr += inst("s_barrier", "dump LDS" )
       tmp = self.vgprPool.checkOut(1)
       tmpAddr = self.vgprPool.checkOut(1)
@@ -9270,6 +9301,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("ds_read_b32", vgpr(tmp), \
             vgpr(tmpAddr) + " offset:%u"%(i*kernel["NumThreads"]*4), "dump lds")
         kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "dump" )
+        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
         kStr += self.dump(vgpr(tmp))
       self.vgprPool.checkIn(tmp)
       self.vgprPool.checkIn(tmpAddr)
@@ -9283,6 +9315,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("init lds state")
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
+    kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     kStr += inst("s_barrier", "init LDS" )
     tmp = self.vgprPool.checkOut(1)
     tmpAddr = self.vgprPool.checkOut(1)
@@ -9300,6 +9333,7 @@ class KernelWriterAssembly(KernelWriter):
           "//init lds" + self.endLine)
 
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for LDS init to complete" )
+    kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     kStr += inst("s_barrier", "init LDS exit" )
     self.vgprPool.checkIn(tmp)
     self.vgprPool.checkIn(tmpAddr)
@@ -9383,13 +9417,14 @@ class KernelWriterAssembly(KernelWriter):
 
 
 
-  ##############################################################################
-  # Cause a GPUVM fault.
-  # Instruction after the bomb will write the cookie to SGPR0, so you can see the cookie in the 
-  # backtrace. Useful for locating which spot in code generated the bomb
-  # vgprAddr controls which vgpr to overwrite with the null pointer address
-  ##############################################################################
   def bomb(self,cookie=None,scratchVgpr=-1):
+      """
+      Cause a GPUVM fault.
+      Instruction after the bomb will write the cookie to SGPR0, so you can see the cookie in the 
+      backtrace. Useful for locating which spot in code generated the bomb
+      vgprAddr controls which vgpr to overwrite with the null pointer address
+      """
+
       kStr =""
       if scratchVgpr==-1:
         vgprAddr = self.vgprPool.checkOut(2)
@@ -9647,7 +9682,7 @@ def inst(*args):
   formatting = "%s"
   if len(params) > 1:
     formatting += " %s"
-  for i in range(0, len(params)-2):
+  for _ in range(0, len(params)-2):
     formatting += ", %s"
   instStr = formatting % (params)
   line = "%-50s // %s\n" % (instStr, comment)

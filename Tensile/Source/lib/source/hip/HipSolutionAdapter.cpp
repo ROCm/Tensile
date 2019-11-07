@@ -72,8 +72,15 @@ namespace Tensile
 
             if(error == hipErrorFileNotFound)
                 throw std::runtime_error(concatenate("Code object file '", path, "' not found."));
+            else if(error == hipErrorUnknown)
+            {
+                return;
+            }
             else
+            {
+                std::cout << path << std::endl;
                 HIP_CHECK_EXC(error);
+            }
 
             {
                 std::lock_guard<std::mutex> guard(m_access);

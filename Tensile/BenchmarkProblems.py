@@ -335,7 +335,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if benchmarkStep.isFinal():
       resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
-    newResultsFileName = resultsFileBase + "-new.csv" if globalParameters["NewClient"] else None
+    newResultsFileName = resultsFileBase + "-new.csv" if globalParameters["NewClient"] == 1 else None
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
@@ -412,11 +412,10 @@ def compareResults(old, new, name):
 ################################################################################
 def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName=None):
 
-  if globalParameters["NewClient"] < 2:
-    try:
-      resultsFile = open(resultsFileName, "r")
-    except IOError:
-      printExit("Can't open \"%s\" to get results" % resultsFileName )
+  try:
+    resultsFile = open(resultsFileName, "r")
+  except IOError:
+    printExit("Can't open \"%s\" to get results" % resultsFileName )
 
   newCSV = itertools.repeat(None)
   if newResultsFileName is not None:
@@ -428,53 +427,52 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
 
   # setup data structures
   results = []
-  if globalParameters["NewClient"] < 2:
-    numSolutions = 0
-    for solutionsForHardcoded in solutions:
-      results.append([])
-      for solution in solutionsForHardcoded:
-        # GEMM csv files contain "LDD" "LDC" "LDA" "LDB" columns
-        if solution["ProblemType"]["OperationType"] == "GEMM":
-          problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
-        else:
-          problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
-        results[-1].append([])
-        numSolutions += 1
-
-    # read results in gflops
-    csvFile = csv.reader(resultsFile)
-    startIdx = problemSizeIdx + 1
-    rowLength = startIdx + numSolutions
-
-    rowIdx = 0
-    for row,newRow in zip(csvFile, newCSV):
-      rowIdx+=1
-      if rowIdx == 1:
-        if newRow is not None:
-          diffCSV.writerow(row)
-          diffCSV.writerow(newRow)
-          headerRow = row
-        continue
+  numSolutions = 0
+  for solutionsForHardcoded in solutions:
+    results.append([])
+    for solution in solutionsForHardcoded:
+      # GEMM csv files contain "LDD" "LDC" "LDA" "LDB" columns
+      if solution["ProblemType"]["OperationType"] == "GEMM":
+        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
       else:
-        if len(row) < rowLength:
-          printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
-              % (resultsFileName, rowIdx, rowLength) )
-          break
-        if newRow is not None:
-          diffCSV.writerow([compareResults(old,new,name) for old,new,name in itertools.zip_longest(row, newRow, headerRow)])
+        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+      results[-1].append([])
+      numSolutions += 1
 
-        idx = startIdx
-        for i,solutionsForHardcoded in enumerate(solutions):
-          for j,solution in enumerate(solutionsForHardcoded):
-            gflops = float(row[idx])
+  # read results in gflops
+  csvFile = csv.reader(resultsFile)
+  startIdx = problemSizeIdx + 1
+  rowLength = startIdx + numSolutions
 
-            results[i][j].append(gflops)
-            idx += 1
-    if rowIdx < 2 and not enableTileSelection:
-      printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
-          % (resultsFileName, rowIdx) )
+  rowIdx = 0
+  for row,newRow in zip(csvFile, newCSV):
+    rowIdx+=1
+    if rowIdx == 1:
+      if newRow is not None:
+        diffCSV.writerow(row)
+        diffCSV.writerow(newRow)
+        headerRow = row
+      continue
+    else:
+      if len(row) < rowLength:
+        printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
+            % (resultsFileName, rowIdx, rowLength) )
+        break
+      if newRow is not None:
+        diffCSV.writerow([compareResults(old,new,name) for old,new,name in itertools.zip_longest(row, newRow, headerRow)])
 
-    resultsFile.close()
+      idx = startIdx
+      for i,solutionsForHardcoded in enumerate(solutions):
+        for j,solution in enumerate(solutionsForHardcoded):
+          gflops = float(row[idx])
+
+          results[i][j].append(gflops)
+          idx += 1
+  if rowIdx < 2 and not enableTileSelection:
+    printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
+        % (resultsFileName, rowIdx) )
+
+  resultsFile.close()
   if newResultsFileName is not None:
     newFile.close()
     diffFile.close()
@@ -520,7 +518,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
-      solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
+      solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False )
 
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")

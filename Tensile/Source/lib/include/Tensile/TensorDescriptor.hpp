@@ -258,7 +258,8 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
     template <typename T>
-    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
+    void WriteTensor(std::ostream & stream, T const* data, TensorDescriptor const& desc,
+                     T const* ptrValue = nullptr)
     {
         const size_t maxDims=8;
         if(desc.dimensions() > maxDims)
@@ -273,6 +274,8 @@ namespace Tensile
         for (auto s : desc.sizes())
             stream << s << ", ";
         stream  << " data_ptr: " << data;
+        if(ptrValue != data && ptrValue != nullptr)
+            stream << " ptrValue: " << ptrValue;
 
         stream << std::endl;
 

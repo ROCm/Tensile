@@ -231,7 +231,8 @@ namespace Tensile
         {
             size_t requiredBufferSize = 0;
 
-            std::cout << "alpha: " << result.alpha << ", beta: " << result.beta << std::endl;
+            std::cout << "reference alpha: " << reference.alpha << ", beta: " << reference.beta << std::endl;
+            std::cout << "result    alpha: " << result.alpha << ", beta: " << result.beta << std::endl;
 
             if(m_printTensorA) requiredBufferSize = std::max(requiredBufferSize, m_problem.a().totalAllocatedBytes());
             if(m_printTensorB) requiredBufferSize = std::max(requiredBufferSize, m_problem.b().totalAllocatedBytes());
@@ -247,7 +248,7 @@ namespace Tensile
                 HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.a, m_problem.a().totalAllocatedBytes(), hipMemcpyDeviceToHost));
                 auto const* buffer = reinterpret_cast<typename TypedInputs::AType const*>(m_cpuResultBuffer.data());
 
-                m_reporter->logTensor(LogLevel::Verbose, "A", buffer, m_problem.a());
+                m_reporter->logTensor(LogLevel::Verbose, "A", buffer, m_problem.a(), result.a);
             }
 
             if(m_printTensorB)
@@ -255,28 +256,39 @@ namespace Tensile
                 HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.b, m_problem.b().totalAllocatedBytes(), hipMemcpyDeviceToHost));
                 auto const* buffer = reinterpret_cast<typename TypedInputs::BType const*>(m_cpuResultBuffer.data());
 
-                m_reporter->logTensor(LogLevel::Verbose, "B", buffer, m_problem.b());
+                m_reporter->logTensor(LogLevel::Verbose, "B", buffer, m_problem.b(), result.b);
             }
 
-            if(m_printTensorC)
+            if(result.c == result.d && (m_printTensorC || m_printTensorD))
             {
+                // If the pointers are the same, only print the buffer once.
                 HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.c, m_problem.c().totalAllocatedBytes(), hipMemcpyDeviceToHost));
                 auto const* buffer = reinterpret_cast<typename TypedInputs::CType const*>(m_cpuResultBuffer.data());
 
-                m_reporter->logTensor(LogLevel::Verbose, "C", buffer, m_problem.c());
+                m_reporter->logTensor(LogLevel::Verbose, "C/D", buffer, m_problem.c(), result.c);
             }
-
-            if(m_printTensorD)
+            else
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.d, m_problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-                auto const* buffer = reinterpret_cast<typename TypedInputs::DType const*>(m_cpuResultBuffer.data());
+                if(m_printTensorC)
+                {
+                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.c, m_problem.c().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+                    auto const* buffer = reinterpret_cast<typename TypedInputs::CType const*>(m_cpuResultBuffer.data());
 
-                m_reporter->logTensor(LogLevel::Verbose, "D", buffer, m_problem.d());
+                    m_reporter->logTensor(LogLevel::Verbose, "C", buffer, m_problem.c(), result.c);
+                }
+
+                if(m_printTensorD)
+                {
+                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.d, m_problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+                    auto const* buffer = reinterpret_cast<typename TypedInputs::DType const*>(m_cpuResultBuffer.data());
+
+                    m_reporter->logTensor(LogLevel::Verbose, "D", buffer, m_problem.d(), result.d);
+                }
             }
 
             if(m_printTensorRef)
             {
-                m_reporter->logTensor(LogLevel::Verbose, "Ref", reference.d, m_problem.d());
+                m_reporter->logTensor(LogLevel::Verbose, "Ref", reference.d, m_problem.d(), reference.d);
             }
         }
 

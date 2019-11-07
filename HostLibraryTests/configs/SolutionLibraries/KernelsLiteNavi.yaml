@@ -110958,7 +110958,7 @@ library:
       type: AMDGPU
       value:
         type: Processor
-        value: gfx101
+        value: gfx1010
   type: Hardware
 solutions:
 - debugKernel: false

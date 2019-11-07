@@ -218,7 +218,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   "wait for global read before writing to local"))
             else:
               print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
-              imod.addCode(Code.Waitcnt(-1, 0, "conservative waitcnt"))
+              imod.addCode(Code.WaitCnt(-1, 0, "conservative waitcnt"))
           imod.addCode(item)
           self.perIterLocalWriteCode[u].addCode(imod)
         itemsToSched = itemsToSched[itemPerIter:]
@@ -1336,10 +1336,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
   #
   ##############################################################################
 
-  ##############################################################################
-  # single line comment
-  ##############################################################################
   def comment1(self, text):
+    """
+    single line comment
+    """
+
     s = ""
     s += self.indent
     s += self.commentPrefix
@@ -1348,19 +1349,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
     s += self.endLine
     return s
 
-  ##############################################################################
-  # comment with prior newline
-  ##############################################################################
   def comment(self, text):
+    """
+    comment with prior newline
+    """
+
     s = ""
     s += self.endLine
     s += self.comment1(text)
     return s
 
-  ##############################################################################
-  # 3-line comment
-  ##############################################################################
   def comment3(self, text):
+    """
+    3-line comment
+    """
+
     s = ""
     s += self.endLine
     s += self.indent
@@ -1369,11 +1372,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     s += self.commentSuffix
     s += self.endLine
 
-    s += self.indent
-    s += self.commentPrefix
-    s += " %-38s " % text
-    s += self.commentSuffix
-    s += self.endLine
+    for line in text.split("\n"):
+      s += self.indent
+      s += self.commentPrefix
+      s += " %-38s " % line
+      s += self.commentSuffix
+      s += self.endLine
 
     s += self.indent
     s += self.commentPrefix
@@ -2514,6 +2518,7 @@ for codeObjectFileName in codeObjectFileNames:
     if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
     REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
 
+    print("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
     if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
       return REPLACEMENT_KERNEL_PATH
 

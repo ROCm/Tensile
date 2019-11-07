@@ -58,6 +58,9 @@ namespace Tensile
         public:
             static double GetRepresentativeBetaValue(po::variables_map const& args);
 
+            /**
+             * Factory function.
+             */
             static std::shared_ptr<DataInitialization> Get(
                     po::variables_map const& args, ClientProblemFactory const& problemFactory);
 
@@ -68,7 +71,17 @@ namespace Tensile
             DataInitialization(po::variables_map const& args, ClientProblemFactory const& problemFactory);
             ~DataInitialization();
 
+
+            /**
+             * Returns a ContractionInputs object with pointers to CPU memory,
+             * suitable for using to calculate reference results.
+             */
             virtual std::shared_ptr<ContractionInputs> prepareCPUInputs() = 0;
+
+            /**
+             * Returns a ContractionInputs object with pointers to GPU memory,
+             * suitable for using to run the kernel.
+             */
             virtual std::shared_ptr<ContractionInputs> prepareGPUInputs() = 0;
 
             template <typename T>

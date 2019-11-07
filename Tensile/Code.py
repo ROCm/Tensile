@@ -21,14 +21,15 @@
 
 from __future__ import print_function
 from .Common import globalParameters, printExit
+import ctypes
 # Global to print module names around strings
 printModuleNames = 0
 
-"""
-Base class for Modules, Instructions, etc
-Item is a atomic collection of or more instructions and commentsA
-"""
 class Item:
+  """
+  Base class for Modules, Instructions, etc
+  Item is a atomic collection of or more instructions and commentsA
+  """
   pass
 
   def toStr(self):
@@ -38,15 +39,15 @@ class Item:
     return int(isinstance(self, ttype))
 
 
-"""
-Modules contain lists of text instructions, Inst objects, or additional modules
-They can be easily converted to string that represents all items in the list
-and can be mixed with standard text.
-The intent is to allow the kernel writer to express the structure of the
-code (ie which instructions are a related module) so the scheduler can later
-make intelligent and legal transformations.
-"""
 class Module(Item):
+  """
+  Modules contain lists of text instructions, Inst objects, or additional modules
+  They can be easily converted to string that represents all items in the list
+  and can be mixed with standard text.
+  The intent is to allow the kernel writer to express the structure of the
+  code (ie which instructions are a related module) so the scheduler can later
+  make intelligent and legal transformations.
+  """
   def __init__(self, name=""):
     self.name = name
     self.itemList = []
@@ -60,15 +61,15 @@ class Module(Item):
       s += "// } %s\n" % self.name
     return s
 
-  """
-  Add specified item to the list of items in the module.
-  Item MUST be a Item (not a string) - can use
-  addText(...)) to add a string.
-  All additions to itemList should use this function.
-
-  Returns item to facilitate one-line create/add patterns
-  """
   def addCode(self, item):
+    """
+    Add specified item to the list of items in the module.
+    Item MUST be a Item (not a string) - can use
+    addText(...)) to add a string.
+    All additions to itemList should use this function.
+
+    Returns item to facilitate one-line create/add patterns
+    """
     #assert (isinstance(item, Item)) # for debug
     if isinstance(item,Item):
       self.itemList.append(item)
@@ -78,30 +79,30 @@ class Module(Item):
       assert 0, "unknown item type (%s) for Module.addCode. item=%s"%(type(item), item)
     return item
 
-  """
-  Convenience function to format arg as a comment and add TextBlock item
-  This comment is a single line /* MYCOMMENT  */
-  """
   def addComment0(self, comment):
+    """
+    Convenience function to format arg as a comment and add TextBlock item
+    This comment is a single line /* MYCOMMENT  */
+    """
     self.addCode(TextBlock("/* %s */\n"%comment))
 
-  """
-  Convenience function to format arg as a comment and add TextBlock item
-  This comment is a blank line followed by /* MYCOMMENT  */
-  """
   def addComment1(self, comment):
+    """
+    Convenience function to format arg as a comment and add TextBlock item
+    This comment is a blank line followed by /* MYCOMMENT  */
+    """
     self.addCode(TextBlock("\n/* %s */\n"%comment))
 
-  """
-  Convenience function to construct a single Inst and add to items
-  """
   def addInst(self, *args):
+    """
+    Convenience function to construct a single Inst and add to items
+    """
     self.addCode(Inst(*args))
 
-  """
-  Convenience function to construct a TextBlock and add to items
-  """
   def addText(self,text):
+    """
+    Convenience function to construct a TextBlock and add to items
+    """
     self.addCode(TextBlock(text))
 
   def prettyPrint(self,indent=""):
@@ -115,12 +116,12 @@ class Module(Item):
           print(indent, "%s: [ %s ]" % \
               (i.__class__.__name__, str(i).strip('\n')))
 
-  """
-  Count number of items with specified type in this Module
-  Will recursively count occurrences in submodules
-  (Overrides Item.countType)
-  """
   def countType(self,ttype):
+    """
+    Count number of items with specified type in this Module
+    Will recursively count occurrences in submodules
+    (Overrides Item.countType)
+    """
     count=0
     for i in self.itemList:
       if isinstance(i, Module):
@@ -138,19 +139,19 @@ class Module(Item):
         count += 1
     return count
 
-  """
-  Return list of items in the Module
-  Items may be other Modules, TexBlock, or Inst
-  """
   def items(self):
+    """
+    Return list of items in the Module
+    Items may be other Modules, TexBlock, or Inst
+    """
     return self.itemList
 
-  """
-  Return flattened list of items in the Module
-  Items in sub-modules will be flattened into single list
-  Items may be TexBlock or Inst
-  """
   def flatitems(self):
+    """
+    Return flattened list of items in the Module
+    Items in sub-modules will be flattened into single list
+    Items may be TexBlock or Inst
+    """
     flatitems = []
     for i in self.itemList:
       if isinstance(i, Module):
@@ -172,10 +173,10 @@ class StructuredModule(Module):
     self.addCode(self.footer)
 
 
-"""
-Label that can be the target of a jump.
-"""
 class Label (Item):
+  """
+  Label that can be the target of a jump.
+  """
   def __init__(self, labelNum, comment):
     self.labelNum = labelNum
     self.comment = comment
@@ -188,10 +189,10 @@ class Label (Item):
     return t
 
 
-"""
-An unstructured block of text that can contain comments and instructions
-"""
 class TextBlock(Item):
+  """
+  An unstructured block of text that can contain comments and instructions
+  """
   def __init__(self,text):
     assert(isinstance(text, str))
     self.text = text
@@ -200,11 +201,11 @@ class TextBlock(Item):
     return self.text
 
 
-"""
-Inst is a single instruction and is base class for other instructions.
-Currently just stores text+comment but over time may grow
-"""
 class Inst(Item):
+  """
+  Inst is a single instruction and is base class for other instructions.
+  Currently just stores text+comment but over time may grow
+  """
   def __init__(self, *args):
     params = args[0:len(args)-1]
     comment = args[len(args)-1]
@@ -222,7 +223,7 @@ class Inst(Item):
 
   def __str__(self):
     return self.text
-class WaitCnt (Inst):
+class WaitCnt (Module):
   """
   Construct a waitcnt from specified lgkmcnt and vmcnt:
   lgkmcnt, vmcnt:
@@ -232,25 +233,28 @@ class WaitCnt (Inst):
   an instruction with a comment is returned.
   """
   def __init__(self,lgkmcnt=-1,vmcnt=-1,comment=""):
+    super().__init__("wait")
+
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
     self.comment = comment
 
-  def __str__(self):
-    waitStr = ""
-    if self.lgkmcnt != -1 or self.vmcnt != -1:
-      waitStr = "s_waitcnt"
-      if self.lgkmcnt != -1:
-        waitStr += " lgkmcnt(%u)" % self.lgkmcnt
-      if self.vmcnt != -1:
-        if self.lgkmcnt != -1:
-          waitStr += " &"
-        waitStr += " vmcnt(%u)" % self.vmcnt
+    main_args = []
+    wait_store = False
+    if self.lgkmcnt != -1:
+      self.lgkmcnt = 0
+      main_args += ["lgkmcnt(%u)" % self.lgkmcnt]
+      wait_store = True
+
+    if self.vmcnt != -1:
+      main_args += ["vmcnt(%u)" % self.vmcnt]
+
+    if len(main_args) > 0:
+      self.addInst("s_waitcnt", *main_args, self.comment)
+      if wait_store:
+        self.addInst("s_waitcnt_vscnt", "null", self.lgkmcnt, "writes")
     else:
-      waitStr = "// disabled s_waitcnt"
-
-    return self.formatWithComment(waitStr, self.comment)
-
+      self.addComment0(self.comment)
 
 # uniq type that can be used in Module.countType
 class GlobalReadInst (Inst):
@@ -276,15 +280,15 @@ class  MacInst (Inst):
   """
   Construct a mac instruction from specified dataType, aIndex, bIndex, PLR, innerUnroll:
 
-  dataType:
-  aIndex:  index value from range (0, kernel["ThreadTile0"])
-  bIndex:  index value from range (0, kernel["ThreadTile1"])
+   - dataType:
+   - aIndex:  index value from range (0, kernel["ThreadTile0"])
+   - bIndex:  index value from range (0, kernel["ThreadTile1"])
 
   PLR:     valida values 0,1
 
-  usage Module.addCode(Code.MacInst())
-
+  usage `Module.addCode(Code.MacInst())`
   """
+
   def  __init__(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
        self.endLine = ""
        self.version = globalParameters["CurrentISA"]
@@ -543,3 +547,84 @@ class  MacInst (Inst):
         printExit("Assembly doesn't support %s" % self.kernel["ProblemType"]["DataType"])
 
       return self.formatWithComment(kStr, "")
+
+class BitfieldStructure(ctypes.Structure):
+  def field_desc(self, field):
+    fname = field[0]
+    bits = " ({}b)".format(field[2]) if len(field) > 2 else ""
+    value = getattr(self, fname)
+    return "{0}{1}: {2}".format(fname, bits, value)
+
+  def desc(self):
+    return '\n'.join([self.field_desc(field) for field in self._fields_])
+
+class BitfieldUnion(ctypes.Union):
+  def __str__(self):
+    return hex(self.value)
+
+  def desc(self):
+    return "hex: {}\n".format(self) + self.fields.desc()
+
+class SrdUpperFields9XX(BitfieldStructure):
+  _fields_ = [("dst_sel_x",      ctypes.c_uint, 3),
+              ("dst_sel_y",      ctypes.c_uint, 3),
+              ("dst_sel_z",      ctypes.c_uint, 3),
+              ("dst_sel_w",      ctypes.c_uint, 3),
+              ("num_format",     ctypes.c_uint, 3),
+              ("data_format",    ctypes.c_uint, 4),
+              ("user_vm_enable", ctypes.c_uint, 1),
+              ("user_vm_mode",   ctypes.c_uint, 1),
+              ("index_stride",   ctypes.c_uint, 2),
+              ("add_tid_enable", ctypes.c_uint, 1),
+              ("_unusedA",       ctypes.c_uint, 3),
+              ("nv",             ctypes.c_uint, 1),
+              ("_unusedB",       ctypes.c_uint, 2),
+              ("type",           ctypes.c_uint, 2)]
+
+  @classmethod
+  def default(cls):
+    return cls(data_format = 4)
+
+class SrdUpperValue9XX(BitfieldUnion):
+  _fields_ = [("fields", SrdUpperFields9XX), ("value", ctypes.c_uint32)]
+
+  @classmethod
+  def default(cls):
+    return cls(fields=SrdUpperFields9XX.default())
+
+class SrdUpperFields1010(BitfieldStructure):
+  _fields_ = [("dst_sel_x",      ctypes.c_uint, 3),
+              ("dst_sel_y",      ctypes.c_uint, 3),
+              ("dst_sel_z",      ctypes.c_uint, 3),
+              ("dst_sel_w",      ctypes.c_uint, 3),
+              ("format",         ctypes.c_uint, 7),
+              ("_unusedA",       ctypes.c_uint, 2),
+              ("index_stride",   ctypes.c_uint, 2),
+              ("add_tid_enable", ctypes.c_uint, 1),
+              ("resource_level", ctypes.c_uint, 1),
+              ("_unusedB",       ctypes.c_uint, 3),
+              ("oob_select",     ctypes.c_uint, 2),
+              ("type",           ctypes.c_uint, 2)]
+
+
+  @classmethod
+  def default(cls):
+    return cls(format         = 4,
+               resource_level = 1,
+               oob_select     = 3)
+    
+class SrdUpperValue1010(BitfieldUnion):
+  _fields_ = [("fields", SrdUpperFields1010), ("value", ctypes.c_uint32)]
+
+  @classmethod
+  def default(cls):
+    return cls(fields=SrdUpperFields1010.default())
+
+
+def SrdUpperValue(isa):
+  if isa == (10,1,0):
+    return SrdUpperValue1010.default()
+  else:
+    return SrdUpperValue9XX.default()
+
+

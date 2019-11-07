@@ -169,8 +169,8 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
-        rv.args.append<typename TypedInputs::CType const *>("c", inputs.c);
+        rv.args.append<typename TypedInputs::DType const *>("d", inputs.c);
+        rv.args.append<typename TypedInputs::CType const *>("c", nullptr);
         rv.args.append<typename TypedInputs::AType const *>("a", inputs.a);
         rv.args.append<typename TypedInputs::BType const *>("b", inputs.b);
 
@@ -186,16 +186,16 @@ namespace Tensile
         }
 
         for(size_t i = 1; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideD", i), d.strides()[i]);
 
         for(size_t i = 1; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideC", i), c.strides()[i]);
 
         for(size_t i = 1; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideA", i), a.sizes()[i] == 1 ? 0 : a.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideA", i), a.strides()[i]);
 
         for(size_t i = 1; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideB", i), b.strides()[i]);
 
         {
             int idx=0;
