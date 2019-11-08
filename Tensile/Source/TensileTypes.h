@@ -577,6 +577,7 @@ struct ProblemProperties {
                 ((this->_allBatchBStridesAreZero) >= solutionRequirements._allBatchBStridesAreZero)
                 ;
 
+#if 0
       if(this->_db & 0x10)
       {
           if(!rv)
@@ -602,6 +603,7 @@ struct ProblemProperties {
               std::cout << "Satisfied asserts!" << std::endl;
           }
       }
+#endif
 
       return rv;
   }
