@@ -1509,6 +1509,14 @@ class KernelWriterAssembly(KernelWriter):
 
     self.totalSgprs = self.sgprIdx
     self.setStartTmpPool(self.totalSgprs)
+
+    ########################################
+    # AGPR Allocation
+    ########################################
+    self.totalAgprs = 0
+    if kernel["MatrixInstM"]:
+      self.totalAgprs = 32
+
     ########################################
     # Register Pools
     ########################################
@@ -1526,6 +1534,11 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs, 's', 0, 0)
+
+    self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, 0)
+    # C regs are not used during initialization so mark them as available - 
+    # we will claim then just before the start of the unroll loop:
+    self.agprPool.add(0, self.totalAgprs, "ValuC-Block")
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["globalReadInstruction"] = self.globalReadInstructionA
@@ -4482,6 +4495,13 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
+
+    # if using MFMAs, initialize ACC VGPRS as well
+    if kernel["MatrixInstM"]:
+      self.agprPool.remove(0, self.totalAgprs, "ValuC")
+      kStr += ""
+      for i in range(0, self.totalAgprs):
+        kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "initC acc vgprs")
 
     if kernel["PersistentKernel"]:
       # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
@@ -8378,10 +8398,14 @@ class KernelWriterAssembly(KernelWriter):
         addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
 
+      if kernel["MatrixInstM"]:
+        for i in range(0, ceil(bps/4)):
+          kStr += inst("v_accvgpr_read", vgpr(sumIdx+i), "acc%u"%(sumIdx+i), "copy areg to vreg")
+
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
         kStr += addrCalc.incrementToNextRow("D", ss, tmpS01)
-      if kernel["ProblemType"]["DataType"].isHalf():
+      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
         if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
           kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, \
                     addr0, addr1, addrCalc.globalOffset, ntStr, hi16=sumIdx%2)
