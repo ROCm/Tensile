@@ -1503,6 +1503,13 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
       self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
 
+    # debug flag to allocate dummy / unused sgpr
+    # useful when comparing code that adds new kernel arguments to see what
+    # was actually changed
+    numDummySgpr= 0
+    for i in range(numDummySgpr):
+      self.defineSgpr("DummySgpr%d"%i, 1)
+
     # TODO-persistent - likely recompute some of the registers above.
     if kernel["PersistentKernel"]:
       self.lastPostLoopSgpr = self.sgprIdx
@@ -6924,8 +6931,6 @@ class KernelWriterAssembly(KernelWriter):
         # Used if the output is transposed?
         addToSrd = False
       elif i == kernel["ProblemType"]["Index1"]:
-        # TODO-packed : this likely needs to change for packedc1, we are using raw packed Index1 here
-        #--
         coord = sgpr(wgMT1)
         addToSrd = True
       elif not isPackedIndex(kernel, i):
@@ -7793,7 +7798,6 @@ class KernelWriterAssembly(KernelWriter):
         if edge:
           # Set address to -1 if OOB on either dimension
           # and only check the x/coord0 index here, save a couple inst
-          # TODO-packed: compare against product-of-packed sizes, see other code
           sizeBoundary = [0,0]
           sizeBoundary[0] = \
               sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
@@ -7863,9 +7867,12 @@ class KernelWriterAssembly(KernelWriter):
       if ss.optSrdIncForRow:
         if numRows:
           if numRows > 1:
-            kStr += inst("s_mul_i32", sgpr(stmp), sgpr("Strides%s+0"%(tc)), \
-                numRows*self.kernelWriter.bpeCexternal, \
-                "scale Stride%s *= %u * bpe"%(tc,numRows))
+            # assume d-stride is 1 here, even if UseInitialStrides=1
+            strideIdx = 1 # assume first stride is 1, this is the stride in second dim:
+            kStr += inst("s_mul_i32", sgpr(stmp), \
+                         sgpr("Stride%s%s"%(tc, self.kernelWriter.indexChars[strideIdx])), \
+                         numRows*self.kernelWriter.bpeCexternal, \
+                         "scale Stride%s *= %u * bpe"%(tc,numRows))
           else:
             kStr += inst("s_lshl_b32 ", \
                   sgpr(stmp), \
@@ -7928,14 +7935,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # check edge0 ###
     # s23 = rMT0 = Size0 % MT0
-    # TODO-packed #
-    # something like:
-    # for idxChar in kernel["PackedC0Indices"]:
-    #   sizesFreeIndex = ord(idcChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
-    #   packedSize *= sgpr[SizedFree+%u"%sizesFreeIndex]
-    # May want to allocate an SGPR to save this value
     #--
-    kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
     sizeBoundary = [0,0]
     sizeBoundary[0] = \
         sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
