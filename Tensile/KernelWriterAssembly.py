@@ -3724,15 +3724,18 @@ class KernelWriterAssembly(KernelWriter):
                   self.vgprPool.checkIn(boundsVgpr)
 
             if graIdx >0 and (kernel["UseSgprForGRO"] or self.checkGRO):
+              # compute offsets for scalar global read offsets:
               if kernel["UseSgprForGRO"]:
                 scalarGro = "ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1)
               else:
                 scalarGro = self.getTmpSgpr(1)
 
+              # TODO-UseInitialStrides
+              stride1Char = self.indexChars[tP['ia'][1]]
               if tP["tlu"]:
                 tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s+0"%tc), unrollStride, \
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Stride%s%s"%(tc,stride1Char)), unrollStride, \
                              "compute offset diff (scaled unrollDim)")
                 if tileStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), tileStride, \
@@ -3740,7 +3743,7 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s+0"%tc), tileStride, \
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Stride%s%s"%(tc,stride1Char)), tileStride, \
                              "compute offset diff (scaled tileDim)")
                 if unrollStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), unrollStride, \
@@ -3757,7 +3760,7 @@ class KernelWriterAssembly(KernelWriter):
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
                 print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
-                      "Strides%s="%tc)
+                      "Stride%s%s="%(tc,stride1Char))
 
                 kStr += self.assert_vector_diff(vgpr("GlobalReadOffset%s+%u"%(tc,0)), \
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
@@ -7866,17 +7869,17 @@ class KernelWriterAssembly(KernelWriter):
       numRows = self.rowInc
       if ss.optSrdIncForRow:
         if numRows:
+          strideChar1 = self.kernelWriter.indexChars[1]  # assume first stride is 1, this is the stride in second dim:
           if numRows > 1:
             # assume d-stride is 1 here, even if UseInitialStrides=1
-            strideIdx = 1 # assume first stride is 1, this is the stride in second dim:
             kStr += inst("s_mul_i32", sgpr(stmp), \
-                         sgpr("Stride%s%s"%(tc, self.kernelWriter.indexChars[strideIdx])), \
+                         sgpr("Stride%s%s"%(tc, strideChar1)), \
                          numRows*self.kernelWriter.bpeCexternal, \
                          "scale Stride%s *= %u * bpe"%(tc,numRows))
           else:
             kStr += inst("s_lshl_b32 ", \
                   sgpr(stmp), \
-                  sgpr("Strides%s+0"%(tc)), \
+                  sgpr("Stride%s%s"%(tc, strideChar1)), \
                   log2(self.kernelWriter.bpeCexternal), \
                   "incToNextRow: Scale by BPE")
 
