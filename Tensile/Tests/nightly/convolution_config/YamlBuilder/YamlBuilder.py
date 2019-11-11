@@ -113,7 +113,7 @@ BenchmarkProblems:
       IndexAssignmentsB: [2, 1]
       NumIndicesC: 2
       UseBeta: False
-      UseInitialStrides: True
+      UseInitialStrides: 0x1
     -
       BenchmarkCommonParameters:
       ForkParameters:

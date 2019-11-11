@@ -36,7 +36,6 @@ BenchmarkProblems:
       SetConstStrideA : []
       SetConstStrideB : [[3, 0]]
       UseBeta : False
-      UseInitialStrides : False
 
     -
       InitialSolutionParameters:
