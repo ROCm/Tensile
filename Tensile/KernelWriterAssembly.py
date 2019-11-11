@@ -20,7 +20,7 @@
 ################################################################################
 
 from . import Code
-from .Common import globalParameters, printExit, printWarning, roundUp
+from .Common import Globals, globalParameters, printExit, printWarning, roundUp
 from .DataType import DataType
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -7791,6 +7791,8 @@ class KernelWriterAssembly(KernelWriter):
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
           self.rowIncDirtyRowPtr = 1
+          # this probably ok but need to alter code that computes column address to use initial strideC
+          assert (kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD == 0)
           strideChar = self.kernelWriter.indexChars[1]
           kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
                     sgpr("StrideC%s"%strideChar), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")

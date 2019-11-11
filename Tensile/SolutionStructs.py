@@ -21,7 +21,7 @@
 
 import sys,traceback
 from functools import reduce
-from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from .Common import Globals, globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
 from copy import deepcopy
 import math
@@ -313,9 +313,9 @@ class Convolution:
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStrides"] = False
+      problemTypeOut["UseInitialStrides"] = 0
     else:
-      problemTypeOut["UseInitialStrides"] = True
+      problemTypeOut["UseInitialStrides"] = Globals.UseInitialStrides_AB
 
     #self.printUsage(problemTypeOut)
 
@@ -828,7 +828,7 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["UseInitialStrides"]: name += "I"
+    if self["UseInitialStrides"]: name += "I%d" % self["UseInitialStrides"]
     return name
 
   def keys(self):

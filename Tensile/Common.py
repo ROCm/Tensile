@@ -858,7 +858,7 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStrides":        False,
+    "UseInitialStrides":        0,  # 0x1=use initial strides for AB, 0x2=use initial strides for CD, 0x3=use initial strides for all
 
     # List of pairs of [index, constValue].
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
@@ -1319,6 +1319,10 @@ def versionIsCompatible(queryVersionString):
 # convert python list to C++ initializer style syntax
 def listToInitializer(l):
   return "{" + ','.join(map(str, l)) + "}"
+
+class Globals:
+  UseInitialStrides_AB = 0x1
+  UseInitialStrides_CD = 0x2
 
 ################################################################################
 # Progress Bar Printing

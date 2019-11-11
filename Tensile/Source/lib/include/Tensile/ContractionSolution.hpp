@@ -64,7 +64,7 @@ namespace Tensile
         std::vector<KernelInvocation> solveTyped(Problem     const& problem,
                                                  TypedInputs const& inputs,
                                                  Hardware    const& hardware) const;
-    
+
         template <typename TypedInputs>
         KernelInvocation generateSingleCall(Problem     const& problem,
                                             TypedInputs const& inputs,
@@ -98,6 +98,9 @@ namespace Tensile
             bool sourceKernel;
         };
 
+        static const unsigned UseInitialStrides_AB = 0x1;
+        static const unsigned UseInitialStrides_CD = 0x2;
+
         struct ProblemType
         {
             std::string operationIdentifier;
@@ -106,7 +109,7 @@ namespace Tensile
             DataType cType = DataType::Float;
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
-            bool useInitialStrides = false;
+            unsigned useInitialStrides = 0;
             bool useBeta = true;
         };
 
