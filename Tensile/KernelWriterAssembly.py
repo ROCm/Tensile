@@ -6947,7 +6947,8 @@ class KernelWriterAssembly(KernelWriter):
 
       if addToSrd:
         # These are constant across all workitems, just add to the SRD:
-        kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesC+%u"%(i-1)), "Scale %s by Stride"%coord)
+        strideC = "StrideC%s"%self.indexChars[i]
+        kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(strideC), "Scale %s by Stride"%coord)
         #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
         kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
@@ -7790,11 +7791,12 @@ class KernelWriterAssembly(KernelWriter):
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
           self.rowIncDirtyRowPtr = 1
+          strideChar = self.kernelWriter.indexChars[1]
           kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
-                    sgpr("StridesC+0"), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
+                    sgpr("StrideC%s"%strideChar), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
           if not kernel["LdcEqualsLdd"]:
             kStr += self.addScaled(vgpr(kw.coutRowPtr), vgpr(kw.coutRowPtr), \
-                      sgpr("StridesD+0"), self.rowInc, tmpS01, "Move coutRowPtr to next row")
+                      sgpr("StrideD%s"%strideChar), self.rowInc, tmpS01, "Move coutRowPtr to next row")
 
       # Now do the edge check and compute the address in bytes:
       if kernel["BufferStore"]:
