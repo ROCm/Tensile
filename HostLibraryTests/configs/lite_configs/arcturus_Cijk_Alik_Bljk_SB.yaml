@@ -44,7 +44,7 @@
   TransposeA: true
   TransposeB: false
   UseBeta: true
-  UseInitialStrides: false
+  UseInitialStrides: 0
   ZeroPadA: []
   ZeroPadB: []
 - - AggressivePerfMode: 1
@@ -195,7 +195,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -375,7 +375,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -555,7 +555,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -735,7 +735,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -915,7 +915,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1095,7 +1095,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1275,7 +1275,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1454,7 +1454,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1633,7 +1633,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStrides: 0
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
