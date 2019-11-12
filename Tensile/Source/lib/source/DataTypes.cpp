@@ -103,7 +103,7 @@ namespace Tensile
         registerTypeInfo<BFloat16>();
     }
 
-    void DataTypeInfo::RegisterAllTypeInfoOnce()
+    void DataTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
     }
