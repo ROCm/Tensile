@@ -437,7 +437,6 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-#ifdef TENSILE_USE_HALF
         else if(problemType.aType == DataType::Half
              && problemType.bType == DataType::Half
              && problemType.cType == DataType::Half
@@ -446,7 +445,6 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-#endif
         else if(problemType.aType == DataType::Int8x4
              && problemType.bType == DataType::Int8x4
              && problemType.cType == DataType::Int32
@@ -510,14 +508,14 @@ namespace Tensile
         double MT1 = sizeMapping.macroTile.y;
         double NumCUs = 64;
 
-	AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
+        AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
 
         if (pAMDGPU != nullptr)
         {                     //computeUnitCount
             NumCUs = pAMDGPU->computeUnitCount;
         }
 
-	double GlobalSplitU = sizeMapping.globalSplitU;
+        double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU = sizeMapping.workGroupSize.z;
         double IdealGranularityPerf = closestKPerformance;
 

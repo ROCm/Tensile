@@ -36,7 +36,6 @@ namespace Tensile
 {
 #ifdef TENSILE_USE_HIP
     using Half = _Float16;
-#define TENSILE_USE_HALF
 #else
     struct Half: public DistinctType<uint16_t, Half>
     {
@@ -51,5 +50,3 @@ namespace std
         return stream << static_cast<float>(val);
     }
 }
-
-
