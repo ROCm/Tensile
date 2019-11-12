@@ -35,7 +35,6 @@ from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution
 from .SolutionWriter import SolutionWriter
-from .SolutionLibrary import MasterSolutionLibrary
 
 import argparse
 import collections
