@@ -34,8 +34,9 @@
 
 namespace Tensile
 {
-#ifdef TENSILE_USE_HIP
+#if defined(TENSILE_USE_HIP) || defined(__clang__)
     using Half = _Float16;
+#define TENSILE_USE_HALF
 #else
     struct Half: public DistinctType<uint16_t, Half>
     {

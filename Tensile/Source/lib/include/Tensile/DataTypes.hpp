@@ -77,6 +77,7 @@ namespace Tensile
         bool isIntegral;
 
     private:
+        static void registerAllTypeInfo();
         static void registerAllTypeInfoOnce();
 
         template <typename T>

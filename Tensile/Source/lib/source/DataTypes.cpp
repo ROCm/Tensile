@@ -91,7 +91,7 @@ namespace Tensile
         addInfoObject(info);
     }
 
-    static inline void registerAllTypeInfo()
+    void DataTypeInfo::registerAllTypeInfo()
     {
         registerTypeInfo<float>();
         registerTypeInfo<double>();
