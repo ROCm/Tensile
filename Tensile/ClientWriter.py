@@ -104,8 +104,9 @@ def main( config ):
   problemSizes = None
   stepName = None
   solutionSummationSizes = None
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions, solutionSummationSizes, stepBaseDir)
+  if logicFiles:
+      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+          functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
