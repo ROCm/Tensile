@@ -1514,7 +1514,7 @@ class KernelWriterAssembly(KernelWriter):
     # AGPR Allocation
     ########################################
     self.totalAgprs = 0
-    if kernel["MatrixInstM"]:
+    if "MatrixInstM" in kernel:
       self.totalAgprs = 32
 
     ########################################
@@ -4497,7 +4497,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
 
     # if using MFMAs, initialize ACC VGPRS as well
-    if kernel["MatrixInstM"]:
+    if "MatrixInstM" in kernel:
       self.agprPool.remove(0, self.totalAgprs, "ValuC")
       kStr += ""
       for i in range(0, self.totalAgprs):
@@ -8398,7 +8398,7 @@ class KernelWriterAssembly(KernelWriter):
         addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
 
-      if kernel["MatrixInstM"]:
+      if "MatrixInstM" in kernel:
         for i in range(0, ceil(bps/4)):
           kStr += inst("v_accvgpr_read", vgpr(sumIdx+i), "acc%u"%(sumIdx+i), "copy areg to vreg")
 

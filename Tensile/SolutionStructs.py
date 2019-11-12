@@ -21,7 +21,7 @@
 
 import sys,traceback
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
+from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -1379,12 +1379,18 @@ class Solution:
       state["MacroTileA"] = state["MacroTile1"]
 
     if state["MatrixInstruction"]:
+      
       if state["MatrixInstruction"][0] != -1:
         if len(state["MatrixInstruction"]) == 4:
-          state["MatrixInstM"] = state["MatrixInstruction"][0]
-          state["MatrixInstN"] = state["MatrixInstruction"][1]
-          state["MatrixInstK"] = state["MatrixInstruction"][2]
-          state["MatrixInstB"] = state["MatrixInstruction"][3]
+          # check for valid instruction with input type
+          if state["ProblemType"]["DataType"].toChar() in validMFMA and \
+             state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
+            state["MatrixInstM"] = state["MatrixInstruction"][0]
+            state["MatrixInstN"] = state["MatrixInstruction"][1]
+            state["MatrixInstK"] = state["MatrixInstruction"][2]
+            state["MatrixInstB"] = state["MatrixInstruction"][3]
+          else:
+            printExit("MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
 
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False
