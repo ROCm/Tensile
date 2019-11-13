@@ -449,7 +449,7 @@ namespace Tensile
         for(auto const& bound: boundIndices)
         {
             size_t indexSize = indexSizes.at(indexIdx);
-            
+
             aSizes[bound.a] = indexSize;
             bSizes[bound.b] = indexSize;
 
@@ -894,7 +894,7 @@ namespace Tensile
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default; 
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
@@ -913,9 +913,9 @@ namespace Tensile
 
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
+    template struct TypedContractionInputs<Half, Half, Half, Half, float, float>;
 #endif
 #ifdef TENSILE_USE_BF16
     template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
 #endif
 }
-
