@@ -44,6 +44,7 @@ import shutil
 import subprocess
 import sys
 import time
+from copy import deepcopy
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -191,7 +192,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
 
     coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
-                                 method=lambda x: x.starmap, enable=False)
+                                 method=lambda x: x.starmap)
 
     return itertools.chain.from_iterable(coFiles)
 
@@ -311,7 +312,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   prepAsm()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, enable=False)
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
   #do we need this?
   #print(len(results))
 
@@ -1015,12 +1016,18 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files", enable=False)
+  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
 
   masterLibraries = {}
+  fullMasterLibriary = None
   for logic in Utils.tqdm(libraries, "Processing logic data"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
+
+    if fullMasterLibriary is None:
+        fullMasterLibriary = deepcopy(newLibrary)
+    else:
+        fullMasterLibriary.merge(newLibrary)
 
     if problemType not in logicData:
       logicData[problemType] = []
@@ -1090,26 +1097,26 @@ def TensileCreateLibrary():
   # write logic
   writeLogic(outputPath, logicData, solutionWriter)
 
-
   archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
  
-  for archName, newMasterLibrary in masterLibraries.items():
-    if (archName in archs):
-      masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
-      if globalParameters["PackageLibrary"]:
+  if globalParameters["PackageLibrary"]: 
+    for archName, newMasterLibrary in masterLibraries.items():
+      if (archName in archs):
         archPath = ensurePath(os.path.join(newLibraryDir, archName))
         masterFile = os.path.join(archPath, "TensileLibrary.yaml")
       newMasterLibrary.applyNaming(kernelMinNaming)
       YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
+  else:
+    masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")   
+    fullMasterLibriary.applyNaming(kernelMinNaming)
+    YAMLIO.write(masterFile, Utils.state(fullMasterLibriary))
 
-  #any instance will do
-  firstMasterSolutionLibrary = list(masterLibraries.values())[0]
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(firstMasterSolutionLibrary.cpp_base_class, masterFile, nullTerminated=True,
+          embedFile.embed_file(fullMasterLibriary.cpp_base_class, masterFile, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
           for co in Utils.tqdm(codeObjectFiles):
