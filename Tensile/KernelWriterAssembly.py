@@ -30,6 +30,7 @@ from math import log, ceil, trunc, modf
 from copy import deepcopy
 import collections
 import traceback
+import struct
 
 ################################################################################
 # Memory Instruction
@@ -4508,9 +4509,23 @@ class KernelWriterAssembly(KernelWriter):
     # if using MFMAs, initialize ACC VGPRS as well
     if "MatrixInstM" in kernel:
       self.agprPool.remove(0, self.totalAgprs, "ValuC")
-      kStr += ""
       for i in range(0, self.totalAgprs):
         kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "initC acc vgprs")
+
+      # TODO: Remove debug code when finished
+      # for debug, write 42 and check results
+      # write 42 into vgprs
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), "0x"+struct.pack('>f', 42.0).hex(), "write 42")
+      # copy over to agprs
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_accvgpr_write", "acc%u"%i, vgpr("ValuC+%u"%i), "write 42 into agprs")
+      # restore vgprs
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "restore 0")
+      #kStr += "s_barrier // debug\n"
+      #kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+      #kStr += self.bomb()
 
     if kernel["PersistentKernel"]:
       # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
@@ -5078,6 +5093,11 @@ class KernelWriterAssembly(KernelWriter):
     # this doesn't seem to do anything - not being aggressive with lastPostLoopSgpr
     if self.db["InitSgpr"] & 0x2:
       kStr += self.sgprPool.initTmps(self.initSgprValue)
+
+    # copy accumulated C from agpr to vgpr
+    if "MatrixInstM" in kernel:
+      for i in range(0, self.totalAgprs):
+        kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
 
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
@@ -6720,6 +6740,7 @@ class KernelWriterAssembly(KernelWriter):
       assert(kernel["VectorWidth"]%2 == 0)
       elementStep = 2*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isInt8x4() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle():
       elementStep = 1*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isDouble() or \
@@ -8406,10 +8427,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
-
-      if "MatrixInstM" in kernel:
-        for i in range(0, ceil(bps/4)):
-          kStr += inst("v_accvgpr_read", vgpr(sumIdx+i), "acc%u"%(sumIdx+i), "copy areg to vreg")
 
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
