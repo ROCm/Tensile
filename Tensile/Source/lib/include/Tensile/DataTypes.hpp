@@ -78,7 +78,6 @@ namespace Tensile
 
     private:
         static void registerAllTypeInfo();
-        static void registerAllTypeInfoOnce();
 
         template <typename T>
         static void registerTypeInfo();
@@ -172,3 +171,4 @@ namespace Tensile
     };
 #endif
 }
+
