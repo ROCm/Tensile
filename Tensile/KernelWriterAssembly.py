@@ -796,6 +796,9 @@ class KernelWriterAssembly(KernelWriter):
       defaultIsa = (9,0,0)
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
+    
+    if kernel["MatrixInstruction"] and not self.version == (9,0,8):
+      printExit("MatrixInstruction not supported for {0}".format(self.version))
 
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
@@ -1878,36 +1881,27 @@ class KernelWriterAssembly(KernelWriter):
 
     # single precision
     elif kernel["ProblemType"]["DataType"].isSingle():
-      if self.version == (9,0,8):
-        a = 0 #todo fix vgpr addresses for a and b
-        b = 0 #todo
-        iui = 0 #todo
-        cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-        aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m,iui), a)
-        bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m,iui), b)
-        kStr += "v_mfma_f32_%ux%ux%uf32 a[0:%u], %s, %s, a[0:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], self.totalAgprs - 1, aStr, bStr, self.totalAgprs - 1, self.endLine)
-      else:
-        for b in range(0, kernel["ThreadTile1"]):
-          for a in range(0, kernel["ThreadTile0"]):
-            for iui in range(0, innerUnroll):
-              cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-              aStr = "v[%s+%u]" \
-                  % ("vgprValuA_X%u_I%u"%(m,iui), a)
-              bStr = "v[%s+%u]" \
-                  % ("vgprValuB_X%u_I%u"%(m,iui), b)
-              #if a==0 and b==0:
-              #  kStr += dump(aStr)
-              kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-              if beAggressive and not doOnce:
-                kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                doOnce = True
-              if macIdx == kernel["PerformanceWaitLocation"]:
-                  kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
-                      % (kernel["PerformanceWaitCount"], self.endLine)
-              if macIdx == kernel["PerformanceSyncLocation"]:
-                  kStr += "s_barrier // extra barrier for performance%s" \
-                      % (self.endLine)
-              macIdx += 1
+      for b in range(0, kernel["ThreadTile1"]):
+        for a in range(0, kernel["ThreadTile0"]):
+          for iui in range(0, innerUnroll):
+            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u]" \
+                % ("vgprValuA_X%u_I%u"%(m,iui), a)
+            bStr = "v[%s+%u]" \
+                % ("vgprValuB_X%u_I%u"%(m,iui), b)
+            #if a==0 and b==0:
+            #  kStr += dump(aStr)
+            kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+            if beAggressive and not doOnce:
+              kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+              doOnce = True
+            if macIdx == kernel["PerformanceWaitLocation"]:
+                kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
+                    % (kernel["PerformanceWaitCount"], self.endLine)
+            if macIdx == kernel["PerformanceSyncLocation"]:
+                kStr += "s_barrier // extra barrier for performance%s" \
+                    % (self.endLine)
+            macIdx += 1
       if beAggressive:
         kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
@@ -5086,6 +5080,39 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["SuppressNoLoadLoop"]:
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
 
+    return kStr
+
+  ##############################################################################
+  # MFMA Iteration
+  ##############################################################################
+
+  def mfmaIter(self, kernel, m, innerUnroll):
+    kStr = ""
+    TT0 = kernel["ThreadTile0"]
+    TT1 = kernel["ThreadTile1"] * kernel["MatrixInstM"]
+    numRowsPerMfma = 1
+    numColsPerMfma = kernel["MatrixInstN"]
+    numRowInsts = TT0 // numRowsPerMfma
+    numColInsts = TT1 // numColsPerMfma
+
+    # TODO remove debug stuff after testing
+    #print("DEBUG DEBUG DEBUG DEBUG DEBUG")
+    #print("numRowsPerMfma ", numRowsPerMfma)
+    #print("numColsPerMfma ", numColsPerMfma)
+    #print("numRowInsts ", numRowInsts)
+    #print("numColInsts ", numColInsts)
+    #print("DEBUG DEBUG DEBUG DEBUG DEBUG")
+
+    dstRegs = self.totalAgprs
+
+    if kernel["ProblemType"]["DataType"].isSingle():
+      for b in range(0, numColInsts):
+        for a in range(0, numRowInsts):
+          for iui in range(0, innerUnroll):
+            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", b * numRowInsts * self.totalAgprs, a, self.totalAgprs)
+            aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
+            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m,iui), b)
+            kStr += "v_mfma_f32_%ux%ux%uf32 a[0:%u], %s, %s, a[0:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], self.totalAgprs - 1, aStr, bStr, self.totalAgprs - 1, self.endLine)
     return kStr
 
   ##############################################################################

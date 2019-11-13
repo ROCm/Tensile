@@ -1379,12 +1379,11 @@ class Solution:
       state["MacroTileA"] = state["MacroTile1"]
 
     if state["MatrixInstruction"]:
-      
       if state["MatrixInstruction"][0] != -1:
         if len(state["MatrixInstruction"]) == 4:
           # check for valid instruction with input type
           if state["ProblemType"]["DataType"].toChar() in validMFMA and \
-             state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
+            state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
             state["MatrixInstM"] = state["MatrixInstruction"][0]
             state["MatrixInstN"] = state["MatrixInstruction"][1]
             state["MatrixInstK"] = state["MatrixInstruction"][2]
