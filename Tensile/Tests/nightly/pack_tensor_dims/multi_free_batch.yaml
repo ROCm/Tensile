@@ -20,9 +20,10 @@ GlobalParameters:
   KernelTime: True
   LibraryPrintDebug: 0
   #RuntimeLanguage: ["OCL"]
-  #PrintTensorC : 2
+  PrintTensorD : 2
   ClientArgs: "--stride_b 0"
   CpuThreads: 0
+  NewClient: 2
 
 BenchmarkProblems:
 

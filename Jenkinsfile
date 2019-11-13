@@ -76,7 +76,7 @@ tensileCI:
         try
         {
             def command = """#!/usr/bin/env bash
-                    set -x
+                    set -ex
 
                     hostname
 

@@ -194,6 +194,38 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     }
 };
 
+TEST_P(RunGEMMKernelTest , KernelsTileSelection)
+{
+    auto params = GetParam();
+    ContractionProblem problem = std::get<0>(params);
+
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("tile_aware_selection/library/TensileLibrary.yaml").native());
+    ASSERT_NE(library, nullptr);
+
+    bool debug = false;
+    hip::SolutionAdapter adapter(debug);
+    for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*co"))
+           adapter.loadCodeObjectFile(file.native());
+
+    for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
+           adapter.loadCodeObjectFile(file.native());
+
+    auto solution = library->findBestSolution(problem, *hardware);
+
+    ASSERT_NE(solution, nullptr);
+
+    std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+    adapter.launchKernels(result);
+
+    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+    for(int i = 0; i < d_ref_h.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+    }
+}
+
 TEST_P(RunGEMMKernelTest, BestSolution)
 {
     auto params = GetParam();
@@ -473,8 +505,9 @@ TestLibraries(bool debug)
     {
         auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("kernels_lite/TensileLibrary.yaml").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
-        adapter->loadCodeObjectFile(TestData::Instance().file("kernels_lite/TensileLibrary_gfx900.co").native());
-        adapter->loadCodeObjectFile(TestData::Instance().file("kernels_lite/TensileLibrary_gfx906.co").native());
+        for(auto file: TestData::Instance().glob("kernels_lite/TensileLibrary_*.co"))
+            adapter->loadCodeObjectFile(file.native());
+
         rv.emplace_back(library, adapter, false);
     }
 

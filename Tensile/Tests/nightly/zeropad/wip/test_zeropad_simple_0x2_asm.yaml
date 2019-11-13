@@ -1,0 +1,61 @@
+GlobalParameters:
+  EnqueuesPerSync: 1
+  NumElementsToValidate: -1
+  KernelTime: True
+  #PinClocks: True
+  SleepPercent: 0
+  DataInitTypeBeta : 0
+  DataInitTypeA: 1
+  DataInitTypeB: 1
+  DataInitTypeAlpha: 1
+  PrintSolutionRejectionReason: 1
+  PrintWinnersOnly: 1
+  PrintTensorA: 1
+  #PrintTensorB: 1
+  PrintTensorD: 2
+  CpuThreads: 0
+  LibraryPrintDebug: 0
+  NewClient: 2
+  CMakeBuildType: Debug
+
+BenchmarkProblems:
+  ########################################
+  # NT - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: TensorContraction
+      DataType: s
+      DestDataType: s
+      UseBeta: False
+      NumIndicesC: 2
+      IndexAssignmentsA: [ 0, 2 ]
+      IndexAssignmentsB: [ 2, 1 ]
+      ZeroPadA: [[0, 2,   0, 2]]  # zero-pad dimension and 2 values, format will change
+      SetConstStrideA: [ [2, 1] ]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - KernelLanguage: ["Source"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [False]
+        - ThreadTile:
+          - [ 4, 4 ]
+            #- [ 8, 8 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+          #- WorkGroupMapping: [1,8,64]
+        - StaggerU: [0]
+        - StaggerUMapping: [0]
+        - DepthU: [ 4]
+        - VectorWidth: [-1]
+        - GlobalReadVectorWidth: [1]
+          #- FractionalLoad: [1]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [4], [6] ]

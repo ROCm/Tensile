@@ -158,7 +158,7 @@ namespace Tensile
             }
             else if(aType == DataType::BFloat16 && bType == DataType::BFloat16
                  && cType == DataType::BFloat16 && dType == DataType::BFloat16
-                 && alphaType == DataType::BFloat16 && betaType == DataType::BFloat16)
+                 && alphaType == DataType::Float && betaType == DataType::Float)
             {
                 return GetTyped<BFloat16ContractionInputs>(args, problemFactory);
             }
@@ -179,14 +179,18 @@ namespace Tensile
               m_bMaxElements(0),
               m_cMaxElements(0),
               m_dMaxElements(0),
-              m_cEqualsD(args["c-equal-d"].as<bool>())
+              m_cEqualsD(args["c-equal-d"].as<bool>()),
+              m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
         {
+            if (args.count("convolution-vs-contraction"))
+                m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
+
             for(auto const& problem: problemFactory.problems())
             {
-                m_aMaxElements = std::max(m_aMaxElements, problem.a().totalLogicalElements());
-                m_bMaxElements = std::max(m_bMaxElements, problem.b().totalLogicalElements());
-                m_cMaxElements = std::max(m_cMaxElements, problem.c().totalLogicalElements());
-                m_dMaxElements = std::max(m_dMaxElements, problem.d().totalLogicalElements());
+                m_aMaxElements = std::max(m_aMaxElements, problem.a().totalAllocatedElements());
+                m_bMaxElements = std::max(m_bMaxElements, problem.b().totalAllocatedElements());
+                m_cMaxElements = std::max(m_cMaxElements, problem.c().totalAllocatedElements());
+                m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
         }
 

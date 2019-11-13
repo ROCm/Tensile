@@ -19,14 +19,14 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
+from __future__ import print_function
 import os
 import sys
 import argparse
 
 
 def printExit(message):
-  print "Tensile::FATAL: %s" % message
+  print ("Tensile::FATAL: %s" % message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -110,7 +110,7 @@ class TuningConfiguration(object):
         self.__libraryClient = None
 
         if fileName is not None:
-            print "reading configuration: %s" % fileName
+            print("reading configuration: %s" % fileName)
             try:
                 stream = open(fileName, "r")
             except IOError:
@@ -219,7 +219,7 @@ def generateProblemType(initialParams):
     }
 
     if initialParams:
-        keys = initialParams.keys()
+        keys = list(initialParams.keys())
         for key in keys:
             problemType[key] = initialParams[key]
 

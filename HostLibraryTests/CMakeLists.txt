@@ -49,7 +49,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.13.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.14.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -96,6 +96,7 @@ set(test_sources ${test_sources}
 
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
+    DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     ProjectedPerformance_test.cpp
@@ -112,6 +113,11 @@ if(TENSILE_USE_LLVM)
         llvm/LLVMYAMLContraction_test.cpp
         llvm/LibraryPerformance_test.cpp
         )
+endif()
+
+if(Client IN_LIST TENSILE_COMPONENTS)
+    set(test_sources ${test_sources}
+        client/DataInitialization_test.cpp)
 endif()
 
 if(TENSILE_USE_HIP)

@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Tensile/ContractionProblem.hpp>
+#include <ConvolutionProblem.hpp>
 
 #include <Tensile/DataTypes.hpp>
 
@@ -89,9 +90,11 @@ namespace Tensile
         struct ReferenceSolution
         {
             static void SolveCPU(ContractionProblem const& contraction, Inputs const& inputs, size_t validationStride = 1);
+            static void SolveCPUConvolution(ConvolutionProblem const &convProblem, ContractionProblem const& problem, Inputs const& inputs);
         };
 
         void SolveCPU(ContractionProblem const& contraction, ContractionInputs const& inputs, size_t validationStride = 1);
+        void SolveCPUConvolution(ConvolutionProblem const &convProblem, ContractionProblem const& problem, ContractionInputs & inputs);
     }
 }
 

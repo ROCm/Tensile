@@ -29,7 +29,7 @@ namespace Tensile
     class ContractionProblem;
     struct ContractionInputs;
 
-    template <typename A = float, typename B = A, typename C = A, typename D = A, typename Alpha = D, typename Beta = D>
+    template <typename A = float, typename B = A, typename C = A, typename D = C, typename Alpha = D, typename Beta = D>
     struct TypedContractionInputs;
 }
 
