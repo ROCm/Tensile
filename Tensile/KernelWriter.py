@@ -1127,7 +1127,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # which waited for this ds_read
       if self.enable["MAC"]:
         if kernel["MatrixInstruction"]:
-          print("TODO Last iteration")
+          macIterCode.addCode(self.mfmaIter(kernel, 0, kernel["InnerUnroll"])) # todo m
         else:
           luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True))
@@ -1246,7 +1246,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
       if self.enable["MAC"]:
         if kernel["MatrixInstruction"]:
-          print("TODO Tail loop")
+          kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll)) # todo m
         else:
           kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
 

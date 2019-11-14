@@ -1382,6 +1382,9 @@ class Solution:
       if state["MatrixInstruction"][0] != -1:
         if len(state["MatrixInstruction"]) == 4:
           # check for valid instruction with input type
+          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
+          if state["ThreadTile"][1] % itemsPerThread != 0:
+            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
           if state["ProblemType"]["DataType"].toChar() in validMFMA and \
             state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
             state["MatrixInstM"] = state["MatrixInstruction"][0]
@@ -1389,7 +1392,10 @@ class Solution:
             state["MatrixInstK"] = state["MatrixInstruction"][2]
             state["MatrixInstB"] = state["MatrixInstruction"][3]
           else:
-            printExit("MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+            reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+    else:
+      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
+        reject(state, "Invalid value for ThreadTile")
 
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False

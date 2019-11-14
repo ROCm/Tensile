@@ -5109,7 +5109,7 @@ class KernelWriterAssembly(KernelWriter):
   def mfmaIter(self, kernel, m, innerUnroll):
     kStr = ""
     TT0 = kernel["ThreadTile0"]
-    TT1 = kernel["ThreadTile1"] * kernel["MatrixInstM"]
+    TT1 = kernel["ThreadTile1"]
     numRowsPerMfma = 1
     numColsPerMfma = kernel["MatrixInstN"]
     numRowInsts = TT0 // numRowsPerMfma
@@ -5131,7 +5131,7 @@ class KernelWriterAssembly(KernelWriter):
           for iui in range(0, innerUnroll):
             cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", b * numRowInsts * self.totalAgprs, a, self.totalAgprs)
             aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
-            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m,iui), b)
+            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
             kStr += "v_mfma_f32_%ux%ux%uf32 a[0:%u], %s, %s, a[0:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], self.totalAgprs - 1, aStr, bStr, self.totalAgprs - 1, self.endLine)
     return kStr
 

@@ -190,7 +190,7 @@ for numThreads in range(64, 1025, 64):
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
 
-validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] + list(range(20, 256, 4))
 validThreadTiles = []
 for i in validThreadTileSides:
   for j in validThreadTileSides:
