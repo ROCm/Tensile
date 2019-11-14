@@ -1519,7 +1519,13 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     self.totalAgprs = 0
     if "MatrixInstM" in kernel:
-      self.totalAgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // 64
+      numRowsPerMfma = 1
+      numColsPerMfma = kernel["MatrixInstN"]
+      self.numRowInsts = kernel["ThreadTile0"] // numRowsPerMfma
+      self.numColInsts = kernel["ThreadTile1"] // numColsPerMfma
+      numMfmas = self.numRowInsts * self.numColInsts
+      self.destAgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // 64  # Agprs for 1 mfma
+      self.totalAgprs = numMfmas * self.destAgprs                                                   # Agprs for all
 
     ########################################
     # Register Pools
@@ -5108,31 +5114,15 @@ class KernelWriterAssembly(KernelWriter):
 
   def mfmaIter(self, kernel, m, innerUnroll):
     kStr = ""
-    TT0 = kernel["ThreadTile0"]
-    TT1 = kernel["ThreadTile1"]
-    numRowsPerMfma = 1
-    numColsPerMfma = kernel["MatrixInstN"]
-    numRowInsts = TT0 // numRowsPerMfma
-    numColInsts = TT1 // numColsPerMfma
-
-    # TODO remove debug stuff after testing
-    #print("DEBUG DEBUG DEBUG DEBUG DEBUG")
-    #print("numRowsPerMfma ", numRowsPerMfma)
-    #print("numColsPerMfma ", numColsPerMfma)
-    #print("numRowInsts ", numRowInsts)
-    #print("numColInsts ", numColInsts)
-    #print("DEBUG DEBUG DEBUG DEBUG DEBUG")
-
-    dstRegs = self.totalAgprs
-
+    dstRegs = self.destAgprs
     if kernel["ProblemType"]["DataType"].isSingle():
-      for b in range(0, numColInsts):
-        for a in range(0, numRowInsts):
+      for b in range(0, self.numColInsts):
+        for a in range(0, self.numRowInsts):
           for iui in range(0, innerUnroll):
-            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", b * numRowInsts * self.totalAgprs, a, self.totalAgprs)
+            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", b * numRowInsts * self.destAgprs, a, self.destAgprs)
             aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
             bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
-            kStr += "v_mfma_f32_%ux%ux%uf32 a[0:%u], %s, %s, a[0:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], self.totalAgprs - 1, aStr, bStr, self.totalAgprs - 1, self.endLine)
+            kStr += "v_mfma_f32_%ux%ux%uf32 a[0:%u], %s, %s, a[0:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], self.destAgprs - 1, aStr, bStr, self.destAgprs - 1, self.endLine)
     return kStr
 
   ##############################################################################
