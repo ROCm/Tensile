@@ -194,6 +194,38 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     }
 };
 
+TEST_P(RunGEMMKernelTest , KernelsTileSelection)
+{
+    auto params = GetParam();
+    ContractionProblem problem = std::get<0>(params);
+
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("tile_aware_selection/library/TensileLibrary.yaml").native());
+    ASSERT_NE(library, nullptr);
+
+    bool debug = false;
+    hip::SolutionAdapter adapter(debug);
+    for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*co"))
+           adapter.loadCodeObjectFile(file.native());
+
+    for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
+           adapter.loadCodeObjectFile(file.native());
+
+    auto solution = library->findBestSolution(problem, *hardware);
+
+    ASSERT_NE(solution, nullptr);
+
+    std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
+
+    adapter.launchKernels(result);
+
+    HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+
+    for(int i = 0; i < d_ref_h.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
+    }
+}
+
 TEST_P(RunGEMMKernelTest, BestSolution)
 {
     auto params = GetParam();

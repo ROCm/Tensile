@@ -28,7 +28,6 @@
 #include <Tensile/Utils.hpp>
 
 #include <algorithm>
-#include <mutex>
 
 namespace Tensile
 {
@@ -92,7 +91,6 @@ namespace Tensile
         addInfoObject(info);
     }
 
-
     void DataTypeInfo::registerAllTypeInfo()
     {
         registerTypeInfo<float>();
@@ -105,7 +103,10 @@ namespace Tensile
         registerTypeInfo<BFloat16>();
     }
 
-    std::once_flag typeInfoFlag;
+    void DataTypeInfo::registerAllTypeInfoOnce()
+    {
+        static int call_once = (registerAllTypeInfo(), 0);
+    }
 
     void DataTypeInfo::addInfoObject(DataTypeInfo const& info)
     {
@@ -120,7 +121,7 @@ namespace Tensile
 
     DataTypeInfo const& DataTypeInfo::Get(DataType t)
     {
-        std::call_once(typeInfoFlag, registerAllTypeInfo);
+        registerAllTypeInfoOnce();
 
         auto iter = data.find(t);
         if(iter == data.end())
@@ -131,7 +132,7 @@ namespace Tensile
 
     DataTypeInfo const& DataTypeInfo::Get(std::string const& str)
     {
-        std::call_once(typeInfoFlag, registerAllTypeInfo);
+        registerAllTypeInfoOnce();
 
         auto iter = typeNames.find(str);
         if(iter == typeNames.end())
@@ -179,4 +180,3 @@ namespace Tensile
         return stream;
     }
 }
-

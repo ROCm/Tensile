@@ -39,6 +39,19 @@ TensileCreateLibraryFiles(
     )
 endif()
 
+TensileCreateLibraryFiles(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../configs/tile_aware_selection"
+    "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_selection"
+    TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
+    EMBED_LIBRARY test_tile_aware_selection
+    EMBED_KEY     tile_aware_selection
+    )
+
+file(MAKE_DIRECTORY "${TEST_DATA_DIR}/tile_aware_selection")
+file(COPY "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_selection/library" DESTINATION "${TEST_DATA_DIR}/tile_aware_selection")
+#file(COPY ${TILE_AWARE_SELECTION_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/tile_aware_selection")
+
+
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)
 add_custom_target(test_code_object
@@ -54,5 +67,6 @@ set(HIP_TEST_LIBRARIES
     test_kernels_lite
     test_kernels_lite_2
     test_kernels_lite_mixed
+    test_tile_aware_selection
     TensileClient PARENT_SCOPE)
 

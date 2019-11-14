@@ -50,7 +50,7 @@ namespace Tensile
 
         bool isSourceKernel() const;
 
-        virtual double projectedPerformance(Problem const& problem) const;
+        virtual double projectedPerformance(Problem const& problem, Hardware const& hardware) const;
 
         bool solves(Problem const& problem,
                     Problem  const& inputs,
@@ -106,6 +106,7 @@ namespace Tensile
             DataType cType = DataType::Float;
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
+            bool useInitialStrides = false;
             bool useBeta = true;
         };
 

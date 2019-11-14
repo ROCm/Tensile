@@ -424,9 +424,6 @@ validParameters = {
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
-    # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
-    "AssertMinApproxSize" : [0,1,2],
-
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -722,7 +719,6 @@ defaultBenchmarkCommonParameters = [
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
-    {"AssertMinApproxSize":        [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -813,6 +809,15 @@ validConvolutionConfig= [
     # since it reduces addressing overhead and will produce a more efficient kernel
     # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
     "PackedSpatialDims",
+
+    # Input spatial dimensions (D,H,W)
+    # Optional parameter for debug and testing.  This does not impact kernel generation.
+    # If set,then each problem dimension size/stride will be checked to ensure they are
+    # correctly specified. (TBD)
+    # Also used by testbenches to compute consistent strides and sizes for auto-generated
+    # problem sizes and strides.
+    'Spatial',              # examples 56x56, 7x7.
+
     ]
 
 ################################################################################
@@ -862,7 +867,7 @@ defaultProblemType = {
     "SetConstStrideB":          [],
 
     # ZeroPad:
-    # Zero-pad will add leading and trailing "pad" elements to the specified free
+    # Zero-pad will add leading and trailing "pad" elements to the specified 'anchor'
     # dimension when accessed by specified summation dimension.
     #
     # Format is list of tuples of [freeDim, sumDim, padLeading, padTrailing].
@@ -884,7 +889,7 @@ defaultProblemType = {
     # - Strides:
     #   - SummationStride is applied to compute the element address before checking the regions.
     #   - FreeStride is applied to the computation of the Start element, padLeading, and padTrailing.
-    #   -  No memory access is performed for elements in the Pad regions.
+    #   - No memory access is performed for elements in the Pad regions.
     #   - The Pad regions are handled by manipulating the tensor addressing and are not visible in actual memory.
     #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
     #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.

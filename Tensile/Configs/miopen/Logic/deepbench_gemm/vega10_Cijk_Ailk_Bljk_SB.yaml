@@ -1,7 +1,13 @@
-- {MinimumRequiredVersion: 4.2.0}
+- MinimumRequiredVersion: 4.2.0
 - vega10
 - gfx900
-- [Device 6863, Device 6862, Device 687f, Device 6860, Device 6861]
+- - Device 6863
+  - Device 6862
+  - Device 687f
+  - Device 6860
+  - Device 6861
+  - Device 6864
+  - Device 686c
 - AssignedDerivedParameters: true
   Batched: true
   ComplexConjugateA: false
@@ -12,14 +18,24 @@
   Index01A: 0
   Index01B: 1
   Index1: 1
-  IndexAssignmentsA: [0, 3, 2]
-  IndexAssignmentsB: [3, 1, 2]
+  IndexAssignmentsA:
+  - 0
+  - 3
+  - 2
+  IndexAssignmentsB:
+  - 3
+  - 1
+  - 2
   IndexUnroll: 3
   IndexUnrollA: 1
   IndexUnrollB: 0
-  IndicesBatch: [2]
-  IndicesFree: [0, 1]
-  IndicesSummation: [3]
+  IndicesBatch:
+  - 2
+  IndicesFree:
+  - 0
+  - 1
+  IndicesSummation:
+  - 3
   NumIndicesBatch: 1
   NumIndicesC: 3
   NumIndicesFree: 2
@@ -125,14 +141,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -156,7 +182,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -166,7 +194,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -261,14 +292,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -292,7 +333,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -302,7 +345,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -397,14 +443,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -428,7 +484,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 8]
+    ThreadTile:
+    - 4
+    - 8
     ThreadTile0: 4
     ThreadTile1: 8
     ThreadTileA: 4
@@ -438,7 +496,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -533,14 +594,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -564,7 +635,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -574,7 +647,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -665,14 +741,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -696,7 +782,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -706,7 +794,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -801,14 +892,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -832,7 +933,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -842,7 +945,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -937,14 +1043,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -968,7 +1084,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -978,7 +1096,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1073,14 +1194,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1104,7 +1235,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 8]
+    ThreadTile:
+    - 4
+    - 8
     ThreadTile0: 4
     ThreadTile1: 8
     ThreadTileA: 4
@@ -1114,7 +1247,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1209,14 +1345,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1240,7 +1386,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -1250,7 +1398,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1345,14 +1496,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1376,7 +1537,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -1386,7 +1549,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1481,14 +1647,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1512,7 +1688,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -1522,7 +1700,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1617,14 +1798,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1648,7 +1839,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -1658,7 +1851,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1749,14 +1945,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1780,7 +1986,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -1790,7 +1998,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -1885,14 +2096,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1916,7 +2137,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -1926,7 +2149,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2017,14 +2243,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2048,7 +2284,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -2058,7 +2296,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2153,14 +2394,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2184,7 +2435,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -2194,7 +2447,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2289,14 +2545,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2320,7 +2586,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -2330,7 +2598,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2421,14 +2692,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2452,7 +2733,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -2462,7 +2745,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2553,14 +2839,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2584,7 +2880,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -2594,7 +2892,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2689,14 +2990,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2720,7 +3031,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -2730,7 +3043,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2825,14 +3141,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2856,7 +3182,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -2866,7 +3194,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -2961,14 +3292,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -2992,7 +3333,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [8, 4]
+    ThreadTile:
+    - 8
+    - 4
     ThreadTile0: 8
     ThreadTile1: 4
     ThreadTileA: 8
@@ -3002,7 +3345,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3097,14 +3443,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3128,7 +3484,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [8, 4]
+    ThreadTile:
+    - 8
+    - 4
     ThreadTile0: 8
     ThreadTile1: 4
     ThreadTileA: 8
@@ -3138,7 +3496,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3229,14 +3590,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3260,7 +3631,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -3270,7 +3643,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3361,14 +3737,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3392,7 +3778,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -3402,7 +3790,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3497,14 +3888,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3528,7 +3929,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -3538,7 +3941,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3629,14 +4035,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3660,7 +4076,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -3670,7 +4088,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3761,14 +4182,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3792,7 +4223,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -3802,7 +4235,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -3897,14 +4333,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -3928,7 +4374,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -3938,7 +4386,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4033,14 +4484,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4064,7 +4525,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -4074,7 +4537,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4165,14 +4631,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4196,7 +4672,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -4206,7 +4684,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4301,14 +4782,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4332,7 +4823,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -4342,7 +4835,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4433,14 +4929,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4464,7 +4970,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -4474,7 +4982,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4569,14 +5080,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4600,7 +5121,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -4610,7 +5133,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4705,14 +5231,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4736,7 +5272,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -4746,7 +5284,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4837,14 +5378,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -4868,7 +5419,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -4878,7 +5431,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -4969,14 +5525,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5000,7 +5566,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -5010,7 +5578,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5105,14 +5676,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5136,7 +5717,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -5146,7 +5729,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5237,14 +5823,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5268,7 +5864,9 @@
     SubGroup1: 8
     SubGroupA: 32
     SubGroupB: 8
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -5278,7 +5876,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 1
-    WorkGroup: [32, 8, 1]
+    WorkGroup:
+    - 32
+    - 8
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5373,14 +5974,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5404,7 +6015,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -5414,7 +6027,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5509,14 +6125,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5540,7 +6166,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -5550,7 +6178,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 64
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5645,14 +6276,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5676,7 +6317,9 @@
     SubGroup1: 8
     SubGroupA: 16
     SubGroupB: 8
-    ThreadTile: [2, 2]
+    ThreadTile:
+    - 2
+    - 2
     ThreadTile0: 2
     ThreadTile1: 2
     ThreadTileA: 2
@@ -5686,7 +6329,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 2
-    WorkGroup: [16, 8, 1]
+    WorkGroup:
+    - 16
+    - 8
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5781,14 +6427,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5812,7 +6468,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [8, 8]
+    ThreadTile:
+    - 8
+    - 8
     ThreadTile0: 8
     ThreadTile1: 8
     ThreadTileA: 8
@@ -5822,7 +6480,10 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
   - AssertSummationElementMultiple: 1
@@ -5917,14 +6578,24 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [0, 3, 2]
-      IndexAssignmentsB: [3, 1, 2]
+      IndexAssignmentsA:
+      - 0
+      - 3
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
       IndexUnroll: 3
       IndexUnrollA: 1
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -5948,7 +6619,9 @@
     SubGroup1: 16
     SubGroupA: 16
     SubGroupB: 16
-    ThreadTile: [8, 8]
+    ThreadTile:
+    - 8
+    - 8
     ThreadTile0: 8
     ThreadTile1: 8
     ThreadTileA: 8
@@ -5958,162 +6631,476 @@
     Valid: true
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 8
     WorkGroupMappingType: B
-- [2, 3, 0, 1]
-- - - [8448, 48000, 1, 2816]
-    - [43, 11164.9]
-  - - [2048, 7000, 1, 2048]
-    - [42, 10332.3]
-  - - [7680, 64, 1, 2560]
-    - [4, 7659.88]
-  - - [7680, 128, 1, 2560]
-    - [0, 8972.77]
-  - - [512, 24000, 1, 2816]
-    - [43, 10570.8]
-  - - [512, 24000, 1, 2048]
-    - [22, 9487.83]
-  - - [5124, 9124, 1, 2560]
-    - [42, 10451.6]
-  - - [1024, 48000, 1, 2560]
-    - [43, 10835.7]
-  - - [3072, 32, 1, 1024]
-    - [5, 3284.34]
-  - - [3072, 48000, 1, 1024]
-    - [42, 10575.2]
-  - - [5124, 9124, 1, 4096]
-    - [42, 10389.1]
-  - - [5124, 9124, 1, 1760]
-    - [43, 10603.4]
-  - - [4096, 32, 1, 4096]
-    - [36, 5342.94]
-  - - [512, 48000, 1, 2560]
-    - [42, 10465.4]
-  - - [2048, 64, 1, 2048]
-    - [14, 4876.96]
-  - - [512, 24000, 1, 1536]
-    - [42, 10223.6]
-  - - [4096, 128, 1, 4096]
-    - [12, 8404.77]
-  - - [4608, 24000, 1, 1536]
-    - [42, 10914.6]
-  - - [7680, 48000, 1, 2560]
-    - [42, 11126.4]
-  - - [2560, 16, 1, 2560]
-    - [34, 2740.77]
-  - - [512, 16, 1, 512]
-    - [26, 457.207]
-  - - [3072, 24000, 1, 1024]
-    - [42, 10561.9]
-  - - [4096, 64, 1, 4096]
-    - [35, 7166.17]
-  - - [2560, 7000, 1, 2560]
-    - [42, 10398.7]
-  - - [1760, 7000, 1, 1760]
-    - [22, 10113.2]
-  - - [3072, 128, 1, 1024]
-    - [23, 5991.69]
-  - - [1760, 32, 1, 1760]
-    - [16, 3441.72]
-  - - [8448, 24000, 1, 2816]
-    - [43, 11105.7]
-  - - [6144, 16, 1, 2048]
-    - [41, 3131.74]
-  - - [2560, 64, 1, 2560]
-    - [20, 6043.14]
-  - - [35, 8457, 1, 4096]
-    - [7, 1616.47]
-  - - [1760, 128, 1, 1760]
-    - [17, 6408.67]
-  - - [3072, 16, 1, 1024]
-    - [37, 2239.78]
-  - - [1024, 16, 1, 512]
-    - [24, 824.936]
-  - - [1024, 24000, 1, 2048]
-    - [42, 10338.6]
-  - - [4096, 16, 1, 4096]
-    - [28, 3119.67]
-  - - [1024, 32, 1, 512]
-    - [10, 1421.24]
-  - - [512, 48000, 1, 2048]
-    - [21, 10128.1]
-  - - [512, 48000, 1, 1536]
-    - [42, 10407.4]
-  - - [512, 32, 1, 512]
-    - [26, 861.027]
-  - - [8448, 32, 1, 2816]
-    - [27, 5673.06]
-  - - [1024, 8, 1, 500000]
-    - [6, 1660.29]
-  - - [2048, 128, 1, 2048]
-    - [38, 6239.3]
-  - - [4608, 16, 1, 1536]
-    - [28, 2793.85]
-  - - [1024, 24000, 1, 2560]
-    - [43, 10576.7]
-  - - [1760, 16, 1, 1760]
-    - [31, 2233.81]
-  - - [5124, 9124, 1, 2048]
-    - [42, 10288.6]
-  - - [35, 8457, 1, 1760]
-    - [29, 3379.02]
-  - - [1024, 700, 1, 512]
-    - [33, 6467.27]
-  - - [2560, 32, 1, 2560]
-    - [19, 4448.06]
-  - - [2048, 32, 1, 2048]
-    - [9, 3508.19]
-  - - [8448, 16, 1, 2816]
-    - [3, 3104.71]
-  - - [6144, 24000, 1, 2048]
-    - [42, 10879.2]
-  - - [4096, 7000, 1, 4096]
-    - [42, 10627.6]
-  - - [7680, 24000, 1, 2560]
-    - [42, 11057.9]
-  - - [6144, 48000, 1, 2048]
-    - [42, 10946.3]
-  - - [4608, 32, 1, 1536]
-    - [35, 4796.68]
-  - - [35, 8457, 1, 2560]
-    - [39, 2350.67]
-  - - [4608, 48000, 1, 1536]
-    - [42, 10980.3]
-  - - [1024, 48000, 1, 2816]
-    - [43, 10992.4]
-  - - [3072, 64, 1, 1024]
-    - [30, 4940.81]
-  - - [512, 48000, 1, 2816]
-    - [43, 10708.7]
-  - - [2048, 16, 1, 2048]
-    - [15, 2389.1]
-  - - [1024, 24000, 1, 1536]
-    - [42, 10424.4]
-  - - [7680, 16, 1, 2560]
-    - [1, 3308.6]
-  - - [1760, 64, 1, 1760]
-    - [13, 4773.62]
-  - - [6144, 32, 1, 2048]
-    - [32, 5372.08]
-  - - [1024, 48000, 1, 1536]
-    - [43, 10695.7]
-  - - [2560, 128, 1, 2560]
-    - [8, 7236.94]
-  - - [35, 8457, 1, 2048]
-    - [2, 1475.08]
-  - - [512, 16, 1, 500000]
-    - [11, 2073.54]
-  - - [512, 8, 1, 500000]
-    - [40, 1043.3]
-  - - [512, 24000, 1, 2560]
-    - [42, 10310.4]
-  - - [7680, 32, 1, 2560]
-    - [18, 5816.68]
-  - - [1024, 48000, 1, 2048]
-    - [42, 10721.8]
-  - - [1024, 16, 1, 500000]
-    - [25, 3174.18]
-  - - [1024, 24000, 1, 2816]
-    - [43, 10704.7]
+- - 2
+  - 3
+  - 0
+  - 1
+- - - - 8448
+      - 48000
+      - 1
+      - 2816
+    - - 43
+      - 11164.9
+  - - - 2048
+      - 7000
+      - 1
+      - 2048
+    - - 42
+      - 10332.3
+  - - - 7680
+      - 64
+      - 1
+      - 2560
+    - - 4
+      - 7659.88
+  - - - 7680
+      - 128
+      - 1
+      - 2560
+    - - 0
+      - 8972.77
+  - - - 512
+      - 24000
+      - 1
+      - 2816
+    - - 43
+      - 10570.8
+  - - - 512
+      - 24000
+      - 1
+      - 2048
+    - - 22
+      - 9487.83
+  - - - 5124
+      - 9124
+      - 1
+      - 2560
+    - - 42
+      - 10451.6
+  - - - 1024
+      - 48000
+      - 1
+      - 2560
+    - - 43
+      - 10835.7
+  - - - 3072
+      - 32
+      - 1
+      - 1024
+    - - 5
+      - 3284.34
+  - - - 3072
+      - 48000
+      - 1
+      - 1024
+    - - 42
+      - 10575.2
+  - - - 5124
+      - 9124
+      - 1
+      - 4096
+    - - 42
+      - 10389.1
+  - - - 5124
+      - 9124
+      - 1
+      - 1760
+    - - 43
+      - 10603.4
+  - - - 4096
+      - 32
+      - 1
+      - 4096
+    - - 36
+      - 5342.94
+  - - - 512
+      - 48000
+      - 1
+      - 2560
+    - - 42
+      - 10465.4
+  - - - 2048
+      - 64
+      - 1
+      - 2048
+    - - 14
+      - 4876.96
+  - - - 512
+      - 24000
+      - 1
+      - 1536
+    - - 42
+      - 10223.6
+  - - - 4096
+      - 128
+      - 1
+      - 4096
+    - - 12
+      - 8404.77
+  - - - 4608
+      - 24000
+      - 1
+      - 1536
+    - - 42
+      - 10914.6
+  - - - 7680
+      - 48000
+      - 1
+      - 2560
+    - - 42
+      - 11126.4
+  - - - 2560
+      - 16
+      - 1
+      - 2560
+    - - 34
+      - 2740.77
+  - - - 512
+      - 16
+      - 1
+      - 512
+    - - 26
+      - 457.207
+  - - - 3072
+      - 24000
+      - 1
+      - 1024
+    - - 42
+      - 10561.9
+  - - - 4096
+      - 64
+      - 1
+      - 4096
+    - - 35
+      - 7166.17
+  - - - 2560
+      - 7000
+      - 1
+      - 2560
+    - - 42
+      - 10398.7
+  - - - 1760
+      - 7000
+      - 1
+      - 1760
+    - - 22
+      - 10113.2
+  - - - 3072
+      - 128
+      - 1
+      - 1024
+    - - 23
+      - 5991.69
+  - - - 1760
+      - 32
+      - 1
+      - 1760
+    - - 16
+      - 3441.72
+  - - - 8448
+      - 24000
+      - 1
+      - 2816
+    - - 43
+      - 11105.7
+  - - - 6144
+      - 16
+      - 1
+      - 2048
+    - - 41
+      - 3131.74
+  - - - 2560
+      - 64
+      - 1
+      - 2560
+    - - 20
+      - 6043.14
+  - - - 35
+      - 8457
+      - 1
+      - 4096
+    - - 7
+      - 1616.47
+  - - - 1760
+      - 128
+      - 1
+      - 1760
+    - - 17
+      - 6408.67
+  - - - 3072
+      - 16
+      - 1
+      - 1024
+    - - 37
+      - 2239.78
+  - - - 1024
+      - 16
+      - 1
+      - 512
+    - - 24
+      - 824.936
+  - - - 1024
+      - 24000
+      - 1
+      - 2048
+    - - 42
+      - 10338.6
+  - - - 4096
+      - 16
+      - 1
+      - 4096
+    - - 28
+      - 3119.67
+  - - - 1024
+      - 32
+      - 1
+      - 512
+    - - 10
+      - 1421.24
+  - - - 512
+      - 48000
+      - 1
+      - 2048
+    - - 21
+      - 10128.1
+  - - - 512
+      - 48000
+      - 1
+      - 1536
+    - - 42
+      - 10407.4
+  - - - 512
+      - 32
+      - 1
+      - 512
+    - - 26
+      - 861.027
+  - - - 8448
+      - 32
+      - 1
+      - 2816
+    - - 27
+      - 5673.06
+  - - - 1024
+      - 8
+      - 1
+      - 500000
+    - - 6
+      - 1660.29
+  - - - 2048
+      - 128
+      - 1
+      - 2048
+    - - 38
+      - 6239.3
+  - - - 4608
+      - 16
+      - 1
+      - 1536
+    - - 28
+      - 2793.85
+  - - - 1024
+      - 24000
+      - 1
+      - 2560
+    - - 43
+      - 10576.7
+  - - - 1760
+      - 16
+      - 1
+      - 1760
+    - - 31
+      - 2233.81
+  - - - 5124
+      - 9124
+      - 1
+      - 2048
+    - - 42
+      - 10288.6
+  - - - 35
+      - 8457
+      - 1
+      - 1760
+    - - 29
+      - 3379.02
+  - - - 1024
+      - 700
+      - 1
+      - 512
+    - - 33
+      - 6467.27
+  - - - 2560
+      - 32
+      - 1
+      - 2560
+    - - 19
+      - 4448.06
+  - - - 2048
+      - 32
+      - 1
+      - 2048
+    - - 9
+      - 3508.19
+  - - - 8448
+      - 16
+      - 1
+      - 2816
+    - - 3
+      - 3104.71
+  - - - 6144
+      - 24000
+      - 1
+      - 2048
+    - - 42
+      - 10879.2
+  - - - 4096
+      - 7000
+      - 1
+      - 4096
+    - - 42
+      - 10627.6
+  - - - 7680
+      - 24000
+      - 1
+      - 2560
+    - - 42
+      - 11057.9
+  - - - 6144
+      - 48000
+      - 1
+      - 2048
+    - - 42
+      - 10946.3
+  - - - 4608
+      - 32
+      - 1
+      - 1536
+    - - 35
+      - 4796.68
+  - - - 35
+      - 8457
+      - 1
+      - 2560
+    - - 39
+      - 2350.67
+  - - - 4608
+      - 48000
+      - 1
+      - 1536
+    - - 42
+      - 10980.3
+  - - - 1024
+      - 48000
+      - 1
+      - 2816
+    - - 43
+      - 10992.4
+  - - - 3072
+      - 64
+      - 1
+      - 1024
+    - - 30
+      - 4940.81
+  - - - 512
+      - 48000
+      - 1
+      - 2816
+    - - 43
+      - 10708.7
+  - - - 2048
+      - 16
+      - 1
+      - 2048
+    - - 15
+      - 2389.1
+  - - - 1024
+      - 24000
+      - 1
+      - 1536
+    - - 42
+      - 10424.4
+  - - - 7680
+      - 16
+      - 1
+      - 2560
+    - - 1
+      - 3308.6
+  - - - 1760
+      - 64
+      - 1
+      - 1760
+    - - 13
+      - 4773.62
+  - - - 6144
+      - 32
+      - 1
+      - 2048
+    - - 32
+      - 5372.08
+  - - - 1024
+      - 48000
+      - 1
+      - 1536
+    - - 43
+      - 10695.7
+  - - - 2560
+      - 128
+      - 1
+      - 2560
+    - - 8
+      - 7236.94
+  - - - 35
+      - 8457
+      - 1
+      - 2048
+    - - 2
+      - 1475.08
+  - - - 512
+      - 16
+      - 1
+      - 500000
+    - - 11
+      - 2073.54
+  - - - 512
+      - 8
+      - 1
+      - 500000
+    - - 40
+      - 1043.3
+  - - - 512
+      - 24000
+      - 1
+      - 2560
+    - - 42
+      - 10310.4
+  - - - 7680
+      - 32
+      - 1
+      - 2560
+    - - 18
+      - 5816.68
+  - - - 1024
+      - 48000
+      - 1
+      - 2048
+    - - 42
+      - 10721.8
+  - - - 1024
+      - 16
+      - 1
+      - 500000
+    - - 25
+      - 3174.18
+  - - - 1024
+      - 24000
+      - 1
+      - 2816
+    - - 43
+      - 10704.7
 - null

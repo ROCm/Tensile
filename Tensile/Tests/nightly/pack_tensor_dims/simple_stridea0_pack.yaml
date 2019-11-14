@@ -42,7 +42,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - KernelLanguage: ["Source","Assembly"]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
