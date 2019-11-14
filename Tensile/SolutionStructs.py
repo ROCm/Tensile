@@ -1852,6 +1852,9 @@ class Solution:
       reject(state, "LoopUnroll %u is less than 2" \
           % (state["LoopUnroll"]))
 
+    state["LoopIters"] = state["LoopUnroll"]
+    if state["MatrixInstK"]:
+      state["LoopIters"] //= state["MatrixInstK"]
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
