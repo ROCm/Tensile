@@ -876,7 +876,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         if self.enable["MAC"]:
           if kernel["MatrixInstruction"]:
-            # todo check sgprLoopCounters
             macIterCode.addCode(self.mfmaIter(kernel, 0, kernel["InnerUnroll"])) # todo m
           else:
             luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
