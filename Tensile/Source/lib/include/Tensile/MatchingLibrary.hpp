@@ -33,6 +33,14 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup SolutionLibrary
+     * 
+     * Uses a distance function to select kernels based on benchmarks.
+     * Benchmarks are performed to determine the optimal kernel at a number of
+     * specific sizes. At runtime, we find the benchmarked size that is closest
+     * to the size asked for.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
     {

@@ -37,6 +37,13 @@ namespace Tensile
 {
     namespace Predicates
     {
+        /**
+         * \addtogroup Predicates
+         * @{
+         */
+        /**
+         * @brief ContractionProblem predicates
+         */
         namespace Contraction
         {
             struct FreeSizeAMultiple: public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
@@ -338,8 +345,11 @@ namespace Tensile
                     return problem.operationIdentifier() == value;
                 }
             };
-
         }
+
+        /**
+         * @}
+         */
     }
 }
 

@@ -30,6 +30,24 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Utilities
+     * \defgroup Comparison Comparison
+     */
+
+    /**
+     * \addtogroup Comparison
+     * @{
+     */
+
+    /**
+     * Lexicographically compares two lists of values, one pair of values at a
+     * time.
+     * 
+     * \return -1: The first list is lesser.
+     *          1: The second list is lesser.
+     *          0: The lists are equal.
+     */
     inline int LexicographicCompare()
     {
         return 0;
@@ -51,6 +69,15 @@ namespace Tensile
         return LexicographicCompare(rest...);
     }
 
+    /**
+     * @brief Traits class which enables comparison operators to be implemented
+     * based on a `compare()` function.
+     * 
+     * Specializations must implement a `compare(lhs, rhs)` function which returns:
+     *  - -1: lhs is lesser
+     *  -  0: values are equal
+     *  -  1: rhs is lesser
+     */
     template <typename T, typename U = T>
     struct Comparison
     {
@@ -92,5 +119,9 @@ namespace Tensile
     {
         return Comparison<T, U>::compare(lhs, rhs) >= 0; 
     }
+
+    /**
+     * @}
+     */
 }
 

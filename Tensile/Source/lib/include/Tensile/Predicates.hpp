@@ -35,13 +35,42 @@
 
 namespace Tensile
 {
+    /**
+     * \addtogroup Properties
+     * 
+     * @brief A Predicate is a Property whose value is of type `bool`.
+     * 
+     * This allows it to represent a condition of an object, such as `object.size > 4`.
+     */
     namespace Predicates
     {
+        /**
+         * @brief A Property whose value is of type `bool`.
+         * 
+         * Predicates should generally implement better `debugEval()`
+         * functionality than other Properties since it's often helpful to know
+         * the value of both sides of a comparison.
+         */
         template <typename Object>
         using Predicate = Property<Object, bool>;
 
+        /**
+         * \copydoc Tensile::Property_CRTP
+         */
         template <typename Class, typename Object>
         using Predicate_CRTP = Property_CRTP<Class, Object, bool>;
+
+        /**
+         * \ingroup Properties
+         * \defgroup Predicates Predicate Classes
+         * 
+         * @brief Individual Predicate classes.
+         */
+
+        /**
+         * \addtogroup Predicates
+         * @{
+         */
 
         template <typename Object>
         class True: public Predicate_CRTP<True<Object>, Object>
@@ -177,6 +206,12 @@ namespace Tensile
             }
         };
 
+        /**
+         * @brief Predicate which returns `true` if the object is of type Subclass.
+         * 
+         * @param Object
+         * @param Subclass Must be a subclass of Object.
+         */
         template <typename Object, typename Subclass>
         class IsSubclass: public Predicate_CRTP<IsSubclass<Object, Subclass>, Object>
         {
@@ -222,6 +257,10 @@ namespace Tensile
                 return rv;
             }
         };
+
+        /**
+         * @}
+         */
     }
 }
 

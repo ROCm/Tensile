@@ -35,18 +35,29 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Tensile
+     * \defgroup Embedding Data Embedding 
+     * 
+     * @brief Mechanism which allows binary data to be stored in an executable
+     * or shared library as an array of bytes.
+     */
+
+
     template <typename Object>
     struct EmbedData;
 
     /**
-     * Encapsulates the storage of binary data stored in the executable.
+     * \ingroup Embedding
+     * 
+     * @brief EmbeddedData is the mechanism for retrieving data which has been
+     * registered with EmbedData.
      */
     template <typename Object>
     class TENSILE_API EmbeddedData: public LazySingleton<EmbeddedData<Object>>
     {
     public:
         using Base = LazySingleton<EmbeddedData<Object>>;
-
 
         using Item = std::vector<uint8_t>;
         using Items = std::vector<Item>;
@@ -87,6 +98,11 @@ namespace Tensile
         const Items empty;
     };
 
+    /**
+     * \ingroup Embedding
+     * 
+     * @brief Object which registers embedded data when it's instantiated.
+     */
     template <typename Object>
     struct TENSILE_API EmbedData
     {
@@ -118,5 +134,3 @@ namespace Tensile
 #define TENSILE_CONCATENATE_SYMBOLS2(a, b) a ## b
 
 #define TENSILE_EMBED_SYMBOL_NAME TENSILE_CONCATENATE_SYMBOLS(TensileEmbeddedData, __LINE__)
-
-

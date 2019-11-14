@@ -29,9 +29,18 @@
 namespace Tensile
 {
 
+    /**
+     * \ingroup SolutionLibrary
+     */ 
     template <typename MySolution>
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
+    /**
+     * \ingroup SolutionLibrary
+     * 
+     * Root level library object. Contains all individual solutions in a map
+     * for serialization purposes.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct MasterSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {

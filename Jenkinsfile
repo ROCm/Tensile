@@ -58,9 +58,19 @@ tensileCI:
                     popd
                     tox --version
                     tox -vv --workdir /tmp/.tensile-tox -e lint
+
+                    doxygen docs/Doxyfile
                     """
 
             platform.runCommand(this, command)
+
+            publishHTML([allowMissing: false,
+                         alwaysLinkToLastBuild: false,
+                         keepAll: false,
+                         reportDir: 'docs/html',
+                         reportFiles: 'index.html',
+                         reportName: 'Documentation',
+                         reportTitles: 'Documentation'])
         }
         finally
         {

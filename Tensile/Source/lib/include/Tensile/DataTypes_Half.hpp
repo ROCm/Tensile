@@ -35,9 +35,15 @@
 namespace Tensile
 {
 #ifdef TENSILE_USE_HIP
+    /**
+     * \ingroup DataTypes
+     */
     using Half = _Float16;
 #define TENSILE_USE_HALF
 #else
+    /**
+     * \ingroup DataTypes
+     */
     struct Half: public DistinctType<uint16_t, Half>
     {
     };
