@@ -192,7 +192,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
 
     coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
-                                 method=lambda x: x.starmap)
+                                 method=lambda x: x.starmap, enable=False)
 
     return itertools.chain.from_iterable(coFiles)
 
@@ -312,7 +312,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   prepAsm()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, enable=False)
   #do we need this?
   #print(len(results))
 
@@ -1016,7 +1016,7 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
+  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files", enable=False)
 
   masterLibraries = {}
   fullMasterLibriary = None
@@ -1024,10 +1024,11 @@ def TensileCreateLibrary():
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
 
-    if fullMasterLibriary is None:
+    if not globalParameters["PackageLibrary"]:
+      if fullMasterLibriary is None:
         fullMasterLibriary = deepcopy(newLibrary)
-    else:
-        fullMasterLibriary.merge(newLibrary)
+      else:
+        fullMasterLibriary.merge(deepcopy(newLibrary))
 
     if problemType not in logicData:
       logicData[problemType] = []
@@ -1037,11 +1038,12 @@ def TensileCreateLibrary():
       if solution not in solutions:
         solutions.append(solution)
 
-    if architectureName in masterLibraries:
-      masterLibraries[architectureName].merge(newLibrary)
-    else:
-      masterLibraries[architectureName] = newLibrary
-      
+    if globalParameters["PackageLibrary"]:
+      if architectureName in masterLibraries:
+        masterLibraries[architectureName].merge(deepcopy(newLibrary))
+      else:
+        masterLibraries[architectureName] = deepcopy(newLibrary)
+
   # create solution writer and kernel writer
   kernels = []
   kernelsBetaOnly = []
@@ -1113,10 +1115,13 @@ def TensileCreateLibrary():
     fullMasterLibriary.applyNaming(kernelMinNaming)
     YAMLIO.write(masterFile, Utils.state(fullMasterLibriary))
 
+  theMasterLibrary = fullMasterLibriary
+  if globalParameters["PackageLibrary"]:
+    theMasterLibrary = list(masterLibraries.values())[0]
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(fullMasterLibriary.cpp_base_class, masterFile, nullTerminated=True,
+          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
           for co in Utils.tqdm(codeObjectFiles):

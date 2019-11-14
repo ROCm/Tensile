@@ -26,6 +26,7 @@ from . import Hardware
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
+from copy import deepcopy
 
 class SingleSolutionLibrary:
     Tag = 'Single'
