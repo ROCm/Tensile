@@ -67,7 +67,7 @@ tensileCI:
             publishHTML([allowMissing: false,
                          alwaysLinkToLastBuild: false,
                          keepAll: false,
-                         reportDir: 'docs/html',
+                         reportDir: '${project.paths.project_build_prefix}/docs/html',
                          reportFiles: 'index.html',
                          reportName: 'Documentation',
                          reportTitles: 'Documentation'])
