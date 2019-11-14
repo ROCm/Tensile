@@ -5,6 +5,7 @@ set(client_sources
     source/BenchmarkTimer.cpp
     source/CSVStackFile.cpp
     source/ClientProblemFactory.cpp
+    source/ConvolutionProblem.cpp
     source/DataInitialization.cpp
     source/HardwareMonitor.cpp
     source/HardwareMonitorListener.cpp

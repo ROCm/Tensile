@@ -32,7 +32,7 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
-#include <Tensile/ConvolutionProblem.hpp>
+#include <ConvolutionProblem.hpp>
 
 #include "DataInitialization.hpp"
 
@@ -117,6 +117,7 @@ namespace Tensile
             bool m_printTensorB;
             bool m_printTensorC;
             bool m_printTensorD;
+            bool m_printTensorRef;
 
             bool m_convolutionVsContraction;
 

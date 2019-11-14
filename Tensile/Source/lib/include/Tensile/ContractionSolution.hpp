@@ -59,11 +59,8 @@ namespace Tensile
 
         /**
          * Calculate the projected performance based on granularity loss.
-         * 
-         * TODO: This needs to take a Hardware object and extract the number of
-         * CUs from there.
          */
-        virtual double projectedPerformance(Problem const& problem) const;
+        virtual double projectedPerformance(Problem const& problem, Hardware const& hardware) const;
 
         /**
          * Generate a set of kernel calls to solve a particular problem.
@@ -118,6 +115,7 @@ namespace Tensile
             DataType cType = DataType::Float;
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
+            bool useInitialStrides = false;
             bool useBeta = true;
         };
 

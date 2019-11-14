@@ -285,6 +285,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile = open(kernelHeaderFilename, "w")
     kernelSourceFile.write(CHeader)
     kernelHeaderFile.write(CHeader)
+    #kernelSourceFile.write("#define HCC_ENABLE_ACCELERATOR_PRINTF\n")
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
@@ -301,7 +302,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
-  print(len(results))
 
   removeKernels = []
   removeSolutions = []
@@ -741,7 +741,7 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
         solution["AssertSummationElementMultiple"], \
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
-        solution["AssertMinApproxSize"], \
+        0, \
         solution["LdcEqualsLdd"], \
         solution["PackBatchDims"]==2, \
         solution["PackBatchDims"]==1, \

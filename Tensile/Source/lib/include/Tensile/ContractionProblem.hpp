@@ -54,6 +54,24 @@ namespace Tensile
         ContractionProblem() = default;
 
         /**
+         * Zero-padding description
+         */
+        struct ZeroPad
+        {
+            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t lp=0, int64_t tp=0) : 
+                anchorIndex(ai), boundIndex(bi), leadingPad(lp), trailingPad(tp) {};
+
+            int32_t  anchorIndex;
+            int32_t  boundIndex;
+            int64_t  leadingPad;
+            int64_t  trailingPad;
+
+            bool valid() const { return anchorIndex != -1; };
+            std::string description() const;
+        };
+        using ZeroPads = std::vector<ZeroPad>;
+
+        /**
          * Represents a pair of free indices in a tensor contraction.
          */
         struct FreeIndex
@@ -79,9 +97,13 @@ namespace Tensile
          */
         struct BoundIndex
         {
+            BoundIndex(size_t xa=0, size_t xb=0) : a(xa), b(xb) {};
             size_t a, b;
+            ZeroPad aZeroPad;
+            ZeroPad bZeroPad;
         };
         using BoundIndices = std::vector<BoundIndex>;
+
 
         virtual std::string description() const;
 
@@ -220,6 +242,27 @@ namespace Tensile
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
 
+        // Translate specified index into a position of that index in the d tensor.
+        // Since d tensor order is always index order this is 1:1 translation if the 
+        // index is in-bounds:
+        size_t toDPos(size_t idx) const
+        {
+            if (idx < d().dimensions())
+                return idx;
+            else
+                throw std::runtime_error("requested index not in D");
+        }
+
+        size_t toBoundsPos(size_t idx) const
+        {
+            if (idx < d().dimensions())
+                throw std::runtime_error("invalid bounds index (is free or batch)");
+            else if (idx > d().dimensions()+boundIndices().size())
+                throw std::runtime_error("invalid bounds index (out-of-bounds)");
+            else
+                return idx-d().dimensions();
+        }
+
         std::vector<size_t> const& problemSizes() const { return m_problemSizes; }
 
         void setHighPrecisionAccumulate(bool value) { m_highPrecisionAccumulate = value; }
@@ -246,6 +289,12 @@ namespace Tensile
         FreeIndices  const&  freeIndices() const { return m_freeIndices; }
         BatchIndices const& batchIndices() const { return m_batchIndices; }
         BoundIndices const& boundIndices() const { return m_boundIndices; }
+
+        ZeroPads const& aZeroPad() const { return m_aZeroPads;}
+        ZeroPads const& bZeroPad() const { return m_bZeroPads;}
+
+        void addAZeroPad(const ZeroPad &zp);
+        void addBZeroPad(const ZeroPad &zp);
 
         double beta() const { return m_beta; }
 
@@ -288,6 +337,9 @@ namespace Tensile
         FreeIndices  m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
+
+        ZeroPads     m_aZeroPads;
+        ZeroPads     m_bZeroPads;
 
         std::vector<size_t> m_freeSizesA;
         std::vector<size_t> m_freeSizesB;

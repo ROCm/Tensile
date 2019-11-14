@@ -24,7 +24,7 @@
 #pragma once
 
 #include <Tensile/ContractionProblem.hpp>
-#include <Tensile/ConvolutionProblem.hpp>
+#include <ConvolutionProblem.hpp>
 
 #include <Tensile/DataTypes.hpp>
 
