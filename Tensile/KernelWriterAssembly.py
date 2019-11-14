@@ -5119,10 +5119,13 @@ class KernelWriterAssembly(KernelWriter):
       for b in range(0, self.numColInsts):
         for a in range(0, self.numRowInsts):
           for iui in range(0, innerUnroll):
+            accIdx = b * self.numRowInsts + a
+            accStart = accIdx * self.destAgprs
+            accEnd = accStart + self.destAgprs - 1
             cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", b * self.numRowInsts * self.destAgprs, a, self.destAgprs)
             aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
             bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
-            kStr += "v_mfma_f32_%ux%ux%uf32 a[0:%u], %s, %s, a[0:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], self.destAgprs - 1, aStr, bStr, self.destAgprs - 1, self.endLine)
+            kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
     return kStr
 
   ##############################################################################
