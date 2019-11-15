@@ -560,10 +560,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
             1 if (u < kernel["LoopIters"]-1 and kernel["PrefetchLocalRead"]) else 0, \
             "7wait for local read"))
       if self.enable["MAC"]:
+        luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
         if kernel["MatrixInstruction"]:
-          kl.append(self.mfmaIter(kernel, 0, kernel["InnerUnroll"])) # todo m
+          kl.append(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
         else:
-          luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
           kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], useMacro=not isOptNLL ))
     kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
     return kl
@@ -875,10 +875,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
               "wait for prior local read")
 
         if self.enable["MAC"]:
+          luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
           if kernel["MatrixInstruction"]:
-            macIterCode.addCode(self.mfmaIter(kernel, 0, kernel["InnerUnroll"])) # todo m
+            macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
           else:
-            luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
             macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
         ###### unroll loop efficiency implementation######################################
@@ -1125,10 +1125,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # no wait needed here b/c we already waited for ds_write
       # which waited for this ds_read
       if self.enable["MAC"]:
+        luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
         if kernel["MatrixInstruction"]:
-          macIterCode.addCode(self.mfmaIter(kernel, 0, kernel["InnerUnroll"])) # todo m
+          macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
         else:
-          luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True))
 
       subIterCode = self.makeSubIterSchedule(kernel, localReads,
@@ -1245,7 +1245,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
       if self.enable["MAC"]:
         if kernel["MatrixInstruction"]:
-          kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll)) # todo m
+          kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll))
         else:
           kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
 

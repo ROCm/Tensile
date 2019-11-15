@@ -1524,7 +1524,7 @@ class KernelWriterAssembly(KernelWriter):
       self.numRowInsts = kernel["ThreadTile0"] // numRowsPerMfma
       self.numColInsts = kernel["ThreadTile1"] // numColsPerMfma
       numMfmas = self.numRowInsts * self.numColInsts
-      self.destAgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // 64  # Agprs for 1 mfma
+      self.destAgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]  # Agprs for 1 mfma
       self.totalAgprs = numMfmas * self.destAgprs                                                   # Agprs for all
 
     ########################################
@@ -2926,9 +2926,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("_v_sub_co_u32",     "v[\\vRemainder]", "vcc",            "v[\\vDividend]", "v[\\vRemainder]", "final result" )
     kStr += ".endm%s" % self.endLine
 
-    kStr += self.defineMACMacro(kernel, kernel["InnerUnroll"], True)
-    if kernel["InnerUnroll"] > 1:
-      kStr += self.defineMACMacro(kernel, 1, True) # define OneIter case
+    if not kernel["MatrixInstruction"]:
+      kStr += self.defineMACMacro(kernel, kernel["InnerUnroll"], True)
+      if kernel["InnerUnroll"] > 1:
+        kStr += self.defineMACMacro(kernel, 1, True) # define OneIter case
 
     if self.overflowedResources:
       print("")
@@ -5122,10 +5123,10 @@ class KernelWriterAssembly(KernelWriter):
             accIdx = b * self.numRowInsts + a
             accStart = accIdx * self.destAgprs
             accEnd = accStart + self.destAgprs - 1
-            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", b * self.numRowInsts * self.destAgprs, a, self.destAgprs)
             aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
             bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
-            kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u]%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
+            kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u]%s" \
+              % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
     return kStr
 
   ##############################################################################
