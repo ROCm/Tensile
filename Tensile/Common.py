@@ -866,6 +866,7 @@ defaultProblemType = {
     "UseInitialStrides":        0,  # 0x1=use initial strides for AB, 0x2=use initial strides for CD, 0x3=use initial strides for all
 
     # List of pairs of [index, constValue].
+    # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
     #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],
