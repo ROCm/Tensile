@@ -36,14 +36,15 @@ namespace Tensile
         return value & (0x2 | 0x4);
     }
 
-    bool Debug::printPredicateEvaluation() const
-    {
-        return value & 0x10;
-    }
 
     bool Debug::printDeviceSelection() const
     {
         return value & 0x8;
+    }
+
+    bool Debug::printPredicateEvaluation() const
+    {
+        return value & 0x10;
     }
 
     bool Debug::printCodeObjectInfo() const
@@ -54,6 +55,11 @@ namespace Tensile
     bool Debug::printKernelArguments() const
     {
         return value & 0x40;
+    }
+
+    bool Debug::printTensorInfo() const
+    {
+        return value & 0x80;
     }
 
     bool Debug::printConvolutionReference1() const

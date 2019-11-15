@@ -39,6 +39,9 @@ namespace Tensile
 
         bool printKernelArguments() const;
 
+        // print tensor dims, strides, memory sizes
+        bool printTensorInfo() const;
+
         // 3 levels of debugging for the convolution reference debug
         bool printConvolutionReference1() const;
         bool printConvolutionReference2() const;
