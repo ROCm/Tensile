@@ -192,7 +192,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
 
     coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
-                                 method=lambda x: x.starmap, enable=False)
+                                 method=lambda x: x.starmap)
 
     return itertools.chain.from_iterable(coFiles)
 
@@ -312,7 +312,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   prepAsm()
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, enable=False)
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
   #do we need this?
   #print(len(results))
 
@@ -1016,19 +1016,19 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files", enable=False)
+  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
 
   masterLibraries = {}
-  fullMasterLibriary = None
+  fullMasterLibrary = None
   for logic in Utils.tqdm(libraries, "Processing logic data"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
 
     if not globalParameters["PackageLibrary"]:
-      if fullMasterLibriary is None:
-        fullMasterLibriary = deepcopy(newLibrary)
+      if fullMasterLibrary is None:
+        fullMasterLibrary = deepcopy(newLibrary)
       else:
-        fullMasterLibriary.merge(deepcopy(newLibrary))
+        fullMasterLibrary.merge(deepcopy(newLibrary))
 
     if problemType not in logicData:
       logicData[problemType] = []
