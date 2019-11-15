@@ -534,13 +534,13 @@ class KernelWriterAssembly(KernelWriter):
   def stride(self, tc, dim):
     problemType = self.kernel["ProblemType"]
     if tc in ['A','B']:
-      if not problemType["UseInitialStrides"] and \
+      if not (problemType["UseInitialStrides"] & Globals.UseInitialStrides_AB) and \
           dim == problemType["IndexAssignments%s"%tc][0]:
         return ("constStride%s%s"%(tc,self.indexChars[dim]))
       else:
         return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
     elif tc in ['D','C']:
-      if not problemType["UseInitialStrides"] and dim == 0:
+      if not (problemType["UseInitialStrides"] & Globals.UseInitialStrides_CD) and dim == 0:
         return ("constStride%s%s"%(tc,self.indexChars[dim]))
       else:
         return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
@@ -2673,6 +2673,13 @@ class KernelWriterAssembly(KernelWriter):
       if tc == "C" and kernel["BufferStore"]:
         continue
 
+      if tc == 'C':
+        useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD
+        idxChar = self.indexChars[i]
+      else:
+        useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_AB
+        idxChar = self.indexChars[tP['ia'][i]]
+
       kStr += self.comment("Global Offset %s"%tc)
       numDim = len(indices)
       idxChars = []
@@ -2718,7 +2725,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # true for first addr calc. In this case, we can directly write addr
       # rather than accumulating through a tmp
-      writeDirectToAddr = justOffset32
+      writeDirectToAddr = 1
       for i in calcDims:
         # should have eliminated these above
         idx = indices[i]
@@ -2748,7 +2755,7 @@ class KernelWriterAssembly(KernelWriter):
 
         needAdd = 0
         # should be indices[i]??
-        if i==0 and not (kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_AB):
+        if i==0 and not useInitialStrides:
           # slide into next address calc - can do addr = pendingOffset + nextAddrCalc
           pendingOffset = offset
           writeDirectToAddr = 0
@@ -2800,15 +2807,17 @@ class KernelWriterAssembly(KernelWriter):
         if needAdd:
           writeDirectToAddr = 0 # safety net, once we write address can't directly overwrite it later
           destLo = "v[\\vgprAddr+0]"
+          destHi = "v[\\vgprAddr+1]"
           # addr += offset * stride (lo) : accumulate just-computed address term into addr
 
-          src = pendingOffset if pendingOffset else destLo
+          srcLo = pendingOffset if pendingOffset else destLo
+          srcHi = 0 if pendingOffset else destHi
           kStr += inst("_v_add_co_u32", \
             destLo, \
             "vcc", \
-            src, \
+            srcLo, \
             "v[\\vgprTmp+0]", \
-            "accumulate d%u lower"%i)
+            "accumulate %s lower"%idxChar)
 
           # addr += offset * stride (hi)
           if not justOffset32:
@@ -2816,9 +2825,9 @@ class KernelWriterAssembly(KernelWriter):
                 "v[\\vgprAddr+1]", \
                 "vcc", \
                 "v[\\vgprTmp+1]",  \
-                0, \
+                srcHi, \
                 "vcc", \
-                "accumulate d%u upper"%i)
+                "accumulate %s upper"%idxChar)
           pendingOffset = None
 
       # pendingOffset but never got a chance to apply it,
@@ -5520,15 +5529,14 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["BufferLoad"]:
       kStr += self.comment1("flat addressing - max read address = size[n] * stride[n-1]")
       dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
       sizeIdx = tP["ia"][dim]
       sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
       if sizeIdxIsSum:
         sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
-      # TODO-UseInitialStrides
+      # TODO-multiply by largest stride
       kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
                   sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                  sgpr("Strides%s+%u"%(tP["tensorChar"], strideIdx)), \
+                  sgpr("Stride%s%s"%(tc, self.indexChars[tP['ia'][-1]])), \
                   "64b tensor%s size in elements"%tc)
       kStr += inst("s_lshl_b64", \
         sgpr(maxAddrSgpr,2), \
