@@ -324,22 +324,24 @@ def normalizeConvolution(conv, problemSize, astrides):
                                 problemSize[conv.dimIdx('C')], problemSize[conv.dimIdx('K')])
 
     for i in range(len(refSize)):
-        if (refSize[i]!=-1 and refSize[i] != problemSize[i]):
-            raise RuntimeError (
-                    "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
+      if refSize[i]!=-1:
+        if problemSize[i] == -1:
+          if globalParameters["ProblemFromConvolution"]:
+            problemSize[i] = refSize[i]
+        elif refSize[i] != problemSize[i]:
+          raise RuntimeError (
+            "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
               (problemSize, refSize, i, problemSize[i], refSize[i], conv.convolutionChar(i)))
 
-    if globalParameters["ConvolutionVsContraction"]:
-      copyConvStrides = True
-      if copyConvStrides:
-          for i in range(len(refAStrides)):
-              if astrides[i]==-1:
-                  astrides[i] = refAStrides[i] # copy reference
-              elif astrides[i] != refAStrides[i]:
-                  raise RuntimeError (
-                    "at position %d problem strides (%s) don't match reference conv strides(%s)" \
-                            % (i, astrides, refAStrides))
-      elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
+    if globalParameters["ProblemFromConvolution"]:
+      for i in range(len(refAStrides)):
+        if astrides[i]==-1:
+          astrides[i] = refAStrides[i] # copy reference
+        elif astrides[i] != refAStrides[i]:
+          raise RuntimeError (
+            "at position %d problem strides (%s) don't match reference conv strides(%s)" \
+                          % (i, astrides, refAStrides))
+    elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
         raise RuntimeError (
             "specified convolution uses strides that can't be represented in current Exact problem size format. Requires StrideA=", refAStrides)
 
@@ -348,8 +350,7 @@ def normalizeConvolution(conv, problemSize, astrides):
 def problemSizeParams(solution, problemSize):
 
     numIndices = len(solution.problemType.indices)
-
-    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    rv = []
 
     astrides = [-1] * solution.problemType.aDims
     for sc in solution.problemType.setConstStrideA:
@@ -369,7 +370,6 @@ def problemSizeParams(solution, problemSize):
         else:
             bstrides[index.b] = sc[1]
 
-    rv = [problemSizeArg]
     if len(problemSize) == numIndices:
       None
     elif len(problemSize) == numIndices + 4:
@@ -393,7 +393,9 @@ def problemSizeParams(solution, problemSize):
             ', '.join(map(str, problemSize))))
 
     if solution.problemType.convolution:
-        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, problemSize, astrides)
+        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, list(problemSize), astrides)
+    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    rv.insert(0, problemSizeArg)
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))

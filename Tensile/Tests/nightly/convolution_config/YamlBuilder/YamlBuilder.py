@@ -31,6 +31,7 @@ class YamlBuilder:
         with open(os.path.join(testYamlFile), 'w') as outfile:
             YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir, "header.yml"))
             outfile.write("  ConvolutionVsContraction: 1\n")
+            outfile.write("  ProblemFromConvolution  : 1\n")
             outfile.write("BenchmarkProblems:\n")
             outfile.write("  -\n")
             outfile.write("    -\n")

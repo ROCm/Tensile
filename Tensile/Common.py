@@ -75,6 +75,11 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 # specified constant MUST match the dimension in the problem or the tensile runtime will assert.
 # The batch size, spatial dims, Cin, and Cout are always read from the problem description.
 globalParameters["ConvolutionVsContraction"] = False
+
+# Set size and stride fields in convolution so they are consistent with requirements from convolution
+# Size/strides to be overriden must be defined as '-1' or a runtime error will be raised
+# Only valid if OperationType is a *Convolution.
+globalParameters["ProblemFromConvolution"] = False
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
