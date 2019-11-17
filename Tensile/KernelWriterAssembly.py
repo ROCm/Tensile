@@ -2688,13 +2688,6 @@ class KernelWriterAssembly(KernelWriter):
       if tc == "C" and kernel["BufferStore"]:
         continue
 
-      if tc == 'C':
-        useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD
-        idxChar = self.indexChars[i]
-      else:
-        useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_AB
-        idxChar = self.indexChars[tP['ia'][i]]
-
       kStr += self.comment("Global Offset %s"%tc)
       numDim = len(indices)
       idxChars = []
@@ -2707,6 +2700,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tc
       calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
       for i in range(0, numDim):
+        if tc == 'C':
+          useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD
+          idxChar = self.indexChars[i]
+        else:
+          useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_AB
+          idxChar = self.indexChars[tP['ia'][i]]
+
         # tile index or unroll vgpr or summation
         # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
         if indices[i] == kernel["ProblemType"]["Index0"] \
@@ -3754,11 +3754,13 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 scalarGro = self.getTmpSgpr(1)
 
-              stride1 = "Stride%s%s"%(tc, self.indexChars[tP['ia'][1]])
+              packedC1 = kernel["PackedC1IndicesX"]
+              assert(len(packedC1) == 1)  # would need to extract each dim and scale
+              strideCD1 = "Stride%s%s"%(tc,self.indexChars[packedC1[0]])
               if tP["tlu"]:
                 tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(stride1), unrollStride, \
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideCD1), unrollStride, \
                              "compute offset diff (scaled unrollDim)")
                 if tileStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), tileStride, \
@@ -3766,7 +3768,7 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(stride1), tileStride, \
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideCD1), tileStride, \
                              "compute offset diff (scaled tileDim)")
                 if unrollStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), unrollStride, \
@@ -3783,7 +3785,7 @@ class KernelWriterAssembly(KernelWriter):
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
                 print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
-                      "Stride%s%s="%(tc,stride1Char))
+                      "stride=%s"%(strideCD1))
 
                 kStr += self.assert_vector_diff(vgpr("GlobalReadOffset%s+%u"%(tc,0)), \
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
@@ -3844,7 +3846,9 @@ class KernelWriterAssembly(KernelWriter):
     # Add tile (and unroll if GSU) component into SRD - SRD will point to beginning of the macro-tile:
     if self.groOffsetInMacroTile:
       wroteTileStart = True
-      stride1 = "Stride%s%s"%(tc,self.indexChars[tP['ia'][1]])
+      packedC1 = kernel["PackedC1IdxChars"]
+      assert(len(packedC1) == 1)  # would need to extract each dim and scale
+      strideCD1 = "Stride%s%s"%(tc,self.indexChars[packedC1[0]])
 
       # This is guaranteed to fit in 32-bit since the WG*MT is a number of elements in some unsigned direction:
       kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
@@ -3852,7 +3856,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.assert_eq(sgpr(tileStart+1),0)
       if not tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
-                   sgpr(stride1), "tlu=0, scaled tile-offset by stride")
+                   sgpr(strideCD1), "tlu=0, scaled tile-offset by stride")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -3863,7 +3867,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.assert_eq(sgpr(stmp+1),0)
         if tP["tlu"]: # non-transpose case, tile is in perp dim and should be scaled by Stride
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
-                    sgpr(stride1), "tlu=1, scaled unroll-offset by stride")
+                    sgpr(strideCD1), "tlu=1, scaled unroll-offset by stride")
 
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffet term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
@@ -7054,9 +7058,9 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-packed
       # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
       #--
-      assert (len(kernel["PackedC1IndicesX"]) == 1) # would need to extract/scale indices from coord1
-      startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-      strideC1 = "StrideC%s" % (self.indexChars[1])
+      packedC1 = kernel["PackedC1IndicesX"]
+      assert (len(packedC1) == 1) # would need to extract/scale indices from coord1
+      strideC1 = "StrideC%s" % (self.indexChars[packedC1[0]])
       kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
                   vgpr(tid1), sgpr(strideC1), \
                   "rowStart vgpr")
@@ -7715,7 +7719,7 @@ class KernelWriterAssembly(KernelWriter):
                   hex(log2(kw.bpeCexternal)), \
                   "packed: add rowPtr and scaleToBpe")
 
-        if 0:
+        if 0 and packedBits==7:
           kStr += kw.bomb()
 
       return kStr
@@ -7893,22 +7897,23 @@ class KernelWriterAssembly(KernelWriter):
     If optSrdIncForRow, this will move the SRD forward
     If not, this could generate some other instructions
     """
-    def incrementToNextRow(self, tc, ss, stmp):
+    def incrementToNextRow(self, kernel, tc, ss, stmp):
       kStr = ""
       numRows = self.rowInc
       if ss.optSrdIncForRow:
         if numRows:
-          strideChar1 = self.kernelWriter.indexChars[1]  # assume first stride is 1, this is the stride in second dim:
+          packedC1 = kernel["PackedC1IndicesX"]
+          assert(len(packedC1) == 1)  # would need to extract each dim and scale
+          strideCD1 = "Stride%s%s"%(tc,self.kernelWriter.indexChars[packedC1[0]])
           if numRows > 1:
-            # assume d-stride is 1 here, even if UseInitialStrides=1
             kStr += inst("s_mul_i32", sgpr(stmp), \
-                         sgpr("Stride%s%s"%(tc, strideChar1)), \
+                         sgpr(strideCD1), \
                          numRows*self.kernelWriter.bpeCexternal, \
-                         "scale Stride%s *= %u * bpe"%(tc,numRows))
+                         "scale Stride%s *= numRows(%u) * bpe"%(tc,numRows))
           else:
             kStr += inst("s_lshl_b32 ", \
                   sgpr(stmp), \
-                  sgpr("Stride%s%s"%(tc, strideChar1)), \
+                  sgpr(strideCD1), \
                   log2(self.kernelWriter.bpeCexternal), \
                   "incToNextRow: Scale by BPE")
 
@@ -8386,7 +8391,7 @@ class KernelWriterAssembly(KernelWriter):
 
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
-        kStr += addrCalc.incrementToNextRow("D", ss, tmpS01)
+        kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
       if kernel["ProblemType"]["DataType"].isHalf():
         if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
           kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, \
@@ -8627,10 +8632,10 @@ class KernelWriterAssembly(KernelWriter):
         loadsIssued += 1
 
         if ss.optSrdIncForRow and addrCalc.rowInc:
-          kStr += addrCalc.incrementToNextRow("C", ss, tmpS01)
+          kStr += addrCalc.incrementToNextRow(kernel, "C", ss, tmpS01)
 
           #if not kernel["LdcEqualsLdd"]:
-          #  kStr += addrCalc.incrementToNextRow("D", ss.optSrdIncForRow, tmpS01)
+          #  kStr += addrCalc.incrementToNextRow(kernel, "D", ss.optSrdIncForRow, tmpS01)
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
