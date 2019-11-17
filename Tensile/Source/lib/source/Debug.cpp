@@ -75,6 +75,10 @@ namespace Tensile
         return value & 0x400;
     }
 
+    bool Debug::printTensorModeHex() const
+    {
+        return value & 0x800;
+    }
 
 
     Debug::Debug()

@@ -47,6 +47,9 @@ namespace Tensile
         bool printConvolutionReference2() const;
         bool printConvolutionReference3() const;
 
+        // if tensors are printed, use hexadecimal output format
+        bool printTensorModeHex() const;
+
     private:
         friend LazySingleton<Debug>;
 
