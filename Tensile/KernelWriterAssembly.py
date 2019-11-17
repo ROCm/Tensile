@@ -112,7 +112,10 @@ class RegisterPool:
   # Convenience function that takes a range and returns it in string form
   def addRange(self, start, stop, tag=""):
     self.add(start, stop-start+1, tag)
-    return "%d-%d" % (start, stop)
+    if (start == stop):
+      return "%d"%(start)
+    else:
+      return "%d-%d" % (start, stop)
 
   ########################################
   # Adds registers to the pool so they can be used as temps
@@ -409,6 +412,7 @@ class KernelWriterAssembly(KernelWriter):
     #  - Checks after alpha calc for each element.  Later elements (in the TT) will not yet have applied their alpha.
     #  - Only works if matrix is integral multiple of macro-tile (no edges) - check is dumb so doesn't know
     #    which work-items are outside the valid edge.
+    #  - Does not work in OptNoLoadLoop
     self.db["CheckValueC"]  = False
     # value expected if CheckValueC is set. Use '.' for FP.
     # For example could be 16.0 if U=8 and alpha=2
@@ -416,7 +420,17 @@ class KernelWriterAssembly(KernelWriter):
 
     # Force an expected value for all C outputs.
     # May be useful for checking store path
+    # See same caveats as CheckValueC
     self.db["ForceExpectedValue"]  = False
+
+    # Force VSerial value into the output, this will
+    # not match reference but can be useful to see which work-items are
+    # storing which values
+    # See same caveats as CheckValueC
+    self.db["ForceVSerial"] = False
+
+    # can't do both of these since they both override output
+    assert (not (self.db["ForceExpectedValue"] and self.db["ForceVSerial"]))
 
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
     #self.db["CheckStoreC"] = 1024.0 # possible value
@@ -1572,6 +1586,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
     if self.db["ForceExpectedValue"] : print ("\n***WARNING: ForceExpectedValue enabled, may impact functionality\n")
+    if self.db["ForceVSerial"] : print ("\n***WARNING: ForceVSerial enabled, will impact functionality\n")
     if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
@@ -8447,6 +8462,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
           if self.db["ForceExpectedValue"]:
             kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), self.db["ValueCExpectedValue"], "force expected value" )
+          if self.db["ForceVSerial"]:
+            kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), vgpr("Serial"), "force expected value to serial" )
           if self.db["CheckValueC"]:
             kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
             kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
