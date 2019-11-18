@@ -185,16 +185,16 @@ namespace Tensile
         size_t startStride = problemType.useInitialStrides ? 0:1;
 
         for(size_t i = startStride; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideD", i), d.strides()[i]);
 
         for(size_t i = startStride; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideC", i), c.strides()[i]);
 
         for(size_t i = startStride; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideA", i), a.sizes()[i] == 1 ? 0 : a.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideA", i), a.strides()[i]);
 
         for(size_t i = startStride; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
+            rv.args.append<uint32_t>(concatenate("strideB", i), b.strides()[i]);
 
         {
             int idx=0;
