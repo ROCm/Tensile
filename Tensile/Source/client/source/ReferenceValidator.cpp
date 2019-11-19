@@ -86,7 +86,7 @@ namespace Tensile
             if(m_enabled)
             {
                 m_problem = problem;
-                m_referenceInputs = m_dataInit->prepareCPUInputs();
+                m_referenceInputs = m_dataInit->prepareCPUInputs(problem);
                 m_validationStride = 1;
                 if(m_elementsToValidate > 0 && m_elementsToValidate < problem.d().totalLogicalElements())
                     m_validationStride = NextPrime(problem.d().totalAllocatedElements() / m_elementsToValidate);

@@ -71,7 +71,7 @@ public:
         return rv;
     }
 
-    void RunDataContaminationTest(bool cEqualD, bool pristineGPU)
+    void RunDataContaminationTest(bool cEqualD, bool pristineGPU, bool boundsCheck)
     {
         using val = po::variable_value;
 
@@ -85,6 +85,7 @@ public:
         args.insert({"init-beta",       val(InitMode::Zero, false)});
         args.insert({"c-equal-d",       val(cEqualD, false)});
         args.insert({"pristine-on-gpu", val(pristineGPU, false)});
+        args.insert({"bounds-check",    val(boundsCheck, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});
@@ -99,7 +100,7 @@ public:
 
         auto init = DataInitialization::Get(args, factory);
 
-        auto genericInputs = init->prepareCPUInputs();
+        auto genericInputs = init->prepareCPUInputs(problem);
         auto cpuInputs = std::dynamic_pointer_cast<TypedInputs>(genericInputs);
 
         if(cpuInputs == nullptr)
@@ -118,11 +119,11 @@ public:
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             cpuInputs->d[i] = DataInitialization::getValue<DType, InitMode::Random>();
 
-        cpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareCPUInputs());
+        cpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareCPUInputs(problem));
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             EXPECT_EQ(cpuInputs->d[i], zero) << i;
 
-        auto gpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareGPUInputs());
+        auto gpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareGPUInputs(problem));
 
         std::vector<DType> gpuD(d.totalAllocatedElements());
 
@@ -149,23 +150,42 @@ using InputTypes = ::testing::Types<
 
 TYPED_TEST_SUITE(DataInitializationTest, InputTypes);
 
-TYPED_TEST(DataInitializationTest, Contamination_false_false)
+TYPED_TEST(DataInitializationTest, Contamination_false_false_false)
 {
-    this->RunDataContaminationTest(false, false);
+    this->RunDataContaminationTest(false, false, false);
 }
 
-TYPED_TEST(DataInitializationTest, Contamination_false_true)
+TYPED_TEST(DataInitializationTest, Contamination_false_true_false)
 {
-    this->RunDataContaminationTest(false, true);
+    this->RunDataContaminationTest(false, true, false);
 }
 
-TYPED_TEST(DataInitializationTest, Contamination_true_false)
+TYPED_TEST(DataInitializationTest, Contamination_true_false_false)
 {
-    this->RunDataContaminationTest(true, false);
+    this->RunDataContaminationTest(true, false, false);
 }
 
-TYPED_TEST(DataInitializationTest, Contamination_true_true)
+TYPED_TEST(DataInitializationTest, Contamination_true_true_false)
 {
-    this->RunDataContaminationTest(true, true);
+    this->RunDataContaminationTest(true, true, false);
 }
 
+TYPED_TEST(DataInitializationTest, Contamination_false_false_true)
+{
+    this->RunDataContaminationTest(false, false, true);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_false_true_true)
+{
+    this->RunDataContaminationTest(false, true, true);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_true_false_true)
+{
+    this->RunDataContaminationTest(true, false, true);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_true_true_true)
+{
+    this->RunDataContaminationTest(true, true, true);
+}

@@ -27,10 +27,12 @@
 #pragma once
 
 #include <hip/hip_runtime.h>
+#include <hip/hip_runtime_api.h>
 #include <stdexcept>
 #include <sstream>
 
 #include <Tensile/Utils.hpp>
+#include <Tensile/TensorDescriptor.hpp>
 
 #define HIP_CHECK_EXC(expr) \
     do \
@@ -49,4 +51,56 @@
         } \
     } while(0)
 
+namespace Tensile
+{
+    namespace hip
+    {
+        template <typename T>
+        void CopyTensor(T * dst, T const* src, TensorDescriptor const& desc, hipMemcpyKind direction, hipStream_t stream = 0)
+        {
+            if(desc.dimensions() == 0 || desc.totalLogicalElements() == 0)
+                return;
+
+            auto const& sizes = desc.sizes();
+            auto const& strides = desc.strides();
+            std::vector<size_t> coord(desc.dimensions(), 0);
+
+            size_t contiguousDimensions = 0;
+            size_t expectedStride = 1;
+
+            // Optimize the number of copy operations by coalescing all the
+            // dimensions that are contiguous in memory.
+            for(size_t i = 0; i < desc.dimensions(); i++)
+            {
+                contiguousDimensions = i+1;
+
+                if(strides[i] > expectedStride)
+                    break;
+
+                if(i < desc.dimensions()-1)
+                    expectedStride = strides[i] * sizes[i+1];
+            }
+
+            auto copyCount = CoordCount(sizes.begin() + contiguousDimensions, sizes.end());
+
+            size_t maxStride = *std::max_element(strides.begin(), strides.begin() + contiguousDimensions);
+            size_t copyBytes = maxStride * sizes.at(contiguousDimensions-1) * sizeof(T);
+
+            for(size_t idx = 0; idx < copyCount; idx++)
+            {
+                CoordNumbered(idx, coord.begin() + contiguousDimensions, coord.end(),
+                              sizes.begin() + contiguousDimensions, sizes.end());
+
+                auto beginOffset = desc.index(coord);
+
+                HIP_CHECK_EXC(hipMemcpyAsync(dst + beginOffset,
+                                             src + beginOffset,
+                                             copyBytes,
+                                             direction,
+                                             stream));
+
+            }
+        }
+    }
+}
 

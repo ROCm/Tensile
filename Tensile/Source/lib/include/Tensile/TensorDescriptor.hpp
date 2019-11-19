@@ -257,10 +257,84 @@ namespace Tensile
 
     std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
+    template <typename T>
+    void WriteTensor1D(std::ostream & stream, T * data, TensorDescriptor const& desc, bool decorated=true)
+    {
+        if(desc.dimensions() != 1)
+            throw std::runtime_error("WriteTensor1D is only compatible with 1-dimensional tensors.");
+
+        if(decorated)
+            stream << "[";
+
+        if(desc.sizes()[0] > 0)
+            stream << data[0];
+
+        for(size_t i = 0; i < desc.sizes()[0]; i++)
+            stream << " " << data[i];
+
+        if(decorated)
+            stream << "]" << std::endl;
+    }
+
     // decorated will print brackets [] to indicate start/end of tensor dims
     template <typename T>
     void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc, bool decorated=true)
     {
+        stream << "Tensor(";
+        streamJoin(stream, desc.sizes(), ", ");
+        stream  << ", data_ptr: " << data << ")" << std::endl;
+
+        if(desc.dimensions() == 0)
+            return;
+
+        if(desc.dimensions() == 1)
+        {
+            WriteTensor1D(stream, data, desc, decorated);
+            return;
+        }
+
+        auto const& sizes = desc.sizes();
+        std::vector<size_t> coord(desc.dimensions(), 0);
+        const auto stride0 = desc.strides()[0];
+
+        auto upperDimCount = CoordCount(sizes.begin() + 2, sizes.end());
+
+        for(size_t idx = 0; idx < upperDimCount; idx++)
+        {
+            CoordNumbered(idx, coord.begin()+2, coord.end(), sizes.begin()+2, sizes.end());
+
+            coord[0] = 0;
+            coord[1] = 0;
+
+            if(decorated)
+            {
+                stream << "(";
+                streamJoin(stream, coord, ", ");
+                stream << ")" << std::endl << "[" << std::endl;
+            }
+
+            for(coord[1] = 0; coord[1] < sizes[1]; coord[1]++)
+            {
+                coord[0] = 0;
+
+                auto const* localPtr = data + desc.index(coord);
+
+                if(sizes[0] > 0)
+                    stream << localPtr[0];
+
+                for(coord[0] = 0; coord[0] < sizes[0]; coord[0]++)
+                {
+                    stream << " " << localPtr[coord[0] * stride0];
+                }
+            }
+
+            if(decorated)
+            {
+                stream << std::endl << "]" << std::endl;
+            }
+        }
+
+#if 0
         const size_t maxDims=10;
         if(desc.dimensions() > maxDims)
             throw std::runtime_error("Fix this function to work with dimensions > 8");
@@ -330,6 +404,8 @@ namespace Tensile
             }
             //stream << "]" << std::endl;
         }
+#endif
+
     }
 
 } // namespace
