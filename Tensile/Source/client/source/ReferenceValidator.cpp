@@ -49,6 +49,7 @@ namespace Tensile
             m_printTensorB = args["print-tensor-b"].as<bool>();
             m_printTensorC = args["print-tensor-c"].as<bool>();
             m_printTensorD = args["print-tensor-d"].as<bool>();
+            m_printReference = true;// TODO args["print-reference"].as<bool>();
 
             m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
             if(args.count("convolution-identifier"))
@@ -59,6 +60,7 @@ namespace Tensile
                      || m_printTensorB
                      || m_printTensorC
                      || m_printTensorD
+                     || m_printReference
                      || m_convolutionVsContraction;
         }
 
@@ -251,7 +253,7 @@ namespace Tensile
             if(!m_enabled)
                 return rv;
 
-            if(m_printTensorA || m_printTensorB || m_printTensorC || m_printTensorD)
+            if(m_printTensorA || m_printTensorB || m_printTensorC || m_printTensorD || m_printReference)
                 printTensorsTyped(reference, result);
 
             if(m_elementsToValidate != 0)
@@ -305,6 +307,11 @@ namespace Tensile
                 auto const* buffer = reinterpret_cast<typename TypedInputs::DType const*>(m_cpuResultBuffer.data());
 
                 m_reporter->logTensor(LogLevel::Verbose, "D", buffer, m_problem.d());
+            }
+
+            if(m_printReference)
+            {
+                m_reporter->logTensor(LogLevel::Verbose, "REF", reference.d, m_problem.d());
             }
         }
 

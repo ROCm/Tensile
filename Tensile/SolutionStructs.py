@@ -1013,14 +1013,46 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    state["SubGroup0"] = state["WorkGroup"][0]
-    state["SubGroup1"] = state["WorkGroup"][1]
+    if state["MatrixInstruction"]:
+      if state["MatrixInstruction"][0] != -1:
+        if len(state["MatrixInstruction"]) == 4:
+          # check for valid instruction with input type
+          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
+          if state["ThreadTile"][1] % itemsPerThread != 0:
+            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
+          if state["ProblemType"]["DataType"].toChar() in validMFMA and \
+            state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
+            state["MatrixInstM"] = state["MatrixInstruction"][0]
+            state["MatrixInstN"] = state["MatrixInstruction"][1]
+            state["MatrixInstK"] = state["MatrixInstruction"][2]
+            state["MatrixInstB"] = state["MatrixInstruction"][3]
+          else:
+            reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+    else:
+      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
+        reject(state, "Invalid value for ThreadTile")
+
+    if state["MatrixInstruction"]:
+      if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
+        reject(state, "Error calcualting InstSplit")
+      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstM"] * state["MatrixInstB"])
+      state["MIWG0"] = state["MatrixInstM"]
+      if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0:
+        reject(state, "Error calculating MIWG1")
+      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MatrixInstM"] * state["InstSplit"])
+      state["SubGroup0"] = state["MIWG0"] # TODO calc
+      state["SubGroup1"] = state["MIWG1"]
+    else:
+      state["SubGroup0"] = state["WorkGroup"][0]
+      state["SubGroup1"] = state["WorkGroup"][1]
+
     state["LocalSplitU"] = state["WorkGroup"][2]
     state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
     state["ThreadTile0"] = state["ThreadTile"][0]
     state["ThreadTile1"] = state["ThreadTile"][1]
 
+    # TODO MI - SubGroup0 temporarily == MIWG0, revisit later
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
@@ -1377,25 +1409,6 @@ class Solution:
       state["SubGroupA"] = state["SubGroup1"]
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
-
-    if state["MatrixInstruction"]:
-      if state["MatrixInstruction"][0] != -1:
-        if len(state["MatrixInstruction"]) == 4:
-          # check for valid instruction with input type
-          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
-          if state["ThreadTile"][1] % itemsPerThread != 0:
-            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
-          if state["ProblemType"]["DataType"].toChar() in validMFMA and \
-            state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
-            state["MatrixInstM"] = state["MatrixInstruction"][0]
-            state["MatrixInstN"] = state["MatrixInstruction"][1]
-            state["MatrixInstK"] = state["MatrixInstruction"][2]
-            state["MatrixInstB"] = state["MatrixInstruction"][3]
-          else:
-            reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
-    else:
-      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
-        reject(state, "Invalid value for ThreadTile")
 
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False

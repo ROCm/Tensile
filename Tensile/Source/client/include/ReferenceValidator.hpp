@@ -117,6 +117,7 @@ namespace Tensile
             bool m_printTensorB;
             bool m_printTensorC;
             bool m_printTensorD;
+            bool m_printReference;
 
             bool m_convolutionVsContraction;
 

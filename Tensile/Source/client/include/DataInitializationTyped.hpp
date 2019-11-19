@@ -294,8 +294,8 @@ namespace Tensile
                 if(!m_cEqualsD)
                     initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
 
-                inputs.alpha = getValue<AlphaType>(m_alphaInit);
-                inputs.beta = getValue<BetaType>(m_betaInit);
+                inputs.alpha = getValue<AlphaType>(m_alphaInit, 0);
+                inputs.beta = getValue<BetaType>(m_betaInit, 0);
             }
 
             hipMemcpyKind copyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)

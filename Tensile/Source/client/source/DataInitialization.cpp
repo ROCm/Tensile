@@ -44,7 +44,9 @@ namespace Tensile
                 case InitMode::Two:     return "Two";
                 case InitMode::Random:  return "Random";
                 case InitMode::NaN:     return "NaN";
-
+                case InitMode::SerialIdx: return "SerialIdx";
+                // case InitMode::SerialDim0: return "SerialDim0";
+                // case InitMode::SerialDim1: return "SerialDim1";
                 case InitMode::Count:   break;
             }
 
@@ -61,11 +63,14 @@ namespace Tensile
             std::string strValue;
             stream >> strValue;
 
-            if(     strValue == ToString(InitMode::Zero))    mode = InitMode::Zero;
-            else if(strValue == ToString(InitMode::One))     mode = InitMode::One;
-            else if(strValue == ToString(InitMode::Two))     mode = InitMode::Two;
-            else if(strValue == ToString(InitMode::Random))  mode = InitMode::Random;
-            else if(strValue == ToString(InitMode::NaN))     mode = InitMode::NaN;
+            if(     strValue == ToString(InitMode::Zero))      mode = InitMode::Zero;
+            else if(strValue == ToString(InitMode::One))       mode = InitMode::One;
+            else if(strValue == ToString(InitMode::Two))       mode = InitMode::Two;
+            else if(strValue == ToString(InitMode::Random))    mode = InitMode::Random;
+            else if(strValue == ToString(InitMode::NaN))       mode = InitMode::NaN;
+            else if(strValue == ToString(InitMode::SerialIdx)) mode = InitMode::SerialIdx;
+            // else if (strValue == ToString(InitMode::SerialDim0)) mode = InitMode::SerialDim0;
+            // else if (strValue == ToString(InitMode::SerialDim1)) mode = InitMode::SerialDim1;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
