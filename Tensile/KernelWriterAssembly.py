@@ -3756,11 +3756,16 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 scalarGro = self.getTmpSgpr(1)
 
-              stride1 = "Stride%s%s"%(tc, self.indexChars[tP['ia'][1]])
+              # this needs unroll stride in some cases and free stride in others
+              # if we have multiple free strides - what is expected behavior?
+              # could just extract the first free dimension from A?
+              stride1 = "Stride%s%s"%(tc,self.indexChars[tP["idx"]])
               if tP["tlu"]:
                 tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(stride1), unrollStride, \
+                unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
+                strideU = "Stride%s%s"%(tc,self.indexChars[unrollSummation[-1]])
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideU), unrollStride, \
                              "compute offset diff (scaled unrollDim)")
                 if tileStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), tileStride, \
@@ -3768,7 +3773,9 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(stride1), tileStride, \
+                assert(len([i for i in tP['ia'] if i in kernel["ProblemType"]["IndicesFree"] ]) == 1) # only one free index supported on this path
+                strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideF), tileStride, \
                              "compute offset diff (scaled tileDim)")
                 if unrollStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), unrollStride, \
@@ -3850,15 +3857,16 @@ class KernelWriterAssembly(KernelWriter):
       assert(len(kernel["PackedC1IndicesX"])==1)
 
       wroteTileStart = True
-      stride1 = "Stride%s%s"%(tc,self.indexChars[tP['ia'][1]])
+      #tP['ia'][1]
 
       # This is guaranteed to fit in 32-bit since the WG*MT is a number of elements in some unsigned direction:
       kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       if kernel["CheckDimOverflow"] >=2:
         kStr += self.assert_eq(sgpr(tileStart+1),0)
       if not tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
+        strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
-                   sgpr(stride1), "tlu=0, scaled tile-offset by stride")
+                   sgpr(strideF), "tlu=0, scaled tile-offset by stride")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -3867,9 +3875,12 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), kernel["DepthU"], sgpr("GSUSumIdx"), "gsuOffset = DepthU*bpe*GSUSumIdx")
         if kernel["CheckDimOverflow"] >=2:
           kStr += self.assert_eq(sgpr(stmp+1),0)
-        if tP["tlu"]: # non-transpose case, tile is in perp dim and should be scaled by Stride
+        if tP["tlu"]: # non-transpose case, unroll is in perp dim and should be scaled by unroll Stride
+          # TODO - PackSummationDims handling needs to handle multiple sum dims
+          unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
+          strideU = "Stride%s%s"%(tc,self.indexChars[unrollSummation[-1]])
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
-                    sgpr(stride1), "tlu=1, scaled unroll-offset by stride")
+                    sgpr(strideU), "tlu=1, scaled unroll-offset by stride")
 
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffet term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
