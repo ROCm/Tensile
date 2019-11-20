@@ -1,7 +1,10 @@
-- {MinimumRequiredVersion: 4.13.0}
+- MinimumRequiredVersion: 4.13.0
 - arcturus
 - gfx908
-- [Device 7380, Device 7388, Device 738c]
+- - Device 7380
+  - Device 7388
+  - Device 738c
+  - Device 7390
 - AssignedDerivedParameters: true
   Batched: true
   ComplexConjugateA: false
@@ -15,15 +18,29 @@
   Index01A: 0
   Index01B: 1
   Index1: 1
-  IndexAssignmentsA: [3, 0, 2]
-  IndexAssignmentsB: [3, 1, 2]
-  IndexAssignmentsLD: [4, 5, 6, 7]
+  IndexAssignmentsA:
+  - 3
+  - 0
+  - 2
+  IndexAssignmentsB:
+  - 3
+  - 1
+  - 2
+  IndexAssignmentsLD:
+  - 4
+  - 5
+  - 6
+  - 7
   IndexUnroll: 3
   IndexUnrollA: 0
   IndexUnrollB: 0
-  IndicesBatch: [2]
-  IndicesFree: [0, 1]
-  IndicesSummation: [3]
+  IndicesBatch:
+  - 2
+  IndicesFree:
+  - 0
+  - 1
+  IndicesSummation:
+  - 3
   NumIndicesBatch: 1
   NumIndicesC: 3
   NumIndicesFree: 2
@@ -82,9 +99,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 5931.19, 64: 8104.35, 96: 8240.68, 128: 8561.91, 256: 8742.57, 512: 8914.61,
-      1024: 8973.48, 2048: 8656.25, 4096: 9027.43, 8192: 8886.34, 16192: 6343.9}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 5931.19
+      64: 8104.35
+      96: 8240.68
+      128: 8561.91
+      256: 8742.57
+      512: 8914.61
+      1024: 8973.48
+      2048: 8656.25
+      4096: 9027.43
+      8192: 8886.34
+      16192: 6343.9
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -140,10 +170,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -165,15 +199,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -211,7 +259,9 @@
     SubGroupA: 16
     SubGroupB: 16
     SuppressNoLoadLoop: false
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -222,7 +272,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -263,9 +316,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 1.24612, 64: 414.555, 96: 614.692, 128: 801.794, 256: 1503.39, 512: 2659.8,
-      1024: 4206.22, 2048: 6073.22, 4096: 7639.45, 8192: 8848.3, 16192: 6554.51}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 1.24612
+      64: 414.555
+      96: 614.692
+      128: 801.794
+      256: 1503.39
+      512: 2659.8
+      1024: 4206.22
+      2048: 6073.22
+      4096: 7639.45
+      8192: 8848.3
+      16192: 6554.51
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -321,10 +387,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -346,15 +416,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -392,7 +476,9 @@
     SubGroupA: 16
     SubGroupB: 16
     SuppressNoLoadLoop: false
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -403,7 +489,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -444,9 +533,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 6114.75, 64: 7610.59, 96: 9025.94, 128: 9247.04, 256: 10188.5, 512: 10817.9,
-      1024: 11126.6, 2048: 11522.1, 4096: 11353.5, 8192: 11837.4, 16192: 12466.0}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 6114.75
+      64: 7610.59
+      96: 9025.94
+      128: 9247.04
+      256: 10188.5
+      512: 10817.9
+      1024: 11126.6
+      2048: 11522.1
+      4096: 11353.5
+      8192: 11837.4
+      16192: 12466.0
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -502,10 +604,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -527,15 +633,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -573,7 +693,9 @@
     SubGroupA: 16
     SubGroupB: 16
     SuppressNoLoadLoop: false
-    ThreadTile: [8, 8]
+    ThreadTile:
+    - 8
+    - 8
     ThreadTile0: 8
     ThreadTile1: 8
     ThreadTileA: 8
@@ -584,7 +706,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -625,9 +750,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 220.236, 64: 379.22, 96: 661.446, 128: 923.798, 256: 1812.02, 512: 3237.2,
-      1024: 5726.21, 2048: 7468.78, 4096: 9922.38, 8192: 10968.3, 16192: 12151.2}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 220.236
+      64: 379.22
+      96: 661.446
+      128: 923.798
+      256: 1812.02
+      512: 3237.2
+      1024: 5726.21
+      2048: 7468.78
+      4096: 9922.38
+      8192: 10968.3
+      16192: 12151.2
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -683,10 +821,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -708,15 +850,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -754,7 +910,9 @@
     SubGroupA: 16
     SubGroupB: 16
     SuppressNoLoadLoop: false
-    ThreadTile: [8, 8]
+    ThreadTile:
+    - 8
+    - 8
     ThreadTile0: 8
     ThreadTile1: 8
     ThreadTileA: 8
@@ -765,7 +923,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [16, 16, 1]
+    WorkGroup:
+    - 16
+    - 16
+    - 1
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -806,9 +967,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 2288.11, 64: 3778.23, 96: 4083.33, 128: 4546.82, 256: 4949.54, 512: 5311.69,
-      1024: 5215.47, 2048: 4954.59, 4096: 4860.66, 8192: 4849.04, 16192: 5054.93}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 2288.11
+      64: 3778.23
+      96: 4083.33
+      128: 4546.82
+      256: 4949.54
+      512: 5311.69
+      1024: 5215.47
+      2048: 4954.59
+      4096: 4860.66
+      8192: 4849.04
+      16192: 5054.93
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -864,10 +1038,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -889,15 +1067,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -935,7 +1127,9 @@
     SubGroupA: 8
     SubGroupB: 8
     SuppressNoLoadLoop: false
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -946,7 +1140,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [8, 8, 4]
+    WorkGroup:
+    - 8
+    - 8
+    - 4
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -987,9 +1184,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 247.593, 64: 497.038, 96: 736.935, 128: 961.664, 256: 1695.97, 512: 2714.41,
-      1024: 1534.77, 2048: 4262.15, 4096: 4609.4, 8192: 4900.8, 16192: 5970.17}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 247.593
+      64: 497.038
+      96: 736.935
+      128: 961.664
+      256: 1695.97
+      512: 2714.41
+      1024: 1534.77
+      2048: 4262.15
+      4096: 4609.4
+      8192: 4900.8
+      16192: 5970.17
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -1045,10 +1255,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -1070,15 +1284,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1116,7 +1344,9 @@
     SubGroupA: 8
     SubGroupB: 8
     SuppressNoLoadLoop: false
-    ThreadTile: [4, 4]
+    ThreadTile:
+    - 4
+    - 4
     ThreadTile0: 4
     ThreadTile1: 4
     ThreadTileA: 4
@@ -1127,7 +1357,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [8, 8, 4]
+    WorkGroup:
+    - 8
+    - 8
+    - 4
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -1168,9 +1401,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 2681.0, 64: 4025.32, 96: 4836.8, 128: 5182.06, 256: 5717.53, 512: 6010.9,
-      1024: 3909.06, 2048: 5210.48, 4096: 5743.88, 8192: 5474.81, 16192: 6605.2}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 2681.0
+      64: 4025.32
+      96: 4836.8
+      128: 5182.06
+      256: 5717.53
+      512: 6010.9
+      1024: 3909.06
+      2048: 5210.48
+      4096: 5743.88
+      8192: 5474.81
+      16192: 6605.2
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -1226,10 +1472,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -1251,15 +1501,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1297,7 +1561,9 @@
     SubGroupA: 8
     SubGroupB: 8
     SuppressNoLoadLoop: false
-    ThreadTile: [8, 8]
+    ThreadTile:
+    - 8
+    - 8
     ThreadTile0: 8
     ThreadTile1: 8
     ThreadTileA: 8
@@ -1308,7 +1574,10 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [8, 8, 4]
+    WorkGroup:
+    - 8
+    - 8
+    - 4
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
@@ -1349,9 +1618,22 @@
     GlobalWriteVectorWidth: 4
     GuaranteeNoPartialA: true
     GuaranteeNoPartialB: true
-    ISA: [9, 0, 8]
-    Ideals: {32: 212.081, 64: 398.901, 96: 622.927, 128: 802.475, 256: 1400.74, 512: 2314.28,
-      1024: 3167.55, 2048: 4116.89, 4096: 5267.94, 8192: 5085.11, 16192: 6480.19}
+    ISA:
+    - 9
+    - 0
+    - 8
+    Ideals:
+      32: 212.081
+      64: 398.901
+      96: 622.927
+      128: 802.475
+      256: 1400.74
+      512: 2314.28
+      1024: 3167.55
+      2048: 4116.89
+      4096: 5267.94
+      8192: 5085.11
+      16192: 6480.19
     InnerUnroll: 1
     InterleaveAlpha: 0
     KernelLanguage: Assembly
@@ -1407,10 +1689,14 @@
     PackBatchDims: 0
     PackFreeDims: 1
     PackGranularity: 2
-    PackedC0IdxChars: [I]
-    PackedC0IndicesX: [0]
-    PackedC1IdxChars: [J]
-    PackedC1IndicesX: [1]
+    PackedC0IdxChars:
+    - I
+    PackedC0IndicesX:
+    - 0
+    PackedC1IdxChars:
+    - J
+    PackedC1IndicesX:
+    - 1
     PerformanceSyncLocation: -1
     PerformanceWaitCount: -1
     PerformanceWaitLocation: -1
@@ -1432,15 +1718,29 @@
       Index01A: 0
       Index01B: 1
       Index1: 1
-      IndexAssignmentsA: [3, 0, 2]
-      IndexAssignmentsB: [3, 1, 2]
-      IndexAssignmentsLD: [4, 5, 6, 7]
+      IndexAssignmentsA:
+      - 3
+      - 0
+      - 2
+      IndexAssignmentsB:
+      - 3
+      - 1
+      - 2
+      IndexAssignmentsLD:
+      - 4
+      - 5
+      - 6
+      - 7
       IndexUnroll: 3
       IndexUnrollA: 0
       IndexUnrollB: 0
-      IndicesBatch: [2]
-      IndicesFree: [0, 1]
-      IndicesSummation: [3]
+      IndicesBatch:
+      - 2
+      IndicesFree:
+      - 0
+      - 1
+      IndicesSummation:
+      - 3
       NumIndicesBatch: 1
       NumIndicesC: 3
       NumIndicesFree: 2
@@ -1478,7 +1778,9 @@
     SubGroupA: 8
     SubGroupB: 8
     SuppressNoLoadLoop: false
-    ThreadTile: [8, 8]
+    ThreadTile:
+    - 8
+    - 8
     ThreadTile0: 8
     ThreadTile1: 8
     ThreadTileA: 8
@@ -1489,13 +1791,27 @@
     VectorAtomicWidth: 1
     VectorStore: true
     VectorWidth: 4
-    WorkGroup: [8, 8, 4]
+    WorkGroup:
+    - 8
+    - 8
+    - 4
     WorkGroupMapping: 1
     WorkGroupMappingType: B
     _staggerStrideShift: 2
     fractionalPerpOverhangA: 0
     fractionalPerpOverhangB: 0
-- [2, 3, 0, 1]
+- - 2
+  - 3
+  - 0
+  - 1
 - []
 - null
-- TileSelectionIndices: [0, 1, 2, 3, 4, 5, 6, 7]
+- TileSelectionIndices:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
