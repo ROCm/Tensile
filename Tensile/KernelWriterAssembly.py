@@ -1382,9 +1382,11 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WorkGroup1", 1)
       self.defineSgpr("WorkGroup0", 1)
 
-    for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
-      if not isPackedIndex(kernel,i):
-        self.defineSgpr("WorkGroup%u"%i, 1)
+    wg=2
+    for idx in kernel["ProblemType"]["IndicesBatch"]:
+      if not isPackedIndex(kernel,idx):
+        self.defineSgpr("WorkGroup%u"%wg, 1)
+        wg+=1
 
     self.lastUserSgprPlus1=self.sgprIdx  # For initSgpr, this is one past the past user sgpr
 
@@ -3843,6 +3845,10 @@ class KernelWriterAssembly(KernelWriter):
     # Compute tileStart #elements from the 2D array start
     # Add tile (and unroll if GSU) component into SRD - SRD will point to beginning of the macro-tile:
     if self.groOffsetInMacroTile:
+      # packed modes can't use this mode, and code here assumes 1 index.
+      assert(len(kernel["PackedC0IndicesX"])==1)
+      assert(len(kernel["PackedC1IndicesX"])==1)
+
       wroteTileStart = True
       stride1 = "Stride%s%s"%(tc,self.indexChars[tP['ia'][1]])
 
@@ -3928,24 +3934,27 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
       kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePadConst, "extend limit for pre-pad")
 
-    # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
+    # Apply any high-order address components to the tileStart and eventually the SRD - batch idx for batched gemm
     numDim = len(indices)
+    wg=2
     for i in range(1, numDim):
       idx = indices[i]
       if idx == kernel["ProblemType"]["Index0"] \
           or idx == kernel["ProblemType"]["Index1"] \
           or idx in kernel["ProblemType"]["IndicesSummation"] \
-          or isPackedIndex(kernel, i):
+          or isPackedIndex(kernel, idx):
             continue # these will be captured in GRO not the SRD (or other summations are always 0)
       else:
+        assert(wg==2) # can only have one wg2 with a batch. Other dimensions should be packed into wg0/wg1
         stride = "Stride%s%s"%(tc,self.indexChars[tP['ia'][i]])
         if not wroteTileStart:
-          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(stride), sgpr("WorkGroup%u"%i), "Stride*WG")
+          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
           wroteTileStart = True
         else:
-          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr(stride), sgpr("WorkGroup%u"%i), "Stride*WG")
+          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
           kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
           kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
+        wg+=1
 
     # Add the tile start to the SRD
     if wroteTileStart:
