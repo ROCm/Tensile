@@ -240,7 +240,6 @@ class ProblemPredicate(Properties.Predicate):
         # TODO - change to use SetConstStrideB
         if key == 'PackBatchDims' and value==1:
             return cls("StrideBEqual", index=2, value=0)
-        # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
             return None
 
