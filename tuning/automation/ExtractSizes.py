@@ -645,13 +645,37 @@ def ExtractProblemDefinitions(parsedArgs):
 
     return input,weights,convolution,output 
 
+def mapTypeName(inputName):
+    outputName = None
+    if inputName == "f32_r":
+        outputName = "s"
+    elif inputName == "f16_r":
+        outputName = "h"
+    else:
+        outputName = "s" #default
+    return outputName
+
+
+def getDataTypeDef(problemDefinition):
+
+    computeType = None
+    if problemDefinition["r"]:
+        computeType = mapTypeName(problemDefinition["r"])
+    elif problemDefinition["compute_type"]:
+        computeType = mapTypeName(problemDefinition["compute_type"])
+    else:
+        computeType = "s"
+
+    return computeType
+
 def UpdateOutputMapping(mapper, problemDefinition):
     # "f","transposeA","transposeB" 
     f = problemDefinition["f"]
     transposeA = problemDefinition["transposeA"]
     transposeB = problemDefinition["transposeB"]
+    t = getDataTypeDef(problemDefinition)
   
-    key = (f,transposeA,transposeB) 
+    key = (f,transposeA,transposeB,t) 
     
     lineDefinition = None
 
