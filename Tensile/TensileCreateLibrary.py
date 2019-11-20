@@ -1112,10 +1112,10 @@ def TensileCreateLibrary():
       YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
   else:
     masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")   
-    fullMasterLibriary.applyNaming(kernelMinNaming)
-    YAMLIO.write(masterFile, Utils.state(fullMasterLibriary))
+    fullMasterLibrary.applyNaming(kernelMinNaming)
+    YAMLIO.write(masterFile, Utils.state(fullMasterLibrary))
 
-  theMasterLibrary = fullMasterLibriary
+  theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"]:
     theMasterLibrary = list(masterLibraries.values())[0]
   if args.EmbedLibrary is not None:
