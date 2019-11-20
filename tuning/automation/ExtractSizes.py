@@ -651,10 +651,12 @@ def mapTypeName(inputName):
         outputName = "s"
     elif inputName == "f16_r":
         outputName = "h"
+    elif inputName == "f64_r":
+        outputName = "d"
     else:
-        outputName = "s" #default
-    return outputName
+        outputName = inputName
 
+    return outputName
 
 def getDataTypeDef(problemDefinition):
 
