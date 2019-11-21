@@ -85,7 +85,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
       if globalParameters["MergeFiles"]:
       #  archName = 'gfx'+''.join(map(str,arch))
         coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
-        if globalParameters["PackageLibrary"]:
+        if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
           coFile = os.path.join(destDir, archName, 'TensileLibrary_{}.co'.format(archName))
         args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
         subprocess.check_call(args, cwd=asmDir)
@@ -169,7 +169,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
     destCosList = []
-    if globalParameters["PackageLibrary"]:
+    if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
       for arch in archs:
         ensurePath(os.path.join(destDir, arch))
         archCoFilenames = [name for name in coFilenames if arch in name]
