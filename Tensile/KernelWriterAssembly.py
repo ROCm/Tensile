@@ -6980,7 +6980,7 @@ class KernelWriterAssembly(KernelWriter):
         addToSrd = True
       elif not isPackedIndex(kernel, i):
         # group index, this is higher-order Tensor dimension, just add to SRD base:
-        coord = sgpr("WorkGroup%u"%i)
+        coord = sgpr("WorkGroup2")
         addToSrd = True
       else:
         # could be packed higher-order index, just ignore
@@ -6990,7 +6990,7 @@ class KernelWriterAssembly(KernelWriter):
       if addToSrd:
         # These are constant across all workitems, just add to the SRD:
         strideC = "StrideC%s"%self.indexChars[i]
-        kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(strideC), "Scale %s by Stride"%coord)
+        kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(strideC), "CScale %s by Stride"%coord)
         #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
         kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
@@ -7028,6 +7028,8 @@ class KernelWriterAssembly(KernelWriter):
   # computeStoreVgprs
   # Compute workitem/TT offsets in VGPRS
   # and coord0/coord1
+  # tid0Scale specifies the number of output elements in 0/coalesced dim
+  # that should be written by each work-item in each batch element.
   ##############################################################################
   def computeStoreVgprs(self, kernel, divisor, tid0Scale, tid1Scale):
 
@@ -7081,7 +7083,7 @@ class KernelWriterAssembly(KernelWriter):
                   vgpr(tid1), sgpr(strideC1), \
                   "rowStart vgpr")
       if not kernel["LdcEqualsLdd"]:
-        strideD1 = "StrideD%s" % (self.indexChars[1])
+        strideD1 = "StrideD%s" % (self.indexChars[packedC1[0]])
         kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
                     vgpr(tid1), sgpr(strideD1), \
                     "rowStart vgpr")
@@ -7260,6 +7262,9 @@ class KernelWriterAssembly(KernelWriter):
         return 1000  # no limit
 
   ##############################################################################
+  # Partition thread-tile into writeElements for store code
+  # This function creates the writeElement mapping for full tiles
+  # (ie non-edge cases)
   ##############################################################################
   def notLocalFullTileElements(self, kernel):
     elements = []
@@ -7282,6 +7287,9 @@ class KernelWriterAssembly(KernelWriter):
   # element() specifies TT 'coordinate' to write
   # vectorWidths specifies width of vector to store
   # TODO - why does this use VectorWidth to control store width?  Could be GlobalWriteVectorWidth?
+  #
+  # Function creates one mapping for full tiles and one for edge tiles,
+  # then calls globalWriteElements to generate the code for the new tiles.
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
@@ -7836,9 +7844,10 @@ class KernelWriterAssembly(KernelWriter):
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
           self.rowIncDirtyRowPtr = 1
-          # this probably ok but need to alter code that computes column address to use initial strideC
           assert (kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD == 0)
-          strideChar = self.kernelWriter.indexChars[1]
+          assert (len(kernel["PackedC1IndicesX"])==1)
+
+          strideChar = self.kernelWriter.indexChars[kernel["PackedC1IndicesX"][0]]
           kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
                     sgpr("StrideC%s"%strideChar), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
           if not kernel["LdcEqualsLdd"]:
