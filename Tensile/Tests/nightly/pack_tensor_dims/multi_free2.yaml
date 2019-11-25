@@ -20,6 +20,7 @@ GlobalParameters:
   KernelTime: True
   LibraryPrintDebug: 0
   ClientArgs: "--stride_b 0"
+  NewClient: 2
   CpuThreads: 0
 
 BenchmarkProblems:
@@ -43,7 +44,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        #- KernelLanguage: ["Source","Assembly"]
+        - KernelLanguage: ["Source","Assembly"]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
