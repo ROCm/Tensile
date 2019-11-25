@@ -543,8 +543,6 @@ class Convolution:
     id += "_indices:" + '.'.join([x[1].shortChar for x in self.indexAssignments])
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
-    else:
-      raise RuntimeError ("convolution-vs-contraction requires ConvolutionConfig['Spatial']")
     id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
     id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
     id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])

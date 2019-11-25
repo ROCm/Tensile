@@ -337,7 +337,7 @@ def normalizeConvolution(conv, problemSize, astrides):
       for i in range(len(refAStrides)):
         if astrides[i]==-1:
           astrides[i] = refAStrides[i] # copy reference
-        elif astrides[i] != refAStrides[i]:
+        elif refAStrides[i] != -1 and astrides[i] != refAStrides[i]:
           raise RuntimeError (
             "at position %d problem strides (%s) don't match reference conv strides(%s)" \
                           % (i, astrides, refAStrides))
