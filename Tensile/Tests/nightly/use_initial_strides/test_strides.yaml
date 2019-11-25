@@ -13,36 +13,26 @@ GlobalParameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  DataInitTypeA: 1
-  DataInitTypeB: 1
-  DataInitTypeC: 2
-  DataInitTypeBeta: 0
-  DataInitTypeAlpha: 1
   KernelTime: True
   LibraryPrintDebug: 0
   CpuThreads: 0
   PrintSolutionRejectionReason: 1
   NewClient: 2
   ProblemFromConvolution: 1
-  PrintTensorA: 0
-  PrintTensorB: 0
-  PrintTensorC: 0
-  PrintTensorD: 0
-  PrintConvolutionUsage: 1
+  PrintConvolutionUsage: 0
 
 BenchmarkProblems:
   -
     -
       OperationType: ConvolutionForward
       DataType: s
-      UseInitialStrides: 0
       ConvolutionConfig:
       - Dilation: 1x1
       - Filter: 1x1
-      - Spatial: 8x8
-      - Stride: 1x1
+        #- Spatial: 8x8
+      - Stride: 2x2
       - TensorAFormat: NCHW
-        #- PackedSpatialDims: 0
+      - PackedSpatialDims: 0
     -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -55,15 +45,17 @@ BenchmarkProblems:
           - [ 8, 8 ]
         - WorkGroup:
           - [  8, 8, 1 ]
-        - DepthU: [8]
-        - GlobalReadVectorWidth: [1]
-        - VectorWidth: [1]
+          - [  16, 16, 1 ]
+        - DepthU: [8,-1]
+        - GlobalReadVectorWidth: [-1]
+        - VectorWidth: [1,-1]
 
-        - FractionalLoad: [0]
+        - FractionalLoad: [0,1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          #   - Exact: [ -1, -1, 32, 16, 8]
-             - Exact: [ -1, 8, 2, 8]
+          #- Exact: [ -1, -1, 16, 16, 8]
+             - Exact: [ 4, 4, 16, 16, 8]
+             - Range: [ [127,1,129], [127,1,129,], [16], [16], [8]]
