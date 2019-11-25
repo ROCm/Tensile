@@ -27,6 +27,9 @@ class YamlBuilder:
 
     @staticmethod
     def write_conv_yaml(request, testYamlFile, conv, problemType, dataType):
+        """
+        Write the YAML file used for convolution-vs-contracution mode
+        """
         yaml_builder_dir = os.path.join(request.fspath.dirname,"YamlBuilder")
         with open(os.path.join(testYamlFile), 'w') as outfile:
             YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir, "header.yml"))
@@ -41,7 +44,7 @@ class YamlBuilder:
             for k in sorted(conv.config.keys()):
                 outfile.write("      - %s: %s\n" % (k, conv.config[k]))
 
-            YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir,"solutions/sgemm_1.yml"))
+            YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir,"solutions/sgemm_src.yml"))
             YamlBuilder.write_problem_sizes(conv, outfile)
 
     @staticmethod
