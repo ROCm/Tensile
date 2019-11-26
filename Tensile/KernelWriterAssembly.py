@@ -3947,7 +3947,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Apply any high-order address components to the tileStart and eventually the SRD - batch idx for batched gemm
     numDim = len(indices)
-    wg=2
+    wg=2 # TODO - refactor since only WG2 is supported and this is always batch
     for i in range(1, numDim):
       idx = indices[i]
       if idx == kernel["ProblemType"]["Index0"] \
@@ -7742,9 +7742,6 @@ class KernelWriterAssembly(KernelWriter):
                   vgpr(self.addrVgpr), \
                   hex(log2(kw.bpeCexternal)), \
                   "packed: add rowPtr and scaleToBpe")
-
-        if 0 and packedBits==7:
-          kStr += kw.bomb()
 
       return kStr
 
