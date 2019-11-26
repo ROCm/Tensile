@@ -82,13 +82,14 @@ EXACT_PATH="${LIBRARY_ROOT}/exact"
 MERGE_PATH="${LIBRARY_ROOT}/merge"
 ASM_PATH="${LIBRARY_ROOT}/asm_full"
 ARCHIVE_PATH="${LIBRARY_ROOT}/archive"
-
+MASSAGE_PATH="${LIBRARY_ROOT}/massage"
 
 mkdir -p ${ROCBLAS_ROOT}
 mkdir -p ${EXACT_PATH}
 mkdir -p ${ASM_PATH}
 mkdir -p ${ARCHIVE_PATH}
 mkdir -p ${MERGE_PATH}
+mkdir -p ${MASSAGE_PATH}
 
 provision_rocblas reference
 provision_rocblas verify
@@ -109,20 +110,17 @@ cp ${VERIFY_LIBRARY_ARCHIVE}/* ${ARCHIVE_PATH}
 cp ${ARCHIVE_PATH}/*yaml ${ASM_PATH}
 
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge_rocblas_yaml_files.py
-MESSAGE_SCRIPT=../archive/massage.py
+#MESSAGE_SCRIPT=../archive/massage.py
+MESSAGE_SCRIPT=${VERIFY_LIBRARY_ARCHIVE}/massage.py
 
 EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
 ${EXE_MERGE}
 
 cp ${MERGE_PATH}/* ${VERIFY_LIBRARY_ASM}
-cp ${MERGE_PATH}/vega20*{SB,DB}* ${ARCHIVE_PATH}
-cp ${ARCHIVE_PATH}/*yaml ${VERIFY_LIBRARY_ASM}
-cp ${ARCHIVE_PATH}/*yaml ${VERIFY_LIBRARY_ARCHIVE}
+cp ${MERGE_PATH}/* ${VERIFY_LIBRARY_ARCHIVE}
+cp ${MERGE_PATH}/vega20*{SB,DB}* ${MASSAGE_PATH}
 
-pushd ${VERIFY_LIBRARY_ASM} > /dev/null
-python ${MESSAGE_SCRIPT}
-popd > /dev/null
-
+python ${MESSAGE_SCRIPT} ${MASSAGE_PATH} ${VERIFY_LIBRARY_ASM}
 
 BUILD_ROCBLAS="./install.sh -c"
 
