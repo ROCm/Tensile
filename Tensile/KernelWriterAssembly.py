@@ -7719,6 +7719,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       kw = self.kernelWriter
       packedIndices = kernel["PackedC0IndicesX"]
+      packedBits = self.coord0Vgpr # start with coord0, will move to temp below
       for i,idx in enumerate(packedIndices[:-1]):
         # vgprTmp assignments:
         #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
@@ -7726,7 +7727,6 @@ class KernelWriterAssembly(KernelWriter):
         #   - tmp+2 is scratch
         idxChar= globalParameters["IndexChars"][idx]
         kStr += kw.comment1("extract %s"%kw.size('A', idx))
-        packedBits = self.coord0Vgpr # start with coord0, will move to temp below
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
         kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" % \
                  (tmpVgpr+1, vgpr(packedBits), \
@@ -7755,10 +7755,17 @@ class KernelWriterAssembly(KernelWriter):
                     "Copy remaining bits for next divide")
           packedBits = tmpVgpr+0
 
+        if 0 and packedBits==7:
+          kStr += kw.bomb()
+
+      if len(packedIndices)>1:
+        # if we unpacked something, then scale it to BPE
+        kStr += kw.comment1("extract final %s"%kw.size('A', packedIndices[-1]))
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
                   kw.stride(storeChar, packedIndices[-1]), "scale final extracted dim")
         kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
                   vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
+
         kStr += inst("_v_add_lshl_u32", vgpr(self.addrVgpr), \
                   vgpr(kw.cinRowPtr), \
                   vgpr(self.addrVgpr), \
