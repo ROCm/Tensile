@@ -4145,24 +4145,27 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment("compute globalReadInc for higher-level loop")
 
         tmpSgpr = self.getTmpSgpr(3)
-        unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
         # Summations always appear in both A and B, can compute number of iterations just once:
-        if tP["isA"]:
-          quotient = unrollLoopCounter
-          dividend = "SizesSum+%u"%self.unrollIdx
-          divisor = kernel["DepthU"]
-          kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
-                      divisor, tmpSgpr+2, 0)
+        if loopIdxPrev==self.unrollIdx:
+          unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
+          if tP["isA"]:
+            quotient = unrollLoopCounter
+            dividend = "SizesSum+%u"%self.unrollIdx
+            divisor = kernel["DepthU"]
+            kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
+                        divisor, tmpSgpr+2, 0)
 
-          if kernel["GlobalSplitU"] > 1:
-            kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
+            if kernel["GlobalSplitU"] > 1:
+              kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
 
-          kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
-                    kernel["GlobalSplitU"]*kernel["DepthU"], \
-                    "=UnrollLoopCounter*DepthU")
-
-        kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
-              "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+            kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
+                      kernel["GlobalSplitU"]*kernel["DepthU"], \
+                      "=UnrollLoopCounter*DepthU")
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
+                "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+        else:
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, self.size(tc, dimIdxPrev), \
+                "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
 
         # subtract amount that previous inner loop will have already incremented:
         kStr += inst("s_sub_i32", sgpr(graInc), \
@@ -6274,6 +6277,7 @@ class KernelWriterAssembly(KernelWriter):
             loopCnt+=1
       if tmpLocalWriteAddr != -1:
         self.vgprPool.checkIn(tmpLocalWriteAddr)
+
 
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
     if 0 and tP["isB"]: # post-lds-write
