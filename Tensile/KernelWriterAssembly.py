@@ -432,6 +432,12 @@ class KernelWriterAssembly(KernelWriter):
     # can't do both of these since they both override output
     assert (not (self.db["ForceExpectedValue"] and self.db["ForceVSerial"]))
 
+
+    self.db["ForceInputValueA"] = False
+    self.db["ForceInputValueB"] = False
+    self.db["ForceValueA"] = 1.0
+    self.db["ForceValueB"] = 1.0
+
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
     #self.db["CheckStoreC"] = 1024.0 # possible value
 
@@ -1588,6 +1594,8 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
     if self.db["ForceExpectedValue"] : print ("\n***WARNING: ForceExpectedValue enabled, may impact functionality\n")
     if self.db["ForceVSerial"] : print ("\n***WARNING: ForceVSerial enabled, will impact functionality\n")
+    if self.db["ForceInputValueA"] : print ("\n***WARNING: ForceInputValueA enabled, may impact functionality\n")
+    if self.db["ForceInputValueB"] : print ("\n***WARNING: ForceInputValueB enabled, may impact functionality\n")
     if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
@@ -6242,6 +6250,8 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
                     blockWidth))
+              if self.db["ForceInputValue%s"%tc]:
+                localWriteCode.addInst("v_mov_b32", vgpr("G2L%s+%u"%(tc, g2lIdx)), self.db["ForceValue%s"%tc], "ForceInputValue")
             for oIdx in range(0, numOffsets):
               paramList.append(offset)
 
