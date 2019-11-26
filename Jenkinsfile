@@ -88,7 +88,8 @@ tensileCI:
 
                     popd
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
+                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests
+                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- ${test_dir}
                     date
                 """
             platform.runCommand(this, command)
