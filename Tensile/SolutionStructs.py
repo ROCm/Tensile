@@ -1035,19 +1035,21 @@ class Solution:
     if state["MatrixInstruction"]:
       if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
         reject(state, "Error calcualting InstSplit")
-      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstM"] * state["MatrixInstB"])
+      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstN"] * state["MatrixInstB"])
       state["MIWG0"] = state["MatrixInstM"]
       if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0:
         reject(state, "Error calculating MIWG1")
-      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MatrixInstM"] * state["InstSplit"])
+      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MatrixInstM"] * state["InstSplit"]) # if no prefetchglobalread, multiply denominator by 4
       state["SubGroup0"] = state["MIWG0"] # TODO calc
       state["SubGroup1"] = state["MIWG1"]
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
     else:
       state["SubGroup0"] = state["WorkGroup"][0]
       state["SubGroup1"] = state["WorkGroup"][1]
 
-    state["LocalSplitU"] = state["WorkGroup"][2]
-    state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
     state["ThreadTile0"] = state["ThreadTile"][0]
     state["ThreadTile1"] = state["ThreadTile"][1]
@@ -1122,6 +1124,8 @@ class Solution:
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
     state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
+    #if state["MatrixInstruction"] and not state["PrefetchGlobalRead"]:
+    #  state["NumLoads%s"%tc] = totalVectors * pv // (state["NumThreads"] // 4)  # 4 simds/cu
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -1200,7 +1204,7 @@ class Solution:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
           // state["NumLoadsPerpendicular%s"%tc]
-
+    
     return True
 
 
