@@ -57,7 +57,7 @@
   TransposeA: true
   TransposeB: true
   UseBeta: true
-  UseInitialStrides: 0
+  UseInitialStridesAB: false
 - - AggressivePerfMode: 1
     AssertFree0ElementMultiple: 1
     AssertFree1ElementMultiple: 1
@@ -212,7 +212,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -397,7 +397,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -582,7 +582,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -771,7 +771,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -960,7 +960,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1148,7 +1148,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1336,7 +1336,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1524,7 +1524,7 @@
       TransposeA: true
       TransposeB: true
       UseBeta: true
-      UseInitialStrides: 0
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
