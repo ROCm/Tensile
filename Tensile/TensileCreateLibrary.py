@@ -842,9 +842,9 @@ def writeSolutionCall(solutionName, problemType):
     s += ", beta"
   s += ", offsetC, offsetA, offsetB"
   firstStrideAB = firstStrideCD = 1
-  if kernel["ProblemType"]["UseInitialStridesAB"]:
+  if problemType["UseInitialStridesAB"]:
     firstStrideAB = 0
-  if kernel["ProblemType"]["UseInitialStridesCD"]:
+  if problemType["UseInitialStridesCD"]:
     firstStrideCD = 0
   lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
