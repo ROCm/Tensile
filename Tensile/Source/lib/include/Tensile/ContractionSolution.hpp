@@ -98,9 +98,6 @@ namespace Tensile
             bool sourceKernel;
         };
 
-        static const unsigned UseInitialStrides_AB = 0x1;
-        static const unsigned UseInitialStrides_CD = 0x2;
-
         struct ProblemType
         {
             std::string operationIdentifier;
@@ -109,8 +106,9 @@ namespace Tensile
             DataType cType = DataType::Float;
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
-            unsigned useInitialStrides = 0;
             bool useBeta = true;
+            bool useInitialStridesAB = false;
+            bool useInitialStridesCD = false;
         };
 
         int index;

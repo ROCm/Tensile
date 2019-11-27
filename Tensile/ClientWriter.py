@@ -1146,7 +1146,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # strides
     indexChars = globalParameters["IndexChars"]
     firstStride = 1
-    if problemType["UseInitialStrides"]:
+    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    if problemType["UseInitialStridesAB"]:
       firstStride = 0
     lastStrideD = problemType["NumIndicesC"]
     lastStrideC = problemType["NumIndicesC"]
@@ -1222,7 +1223,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
-    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    firstStride = 0 if problemType["UseInitialStridesAB"] else 1
     lastStrideD = problemType["NumIndicesC"]
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
@@ -1378,7 +1380,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           # strides
           indexChars = globalParameters["IndexChars"]
           firstStride = 1
-          if problemType["UseInitialStrides"]:
+          assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+          if problemType["UseInitialStridesAB"]:
             firstStride = 0
           lastStrideD = problemType["NumIndicesC"]
           lastStrideC = problemType["NumIndicesC"]

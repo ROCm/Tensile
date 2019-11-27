@@ -20,7 +20,7 @@
 ################################################################################
 
 from . import Code
-from .Common import Globals, globalParameters, printExit, printWarning, roundUp
+from .Common import globalParameters, printExit, printWarning, roundUp
 from .DataType import DataType
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -548,13 +548,13 @@ class KernelWriterAssembly(KernelWriter):
   def stride(self, tc, dim):
     problemType = self.kernel["ProblemType"]
     if tc in ['A','B']:
-      if not (problemType["UseInitialStrides"] & Globals.UseInitialStrides_AB) and \
+      if not problemType["UseInitialStridesAB"] and \
           dim == problemType["IndexAssignments%s"%tc][0]:
         return ("constStride%s%s"%(tc,self.indexChars[dim]))
       else:
         return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
     elif tc in ['D','C']:
-      if not (problemType["UseInitialStrides"] & Globals.UseInitialStrides_CD) and dim == 0:
+      if not problemType["UseInitialStridesCD"] and dim == 0:
         return ("constStride%s%s"%(tc,self.indexChars[dim]))
       else:
         return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
@@ -1344,9 +1344,10 @@ class KernelWriterAssembly(KernelWriter):
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     self.numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
-    if not kernel["ProblemType"]["UseInitialStrides"]:
+    if not kernel["ProblemType"]["UseInitialStridesCD"]:
       self.numSgprStridesD -= 1
       self.numSgprStridesC -= 1
+    if not kernel["ProblemType"]["UseInitialStridesAB"]:
       self.numSgprStridesA -= 1
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
@@ -2085,8 +2086,10 @@ class KernelWriterAssembly(KernelWriter):
     kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsB"]) # strides
-    if not kernel["ProblemType"]["UseInitialStrides"]:
-      kernArgReg -= 4 # strides
+    if not kernel["ProblemType"]["UseInitialStridesAB"]:
+      kernArgReg -= 2 # strides
+    if not kernel["ProblemType"]["UseInitialStridesCD"]:
+      kernArgReg -= 2 # strides
     kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
     kernArgReg += kernel["ProblemType"]["NumIndicesC"]
     if globalParameters["DebugKernel"]:
@@ -2641,20 +2644,20 @@ class KernelWriterAssembly(KernelWriter):
       for idx in range(0, problemType["NumIndicesC"]):
         i = idx
         idxChar= self.indexChars[idx]
-        if i == 0 and not (kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD):
+        if i == 0 and not kernel["ProblemType"]["UseInitialStridesCD"]:
           kStr += self.macroRegister("constStride%s%s"%(tc,idxChar), 1)
         else:
-          if not kernel["ProblemType"]["UseInitialStrides"]:
+          if not kernel["ProblemType"]["UseInitialStridesCD"]:
             i = i-1
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
                     "sgprStrides%s+%u"%(tc, i))
     for tc in ('A','B'):
       for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
         idxChar= self.indexChars[idx]
-        if i == 0 and not (kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_AB):
+        if i == 0 and not kernel["ProblemType"]["UseInitialStridesAB"]:
           kStr += self.macroRegister("constStride%s%s"%(tc,idxChar), 1)
         else:
-          if not kernel["ProblemType"]["UseInitialStrides"]:
+          if not kernel["ProblemType"]["UseInitialStridesAB"]:
             i = i-1
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
                     "sgprStrides%s+%u"%(tc, i))
@@ -2703,10 +2706,10 @@ class KernelWriterAssembly(KernelWriter):
       calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
       for i in range(0, numDim):
         if tc == 'C':
-          useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD
+          useInitialStrides = kernel["ProblemType"]["UseInitialStridesCD"]
           idxChar = self.indexChars[i]
         else:
-          useInitialStrides = kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_AB
+          useInitialStrides = kernel["ProblemType"]["UseInitialStridesAB"]
           idxChar = self.indexChars[tP['ia'][i]]
 
         # tile index or unroll vgpr or summation
@@ -7841,7 +7844,7 @@ class KernelWriterAssembly(KernelWriter):
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
           self.rowIncDirtyRowPtr = 1
-          assert (kernel["ProblemType"]["UseInitialStrides"] & Globals.UseInitialStrides_CD == 0)
+          assert (not kernel["ProblemType"]["UseInitialStridesCD"])
           assert (len(kernel["PackedC1IndicesX"])==1)
 
           strideChar = self.kernelWriter.indexChars[kernel["PackedC1IndicesX"][0]]

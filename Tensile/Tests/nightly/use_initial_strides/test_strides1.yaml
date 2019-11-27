@@ -34,7 +34,6 @@ BenchmarkProblems:
     -
       OperationType: ConvolutionForward
       DataType: s
-      UseInitialStrides: 0
       ConvolutionConfig:
       - Dilation: 1x1
       - Filter: 1x1

@@ -182,18 +182,19 @@ namespace Tensile
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
-        size_t startStride = problemType.useInitialStrides ? 0:1;
+        size_t startStrideCD = problemType.useInitialStridesCD ? 0:1;
+        size_t startStrideAB = problemType.useInitialStridesAB ? 0:1;
 
-        for(size_t i = startStride; i < d.dimensions(); i++)
+        for(size_t i = startStrideCD; i < d.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideD", i), d.strides()[i]);
 
-        for(size_t i = startStride; i < c.dimensions(); i++)
+        for(size_t i = startStrideCD; i < c.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideC", i), c.strides()[i]);
 
-        for(size_t i = startStride; i < a.dimensions(); i++)
+        for(size_t i = startStrideAB; i < a.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideA", i), a.strides()[i]);
 
-        for(size_t i = startStride; i < b.dimensions(); i++)
+        for(size_t i = startStrideAB; i < b.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate("strideB", i), b.strides()[i]);
 
         {

@@ -21,7 +21,7 @@
 
 import sys,traceback
 from functools import reduce
-from .Common import Globals, globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
 from copy import deepcopy
 import math
@@ -92,7 +92,7 @@ class Convolution:
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
         'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStrides',\
+        'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
         ]
 
   def __init__(self, problemTypeOut, convolutionType, config):
@@ -313,9 +313,9 @@ class Convolution:
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStrides"] = 0
+      problemTypeOut["UseInitialStridesAB"] = False
     else:
-      problemTypeOut["UseInitialStrides"] = Globals.UseInitialStrides_AB
+      problemTypeOut["UseInitialStridesAB"] = True
 
     #self.printUsage(problemTypeOut)
 
@@ -826,7 +826,8 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["UseInitialStrides"]: name += "I%d" % self["UseInitialStrides"]
+    if self["UseInitialStridesAB"]: name += "I"
+    if self["UseInitialStridesCD"]: name += "Ic"
     return name
 
   def keys(self):
@@ -1192,8 +1193,10 @@ class Solution:
       kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
-      kernel["ProblemType"]["UseInitialStrides"] = \
-          problemType["UseInitialStrides"]
+      kernel["ProblemType"]["UseInitialStridesAB"] = \
+          problemType["UseInitialStridesAB"]
+      kernel["ProblemType"]["UseInitialStridesCD"] = \
+          problemType["UseInitialStridesCD"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
       kernel["ProblemType"]["SetConstStrideB"] = \

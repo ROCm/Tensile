@@ -15,6 +15,6 @@ def test_yaml(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2,0]])
-    assert(z['UseInitialStrides']==0)
+    assert(z['UseInitialStridesAB']==0)
 
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)

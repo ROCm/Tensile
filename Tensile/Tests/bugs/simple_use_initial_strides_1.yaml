@@ -34,7 +34,7 @@ BenchmarkProblems:
       IndexAssignmentsA : [0, 2 ]
       IndexAssignmentsB : [2, 1]
       UseBeta : False
-      UseInitialStrides : 0x1
+      UseInitialStridesAB : True
 
     -
       InitialSolutionParameters:

@@ -863,7 +863,8 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStrides":        0,  # 0x1=use initial strides for AB, 0x2=use initial strides for CD, 0x3=use initial strides for all
+    "UseInitialStridesAB":      False,  # use initial strides for AB.
+    "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
     # List of pairs of [index, constValue].
     # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
@@ -1325,10 +1326,6 @@ def versionIsCompatible(queryVersionString):
 # convert python list to C++ initializer style syntax
 def listToInitializer(l):
   return "{" + ','.join(map(str, l)) + "}"
-
-class Globals:
-  UseInitialStrides_AB = 0x1
-  UseInitialStrides_CD = 0x2
 
 ################################################################################
 # Progress Bar Printing
