@@ -561,6 +561,15 @@ validParameters = {
     # If False, macro-tile is always Free0*Free1.  Additional free dimensions are not supported.
     "PackFreeDims":              [False, True],
 
+    # Pack summation dims
+    # If 0, a for loops are generated for each summation dimension.
+    # If 1, summation dims are packed into a single loop and extracted as needed using mod/shift.  The innermost summation
+    #  dimension must be an integer multiple of the unroll loop - in other words the load tile is contiguous in memory.
+    #  In this mode, tensile can still prefetch data across the load tile dimension.
+    # If 2, summations dims are packed into a single loop as above.  In addition, the load tile does not need to be 
+    #  contiguous in memory and can span summation dimensions.
+    "PackSummationDims":         [0,1,2],
+
     # Granularity allowed when packing tensor dims.
     # Lower values are finer granularity which requires more dimension division operations on store path
     # but supports more flexible tensor dimes.
@@ -737,6 +746,7 @@ defaultBenchmarkCommonParameters = [
     {"PersistentKernel":          [ 0 ] },
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
+    {"PackSummationDims":         [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },

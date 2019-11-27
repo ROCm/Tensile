@@ -718,8 +718,6 @@ class KernelWriterAssembly(KernelWriter):
     self.do["NullKernel"]  = dkp >= 9 or dkp == -9
 
     self.kernel = kernel
-    self.tPA = tPA
-    self.tPB = tPB
 
     # init these here in case some kernel pieces are disabled for performance exploration:
     tPA["localReadOffset"] = 0
@@ -3839,7 +3837,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
     # Output : tileStart[0:1] have offset in elements from the 2D start of the tile.
-    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile; 
+    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile;
     # This is used to compute the limit.
     # Later we modify tileStart to include batch and higher-order dims and add this to SRD.
 
@@ -5400,8 +5398,9 @@ class KernelWriterAssembly(KernelWriter):
   #   self.unrollIdx, or an idx from 0..NumIndicesSummation
   # prefetchIndex is >0 (1...PrefetchGlobalRead) if this increment follows a
   #   global prefetch or 0 otherwise
+  # incs is number of increments to perform
   ##############################################################################
-  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex, incs=1):
     if not self.do["GlobalInc"]: return ""
     tc = tP["tensorChar"]
     loopChar = self.indexChars[ \
@@ -5486,6 +5485,12 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr("GlobalReadAddrA+1"))
       #kStr += "s_endpgm\n"
 
+    return imod
+
+  def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
+    imod = Code.Module("globalReadIncrementAB%s")
+    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
     return imod
 
 

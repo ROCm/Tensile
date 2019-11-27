@@ -110,7 +110,7 @@ namespace Tensile
             struct BoundSizeMultiple: public Predicate_CRTP<BoundSizeMultiple, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
-                size_t index;
+                int64_t index;
                 size_t value;
 
                 BoundSizeMultiple() = default;
@@ -120,7 +120,10 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.boundSize(index) % value == 0;
+                    if (index < 0)
+                        return problem.boundSize(problem.boundIndices().size()+index) % value == 0;
+                    else
+                        return problem.boundSize(index) % value == 0;
                 }
             };
 

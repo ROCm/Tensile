@@ -256,7 +256,7 @@ class ProblemPredicate(Properties.Predicate):
                 index = 0
             elif key == "AssertSummationElementMultiple":
                 tag = "BoundSizeMultiple"
-                index = 0
+                index = -1
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
 

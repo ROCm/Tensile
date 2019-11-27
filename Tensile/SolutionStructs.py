@@ -1696,6 +1696,12 @@ class Solution:
           state["VectorWidth"]))
       return
 
+    if state["PackSummationDims"] == 1:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
+        else:
+          state["AssertSummationElementMultiple"] = state["DepthU"]
+
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
        and state["ProblemType"]["DataType"].isHalf():
@@ -1708,6 +1714,9 @@ class Solution:
              state["AssertFree0ElementMultiple"] % 2 != 0):
            # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
             reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+
+    if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
+        reject(state, "PackSummationDims does not yet support assembly")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:

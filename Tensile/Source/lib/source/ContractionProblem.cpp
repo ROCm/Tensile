@@ -571,6 +571,27 @@ namespace Tensile
         m_problemSizes.insert(m_problemSizes.end(), m_c.sizes().begin(), m_c.sizes().end());
         m_problemSizes.insert(m_problemSizes.end(), m_boundSizes.begin(), m_boundSizes.end());
 
+        m_allocatedElementsNonBatchA = 1;
+        for(int idx = 0; idx < a().dimensions(); idx++)
+        {
+            bool isBatch =  batchIndices().end() !=
+                            std::find_if(batchIndices().begin(), batchIndices().end(),
+                            [idx](const ContractionProblem::BatchIndex &bi)
+                            {return bi.a == idx;});
+            if (!isBatch)
+                m_allocatedElementsNonBatchA += a().strides()[idx] * (a().sizes()[idx]-1);
+        }
+
+        m_allocatedElementsNonBatchB = 1;
+        for(int idx = 0; idx < b().dimensions(); idx++)
+        {
+            bool isBatch =  batchIndices().end() !=
+                            std::find_if(batchIndices().begin(), batchIndices().end(),
+                            [idx](const ContractionProblem::BatchIndex &bi)
+                            {return bi.b == idx;});
+            if (!isBatch)
+                m_allocatedElementsNonBatchB += b().strides()[idx] * (b().sizes()[idx]-1);
+        }
     }
 
     void ContractionProblem::consistencyCheck() const
