@@ -1,7 +1,6 @@
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Debug
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
