@@ -726,6 +726,9 @@ class KernelWriterAssembly(KernelWriter):
     self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     self.sgprs[name] = self.sgprIdx
     self.sgprIdx += numSgprs
+    if self.sgprIdx >= self.maxSgprs:
+      print ("warning: too many kernel arguments (sgpr=%d)! Overflowed SGPRS." % (self.sgprIdx))
+
     return
 
   ##############################################################################
