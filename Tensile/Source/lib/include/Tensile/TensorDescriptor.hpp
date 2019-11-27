@@ -31,12 +31,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
+#include <iomanip>
 #include <numeric>
 #include <vector>
 
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/Macros.hpp>
 #include <Tensile/Utils.hpp>
+#include <Tensile/Debug.hpp>
 
 namespace Tensile
 {
@@ -307,7 +309,21 @@ namespace Tensile
                 {
                     std::vector<size_t> validIs(is.begin(), is.begin()+desc.dimensions());
                     size_t idx = desc.index(validIs);
-                    stream << data[idx] << " ";
+                    if (Debug::Instance().printTensorModeHex())
+                    {
+                        if (sizeof(T) == 2)
+                          stream << "0x" << std::setfill('0') << std::setw(4)
+                                    << std::hex << *(uint16_t*)(&data[idx]) << std::dec;
+                        else if (sizeof(T) == 4)
+                          stream << "0x" << std::setfill('0') << std::setw(8)
+                                    << std::hex << *(uint32_t*)(&data[idx]) << std::dec;
+                        else if (sizeof(T) == 8)
+                          stream << "0x" << std::setfill('0') << std::setw(16)
+                                    << std::hex << *(uint64_t*)(&data[idx]) << std::dec;
+                        stream << " ";
+                    }
+                    else
+                        stream << data[idx] << " ";
                 }
                 if (decorated)
                 {

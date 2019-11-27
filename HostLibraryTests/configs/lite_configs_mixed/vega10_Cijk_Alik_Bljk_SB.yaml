@@ -64,7 +64,7 @@
   TransposeA: true
   TransposeB: false
   UseBeta: true
-  UseInitialStrides: false
+  UseInitialStridesAB: false
 - - AggressivePerfMode: 1
     AssertFree0ElementMultiple: 1
     AssertFree1ElementMultiple: 1
@@ -219,7 +219,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -404,7 +404,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -589,7 +589,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -774,7 +774,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -959,7 +959,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1148,7 +1148,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1336,7 +1336,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1524,7 +1524,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1
@@ -1712,7 +1712,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
     ReplacementKernel: false
     ScheduleGlobalRead: 1
     ScheduleIterAlg: 1

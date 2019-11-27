@@ -146,7 +146,7 @@ def test_filter_stride_dilation_0(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[6,5, 4, 2, 3])
     assert(z['SetConstStrideA']==[[0,3], [6,3]])
     assert(z['SetConstStrideB']==[[3, 0]])
-    assert(z['UseInitialStrides']==True)
+    assert(z['UseInitialStridesAB'])
     log.debug(conv.printUsage(z))
     YamlBuilder.run_convolution_vs_contraction(request, conv, z, tensile_client_dir, tmp_path)
 

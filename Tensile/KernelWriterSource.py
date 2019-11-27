@@ -711,18 +711,23 @@ class KernelWriterSource(KernelWriter):
     ####################################
     # preprocessor definitions of kernel arguments
     firstStride = 0
-    if kernel["ProblemType"]["UseInitialStrides"]:
+    if kernel["ProblemType"]["UseInitialStridesCD"]:
       # no strides #defined
       lastStrideD = 0
       lastStrideC = 0
-      lastStrideA = 0
-      lastStrideB = 0
     else:
       # #define initial stride
-      kStr += "/* hard-coded initial strides */%s" \
+      kStr += "/* hard-coded initial strides CD*/%s" \
           % self.endLine
       lastStrideD = 1
       lastStrideC = 1
+
+    if kernel["ProblemType"]["UseInitialStridesAB"]:
+      lastStrideA = 0
+      lastStrideB = 0
+    else:
+      kStr += "/* hard-coded initial strides AB */%s" \
+          % self.endLine
       lastStrideA = 1
       lastStrideB = 1
 
@@ -811,21 +816,23 @@ class KernelWriterSource(KernelWriter):
           + kernel["ProblemType"]["ComputeDataType"].toDevice(self.language) + " const beta"
 
     # strides
-    firstStride = 1
-    if kernel["ProblemType"]["UseInitialStrides"]:
-      firstStride = 0
+    firstStrideAB = firstStrideCD = 1
+    if kernel["ProblemType"]["UseInitialStridesAB"]:
+      firstStrideAB = 0
+    if kernel["ProblemType"]["UseInitialStridesCD"]:
+      firstStrideCD = 0
     lastStrideD = kernel["ProblemType"]["NumIndicesC"]
     lastStrideC = kernel["ProblemType"]["NumIndicesC"]
     lastStrideA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     lastStrideB = len(kernel["ProblemType"]["IndexAssignmentsB"])
-    for i in range(firstStride, lastStrideD):
+    for i in range(firstStrideCD, lastStrideD):
       s += "," + self.endLine + "  unsigned int const strideD" + self.indexChars[i]
-    for i in range(firstStride, lastStrideC):
+    for i in range(firstStrideCD, lastStrideC):
       s += "," + self.endLine + "  unsigned int const strideC" + self.indexChars[i]
-    for i in range(firstStride, lastStrideA):
+    for i in range(firstStrideAB, lastStrideA):
       s += "," + self.endLine + "  unsigned int const strideA" \
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-    for i in range(firstStride, lastStrideB):
+    for i in range(firstStrideAB, lastStrideB):
       s += "," + self.endLine + "  unsigned int const strideB" \
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
 
@@ -2820,14 +2827,16 @@ class KernelWriterSource(KernelWriter):
         kStr += self.endLine
       # initial strides
       firstStride = 0
-      if kernel["ProblemType"]["UseInitialStrides"]:
+      if kernel["ProblemType"]["UseInitialStridesCD"]:
         lastStrideD = 0
         lastStrideC = 0
-        lastStrideA = 0
-        lastStrideB = 0
       else:
         lastStrideD = 1
         lastStrideC = 1
+      if kernel["ProblemType"]["UseInitialStridesAB"]:
+        lastStrideA = 0
+        lastStrideB = 0
+      else:
         lastStrideA = 1
         lastStrideB = 1
       for i in range(firstStride, lastStrideD):
@@ -2947,14 +2956,14 @@ class KernelWriterSource(KernelWriter):
     kStr += self.endLine
 
     # strides
-    firstStride = 1
-    if kernel["ProblemType"]["UseInitialStrides"]:
-      firstStride = 0
+    firstStrideCD = 1
+    if kernel["ProblemType"]["UseInitialStridesCD"]:
+      firstStrideCD = 0
     lastStrideC = kernel["ProblemType"]["NumIndicesC"]
-    for i in range(firstStride, lastStrideC):
+    for i in range(firstStrideCD, lastStrideC):
       kStr += "  unsigned int const strideD%s,%s" \
           % (self.indexChars[i], self.endLine)
-    for i in range(firstStride, lastStrideC):
+    for i in range(firstStrideCD, lastStrideC):
       kStr += "  unsigned int const strideC%s,%s" \
           % (self.indexChars[i], self.endLine)
 
@@ -2984,7 +2993,7 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # defined initial strides
     firstStride = 0
-    if kernel["ProblemType"]["UseInitialStrides"]:
+    if kernel["ProblemType"]["UseInitialStridesCD"]:
       # no strides #defined
       lastStrideC = 0
     else:

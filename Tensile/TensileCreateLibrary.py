@@ -502,7 +502,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
 
     numSizes = problemType["TotalIndices"];
-    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    assert(not problemType["UseInitialStridesCD"])
+    firstStride = 0 if problemType["UseInitialStridesAB"] else 1
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
     lastStrideC = problemType["NumIndicesC"]
@@ -797,20 +798,21 @@ def writeExactLogic(problemType, indexOrder,
   s = ""
   s += "  ProblemDims_%s pdims(" % problemType
   indexChars = globalParameters["IndexChars"]
-  firstStride = 0 if problemType["UseInitialStrides"] else 1
+  firstStrideAB = 0 if problemType["UseInitialStridesAB"] else 1
+  firstStrideCD = 0 if problemType["UseInitialStridesCD"] else 1
   lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
   lastStrideA = len(problemType["IndexAssignmentsA"])
   lastStrideB = len(problemType["IndexAssignmentsB"])
-  for i in range(firstStride,lastStrideD):
-    if i != firstStride: s += ", "
+  for i in range(firstStrideCD,lastStrideD):
+    if i != firstStrideCD: s += ", "
     s += "strideD%u%s" % (i, indexChars[i])
-  for i in range(firstStride,lastStrideC):
+  for i in range(firstStrideCD,lastStrideC):
     s += ", strideC%u%s" % (i, indexChars[i])
-  for i in range(firstStride,lastStrideA):
+  for i in range(firstStrideAB,lastStrideA):
     s += ", strideA%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsA"][i]])
-  for i in range(firstStride,lastStrideB):
+  for i in range(firstStrideAB,lastStrideB):
     s += ", strideB%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsB"][i]])
   for i in range(0,len(indexOrder)):
@@ -839,21 +841,23 @@ def writeSolutionCall(solutionName, problemType):
   if problemType["UseBeta"]:
     s += ", beta"
   s += ", offsetC, offsetA, offsetB"
-  firstStride = 1
-  if problemType["UseInitialStrides"]:
-    firstStride = 0
+  firstStrideAB = firstStrideCD = 1
+  if problemType["UseInitialStridesAB"]:
+    firstStrideAB = 0
+  if problemType["UseInitialStridesCD"]:
+    firstStrideCD = 0
   lastStrideD = problemType["NumIndicesC"]
   lastStrideC = problemType["NumIndicesC"]
   lastStrideA = len(problemType["IndexAssignmentsA"])
   lastStrideB = len(problemType["IndexAssignmentsB"])
-  for i in range(firstStride,lastStrideD):
+  for i in range(firstStrideCD,lastStrideD):
     s += ", strideD%u%s" % (i, indexChars[i])
-  for i in range(firstStride,lastStrideC):
+  for i in range(firstStrideCD,lastStrideC):
     s += ", strideC%u%s" % (i, indexChars[i])
-  for i in range(firstStride,lastStrideA):
+  for i in range(firstStrideAB,lastStrideA):
     s += ", strideA%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsA"][i]])
-  for i in range(firstStride,lastStrideB):
+  for i in range(firstStrideAB,lastStrideB):
     s += ", strideB%u%s" % (i, \
         indexChars[problemType["IndexAssignmentsB"][i]])
   for i in range(0, problemType["TotalIndices"]):

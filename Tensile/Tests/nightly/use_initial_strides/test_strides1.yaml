@@ -1,7 +1,6 @@
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Debug
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -17,25 +16,31 @@ GlobalParameters:
   DataInitTypeB: 1
   DataInitTypeC: 2
   DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
   KernelTime: True
   LibraryPrintDebug: 0
   CpuThreads: 0
   PrintSolutionRejectionReason: 1
+  NewClient: 2
+  ProblemFromConvolution: 1
+  PrintTensorA: 0
+  PrintTensorB: 0
+  PrintTensorC: 0
+  PrintTensorD: 0
+  PrintConvolutionUsage: 1
 
 BenchmarkProblems:
-
   -
     -
-      OperationType: TensorContraction
+      OperationType: ConvolutionForward
       DataType: s
-      DestDataType: s
-      UseBeta: True
-      NumIndicesC : 2
-      IndexAssignmentsA : [0, 2 ]
-      IndexAssignmentsB : [2, 1]
-      UseBeta : False
-      UseInitialStridesAB : True
-
+      ConvolutionConfig:
+      - Dilation: 1x1
+      - Filter: 1x1
+      - Spatial: 8x8
+      - Stride: 1x1
+      - TensorAFormat: NCHW
+        #- PackedSpatialDims: 0
     -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -45,9 +50,9 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - ThreadTile:
           - [ 2, 2 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [  8, 8, 1 ]
-            #- [  16, 8, 1 ]
         - DepthU: [8]
         - GlobalReadVectorWidth: [1]
         - VectorWidth: [1]
@@ -58,10 +63,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-            - Range: [ [8,8,16], [16], [24]]
-            - Range: [ [128], [128], [32]]
-              #- Range: [ [124,4,132], [124,4,132], [4], [6], [16]]
-              #
-
-# Source works but assembly fails (data mismatch).
-# Likely something in the GLOBAL_ADDRESS macro, also double-check parm passing.
+          #   - Exact: [ -1, -1, 32, 16, 8]
+             - Exact: [ -1, 32, 16, 8]

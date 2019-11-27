@@ -21,7 +21,7 @@ GlobalParameters:
   LibraryPrintDebug: 0
   #RuntimeLanguage: ["OCL"]
   #PrintTensorC : 2
-  ClientArgs: "--stride_b 0"
+  NewClient: 2
 
 BenchmarkProblems:
 
