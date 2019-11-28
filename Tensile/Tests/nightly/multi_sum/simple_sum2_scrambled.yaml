@@ -1,23 +1,23 @@
 GlobalParameters:
   EnqueuesPerSync: 1
-  LibraryPrintDebug: 0
-  NumElementsToValidate: 1
+  LibraryPrintDebug: 1
+  NumElementsToValidate: 1000
   KernelTime: True
   #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  DataInitTypeA: 3
-  DataInitTypeB: 3
-  DataInitTypeC: 4
-  DataInitTypeAlpha: 2
+  DataInitTypeA: 1
+  DataInitTypeB: 1
+  DataInitTypeC: 0
+  DataInitTypeAlpha: 1
   DataInitTypeBeta: 0
   PrintSolutionRejectionReason: 1
-  PrintWinnersOnly: 0
+  PrintWinnersOnly: 1
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
   CpuThreads: 0
-  #ClientArgs: "--stride_c 0"
+  NewClient: 1
 
 BenchmarkProblems:
   ########################################
@@ -30,16 +30,8 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: False
       NumIndicesC: 2
-      IndexAssignmentsA: [ 4, 3, 0, 2]
-      IndexAssignmentsB: [ 4, 3, 1, 2]
-      # 3 is Cin, 2 is batch index converted to a second summation index
-      #
-      # Standard batched NT is :
-      #  IndicesFree:  [0, 1]  # 0 is H*W, 1 is Cout
-      #  IndicesBatch: [2]  # N, but convert to summation in the config above
-      #  IndicesSum:   [3]
-      #  IndexAssignmentsA:   [3, 0, 2]
-      #  IndexAssignmentsB:   [3, 1, 2]
+      IndexAssignmentsA: [ 2, 0, 3]
+      IndexAssignmentsB: [ 2, 1, 3]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -47,10 +39,10 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
           #- TailLoop: [False]
       ForkParameters:
-        #- KernelLanguage: ["Assembly"]
+        - AggressivePerfMode: [0]
+        - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
-        - GlobalSplitU: [1,2,4]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
@@ -64,7 +56,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 16, 16, 2, 4, 8]
-          - Range: [ [16], [16], [2], [1,1,32], [8]]
-          - Range: [ [16], [16], [1,1,4], [1,1,32]] ## TESTME - gsu
-          - Range: [ [127,1,129], 0, [2], [1,1,8], [1,1,16]]
+          - Exact: [ 16, 16, 2, 4]

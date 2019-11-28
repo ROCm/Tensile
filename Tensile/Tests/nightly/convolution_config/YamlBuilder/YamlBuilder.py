@@ -88,6 +88,7 @@ class YamlBuilder:
         """
         obj = cls.ConvolutionContraction(conv, {}, dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
+        obj.doc["GlobalParameters"]["ProblemFromConvolution"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
             problem[0]["OperationType"] = conv.convolutionType
             problem[0]["ConvolutionConfig"] = [copy.deepcopy(conv.config)]

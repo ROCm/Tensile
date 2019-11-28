@@ -15,6 +15,6 @@ def test_yaml(run_convolution_level):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2,0]])
-    assert(z['UseInitialStrides']==False)
+    assert(z['UseInitialStridesAB']==0)
 
     run_convolution_level(conv, z)

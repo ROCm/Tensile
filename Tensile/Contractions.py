@@ -55,7 +55,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStrides']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -127,9 +127,12 @@ class ProblemType:
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
 
-        rv.useInitialStrides = False
-        if 'UseInitialStrides' in d:
-            rv.useInitialStrides = d['UseInitialStrides']
+        rv.useInitialStridesAB = False
+        if 'UseInitialStridesAB' in d:
+            rv.useInitialStridesAB = d['UseInitialStridesAB']
+        rv.useInitialStridesCD = False
+        if 'UseInitialStridesCD' in d:
+            rv.useInitialStridesCD = d['UseInitialStridesCD']
 
         rv.setConstStrideA = []
         if 'SetConstStrideA' in d:
@@ -256,7 +259,7 @@ class ProblemPredicate(Properties.Predicate):
                 index = 0
             elif key == "AssertSummationElementMultiple":
                 tag = "BoundSizeMultiple"
-                index = 0
+                index = -1
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
 
