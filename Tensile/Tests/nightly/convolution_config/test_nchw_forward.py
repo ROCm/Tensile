@@ -1,6 +1,5 @@
 import logging
 from Tensile.SolutionStructs import Convolution
-from YamlBuilder.YamlBuilder import YamlBuilder
 log =logging.getLogger("testlog")
 
 # content of test_sample.py
@@ -59,7 +58,6 @@ def test_nchw_packed_spatial0(run_convolution_level):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB']==0)
-    assert(z['UseInitialStrides']==False)
     run_convolution_level(conv, z)
 
 def test_nchw_tbd_strides(run_convolution_level):
@@ -108,7 +106,6 @@ def test_nchw_const_use_initial_strides(run_convolution_level):
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB'])
     run_convolution_level(conv, z)
-    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_filter(run_convolution_level):
     z={} # problemType definition

@@ -57,7 +57,7 @@ tensileCI:
 
                     popd
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e lint
+                    tox -v --workdir /tmp/.tensile-tox -e lint
                     """
 
             platform.runCommand(this, command)

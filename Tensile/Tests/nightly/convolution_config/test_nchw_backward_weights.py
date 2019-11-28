@@ -1,6 +1,5 @@
 import logging
 from Tensile.SolutionStructs import Convolution
-from YamlBuilder.YamlBuilder import YamlBuilder
 log =logging.getLogger("testlog")
 
 def test_nchw_backwardweights_defaults(run_convolution_level):

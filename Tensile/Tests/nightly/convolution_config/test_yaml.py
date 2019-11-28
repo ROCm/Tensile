@@ -1,6 +1,5 @@
 import logging
 from Tensile.SolutionStructs import Convolution
-from YamlBuilder.YamlBuilder import YamlBuilder
 
 log =logging.getLogger("testlog")
 

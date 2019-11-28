@@ -8,8 +8,6 @@ moddir = os.path.dirname(testdir)
 rootdir = os.path.dirname(moddir)
 sys.path.append(rootdir)
 
-from Tensile import ClientExecutable
-
 def pytest_addoption(parser):
     parser.addoption("--tensile-options")
     parser.addoption("--no-common-build", action="store_true")

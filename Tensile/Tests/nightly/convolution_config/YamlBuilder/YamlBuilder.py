@@ -1,6 +1,4 @@
 import copy
-import os
-import Tensile.Tensile as Tensile
 import yaml
 
 class YamlBuilder:

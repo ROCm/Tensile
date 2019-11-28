@@ -1,8 +1,6 @@
 import logging
 import pytest
-from Tensile import Tensile
 from Tensile.SolutionStructs import Convolution
-from YamlBuilder.YamlBuilder import YamlBuilder
 log =logging.getLogger("testlog")
 
 """
