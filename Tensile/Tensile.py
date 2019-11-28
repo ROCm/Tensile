@@ -123,6 +123,7 @@ def Tensile(userArgs):
       help="kernels and solutions written to individual files")
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
       action="store", default="hcc", help="select which compiler to use")
+  argParser.add_argument("--client-build-path", default=None)
   # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
@@ -180,6 +181,8 @@ def Tensile(userArgs):
   if args.CxxCompiler:
     globalParameters['CxxCompiler'] = args.CxxCompiler
   print1("")
+  if args.client_build_path:
+    globalParameters["ClientBuildPath"] = args.client_build_path
 
   # Execute Steps in the config script
   executeStepsInConfig( config )

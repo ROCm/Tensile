@@ -4,7 +4,7 @@ from YamlBuilder.YamlBuilder import YamlBuilder
 
 log =logging.getLogger("testlog")
 
-def test_yaml(request, tensile_client_dir, tmp_path):
+def test_yaml(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -17,4 +17,4 @@ def test_yaml(request, tensile_client_dir, tmp_path):
     assert(z['SetConstStrideB']==[[2,0]])
     assert(z['UseInitialStrides']==False)
 
-    YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
+    run_convolution_level(conv, z)

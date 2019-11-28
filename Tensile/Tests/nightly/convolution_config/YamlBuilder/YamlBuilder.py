@@ -1,17 +1,71 @@
+import copy
 import os
 import Tensile.Tensile as Tensile
-
+import yaml
 
 class YamlBuilder:
 
-    @staticmethod
-    def catFile(outfile,fname):
-        with open(fname) as infile:
-            outfile.write(infile.read())
+    def __init__(self, doc):
+        self.doc = doc
 
-    def write_problem_sizes(conv, outfile):
-        outfile.write("         - ProblemSizes:\n")
+    def write(self, fname):
+        with open(str(fname), "w") as f:
+            yaml.dump(self.doc, f)
 
+    @classmethod
+    def Header(cls):
+        return \
+        {
+            "GlobalParameters":
+            {
+                "MinimumRequiredVersion": "4.2.0",
+                "ForceRedoBenchmarkProblems": True,
+                "ForceRedoLibraryLogic": True,
+                "ForceRedoLibraryClient": True,
+                "CMakeBuildType": "Debug",
+                "EnqueuesPerSync": 1,
+                "SyncsPerBenchmark": 1,
+                "LibraryPrintDebug": False,
+                "NumElementsToValidate": 1000,
+                "ValidationMaxToPrint": 4,
+                "ValidationPrintValids": False,
+                "ShortNames": False,
+                "MergeFiles": True,
+                "KernelTime": True,
+                "SolutionSelectionAlg": 1,
+                "NewClient": 2
+            }
+        }
+
+    @classmethod
+    def SGEMM_1(cls):
+        return {
+            "InitialSolutionParameters": None,
+            "BenchmarkCommonParameters": [{"EdgeType": ["ShiftPtr"]}],
+            "ForkParameters":
+                [
+                    {"PrefetchGlobalRead": [0]},
+                    {"KernelLanguage": ["Source"]},
+                    {"ThreadTile": [
+                        [ 2, 2 ]
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 8, 1 ]
+                        #[ 16, 8, 1]
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [1]},
+                    {"VectorWidth": [1]},
+                    {"FractionalLoad": [0]}
+                ],
+            "BenchmarkForkParameters": None,
+            "JoinParameters": None,
+            "BenchmarkJoinParameters": None,
+            "BenchmarkFinalParameters": None
+        }
+
+    @classmethod
+    def ProblemSizes(cls, conv):
         if conv.spatial:
             spatialIn = conv.spatial
         else:
@@ -23,105 +77,41 @@ class YamlBuilder:
             raise RuntimeError('Filter must be completely specified, not "%s"'%conv.config['Filter'])
 
         (problemSizes,problemStrides) = conv.makeProblem(False, 8, 32, 16, spatialIn)
-        outfile.write("           - Exact: [" + ', '.join([str(d) for d in problemSizes]) + "]\n")
 
-    @staticmethod
-    def write_conv_yaml(request, testYamlFile, conv, problemType, dataType):
-        yaml_builder_dir = os.path.join(request.fspath.dirname,"YamlBuilder")
-        with open(os.path.join(testYamlFile), 'w') as outfile:
-            YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir, "header.yml"))
-            outfile.write("  ConvolutionVsContraction: 1\n")
-            outfile.write("BenchmarkProblems:\n")
-            outfile.write("  -\n")
-            outfile.write("    -\n")
-            outfile.write("      OperationType: %s\n" % conv.convolutionType)
-            outfile.write("      DataType: %s\n" % dataType)
-            outfile.write("      ConvolutionConfig:\n")
-            for k in sorted(conv.config.keys()):
-                outfile.write("      - %s: %s\n" % (k, conv.config[k]))
+        return [{"ProblemSizes": [{"Exact": problemSizes}]}]
 
-            YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir,"solutions/sgemm_1.yml"))
-            YamlBuilder.write_problem_sizes(conv, outfile)
-
-    @staticmethod
-    def write_yaml(request, testYamlFile, conv, problemType, dataType):
-        yaml_builder_dir = os.path.join(request.fspath.dirname,"YamlBuilder")
-        with open(os.path.join(testYamlFile), 'w') as outfile:
-            YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir, "header.yml"))
-
-            outfile.write("BenchmarkProblems:\n")
-            outfile.write("  -\n")
-            outfile.write("    -\n")
-            outfile.write("      OperationType: TensorContraction\n")
-            outfile.write("      DataType: %s\n" % dataType)
-            for k in sorted(problemType.keys()):
-                outfile.write("      %s: %s\n" % (k,problemType[k]))
-
-            # TODO - could modify this to support other problem types or optimizations
-            YamlBuilder.catFile(outfile, os.path.join(yaml_builder_dir,"solutions/sgemm_1.yml"))
-            YamlBuilder.write_problem_sizes(conv, outfile)
-
-
-    @staticmethod
-    def run_tensile_client(request, conv, problemType, tensile_dir, tmp_path):
+    @classmethod
+    def ConvolutionVsContraction(cls, conv, dataType='s'):
         """
-        Run the tensile client with contraction yaml and compare vs CPU reference
+        Generates a YamlBuilder object that will run in
+        ConvolutionVsContraction mode.
         """
-        level = request.config.getoption("--level")
+        obj = cls.ConvolutionContraction(conv, {}, dataType)
+        obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
+        for problem in obj.doc["BenchmarkProblems"]:
+            problem[0]["OperationType"] = conv.convolutionType
+            problem[0]["ConvolutionConfig"] = [copy.deepcopy(conv.config)]
 
-        if level>=3:
-            YamlBuilder.run_convolution_vs_contraction(request,conv,problemType, tensile_dir, tmp_path)
+        return obj
 
-        if level>=1:
-            testYamlFile = os.path.join(str(tmp_path), request.node.name +".contraction.yaml")
-            YamlBuilder.write_yaml(request, testYamlFile, conv, problemType, dataType='s')
-            if level>=2:
-                Tensile.Tensile([Tensile.TensileTestPath(testYamlFile), str(tensile_dir)])
-
-    @staticmethod
-    def run_convolution_vs_contraction(request, conv, problemType, tensile_dir, tmp_path):
+    @classmethod
+    def ConvolutionContraction(cls, conv, problemType, dataType='s'):
         """
-        Run the tensile client with a convolution yaml and run the convolution-vs-contraction mode
+        Generates a YamlBuilder object that will run a convolution, in normal
+        contraction mode.
         """
-        testConvYamlFile = os.path.join(str(tmp_path), request.node.name +".conv.yaml")
-        YamlBuilder.write_conv_yaml(request, testConvYamlFile, conv, problemType, dataType='s')
-        Tensile.Tensile([Tensile.TensileTestPath(testConvYamlFile), str(tensile_dir)])
+        doc = cls.Header()
 
+        tensileProblemType = {
+            "OperationType": "TensorContraction",
+            "DataType": dataType
+        }
 
-# This header is used to build the shared client:
-    setupHeader="""
-GlobalParameters:
-  MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Release
-  EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
-  LibraryPrintDebug: False
-  NumElementsToValidate: -1
-  ValidationMaxToPrint: 4
-  ValidationPrintValids: False
-  KernelTime: True
-  DataInitTypeBeta : 0
-  SolutionSelectionAlg: 1
-  NewClient: 2
-  CpuThreads: 0
-BenchmarkProblems:
-  -
-    -
-      OperationType: TensorContraction
-      DataType: s
-      IndexAssignmentsA: [0, 2]
-      IndexAssignmentsB: [2, 1]
-      NumIndicesC: 2
-      UseBeta: False
-      UseInitialStrides: True
-    -
-      BenchmarkCommonParameters:
-      ForkParameters:
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [4, 4, 4]
-"""
+        tensileProblemType.update(problemType)
 
+        benchmarkParams = cls.SGEMM_1()
+        benchmarkParams["BenchmarkFinalParameters"] = cls.ProblemSizes(conv)
+
+        doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
+
+        return cls(doc)
