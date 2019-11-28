@@ -93,6 +93,12 @@ namespace Tensile
             static inline T getValue();
 
             template <typename T>
+            static bool isBadInput(T value);
+
+            template <typename T>
+            static bool isBadOutput(T value);
+
+            template <typename T>
             void initArray(InitMode mode, T * array, size_t elements)
             {
                 switch(mode)
@@ -248,8 +254,28 @@ namespace Tensile
         template <> inline Half  DataInitialization::getValue<Half,  InitMode::Zero>() { return static_cast<Half>(0); }
         template <> inline Half  DataInitialization::getValue<Half,  InitMode::One>()  { return static_cast<Half>(1); }
         template <> inline Half  DataInitialization::getValue<Half,  InitMode::Two>()  { return static_cast<Half>(2); }
-        template <> inline Half  DataInitialization::getValue<Half,  InitMode::NaN>()  { return std::numeric_limits<Half>::quiet_NaN(); }
-        template <> inline Half  DataInitialization::getValue<Half,  InitMode::Inf>()  { return std::numeric_limits<Half>::infinity(); }
+        template <> inline Half  DataInitialization::getValue<Half,  InitMode::NaN>()
+        {
+            union
+            {
+                uint16_t bits;
+                Half value;
+            } x;
+
+            x.bits = 0xFFFF;
+            return x.value;
+        }
+        template <> inline Half  DataInitialization::getValue<Half,  InitMode::Inf>()
+        {
+            union
+            {
+                uint16_t bits;
+                Half value;
+            } x;
+            
+            x.bits = 0x7C00;
+            return x.value;
+        }
 
         template <> inline Half  DataInitialization::getValue<Half, InitMode::Random>()
         {
@@ -272,6 +298,90 @@ namespace Tensile
 
         template <> inline BFloat16  DataInitialization::getValue<BFloat16,  InitMode::BadInput>()  { return getValue<BFloat16, InitMode::NaN>(); }
         template <> inline BFloat16  DataInitialization::getValue<BFloat16,  InitMode::BadOutput>()  { return getValue<BFloat16, InitMode::Inf>(); }
+
+        template <> inline bool DataInitialization::isBadInput<float>(float value)
+        {
+            return std::isnan(value);
+        }
+
+        template <> inline bool DataInitialization::isBadInput<double>(double value)
+        {
+            return std::isnan(value);
+        }
+
+        template <> inline bool DataInitialization::isBadInput<std::complex<float>>(
+            std::complex<float> value)
+        {
+            return std::isnan(value.real()) && std::isnan(value.imag());
+        }
+
+        template <> inline bool DataInitialization::isBadInput<std::complex<double>>(
+            std::complex<double> value)
+        {
+            return std::isnan(value.real()) && std::isnan(value.imag());
+        }
+
+        template <> inline bool DataInitialization::isBadInput<int32_t>(int32_t value)
+        {
+            return value == DataInitialization::getValue<int32_t, InitMode::BadInput>();
+        }
+
+        template <> inline bool DataInitialization::isBadInput<Int8x4>(Int8x4 value)
+        {
+            return value == DataInitialization::getValue<Int8x4, InitMode::BadInput>();
+        }
+
+        template <> inline bool DataInitialization::isBadInput<Half>(Half value)
+        {
+            return std::isnan(static_cast<float>(value));
+        }
+
+        template <> inline bool DataInitialization::isBadInput<BFloat16>(BFloat16 value)
+        {
+            return std::isnan(value);
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<float>(float value)
+        {
+            return std::isinf(value);
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<double>(double value)
+        {
+            return std::isinf(value);
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<std::complex<float>>(
+            std::complex<float> value)
+        {
+            return std::isinf(value.real()) && std::isinf(value.imag());
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<std::complex<double>>(
+            std::complex<double> value)
+        {
+            return std::isinf(value.real()) && std::isinf(value.imag());
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<int32_t>(int32_t value)
+        {
+            return value == DataInitialization::getValue<int32_t, InitMode::BadOutput>();
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<Int8x4>(Int8x4 value)
+        {
+            return value == DataInitialization::getValue<Int8x4, InitMode::BadOutput>();
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<Half>(Half value)
+        {
+            return std::isinf(static_cast<float>(value));
+        }
+
+        template <> inline bool DataInitialization::isBadOutput<BFloat16>(BFloat16 value)
+        {
+            return std::isinf(value);
+        }
     }
 }
 

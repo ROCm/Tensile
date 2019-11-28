@@ -203,6 +203,14 @@ namespace Tensile
                 m_cMaxElements = std::max(m_cMaxElements, problem.c().totalAllocatedElements());
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
+
+            if(m_boundsCheck)
+            {
+                m_aMaxElements  += 1024;
+                m_bMaxElements  += 1024;
+                m_cMaxElements  += 1024;
+                m_dMaxElements  += 1024;
+            }
         }
 
         DataInitialization::~DataInitialization()

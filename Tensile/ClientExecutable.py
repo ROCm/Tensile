@@ -48,24 +48,26 @@ class CMakeEnvironment:
     def builtPath(self, path, *paths):
         return os.path.join(self.buildDir, path, *paths)
 
-def clientExecutableEnvironment():
-    sourceDir = globalParameters["SourcePath"]
-    buildDir = Common.ensurePath(os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"]))
+def clientExecutableEnvironment(builddir=None):
+    sourcedir = globalParameters["SourcePath"]
+    if builddir is None:
+        builddir = os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"])
+    builddir = Common.ensurePath(builddir)
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_NEW_CLIENT': 'ON',
                'CMAKE_CXX_COMPILER': os.path.join('/opt/rocm/bin/', globalParameters['CxxCompiler'])}
 
-    return CMakeEnvironment(sourceDir, buildDir, **options)
+    return CMakeEnvironment(sourcedir, builddir, **options)
 
 
 buildEnv = None
 
-def getClientExecutable():
+def getClientExecutable(builddir=None):
     global buildEnv
 
     if buildEnv is None:
-        buildEnv = clientExecutableEnvironment()
+        buildEnv = clientExecutableEnvironment(builddir)
         buildEnv.generate()
         buildEnv.build()
 

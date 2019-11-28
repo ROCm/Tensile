@@ -474,13 +474,16 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("c-equal-d",                globalParameters["CEqualD"])
 
         if globalParameters["PrintTensorA"]:
-          param("print-tensor-a",         1);
+          param("print-tensor-a",         1)
         if globalParameters["PrintTensorB"]:
-          param("print-tensor-b",         1);
+          param("print-tensor-b",         1)
         if globalParameters["PrintTensorC"]:
-          param("print-tensor-c",         1);
+          param("print-tensor-c",         1)
         if globalParameters["PrintTensorD"]:
-          param("print-tensor-d",         1);
+          param("print-tensor-d",         1)
+
+        if globalParameters["BoundsCheck"]:
+          param("bounds-check", 1)
 
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])

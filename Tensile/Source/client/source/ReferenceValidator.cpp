@@ -26,6 +26,7 @@
 
 #include "ReferenceValidator.hpp"
 #include "ResultReporter.hpp"
+#include "DataInitializationTyped.hpp"
 
 #include "Reference.hpp"
 
@@ -44,6 +45,8 @@ namespace Tensile
             m_elementsToValidate = args["num-elements-to-validate"].as<int>();
             m_printValids = args["print-valids"].as<bool>();
             m_printMax = args["print-max"].as<int>();
+
+            m_boundsCheck = args["bounds-check"].as<bool>();
 
             m_printTensorA = args["print-tensor-a"].as<bool>();
             m_printTensorB = args["print-tensor-b"].as<bool>();
@@ -147,6 +150,25 @@ namespace Tensile
         {
         }
 
+        template <typename ManagedInputs>
+        bool ReferenceValidator::validateSolutionCast(std::shared_ptr<ContractionInputs> inputs)
+        {
+            auto const& typedReference = dynamic_cast<ManagedInputs const&>(*m_referenceInputs);
+            auto const& typedResult    = dynamic_cast<ManagedInputs const&>(*inputs);
+
+            auto rv =  validateTyped(typedReference, typedResult);
+
+            if (0 and inputs == m_dataInit->cpuConvInputs()) {
+                m_reporter->logTensor(LogLevel::Verbose, "Aval-conv", typedResult.a, m_problem.a());
+                m_reporter->logTensor(LogLevel::Verbose, "Bval-conv", typedResult.b, m_problem.b());
+                m_reporter->logTensor(LogLevel::Verbose, "Dval-conv", typedResult.d, m_problem.d());
+                m_reporter->logTensor(LogLevel::Verbose, "Bval-contraction", typedReference.b, m_problem.b());
+                m_reporter->logTensor(LogLevel::Verbose, "Dval-contraction", typedReference.d, m_problem.d());
+            }
+
+            return rv;
+        }
+
         bool ReferenceValidator::validateSolution(std::shared_ptr<ContractionInputs> inputs)
         {
             if(m_problem.a().dataType() == DataType::Float
@@ -154,80 +176,57 @@ namespace Tensile
             && m_problem.c().dataType() == DataType::Float
             && m_problem.d().dataType() == DataType::Float)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<float> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<float> const&>(*inputs);
-                auto rv= validateTyped(typedReference, typedResult);
-                if (0 and inputs == m_dataInit->cpuConvInputs()) {
-                  m_reporter->logTensor(LogLevel::Verbose, "Aval-conv", typedResult.a, m_problem.a());
-                  m_reporter->logTensor(LogLevel::Verbose, "Bval-conv", typedResult.b, m_problem.b());
-                  m_reporter->logTensor(LogLevel::Verbose, "Dval-conv", typedResult.d, m_problem.d());
-                  m_reporter->logTensor(LogLevel::Verbose, "Bval-contraction", typedReference.b, m_problem.b());
-                  m_reporter->logTensor(LogLevel::Verbose, "Dval-contraction", typedReference.d, m_problem.d());
-                }
-                return rv;
+                return validateSolutionCast<ManagedContractionInputs<float>>(inputs);
             }
             else if(m_problem.a().dataType() == DataType::Double
                  && m_problem.b().dataType() == DataType::Double
                  && m_problem.c().dataType() == DataType::Double
                  && m_problem.d().dataType() == DataType::Double)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<double> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<double> const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedContractionInputs<double>>(inputs);
             }
             else if(m_problem.a().dataType() == DataType::ComplexFloat
                  && m_problem.b().dataType() == DataType::ComplexFloat
                  && m_problem.c().dataType() == DataType::ComplexFloat
                  && m_problem.d().dataType() == DataType::ComplexFloat)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedContractionInputs<std::complex<float>>>(inputs);
             }
             else if(m_problem.a().dataType() == DataType::ComplexDouble
                  && m_problem.b().dataType() == DataType::ComplexDouble
                  && m_problem.c().dataType() == DataType::ComplexDouble
                  && m_problem.d().dataType() == DataType::ComplexDouble)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedContractionInputs<std::complex<double>>>(inputs);
             }
             else if(m_problem.a().dataType() == DataType::Half
                  && m_problem.b().dataType() == DataType::Half
                  && m_problem.c().dataType() == DataType::Half
                  && m_problem.d().dataType() == DataType::Half)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<Half> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<Half> const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedContractionInputs<Half>>(inputs);
             }
             else if(m_problem.a().dataType() == DataType::Int8x4
                  && m_problem.b().dataType() == DataType::Int8x4
                  && m_problem.c().dataType() == DataType::Int32
                  && m_problem.d().dataType() == DataType::Int32)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>
+                                           (inputs);
             }
             else if(m_problem.a().dataType() == DataType::Int32
                  && m_problem.b().dataType() == DataType::Int32
                  && m_problem.c().dataType() == DataType::Int32
                  && m_problem.d().dataType() == DataType::Int32)
             {
-                auto const& typedReference = dynamic_cast<TypedContractionInputs<int32_t> const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<TypedContractionInputs<int32_t> const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedContractionInputs<int32_t>>(inputs);
             }
             else if(m_problem.a().dataType() == DataType::BFloat16
                  && m_problem.b().dataType() == DataType::BFloat16
                  && m_problem.c().dataType() == DataType::BFloat16
                  && m_problem.d().dataType() == DataType::BFloat16)
             {
-                auto const& typedReference = dynamic_cast<BFloat16ContractionInputs const&>(*m_referenceInputs);
-                auto const& typedResult = dynamic_cast<BFloat16ContractionInputs const&>(*inputs);
-                return validateTyped(typedReference, typedResult);
+                return validateSolutionCast<ManagedBFloat16ContractionInputs>(inputs);
             }
             else
             {
@@ -246,8 +245,8 @@ namespace Tensile
             }
         }
 
-        template <typename TypedInputs>
-        bool ReferenceValidator::validateTyped(TypedInputs const& reference, TypedInputs const& result)
+        template <typename ManagedInputs>
+        bool ReferenceValidator::validateTyped(ManagedInputs const& reference, ManagedInputs const& result)
         {
             bool rv = false;
             if(!m_enabled)
@@ -262,8 +261,8 @@ namespace Tensile
             return rv;
         }
 
-        template <typename TypedInputs>
-        void ReferenceValidator::printTensorsTyped(TypedInputs const& reference, TypedInputs const& result)
+        template <typename ManagedInputs>
+        void ReferenceValidator::printTensorsTyped(ManagedInputs const& reference, ManagedInputs const& result)
         {
             size_t requiredBufferSize = 0;
 
@@ -279,32 +278,36 @@ namespace Tensile
 
             if(m_printTensorA)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.a, m_problem.a().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-                auto const* buffer = reinterpret_cast<typename TypedInputs::AType const*>(m_cpuResultBuffer.data());
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.a,
+                                        m_problem.a().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+                auto const* buffer = reinterpret_cast<typename ManagedInputs::AType const*>(m_cpuResultBuffer.data());
 
                 m_reporter->logTensor(LogLevel::Verbose, "A", buffer, m_problem.a());
             }
 
             if(m_printTensorB)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.b, m_problem.b().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-                auto const* buffer = reinterpret_cast<typename TypedInputs::BType const*>(m_cpuResultBuffer.data());
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.b,
+                                        m_problem.b().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+                auto const* buffer = reinterpret_cast<typename ManagedInputs::BType const*>(m_cpuResultBuffer.data());
 
                 m_reporter->logTensor(LogLevel::Verbose, "B", buffer, m_problem.b());
             }
 
             if(m_printTensorC)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.c, m_problem.c().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-                auto const* buffer = reinterpret_cast<typename TypedInputs::CType const*>(m_cpuResultBuffer.data());
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.c,
+                                        m_problem.c().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+                auto const* buffer = reinterpret_cast<typename ManagedInputs::CType const*>(m_cpuResultBuffer.data());
 
                 m_reporter->logTensor(LogLevel::Verbose, "C", buffer, m_problem.c());
             }
 
             if(m_printTensorD)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.d, m_problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
-                auto const* buffer = reinterpret_cast<typename TypedInputs::DType const*>(m_cpuResultBuffer.data());
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.d,
+                                        m_problem.d().totalAllocatedBytes(), hipMemcpyDeviceToHost));
+                auto const* buffer = reinterpret_cast<typename ManagedInputs::DType const*>(m_cpuResultBuffer.data());
 
                 m_reporter->logTensor(LogLevel::Verbose, "D", buffer, m_problem.d());
             }
@@ -314,23 +317,68 @@ namespace Tensile
             }
         }
 
-        template <typename TypedInputs>
-        bool ReferenceValidator::checkResultsTyped(TypedInputs const& reference, TypedInputs const& result)
+        template <typename ManagedInputs>
+        bool ReferenceValidator::checkResultsTyped(ManagedInputs const& reference, ManagedInputs const& result)
         {
+            using Type = typename ManagedInputs::DType;
             auto const& tensor = m_problem.d();
-            if(m_cpuResultBuffer.size() < tensor.totalAllocatedBytes())
-                m_cpuResultBuffer.resize(tensor.totalAllocatedBytes());
 
-            HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(), result.d, tensor.totalAllocatedBytes(), hipMemcpyDeviceToHost));
+            size_t elementsToCopy = tensor.totalAllocatedElements();
+            if(m_boundsCheck)
+                elementsToCopy = result.dElements;
+            size_t bytesToCopy = elementsToCopy * sizeof(Type);
 
-            using Type = typename TypedInputs::DType;
+            if(m_cpuResultBuffer.size() < bytesToCopy)
+                m_cpuResultBuffer.resize(bytesToCopy);
+
+            HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+                                    result.managedD.get(),
+                                    bytesToCopy, hipMemcpyDeviceToHost));
+
+            auto elementsBeforeData = result.d - result.managedD.get();
+            auto elementsAfterData = elementsToCopy - (tensor.totalAllocatedElements() + elementsBeforeData);
+
+            // If there was extra data allocated before the tensor to do bounds
+            // checking, resultBuffer is the whole allocation, while resultData
+            // points directly to the result.
             Type const* resultBuffer = reinterpret_cast<Type const*>(m_cpuResultBuffer.data());
-
+            Type const* resultData = resultBuffer + elementsBeforeData;
+            Type const* resultAfterData = resultData + tensor.totalAllocatedElements();
+            
             int printed = 0;
 
             bool doPrint = m_printMax < 0 || printed < m_printMax;
 
             size_t errors = 0;
+
+            size_t boundsCheckElements = 0;
+
+            bool printedPreBuffer = false;
+            bool printedInsideBuffer = false;
+            bool printedPostBuffer = false;
+
+            for(ptrdiff_t i = 0; i < elementsBeforeData; i++)
+            {
+                boundsCheckElements++;
+                if(!DataInitialization::isBadOutput(resultBuffer[i]))
+                {
+                    errors++;
+                    if(doPrint)
+                    {
+                        if(!printedPreBuffer)
+                        {
+                            std::cout << "Value written before output buffer:" << std::endl;
+                            printedPreBuffer = true;
+                        }
+                         
+                        std::cout << "Index " << i << " / " << elementsBeforeData
+                                  << ": found " << resultBuffer[i]
+                                  << " instead of "
+                                  << DataInitialization::getValue<Type, InitMode::BadOutput>()
+                                  << std::endl;
+                    }
+                }
+            }
 
             auto compareValues =
             [&](Type referenceValue, Type resultValue, size_t elemIndex, size_t elemNumber)
@@ -368,17 +416,50 @@ namespace Tensile
                 std::vector<size_t> coord(tensor.dimensions());
                 size_t outerCount = CoordCount(tensor.sizes().begin()+1, tensor.sizes().end());
 
+                size_t prevBaseIndex = 0;
+                const size_t innerDimSize = tensor.sizes()[0];
+
                 for(size_t i = 0; i < outerCount; i++)
                 {
                     CoordNumbered(i, coord.begin()+1, coord.end(), tensor.sizes().begin()+1, tensor.sizes().end());
                     size_t baseElemIndex = tensor.index(coord);
 
-                    for(size_t j = 0; j < tensor.sizes()[0]; j++)
+                    if(m_boundsCheck
+                    && baseElemIndex != 0
+                    && baseElemIndex != prevBaseIndex + innerDimSize)
+                    {
+                        for(auto innerIndex = prevBaseIndex + innerDimSize; innerIndex < baseElemIndex; innerIndex++)
+                        {
+                            boundsCheckElements++;
+                            if(!DataInitialization::isBadOutput(resultData[innerIndex]))
+                            {
+                                errors++;
+                                if(doPrint)
+                                {
+                                    if(!printedInsideBuffer)
+                                    {
+                                        std::cout << "Value written outside tensor, inside output buffer:" << std::endl;
+                                        printedInsideBuffer = true;
+                                    }
+                                    
+                                    std::cout << "Index " << innerIndex << " / " << baseElemIndex
+                                            << ": found " << resultData[i]
+                                            << " instead of "
+                                            << DataInitialization::getValue<Type, InitMode::BadOutput>()
+                                            << std::endl;
+                                }
+                            }
+                        }
+                    }
+
+                    prevBaseIndex = baseElemIndex;
+
+                    for(size_t j = 0; j < innerDimSize; j++)
                     {
                         size_t elemIndex = baseElemIndex + j;
 
                         Type referenceValue = reference.d[elemIndex];
-                        Type resultValue = resultBuffer[elemIndex];
+                        Type resultValue = resultData[elemIndex];
 
                         compareValues(referenceValue, resultValue, elemIndex, (i*tensor.sizes()[0]) + j);
                     }
@@ -393,11 +474,38 @@ namespace Tensile
                     size_t elemIndex = tensor.index(coord);
 
                     Type referenceValue = reference.d[elemIndex];
-                    Type resultValue = resultBuffer[elemIndex];
+                    Type resultValue = resultData[elemIndex];
 
                     compareValues(referenceValue, resultValue, elemIndex, elemNumber);
                 }
             }
+
+            for(ptrdiff_t i = 0; i < elementsAfterData; i++)
+            {
+                boundsCheckElements++;
+                if(!DataInitialization::isBadOutput(resultAfterData[i]))
+                {
+                    errors++;
+                    if(doPrint)
+                    {
+                        if(!printedPostBuffer)
+                        {
+                            std::cout << "Value written after output buffer:" << std::endl;
+                            printedPreBuffer = true;
+                        }
+                         
+                        std::cout << "Index " << i << " / " << elementsAfterData
+                                  << ": found " << resultAfterData[i]
+                                  << " instead of "
+                                  << DataInitialization::getValue<Type, InitMode::BadOutput>()
+                                  << std::endl;
+                    }
+                }
+            }
+
+            if(boundsCheckElements > 0)
+                std::cout << "Performed bounds check on " << boundsCheckElements
+                          << " elements" << std::endl;
 
             if(errors > 0)
             {
