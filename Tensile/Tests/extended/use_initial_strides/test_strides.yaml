@@ -11,7 +11,7 @@ GlobalParameters:
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
-  MergeFiles: True
+  MergeFiles: False
   KernelTime: True
   LibraryPrintDebug: 0
   CpuThreads: 0

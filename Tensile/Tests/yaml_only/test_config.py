@@ -48,13 +48,19 @@ def configMarks(filepath, rootDir):
     components = relpath.split(os.path.sep)
 
     # First part of directory - nightly, pre-checkin, etc.
-    marks = [markNamed(components[0])]
+    marks = list([markNamed(component) for component in components[:-1]])
 
-    if 'xfail' in relpath:
+    if 'xfail' in relpath or 'wip' in relpath:
         marks.append(pytest.mark.xfail)
+    if 'disabled' in relpath:
+        marks.append(pytest.mark.skip)
 
-    with open(filepath) as f:
-        doc = yaml.load(f, yaml.SafeLoader)
+    try:
+        with open(filepath) as f:
+            doc = yaml.load(f, yaml.SafeLoader)
+    except yaml.parser.ParserError:
+        marks.append(pytest.mark.syntax_error)
+        return marks
 
     if "TestParameters" in doc:
         if "marks" in doc["TestParameters"]:
@@ -67,6 +73,14 @@ def configMarks(filepath, rootDir):
             validate = False
         if doc["GlobalParameters"]['NumElementsToValidate'] == -1:
             validateAll = True
+    except KeyError:
+        pass
+
+    try:
+        if doc["GlobalParameters"]["NewClient"] == 2:
+            marks.append(markNamed("NewClientOnly"))
+        if doc["GlobalParameters"]["NewClient"] == 0:
+            marks.append(markNamed("OldClientOnly"))
     except KeyError:
         pass
 
@@ -100,17 +114,12 @@ def findConfigs(rootDir=None):
     """
     Walks rootDir (defaults to trying to find Tensile/Tests) and returns a
     list of test parameters, one for each YAML file.
-
-    Ignores directories called "disabled".
     """
     if rootDir ==  None:
         rootDir = os.path.dirname(os.path.dirname(__file__))
     
     params = []
     for (dirpath, dirnames, filenames) in os.walk(rootDir):
-        if 'disabled' in dirnames:
-            dirnames.remove('disabled')
-
         for filename in filenames:
             if filename.endswith('.yaml'):
                 filepath = os.path.join(rootDir, dirpath, filename)

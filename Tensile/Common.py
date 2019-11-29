@@ -156,6 +156,7 @@ globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
 globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
+globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -1337,6 +1338,13 @@ def versionIsCompatible(queryVersionString):
     if int(qStep) > int(tStep):
       return False
   return True
+
+def ClientExecutionLock():
+  if not globalParameters["ClientExecutionLockPath"]:
+    return open(os.devnull)
+
+  import filelock
+  return filelock.FileLock(globalParameters["ClientExecutionLockPath"])
 
 # convert python list to C++ initializer style syntax
 def listToInitializer(l):

@@ -21,8 +21,12 @@ def builddir(pytestconfig, tmpdir_factory):
     return str(tmpdir_factory.mktemp("0_Build"))
 
 @pytest.fixture
-def tensile_args(pytestconfig, builddir):
+def tensile_args(pytestconfig, builddir, worker_id, tmp_path_factory):
     rv = []
+    if worker_id:
+        lockPath = tmp_path_factory.getbasetemp().parent / "client_execution.lock"
+        rv += ["--client-lock", str(lockPath)]
+
     extraOptions = pytestconfig.getoption("--tensile-options")
     if extraOptions is not None:
         rv += extraOptions.split(",")

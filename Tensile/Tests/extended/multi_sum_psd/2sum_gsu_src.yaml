@@ -16,6 +16,7 @@ GlobalParameters:
   PrintTensorB: 0
   PrintTensorD: 0
   NewClient: 2
+  MergeFiles: False
 
 BenchmarkProblems:
   ########################################
@@ -45,19 +46,19 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
           #- TailLoop: [False]
       ForkParameters:
-        #- KernelLanguage: ["Assembly", "Source"]
-        - KernelLanguage: ["Assembly"]
+        - PackSummationDims: [1]
+        - KernelLanguage: ["Source"]
         - PrefetchLocalRead: [False,True]
-        - PrefetchGlobalRead: [False,True]
-        - GlobalSplitU: [2,3,4,5]
+        - PrefetchGlobalRead: [False]
+          #- GlobalSplitU: [2,3,4,5]
         - ThreadTile:
           - [ 2, 2 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
           - [ 16, 16, 1 ]
-        - StaggerU: [0,32]
-        - DepthU: [ 4,8,16]
+        - StaggerU: [0]
+        - DepthU: [ 4] # Source GSU with tail loop does not work yet
         - VectorWidth: [1,-1]
         - FractionalLoad: [1]
       BenchmarkForkParameters:

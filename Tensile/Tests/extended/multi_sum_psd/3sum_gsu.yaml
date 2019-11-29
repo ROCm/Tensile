@@ -1,3 +1,6 @@
+
+TestParameters:
+  marks: [xfail]
 GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0

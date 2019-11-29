@@ -19,12 +19,12 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import YAMLIO
 
 import os
-from subprocess import Popen
+import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
 
@@ -116,41 +116,46 @@ def main( config ):
   if globalParameters["ForceRedoLibraryClient"]:
     rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
         ignore_errors=True)
-  pushWorkingPath("build")
 
-  # write runScript
-  path = globalParameters["WorkingPath"]
   forBenchmark = False
   enableTileSelection = False
-  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
-
-  # run runScript
-  process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-  process.communicate()
-  if process.returncode:
-    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-  popWorkingPath() # build
+  returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection)
 
   popWorkingPath() # LibraryClient
 
-  return process.returncode
+  return returncode
 
 
 ################################################################################
 # Write Run Script
 ################################################################################
-def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
-  # create run.bat or run.sh which builds and runs
-  runScriptName = os.path.join(path, \
-    "run.%s" % ("bat" if os.name == "nt" else "sh") )
-  runScriptFile = open(runScriptName, "w")
-  echoLine = "@echo." if os.name == "nt" else "echo"
-  if os.name != "nt":
-    runScriptFile.write("#!/bin/bash\n\n")
+
+def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
+  # write runScript
+
+  pushWorkingPath("build")
+  path = globalParameters["WorkingPath"]
+  buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+
+  subprocess.check_call(buildScriptName, cwd=path)
+
+  # run runScript
+  with ClientExecutionLock():
+    process = subprocess.Popen(runScriptName, cwd=path)
+    process.communicate()
+
+  if process.returncode:
+    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+  popWorkingPath() # build
+  return process.returncode
+  
+
+def getBuildOldClientScript(libraryLogicPath, forBenchmark):
+  import io
+  runScriptFile = io.StringIO()
   q = "" if os.name == "nt" else "\""
-
-  runScriptFile.write("set -ex\n")
-
+  echoLine = "@echo." if os.name == "nt" else "echo"
   if globalParameters["NewClient"] < 2:
     runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
         % (echoLine, q, HR, q, q, q, q, HR, q))
@@ -194,6 +199,34 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write("cmake --build . --config %s%s\n" \
         % (globalParameters["CMakeBuildType"], " -- -j 8" \
         if os.name != "nt" else "") )
+
+  return runScriptFile.getvalue()
+
+def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+  filename = os.path.join(path, \
+    "build.%s" % ("bat" if os.name == "nt" else "sh") )
+  with open(filename, "w") as file:
+    file.write("#!/bin/bash\n\n")
+    file.write("set -ex\n")
+    file.write(getBuildOldClientScript(libraryLogicPath, forBenchmark))
+
+  if os.name != "nt":
+    os.chmod(filename, 0o777)
+  return filename
+
+
+def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+  # create run.bat or run.sh which builds and runs
+  runScriptName = os.path.join(path, \
+    "run.%s" % ("bat" if os.name == "nt" else "sh") )
+  runScriptFile = open(runScriptName, "w")
+  echoLine = "@echo." if os.name == "nt" else "echo"
+  if os.name != "nt":
+    runScriptFile.write("#!/bin/bash\n\n")
+  q = "" if os.name == "nt" else "\""
+
+  runScriptFile.write("set -ex\n")
+
 
   if forBenchmark:
     if os.name == "nt":
