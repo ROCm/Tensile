@@ -24,7 +24,6 @@ import filecmp
 import itertools
 import os
 import shutil
-import subprocess
 import sys
 import time
 
@@ -36,7 +35,7 @@ from . import YAMLIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess
 from .ClientWriter import runClient, writeClientParameters, writeClientConfig
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar, ClientExecutionLock
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType

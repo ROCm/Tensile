@@ -43,11 +43,6 @@ class CMakeEnvironment:
             subprocess.check_call(args, cwd=Common.ensurePath(self.buildDir))
 
     def build(self):
-        lock = open(os.devnull)
-        if globalParameters["ClientExecutionLockPath"]:
-            import filelock
-            lock = filelock.FileLock(globalParameters["ClientExecutionLockPath"])
-
         args = ['make', '-j']
         Common.print2(' '.join(args))
         with Common.ClientExecutionLock():
