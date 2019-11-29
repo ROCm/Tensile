@@ -35,53 +35,6 @@ using namespace Tensile::Client;
 
 namespace po = boost::program_options;
 
-#if 0
-template <typename T>
-struct BadValuesTest
-{
-    //static void Run()
-    //{
-    //    EXPECT_EQ(true, false);
-    //}
-};
-
-template <typename T>
-struct BadValuesTest<typename std::enable_if<std::is_floating_point<T>::value, T>::type>
-{
-    static void Run()
-    {
-        EXPECT_EQ(true, true);
-    }
-};
-
-template <typename T>
-void RunBadValuesTest(typename std::enable_if<std::is_floating_point<T>::value, T> x)
-{
-    T value = 1.0;
-    EXPECT_EQ(DataInitialization::isBadInput(value), false);
-    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
-
-    value = DataInitialization::getValue<float>(InitMode::BadInput);
-    EXPECT_EQ(std::isnan(value), true);
-    EXPECT_EQ(DataInitialization::isBadInput(value), true);
-    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
-
-    value = DataInitialization::getValue<float>(InitMode::BadOutput);
-    EXPECT_EQ(std::isnan(value), true);
-    EXPECT_EQ(DataInitialization::isBadInput(value), false);
-    EXPECT_EQ(DataInitialization::isBadOutput(value), true);
-}
-
-template <typename T>
-void RunBadValuesTest(typename std::enable_if<std::is_integral<T>::value, T> x)
-{
-    EXPECT_EQ(std::numeric_limits<T>::max(),
-              DataInitialization::getValue<int32_t>(InitMode::BadInput));
-    EXPECT_EQ(std::numeric_limits<T>::min(),
-              DataInitialization::getValue<int32_t>(InitMode::BadOutput));
-}
-#endif
-
 template <typename TypedInputs>
 class DataInitializationTest: public ::testing::Test
 {
@@ -182,12 +135,6 @@ public:
             EXPECT_EQ(gpuD[i], zero) << i;
     }
 
-    //void RunBadValuesTest()
-    //{
-    //    //BadValuesTest<AType>::Run();
-    //    ::RunBadValuesTest<AType>(AType());
-    //}
-    
 };
 
 using InputTypes = ::testing::Types<
@@ -199,9 +146,6 @@ using InputTypes = ::testing::Types<
     TypedContractionInputs<std::complex<double>>,
     TypedContractionInputs<Int8x4, Int8x4, int32_t>,
     TypedContractionInputs<int32_t>>; 
-
-//using InputTypes = ::testing::Types<
-//    TypedContractionInputs<float>>; 
 
 TYPED_TEST_SUITE(DataInitializationTest, InputTypes);
 
@@ -250,11 +194,6 @@ TYPED_TEST(DataInitializationTest, Contamination_true_true_true)
     this->RunDataContaminationTest(true, true, true);
 }
 
-//TYPED_TEST(DataInitializationTest, BadValues)
-//{
-//    this->RunBadValuesTest();
-//}
-
 template <typename T>
 struct DataInitializationTestFloating: public ::testing::Test
 {
@@ -296,65 +235,6 @@ TYPED_TEST(DataInitializationTestFloating, Simple)
     EXPECT_EQ(DataInitialization::isBadInput(value), false) << value;
     EXPECT_EQ(DataInitialization::isBadOutput(value), true) << value;
 }
-
-#if 0
-TEST(DataInitializationTest, BadValues_floating)
-{
-    TestBadValues_Float<float>();
-    TestBadValues_Float<double>();
-    TestBadValues_Float<Half, float>();
-    TestBadValues_Float<BFloat16>();
-
-    {
-        float value = 1.0f;
-        EXPECT_EQ(DataInitialization::isBadInput(value), false);
-        EXPECT_EQ(DataInitialization::isBadOutput(value), false);
-
-        value = DataInitialization::getValue<float>(InitMode::BadInput);
-        EXPECT_EQ(std::isnan(value), true);
-        EXPECT_EQ(DataInitialization::isBadInput(value), true);
-        EXPECT_EQ(DataInitialization::isBadOutput(value), false);
-
-        value = DataInitialization::getValue<float>(InitMode::BadOutput);
-        EXPECT_EQ(std::isnan(value), true);
-        EXPECT_EQ(DataInitialization::isBadInput(value), false);
-        EXPECT_EQ(DataInitialization::isBadOutput(value), true);
-    }
-
-    EXPECT_EQ(std::isnan(DataInitialization::getValue<double>(InitMode::BadInput)), true);
-    EXPECT_EQ(std::isinf(DataInitialization::getValue<double>(InitMode::BadOutput)), true);
-
-    {
-        auto value = DataInitialization::getValue<std::complex<float>>(InitMode::BadInput);
-        EXPECT_EQ(std::isnan(value.real()), true);
-        EXPECT_EQ(std::isnan(value.imag()), true);
-
-        value = DataInitialization::getValue<std::complex<float>>(InitMode::BadOutput);
-        EXPECT_EQ(std::isinf(value.real()), true);
-        EXPECT_EQ(std::isinf(value.imag()), true);
-    }
-
-    {
-        auto value = DataInitialization::getValue<std::complex<double>>(InitMode::BadInput);
-        EXPECT_EQ(std::isnan(value.real()), true);
-        EXPECT_EQ(std::isnan(value.imag()), true);
-
-        value = DataInitialization::getValue<std::complex<double>>(InitMode::BadOutput);
-        EXPECT_EQ(std::isinf(value.real()), true);
-        EXPECT_EQ(std::isinf(value.imag()), true);
-    }
-
-    {
-        auto value = static_cast<float>(DataInitialization::getValue<Half>(InitMode::BadInput));
-        EXPECT_EQ(std::isnan(value), true);
-
-        value = static_cast<float>(DataInitialization::getValue<Half>(InitMode::BadOutput));
-        EXPECT_EQ(std::isinf(value), true);
-    }
-
-    EXPECT_EQ(std::isnan(DataInitialization::getValue<BFloat16>(InitMode::BadInput)), true);
-}
-#endif
 
 template <typename T>
 struct DataInitializationTestComplex: public ::testing::Test

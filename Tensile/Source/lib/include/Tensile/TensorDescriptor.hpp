@@ -271,7 +271,7 @@ namespace Tensile
         if(desc.sizes()[0] > 0)
             stream << data[0];
 
-        for(size_t i = 0; i < desc.sizes()[0]; i++)
+        for(size_t i = 1; i < desc.sizes()[0]; i++)
             stream << " " << data[i];
 
         if(decorated)
@@ -324,7 +324,7 @@ namespace Tensile
                 if(sizes[0] > 0)
                     stream << localPtr[0];
 
-                for(coord[0] = 0; coord[0] < sizes[0]; coord[0]++)
+                for(coord[0] = 1; coord[0] < sizes[0]; coord[0]++)
                 {
                     stream << " " << localPtr[coord[0] * stride0];
                 }
@@ -335,92 +335,6 @@ namespace Tensile
                 stream << std::endl << "]" << std::endl;
             }
         }
-
-#if 0
-        const size_t maxDims=10;
-        if(desc.dimensions() > maxDims)
-            throw std::runtime_error("Fix this function to work with dimensions > 8");
-        // Use techniques from Reference.cpp with CoordCount to increase dimension support
-
-        std::vector<size_t> is(maxDims,0);
-        std::vector<size_t> sizes = desc.sizes();
-        sizes.resize(maxDims,1);
-
-        stream << "Tensor(";
-        for (auto s : desc.sizes())
-            stream << s << ", ";
-        stream  << " data_ptr: " << data;
-
-        stream << std::endl;
-
-        for(is[9] = 0; is[9] < sizes[9]; is[9]++)
-        for(is[8] = 0; is[8] < sizes[8]; is[8]++)
-        for(is[7] = 0; is[7] < sizes[7]; is[7]++)
-        for(is[6] = 0; is[6] < sizes[6]; is[6]++)
-        for(is[5] = 0; is[5] < sizes[5]; is[5]++)
-        for(is[4] = 0; is[4] < sizes[4]; is[4]++)
-        for(is[3] = 0; is[3] < sizes[3]; is[3]++)
-        for(is[2] = 0; is[2] < sizes[2]; is[2]++)
-        {
-            for(is[1] = 0; is[1] < sizes[1]; is[1]++)
-            {
-                int printBrackets=0;
-                if (decorated)
-                {
-                    size_t i;
-                    for (i=1;i<desc.dimensions();i++)
-                    {
-                      if (is[i]!=0)
-                        break;
-                    }
-                    for (size_t bi=0;bi<desc.dimensions()-i;bi++)
-                        stream << " ";
-                    for (size_t bi=0;bi<i;bi++)
-                        stream << "[";
-                }
-
-                for(is[0] = 0; is[0] < sizes[0]; is[0]++)
-                {
-                    std::vector<size_t> validIs(is.begin(), is.begin()+desc.dimensions());
-                    size_t idx = desc.index(validIs);
-                    if (Debug::Instance().printTensorModeHex())
-                    {
-                        if (sizeof(T) == 2)
-                          stream << "0x" << std::setfill('0') << std::setw(4)
-                                    << std::hex << *(uint16_t*)(&data[idx]) << std::dec;
-                        else if (sizeof(T) == 4)
-                          stream << "0x" << std::setfill('0') << std::setw(8)
-                                    << std::hex << *(uint32_t*)(&data[idx]) << std::dec;
-                        else if (sizeof(T) == 8)
-                          stream << "0x" << std::setfill('0') << std::setw(16)
-                                    << std::hex << *(uint64_t*)(&data[idx]) << std::dec;
-                        stream << " ";
-                    }
-                    else
-                        stream << data[idx] << " ";
-                }
-                if (decorated)
-                {
-                    bool nl=false;
-                    size_t i;
-                    for (i=1;i<desc.dimensions();i++)
-                    {
-                      if (is[i]==sizes[i]-1)
-                      {
-                          nl = true;
-                          stream << "]";
-                      }
-                      else
-                          break;
-                    }
-                    stream << "]" << std::endl;
-                    if (nl)
-                      stream << std::endl;
-                }
-            }
-            //stream << "]" << std::endl;
-        }
-#endif
 
     }
 

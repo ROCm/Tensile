@@ -443,7 +443,7 @@ namespace Tensile
                                     }
                                     
                                     std::cout << "Index " << innerIndex << " / " << baseElemIndex
-                                            << ": found " << resultData[i]
+                                            << ": found " << resultData[innerIndex]
                                             << " instead of "
                                             << DataInitialization::getValue<Type, InitMode::BadOutput>()
                                             << std::endl;
