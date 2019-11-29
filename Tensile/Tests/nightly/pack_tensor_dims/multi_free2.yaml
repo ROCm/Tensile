@@ -20,6 +20,7 @@ GlobalParameters:
   KernelTime: True
   LibraryPrintDebug: 0
   ClientArgs: "--stride_b 0"
+  NewClient: 2
   CpuThreads: 0
 
 BenchmarkProblems:
@@ -36,7 +37,6 @@ BenchmarkProblems:
       SetConstStrideA : []
       SetConstStrideB : [[3, 0]]
       UseBeta : False
-      UseInitialStrides : False
 
     -
       InitialSolutionParameters:
@@ -44,7 +44,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        #- KernelLanguage: ["Source","Assembly"]
+        - KernelLanguage: ["Source","Assembly"]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:

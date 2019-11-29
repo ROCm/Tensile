@@ -514,6 +514,7 @@ struct ProblemProperties {
 
     bool allBelow1 = true;
     bool anyBelow1 = false;
+    bool anyBelow4 = false;
     for (int si=0; si!=pdims.numSizes(); si++) {
       if (!props->isBatchIdx(si)) {
         auto size = pdims.sizes(si);
@@ -521,11 +522,13 @@ struct ProblemProperties {
           allBelow1 = false;
         if (size == 1)
           anyBelow1 = true;
+        else if(size < 4)
+          anyBelow4 = true;
       }
     }
     if (allBelow1)
       _approxSize = 1; // really small
-    else if (anyBelow1)
+    else if (anyBelow1 || anyBelow4)
       _approxSize = 2; // one dim not big enough
     else
       _approxSize = 99; // big enough
@@ -577,6 +580,7 @@ struct ProblemProperties {
                 ((this->_allBatchBStridesAreZero) >= solutionRequirements._allBatchBStridesAreZero)
                 ;
 
+#if 0
       if(this->_db & 0x10)
       {
           if(!rv)
@@ -602,6 +606,7 @@ struct ProblemProperties {
               std::cout << "Satisfied asserts!" << std::endl;
           }
       }
+#endif
 
       return rv;
   }

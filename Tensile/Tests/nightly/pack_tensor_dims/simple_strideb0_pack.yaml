@@ -23,8 +23,7 @@ GlobalParameters:
   #PrintTensorB: 1
   #PrintTensorD: 1
   PrintSolutionRejectionReason: 1
-  ClientArgs: "--stride_b 0"
-
+  NewClient: 2
 
 BenchmarkProblems:
 

@@ -28,6 +28,8 @@ from subprocess import Popen
 from shutil import copy as shutil_copy
 from shutil import rmtree
 
+from .Contractions import FreeIndex
+
 
 ################################################################################
 # Main
@@ -102,8 +104,9 @@ def main( config ):
   problemSizes = None
   stepName = None
   solutionSummationSizes = None
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions, solutionSummationSizes, stepBaseDir)
+  if logicFiles:
+      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+          functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -316,20 +319,57 @@ def checkConstStride(constStrideMap, keyIdx):
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
 
-def problemSizeParams(solution, problemSize):
-    numIndices = len(solution.problemType.indices)
+def normalizeConvolution(conv, problemSize, astrides):
+    (refSize,refAStrides) = conv.makeProblem(True, problemSize[conv.dimIdx('N')],
+                                problemSize[conv.dimIdx('C')], problemSize[conv.dimIdx('K')])
 
-    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    for i in range(len(refSize)):
+      if refSize[i]!=-1:
+        if problemSize[i] == -1:
+          if globalParameters["ProblemFromConvolution"]:
+            problemSize[i] = refSize[i]
+        elif refSize[i] != problemSize[i]:
+          raise RuntimeError (
+            "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
+              (problemSize, refSize, i, problemSize[i], refSize[i], conv.convolutionChar(i)))
+
+    if globalParameters["ProblemFromConvolution"]:
+      for i in range(len(refAStrides)):
+        if astrides[i]==-1:
+          astrides[i] = refAStrides[i] # copy reference
+        elif refAStrides[i] != -1 and astrides[i] != refAStrides[i]:
+          raise RuntimeError (
+            "at position %d problem strides (%s) don't match reference conv strides(%s)" \
+                          % (i, astrides, refAStrides))
+    elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
+        raise RuntimeError (
+            "specified convolution uses strides that can't be represented in current Exact problem size format. Requires StrideA=", refAStrides)
+
+    return (problemSize, astrides)
+
+def problemSizeParams(solution, problemSize):
+
+    numIndices = len(solution.problemType.indices)
+    rv = []
 
     astrides = [-1] * solution.problemType.aDims
-    for setc in solution.problemType.setConstStrideA:
-        astrides[solution.problemType.indices[setc[0]].a] = setc[1]
+    for sc in solution.problemType.setConstStrideA:
+        index = solution.problemType.indices[sc[0]]
+        if type(index) == FreeIndex:
+            assert(index.isA)
+            astrides[index.i] = sc[1]
+        else:
+            astrides[index.a] = sc[1]
 
     bstrides = [-1] * solution.problemType.bDims
-    for setc in solution.problemType.setConstStrideB:
-        bstrides[solution.problemType.indices[setc[0]].b] = setc[1]
+    for sc in solution.problemType.setConstStrideB:
+        index = solution.problemType.indices[sc[0]]
+        if type(index) == FreeIndex:
+            assert(not index.isA)
+            bstrides[index.i] = sc[1]
+        else:
+            bstrides[index.b] = sc[1]
 
-    rv = [problemSizeArg]
     if len(problemSize) == numIndices:
       None
     elif len(problemSize) == numIndices + 4:
@@ -352,8 +392,18 @@ def problemSizeParams(solution, problemSize):
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
             ', '.join(map(str, problemSize))))
 
+    if solution.problemType.convolution:
+        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, list(problemSize), astrides)
+    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    rv.insert(0, problemSizeArg)
+
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
+
+    if len(solution.problemType.zeroPadA):
+        rv.append(('a-zero-pads', '; '.join([','.join(map(str,zp)) for zp in solution.problemType.zeroPadA])))
+    if len(solution.problemType.zeroPadB):
+        rv.append(('b-zero-pads', '; '.join([','.join(map(str,zp)) for zp in solution.problemType.zeroPadB])))
 
     return rv
 
@@ -407,13 +457,15 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
           param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
 
         newSolution = next(iter(newLibrary.solutions.values()))
+        if newSolution.problemType.convolution:
+            param('convolution-identifier', newSolution.problemType.convolution.identifier())
         param('problem-identifier', newSolution.problemType.operationIdentifier)
         param('a-type',     newSolution.problemType.aType.toEnum())
         param('b-type',     newSolution.problemType.bType.toEnum())
         param('c-type',     newSolution.problemType.cType.toEnum())
         param('d-type',     newSolution.problemType.dType.toEnum())
-        param('alpha-type', newSolution.problemType.dType.toEnum())
-        param('beta-type',  newSolution.problemType.dType.toEnum())
+        param('alpha-type', newSolution.problemType.alphaType.toEnum())
+        param('beta-type',  newSolution.problemType.betaType.toEnum())
 
         param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
 
@@ -429,6 +481,15 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
         param("c-equal-d",                globalParameters["CEqualD"])
 
+        if globalParameters["PrintTensorA"]:
+          param("print-tensor-a",         1);
+        if globalParameters["PrintTensorB"]:
+          param("print-tensor-b",         1);
+        if globalParameters["PrintTensorC"]:
+          param("print-tensor-c",         1);
+        if globalParameters["PrintTensorD"]:
+          param("print-tensor-d",         1);
+
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
         param("num-benchmarks",           globalParameters["NumBenchmarks"])
@@ -436,6 +497,9 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        if globalParameters["ConvolutionVsContraction"]:
+            assert(newSolution.problemType.convolution)
+            param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
         if not globalParameters["KernelTime"]:
             param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])
@@ -1087,7 +1151,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # strides
     indexChars = globalParameters["IndexChars"]
     firstStride = 1
-    if problemType["UseInitialStrides"]:
+    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    if problemType["UseInitialStridesAB"]:
       firstStride = 0
     lastStrideD = problemType["NumIndicesC"]
     lastStrideC = problemType["NumIndicesC"]
@@ -1163,7 +1228,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
-    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    firstStride = 0 if problemType["UseInitialStridesAB"] else 1
     lastStrideD = problemType["NumIndicesC"]
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
@@ -1319,7 +1385,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           # strides
           indexChars = globalParameters["IndexChars"]
           firstStride = 1
-          if problemType["UseInitialStrides"]:
+          assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+          if problemType["UseInitialStridesAB"]:
             firstStride = 0
           lastStrideD = problemType["NumIndicesC"]
           lastStrideC = problemType["NumIndicesC"]

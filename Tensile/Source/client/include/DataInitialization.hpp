@@ -83,6 +83,7 @@ namespace Tensile
              * suitable for using to run the kernel.
              */
             virtual std::shared_ptr<ContractionInputs> prepareGPUInputs() = 0;
+            virtual std::shared_ptr<ContractionInputs> cpuConvInputs() const = 0;
 
             template <typename T>
             static T getValue(InitMode mode)
@@ -118,7 +119,7 @@ namespace Tensile
             template <typename T, InitMode Mode>
             void initArray(T * array, size_t elements)
             {
-                for(int i = 0; i < elements; i++)
+                for(size_t i = 0; i < elements; i++)
                 {
                     array[i] = getValue<T, Mode>();
                 }
@@ -134,6 +135,8 @@ namespace Tensile
             size_t m_dMaxElements;
 
             bool m_cEqualsD;
+            bool m_convolutionVsContraction;
+
 
             /// If true, we will allocate an extra copy of the inputs on the GPU.
             /// This will improve performance as we don't have to copy from the CPU

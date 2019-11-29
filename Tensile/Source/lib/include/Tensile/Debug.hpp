@@ -41,6 +41,17 @@ namespace Tensile
 
         bool printEmbeddedDataInit() const;
 
+        // print tensor dims, strides, memory sizes
+        bool printTensorInfo() const;
+
+        // 3 levels of debugging for the convolution reference debug
+        bool printConvolutionReference1() const;
+        bool printConvolutionReference2() const;
+        bool printConvolutionReference3() const;
+
+        // if tensors are printed, use hexadecimal output format
+        bool printTensorModeHex() const;
+
     private:
         friend LazySingleton<Debug>;
 

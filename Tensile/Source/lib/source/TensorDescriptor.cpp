@@ -32,6 +32,7 @@
 
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/Utils.hpp>
+#include <Tensile/Debug.hpp>
 
 namespace Tensile {
     const size_t TensorDescriptor::UseDefaultStride = static_cast<size_t>(-1);
@@ -76,8 +77,13 @@ namespace Tensile {
 
         m_totalAllocatedElements = 1;
         for(int i = 0; i < m_sizes.size(); i++)
-          m_totalAllocatedElements += m_strides[i] * (m_sizes[i]-1);
-        //std::cout << "Tensor:  " << *this << " totalElem=" << m_totalAllocatedElements << "\n";
+            m_totalAllocatedElements += m_strides[i] * (m_sizes[i]-1);
+
+        if (Debug::Instance().printTensorInfo())
+        {
+            std::cout << "TensorDescriptor:calculate  " << *this << "totalLogicalElements=" << m_totalLogicalElements
+                      << " totalAllocatedElem=" << m_totalAllocatedElements << "\n";
+        }
     }
 
     bool TensorDescriptor::operator==(const TensorDescriptor& rhs) const

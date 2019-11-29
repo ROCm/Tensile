@@ -45,11 +45,25 @@ class SingleSolutionLibrary:
 
 class GranularitySelectionLibrary:
     Tag = 'GranularitySelection'
-    StateKeys = [('type', 'tag'), 'indices']
+    StateKeys = [('type', 'tag'), 'indices', 'exact']
 
     @classmethod
-    def FromOriginalState(cls, indices):
-        return cls(indices)
+    def FromOriginalState(cls, d, indices):
+        origTable = d[1]
+        #indices = d[9]["TileSelectionIndices"]
+        #  entry = {'key': key, 'value': value, 'speed': row[1][1]}
+        entries = []
+        for row in origTable:
+            try:
+                index = row[1][0]
+                key = list(row[0][0:4])
+                entry = {'key': key, 'value': index }
+                entries.append(entry)
+            except KeyError:
+                pass
+
+
+        return cls(indices, entries)
 
     @property
     def tag(self):
@@ -58,9 +72,11 @@ class GranularitySelectionLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__
         self.indices = list(set().union(self.indices, other.indices))
+        self.exact = list(set().union(self.exact, other.exact))
 
-    def __init__(self, indices):
+    def __init__(self, indices, exact):
         self.indices = indices
+        self.exact = exact
 
     def remapSolutionIndices(self,indexMap):
         for i in range(0, len(self.indices)):
@@ -218,7 +234,7 @@ class MasterSolutionLibrary:
             
             elif libName == 'Granularity':
                 selectionIndices = d[9]["TileSelectionIndices"]
-                library = GranularitySelectionLibrary.FromOriginalState(selectionIndices)
+                library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
 
             elif libName == 'Hardware':
                 newLib = PredicateLibrary(tag='Hardware')
