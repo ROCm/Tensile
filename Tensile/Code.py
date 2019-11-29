@@ -235,9 +235,10 @@ class WaitCnt (Module):
   If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and 
   an instruction with a comment is returned.
   """
-  def __init__(self,lgkmcnt=-1,vmcnt=-1,comment=""):
+  def __init__(self, version,lgkmcnt=-1,vmcnt=-1,comment=""):
     super().__init__("wait")
 
+    self.version = version
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
     self.comment = comment
@@ -254,7 +255,7 @@ class WaitCnt (Module):
 
     if len(main_args) > 0:
       self.addInst("s_waitcnt", *main_args, self.comment)
-      if wait_store:
+      if wait_store and self.version == (10,1,0):
         self.addInst("s_waitcnt_vscnt", "null", self.lgkmcnt, "writes")
     else:
       self.addComment0(self.comment)

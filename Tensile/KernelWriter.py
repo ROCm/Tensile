@@ -216,11 +216,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
             readsToWait = readsToWait - 1
             # TODO - gfx9 supports higher max VMCNT
             if 1:
-              imod.addCode(Code.WaitCnt(-1, min(maxVmcnt, readsToWait), \
+              imod.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait), \
                   "wait for global read before writing to local"))
             else:
               print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
-              imod.addCode(Code.WaitCnt(-1, 0, "conservative waitcnt"))
+              imod.addCode(Code.WaitCnt(self.version, -1, 0, "conservative waitcnt"))
           imod.addCode(item)
           self.perIterLocalWriteCode[u].addCode(imod)
         itemsToSched = itemsToSched[itemPerIter:]
@@ -1025,14 +1025,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   waitCntVal = waitCntItems[iter] + 1 if (self.perIterLocalWriteCode[u].count()>0) else waitCntItems[iter]
                   # read + write instructions lgkmcnt (1=> for write)
                   # build waitCnt using new lgkmcnt
-                  waitCode = Code.WaitCnt(waitCntVal,-1,"wait for prior local read")
+                  waitCode = Code.WaitCnt(self.version, waitCntVal,-1,"wait for prior local read")
                 subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                          self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
                          pointerCode, waitCode, macIterCodeGrp)
               else:
                   #last group only pointer + localWrite Code
                 if self.enable["Wait"]:
-                  waitCode = Code.WaitCnt(waitCntItems[iter],-1,"wait for prior local read & local writes")
+                  waitCode = Code.WaitCnt(self.version, waitCntItems[iter],-1,"wait for prior local read & local writes")
                 subIterCode.addCode(waitCode)
                 subIterCode.addCode(macIterCodeGrp)
               kl.append(subIterCode) # add scheduled "other", local reads, local writes

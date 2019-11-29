@@ -63,6 +63,7 @@ namespace Tensile
                      || m_printTensorRef;
         }
 
+        bool ReferenceValidator::needMoreBenchmarkRuns() const
         {
             if(m_enabled && m_numBenchmarkRuns == 0)
                 return true;
@@ -155,12 +156,13 @@ namespace Tensile
                 auto const& typedReference = dynamic_cast<TypedContractionInputs<float> const&>(*m_referenceInputs);
                 auto const& typedResult = dynamic_cast<TypedContractionInputs<float> const&>(*inputs);
                 auto rv= validateTyped(typedReference, typedResult);
-                if (0 and inputs == m_dataInit->cpuConvInputs()) {
-                  m_reporter->logTensor(LogLevel::Verbose, "Aval-conv", typedResult.a, m_problem.a());
-                  m_reporter->logTensor(LogLevel::Verbose, "Bval-conv", typedResult.b, m_problem.b());
-                  m_reporter->logTensor(LogLevel::Verbose, "Dval-conv", typedResult.d, m_problem.d());
-                  m_reporter->logTensor(LogLevel::Verbose, "Bval-contraction", typedReference.b, m_problem.b());
-                  m_reporter->logTensor(LogLevel::Verbose, "Dval-contraction", typedReference.d, m_problem.d());
+                if (0 and inputs == m_dataInit->cpuConvInputs())
+                {
+                    m_reporter->logTensor(LogLevel::Verbose, "Aval-conv", typedResult.a, m_problem.a(), typedResult.a);
+                    m_reporter->logTensor(LogLevel::Verbose, "Bval-conv", typedResult.b, m_problem.b(), typedResult.b);
+                    m_reporter->logTensor(LogLevel::Verbose, "Dval-conv", typedResult.d, m_problem.d(), typedResult.c);
+                    m_reporter->logTensor(LogLevel::Verbose, "Bval-contraction", typedReference.b, m_problem.b(), typedReference.b);
+                    m_reporter->logTensor(LogLevel::Verbose, "Dval-contraction", typedReference.d, m_problem.d(), typedReference.d);
                 }
                 return rv;
             }
@@ -325,10 +327,6 @@ namespace Tensile
             if(m_printTensorRef)
             {
                 m_reporter->logTensor(LogLevel::Verbose, "Ref", reference.d, m_problem.d(), reference.d);
-            }
-            if(m_printTensorRef)
-            {
-                m_reporter->logTensor(LogLevel::Verbose, "Reference-D", reference.d, m_problem.d());
             }
         }
 
