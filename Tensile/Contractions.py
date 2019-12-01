@@ -263,6 +263,9 @@ class ProblemPredicate(Properties.Predicate):
         if key == "AssertStrideBEqual":
             return extractDimPredicate(cls, key, value, "StrideBEqual")
 
+        if key == "AssertSizeEqual":
+            return extractDimPredicate(cls, key, value, "SizeEqual")
+
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
             return None

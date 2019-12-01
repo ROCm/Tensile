@@ -446,6 +446,11 @@ validParameters = {
 
     "AssertStrideBEqual":  -1,
 
+    # Assertions that require stride to be specified value.
+    # List of pairs of [index, constValue].#
+    # Index is a member of the global index assignments.
+    "AssertSizeEqual":    -1,
+
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
