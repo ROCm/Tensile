@@ -38,6 +38,8 @@ namespace Tensile
               m_batchIndices(args["batch"].as<ContractionProblem::BatchIndices>()),
               m_boundIndices(args["bound"].as<ContractionProblem::BoundIndices>()),
               m_problemSizes(args["problem-size"].as<std::vector<std::vector<size_t>>>()),
+              m_aZeroPads(args["a-zero-pads"].as<std::vector<std::vector<size_t>>>()),
+              m_bZeroPads(args["b-zero-pads"].as<std::vector<std::vector<size_t>>>()),
               m_aType(DataType::Float),
               m_bType(DataType::Float),
               m_cType(DataType::Float),
@@ -110,6 +112,29 @@ namespace Tensile
                              m_cType, cStrides, m_cOps,
                              m_dType, dStrides, m_dOps,
                              m_beta));
+
+                if (i<m_aZeroPads.size())
+                {
+                    const  auto &zp = m_aZeroPads[i];
+                    if (zp.size() % 4 != 0)
+                        throw std::runtime_error("zero-pad must contain tuples of 4 values");
+                    for (int zi=0; zi<zp.size(); zi+=4) {
+                        rv.back().addAZeroPad(ContractionProblem::ZeroPad(
+                                    {static_cast<int32_t>(zp[zi+0]), static_cast<int32_t>(zp[zi+1]),
+                                     static_cast<int64_t>(zp[zi+2]), static_cast<int64_t>(zp[zi+3])}));
+                    }
+                }
+                if (i<m_bZeroPads.size())
+                {
+                    const  auto &zp = m_bZeroPads[i];
+                    if (zp.size() % 4 != 0)
+                        throw std::runtime_error("zero-pad must contain tuples of 4 values");
+                    for (int zi=0; zi<zp.size(); zi+=4) {
+                        rv.back().addBZeroPad(ContractionProblem::ZeroPad(
+                                    {static_cast<int32_t>(zp[zi+0]), static_cast<int32_t>(zp[zi+1]),
+                                     static_cast<int64_t>(zp[zi+2]), static_cast<int64_t>(zp[zi+3])}));
+                    }
+                }
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
 
             }

@@ -19,8 +19,6 @@
  * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <mutex>
-
 #include <Tensile/TensorOps.hpp>
 #include <Tensile/Utils.hpp>
 
@@ -59,11 +57,9 @@ namespace Tensile
         return "Invalid";
     }
 
-    std::once_flag opTypeNameFlag;
-
     TensorOp::Type TensorOp::GetType(std::string const& name)
     {
-        std::call_once(opTypeNameFlag, InitTypeNames);
+        static int call_once = (InitTypeNames(), 0);
 
         auto iter = typeNames.find(name);
         if(iter == typeNames.end())
@@ -117,4 +113,3 @@ namespace Tensile
         return stream;
     }
 }
-

@@ -43,3 +43,9 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [127,1,129], 0, [4], [63,1,65] ]
+          - Exact: [1024, 2, 1, 4096]
+          - Exact: [2048, 2, 1, 4096]
+          - Exact: [1024, 1, 1, 4096]
+          - Exact: [2048, 1, 1, 4096]
+          - Exact: [1024, 2, 1, 8192]
+          - Exact: [2048, 2, 1, 4096]

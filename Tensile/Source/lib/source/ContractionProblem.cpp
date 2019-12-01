@@ -30,6 +30,19 @@
 
 namespace Tensile
 {
+    std::string ContractionProblem::ZeroPad::description() const
+    {
+        std::ostringstream rv;
+
+        rv << "anchorIndex: " << anchorIndex
+           << " boundIndex: "  << boundIndex
+           << " leadingPad: "  << leadingPad
+           << " trailingPad: " << trailingPad;
+
+        return rv.str();
+    }
+
+
     ContractionProblem ContractionProblem::GEMM_Strides(bool transA, bool transB,
                                                         DataType aType, DataType bType, DataType cType, DataType dType,
                                                         size_t m, size_t n, size_t k, size_t batchSize,
@@ -351,7 +364,7 @@ namespace Tensile
 
         TensorOps aOps, bOps, cOps, dOps;
 
-        IdentifierToIndices(operationIdentifier, 
+        IdentifierToIndices(operationIdentifier,
                             freeIndices,
                             batchIndices,
                             boundIndices,
@@ -436,7 +449,7 @@ namespace Tensile
         for(auto const& bound: boundIndices)
         {
             size_t indexSize = indexSizes.at(indexIdx);
-            
+
             aSizes[bound.a] = indexSize;
             bSizes[bound.b] = indexSize;
 
@@ -476,6 +489,18 @@ namespace Tensile
     {
         consistencyCheck();
         normalize();
+    }
+
+    void ContractionProblem::addAZeroPad(const ZeroPad &zp)
+    {
+        m_aZeroPads.push_back(zp);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
+    }
+
+    void ContractionProblem::addBZeroPad(const ZeroPad &zp)
+    {
+        m_bZeroPads.push_back(zp);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
     }
 
     void ContractionProblem::normalize()
@@ -528,6 +553,11 @@ namespace Tensile
             m_maxProblemSize = std::max(m_maxProblemSize, m_boundSizes[i]);
         }
 
+        for (auto zp : m_aZeroPads)
+            m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
+        for (auto zp : m_bZeroPads)
+            m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
+
         getIndexNames(m_aNames, m_bNames, m_cNames, m_dNames, m_sumNames);
 
         m_operationIdentifier = getOperationIdentifier();
@@ -540,6 +570,28 @@ namespace Tensile
 
         m_problemSizes.insert(m_problemSizes.end(), m_c.sizes().begin(), m_c.sizes().end());
         m_problemSizes.insert(m_problemSizes.end(), m_boundSizes.begin(), m_boundSizes.end());
+
+        m_allocatedElementsNonBatchA = 1;
+        for(int idx = 0; idx < a().dimensions(); idx++)
+        {
+            bool isBatch =  batchIndices().end() !=
+                            std::find_if(batchIndices().begin(), batchIndices().end(),
+                            [idx](const ContractionProblem::BatchIndex &bi)
+                            {return bi.a == idx;});
+            if (!isBatch)
+                m_allocatedElementsNonBatchA += a().strides()[idx] * (a().sizes()[idx]-1);
+        }
+
+        m_allocatedElementsNonBatchB = 1;
+        for(int idx = 0; idx < b().dimensions(); idx++)
+        {
+            bool isBatch =  batchIndices().end() !=
+                            std::find_if(batchIndices().begin(), batchIndices().end(),
+                            [idx](const ContractionProblem::BatchIndex &bi)
+                            {return bi.b == idx;});
+            if (!isBatch)
+                m_allocatedElementsNonBatchB += b().strides()[idx] * (b().sizes()[idx]-1);
+        }
     }
 
     void ContractionProblem::consistencyCheck() const
@@ -863,7 +915,7 @@ namespace Tensile
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default; 
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
@@ -882,9 +934,9 @@ namespace Tensile
 
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
+    template struct TypedContractionInputs<Half, Half, Half, Half, float, float>;
 #endif
 #ifdef TENSILE_USE_BF16
     template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
 #endif
 }
-

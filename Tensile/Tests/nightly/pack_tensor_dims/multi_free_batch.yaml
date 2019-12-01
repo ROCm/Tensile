@@ -20,9 +20,9 @@ GlobalParameters:
   KernelTime: True
   LibraryPrintDebug: 0
   #RuntimeLanguage: ["OCL"]
-  #PrintTensorC : 2
-  ClientArgs: "--stride_b 0"
+  PrintTensorD : 2
   CpuThreads: 0
+  NewClient: 2
 
 BenchmarkProblems:
 
@@ -44,7 +44,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        #- KernelLanguage: ["Source","Assembly"]
+        - KernelLanguage: ["Source"]
         - ThreadTile:
           - [ 4, 4 ]
           - [ 8, 8 ]

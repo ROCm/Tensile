@@ -55,7 +55,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -127,10 +127,25 @@ class ProblemType:
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
 
+        rv.useInitialStridesAB = False
+        if 'UseInitialStridesAB' in d:
+            rv.useInitialStridesAB = d['UseInitialStridesAB']
+        rv.useInitialStridesCD = False
+        if 'UseInitialStridesCD' in d:
+            rv.useInitialStridesCD = d['UseInitialStridesCD']
+
+        rv.setConstStrideA = []
         if 'SetConstStrideA' in d:
             rv.setConstStrideA = d['SetConstStrideA']
+        rv.setConstStrideB = []
         if 'SetConstStrideB' in d:
             rv.setConstStrideB = d['SetConstStrideB']
+        rv.zeroPadA=[]
+        if 'ZeroPadA' in d:
+            rv.zeroPadA = d['ZeroPadA']
+        rv.zeroPadB=[]
+        if 'ZeroPadB' in d:
+            rv.zeroPadB = d['ZeroPadB']
 
         rv.useBeta = True
         if 'UseBeta' in d:
@@ -228,15 +243,9 @@ class ProblemPredicate(Properties.Predicate):
         # TODO - change to use SetConstStrideB
         if key == 'PackBatchDims' and value==1:
             return cls("StrideBEqual", index=2, value=0)
+        # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
-            if value == 0 or value == 1:
-                return None
-            elif value == 2:
-                return cls('MaxProblemSizeGreaterThan', value=1)
-            elif value == 3:
-                return cls('MaxProblemSizeGreaterThan', value=32)
-            else:
-                raise RuntimeError("Unknown Approx size: {}".format(value))
+            return None
 
         if key.endswith('Multiple'):
             if value == 1:
@@ -250,7 +259,7 @@ class ProblemPredicate(Properties.Predicate):
                 index = 0
             elif key == "AssertSummationElementMultiple":
                 tag = "BoundSizeMultiple"
-                index = 0
+                index = -1
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
 
@@ -355,6 +364,8 @@ class Solution:
             d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
+        # hacky, can just construct Convolution yet again?
+        rv.problemType.convolution = rv.originalSolution["ProblemType"].convolution
 
         return rv
 

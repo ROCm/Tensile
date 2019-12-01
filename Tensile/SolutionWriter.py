@@ -337,7 +337,7 @@ class SolutionWriter:
 
       # Tensor2DSizes - size excluding the batch dimension, accounts for cases where one of strides is 0
       #print "IndexAssignmentsA=", problemType["IndexAssignmentsA"], "Batch=", problemType["IndicesBatch"]
-      firstStride = 0 if problemType["UseInitialStrides"] else 1
+      firstStride = 0 if problemType["UseInitialStridesCD"] else 1
       del i
 
       numIdx = problemType["NumIndicesC"]
@@ -446,7 +446,7 @@ class SolutionWriter:
     if gsu > 1:
       kernelNamesBetaOnly = []
       numStridesC = problemType["NumIndicesC"] - \
-          (0 if problemType["UseInitialStrides"] else 1)
+          (0 if problemType["UseInitialStridesCD"] else 1)
       for beta in Solution.getKernelsBetaOnlyFromProblem(problemType, gsu):
         kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
         kernelNamesBetaOnly.append(kernelName)
@@ -928,24 +928,26 @@ class SolutionWriter:
         argList.append((computeTypeName, "beta"))
 
     # initial strides ?
-    firstStride = 1
-    if problemType["UseInitialStrides"]:
-      firstStride = 0
+    firstStrideAB = firstStrideCD = 1
+    if problemType["UseInitialStridesAB"]:
+      firstStrideAB = 0
+    if problemType["UseInitialStridesCD"]:
+      firstStrideCD = 0
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
     lastStrideB = len(problemType["IndexAssignmentsB"])
     # d strides
-    for i in range(firstStride,lastStrideC):
+    for i in range(firstStrideCD,lastStrideC):
       self.strideList.append("strideD%u%s" % (i, self.indexChars[i]))
     # c strides
-    for i in range(firstStride,lastStrideC):
+    for i in range(firstStrideCD,lastStrideC):
       self.strideList.append("strideC%u%s" % (i, self.indexChars[i]))
     # a strides
-    for i in range(firstStride,lastStrideA):
+    for i in range(firstStrideAB,lastStrideA):
       self.strideList.append("strideA%u%s" % (i, \
           self.indexChars[problemType["IndexAssignmentsA"][i]]))
     # b strides
-    for i in range(firstStride,lastStrideB):
+    for i in range(firstStrideAB,lastStrideB):
       self.strideList.append("strideB%u%s" % (i, \
           self.indexChars[problemType["IndexAssignmentsB"][i]]))
     # c sizes
