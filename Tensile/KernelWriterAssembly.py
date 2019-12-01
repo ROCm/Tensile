@@ -784,7 +784,7 @@ class KernelWriterAssembly(KernelWriter):
     # will be run before the no-load-loop iteration where registers are still
     # tight.  Realistically we just have the GlobalToLocal VGPRs, all else is
     # growth.
-    self.preventVgprOverflowDuringNewTile = not globalParameters["ForceGenerateKernel"]
+    self.preventVgprOverflowDuringNewTile = 0 and not globalParameters["ForceGenerateKernel"]
 
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave

@@ -236,13 +236,33 @@ class ProblemType:
 
         return predicates
 
+def extractDimPredicate(cls, key, value, predicateName):
+    """
+    Extract the predicate for AssertStrideEqual* or AssertZizeEqual*
+    These are comma-separated pos:value pairs, ie 
+    AssertStrideBEqual=["2:0,  3:1"]
+    """
+    predicates = []
+    for pair in value.replace(' ','').split(','):
+        (pos,val) = pair.split(':')
+        predicates.append(cls(predicateName, index=pos, value=val))
+    if len(predicates) == 1:
+        return predicates[0]
+    elif len(predicates) > 1:
+        return cls.And(predicates)
+    else:
+        raise RuntimeError("Unknown format for %s (%s) "%(key,value))
+
+
 class ProblemPredicate(Properties.Predicate):
     @classmethod
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
-        # TODO - change to use SetConstStrideB
-        if key == 'PackBatchDims' and value==1:
-            return cls("StrideBEqual", index=2, value=0)
+        if key == "AssertStrideAEqual":
+            return extractDimPredicate(cls, key, value, "StrideAEqual")
+        if key == "AssertStrideBEqual":
+            return extractDimPredicate(cls, key, value, "StrideBEqual")
+
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
             return None

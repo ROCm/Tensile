@@ -436,6 +436,16 @@ validParameters = {
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
     "AssertMinApproxSize" : [0,1,2],
 
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [position, constValue].
+    # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
+    #   EX: [ [2,0] ] means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Like other assertions, these are used when kernel is generated and checked before running kernel
+    "AssertStrideAEqual":  -1,
+
+    "AssertStrideBEqual":  -1,
+
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -884,6 +894,8 @@ defaultProblemType = {
     "UseInitialStridesAB":      False,  # use initial strides for AB.
     "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
+    # SetConstStride* sets the specified stride in the problem.
+    # These no longer generate predicates - see AssertStrideEqualA/B below
     # List of pairs of [index, constValue].
     # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets

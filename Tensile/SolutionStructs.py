@@ -1564,6 +1564,13 @@ class Solution:
 
     return True
 
+  @staticmethod
+  def addConstStride(state, key, value):
+      try:
+          state[key] = state[key] + ", " + value
+      except KeyError:
+          state[key] = value
+
 
   ########################################
   # assign all derived parameters
@@ -1616,24 +1623,21 @@ class Solution:
     assert(isPackedIndex(state, problemType["Index0"], 0x1))
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
-    if state["PackBatchDims"]==1:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideB"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
+    # Add AssertStride*Equal for PackBatchDims, if needed
+    for (mask, tc) in ((0x1,'B'), (0x2,'A')):
+        if state["PackBatchDims"] & mask:
+            for bi in problemType["IndicesBatch"]:
+                found = False
+                try:
+                    for pair in problemType["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                        (index,value)=pair.split(':')
+                        if index==bi and value==0:
+                            found = True
+                            break
+                except KeyError:
+                    None
             if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
-                #problemType["SetConstStrideB"].append([bi,0])
-    if state["PackBatchDims"]==2:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideA"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)
-                #problemType["SetConstStrideA"].append([bi,0])
+                Solution.addConstStride(state, "AssertStride%sEqual"%tc, "%d:0"%bi)
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
