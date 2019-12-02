@@ -1035,11 +1035,13 @@ class Solution:
     if state["MatrixInstruction"]:
       if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
         reject(state, "Error calcualting InstSplit")
-      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstN"] * state["MatrixInstB"])
-      state["MIWG0"] = state["MatrixInstM"]
-      if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0:
-        reject(state, "Error calculating MIWG1")
-      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MatrixInstM"] * state["InstSplit"]) # if no prefetchglobalread, multiply denominator by 4
+      #state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstN"] * state["MatrixInstB"]) # BBlocks
+      #state["MIWG0"] = state["MatrixInstM"] # BBlocks
+      state["MIWG0"] = state["MatrixInstM"] * state["MatrixInstB"] # ABlock
+      #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
+      #  reject(state, "Error calculating MIWG1")
+      #state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MatrixInstM"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
+      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // state["MIWG0"] # ABlocks
       state["SubGroup0"] = state["MIWG0"] # TODO calc
       state["SubGroup1"] = state["MIWG1"]
       state["LocalSplitU"] = state["WorkGroup"][2]

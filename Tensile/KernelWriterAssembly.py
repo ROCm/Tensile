@@ -1151,7 +1151,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["MatrixInstruction"]:
       self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
       #self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
-      self.numVgprValuBPerBlock = kernel["MacroTile1"] // (4 * kernel["MatrixInstN"] * kernel["MatrixInstB"])
+      #self.numVgprValuBPerBlock = kernel["MacroTile1"] // (4 * kernel["MatrixInstN"] * kernel["MatrixInstB"]) # BBlocks
+      self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * tPA["bpe"]) // (kernel["MatrixInstN"] * self.bpr) # ABlocks
     else:
       self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
       self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
@@ -4394,7 +4395,8 @@ class KernelWriterAssembly(KernelWriter):
         tP["tileChar"], self.commentSuffix, self.endLine)
     divisor = kernel["SubGroup1"]
     if kernel["MatrixInstruction"]:
-      divisor = kernel["MacroTile1"]
+      divisor = kernel["MacroTile1"] // 4 # ABlocks
+      #divisor = kernel["ThreadTile1"] # BBlocks
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
     if kernel["MatrixInstruction"]:
@@ -4418,6 +4420,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
+    if tc == "B": # ABlocks only
+      divisor = kernel["MIWG0"]
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
     dividendReg = "Serial"
@@ -4428,10 +4432,17 @@ class KernelWriterAssembly(KernelWriter):
     sgid = qReg
 
     tIdx = tP["tensorIdx"]
-    kStr += inst("s_mov_b32", \
-        sgpr(tmpSgpr), \
-        hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
-        "MT%u+PAD"%tIdx )
+    if tc == "A": # For BBlocks, A and B use this case
+      kStr += inst("s_mov_b32", \
+          sgpr(tmpSgpr), \
+          hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+          "MT%u+PAD"%tIdx )
+    else: # For BBlocks, don't use else case
+      kStr += inst("s_mov_b32", \
+          sgpr(tmpSgpr), \
+          #hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+          hex((kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]) // 4), \
+          "MT%u+PAD"%tIdx )
     kStr += inst("v_mul_lo_u32", \
         vgpr(sgid), \
         sgpr(tmpSgpr), \
@@ -5381,7 +5392,9 @@ class KernelWriterAssembly(KernelWriter):
         self.getNamedLabel("Summation_End")
 
         # add copyback if required
-        if "MatrixInstM" in kernel:
+        if kernel["MatrixInstruction"]:
+          instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
+          kStr += "s_nop %u\n" % instCycles
           for i in range(0, self.totalAgprs):
             kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
 
@@ -7144,7 +7157,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["MatrixInstruction"]:
       kStr += vectorStaticDivide(tmpV0, "Serial", globalParameters["WavefrontWidth"], tmpV1, tmpS0)
-      kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0)
+      #kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0) # BBlocks
+      kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), kernel["MacroTile1"] // 4, tmpS0) # ABlocks
       kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "wavestart vgpr")
       kStr += inst("v_and_b32", vgpr(tmpV1), hex(kernel["MatrixInstM"]-1), vgpr("Serial"), "vectorStaticDiv vgprTmp = vgprSerial % 32") # TODO 32???
       kStr += inst("v_mul_lo_u32", vgpr(tmpV0), vgpr(tmpV1), sgpr("StridesC"), "rowstart VGPR")
@@ -7642,9 +7656,9 @@ class KernelWriterAssembly(KernelWriter):
 
         # gpr and offset assignments for element
         if kernel["MatrixInstruction"]:
-          #self.globalOffset = (idx // 32) * 128 + ((idx // 4) % 4) * 32 + (idx % 4) * 4 # HAX2
-          coordOffset0 = (d0 // 32) * 32 + ((d0 // 4) % 4) * 8 + (d0 % 4) # TODO Currently only works for 32x32x1x2, revisit calc and element loop
-          #coordOffset0 = d0 * kernel["StoreVectorWidth"] + vc0
+          # TODO Currently only works for 32x32x1x2, revisit calc and element loop
+          # coordOffset0 = (d0 // 32) * 32 + ((d0 // 4) % 4) * 8 + (d0 % 4) # BBlocks
+          coordOffset0 = (d0 // 32) * 32 + ((d0 // 4)) * 8 + (d0 % 4) # ABlocks
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 
@@ -8525,7 +8539,9 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["MatrixInstruction"]:
         addr0 = vgpr(self.coord1)
-        if (sumIdx // 16) % 2 == 0: # TODO Based on instruction size
+        # TODO Based on instruction size
+        #if (sumIdx // 32) % 2 == 0: # BBlocks
+        if (sumIdx // 32) % 2 == 0: # ABlocks
           addr0 = vgpr(self.coord0)
 
       useBuffer = kernel["BufferStore"]
