@@ -74,13 +74,13 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
         globalParameters["WorkingPath"] )
-
-  if globalParameters["Architecture"] == "all":
-    globalParameters["Architecture"] = "_"
-  elif globalParameters["Architecture"] == "hip":
-    globalParameters["Architecture"] = "none"
-  elif globalParameters["Architecture"] == "fiji":
-    globalParameters["Architecture"] = "r9nano"
+  
+  mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
+        'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
+  
+  for key in mapArchitecture:
+    if globalParameters["Architecture"] == key:
+      globalParameters["Architecture"] = mapArchitecture[key]  
 
   ##############################################################################
   # Read Logic Files

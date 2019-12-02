@@ -107,19 +107,19 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--embed-library-key=${Tensile_EMBED_KEY}")
   endif()
 
-  if(Tensile_CODE_OBJECT_VERSION STREQUAL "")
+  if(NOT Tensile_CODE_OBJECT_VERSION)
     set(Options ${Options} "--code-object-version=V2")
   else()
     set(Options ${Options} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   endif()
   
-  if(Tensile_COMPILER STREQUAL "")
+  if(NOT Tensile_COMPILER)
     set(Options ${Options} "--cxx-compiler=hcc")
   else()
     set(Options ${Options} "--cxx-compiler=${Tensile_COMPILER}")
   endif()
   
-  if(Tensile_ARCHITECTURE STREQUAL "")
+  if(NOT Tensile_ARCHITECTURE)
     set(Options ${Options} "--architecture=all")
   else()
     set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
