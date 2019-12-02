@@ -75,6 +75,11 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 # specified constant MUST match the dimension in the problem or the tensile runtime will assert.
 # The batch size, spatial dims, Cin, and Cout are always read from the problem description.
 globalParameters["ConvolutionVsContraction"] = False
+
+# Set size and stride fields in convolution so they are consistent with requirements from convolution
+# Size/strides to be overriden must be defined as '-1' or a runtime error will be raised
+# Only valid if OperationType is a *Convolution.
+globalParameters["ProblemFromConvolution"] = False
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
@@ -424,6 +429,9 @@ validParameters = {
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
+    # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
+    "AssertMinApproxSize" : [0,1,2],
+
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -557,6 +565,15 @@ validParameters = {
     # If True, allow macro-tile to span free dimensions.  Single workgroup can work across multiple free dimensions.
     # If False, macro-tile is always Free0*Free1.  Additional free dimensions are not supported.
     "PackFreeDims":              [False, True],
+
+    # Pack summation dims
+    # If 0, a for loops are generated for each summation dimension.
+    # If 1, summation dims are packed into a single loop and extracted as needed using mod/shift.  The innermost summation
+    #  dimension must be an integer multiple of the unroll loop - in other words the load tile is contiguous in memory.
+    #  In this mode, tensile can still prefetch data across the load tile dimension.
+    # If 2, summations dims are packed into a single loop as above.  In addition, the load tile does not need to be 
+    #  contiguous in memory and can span summation dimensions.
+    "PackSummationDims":         [0,1,2],
 
     # Granularity allowed when packing tensor dims.
     # Lower values are finer granularity which requires more dimension division operations on store path
@@ -719,6 +736,7 @@ defaultBenchmarkCommonParameters = [
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
+    {"AssertMinApproxSize":        [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -733,6 +751,7 @@ defaultBenchmarkCommonParameters = [
     {"PersistentKernel":          [ 0 ] },
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
+    {"PackSummationDims":         [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },
@@ -858,9 +877,11 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStrides":        False,
+    "UseInitialStridesAB":      False,  # use initial strides for AB.
+    "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
     # List of pairs of [index, constValue].
+    # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
     #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],

@@ -92,7 +92,7 @@ class Convolution:
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
         'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStrides',\
+        'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
         ]
 
   def __init__(self, problemTypeOut, convolutionType, config):
@@ -313,9 +313,9 @@ class Convolution:
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStrides"] = False
+      problemTypeOut["UseInitialStridesAB"] = False
     else:
-      problemTypeOut["UseInitialStrides"] = True
+      problemTypeOut["UseInitialStridesAB"] = True
 
     #self.printUsage(problemTypeOut)
 
@@ -543,8 +543,6 @@ class Convolution:
     id += "_indices:" + '.'.join([x[1].shortChar for x in self.indexAssignments])
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
-    else:
-      raise RuntimeError ("convolution-vs-contraction requires ConvolutionConfig['Spatial']")
     id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
     id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
     id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])
@@ -828,7 +826,8 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["UseInitialStrides"]: name += "I"
+    if self["UseInitialStridesAB"]: name += "I"
+    if self["UseInitialStridesCD"]: name += "Ic"
     return name
 
   def keys(self):
@@ -1194,8 +1193,10 @@ class Solution:
       kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
-      kernel["ProblemType"]["UseInitialStrides"] = \
-          problemType["UseInitialStrides"]
+      kernel["ProblemType"]["UseInitialStridesAB"] = \
+          problemType["UseInitialStridesAB"]
+      kernel["ProblemType"]["UseInitialStridesCD"] = \
+          problemType["UseInitialStridesCD"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
       kernel["ProblemType"]["SetConstStrideB"] = \
@@ -1696,6 +1697,12 @@ class Solution:
           state["VectorWidth"]))
       return
 
+    if state["PackSummationDims"] == 1:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
+        else:
+          state["AssertSummationElementMultiple"] = state["DepthU"]
+
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
        and state["ProblemType"]["DataType"].isHalf():
@@ -1708,6 +1715,9 @@ class Solution:
              state["AssertFree0ElementMultiple"] % 2 != 0):
            # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
             reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+
+    if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
+        reject(state, "PackSummationDims does not yet support assembly")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
@@ -2158,6 +2168,17 @@ class Solution:
           reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
                   (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
+    # these work everywhere, no special restrictions
+    state["AssertMinApproxSize"] = 0
+
+    if state["KernelLanguage"] == "Assembly":
+      if state["VectorWidth"] > 1:
+        # VW>1 kernels require dims>1
+        state["AssertMinApproxSize"] = 3
+    elif state["VectorWidth"] > 1:
+      # VW>1 kernels require dims>1
+      state["AssertMinApproxSize"] = 2
+    
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not

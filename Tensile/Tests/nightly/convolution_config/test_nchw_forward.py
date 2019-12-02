@@ -15,7 +15,7 @@ def test_nchw_defaults(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2,0]])
-    assert(z['UseInitialStrides']==False)
+    assert(z['UseInitialStridesAB']==0)
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_cnhw_defaults(request, tensile_client_dir, tmp_path):
@@ -29,7 +29,7 @@ def test_cnhw_defaults(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[3, 2, 1])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[1, 0]])
-    assert(z['UseInitialStrides']==False)
+    assert(z['UseInitialStridesAB']==0)
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nhwc_defaults(request, tensile_client_dir, tmp_path):
@@ -43,7 +43,7 @@ def test_nhwc_defaults(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
-    assert(z['UseInitialStrides']==False)
+    assert(z['UseInitialStridesAB']==0)
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_packed_spatial0(request, tensile_client_dir, tmp_path):
@@ -58,7 +58,7 @@ def test_nchw_packed_spatial0(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
-    assert(z['UseInitialStrides']==False)
+    assert(z['UseInitialStridesAB']==0)
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_tbd_strides(request, tensile_client_dir, tmp_path):
@@ -74,7 +74,7 @@ def test_nchw_tbd_strides(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[3, 0]])
-    assert(z['UseInitialStrides']==True)
+    assert(z['UseInitialStridesAB'])
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_const_strides(request, tensile_client_dir, tmp_path):
@@ -89,7 +89,7 @@ def test_nchw_const_strides(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     assert(z['SetConstStrideA']==[[0,2]])
     assert(z['SetConstStrideB']==[[3, 0]])
-    assert(z['UseInitialStrides']==True)
+    assert(z['UseInitialStridesAB'])
 
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
@@ -105,7 +105,7 @@ def test_nchw_const_use_initial_strides(request, tensile_client_dir, tmp_path):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     assert(z['SetConstStrideA']==[[0,3]])
     assert(z['SetConstStrideB']==[[3, 0]])
-    assert(z['UseInitialStrides']==True)
+    assert(z['UseInitialStridesAB'])
     YamlBuilder.run_tensile_client(request, conv, z, tensile_client_dir, tmp_path)
 
 def test_nchw_filter(request, tensile_client_dir, tmp_path):
