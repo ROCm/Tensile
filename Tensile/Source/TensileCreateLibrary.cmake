@@ -112,6 +112,7 @@ function(TensileCreateLibraryCmake
     set( Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
   else()
     set( Tensile_HIP_ISA ${Tensile_ARCHITECTURE})
+  endif()
   foreach( target ${Tensile_HIP_ISA} )
     target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
   endforeach()
