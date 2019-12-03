@@ -24,7 +24,6 @@ import filecmp
 import itertools
 import os
 import shutil
-import subprocess
 import sys
 import time
 
@@ -35,7 +34,7 @@ from . import SolutionLibrary
 from . import YAMLIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess
-from .ClientWriter import writeRunScript, writeClientParameters, writeClientConfig
+from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
@@ -339,21 +338,15 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
-      pushWorkingPath("build")
 
-      # write runScript
+
       libraryLogicPath = None
-      path = globalParameters["WorkingPath"]
       forBenchmark = True
-      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+      returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection)
 
-      # run runScript
-      process = subprocess.Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-      process.communicate()
-      if process.returncode:
+      if returncode:
         benchmarkTestFails += 1
-        printWarning("BenchmarkProblems: Benchmark Process exited with code %u" % process.returncode)
-      popWorkingPath() # build
+        printWarning("BenchmarkProblems: Benchmark Process exited with code %u" % returncode)
     else:
       print1("# Already benchmarked; skipping.")
 

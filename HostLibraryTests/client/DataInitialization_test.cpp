@@ -26,6 +26,8 @@
 
 #include <gtest/gtest.h>
 
+#include <tuple>
+
 #include <DataInitializationTyped.hpp>
 
 using namespace Tensile;
@@ -71,7 +73,7 @@ public:
         return rv;
     }
 
-    void RunDataContaminationTest(bool cEqualD, bool pristineGPU)
+    void RunDataContaminationTest(bool cEqualD, bool pristineGPU, bool boundsCheck)
     {
         using val = po::variable_value;
 
@@ -85,6 +87,7 @@ public:
         args.insert({"init-beta",       val(InitMode::Zero, false)});
         args.insert({"c-equal-d",       val(cEqualD, false)});
         args.insert({"pristine-on-gpu", val(pristineGPU, false)});
+        args.insert({"bounds-check",    val(boundsCheck, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});
@@ -99,7 +102,7 @@ public:
 
         auto init = DataInitialization::Get(args, factory);
 
-        auto genericInputs = init->prepareCPUInputs();
+        auto genericInputs = init->prepareCPUInputs(problem);
         auto cpuInputs = std::dynamic_pointer_cast<TypedInputs>(genericInputs);
 
         if(cpuInputs == nullptr)
@@ -118,11 +121,11 @@ public:
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             cpuInputs->d[i] = DataInitialization::getValue<DType, InitMode::Random>();
 
-        cpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareCPUInputs());
+        cpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareCPUInputs(problem));
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             EXPECT_EQ(cpuInputs->d[i], zero) << i;
 
-        auto gpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareGPUInputs());
+        auto gpuInputs = std::dynamic_pointer_cast<TypedInputs>(init->prepareGPUInputs(problem));
 
         std::vector<DType> gpuD(d.totalAllocatedElements());
 
@@ -131,7 +134,7 @@ public:
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             EXPECT_EQ(gpuD[i], zero) << i;
     }
-    
+
 };
 
 using InputTypes = ::testing::Types<
@@ -144,28 +147,145 @@ using InputTypes = ::testing::Types<
     TypedContractionInputs<Int8x4, Int8x4, int32_t>,
     TypedContractionInputs<int32_t>>; 
 
-//using InputTypes = ::testing::Types<
-//    TypedContractionInputs<float>>; 
-
 TYPED_TEST_SUITE(DataInitializationTest, InputTypes);
 
-TYPED_TEST(DataInitializationTest, Contamination_false_false)
+/*
+ * Unfortunately, googletest doesn't support tests that are both templated AND
+ * parameterized, so this is the chosen compromise.
+ */
+
+TYPED_TEST(DataInitializationTest, Contamination_false_false_false)
 {
-    this->RunDataContaminationTest(false, false);
+    this->RunDataContaminationTest(false, false, false);
 }
 
-TYPED_TEST(DataInitializationTest, Contamination_false_true)
+TYPED_TEST(DataInitializationTest, Contamination_false_true_false)
 {
-    this->RunDataContaminationTest(false, true);
+    this->RunDataContaminationTest(false, true, false);
 }
 
-TYPED_TEST(DataInitializationTest, Contamination_true_false)
+TYPED_TEST(DataInitializationTest, Contamination_true_false_false)
 {
-    this->RunDataContaminationTest(true, false);
+    this->RunDataContaminationTest(true, false, false);
 }
 
-TYPED_TEST(DataInitializationTest, Contamination_true_true)
+TYPED_TEST(DataInitializationTest, Contamination_true_true_false)
 {
-    this->RunDataContaminationTest(true, true);
+    this->RunDataContaminationTest(true, true, false);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_false_false_true)
+{
+    this->RunDataContaminationTest(false, false, true);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_false_true_true)
+{
+    this->RunDataContaminationTest(false, true, true);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_true_false_true)
+{
+    this->RunDataContaminationTest(true, false, true);
+}
+
+TYPED_TEST(DataInitializationTest, Contamination_true_true_true)
+{
+    this->RunDataContaminationTest(true, true, true);
+}
+
+template <typename T>
+struct DataInitializationTestFloating: public ::testing::Test
+{
+    using TestType = typename std::tuple_element<0, T>::type;
+    using ComparisonType = TestType;
+};
+
+template <>
+struct DataInitializationTestFloating<std::tuple<Half>>: public ::testing::Test
+{
+    using TestType = Half;
+    using ComparisonType = float;
+};
+
+// Typeinfo is not present for Half so wrap it in a tuple to avoid a missing
+// symbol.
+using FloatingPointTypes = ::testing::Types<std::tuple<float>,
+                                            std::tuple<double>,
+                                            std::tuple<Half>,
+                                            std::tuple<BFloat16>>;
+TYPED_TEST_SUITE(DataInitializationTestFloating, FloatingPointTypes);
+
+TYPED_TEST(DataInitializationTestFloating, Simple)
+{
+    using Type = typename TestFixture::TestType;
+    using Comparison = typename TestFixture::ComparisonType;
+
+    Type value(1.0);
+    EXPECT_EQ(DataInitialization::isBadInput(value), false);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
+
+    value = DataInitialization::getValue<Type>(InitMode::BadInput);
+    EXPECT_EQ(std::isnan(static_cast<Comparison>(value)), true) << value;
+    EXPECT_EQ(DataInitialization::isBadInput(value), true) << value;
+    EXPECT_EQ(DataInitialization::isBadOutput(value), false) << value;
+
+    value = DataInitialization::getValue<Type>(InitMode::BadOutput);
+    EXPECT_EQ(std::isinf(static_cast<Comparison>(value)), true) << value;
+    EXPECT_EQ(DataInitialization::isBadInput(value), false) << value;
+    EXPECT_EQ(DataInitialization::isBadOutput(value), true) << value;
+}
+
+template <typename T>
+struct DataInitializationTestComplex: public ::testing::Test
+{
+};
+
+using ComplexTypes = ::testing::Types<std::complex<float>, std::complex<double>>;
+
+TYPED_TEST_SUITE(DataInitializationTestComplex, ComplexTypes);
+
+TYPED_TEST(DataInitializationTestComplex, Simple)
+{
+    TypeParam value(1, 1);
+    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
+
+    value = DataInitialization::getValue<TypeParam>(InitMode::BadInput);
+    EXPECT_EQ(std::isnan(value.real()), true);
+    EXPECT_EQ(std::isnan(value.imag()), true);
+    EXPECT_EQ(DataInitialization::isBadInput(value),  true);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
+
+    value = DataInitialization::getValue<TypeParam>(InitMode::BadOutput);
+    EXPECT_EQ(std::isinf(value.real()), true);
+    EXPECT_EQ(std::isinf(value.imag()), true);
+    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), true);
+}
+
+TEST(DataInitializationTest, BadValues_int32)
+{
+    int32_t value = 1;
+    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
+
+    value = DataInitialization::getValue<int32_t>(InitMode::BadInput);
+    EXPECT_EQ(std::numeric_limits<int32_t>::max(), value);
+    EXPECT_EQ(DataInitialization::isBadInput(value),  true);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), false);
+
+    value = DataInitialization::getValue<int32_t>(InitMode::BadOutput);
+    EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
+    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadOutput(value), true);
+}
+
+TEST(DataInitializationTest, BadValues_Int8x4)
+{
+    auto maxval = std::numeric_limits<int8_t>::max();
+    auto minval = std::numeric_limits<int8_t>::min();
+    EXPECT_EQ(Int8x4(maxval, maxval, maxval, maxval), DataInitialization::getValue<Int8x4>(InitMode::BadInput));
+    EXPECT_EQ(Int8x4(minval, minval, minval, minval), DataInitialization::getValue<Int8x4>(InitMode::BadOutput));
 }
 
