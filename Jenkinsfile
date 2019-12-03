@@ -71,8 +71,8 @@ tensileCI:
 
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit or pre_checkin"
-    //if(auxiliary.isJobStartedByTimer())
-    test_marks += " or extended"
+    if(auxiliary.isJobStartedByTimer())
+        test_marks += " or extended"
 
     def testCommand =
     {
