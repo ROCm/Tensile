@@ -47,6 +47,14 @@ namespace Tensile
                  + static_cast<int32_t>(c) * static_cast<int32_t>(other.c)
                  + static_cast<int32_t>(d) * static_cast<int32_t>(other.d);
         }
+
+        inline bool operator==(Int8x4 const& rhs) const
+        {
+            return a == rhs.a
+                && b == rhs.b
+                && c == rhs.c
+                && d == rhs.d;
+        }
     };
 
     static_assert( sizeof(Int8x4) == 4, "Int8x4 must be 4 bytes.");
