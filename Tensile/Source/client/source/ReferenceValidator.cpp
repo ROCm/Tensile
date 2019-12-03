@@ -158,11 +158,11 @@ namespace Tensile
             auto rv =  validateTyped(typedReference, typedResult);
 
             if (0 and inputs == m_dataInit->cpuConvInputs()) {
-                m_reporter->logTensor(LogLevel::Verbose, "Aval-conv", typedResult.a, m_problem.a());
-                m_reporter->logTensor(LogLevel::Verbose, "Bval-conv", typedResult.b, m_problem.b());
-                m_reporter->logTensor(LogLevel::Verbose, "Dval-conv", typedResult.d, m_problem.d());
-                m_reporter->logTensor(LogLevel::Verbose, "Bval-contraction", typedReference.b, m_problem.b());
-                m_reporter->logTensor(LogLevel::Verbose, "Dval-contraction", typedReference.d, m_problem.d());
+                m_reporter->logTensor(LogLevel::Verbose, "Aval-conv", typedResult.a, m_problem.a(), nullptr);
+                m_reporter->logTensor(LogLevel::Verbose, "Bval-conv", typedResult.b, m_problem.b(), nullptr);
+                m_reporter->logTensor(LogLevel::Verbose, "Dval-conv", typedResult.d, m_problem.d(), nullptr);
+                m_reporter->logTensor(LogLevel::Verbose, "Bval-contraction", typedReference.b, m_problem.b(), nullptr);
+                m_reporter->logTensor(LogLevel::Verbose, "Dval-contraction", typedReference.d, m_problem.d(), nullptr);
             }
 
             return rv;
@@ -323,7 +323,7 @@ namespace Tensile
                                             m_problem.c().totalAllocatedBytes(),
                                             hipMemcpyDeviceToHost));
                     auto const* buffer = 
-                        reinterpret_cast<typename TypedInputs::CType const*>(
+                        reinterpret_cast<typename ManagedInputs::CType const*>(
                             m_cpuResultBuffer.data());
 
                     m_reporter->logTensor(LogLevel::Verbose, "C", buffer,
@@ -336,7 +336,7 @@ namespace Tensile
                                             m_problem.d().totalAllocatedBytes(),
                                             hipMemcpyDeviceToHost));
                     auto const* buffer =
-                        reinterpret_cast<typename TypedInputs::DType const*>(
+                        reinterpret_cast<typename ManagedInputs::DType const*>(
                             m_cpuResultBuffer.data());
 
                     m_reporter->logTensor(LogLevel::Verbose, "D", buffer,
@@ -539,7 +539,7 @@ namespace Tensile
 
             if(boundsCheckElements > 0)
                 std::cout << "Performed bounds check on " << boundsCheckElements
-                          << " elements" << std::endl;
+                          << " elements (" << elementsBeforeData << " before data)" << std::endl;
 
             if(errors > 0)
             {
