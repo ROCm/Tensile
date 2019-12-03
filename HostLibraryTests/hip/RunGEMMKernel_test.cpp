@@ -194,6 +194,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     }
 };
 
+#if 0
 TEST_P(RunGEMMKernelTest , KernelsTileSelection)
 {
     auto params = GetParam();
@@ -225,6 +226,7 @@ TEST_P(RunGEMMKernelTest , KernelsTileSelection)
         ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
+#endif
 
 TEST_P(RunGEMMKernelTest, BestSolution)
 {
@@ -490,22 +492,22 @@ TestLibraries(bool debug)
 
     {
         auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite");
-        auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite");
         adapter->loadEmbeddedCodeObjects("kernels_lite");
         rv.emplace_back(library, adapter, false);
     }
 
     {
         auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite_mixed");
-        auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite_mixed");
         adapter->loadEmbeddedCodeObjects("kernels_lite_mixed");
         rv.emplace_back(library, adapter, true);
     }
 
     {
         auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("kernels_lite/TensileLibrary.yaml").native());
-        auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
-        for(auto file: TestData::Instance().glob("kernels_lite/TensileLibrary_*.co"))
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite (file)");
+        for(auto file: TestData::Instance().glob("kernels_lite/*.*co"))
             adapter->loadCodeObjectFile(file.native());
 
         rv.emplace_back(library, adapter, false);
@@ -513,8 +515,21 @@ TestLibraries(bool debug)
 
     {
         auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("kernels_lite_mixed/TensileLibrary.yaml").native());
-        auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite_mixed (file)");
         for(auto file: TestData::Instance().glob("kernels_lite_mixed/*.*co"))
+            adapter->loadCodeObjectFile(file.native());
+
+        rv.emplace_back(library, adapter, true);
+    }
+
+    {
+        auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("tile_aware_selection/library/TensileLibrary.yaml").native());
+
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "tile_aware_selection");
+        for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*co"))
+            adapter->loadCodeObjectFile(file.native());
+
+        for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
             adapter->loadCodeObjectFile(file.native());
 
         rv.emplace_back(library, adapter, true);
@@ -524,7 +539,7 @@ TestLibraries(bool debug)
     if(envDir)
     {
         auto library = LoadLibraryFile<ContractionProblem>(envDir.file("TensileLibrary.yaml").native());
-        auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "TENSILE_TEST_LIBRARY");
 
         for(auto file: envDir.glob("*.co"))
         {

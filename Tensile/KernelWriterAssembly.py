@@ -784,7 +784,7 @@ class KernelWriterAssembly(KernelWriter):
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
     # appropriate vmwnts into the stores so they issue as loads become available
     # TODO: change back to 1
-    self.interleaveStoreVmcnt = 0 and kernel["BufferStore"]
+    self.interleaveStoreVmcnt = 1 and kernel["BufferStore"]
 
 
     # if >0, shift the start of the SRD left by specified #elements (not bytes)
@@ -3092,8 +3092,8 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["ProblemType"]["DataType"].isHalf() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
-          #kStr += inst("s_load_dword", sgpr("Beta"), \
-          #    sgpr("KernArgAddress",2), hex(self.kernArgOffset), "load beta" )
+          kStr += inst("s_load_dword", sgpr("Beta"), \
+              sgpr("KernArgAddress",2), hex(self.kernArgOffset), "load beta" )
           kStr += self.getKernArg("Beta+0")
         elif kernel["ProblemType"]["DataType"].isDouble() or \
              kernel["ProblemType"]["DataType"].isSingleComplex():

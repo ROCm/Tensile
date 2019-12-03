@@ -166,8 +166,8 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        rv.args.append<typename TypedInputs::DType const *>("d", inputs.c);
-        rv.args.append<typename TypedInputs::CType const *>("c", nullptr);
+        rv.args.append<typename TypedInputs::DType const *>("d", inputs.d);
+        rv.args.append<typename TypedInputs::CType const *>("c", inputs.c);
         rv.args.append<typename TypedInputs::AType const *>("a", inputs.a);
         rv.args.append<typename TypedInputs::BType const *>("b", inputs.b);
 

@@ -564,7 +564,7 @@ class BitfieldStructure(ctypes.Structure):
 
 class BitfieldUnion(ctypes.Union):
   def __str__(self):
-    return hex(self.value)
+    return "0x{0:08x}".format(self.value)
 
   def desc(self):
     return "hex: {}\n".format(self) + self.fields.desc()
