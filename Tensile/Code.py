@@ -243,10 +243,11 @@ class WaitCnt (Module):
     self.vmcnt   = vmcnt
     self.comment = comment
 
+  def instructions(self):
+    rv = Module()
     main_args = []
     wait_store = False
     if self.lgkmcnt != -1:
-      self.lgkmcnt = 0
       main_args += ["lgkmcnt(%u)" % self.lgkmcnt]
       wait_store = True
 
@@ -254,11 +255,16 @@ class WaitCnt (Module):
       main_args += ["vmcnt(%u)" % self.vmcnt]
 
     if len(main_args) > 0:
-      self.addInst("s_waitcnt", *main_args, self.comment)
+      rv.addInst("s_waitcnt", *main_args, self.comment)
       if wait_store and self.version == (10,1,0):
-        self.addInst("s_waitcnt_vscnt", "null", self.lgkmcnt, "writes")
+        rv.addInst("s_waitcnt_vscnt", "null", self.vmcnt, "writes")
     else:
-      self.addComment0(self.comment)
+      rv.addComment0(self.comment)
+
+    return rv
+
+  def __str__(self):
+    return str(self.instructions())
 
 # uniq type that can be used in Module.countType
 class GlobalReadInst (Inst):

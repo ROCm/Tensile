@@ -511,7 +511,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
-      solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False )
+      solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
