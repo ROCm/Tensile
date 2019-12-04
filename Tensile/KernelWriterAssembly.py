@@ -4448,7 +4448,7 @@ class KernelWriterAssembly(KernelWriter):
         sgpr(tmpSgpr), \
         vgpr(sgid), \
         "sgid=sgid*(MT%u+PAD)"%tIdx )
-    if kernel["VectorWidth"] > 1:
+    if kernel["VectorWidth"] > 1 and not kernel["MatrixInstruction"]:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
     kStr += inst("_v_add_lshl_u32", \
@@ -7386,8 +7386,8 @@ class KernelWriterAssembly(KernelWriter):
     fullVw = min(fullVw, self.maxGwvw(kernel))
 
     if kernel["MatrixInstruction"]:
-      for tt0 in range(0, self.totalAgprs):# // kernel["StoreVectorWidth"]): # recalc or total ok?
-        for vc0 in range(0, 1): # TODO StoreVectorWidth
+      for tt0 in range(0, self.totalAgprs // kernel["VectorWidth"]):# // kernel["StoreVectorWidth"]): # recalc or total ok?
+        for vc0 in range(0, 1): # TODO StoreVectorWidth?
           element = (0, tt0, 0, vc0)
           elements.append(element)
     else:
@@ -7658,7 +7658,7 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["MatrixInstruction"]:
           # TODO Currently only works for 32x32x1x2, revisit calc and element loop
           # coordOffset0 = (d0 // 32) * 32 + ((d0 // 4) % 4) * 8 + (d0 % 4) # BBlocks
-          coordOffset0 = (d0 // 32) * 32 + ((d0 // 4)) * 8 + (d0 % 4) # ABlocks
+          coordOffset0 = (d0 // 32) * 32 + ((d0 // (4 // kernel["VectorWidth"]))) * 8 + (d0 % (4 // kernel["VectorWidth"])) * kernel["VectorWidth"]  # ABlocks
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 

@@ -1510,12 +1510,13 @@ class Solution:
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         state["VectorWidth"] //= 2
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if state["ThreadTile0"] % state["VectorWidth"] != 0 \
-        or state["ThreadTile1"] % state["VectorWidth"] != 0:
-      reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
-          % (state["ThreadTile0"], state["ThreadTile1"], \
-          state["VectorWidth"]))
-      return
+    if not state["MatrixInstruction"]:
+      if state["ThreadTile0"] % state["VectorWidth"] != 0 \
+          or state["ThreadTile1"] % state["VectorWidth"] != 0:
+        reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
+            % (state["ThreadTile0"], state["ThreadTile1"], \
+            state["VectorWidth"]))
+        return
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
