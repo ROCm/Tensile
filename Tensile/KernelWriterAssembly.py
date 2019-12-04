@@ -21,7 +21,6 @@
 
 from . import Code
 from .Common import globalParameters, printExit, printWarning, roundUp
-from .DataType import DataType
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
@@ -29,7 +28,6 @@ from .Utils import ceil_divide, roundUpToNearestMultiple
 from math import log, ceil, trunc, modf
 from copy import deepcopy
 import collections
-import math
 import traceback
 
 ################################################################################
@@ -2048,7 +2046,6 @@ class KernelWriterAssembly(KernelWriter):
     Navi's cmpx instruction writes only to EXEC, not to SGPRs or to VCC.
     For now, replicate old behaviour with two instructions.
     """
-    kStr = "\n"
     def macro(op, dtype):
       dict = {'op': op, 'dtype': dtype}
       mStr = ".macro _v_cmpx_{op}_{dtype} dst, src0, src1=".format(**dict) + self.endLine
