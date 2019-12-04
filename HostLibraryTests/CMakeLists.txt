@@ -28,7 +28,7 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
-option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." OFF)
+option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." ON)
 option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
 option(TENSILE_DISABLE_CTEST "Disable CTest integration." OFF)
 
