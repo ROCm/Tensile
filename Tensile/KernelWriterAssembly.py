@@ -5423,7 +5423,7 @@ class KernelWriterAssembly(KernelWriter):
           if not kernel["MatrixInstruction"]:
             kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
                               edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
-          kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr)
+          kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
 
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
@@ -7156,12 +7156,14 @@ class KernelWriterAssembly(KernelWriter):
         self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
 
     if kernel["MatrixInstruction"]:
+      mfma_addr0 = self.vgprPool.checkOut(1) #To store output address offset for non-edge case
+      mfma_addr1 = self.vgprPool.checkOut(1) #but should not use address offset here
       kStr += vectorStaticDivide(tmpV0, "Serial", globalParameters["WavefrontWidth"], tmpV1, tmpS0)
       #kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0) # BBlocks
       kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), kernel["MacroTile1"] // 4, tmpS0) # ABlocks
-      kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "wavestart vgpr")
-      kStr += inst("v_and_b32", vgpr(tmpV1), hex(kernel["MatrixInstM"]-1), vgpr("Serial"), "vectorStaticDiv vgprTmp = vgprSerial % 32") # TODO 32???
-      kStr += inst("v_mul_lo_u32", vgpr(tmpV0), vgpr(tmpV1), sgpr("StridesC"), "rowstart VGPR")
+      kStr += inst("v_and_b32", vgpr(tmpV0), hex(kernel["MatrixInstM"]-1), vgpr("Serial"), "vectorStaticDiv vgprTmp = vgprSerial % 32") # TODO 32???
+      kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV0), vgpr(tmpV1), "store coord1")
+      kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr), vgpr(tid1), sgpr("StridesC"), "rowstart VGPR")
       kStr += "\n"
       kStr += inst("v_and_b32", vgpr(tmpV1), hex(globalParameters["WavefrontWidth"]-1), vgpr("Serial"), "")
       kStr += vectorStaticDivide(tmpV3, tmpV1, kernel["MatrixInstM"], tmpV4, tmpS0)
@@ -7170,11 +7172,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "\n"
       kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
       kStr += inst("v_add_co_u32", vgpr(tmpV3), "vcc", sgpr(tmpS0), vgpr(tmpV3), "")
-      kStr += inst("v_add_lshl_u32", vgpr(tid0), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4?
+      kStr += inst("v_mov_b32", vgpr(tid0), vgpr(tmpV3), "store coord0")
+      kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(2), "c base") # Always 4?
       kStr += "\n"
       kStr += inst("v_mul_lo_u32", vgpr(tmpV1), hex(32), sgpr("StridesC"), "scale by 32 for second column of 64/simd (B-tile/256)")
-      kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(tmpV0), "")
-      kStr += inst("v_add_lshl_u32", vgpr(tid1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4?
+      kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(self.cinRowPtr), "")
+      kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4?
+      self.mfma_addr0 = mfma_addr0
+      self.mfma_addr1 = mfma_addr1
 
     else:
       kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
@@ -7351,6 +7356,10 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(self.coord0)
     self.vgprPool.checkIn(self.coord1)
 
+    if kernel["MatrixInstruction"]:
+      self.vgprPool.checkIn(self.mfma_addr0)
+      self.vgprPool.checkIn(self.mfma_addr1)
+
     if kernel["BufferStore"]:
       self.vgprPool.checkIn(self.cinRowPtr)
       if not kernel["LdcEqualsLdd"]:
@@ -7420,12 +7429,18 @@ class KernelWriterAssembly(KernelWriter):
     edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
-    for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
-      for vc1 in range(0, kernel["VectorWidth"]):
-        for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
-          for vc0 in range(0, kernel["VectorWidth"], edgeVw):
-            element = (tt1, tt0, vc1, vc0)
-            elements[True].append(element)
+    if kernel["MatrixInstruction"]:
+      for tt0 in range(0, self.totalAgprs // kernel["VectorWidth"]):# // kernel["StoreVectorWidth"]): # recalc or total ok?
+        for vc0 in range(0, 1): # TODO StoreVectorWidth
+          element = (0, tt0, 0, vc0)
+          elements[True].append(element)
+    else:
+      for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
+            for vc0 in range(0, kernel["VectorWidth"], edgeVw):
+              element = (tt1, tt0, vc1, vc0)
+              elements[True].append(element)
 
     vectorWidths = [fullVw, edgeVw]
     kStr =  self.globalWriteElements(kernel, vectorWidths, elements)
@@ -8516,7 +8531,7 @@ class KernelWriterAssembly(KernelWriter):
   # Add stores for the element with addrCalc and sumIdx.
   # tmpS01 is a single :temp sGPR
   ##############################################################################
-  def addStore(self, kernel, ss, addrCalc, sumIdx, tmpS01):
+  def addStore(self, kernel, ss, addrCalc, sumIdx, tmpS01, edge):
     kStr = ""
     if self.do["GlobalWrite"]:
       # perform vector stores here, so no VI indexing.
@@ -8537,12 +8552,11 @@ class KernelWriterAssembly(KernelWriter):
         addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
 
-      if kernel["MatrixInstruction"]:
-        addr0 = vgpr(self.coord1)
-        # TODO Based on instruction size
+      if kernel["MatrixInstruction"] and not edge:
+        addr0 = vgpr(self.mfma_addr1)
         #if (sumIdx // 32) % 2 == 0: # BBlocks
         if (sumIdx // 32) % 2 == 0: # ABlocks
-          addr0 = vgpr(self.coord0)
+          addr0 = vgpr(self.mfma_addr0)
 
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
@@ -9166,7 +9180,7 @@ class KernelWriterAssembly(KernelWriter):
                 kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
 
         addrCalc = ss.elementAddr[elementIdx]
-        kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01)
+        kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01, edge)
         storesIssued += 1
 
           #kStr += self.bomb(5)
