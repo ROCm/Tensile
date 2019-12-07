@@ -180,7 +180,7 @@ else()
         ${Tensile_LOGIC_PATH}           # path
         ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
-        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906
+        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906, gfx908
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
         ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF

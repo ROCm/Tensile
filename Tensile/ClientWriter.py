@@ -75,13 +75,6 @@ def main( config ):
         os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
         globalParameters["WorkingPath"] )
   
-  mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-        'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
-  
-  for key in mapArchitecture:
-    if globalParameters["Architecture"] == key:
-      globalParameters["Architecture"] = mapArchitecture[key]  
-
   ##############################################################################
   # Read Logic Files
   ##############################################################################
@@ -89,7 +82,6 @@ def main( config ):
       in os.listdir(libraryLogicPath) \
       if (os.path.isfile(os.path.join(libraryLogicPath, f)) \
       and os.path.splitext(f)[1]==".yaml") \
-      and globalParameters["Architecture"] in os.path.splitext(f)[0] \
       or "hip" in os.path.splitext(f)[0]]
   print1("LogicFiles: %s" % logicFiles)
   functions = []
@@ -182,7 +174,6 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
       runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
       runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-      runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
       runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
           % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
       runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
