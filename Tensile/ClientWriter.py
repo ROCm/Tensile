@@ -159,6 +159,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
     runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
     runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+    runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
     if globalParameters["EnableHalf"]:
       runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
     if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
@@ -173,7 +174,6 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
       runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
       runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-      runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
       runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
           % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
       runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
