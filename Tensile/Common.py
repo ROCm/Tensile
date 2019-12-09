@@ -604,6 +604,11 @@ validParameters = {
     # If True, store vector-width elements per instruction.
     "VectorStore":                    [False, True],
 
+    # Controls desired width (#elements) for stores from reg to global memory.
+    # When MatrixInstruciton == None, derived parameter gwvw takes precedence.
+    # -1 : Set StoreVectorWidth = VectorWidth
+    "StoreVectorWidth":           [ -1, 1, 2, 3, 4, 6, 8 ],
+
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
     "MacroTileShapeMin":          list(range(1, 256+1)),
@@ -701,6 +706,7 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ True ] },
+    {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },

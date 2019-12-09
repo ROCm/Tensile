@@ -2822,6 +2822,12 @@ class KernelWriterSource(KernelWriter):
     return self.indent + self.syncStr + " //" + comment + self.endLine
 
   ##############################################################################
+  # MapAcctoArch 
+  ##############################################################################
+  def MapAcctoArchRegs(self, kernel, option):
+    return ""
+
+  ##############################################################################
   #
   #   Beta-Only Kernel
   #

@@ -1036,6 +1036,7 @@ class Solution:
       if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
         reject(state, "Error calcualting InstSplit")
       #state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstN"] * state["MatrixInstB"]) # BBlocks
+      state["InstSplit"] = 1
       #state["MIWG0"] = state["MatrixInstM"] # BBlocks
       state["MIWG0"] = state["MatrixInstM"] * state["MatrixInstB"] # ABlock
       #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
@@ -1535,6 +1536,9 @@ class Solution:
     if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
+    # Default GlobalStoreVectorWidth
+    if state["StoreVectorWidth"] == -1:
+      state["StoreVectorWidth"] = 2  if state["ProblemType"]["DataType"].numBytes() == 2 else 4
 
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False

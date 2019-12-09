@@ -4536,6 +4536,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # if using MFMAs, initialize ACC VGPRS as well
     if "MatrixInstM" in kernel:
+      kStr = ""
       self.agprPool.remove(0, self.totalAgprs, "ValuC")
       for i in range(0, self.totalAgprs):
         kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "initC acc vgprs")
@@ -5124,8 +5125,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # copy accumulated C from agpr to vgpr
     if "MatrixInstM" in kernel:
-      for i in range(0, self.totalAgprs):
-        kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+      kStr += self.MapAcctoArchRegs(kernel,option=0)
 
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
@@ -7391,14 +7393,44 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def notLocalFullTileElements(self, kernel):
     elements = []
-    fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    if kernel["MatrixInstruction"]:
+      ##TODO remove and use VectorWidth once VW mapping of TT is done
+      fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+      elementsLoadedPerfullVw = kernel["NumThreads"]*fullVw
+      elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+      if elementsLoadedPervw > elementsLoadedPerfullVw:
+        fullVw = kernel["StoreVectorWidth"]
+    else:
+      fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
 
     if kernel["MatrixInstruction"]:
-      for tt0 in range(0, self.totalAgprs // kernel["VectorWidth"]):# // kernel["StoreVectorWidth"]): # recalc or total ok?
-        for vc0 in range(0, 1): # TODO StoreVectorWidth?
-          element = (0, tt0, 0, vc0)
-          elements.append(element)
+      #vg20 C registers holds coalscing C elements (MT0x1) in subgroup0  consecutive lanes 
+      #MFMA acc registers holds strided C elements (1XN) in N consecutive lanes
+      # below code trying to use vg20 [d1,d0,vc1,vc0] co-ordinates and map C lements into vg20 co-ordinates
+      # TODO needs work on d1 mapping its not really  clean yet.  d1= holds B blocks and TT1/vectorWdith column blocks
+      numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
+      ## number of rregisters required for row/block
+      #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
+      numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
+      numStoresperBlock = 4 if kernel["MatrixInstM"] == 4 else  numStoresperInstruction//kernel["MatrixInstB"]
+      #TODO HACK to support latest
+      numRowBlocksperInstruction = 1 if kernel["MatrixInstM"] == 4  else (kernel["MIWG0"] // kernel["MatrixInstM"])
+      #this variable really tracks number of regster 'blocks' required  for each column block
+      # for mfma_4x4 we only need 4 register and thats been accounted numStoresperInstruction
+      numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+      #re-adjust columnBlock for  4x4mfma
+      #TODO re-enable after instSplit
+      #assert(numcolBlocksperInstruction<=kernel["MatrixInstB"])
+      #assert(numRowBlocksperInstruction<=kernel["MatrixInstB"])
+      assert((numcolBlocksperInstruction!=numRowBlocksperInstruction) and  kernel["InstSplit"] == 1)
+      #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
+      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//fullVw):
+            for vc0 in range(0, kernel["StoreVectorWidth"], fullVw):
+              element = (tt1, tt0, vc1, vc0)
+              elements.append(element)
     else:
       # Full tile loop:
       for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
@@ -7430,10 +7462,32 @@ class KernelWriterAssembly(KernelWriter):
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
     if kernel["MatrixInstruction"]:
-      for tt0 in range(0, self.totalAgprs // kernel["VectorWidth"]):# // kernel["StoreVectorWidth"]): # recalc or total ok?
-        for vc0 in range(0, 1): # TODO StoreVectorWidth
-          element = (0, tt0, 0, vc0)
-          elements[True].append(element)
+      ##TODO remove and use VectorWidth once VW mapping of TT is done
+      elementsLoadedPeredgeVw = kernel["NumThreads"]*edgeVw
+      elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+      if elementsLoadedPervw > elementsLoadedPeredgeVw:
+        edgeVw = kernel["StoreVectorWidth"] 
+
+    if kernel["MatrixInstruction"]:
+      numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
+      ## number of rregisters required for row/block
+      #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
+      numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
+      numStoresperBlock = 4 if kernel["MatrixInstM"] == 4 else  numStoresperInstruction//kernel["MatrixInstB"]
+      numRowBlocksperInstruction = 1 if kernel["MatrixInstM"] == 4  else (kernel["MIWG0"] // kernel["MatrixInstM"])
+      numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+      #re-adjust columnBlock for  4x4mfma
+      #TODO re-enable after instSplit
+      #assert(numcolBlocksperInstruction<=kernel["MatrixInstB"])
+      #assert(numRowBlocksperInstruction<=kernel["MatrixInstB"])
+      assert((numcolBlocksperInstruction!=numRowBlocksperInstruction) and  kernel["InstSplit"] == 1) 
+      #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
+      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//edgeVw):
+            for vc0 in range(0, kernel["StoreVectorWidth"], edgeVw):
+              element = (tt1, tt0, vc1, vc0)
+              elements.append(element)
     else:
       for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
@@ -7664,7 +7718,13 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["LocalSplitU"] > 1:
           strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
         else:
-          strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
+          if kernel["MatrixInstruction"]:
+            # for 'B' blocks in MFMA d1 represents next block dimension 
+            # offset requires stride calculation for next Block
+            strideD1 = d1*kernel["MatrixInstN"]*kernel["VectorWidth"] + vc1
+          else:
+            strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
+
         coordOffset1 = d1*strideD1 + vc1
 
         newCoord1 = (self.firstBatch and elementIdx==0) or (coordOffset1 != self.lastCoordOffset1)
@@ -7673,7 +7733,9 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["MatrixInstruction"]:
           # TODO Currently only works for 32x32x1x2, revisit calc and element loop
           # coordOffset0 = (d0 // 32) * 32 + ((d0 // 4) % 4) * 8 + (d0 % 4) # BBlocks
-          coordOffset0 = (d0 // 32) * 32 + ((d0 // (4 // kernel["VectorWidth"]))) * 8 + (d0 % (4 // kernel["VectorWidth"])) * kernel["VectorWidth"]  # ABlocks
+          #coordOffset0 = (d0 // 32) * 32 + ((d0 // (4 // kernel["VectorWidth"]))) * 8 + (d0 % (4 // kernel["VectorWidth"])) * kernel["VectorWidth"]  # ABlocks
+          numRowsPerReg = 1 if kernel["MatrixInstM"] == 4 else (globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]) 
+          coordOffset0 = d0 * gwvw * numRowsPerReg + vc0
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 
@@ -7721,7 +7783,18 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["LocalSplitU"] > 1:
           sumIdx = kw.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
         else:
-          sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+          bestVw = kernel["VectorWidth"]
+          elementsLoadedPerVw = kernel["NumThreads"]*bestVw
+          elementsLoadedPerbestVw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+          if elementsLoadedPerVw < elementsLoadedPerbestVw:
+            bestVw = kernel["StoreVectorWidth"]
+          if kernel["MatrixInstruction"]:
+            # calculate how many row registers need for each block
+            # for MFMA 4x4, we would write all blocks ijn single storevectorWidth write 
+            numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"]) // globalParameters["WavefrontWidth"]
+            sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofDstRgs*kernel["VectorWidth"]
+          else:
+            sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
 
@@ -8553,10 +8626,10 @@ class KernelWriterAssembly(KernelWriter):
         addr1 = ""
 
       if kernel["MatrixInstruction"] and not edge:
-        addr0 = vgpr(self.mfma_addr1)
+        addr0 = vgpr(self.mfma_addr0)
         #if (sumIdx // 32) % 2 == 0: # BBlocks
-        if (sumIdx // 32) % 2 == 0: # ABlocks
-          addr0 = vgpr(self.mfma_addr0)
+      #  if (sumIdx // 32) % 2 == 0: # ABlocks
+      #    addr0 = vgpr(self.mfma_addr0)
 
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
@@ -9467,6 +9540,46 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmp)
     self.vgprPool.checkIn(tmpAddr)
     return kStr
+
+  ##############################################################################
+  # MapAcctoArch 
+  # function to map MFMA Acc  Registers to Arch VGPR regsiter
+  # option : 
+  #         0 - one-to-one mapping of ACC -> VGPR  using VW
+  #         1 - using ds swizzle map strided lanes output of MFMA to  coalscing 
+  #             lanes of v_mac
+  ##############################################################################
+  def MapAcctoArchRegs(self, kernel, option):
+    kStr = ""
+    kStr += self.comment("Mapping of Acc register -> C Vgpr register")
+
+
+    numRegsPerInstructions = self.destAgprs
+    AccRegIdx =0
+    VgprRegIdx = 0
+    RowInstIdx = 0
+    ColInstIdx = 0
+
+    #only support option=0
+    assert(option==0)
+
+    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"]//kernel["MatrixInstB"]
+    numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
+    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
+    numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
+    numRowInstructions = kernel["ThreadTile0"]
+
+    for ColInstIter in range (ColInstIdx, numColInstructions,kernel["VectorWidth"]) :
+      for ColblkIter in range (0, numColBlocks) :
+        for RowInstIter in range (RowInstIdx, numRowInstructions,kernel["VectorWidth"]) :
+          for RowblkIter in range (0, numRowblocks) :
+            for RegIter in range (0, numRowsPerBlock) :
+              for VwIter in range (0,kernel["VectorWidth"]) :
+                AccRegIdx = self.startVgprValuC + VwIter*self.destAgprs + RegIter + RowblkIter*numRowsPerBlock + RowInstIter*self.destAgprs + ColblkIter*(self.destAgprs//numColBlocks) + ColInstIter*numRowInstructions*self.destAgprs
+                kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%VgprRegIdx), "acc%u"%AccRegIdx, "copy areg to vreg")
+                VgprRegIdx = VgprRegIdx + 1
+    return kStr
+
 
   ##############################################################################
   #

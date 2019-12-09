@@ -2403,6 +2403,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return self.indent + self.syncStr + self.endLine
 
   ##############################################################################
+  # MapAcctoArch 
+  ##############################################################################
+  @abc.abstractmethod
+  def MapAcctoArchRegs(self, kernel, option):
+    return ""
+
+  ##############################################################################
+
+
+  ##############################################################################
   #
   #   Entry Functions
   #
