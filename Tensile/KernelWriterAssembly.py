@@ -7160,29 +7160,73 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["MatrixInstruction"]:
       mfma_addr0 = self.vgprPool.checkOut(1) #To store output address offset for non-edge case
       mfma_addr1 = self.vgprPool.checkOut(1) #but should not use address offset here
-      kStr += vectorStaticDivide(tmpV0, "Serial", globalParameters["WavefrontWidth"], tmpV1, tmpS0)
-      #kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0) # BBlocks
-      kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), kernel["MacroTile1"] // 4, tmpS0) # ABlocks
-      kStr += inst("v_and_b32", vgpr(tmpV0), hex(kernel["MatrixInstM"]-1), vgpr("Serial"), "vectorStaticDiv vgprTmp = vgprSerial % 32") # TODO 32???
-      kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV0), vgpr(tmpV1), "store coord1")
-      kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr), vgpr(tid1), sgpr("StridesC"), "rowstart VGPR")
-      kStr += "\n"
-      kStr += inst("v_and_b32", vgpr(tmpV1), hex(globalParameters["WavefrontWidth"]-1), vgpr("Serial"), "")
-      kStr += vectorStaticDivide(tmpV3, tmpV1, kernel["MatrixInstM"], tmpV4, tmpS0)
-      kStr += staticMultiply(vgpr(tmpV3), vgpr(tmpV3), 4, sgpr(tmpS0)) # Always 4?
-      kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV2), vgpr(tmpV0), "")
-      kStr += "\n"
-      kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
-      kStr += inst("v_add_co_u32", vgpr(tmpV3), "vcc", sgpr(tmpS0), vgpr(tmpV3), "")
-      kStr += inst("v_mov_b32", vgpr(tid0), vgpr(tmpV3), "store coord0")
-      kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(2), "c base") # Always 4?
-      kStr += "\n"
-      kStr += inst("v_mul_lo_u32", vgpr(tmpV1), hex(32), sgpr("StridesC"), "scale by 32 for second column of 64/simd (B-tile/256)")
-      kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(self.cinRowPtr), "")
-      kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4?
-      self.mfma_addr0 = mfma_addr0
-      self.mfma_addr1 = mfma_addr1
+      if 0:
+        kStr += vectorStaticDivide(tmpV0, "Serial", globalParameters["WavefrontWidth"], tmpV1, tmpS0)
+        #kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0) # BBlocks
+        kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), kernel["MacroTile1"] // 4, tmpS0) # ABlocks
+        kStr += inst("v_and_b32", vgpr(tmpV0), hex(kernel["MatrixInstM"]-1), vgpr("Serial"), "vectorStaticDiv vgprTmp = vgprSerial % 32") # TODO 32???
+        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV0), vgpr(tmpV1), "store coord1")
+        kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr), vgpr(tid1), sgpr("StridesC"), "rowstart VGPR")
+        kStr += "\n"
+        kStr += inst("v_and_b32", vgpr(tmpV1), hex(globalParameters["WavefrontWidth"]-1), vgpr("Serial"), "")
+        kStr += vectorStaticDivide(tmpV3, tmpV1, kernel["MatrixInstM"], tmpV4, tmpS0)
+        kStr += staticMultiply(vgpr(tmpV3), vgpr(tmpV3), 4, sgpr(tmpS0)) # Always 4?
+        kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV2), vgpr(tmpV0), "")
+        kStr += "\n"
+        kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
+        kStr += inst("v_add_co_u32", vgpr(tmpV3), "vcc", sgpr(tmpS0), vgpr(tmpV3), "")
+        kStr += inst("v_mov_b32", vgpr(tid0), vgpr(tmpV3), "store coord0")
+        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(2), "c base") # Always 4?
+        kStr += "\n"
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV1), hex(32), sgpr("StridesC"), "scale by 32 for second column of 64/simd (B-tile/256)")
+        kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(self.cinRowPtr), "")
+        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4?
+        self.mfma_addr0 = mfma_addr0
+        self.mfma_addr1 = mfma_addr1
+      else:
+        #determine  column block groups for given MFMA (
+        kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
+          tmpV0, tmpS0)
+        # determine column start address for each block
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV1),
+                      hex(kernel["MatrixInstN"]), vgpr(tid1), \
+                      "Col-id = tid1*MatrixInstN")
+        startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
+        # determine col VGPR statt address
+        kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
+                      vgpr(tmpV1), sgpr("StridesC+%u"%(startStride)), \
+                      "Col-block-offset = Col-id*Stride")
+        if not kernel["LdcEqualsLdd"]:
+          kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
+                        vgpr(tmpV1), sgpr("StridesD+%u"%(startStride)), \
+                        "Col-block-offset = Col-id*Stride")
 
+        kStr += inst("v_and_b32", vgpr(tmpV1), hex(kernel["MatrixInstN"]-1), vgpr("Serial"), "colId-perBlock= vgprSerial%MatrixInstN")
+        #TODO fix-me for ldc!=ldd
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "")
+        kStr += inst("v_add_u32", vgpr(self.cinRowPtr), vgpr(tmpV2),vgpr(self.cinRowPtr),"colStart VGPR")
+
+        kStr += "\n"
+        kStr += inst("v_and_b32", vgpr(tmpV2), hex(globalParameters["WavefrontWidth"]-1), vgpr("Serial"), "")
+        kStr += inst("v_lshrrev_b32", vgpr(tmpV3),
+                      hex(log2(kernel["MatrixInstM"])), vgpr(tmpV2), \
+                      "vectorStaticDiv vgprTmp = vgprSerial / matrixInstM")
+        # determine row-id of each block(MFMA mxn) 2 rows for mfma32x32 4 rows for mfma16x16
+        if (kernel["MatrixInstM"] != 4):
+          rowIdPerColblock = globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]
+          kStr += inst("v_lshlrev_b32", vgpr(tmpV3), hex(rowIdPerColblock), vgpr(tmpV3), "tmpV3 = tmpV3 * rowIdPerColblock")   # mulitple by 4 for row-starting id for each matrixN columns (static for mfma32/mfma16)
+        else:
+           assert(0) 	#TODO fix me for MFMA 4x4 instruction 
+        kStr += "\n"
+        kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
+        kStr += inst("v_add_co_u32", vgpr(tmpV3), "vcc", sgpr(tmpS0), vgpr(tmpV3), "")
+        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(2), "c base") # Always 4?
+
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV1), hex(32), sgpr("StridesC"), "scale by 32 for second column of 64/simd (B-tile/256)")
+        kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(self.cinRowPtr), "")
+        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4? 
+        self.mfma_addr0 = mfma_addr0
+        self.mfma_addr1 = mfma_addr1
     else:
       kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
           tmpV0, tmpS0)
