@@ -23,6 +23,7 @@ import itertools
 
 from . import Properties
 from . import Hardware
+from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
@@ -242,7 +243,7 @@ class MasterSolutionLibrary:
                 if devicePart == 'fallback':
                     pred = Hardware.HardwarePredicate("TruePred")
                 else:
-                    isa = tuple(map(int,devicePart[3:6]))
+                    isa = Common.gfxArch(devicePart)
                     pred = Hardware.HardwarePredicate.FromISA(isa)
 
                 newLib.rows.append({'predicate': pred, 'library': library})
