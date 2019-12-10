@@ -1165,6 +1165,9 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
   globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
 
+  if "ROCmAgentEnumeratorPath" in config:
+    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
+
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
