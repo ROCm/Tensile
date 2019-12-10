@@ -7187,6 +7187,11 @@ class KernelWriterAssembly(KernelWriter):
         #determine  column block groups for given MFMA (
         kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
           tmpV0, tmpS0)
+        if (kernel["InstSplit"] > 1):
+          # tid1&tid0 << InstSplit to handle single Block (instSplit>1) case
+          kStr += inst("v_lshrrev_b32", vgpr(tid1),
+                        hex(log2(kernel["InstSplit"])), vgpr(tid1), \
+                        "vectorStaticDiv tid1 = tid1<<log2(InstSplit)")
         # determine column start address for each block
         kStr += inst("v_mul_lo_u32", vgpr(tmpV1),
                       hex(kernel["MatrixInstN"]), vgpr(tid1), \
@@ -7464,10 +7469,6 @@ class KernelWriterAssembly(KernelWriter):
       # for mfma_4x4 we only need 4 register and thats been accounted numStoresperInstruction
       numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
       #re-adjust columnBlock for  4x4mfma
-      #TODO re-enable after instSplit
-      #assert(numcolBlocksperInstruction<=kernel["MatrixInstB"])
-      #assert(numRowBlocksperInstruction<=kernel["MatrixInstB"])
-      assert((numcolBlocksperInstruction!=numRowBlocksperInstruction) and  kernel["InstSplit"] == 1)
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
         for vc1 in range(0, kernel["VectorWidth"]):
@@ -7521,10 +7522,6 @@ class KernelWriterAssembly(KernelWriter):
       numRowBlocksperInstruction = 1 if kernel["MatrixInstM"] == 4  else (kernel["MIWG0"] // kernel["MatrixInstM"])
       numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
       #re-adjust columnBlock for  4x4mfma
-      #TODO re-enable after instSplit
-      #assert(numcolBlocksperInstruction<=kernel["MatrixInstB"])
-      #assert(numRowBlocksperInstruction<=kernel["MatrixInstB"])
-      assert((numcolBlocksperInstruction!=numRowBlocksperInstruction) and  kernel["InstSplit"] == 1) 
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
         for vc1 in range(0, kernel["VectorWidth"]):
@@ -7778,6 +7775,7 @@ class KernelWriterAssembly(KernelWriter):
           # TODO Currently only works for 32x32x1x2, revisit calc and element loop
           # coordOffset0 = (d0 // 32) * 32 + ((d0 // 4) % 4) * 8 + (d0 % 4) # BBlocks
           #coordOffset0 = (d0 // 32) * 32 + ((d0 // (4 // kernel["VectorWidth"]))) * 8 + (d0 % (4 // kernel["VectorWidth"])) * kernel["VectorWidth"]  # ABlocks
+          #TODO 4x4 MFMA requires fix
           numRowsPerReg = 1 if kernel["MatrixInstM"] == 4 else (globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]) 
           coordOffset0 = d0 * gwvw * numRowsPerReg + vc0
         else:
