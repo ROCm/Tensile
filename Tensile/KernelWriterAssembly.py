@@ -5397,8 +5397,9 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["MatrixInstruction"]:
           instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
           kStr += "s_nop %u\n" % instCycles
-          for i in range(0, self.totalAgprs):
-            kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+          ##for i in range(0, self.totalAgprs):
+          ##  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+          kStr += self.MapAcctoArchRegs(kernel,option=0)
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
