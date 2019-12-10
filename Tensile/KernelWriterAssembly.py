@@ -7185,18 +7185,21 @@ class KernelWriterAssembly(KernelWriter):
         self.mfma_addr0 = mfma_addr0
         self.mfma_addr1 = mfma_addr1
       else:
-        #determine  column block groups for given MFMA (
-        kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
+        #determine  column block groups of each SIMD for given MFMA & WG
+        # calculate starting column block-id for each SIMD 
+        kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", globalParameters["WavefrontWidth"], \
           tmpV0, tmpS0)
-        if (kernel["InstSplit"] > 1):
+        numColBlocks = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+        kStr += inst("v_mul_lo_u32", vgpr(tid1),hex(numColBlocks),vgpr(tid1), \
+                      "Col-id = tid1*MatrixInstN")
+        #if (kernel["InstSplit"] > 1):
           # tid1&tid0 << InstSplit to handle single Block (instSplit>1) case
-          kStr += inst("v_lshrrev_b32", vgpr(tid1),
-                        hex(log2(kernel["InstSplit"])), vgpr(tid1), \
-                        "vectorStaticDiv tid1 = tid1<<log2(InstSplit)")
+        #  kStr += inst("v_lshrrev_b32", vgpr(tid1),
+        #                hex(log2(kernel["InstSplit"])), vgpr(tid1), \
+        #                "vectorStaticDiv tid1 = tid1<<log2(InstSplit)")
         # determine column start address for each block
         kStr += inst("v_mul_lo_u32", vgpr(tmpV1),
-                      hex(kernel["MatrixInstN"]), vgpr(tid1), \
-                      "Col-id = tid1*MatrixInstN")
+                      hex(kernel["MatrixInstN"]), vgpr(tid1), "")
         startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
         # determine col VGPR statt address
         kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
