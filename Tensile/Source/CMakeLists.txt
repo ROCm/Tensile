@@ -181,6 +181,7 @@ else()
       include(${CMAKE_SOURCE_DIR}/TensileCreateLibrary.cmake)
       TensileCreateLibraryCmake(
         ${Tensile_LOGIC_PATH}           # path
+        ${Tensile_RUNTIME_LANGUAGE}     # HIP or OCL
         ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
         ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906, gfx908

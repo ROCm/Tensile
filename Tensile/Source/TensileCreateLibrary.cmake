@@ -34,6 +34,7 @@ function(TensileCreateLibraryCmake
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
 
+  message(STATUS "Tensile_RUNTIME_LANGUAGE    from TensileCreateLibraryCmake : ${Tensile_RUNTIME_LANGUAGE}")
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
   message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
