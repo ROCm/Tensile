@@ -1678,6 +1678,10 @@ class Solution:
                 (state["DepthU"] * bpeAB), 2)))
     except ValueError:
         staggerStrideShift = 0
+    if staggerStrideShift < 0:
+      reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
+        % (state["StaggerUStride"], state["DepthU"], bpeAB))
+      return 
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
