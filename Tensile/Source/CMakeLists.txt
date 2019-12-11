@@ -84,6 +84,7 @@ else()
     set(Tensile_CODE_OBJECT_VERSION V2 CACHE STRING "Which code object version to use")
     set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
     set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hcc hipcc)
+    set(Tensile_ARCHITECTURE all CACHE STRING "Which GPU architecture to use")
     set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906 gfx908)
 
     message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
