@@ -5423,8 +5423,7 @@ class KernelWriterAssembly(KernelWriter):
           addrCalc = ss.elementAddr[elementIdx]
           sumIdx = ss.elementSumIdx[elementIdx]
 
-          if not kernel["MatrixInstruction"]:
-            kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
+          kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
                               edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
 
@@ -7213,27 +7212,36 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_and_b32", vgpr(tmpV1), hex(kernel["MatrixInstN"]-1), vgpr("Serial"), "colId-perBlock= vgprSerial%MatrixInstN")
         #TODO fix-me for ldc!=ldd
         kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "")
-        kStr += inst("v_add_u32", vgpr(self.cinRowPtr), vgpr(tmpV2),vgpr(self.cinRowPtr),"colStart VGPR")
+        kStr += inst("v_add_u32", vgpr(self.cinRowPtr), vgpr(tmpV2),vgpr(self.cinRowPtr),"rowStart VGPR")
 
         kStr += "\n"
-        kStr += inst("v_and_b32", vgpr(tmpV2), hex(globalParameters["WavefrontWidth"]-1), vgpr("Serial"), "")
-        kStr += inst("v_lshrrev_b32", vgpr(tmpV3),
-                      hex(log2(kernel["MatrixInstM"])), vgpr(tmpV2), \
-                      "vectorStaticDiv vgprTmp = vgprSerial / matrixInstM")
-        # determine row-id of each block(MFMA mxn) 2 rows for mfma32x32 4 rows for mfma16x16
         if (kernel["MatrixInstM"] != 4):
+          kStr += inst("v_lshrrev_b32", vgpr(tmpV3),
+                      hex(log2(kernel["MatrixInstM"])), vgpr(tid0), \
+                      "vectorStaticDiv vgprTmp = tid0 / matrixInstM")
+          # determine row-id of each block(MFMA 'B') 2 rows for mfma32x32 4 rows for mfma16x16
+          # for MFMA_4x4 16 blks are mapped along rows and cols determied by miwg0  (miwg0/4 = numRows in 16 blocks and remaining in col dimension)
           rowIdPerColblock = globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]
-          kStr += inst("v_lshlrev_b32", vgpr(tmpV3), hex(rowIdPerColblock), vgpr(tmpV3), "tmpV3 = tmpV3 * rowIdPerColblock")   # mulitple by 4 for row-starting id for each matrixN columns (static for mfma32/mfma16)
+          kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(rowIdPerColblock), vgpr(tmpV3), "tmpV3 = tmpV3 << 2 (4xMatrixInstN per block")   # mulitple by 4 for row-starting id for each matrixN columns (static for mfma32/mfma16)
         else:
            assert(0) 	#TODO fix me for MFMA 4x4 instruction 
         kStr += "\n"
         kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
-        kStr += inst("v_add_co_u32", vgpr(tmpV3), "vcc", sgpr(tmpS0), vgpr(tmpV3), "")
-        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(2), "c base") # Always 4?
-
-        kStr += inst("v_mul_lo_u32", vgpr(tmpV1), hex(32), sgpr("StridesC"), "scale by 32 for second column of 64/simd (B-tile/256)")
-        kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(self.cinRowPtr), "")
-        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4? 
+        kStr += inst("v_add_co_u32", vgpr(tid0), "vcc", sgpr(tmpS0), vgpr(tid0), "coord0 = (tid0 / matrixInstM)<<2 + wg0*MT0")
+        #kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(log2(kw.bpeCexternal)), "init cb addr <-  cinRowStart + coord0, scaled by BPE") # Always 4?
+	#TODO review below code
+        kStr += inst("s_mul_i32", \
+            sgpr(wgMT1), \
+            hex(kernel["MacroTile1"]), \
+            sgpr(wg1), \
+            "<- wg1*MT1")
+        kStr += inst("_v_add_co_u32", \
+            vgpr(tid1), \
+            "vcc", \
+            sgpr(wgMT1), \
+            vgpr(tid1), \
+            "coord1 = tid1*VW + wg1*MT1")
+        #kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(log2(kw.bpeCexternal)), "c base") # Always 4? 
         self.mfma_addr0 = mfma_addr0
         self.mfma_addr1 = mfma_addr1
     else:
@@ -8671,8 +8679,8 @@ class KernelWriterAssembly(KernelWriter):
         addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
 
-      if kernel["MatrixInstruction"] and not edge:
-        addr0 = vgpr(self.mfma_addr0)
+      #if kernel["MatrixInstruction"] and not edge:
+      # addr0 = vgpr(self.mfma_addr0)
         #if (sumIdx // 32) % 2 == 0: # BBlocks
       #  if (sumIdx // 32) % 2 == 0: # ABlocks
       #    addr0 = vgpr(self.mfma_addr0)
