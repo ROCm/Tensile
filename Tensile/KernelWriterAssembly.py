@@ -4421,7 +4421,7 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
     if tc == "B": # ABlocks only
-      divisor = kernel["MIWG0"]
+      divisor //= 4 # 4 simds
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
     dividendReg = "Serial"
