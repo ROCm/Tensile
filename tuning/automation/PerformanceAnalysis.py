@@ -138,7 +138,7 @@ def RunMain():
     argParser = argparse.ArgumentParser()
     argParser.add_argument("input_path", help="path where the results are located")
     argParser.add_argument("output_path", help="path where the processed files are to go")
-    argParser.add_argument("frequency", help="frequecy in megahertz used in testing", type=int,default=754)
+    argParser.add_argument("frequency", help="frequecy in megahertz used in testing", type=int,default=1301)
     argParser.add_argument("data_size", help="data size",type=int,default=2)
 
     args = argParser.parse_args(userArgs)
