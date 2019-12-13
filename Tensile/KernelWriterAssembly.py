@@ -7197,12 +7197,12 @@ class KernelWriterAssembly(KernelWriter):
         #                hex(log2(kernel["InstSplit"])), vgpr(tid1), \
         #                "vectorStaticDiv tid1 = tid1<<log2(InstSplit)")
         # determine column start address for each block
-        kStr += inst("v_mul_lo_u32", vgpr(tmpV1),
-                      hex(kernel["MatrixInstN"]), vgpr(tid1), "")
+        kStr += inst("v_mul_lo_u32", vgpr(tid1),
+                      hex(kernel["MatrixInstN"]), vgpr(tid1), "col element offset for each block")
         startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
         # determine col VGPR statt address
         kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
-                      vgpr(tmpV1), sgpr("StridesC+%u"%(startStride)), \
+                      vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
                       "Col-block-offset = Col-id*Stride")
         if not kernel["LdcEqualsLdd"]:
           kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
@@ -7213,6 +7213,7 @@ class KernelWriterAssembly(KernelWriter):
         #TODO fix-me for ldc!=ldd
         kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "")
         kStr += inst("v_add_u32", vgpr(self.cinRowPtr), vgpr(tmpV2),vgpr(self.cinRowPtr),"rowStart VGPR")
+        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV1),vgpr(tid1),"coord1 offset in MacroTile")
 
         kStr += "\n"
         if (kernel["MatrixInstM"] != 4):
@@ -7518,12 +7519,12 @@ class KernelWriterAssembly(KernelWriter):
     edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
-    if kernel["MatrixInstruction"]:
+    #if kernel["MatrixInstruction"]:
       ##TODO remove and use VectorWidth once VW mapping of TT is done
-      elementsLoadedPeredgeVw = kernel["NumThreads"]*edgeVw
-      elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
-      if elementsLoadedPervw > elementsLoadedPeredgeVw:
-        edgeVw = kernel["StoreVectorWidth"] 
+      #elementsLoadedPeredgeVw = kernel["NumThreads"]*edgeVw
+      #elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+      #if elementsLoadedPervw > elementsLoadedPeredgeVw:
+      #  edgeVw = kernel["StoreVectorWidth"]
 
     if kernel["MatrixInstruction"]:
       numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
@@ -7537,10 +7538,10 @@ class KernelWriterAssembly(KernelWriter):
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
         for vc1 in range(0, kernel["VectorWidth"]):
-          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//edgeVw):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//kernel["StoreVectorWidth"]):
             for vc0 in range(0, kernel["StoreVectorWidth"], edgeVw):
               element = (tt1, tt0, vc1, vc0)
-              elements.append(element)
+              elements[True].append(element)
     else:
       for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
@@ -7789,7 +7790,7 @@ class KernelWriterAssembly(KernelWriter):
           #coordOffset0 = (d0 // 32) * 32 + ((d0 // (4 // kernel["VectorWidth"]))) * 8 + (d0 % (4 // kernel["VectorWidth"])) * kernel["VectorWidth"]  # ABlocks
           #TODO 4x4 MFMA requires fix
           numRowsPerReg = 1 if kernel["MatrixInstM"] == 4 else (globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]) 
-          coordOffset0 = d0 * gwvw * numRowsPerReg + vc0
+          coordOffset0 = d0 * numRowsPerReg * kernel["StoreVectorWidth"] + vc0
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 
