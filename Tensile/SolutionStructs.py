@@ -1020,14 +1020,10 @@ class Solution:
           itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
           if state["ThreadTile"][1] % itemsPerThread != 0:
             reject(state, "ThreadTile must be a multiple of MatrixInstruction")
-          if state["ProblemType"]["DataType"].toChar() in validMFMA and \
-            state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]:
-            state["MatrixInstM"] = state["MatrixInstruction"][0]
-            state["MatrixInstN"] = state["MatrixInstruction"][1]
-            state["MatrixInstK"] = state["MatrixInstruction"][2]
-            state["MatrixInstB"] = state["MatrixInstruction"][3]
-          else:
-            reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+          state["MatrixInstM"] = state["MatrixInstruction"][0]
+          state["MatrixInstN"] = state["MatrixInstruction"][1]
+          state["MatrixInstK"] = state["MatrixInstruction"][2]
+          state["MatrixInstB"] = state["MatrixInstruction"][3]
     else:
       if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
         reject(state, "Invalid value for ThreadTile")
@@ -1402,6 +1398,11 @@ class Solution:
     if not state["Valid"]:
       print1("in assignDerivedParameters, state['Valid'] = False")
       return
+
+    if state["MatrixInstruction"]:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
