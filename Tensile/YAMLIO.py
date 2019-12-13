@@ -259,4 +259,4 @@ def readLibraryLogicForSchedule( filename ):
     solutions.append(solutionObject)
 
   return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-      exactLogic, rangeLogic, newLibrary)
+      exactLogic, rangeLogic, newLibrary, architectureName)

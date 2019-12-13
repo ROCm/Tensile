@@ -44,6 +44,7 @@ import shutil
 import subprocess
 import sys
 import time
+from copy import deepcopy
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -70,35 +71,38 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     if len(assemblyKernels) == 0:
         return []
 
-    if globalParameters["MergeFiles"]:
-        archs = collections.defaultdict(list)
-        for k in assemblyKernels:
-            archs[tuple(k['ISA'])].append(k)
-
-        coFiles = []
-        for arch, archKernels in archs.items():
-            objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
-                                for k in archKernels \
-                                if k['KernelLanguage'] == 'Assembly'])
-            if len(objectFiles) == 0:
-                continue
-
-            archName = 'gfx'+''.join(map(str,arch))
-            coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
-            args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-            subprocess.check_call(args, cwd=asmDir)
-            coFiles.append(coFile)
-
-        return coFiles
-
-    else:
-        assemblyKernelNames = [kernelWriterAssembly.getKernelName(k) for k in assemblyKernels]
+    archs = collections.defaultdict(list)
+    for k in assemblyKernels:
+      archs[tuple(k['ISA'])].append(k)
+    coFiles = []
+    for arch, archKernels in archs.items():
+      archName = 'gfx'+''.join(map(str,arch))
+      objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
+                          for k in archKernels \
+                          if k['KernelLanguage'] == 'Assembly'])
+      if len(objectFiles) == 0:
+        continue
+      if globalParameters["MergeFiles"]:
+      #  archName = 'gfx'+''.join(map(str,arch))
+        coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
+        if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
+          coFile = os.path.join(destDir, archName, 'TensileLibrary_{}.co'.format(archName))
+        args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
+        subprocess.check_call(args, cwd=asmDir)
+        coFiles.append(coFile)
+      else:
+        assemblyKernelNames = [kernelWriterAssembly.getKernelName(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
-        newCOFiles  = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
+        newCOFiles  = []
+        if globalParameters["PackageLibrary"]:
+          newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
+        else:
+          newCOFiles = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
-            shutil.copyfile(src, dst)
-
-        return newCOFiles
+          shutil.copyfile(src, dst)
+        coFiles += newCOFiles
+    
+    return coFiles
 
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
@@ -143,13 +147,10 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
       extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
-      #print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      #print(' '.join(linkArgs))
       subprocess.check_call(linkArgs)
 
-      #print(' '.join(extractArgs))
       subprocess.check_call(extractArgs, cwd=buildPath)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
@@ -161,20 +162,31 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
 
-      #print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
       coFilenames = [soFilename]
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
-    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-    destCOs = [os.path.join(destDir, name) for name in coFilenames]
-
-    for (src, dst) in zip(extractedCOs, destCOs):
+    destCosList = []
+    if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
+      for arch in archs:
+        ensurePath(os.path.join(destDir, arch))
+        archCoFilenames = [name for name in coFilenames if arch in name]
+        extractedCOs = [os.path.join(buildPath, name) for name in archCoFilenames]
+        destCOs = [os.path.join(destDir, arch, name) for name in archCoFilenames]
+        destCosList += destCOs
+        for (src, dst) in zip(extractedCOs, destCOs):
+          shutil.copyfile(src, dst)
+    else:
+      coFilenames = [name for name in coFilenames]
+      extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
+      destCOs = [os.path.join(destDir, name) for name in coFilenames]
+      destCosList += destCOs
+      for (src, dst) in zip(extractedCOs, destCOs):
         shutil.copyfile(src, dst)
 
-    return destCOs
+    return destCosList
 
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
@@ -285,7 +297,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile = open(kernelHeaderFilename, "w")
     kernelSourceFile.write(CHeader)
     kernelHeaderFile.write(CHeader)
-    #kernelSourceFile.write("#define HCC_ENABLE_ACCELERATOR_PRINTF\n")
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
@@ -302,6 +313,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
+  #do we need this?
+  #print(len(results))
 
   removeKernels = []
   removeSolutions = []
@@ -414,7 +427,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     h += "\n"
 
   solutionHeaderFile.write(h)
-#
+
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
@@ -764,13 +777,13 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
     s += " { {"
     for i in range(0, len(problemSize)):
       if i == 0:
-        s += "%u" % problemSize[i];
+        s += "%u" % problemSize[i]
       else:
-        s += ", %u" % problemSize[i];
+        s += ", %u" % problemSize[i]
     s += "}, %u}" % (solutionIdx)
     s += "," if ruleIdx != len(exactLogic)-1 else " "
     s += " // %.0f GFlop/s" % (solutionGFlops)
-    s += "\n";
+    s += "\n"
   s += "};\n\n"
 
   # Create a solution mapper and init with the table above:
@@ -962,6 +975,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--no-short-file-names",    dest="ShortNames",        action="store_false")
   argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
+  argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False)
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
 
@@ -983,6 +997,7 @@ def TensileCreateLibrary():
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
   arguments["CodeFromFiles"] = False
   arguments["EmbedLibrary"] = args.EmbedLibrary
+  arguments["PackageLibrary"] = args.PackageLibrary
   assignGlobalParameters(arguments)
 
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
@@ -1004,13 +1019,20 @@ def TensileCreateLibrary():
   ##############################################################################
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
-  newMasterLibrary = None
 
   libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
 
+  masterLibraries = {}
+  fullMasterLibrary = None
   for logic in Utils.tqdm(libraries, "Processing logic data"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-       indexOrder, exactLogic, rangeLogic, newLibrary) = logic
+       indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
+
+    if not globalParameters["PackageLibrary"]:
+      if fullMasterLibrary is None:
+        fullMasterLibrary = deepcopy(newLibrary)
+      else:
+        fullMasterLibrary.merge(deepcopy(newLibrary))
 
     if problemType not in logicData:
       logicData[problemType] = []
@@ -1020,10 +1042,11 @@ def TensileCreateLibrary():
       if solution not in solutions:
         solutions.append(solution)
 
-    if newMasterLibrary is None:
-        newMasterLibrary = newLibrary
-    else:
-        newMasterLibrary.merge(newLibrary)
+    if globalParameters["PackageLibrary"]:
+      if architectureName in masterLibraries:
+        masterLibraries[architectureName].merge(deepcopy(newLibrary))
+      else:
+        masterLibraries[architectureName] = deepcopy(newLibrary)
 
   # create solution writer and kernel writer
   kernels = []
@@ -1080,16 +1103,29 @@ def TensileCreateLibrary():
   # write logic
   writeLogic(outputPath, logicData, solutionWriter)
 
+  archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+             if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
-  
-  masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
-  newMasterLibrary.applyNaming(kernelMinNaming)
-  YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
+ 
+  if globalParameters["PackageLibrary"]: 
+    for archName, newMasterLibrary in masterLibraries.items():
+      if (archName in archs):
+        archPath = ensurePath(os.path.join(newLibraryDir, archName))
+        masterFile = os.path.join(archPath, "TensileLibrary.yaml")
+      newMasterLibrary.applyNaming(kernelMinNaming)
+      YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
+  else:
+    masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")   
+    fullMasterLibrary.applyNaming(kernelMinNaming)
+    YAMLIO.write(masterFile, Utils.state(fullMasterLibrary))
 
+  theMasterLibrary = fullMasterLibrary
+  if globalParameters["PackageLibrary"]:
+    theMasterLibrary = list(masterLibraries.values())[0]
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(newMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
+          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
           for co in Utils.tqdm(codeObjectFiles):
