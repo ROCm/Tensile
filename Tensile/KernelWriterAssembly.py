@@ -4539,7 +4539,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       self.agprPool.remove(0, self.totalAgprs, "ValuC")
       for i in range(0, self.totalAgprs):
-        kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "initC acc vgprs")
+        kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "init Acc vgprs")
 
       # TODO: Remove debug code when finished
       # for debug, write 42 and check results
@@ -5127,6 +5127,9 @@ class KernelWriterAssembly(KernelWriter):
     if "MatrixInstM" in kernel:
       #for i in range(0, self.totalAgprs):
       #  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+      #TODO avoid s_nop if its possible
+      instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
+      kStr += "s_nop %u\n" % instCycles
       kStr += self.MapAcctoArchRegs(kernel,option=0)
 
     if self.db["ConservativeWaitCnt"] & 0x10:
@@ -7189,7 +7192,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", globalParameters["WavefrontWidth"], \
           tmpV0, tmpS0)
         numColBlocks = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
-        kStr += inst("v_mul_lo_u32", vgpr(tid1),hex(numColBlocks),vgpr(tid1), \
+        if numColBlocks > 1:
+          kStr += inst("v_mul_lo_u32", vgpr(tid1),hex(numColBlocks),vgpr(tid1), \
                       "Col-id = tid1*MatrixInstN")
         #if (kernel["InstSplit"] > 1):
           # tid1&tid0 << InstSplit to handle single Block (instSplit>1) case
@@ -9492,8 +9496,12 @@ class KernelWriterAssembly(KernelWriter):
       if skipLocalRead > -1:
         numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // kernel["VectorWidth"]) \
             // self.localReadInstructionA.numOffsets
-        numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) \
-            // self.localReadInstructionB.numOffsets
+        if kernel["MatrixInstruction"]:
+          numB = kernel["InnerUnroll"]*((kernel["ThreadTile1"]//kernel["MatrixInstN"])// kernel["VectorWidth"]) \
+              // self.localReadInstructionB.numOffsets
+        else:
+          numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) \
+              // self.localReadInstructionB.numOffsets
         lgkmcnt += skipLocalRead * (numA + numB)
 
     vmcnt = 0 if skipGlobalRead > -1 else -1
