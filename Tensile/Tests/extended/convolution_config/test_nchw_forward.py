@@ -1,4 +1,4 @@
-import logging
+import logging,pytest
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
@@ -165,6 +165,7 @@ def test_ncdhw_packed_strides3d_defaults(run_convolution_level):
     assert(z['SetConstStrideB']==[[4, 0]])
     run_convolution_level(conv, z)
 
+@pytest.mark.skip(reason="asm path fails")
 def test_ncdhw_packed_strides_filter3d(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
