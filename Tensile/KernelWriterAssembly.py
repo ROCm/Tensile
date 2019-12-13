@@ -7758,9 +7758,6 @@ class KernelWriterAssembly(KernelWriter):
                     "Copy remaining bits for next divide")
           packedBits = tmpVgpr+0
 
-        if 0 and packedBits==7:
-          kStr += kw.bomb()
-
       if len(packedIndices)>1:
         # if we unpacked something, then scale it to BPE
         kStr += kw.comment1("extract final %s"%kw.size('A', packedIndices[-1]))

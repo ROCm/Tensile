@@ -238,8 +238,8 @@ class ProblemType:
 
 def extractDimPredicate(cls, key, value, predicateName):
     """
-    Extract the predicate for AssertStrideEqual* or AssertZizeEqual*
-    These are comma-separated pos:value pairs, ie 
+    Extract the predicate for AssertStrideEqual* or AssertSizeEqual*
+    These are comma-separated pos:value pairs, ie
     AssertStrideBEqual=["2:0,  3:1"]
     """
     predicates = []
