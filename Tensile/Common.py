@@ -92,7 +92,10 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
-globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Tensile will also attempt to run the kernel.  Useful to examine and debug overflow errors)
+# even if error occurs in kernel generation (ie due to resource overflow),
+# generate the kernel source anyway.  Tensile will also attempt to run
+# the kernel.  Useful to examine and debug overflow errors.
+globalParameters["ForceGenerateKernel"] = 0
 
 ########################################
 # optimization knob controls
@@ -448,16 +451,16 @@ validParameters = {
 
 
     # Assertions that require stride to be specified value.
-    # List of pairs of [position, constValue].
+    # String with comma-separated pairs of position:constValue.
     # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
-    #   EX: [ [2,0] ] means IndexAssignmentsB[2] must be 0 to run the solution.
-    # Like other assertions, these are used when kernel is generated and checked before running kernel
+    #   EX: "[2:0]"  means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Like other assertions, these are used when kernel is generated and checked before running kernel.
     "AssertStrideAEqual":  -1,
 
     "AssertStrideBEqual":  -1,
 
     # Assertions that require stride to be specified value.
-    # List of pairs of [index, constValue].#
+    # List of pairs of [index, constValue].
     # Index is a member of the global index assignments.
     "AssertSizeEqual":    -1,
 
