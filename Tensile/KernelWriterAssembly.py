@@ -731,8 +731,6 @@ class KernelWriterAssembly(KernelWriter):
     self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     self.sgprs[name] = self.sgprIdx
     self.sgprIdx += numSgprs
-    if self.sgprIdx >= self.maxSgprs:
-      print ("warning: too many kernel arguments (sgpr=%d)! Overflowed SGPRS." % (self.sgprIdx))
 
     return
 
@@ -1566,6 +1564,10 @@ class KernelWriterAssembly(KernelWriter):
     numDummySgpr= 0
     for i in range(numDummySgpr):
       self.defineSgpr("DummySgpr%d"%i, 1)
+
+    if self.sgprIdx >= self.maxSgprs:
+      print ("warning: Number of defined SGPRS (%d) overflowed max SGPRS (%d)." \
+               % (self.sgprIdx, self.maxSgprs))
 
     # TODO-persistent - likely recompute some of the registers above.
     if kernel["PersistentKernel"]:
@@ -3129,10 +3131,11 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def getKernArg(self, parmName, writeSgpr=1):
     kStr = ""
+    size = 1*4
     if writeSgpr:
       kStr += inst("s_load_dword", sgpr(parmName), \
           sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
-    self.kernArgOffset += 1*4
+    self.kernArgOffset += size
     return kStr
 
   ##############################################################################
