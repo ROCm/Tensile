@@ -136,6 +136,8 @@ class YamlBuilder:
         tensileProblemType.update(problemType)
 
         benchmarkParams = cls.asm3()
+        for (key,value) in conv.solutionParms.items():
+            benchmarkParams["ForkParameters"].append({key:[value]})
         benchmarkParams["BenchmarkFinalParameters"] = cls.ProblemSizes(conv)
 
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
