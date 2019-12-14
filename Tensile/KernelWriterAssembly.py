@@ -1361,6 +1361,10 @@ class KernelWriterAssembly(KernelWriter):
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
 
+    # Number of D strides to actually load into SGPR
+    # Save some SGPR if LdcEqualsLdd
+    self.numSgprStridesDToLoad = 0 if kernel["LdcEqualsLdd"] else self.numSgprStridesD
+
     self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprAddressDbg = self.rpga if globalParameters["DebugKernel"] else 0
 
@@ -1422,7 +1426,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("GSUSumIdx", 2 if kernel["GlobalSplitU"] > 1 else 0)
     self.defineSgpr("AddressD", numSgprAddressD)
     self.defineSgpr("AddressC", numSgprAddressC)
-    self.defineSgpr("StridesD", self.numSgprStridesD)
+    self.defineSgpr("StridesD", self.numSgprStridesDToLoad)
     self.defineSgpr("StridesC", self.numSgprStridesC)
 
     # doubles need to be aligned to even
@@ -2655,6 +2659,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
     kStr += self.comment1("Stride Assignments")
     for tc in ('D','C'):
+      if tc=='D' and not kernel["LdcEqualsLdd"]:
+        sourceTc = 'D'
+      else:
+        sourceTc = 'C'
       for idx in range(0, problemType["NumIndicesC"]):
         i = idx
         idxChar= self.indexChars[idx]
@@ -2664,7 +2672,8 @@ class KernelWriterAssembly(KernelWriter):
           if not kernel["ProblemType"]["UseInitialStridesCD"]:
             i = i-1
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
-                    "sgprStrides%s+%u"%(tc, i))
+                    "sgprStrides%s+%u"%(sourceTc, i))
+
     for tc in ('A','B'):
       for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
         idxChar= self.indexChars[idx]
@@ -3070,7 +3079,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.getKernArg("Beta+2")
           kStr += self.getKernArg("Beta+3")
       for i in range(0, self.numSgprStridesD):
-        kStr += self.getKernArg("StridesD+%u"%i)
+        kStr += self.getKernArg("StridesD+%u"%i, not kernel["LdcEqualsLdd"])
       for i in range(0, self.numSgprStridesC):
         kStr += self.getKernArg("StridesC+%u"%i)
       for i in range(0, self.numSgprStridesA):
