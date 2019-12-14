@@ -550,6 +550,10 @@ class KernelWriterAssembly(KernelWriter):
     else:
       raise ValueError("unexpected tensorChar='%s' in size function"%tc)
 
+
+  def isConstUnitStride(self, stride):
+      return stride.startswith("const")
+
   ########################################
   ########################################
   def stride(self, tc, dim):
@@ -4027,10 +4031,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       if kernel["CheckDimOverflow"] >=2:
         kStr += self.assert_eq(sgpr(tileStart+1),0)
-      if not tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
-        strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
+      strideF = self.stride(tc, tP['idx'])
+      if not self.isConstUnitStride(strideF):
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
-                   sgpr(strideF), "tlu=0, scaled tile-offset by stride")
+                   strideF, "tlu=0, scaled tile-offset by stride")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -4039,12 +4043,13 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), kernel["DepthU"], sgpr("GSUSumIdx"), "gsuOffset = DepthU*bpe*GSUSumIdx")
         if kernel["CheckDimOverflow"] >=2:
           kStr += self.assert_eq(sgpr(stmp+1),0)
-        if tP["tlu"]: # non-transpose case, unroll is in perp dim and should be scaled by unroll Stride
-          # TODO - PackSummationDims handling needs to handle multiple sum dims
-          unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
-          strideU = "Stride%s%s"%(tc,self.indexChars[unrollSummation[-1]])
+        # TODO - PackSummationDims handling needs to handle multiple sum dims
+        unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
+        stride = self.stride(tc,unrollSummation[-1])
+        if tP["tlu"] and not self.isConstUnitStride(stride):
+          # non-transpose case, unroll is in perp dim and should be scaled by unroll Stride
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
-                    sgpr(strideU), "tlu=1, scaled unroll-offset by stride")
+                    stride, "tlu=1, scaled unroll-offset by stride")
 
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffet term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
@@ -5036,7 +5041,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
                       sgpr(tmpSgpr+1), 1 , "")
 
-        if not self.stride('A', freeDim).startswith("const"):
+        if not self.isConstUnitStride(self.stride('A', freeDim)):
             kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
                       sgpr(tmpSgpr+1), \
                       self.stride('A', freeDim), "scale")
