@@ -2,7 +2,6 @@ import logging,pytest
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
-# content of test_sample.py
 def test_nchw_defaults(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
