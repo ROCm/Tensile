@@ -88,6 +88,9 @@ class YamlBuilder:
             "BenchmarkJoinParameters": None,
             "BenchmarkFinalParameters": None
         }
+    @classmethod
+    def defaultSolution(cls):
+        return cls.asm3
 
     @classmethod
     def ProblemSizes(cls, conv):
@@ -106,12 +109,12 @@ class YamlBuilder:
         return [{"ProblemSizes": [{"Exact": problemSizes}]}]
 
     @classmethod
-    def ConvolutionVsContraction(cls, conv, dataType='s'):
+    def ConvolutionVsContraction(cls, conv, solution, dataType):
         """
         Generates a YamlBuilder object that will run in
         ConvolutionVsContraction mode.
         """
-        obj = cls.ConvolutionContraction(conv, {}, dataType)
+        obj = cls.ConvolutionContraction(conv, {}, solution, dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
         obj.doc["GlobalParameters"]["ProblemFromConvolution"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
@@ -121,7 +124,7 @@ class YamlBuilder:
         return obj
 
     @classmethod
-    def ConvolutionContraction(cls, conv, problemType, dataType='s'):
+    def ConvolutionContraction(cls, conv, problemType, solution, dataType):
         """
         Generates a YamlBuilder object that will run a convolution, in normal
         contraction mode.
@@ -135,7 +138,7 @@ class YamlBuilder:
 
         tensileProblemType.update(problemType)
 
-        benchmarkParams = cls.asm3()
+        benchmarkParams = solution()
         for (key,value) in conv.solutionParms.items():
             benchmarkParams["ForkParameters"].append({key:[value]})
         benchmarkParams["BenchmarkFinalParameters"] = cls.ProblemSizes(conv)

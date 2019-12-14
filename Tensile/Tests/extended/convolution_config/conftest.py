@@ -13,14 +13,14 @@ def file_with_test_name(request, tmp_path):
 
 @pytest.fixture
 def run_nothing():
-    def run(conv, problemType, dataType='s'):
+    def run(conv, problemType, solution=YamlBuilder.defaultSolution(), dataType='s'):
         pass
     return run
 
 @pytest.fixture
 def run_generate_yaml(file_with_test_name):
-    def run(conv, problemType, dataType='s'):
-        config = YamlBuilder.ConvolutionContraction(conv, problemType, dataType)
+    def run(conv, problemType, solution=YamlBuilder.defaultSolution(), dataType='s'):
+        config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType)
         configFile = file_with_test_name(".contraction.yaml")
         config.write(configFile)
         return configFile
@@ -28,25 +28,25 @@ def run_generate_yaml(file_with_test_name):
 
 @pytest.fixture
 def run_contraction(tensile_args, tmp_path, run_generate_yaml, request):
-    def run(conv, problemType, dataType='s'):
-        configFile = run_generate_yaml(conv, problemType, dataType)
+    def run(conv, problemType, solution=YamlBuilder.defaultSolution(), dataType='s'):
+        configFile = run_generate_yaml(conv, problemType, solution, dataType)
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
 @pytest.fixture
 def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
-    def run(conv, problemType={}, dataType='s'):
-        config = YamlBuilder.ConvolutionVsContraction(conv, dataType)
+    def run(conv, problemType={}, solution=YamlBuilder.src1, dataType='s'):
+        config = YamlBuilder.ConvolutionVsContraction(conv, solution, dataType)
         configFile = file_with_test_name(".conv.yaml")
         config.write(configFile)
 
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
-level_params = [pytest.param(0, id="Convolution Class"),
-                pytest.param(1, id="Generate YAML"),
-                pytest.param(2, id="Run Contraction"),
-                pytest.param(3, id="Run Convolution vs Contraction")]
+level_params = [pytest.param(0, id="Convolution_Class"),
+                pytest.param(1, id="Generate_YAML"),
+                pytest.param(2, id="Run_Contraction"),
+                pytest.param(3, id="Run_Convolution_vs Contraction")]
 
 @pytest.fixture(params=level_params)
 def run_convolution_level(request,
