@@ -142,10 +142,9 @@ class BenchmarkProcess:
                     % (paramName, validParameterNames))
               paramValues = paramDict[paramName]
               for paramValue in paramValues:
-                if paramValue not in validParameters[paramName]:
+                if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:
                   printExit("Invalid parameter value: %s = %s\nValid values for %s are %s." \
                       % (paramName, paramValue, paramName, validParameters[paramName]))
-
 
 
     ############################################################################

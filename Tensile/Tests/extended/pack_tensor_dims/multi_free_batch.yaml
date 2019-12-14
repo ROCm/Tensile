@@ -19,8 +19,6 @@ GlobalParameters:
   DataInitTypeBeta: 0
   KernelTime: True
   LibraryPrintDebug: 0
-  #RuntimeLanguage: ["OCL"]
-  PrintTensorD : 2
   CpuThreads: 0
   NewClient: 2
 
@@ -44,7 +42,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: ["Source","Assembly"]
         - ThreadTile:
           - [ 4, 4 ]
           - [ 8, 8 ]

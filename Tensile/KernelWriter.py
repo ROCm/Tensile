@@ -2430,9 +2430,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
 
-
     if error != 0:
-      raise RuntimeError("Generating kernel source resulted in error {}".format(error))
+      if globalParameters["ForceGenerateKernel"]:
+        print ("warning: Generating kernel source resulted in error {}, but ForceGenerateKernel=1 so saving source".format(error))
+      else:
+        raise RuntimeError("Generating kernel source resulted in error {}".format(error))
 
     return fileString
 

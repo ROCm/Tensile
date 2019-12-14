@@ -432,6 +432,12 @@ class KernelWriterAssembly(KernelWriter):
     # can't do both of these since they both override output
     assert (not (self.db["ForceExpectedValue"] and self.db["ForceVSerial"]))
 
+
+    self.db["ForceInputValueA"] = False
+    self.db["ForceInputValueB"] = False
+    self.db["ForceValueA"] = 1.0
+    self.db["ForceValueB"] = 1.0
+
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
     #self.db["CheckStoreC"] = 1024.0 # possible value
 
@@ -720,6 +726,9 @@ class KernelWriterAssembly(KernelWriter):
     self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     self.sgprs[name] = self.sgprIdx
     self.sgprIdx += numSgprs
+    if self.sgprIdx >= self.maxSgprs:
+      print ("warning: too many kernel arguments (sgpr=%d)! Overflowed SGPRS." % (self.sgprIdx))
+
     return
 
   ##############################################################################
@@ -775,7 +784,7 @@ class KernelWriterAssembly(KernelWriter):
     # will be run before the no-load-loop iteration where registers are still
     # tight.  Realistically we just have the GlobalToLocal VGPRs, all else is
     # growth.
-    self.preventVgprOverflowDuringNewTile = True
+    self.preventVgprOverflowDuringNewTile = 0 and not globalParameters["ForceGenerateKernel"]
 
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
@@ -1588,6 +1597,8 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
     if self.db["ForceExpectedValue"] : print ("\n***WARNING: ForceExpectedValue enabled, may impact functionality\n")
     if self.db["ForceVSerial"] : print ("\n***WARNING: ForceVSerial enabled, will impact functionality\n")
+    if self.db["ForceInputValueA"] : print ("\n***WARNING: ForceInputValueA enabled, may impact functionality\n")
+    if self.db["ForceInputValueB"] : print ("\n***WARNING: ForceInputValueB enabled, may impact functionality\n")
     if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
@@ -4137,24 +4148,27 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment("compute globalReadInc for higher-level loop")
 
         tmpSgpr = self.getTmpSgpr(3)
-        unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
         # Summations always appear in both A and B, can compute number of iterations just once:
-        if tP["isA"]:
-          quotient = unrollLoopCounter
-          dividend = "SizesSum+%u"%self.unrollIdx
-          divisor = kernel["DepthU"]
-          kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
-                      divisor, tmpSgpr+2, 0)
+        if loopIdxPrev==self.unrollIdx:
+          unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
+          if tP["isA"]:
+            quotient = unrollLoopCounter
+            dividend = "SizesSum+%u"%self.unrollIdx
+            divisor = kernel["DepthU"]
+            kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
+                        divisor, tmpSgpr+2, 0)
 
-          if kernel["GlobalSplitU"] > 1:
-            kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
+            if kernel["GlobalSplitU"] > 1:
+              kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
 
-          kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
-                    kernel["GlobalSplitU"]*kernel["DepthU"], \
-                    "=UnrollLoopCounter*DepthU")
-
-        kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
-              "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+            kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
+                      kernel["GlobalSplitU"]*kernel["DepthU"], \
+                      "=UnrollLoopCounter*DepthU")
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
+                "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+        else:
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, self.size(tc, dimIdxPrev), \
+                "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
 
         # subtract amount that previous inner loop will have already incremented:
         kStr += inst("s_sub_i32", sgpr(graInc), \
@@ -6242,6 +6256,8 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
                     blockWidth))
+              if self.db["ForceInputValue%s"%tc]:
+                localWriteCode.addInst("v_mov_b32", vgpr("G2L%s+%u"%(tc, g2lIdx)), self.db["ForceValue%s"%tc], "ForceInputValue")
             for oIdx in range(0, numOffsets):
               paramList.append(offset)
 
@@ -6264,6 +6280,7 @@ class KernelWriterAssembly(KernelWriter):
             loopCnt+=1
       if tmpLocalWriteAddr != -1:
         self.vgprPool.checkIn(tmpLocalWriteAddr)
+
 
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
     if 0 and tP["isB"]: # post-lds-write
@@ -7705,6 +7722,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       kw = self.kernelWriter
       packedIndices = kernel["PackedC0IndicesX"]
+      packedBits = self.coord0Vgpr # start with coord0, will move to temp below
       for i,idx in enumerate(packedIndices[:-1]):
         # vgprTmp assignments:
         #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
@@ -7712,7 +7730,6 @@ class KernelWriterAssembly(KernelWriter):
         #   - tmp+2 is scratch
         idxChar= globalParameters["IndexChars"][idx]
         kStr += kw.comment1("extract %s"%kw.size('A', idx))
-        packedBits = self.coord0Vgpr # start with coord0, will move to temp below
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
         kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" % \
                  (tmpVgpr+1, vgpr(packedBits), \
@@ -7741,10 +7758,14 @@ class KernelWriterAssembly(KernelWriter):
                     "Copy remaining bits for next divide")
           packedBits = tmpVgpr+0
 
+      if len(packedIndices)>1:
+        # if we unpacked something, then scale it to BPE
+        kStr += kw.comment1("extract final %s"%kw.size('A', packedIndices[-1]))
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
                   kw.stride(storeChar, packedIndices[-1]), "scale final extracted dim")
         kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
                   vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
+
         kStr += inst("_v_add_lshl_u32", vgpr(self.addrVgpr), \
                   vgpr(kw.cinRowPtr), \
                   vgpr(self.addrVgpr), \

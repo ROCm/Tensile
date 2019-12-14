@@ -85,7 +85,7 @@ class Convolution:
     def __repr__(self):
       return self.shortChar
 
-  SummaryProperties=[\
+  SummaryProblemProperties=[\
         'OperationType','DestDataType','DataType','HighPrecisionAccumulate',\
         'TensorAFormat','TensorBFormat','TensorDFormat',\
         'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
@@ -94,8 +94,14 @@ class Convolution:
         'SetConstStrideA', 'SetConstStrideB',\
         'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
         ]
+  SummarySolutionProperties=[\
+        'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
+        ]
 
   def __init__(self, problemTypeOut, convolutionType, config):
+    """
+    problemTypeOut contains problem type parms created by this constructor.
+    """
 
     self.convolutionDims={};
     self.convolutionType = convolutionType
@@ -299,17 +305,27 @@ class Convolution:
     problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB]
     problemTypeOut["UseBeta"] = False # MI kernels don't use beta
 
+    self.solutionParms = {}
+
     problemTypeOut["SetConstStrideA"]=[]
     for (idx,fbs,dim) in self.indexA:
       if dim.strideA != -1:
         problemTypeOut["SetConstStrideA"].append([idx,dim.strideA])
     problemTypeOut["SetConstStrideA"].sort()
+    if problemTypeOut["SetConstStrideA"]:
+        self.solutionParms["AssertStrideAEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideA"]])
 
     problemTypeOut["SetConstStrideB"]=[]
     for (idx,fbs,dim) in self.indexB:
       if dim.strideB != -1:
         problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
     problemTypeOut["SetConstStrideB"].sort()
+    if problemTypeOut["SetConstStrideB"]:
+        self.solutionParms["AssertStrideBEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideB"]])
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
@@ -517,11 +533,20 @@ class Convolution:
 
     print ()
     print ("ProblemType Definition:")
-    for k in Convolution.SummaryProperties:
+    for k in Convolution.SummaryProblemProperties:
       try:
         print ("  ", k, ":", problemType[k])
       except KeyError:
         pass
+
+    print ()
+    print ("Solution Assertions:")
+    for k in Convolution.SummarySolutionProperties:
+      try:
+        print ("  ", k, ":", self.solutionParms[k])
+      except KeyError:
+        pass
+
 
   def checkDims(self, freeIndices, batchIndices, sumIndices):
     for dimList in (self.indexA, self.indexB):
@@ -1564,6 +1589,14 @@ class Solution:
 
     return True
 
+  @staticmethod
+  def addConstStride(state, key, value):
+      try:
+          if value not in state[key].replace(' ','').split(','):
+              state[key] = state[key] + ", " + value
+      except KeyError:
+          state[key] = value
+
 
   ########################################
   # assign all derived parameters
@@ -1616,24 +1649,22 @@ class Solution:
     assert(isPackedIndex(state, problemType["Index0"], 0x1))
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
-    if state["PackBatchDims"]==1:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideB"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
-                #problemType["SetConstStrideB"].append([bi,0])
-    if state["PackBatchDims"]==2:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideA"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)
-                #problemType["SetConstStrideA"].append([bi,0])
+    # Add AssertStride*Equal for PackBatchDims, if needed
+    for (mask, tc) in ((0x1,'B'), (0x2,'A')):
+        if state["PackBatchDims"] & mask:
+            for bi in problemType["IndicesBatch"]:
+                found = False
+                try:
+                    for pair in problemType["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                        (index,value)=pair.split(':')
+                        if index==bi and value==0:
+                            found = True
+                            break
+                except KeyError:
+                    None
+                if not found:
+                    Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
+                                "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
