@@ -20,7 +20,6 @@ def test_simple(run_convolution_vs_contraction):
     run_convolution_vs_contraction(conv)
 
 
-@pytest.mark.skip(reason="asm path fails")
 def test_stride1x2(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
