@@ -1440,7 +1440,6 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
-    self.defineSgpr("Tensor2dSizeC", 2,2)
     self.defineSgpr("Tensor2dSizeA", 2,2)
     self.defineSgpr("Tensor2dSizeB", 2,2)
 
@@ -3173,8 +3172,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("AddressDbg")
         kStr += self.getKernArg("AddressDbg+1")
 
-      kStr += self.getKernArg("Tensor2dSizeC+0")
-      kStr += self.getKernArg("Tensor2dSizeC+1")
+      kStr += self.getKernArg("Tensor2dSizeC+0",0)
+      kStr += self.getKernArg("Tensor2dSizeC+1",0)
       kStr += self.getKernArg("Tensor2dSizeA+0")
       kStr += self.getKernArg("Tensor2dSizeA+1")
       kStr += self.getKernArg("Tensor2dSizeB+0")
