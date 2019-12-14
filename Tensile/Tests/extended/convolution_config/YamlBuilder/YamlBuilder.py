@@ -31,7 +31,7 @@ class YamlBuilder:
                 "MergeFiles": True,
                 "KernelTime": True,
                 "SolutionSelectionAlg": 1,
-                "NewClient": 2
+                "NewClient": 2,
             }
         }
 

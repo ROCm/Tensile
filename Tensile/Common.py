@@ -92,7 +92,7 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
-globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Useful to examine and debug overflow errors)
+globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Tensile will also attempt to run the kernel.  Useful to examine and debug overflow errors)
 
 ########################################
 # optimization knob controls

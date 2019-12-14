@@ -480,6 +480,8 @@ def dataInitParams(problemType):
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles):
 
     filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+    if len(newLibrary.solutions)==0:
+      raise RuntimeError ("No valid solutions found")
     with open(filename, "w") as f:
         def param(key, value):
             f.write("{}={}\n".format(key, value))
