@@ -52,14 +52,14 @@ namespace Tensile
 
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+                             Hardware  const& hardware) override
         {
             return library->findBestSolution(problem, hardware);
         }
 
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+                             Hardware  const& hardware) override
         {
             return library->findAllSolutions(problem, hardware);
         }

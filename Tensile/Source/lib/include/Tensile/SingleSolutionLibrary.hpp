@@ -61,7 +61,7 @@ namespace Tensile
 
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+                             Hardware  const& hardware) override
         {
             bool debug = Debug::Instance().printPredicateEvaluation();
 
@@ -86,7 +86,7 @@ namespace Tensile
 
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+                             Hardware  const& hardware) override
         {
 
             auto result = findBestSolution(problem, hardware);

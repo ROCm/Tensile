@@ -29,6 +29,9 @@
 #include <vector>
 #include <set>
 
+#include <mutex>
+#include <shared_mutex>
+
 #include <Tensile/PropertyMatching.hpp>
 
 namespace Tensile
@@ -39,6 +42,8 @@ namespace Tensile
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
         using Table = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
         std::shared_ptr<Table> table;
+	std::unordered_map<ProblemKey<size_t>,std::shared_ptr<MySolution>, Tensile::ProblemKeyHash<size_t>> problemMap;
+        std::shared_timed_mutex mutex;
 
         static std::string Type() { return "Matching"; }
         virtual std::string type() const override { return Type(); }
@@ -50,11 +55,27 @@ namespace Tensile
                 return concatenate(type(), ": ", table->description());
         }
 
-        
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+
+        std::shared_ptr<MySolution>
+            findSolutionInCache(MyProblem const& problem, Hardware const& hardware)
         {
+            ProblemKey<size_t> pkey = problem.getKey();
+
+            decltype(problemMap.end()) theSolution;
+            {
+                // Acquire a shared lock for reading map
+                std::shared_lock<std::shared_timed_mutex> lock(mutex);
+
+                // Look up the tuple in the map
+                theSolution = problemMap.find(pkey);
+
+                // If tuple already exists, atomically increment count and return
+                if(theSolution != problemMap.end())
+                {
+                    return theSolution->second;
+                }
+            } // Release shared lock
+
             typename Table::Transform transform =
                 [&](Element library) -> std::shared_ptr<MySolution>
                 {
@@ -63,12 +84,29 @@ namespace Tensile
 
             auto closestEntry = table->findBestMatch(problem, transform);
 
+            if (closestEntry == nullptr)
+                return closestEntry;
+
+            // Acquire an exclusive lock for modifying map
+            std::lock_guard<std::shared_timed_mutex> lock(mutex);
+
+            // If doesn't already exist, insert tuple by moving
+            problemMap.emplace(pkey, closestEntry);
+
             return closestEntry;
+        }
+
+        virtual std::shared_ptr<MySolution>
+            findBestSolution(MyProblem const& problem,
+                             Hardware  const& hardware) override
+        {
+            auto cachedSolution = findSolutionInCache(problem, hardware);
+            return cachedSolution;
         }
 
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+                             Hardware  const& hardware) override
         {
             bool debug = Debug::Instance().printPropertyEvaluation();
 
