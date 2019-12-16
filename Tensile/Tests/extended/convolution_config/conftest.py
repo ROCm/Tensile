@@ -1,6 +1,8 @@
 import pytest
 import Tensile.Tensile as Tensile
+from collections import namedtuple
 from YamlBuilder.YamlBuilder import YamlBuilder
+from YamlBuilder.YamlBuilder import Solutions
 
 args={}
 
@@ -13,13 +15,13 @@ def file_with_test_name(request, tmp_path):
 
 @pytest.fixture
 def run_nothing():
-    def run(conv, problemType, solution=YamlBuilder.defaultSolution(), dataType='s'):
+    def run(conv, problemType, solution=Solutions.defaultSolution(), dataType='s'):
         pass
     return run
 
 @pytest.fixture
 def run_generate_yaml(file_with_test_name):
-    def run(conv, problemType, solution=YamlBuilder.defaultSolution(), dataType='s'):
+    def run(conv, problemType, solution=Solutions.defaultSolution(), dataType='s'):
         config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType)
         configFile = file_with_test_name(".contraction.yaml")
         config.write(configFile)
@@ -28,14 +30,14 @@ def run_generate_yaml(file_with_test_name):
 
 @pytest.fixture
 def run_contraction(tensile_args, tmp_path, run_generate_yaml, request):
-    def run(conv, problemType, solution=YamlBuilder.defaultSolution(), dataType='s'):
+    def run(conv, problemType, solution, dataType='s'):
         configFile = run_generate_yaml(conv, problemType, solution, dataType)
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
 @pytest.fixture
 def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
-    def run(conv, problemType={}, solution=YamlBuilder.src1, dataType='s'):
+    def run(conv, problemType={}, solution=Solutions.defaultSolution(), dataType='s'):
         config = YamlBuilder.ConvolutionVsContraction(conv, solution, dataType)
         configFile = file_with_test_name(".conv.yaml")
         config.write(configFile)
@@ -43,10 +45,14 @@ def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
-level_params = [pytest.param(0, id="Convolution_Class"),
-                pytest.param(1, id="Generate_YAML"),
-                pytest.param(2, id="Run_Contraction"),
-                pytest.param(3, id="Run_Convolution_vs Contraction")]
+Runner=namedtuple("Runner", "func solution")
+
+solutions = ("src1","asm3")
+
+level_params = [pytest.param((0, None), id="Convolution_Class"),
+                pytest.param((1, Solutions.defaultSolution()), id="Generate_YAML:" + Solutions.defaultSolution().__name__)] + \
+               [pytest.param((2, getattr(Solutions,s)), id="Run_Contraction:"+s) for s in solutions] + \
+               [pytest.param((3, Solutions.defaultSolution()), id="Run_Convolution_vs Contraction:" + Solutions.defaultSolution().__name__)]
 
 @pytest.fixture(params=level_params)
 def run_convolution_level(request,
@@ -58,11 +64,11 @@ def run_convolution_level(request,
                       run_generate_yaml,
                       run_contraction,
                       run_convolution_vs_contraction]
-    curLevel = request.param
+    curLevel = request.param[0]
     argLevel = request.config.getoption("--level")
     if curLevel > argLevel:
         pytest.skip()
-    return level_fixtures[request.param]
+    return Runner(level_fixtures[curLevel], request.param[1])
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -77,4 +83,3 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     args["level"] = config.getoption('--level')
-

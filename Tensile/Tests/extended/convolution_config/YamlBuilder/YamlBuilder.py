@@ -1,6 +1,94 @@
 import copy
 import yaml
 
+class Solutions:
+
+    @classmethod
+    def commonSetup(cls):
+        return {
+            "InitialSolutionParameters": None,
+            "BenchmarkCommonParameters": [{"EdgeType": ["ShiftPtr"]}],
+            "ForkParameters": None,
+            "BenchmarkForkParameters": None,
+            "JoinParameters": None,
+            "BenchmarkJoinParameters": None,
+            "BenchmarkFinalParameters": None
+        }
+
+    @classmethod
+    def src1(cls):
+        s = cls.commonSetup()
+
+        s["ForkParameters"] = \
+                [
+                    {"PrefetchGlobalRead": [0]},
+                    {"KernelLanguage": ["Source"]},
+                    {"ThreadTile": [
+                        [ 2, 2 ]
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 8, 1 ]
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [1]},
+                    {"VectorWidth": [1]},
+                    {"FractionalLoad": [0]}
+                ]
+
+        return s
+
+    @classmethod
+    def asm1(cls):
+        s = cls.commonSetup()
+
+        s["ForkParameters"] = \
+                [
+                    {"PrefetchGlobalRead": [0]},
+                    {"KernelLanguage": ["Assembly"]},
+                    {"ThreadTile": [
+                        [ 2, 2 ]
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 8, 1 ]
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [-1]},
+                    {"VectorWidth": [1]},
+                    {"FractionalLoad": [0]}
+                ]
+
+        return s
+
+    @classmethod
+    def asm3(cls):
+        s = cls.commonSetup()
+
+        s["ForkParameters"] = \
+                [
+                    {"PrefetchGlobalRead": [1]},
+                    {"KernelLanguage": ["Assembly"]},
+                    {"ThreadTile": [
+                        [ 2, 2 ],
+                        [ 4, 8 ],
+                        [ 8, 8 ]
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 8, 1],
+                        [ 16, 8, 1]
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [-1]},
+                    {"VectorWidth": [1,4]},
+                    {"FractionalLoad": [0]}
+                ]
+
+        return s
+
+    @classmethod
+    def defaultSolution(cls):
+        return cls.asm3
+
+
 class YamlBuilder:
 
     def __init__(self, doc):
@@ -34,63 +122,6 @@ class YamlBuilder:
                 "NewClient": 2,
             }
         }
-
-    @classmethod
-    def src1(cls):
-        return {
-            "InitialSolutionParameters": None,
-            "BenchmarkCommonParameters": [{"EdgeType": ["ShiftPtr"]}],
-            "ForkParameters":
-                [
-                    {"PrefetchGlobalRead": [0]},
-                    {"KernelLanguage": ["Source"]},
-                    {"ThreadTile": [
-                        [ 2, 2 ]
-                        ]},
-                    {"WorkGroup": [
-                        [  8, 8, 1 ]
-                        #[ 16, 8, 1]
-                        ]},
-                    {"DepthU": [8]},
-                    {"GlobalReadVectorWidth": [1]},
-                    {"VectorWidth": [1]},
-                    {"FractionalLoad": [0]}
-                ],
-            "BenchmarkForkParameters": None,
-            "JoinParameters": None,
-            "BenchmarkJoinParameters": None,
-            "BenchmarkFinalParameters": None
-        }
-
-    @classmethod
-    def asm3(cls):
-        return {
-            "InitialSolutionParameters": None,
-            "BenchmarkCommonParameters": [{"EdgeType": ["ShiftPtr"]}],
-            "ForkParameters":
-                [
-                    {"PrefetchGlobalRead": [0]},
-                    {"KernelLanguage": ["Assembly"]},
-                    {"ThreadTile": [
-                        [ 2, 2 ]
-                        ]},
-                    {"WorkGroup": [
-                        [  8, 8, 1 ]
-                        #[ 16, 8, 1]
-                        ]},
-                    {"DepthU": [8]},
-                    {"GlobalReadVectorWidth": [1]},
-                    {"VectorWidth": [1]},
-                    {"FractionalLoad": [0]}
-                ],
-            "BenchmarkForkParameters": None,
-            "JoinParameters": None,
-            "BenchmarkJoinParameters": None,
-            "BenchmarkFinalParameters": None
-        }
-    @classmethod
-    def defaultSolution(cls):
-        return cls.asm3
 
     @classmethod
     def ProblemSizes(cls, conv):

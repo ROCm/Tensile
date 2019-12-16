@@ -269,6 +269,8 @@ class ProblemPredicate(Properties.Predicate):
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
             return None
+        if key == 'AssertStrideAEqualList' or key == 'AssertStrideBEqualList':
+            return None
 
         if key.endswith('Multiple'):
             if value == 1:
