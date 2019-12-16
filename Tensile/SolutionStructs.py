@@ -327,13 +327,12 @@ class Convolution:
                 ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
                           for s in problemTypeOut["SetConstStrideB"]])
 
+    # should be AND - need to set ConstStride above
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStridesAB"] = False
+      None
     else:
       problemTypeOut["UseInitialStridesAB"] = True
-
-    #self.printUsage(problemTypeOut)
 
   def dimIdx(self, convolutionChar):
     return self.convolutionDims[convolutionChar][0]
@@ -624,7 +623,6 @@ class ProblemType:
       self.initConvolution(config, self["OperationType"])
     else:
       printExit("Unsupported OperationType = %s" % self["OperationType"])
-
 
     self.state["AssignedDerivedParameters"] = False
     ProblemType.assignDerivedParameters(self.state)
@@ -1189,6 +1187,10 @@ class Solution:
     self["Valid"] = True
     self["AssignedProblemIndependentDerivedParameters"] = False
     self["AssignedDerivedParameters"] = False
+
+    if self["ProblemType"].convolution:
+        for (key,value) in self["ProblemType"].convolution.solutionParms.items():
+            self._state[key]=value
     Solution.assignDerivedParameters(self._state)
     self._name = None
 
@@ -1707,7 +1709,7 @@ class Solution:
             for bi in problemType["IndicesBatch"]:
                 found = False
                 try:
-                    for pair in problemType["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                    for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
                         (index,value)=pair.split(':')
                         if index==bi and value==0:
                             found = True
@@ -1717,6 +1719,17 @@ class Solution:
                 if not found:
                     Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
                                 "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
+
+    # Create array to ease later lookups
+    for tc in ('A', 'B'):
+        destKey = "AssertStride%sEqualList"%tc
+        state[destKey] = [-1] * len(problemType["IndexAssignments%s"%tc])
+        try:
+            for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
+              (index,value)=[int(x) for x in pair.split(':')]
+              state[destKey][index] = value
+        except KeyError:
+            None
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
@@ -2042,7 +2055,6 @@ class Solution:
           totalVectorsCoalescedB, totalElementsPerpB):
         return
 
-
     # TODO
     if (0 and state["LSCA"] % state["GlobalLoadVectorWidthA"] != 0):
       reject(state, "lsca % grvw != 0")
@@ -2061,6 +2073,24 @@ class Solution:
     state["LVPA"] = roundupRatio(state["LSPA"] , state["GlobalLoadVectorWidthA"])
     state["LVCB"] = roundupRatio(state["LSCB"] , state["GlobalLoadVectorWidthB"])
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
+
+    if problemType["UseInitialStridesAB"]:
+      for tc in ('A','B'):
+        if problemType["TLU%s"%tc]:
+          #index = [idx for idx in problemType["IndexAssignments%s"%tc] if index not in problemType["IndicesSummation"]][0]
+          pos = problemType["IndexAssignments%s"%tc].index(problemType["Index01%s"%tc])
+        else:
+          pos = problemType["IndexAssignments%s"%tc].index(problemType["IndexUnroll"])
+
+        unitStride = False
+        try:
+          stride = state["AssertStride%sEqual"%tc][pos]
+          if stride==1:
+            unitStride = True
+        except KeyError:
+          None
+        if not unitStride and state["GlobalLoadVectorWidth%s"%tc] != 1:
+          reject(state, "Non-unit stride for coalesced dimension requires GlobalLoadVectorWidth%d==1")
 
     # Some of these might become 0?
     if 0:
@@ -2085,8 +2115,6 @@ class Solution:
     ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
     ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
-    # import pdb
-    # pdb.set_trace()
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:

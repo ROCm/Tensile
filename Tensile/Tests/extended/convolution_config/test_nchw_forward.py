@@ -14,7 +14,8 @@ def test_nchw_defaults(run_convolution_level):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2,0]])
     assert(z['UseInitialStridesAB']==0)
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
+    
 
 def test_cnhw_defaults(run_convolution_level):
     z={} # problemType definition
@@ -28,7 +29,7 @@ def test_cnhw_defaults(run_convolution_level):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[1, 0]])
     assert(z['UseInitialStridesAB']==0)
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nhwc_defaults(run_convolution_level):
     z={} # problemType definition
@@ -42,7 +43,7 @@ def test_nhwc_defaults(run_convolution_level):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
     assert(z['UseInitialStridesAB']==0)
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_packed_spatial0(run_convolution_level):
     z={} # problemType definition
@@ -57,7 +58,7 @@ def test_nchw_packed_spatial0(run_convolution_level):
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB']==0)
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_tbd_strides(run_convolution_level):
 
@@ -73,7 +74,7 @@ def test_nchw_tbd_strides(run_convolution_level):
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB'])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_const_strides(run_convolution_level):
     z={} # problemType definition
@@ -89,7 +90,7 @@ def test_nchw_const_strides(run_convolution_level):
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB'])
 
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_const_use_initial_strides(run_convolution_level):
     z={} # problemType definition
@@ -104,7 +105,7 @@ def test_nchw_const_use_initial_strides(run_convolution_level):
     assert(z['SetConstStrideA']==[[0,3]])
     assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB'])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_filter(run_convolution_level):
     z={} # problemType definition
@@ -119,7 +120,7 @@ def test_nchw_filter(run_convolution_level):
     assert(z['IndexAssignmentsB']==[5, 4, 3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1], [5,1]])
     assert(z['SetConstStrideB']==[[2,0]])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_dilation(run_convolution_level):
     z={} # problemType definition
@@ -133,7 +134,7 @@ def test_nchw_dilation(run_convolution_level):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[0,1]])
     assert(z['SetConstStrideB']==[[2, 0]])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_stride_filter(run_convolution_level):
     z={} # problemType definition
@@ -148,7 +149,7 @@ def test_nchw_stride_filter(run_convolution_level):
     assert(z['IndexAssignmentsB']==[6, 5, 4, 2, 3])
     assert(z['SetConstStrideA']==[[6,1]])
     assert(z['SetConstStrideB']==[[3, 0]])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_ncdhw_packed_strides3d_defaults(run_convolution_level):
     z={} # problemType definition
@@ -162,9 +163,9 @@ def test_ncdhw_packed_strides3d_defaults(run_convolution_level):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[4, 0]])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-@pytest.mark.skip(reason="asm path fails")
+@pytest.mark.skip(reason="out of registers in asm runs")
 def test_ncdhw_packed_strides_filter3d(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -180,7 +181,7 @@ def test_ncdhw_packed_strides_filter3d(run_convolution_level):
     assert(z['IndexAssignmentsB']==[8,7,6, 5, 3, 4])
     assert(z['SetConstStrideA']==[[8,1]])
     assert(z['SetConstStrideB']==[[4, 0]])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_ncdhw_packed_strides3d(run_convolution_level):
     z={} # problemType definition
@@ -196,4 +197,4 @@ def test_ncdhw_packed_strides3d(run_convolution_level):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     assert(z['SetConstStrideA']==[])
     assert(z['SetConstStrideB']==[[4, 0]])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)

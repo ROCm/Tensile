@@ -14,7 +14,7 @@ def test_nchw_backwardweights_defaults(run_convolution_level):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     assert(z['SetConstStrideA']==[[3,1]])
     assert(z['SetConstStrideB']==[])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_backwardweights_filter3x1(run_convolution_level):
     z={} # problemType definition
@@ -28,7 +28,7 @@ def test_nchw_backwardweights_filter3x1(run_convolution_level):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     assert(z['SetConstStrideA']==[[4,1]])
     assert(z['SetConstStrideB']==[])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_backwardweights_filter1x3(run_convolution_level):
     z={} # problemType definition
@@ -42,7 +42,7 @@ def test_nchw_backwardweights_filter1x3(run_convolution_level):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(z['SetConstStrideA']==[[3,1]])
     assert(z['SetConstStrideB']==[])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_backwardweights_filter3x5(run_convolution_level):
     z={} # problemType definition
@@ -56,4 +56,4 @@ def test_nchw_backwardweights_filter3x5(run_convolution_level):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     #assert(z['SetConstStrideA']==[[3,1]])
     assert(z['SetConstStrideB']==[])
-    run_convolution_level(conv, z)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
