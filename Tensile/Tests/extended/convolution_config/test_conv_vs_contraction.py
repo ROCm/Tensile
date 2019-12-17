@@ -70,7 +70,6 @@ def test_filter1x2(run_convolution_vs_contraction):
     run_convolution_vs_contraction(conv)
 
 
-@pytest.mark.xfail
 def test_filter2x1(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -145,8 +144,6 @@ def test_filter_stride_dilation_0(run_convolution_vs_contraction):
     assert(z['NumIndicesC']==4)
     assert(z['IndexAssignmentsA']==[6,5, 0,1, 4,3])
     assert(z['IndexAssignmentsB']==[6,5, 4, 2, 3])
-    assert(z['SetConstStrideA']==[[0,3], [6,3]])
-    assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB'])
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)

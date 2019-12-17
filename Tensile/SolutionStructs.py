@@ -20,6 +20,7 @@
 ################################################################################
 
 import sys,traceback
+from collections import namedtuple
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig, validMFMA
@@ -92,7 +93,7 @@ class Convolution:
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
         'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
+        'UseBeta', 'UseInitialStridesAB', \
         ]
   SummarySolutionProperties=[\
         'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
@@ -153,30 +154,25 @@ class Convolution:
     ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.', DimAB.BothAB)
     kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.', DimAB.OnlyB)
     if self.packSpatialDims:
-      constStrideA = -1 # default no const
-      if self.stride[0] != -1:
-        constStrideA=self.stride[0]
       sdims = [Convolution.Dimension('HW', \
           'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).', \
-          DimAB.OnlyA, strideA=constStrideA)]
+          DimAB.OnlyA)]
     else:
       sdims = []
       schars = [1,'W','H','D']
       # sdims[0] is W
       for si in range(self.formatNumSpatialDims):
         sc=schars[si+1]
-        constStrideA = -1 # default no const
         if si==0:
-            if self.stride[si] != -1:
-                constStrideA=self.stride[si]
             strideMsg = "stride%s(#S0)"%sc
         else:
             strideMsg = "%s_in*stride%s(#S%d)"%(schars[si],sc,si)
         sdims.append(Convolution.Dimension(sc,  \
             'Spatial %s. size#T=%s_o strideA#T=%s.'%(sc,sc,strideMsg), \
-            DimAB.OnlyA, strideA=constStrideA))
+            DimAB.OnlyA))
     cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1', DimAB.BothAB)
 
+    RegDim=namedtuple("RegDim", "idx fbs dim")
     if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
       # Make index assignments following standard Tensile Index assignment rules (see Common.py)
       # - Indices < NumCindices are batch or free indices and are present in TensorD
@@ -211,22 +207,22 @@ class Convolution:
           filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
               % (filterChar, filterChar, filterValueStr, filterChar, fi, \
                  prevChar[fi])
-          filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.BothAB,
-                       strideA=self.dilation[fi] if  fi==0 else -1)
-          filterDims.append( (sumIdx, Fbs.Sum, filterDim) )
+          filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.BothAB)
+
+          filterDims.append( RegDim(sumIdx, Fbs.Sum, filterDim) )
 
       spatialDims = []
       # reverse dims  so can pass spatialDims to register functions in 'convolution' order
       for si,sdim in enumerate(sdims):
-        spatialDims.insert(0, (si, Fbs.Free, sdim))
+        spatialDims.insert(0, RegDim(si, Fbs.Free, sdim))
       self.numSpatialDims = len(spatialDims) # dims actually used in the tensor
 
       if self.tensorAFormat in ("NCHW", "NCDHW"):
-        self.registerA( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum,cdim)] + spatialDims + filterDims )
+        self.registerA( [RegDim(nidx,Fbs.Batch,ndim), RegDim(cidx,Fbs.Sum,cdim)] + spatialDims + filterDims )
       elif self.tensorAFormat in ("NHWC", "NDHWC"):
-        self.registerA( [(nidx,Fbs.Batch,ndim)] + spatialDims + filterDims + [(cidx,Fbs.Sum,cdim)] )
+        self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + spatialDims + filterDims + [RegDim(cidx,Fbs.Sum,cdim)] )
       elif self.tensorAFormat in ("CNHW", "CNDHW"):
-        self.registerA( [(cidx,Fbs.Sum,cdim), (nidx,Fbs.Batch,ndim)] + spatialDims + filterDims )
+        self.registerA( [RegDim(cidx,Fbs.Sum,cdim), RegDim(nidx,Fbs.Batch,ndim)] + spatialDims + filterDims )
       else:
         raise RuntimeError ("unknown activation format '%s'"%self.tensorAFormat)
 
@@ -236,23 +232,49 @@ class Convolution:
       ndim.strideB = 0
       if self.tensorBFormat in ("KCYX",'KCZYX') and not transposeCK or\
          self.tensorBFormat in ("CKYX",'CKZYX') and transposeCK:
-        self.registerB( [(nidx,Fbs.Batch,ndim), (kidx,Fbs.Free,kdim), (cidx,Fbs.Sum,cdim)] + filterDims )
+        self.registerB( [RegDim(nidx,Fbs.Batch,ndim), RegDim(kidx,Fbs.Free,kdim), RegDim(cidx,Fbs.Sum,cdim)] + filterDims )
       elif self.tensorBFormat in ("CKYX",'CKZYX') and not transposeCK or\
            self.tensorBFormat in ("KCYX",'KCZYX') and transposeCK:
-        self.registerB( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum, cdim), (kidx,Fbs.Free,kdim)] + filterDims )
+        self.registerB( [RegDim(nidx,Fbs.Batch,ndim), RegDim(cidx,Fbs.Sum, cdim), RegDim(kidx,Fbs.Free,kdim)] + filterDims )
       elif self.tensorBFormat in ("CYXK",'CZYXK') and not transposeCK or\
            self.tensorBFormat in ("KYXC",'KZYXC') and transposeCK:
-        self.registerB( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum, cdim)] + filterDims + [(kidx,Fbs.Free,kdim)] )
+        self.registerB( [RegDim(nidx,Fbs.Batch,ndim), RegDim(cidx,Fbs.Sum, cdim)] + filterDims + [RegDim(kidx,Fbs.Free,kdim)] )
       elif self.tensorBFormat in ("KYXC",'KZYXC') and not transposeCK or\
            self.tensorBFormat in ("CYXK",'CZYXK') and transposeCK:
-        self.registerB( [(nidx,Fbs.Batch,ndim), (kidx,Fbs.Free, kdim)] + filterDims + [(cidx,Fbs.Sum,cdim)] )
+        self.registerB( [RegDim(nidx,Fbs.Batch,ndim), RegDim(kidx,Fbs.Free, kdim)] + filterDims + [RegDim(cidx,Fbs.Sum,cdim)] )
       else:
         raise RuntimeError ("unknown weight format '%s'"%self.tensorBFormat)
+      # Attach constant strides, if possible:
+      nonFilterDims = [dim for dim in self.indexA if dim not in filterDims]
+      setStride=False
+      if nonFilterDims[-1].dim == sdims[0]:
+        setStride = True
+        sdims[0].strideA = self.stride[0]
+      elif nonFilterDims[-1].dim==cdim:
+        setStride = True
+        cdim.strideA = 1
+
+      if filterDims and self.indexA[-1].dim==filterDims[-1].dim:
+        if filterDims[-1].dim.shortChar=='X':
+          filterDims[-1].dim.strideA = self.dilation[0]
+      elif not setStride:
+        raise RuntimeError ("unexpected lowest dimension in tensorAFormat(%s)"%self.tensorAFormat)
+
+      # Attach constant strides, if possible:
+      if self.indexB[-1].dim == cdim:
+        cdim.strideB=1
+      elif self.indexB[-1].dim == kdim:
+        kdim.strideB=1
+      elif filterDims and self.indexB[-1].dim == filterDims[-1].dim:
+        if filterDims[-1].dim.shortChar=='X':
+          filterDims[-1].dim.strideB = 1
+      else:
+        raise RuntimeError ("unexpected lowest dimension in tensorBFormat(%s)"%self.tensorAFormat)
+
 
     if convolutionType=="ConvolutionBackwardWeights":
       # index assignments - create filter dims
       filterDims = []
-      #import pdb; pdb.set_trace()
       for (fi,filterValue) in enumerate(self.filter):
         if filterValue != 1:
           prevChar = ['1', 'W', 'W*H']
@@ -265,7 +287,7 @@ class Convolution:
                         strideA=self.dilation[fi] if  fi==0 else -1)
           # assign the tensile indices here - 0..number_of_nonunit_filters-1
           # insert like a stack to feed 'conv' order expected by register* functions
-          filterDims.insert(0,( (len(filterDims), Fbs.Free, filterDim)))
+          filterDims.insert(0,( RegDim(len(filterDims), Fbs.Free, filterDim)))
 
       if self.tensorDFormat in ("KCYX", "KCZYX"):
         cidx=len(filterDims)  # free
@@ -285,13 +307,12 @@ class Convolution:
       spatialDims = []
       # reverse dims  so can pass spatialDims to register functions in 'convolution' order
       for si,sdim in enumerate(sdims):
-        spatialDims.insert(0, (sidxStart+si, Fbs.Sum, sdim))
+        spatialDims.insert(0, RegDim(sidxStart+si, Fbs.Sum, sdim))
       self.numSpatialDims = len(spatialDims) # dims actually used in the tensor
 
-
       if self.tensorAFormat in ("NCHW", "NCDHW"):
-        self.registerA( [(nidx,Fbs.Sum,ndim), (cidx,Fbs.Free,cdim)] + filterDims + spatialDims)
-        self.registerB( [(nidx,Fbs.Sum,ndim), (kidx,Fbs.Free,kdim)] + spatialDims)
+        self.registerA( [RegDim(nidx,Fbs.Sum,ndim), RegDim(cidx,Fbs.Free,cdim)] + filterDims + spatialDims)
+        self.registerB( [RegDim(nidx,Fbs.Sum,ndim), RegDim(kidx,Fbs.Free,kdim)] + spatialDims)
       else:
         raise RuntimeError ("unknown tensorA format '%s'"%self.tensorAFormat)
 
@@ -307,30 +328,33 @@ class Convolution:
 
     self.solutionParms = {}
 
-    problemTypeOut["SetConstStrideA"]=[]
+    stridea=[]
     for (idx,fbs,dim) in self.indexA:
       if dim.strideA != -1:
-        problemTypeOut["SetConstStrideA"].append([idx,dim.strideA])
-    problemTypeOut["SetConstStrideA"].sort()
-    if problemTypeOut["SetConstStrideA"]:
-        self.solutionParms["AssertStrideAEqual"] = \
-                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
-                          for s in problemTypeOut["SetConstStrideA"]])
+        stridea.append([idx,dim.strideA])
+    stridea.sort()
+    self.solutionParms["AssertStrideAEqual"] = \
+            ",".join(sorted(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
+                      for s in stridea]))
+    problemTypeOut["SetConstStrideA"] = stridea
 
-    problemTypeOut["SetConstStrideB"]=[]
+    strideb=[]
     for (idx,fbs,dim) in self.indexB:
       if dim.strideB != -1:
-        problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
-    problemTypeOut["SetConstStrideB"].sort()
-    if problemTypeOut["SetConstStrideB"]:
-        self.solutionParms["AssertStrideBEqual"] = \
-                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
-                          for s in problemTypeOut["SetConstStrideB"]])
+        strideb.append([idx,dim.strideB])
+    strideb.sort()
 
-    # should be AND - need to set ConstStride above
-    if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
-       [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      None
+    self.solutionParms["AssertStrideBEqual"] = \
+            ",".join(sorted(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
+                      for s in strideb]))
+    problemTypeOut["SetConstStrideB"] = strideb
+
+    if "0:1" in self.solutionParms["AssertStrideAEqual"] and \
+       "0:1" in self.solutionParms["AssertStrideBEqual"]:
+      # optimize if no initial stride needed in A or B
+      # allow yaml to override this for testing UseInitialStridesAB
+      if "UseInitialStridesAB" not in problemTypeOut:
+        problemTypeOut["UseInitialStridesAB"] = False
     else:
       problemTypeOut["UseInitialStridesAB"] = True
 
@@ -405,7 +429,6 @@ class Convolution:
       else:
         spatialOut[i] = int((spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i]))
 
-    #import pdb; pdb.set_trace()
     for fi,filterValue in enumerate(self.filter):
       if filterValue != 1 and filterValue != -1:
         pos = self.convolutionDims[chr(ord('X')+fi)][0]
@@ -460,13 +483,12 @@ class Convolution:
     The order of items in the list determines the IndexAssignment order.
     Each tuple in the list is (idx,fbs,dim).
      - idx is the tensor index
-     - fbs indicates if the tensor is expected to be Free,Sum,or Batch.  This is used for later check.
+     - fbs indicates if the tensor is expected to be Free, Sum, or Batch.  This is used for later check.
      - dim is Convolution.Dimension class that describes the dimension (for Usage info)
     """
     for (idx,fbs,dim) in dimList:
       if dim.dimAB not in (DimAB.OnlyA, DimAB.BothAB):
         raise RuntimeError ("dimension '%s' can't be registered to TensorA" % dim.shortChar)
-      #print("registerA idx=", idx, "dim=", dim)
       try:
         self.indexAssignments[idx] = None
       except IndexError:
@@ -480,7 +502,6 @@ class Convolution:
     for (idx,fbs,dim) in dimList:
       if dim.dimAB not in (DimAB.OnlyB, DimAB.BothAB):
         raise RuntimeError ("dimension '%s' can't be registered to TensorB" % dim.shortChar)
-      #print("B", idx, dim)
       try:
         self.indexAssignments[idx] = None
       except IndexError:
@@ -507,6 +528,8 @@ class Convolution:
     return rv
 
   def printUsage(self, problemType):
+    print()
+    print("Tensor Formats: A:%s B:%s D:%s\n" % (self.tensorAFormat, self.tensorBFormat, self.tensorDFormat))
     print("Tensile Index Assignments and Usage:")
     print("   Tensile    : ConvChar: Explanation/Usage")
     for (idx,dim2) in enumerate(self.indexAssignments):
@@ -1698,19 +1721,20 @@ class Solution:
     assert(isPackedIndex(state, problemType["Index0"], 0x1))
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
+    if not problemType["UseInitialStridesAB"]:
+      for (tc) in ('A','B'):
+        Solution.addConstStride(state, "AssertStride%sEqual"%tc, "0:1")
+
     # Add AssertStride*Equal for PackBatchDims, if needed
     for (mask, tc) in ((0x1,'B'), (0x2,'A')):
         if state["PackBatchDims"] & mask:
             for bi in problemType["IndicesBatch"]:
                 found = False
-                try:
-                    for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
-                        (index,value)=pair.split(':')
-                        if index==bi and value==0:
-                            found = True
-                            break
-                except KeyError:
-                    None
+                for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                    (index,value)=pair.split(':')
+                    if index==bi and value==0:
+                        found = True
+                        break
                 if not found:
                     Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
                                 "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
@@ -1719,12 +1743,10 @@ class Solution:
     for tc in ('A', 'B'):
         destKey = "AssertStride%sEqualList"%tc
         state[destKey] = [-1] * len(problemType["IndexAssignments%s"%tc])
-        try:
-            for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
+        for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
+          if pair != '':
               (index,value)=[int(x) for x in pair.split(':')]
               state[destKey][index] = value
-        except KeyError:
-            None
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
@@ -2069,23 +2091,22 @@ class Solution:
     state["LVCB"] = roundupRatio(state["LSCB"] , state["GlobalLoadVectorWidthB"])
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
-    if problemType["UseInitialStridesAB"]:
-      for tc in ('A','B'):
-        if problemType["TLU%s"%tc]:
-          #index = [idx for idx in problemType["IndexAssignments%s"%tc] if index not in problemType["IndicesSummation"]][0]
-          pos = problemType["IndexAssignments%s"%tc].index(problemType["Index01%s"%tc])
-        else:
-          pos = problemType["IndexAssignments%s"%tc].index(problemType["IndexUnroll"])
+    for tc in ('A','B'):
+      if problemType["TLU%s"%tc]:
+        pos = problemType["IndexAssignments%s"%tc].index(problemType["Index01%s"%tc])
+      else:
+        pos = problemType["IndexAssignments%s"%tc].index(problemType["IndexUnroll"])
 
-        unitStride = False
-        try:
-          stride = state["AssertStride%sEqual"%tc][pos]
-          if stride==1:
-            unitStride = True
-        except KeyError:
-          None
-        if not unitStride and state["GlobalLoadVectorWidth%s"%tc] != 1:
-          reject(state, "Non-unit stride for coalesced dimension requires GlobalLoadVectorWidth%d==1")
+      unitStride = False
+      stride = -1
+      stride = state["AssertStride%sEqualList"%tc][pos]
+      if stride==1:
+        unitStride = True
+      if not unitStride and state["GlobalLoadVectorWidth%s"%tc] != 1:
+        reject(state,
+            "Non-unit stride(%s) for coalesced dimension (index=%d) requires GlobalLoadVectorWidth%s==1" \
+                % ("TBD" if stride==-1 else str(stride), \
+                   problemType["IndexAssignments%s"%tc][pos], tc))
 
     # Some of these might become 0?
     if 0:
