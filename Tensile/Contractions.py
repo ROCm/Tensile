@@ -244,24 +244,22 @@ def extractDimPredicate(cls, key, value, predicateName):
     AssertStrideBEqual=["2:0,  3:1"]
     """
     predicates = []
-    for pair in value.replace(' ','').split(','):
-        (pos,val) = pair.split(':')
-        predicates.append(cls(predicateName, index=pos, value=val))
+    for pos,val in enumerate(value):
+        if val != -1:
+            predicates.append(cls(predicateName, index=pos, value=val))
     if len(predicates) == 1:
         return predicates[0]
     elif len(predicates) > 1:
         return cls.And(predicates)
-    else:
-        raise RuntimeError("Unknown format for %s (%s) "%(key,value))
 
 
 class ProblemPredicate(Properties.Predicate):
     @classmethod
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
-        if key == "AssertStrideAEqual":
+        if key == "AssertStrideAEqualList":
             return extractDimPredicate(cls, key, value, "StrideAEqual")
-        if key == "AssertStrideBEqual":
+        if key == "AssertStrideBEqualList":
             return extractDimPredicate(cls, key, value, "StrideBEqual")
 
         if key == "AssertSizeEqual":
@@ -270,7 +268,7 @@ class ProblemPredicate(Properties.Predicate):
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
             return None
-        if key == 'AssertStrideAEqualList' or key == 'AssertStrideBEqualList':
+        if key == 'AssertStrideAEqual' or key == 'AssertStrideBEqual':
             return None
 
         if key.endswith('Multiple'):
