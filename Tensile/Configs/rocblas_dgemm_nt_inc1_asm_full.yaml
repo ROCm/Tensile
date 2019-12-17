@@ -2128,7 +2128,7 @@ LibraryLogic:
 
 #   ScheduleName: "vega10"
 #   DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]",
-#       Vega, Device 6864]
+#       Vega, Device 6864, Device 686c]
 #   ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

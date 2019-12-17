@@ -83,6 +83,14 @@ namespace Tensile
                                             TimingEvents const& startEvents,
                                             TimingEvents const&  stopEvents) override {}
 
+
+            /**
+             * Helper which does dynamic_cast of inputs and m_referenceInputs
+             * to ManagedInputs and then calls ValidateTyped().
+             */
+            template <typename ManagedInputs>
+            bool validateSolutionCast(std::shared_ptr<ContractionInputs> inputs);
+
             template <typename TypedInputs>
             bool validateTyped(TypedInputs const& reference, TypedInputs const& result);
 
@@ -112,12 +120,13 @@ namespace Tensile
             bool m_printValids;
             int  m_printMax;
             int  m_validationStride;
+            bool m_boundsCheck;
 
             bool m_printTensorA;
             bool m_printTensorB;
             bool m_printTensorC;
             bool m_printTensorD;
-            bool m_printReference;
+            bool m_printTensorRef;
 
             bool m_convolutionVsContraction;
 

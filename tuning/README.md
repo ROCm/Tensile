@@ -1,11 +1,11 @@
 
 #Tuning with tensile
 
-## Using Tansile and rocBLAS
+## Using Tensile and rocBLAS
 
 #### Tensile tuning step
 
-See the [Tensile tuning](https://github.com/ROCmSoftwarePlatform/Tensile/wiki) wiki for more details of Tensile and the specifics of the tuning process. The staging area we use for the our process is withing build directors in the root level of the Tensile clone. This step will produce LibraryLogic files within each for the build subdirectories. `../build-hgemm_asm_full/3_LibraryLogic`.
+See the [Tensile tuning](https://github.com/ROCmSoftwarePlatform/Tensile/wiki) wiki for more details of Tensile and the specifics of the tuning process. The staging area we use for the our process is within build directories in the root level of the Tensile clone. This step will produce LibraryLogic files within each for the build subdirectories. `../build-hgemm_asm_full/3_LibraryLogic`.
 
 #### Building rocBLAS with new configurations
 
@@ -17,7 +17,7 @@ run `./install -c` in the rocBLAS source directory. See [rocBLAS build](https://
 
 #### Performance measurements
 
-The performance can be measure using rocblas-bench.
+The performance can be measured using rocblas-bench.
 
 Run benchmarks with the following:
 
@@ -35,7 +35,7 @@ The following are examples for running particular gemm and gemv benchmark:
 
 ## Installing
 
-the automation utilities are intended to be a set of tools independent of any formal Tensile components and as such there is no need to have a Tensile clone to work with them. They can be copied to any working area in which the tuning is being performed. Any previsioning operation of Tensile or rocBLAS which the tuning work-flow depends upon are provided by the utilities.
+The automation utilities are intended to be a set of tools independent of any formal Tensile components and as such, there is no need to have a Tensile clone to work with them. They can be copied to any working area in which the tuning is being performed. Any provisioning operation of Tensile or rocBLAS which the tuning work-flow depends upon are provided by the utilities.
 
 ### installing the required components
 
@@ -88,7 +88,7 @@ args:
 -t|--tag                github tag
 -o|--output             output file name
 -y | --type             the datatype to tune for (hgemm|sgemm|dgemm)
--l | --library          the library to use (vega10|vega20)
+-l | --library          the library to use (arcturus|vega10|vega20)
 -n                      if this is enabled the utility will generate the config files without provisioning tensile
 -h|--help               this help file
 
@@ -97,7 +97,7 @@ args:
 Example use case
 
 ```bash
-$ ./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inceptiotensile_tuning/tensile/Tensilen-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20
+$ ./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception_rocblas-configs_unique.log -r tensile_tuning/tensile/Tensilen-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20
 ```
 
 When this is run the tuning will be provisioned in the directory ./tensile_tuing. The following directories will be generated.
@@ -107,7 +107,7 @@ configs:        this is where the tuning configurations that were created will b
 make:           this constructs a set of scripts which will execute the tuning process get placed in the Tensile path
 scripts:        generated scripts with rocblas calls which will be used for testing
 sizes:          the extracted sizes csv file
-tensile:        the directoroy which tensile gets cloned to
+tensile:        the directory which tensile gets cloned to
 ```
 
 
@@ -134,7 +134,7 @@ args:
 -r                      the Tensile path where the tuning which contains the tuning results
 
 
-when this utility is run it will create the following directories in the working path.
+When this utility is ran, it will create the following directories in the working path:
 
 ```
 library\exact               contains the new logic files
@@ -143,7 +143,7 @@ rocblas\rocBLAS-reference   contains the reference build of rocblas
 rocblas\rocBLAS-verify      contains a build of rocblas with the new logic merged in
 ```
 
-this will provision and build the reference and the verification version of rocBLAS. After it is provisioned we can copy over the test scripts and execute the scripts in both clones.
+This will provision and build the reference and the verification version of rocBLAS. After it is provisioned, we can copy over the test scripts and execute the scripts in both clones.
 
 Example:
 
@@ -178,7 +178,7 @@ args:
 
 ```
 
-when this utility is run it will generate analysis in the following directories.
+When this utility is ran, it will generate analysis in the following directories:
 
 ```
 final           results with the old and new logic compared
@@ -190,22 +190,3 @@ Example:
 ```
 $ ./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

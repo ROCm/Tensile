@@ -48,13 +48,24 @@ namespace Tensile
             using AlphaType = Alpha;
             using BetaType = Beta;
 
-            ManagedContractionInputs(std::shared_ptr<A> _a, std::shared_ptr<B> _b, std::shared_ptr<C> _c, std::shared_ptr<D> _d,
+            ManagedContractionInputs(std::shared_ptr<A> _a,
+                                     std::shared_ptr<B> _b,
+                                     std::shared_ptr<C> _c,
+                                     std::shared_ptr<D> _d,
+                                     size_t _aElements,
+                                     size_t _bElements,
+                                     size_t _cElements,
+                                     size_t _dElements,
                                      Alpha _alpha, Beta _beta, bool _gpu)
                 : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta),
                   managedA(_a),
                   managedB(_b),
                   managedC(_c),
                   managedD(_d),
+                  aElements(_aElements),
+                  bElements(_bElements),
+                  cElements(_cElements),
+                  dElements(_dElements),
                   gpu(_gpu)
             {
             }
@@ -65,6 +76,11 @@ namespace Tensile
             std::shared_ptr<B> managedB;
             std::shared_ptr<C> managedC;
             std::shared_ptr<D> managedD;
+
+            size_t aElements;
+            size_t bElements;
+            size_t cElements;
+            size_t dElements;
 
             bool gpu;
 
@@ -87,34 +103,49 @@ namespace Tensile
             {
             }
 
-            virtual std::shared_ptr<ContractionInputs> prepareCPUInputs()
+            virtual std::shared_ptr<ContractionInputs> prepareCPUInputs(ContractionProblem const& problem)
             {
-                return prepareCPUInputsTyped();
+                return prepareCPUInputsTyped(problem);
             }
 
-            virtual std::shared_ptr<ContractionInputs> prepareGPUInputs()
+            virtual std::shared_ptr<ContractionInputs> prepareGPUInputs(ContractionProblem const& problem)
             {
-                return prepareGPUInputsTyped();
+                return prepareGPUInputsTyped(problem);
             }
 
-            std::shared_ptr<ManagedInputs> prepareCPUInputsTyped()
+            std::shared_ptr<ManagedInputs> prepareCPUInputsTyped(ContractionProblem const& problem)
             {
                 if(!m_cpuInputsPristine)
                     m_cpuInputsPristine = createNewCPUInputs();
 
-                if(m_cpuInputs)
+                if(m_cpuInputs && !m_boundsCheck)
                 {
                     copyD(m_cpuInputs, m_cpuInputsPristine);
                 }
                 else
                 {
-                    m_cpuInputs = allocNewCPUInputs();
-                    copyInputs(m_cpuInputs, m_cpuInputsPristine);
+                    if(!m_cpuInputs)
+                        m_cpuInputs = allocNewCPUInputs();
+
+                    if(m_boundsCheck && !m_cpuBadInputs)
+                    {
+                        m_cpuBadInputs = createNewCPUBadInputs();
+                    }
+
+                    copyInputs(m_cpuInputs, m_cpuInputsPristine, m_cpuBadInputs, problem);
                 }
 
-                if (m_convolutionVsContraction and !m_cpuConvInputs) {
-                  m_cpuConvInputs = allocNewCPUInputs(m_cpuInputsPristine, true);
-                  initializeCPUInputs(*m_cpuConvInputs);
+                if (m_convolutionVsContraction)
+                {
+                    bool allocated = false;
+                    if(!m_cpuConvInputs)
+                    {
+                        allocated = true;
+                        m_cpuConvInputs = allocNewCPUInputs();
+                    }
+
+                    if(allocated || m_boundsCheck)
+                        copyInputs(m_cpuConvInputs, m_cpuInputsPristine, m_cpuBadInputs, problem);
                 }
 
                 return m_cpuInputs;
@@ -124,9 +155,10 @@ namespace Tensile
               return m_cpuConvInputs;
             };
 
-            std::shared_ptr<ManagedInputs> prepareGPUInputsTyped()
+            std::shared_ptr<ManagedInputs> prepareGPUInputsTyped(ContractionProblem const& problem)
             {
                 std::shared_ptr<ManagedInputs> pristine;
+                std::shared_ptr<ManagedInputs> bad;
 
                 if(m_keepPristineCopyOnGPU)
                 {
@@ -134,6 +166,14 @@ namespace Tensile
                         m_gpuInputsPristine = createNewGPUInputs();
 
                     pristine = m_gpuInputsPristine;
+
+                    if(m_boundsCheck)
+                    {
+                        if(!m_gpuBadInputs)
+                            m_gpuBadInputs = createNewGPUBadInputs();
+
+                        bad = m_gpuBadInputs;
+                    }
                 }
                 else
                 {
@@ -141,16 +181,26 @@ namespace Tensile
                         m_cpuInputsPristine = createNewCPUInputs();
 
                     pristine = m_cpuInputsPristine;
+
+                    if(m_boundsCheck)
+                    {
+                        if(!m_cpuBadInputs)
+                            m_cpuBadInputs = createNewCPUBadInputs();
+
+                        bad = m_cpuBadInputs;
+                    }
                 }
 
-                if(m_gpuInputs)
+                if(m_gpuInputs && !m_boundsCheck)
                 {
                     copyD(m_gpuInputs, pristine);
                 }
                 else
                 {
-                    m_gpuInputs = allocNewGPUInputs(pristine);
-                    copyInputs(m_gpuInputs, pristine);
+                    if(!m_gpuInputs)
+                        m_gpuInputs = allocNewGPUInputs(pristine);
+
+                    copyInputs(m_gpuInputs, pristine, bad, problem);
                 }
 
                 return m_gpuInputs;
@@ -167,16 +217,32 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> createNewGPUInputs()
             {
                 auto rv = allocNewGPUInputs();
-                std::shared_ptr<ManagedInputs> source;
                 if(!m_cpuInputsPristine)
                     m_cpuInputsPristine = createNewCPUInputs();
-
-                copyInputs(rv, m_cpuInputsPristine);
+                copyInputBuffers(rv, m_cpuInputsPristine);
 
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr, bool convolutionVsContraction=false)
+            std::shared_ptr<ManagedInputs> createNewCPUBadInputs()
+            {
+                auto rv = allocNewCPUInputs();
+                initializeCPUBadInputs(*rv);
+
+                return rv;
+            }
+
+            std::shared_ptr<ManagedInputs> createNewGPUBadInputs()
+            {
+                auto rv = allocNewGPUInputs();
+                if(!m_cpuBadInputs)
+                    m_cpuBadInputs = createNewCPUBadInputs();
+                copyInputBuffers(rv, m_cpuBadInputs);
+
+                return rv;
+            }
+
+            std::shared_ptr<ManagedInputs> allocNewCPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr)
             {
                 std::shared_ptr<AType> a;
                 std::shared_ptr<BType> b;
@@ -191,12 +257,18 @@ namespace Tensile
                 else
                 {
                     a = std::shared_ptr<AType>((AType *)std::malloc(TypeInfo<AType>::ElementSize * m_aMaxElements), std::free);
+                    if (a==nullptr)
+                        throw std::runtime_error("out of host memory allocating a");
                     b = std::shared_ptr<BType>((BType *)std::malloc(TypeInfo<BType>::ElementSize * m_bMaxElements), std::free);
+                    if (a==nullptr)
+                        throw std::runtime_error("out of host memory allocating b");
                 }
 
-                if(m_cEqualsD || !pristine || convolutionVsContraction)
+                if(m_cEqualsD || !pristine)
                 {
                     c = std::shared_ptr<CType>((CType *)std::malloc(TypeInfo<CType>::ElementSize * m_cMaxElements), std::free);
+                    if (c==nullptr)
+                        throw std::runtime_error("out of host memory allocating c");
                 }
                 else
                 {
@@ -214,19 +286,26 @@ namespace Tensile
                 else
                 {
                     d = std::shared_ptr<DType>((DType *)std::malloc(TypeInfo<DType>::ElementSize * m_dMaxElements), std::free);
+                    if (d==nullptr)
+                        throw std::runtime_error("out of host memory allocating d");
                 }
 
                 auto alpha = static_cast<AlphaType>(0);
                 auto beta  = static_cast<BetaType>(0);
 
-                auto rv = std::make_shared<ManagedInputs>(a, b, c, d, alpha, beta, false);
+                auto rv = std::make_shared<ManagedInputs>(a, b, c, d,
+                                                          m_aMaxElements,
+                                                          m_bMaxElements,
+                                                          m_cMaxElements,
+                                                          m_dMaxElements,
+                                                          alpha, beta, false);
 
                 return rv;
             }
 
             std::shared_ptr<ManagedInputs> allocNewGPUInputs(std::shared_ptr<ManagedInputs> pristine = nullptr)
             {
-                if(pristine && !pristine->gpu)
+                if(m_boundsCheck || (pristine && !pristine->gpu))
                     pristine = nullptr;
 
                 std::shared_ptr<AType> a;
@@ -279,7 +358,12 @@ namespace Tensile
                 auto alpha = static_cast<AlphaType>(0);
                 auto beta  = static_cast<BetaType>(0);
 
-                auto rv = std::make_shared<ManagedInputs>(a, b, c, d, alpha, beta, true);
+                auto rv = std::make_shared<ManagedInputs>(a, b, c, d,
+                                                          m_aMaxElements,
+                                                          m_bMaxElements,
+                                                          m_cMaxElements,
+                                                          m_dMaxElements,
+                                                          alpha, beta, true);
                 return rv;
             }
 
@@ -296,6 +380,23 @@ namespace Tensile
 
                 inputs.alpha = getValue<AlphaType>(m_alphaInit, 0);
                 inputs.beta = getValue<BetaType>(m_betaInit, 0);
+            }
+
+            void initializeCPUBadInputs(ManagedInputs & inputs)
+            {
+                if(inputs.gpu)
+                    throw std::runtime_error("Initializing GPU inputs as CPU.");
+
+                initArray(InitMode::BadInput, inputs.managedA.get(), m_aMaxElements);
+                initArray(InitMode::BadInput, inputs.managedB.get(), m_bMaxElements);
+
+                initArray(InitMode::BadOutput, inputs.managedD.get(), m_dMaxElements);
+                
+                if(!m_cEqualsD)
+                    initArray(InitMode::BadInput, inputs.managedC.get(), m_cMaxElements);
+
+                inputs.alpha = getValue<AlphaType>(m_alphaInit);
+                inputs.beta = getValue<BetaType>(m_betaInit);
             }
 
             hipMemcpyKind copyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
@@ -324,7 +425,8 @@ namespace Tensile
                 }
             }
 
-            void copyInputs(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
+            void copyInputBuffers(std::shared_ptr<ManagedInputs> dst,
+                                  std::shared_ptr<ManagedInputs> src)
             {
                 hipMemcpyKind kind = copyKind(dst, src);
 
@@ -340,10 +442,50 @@ namespace Tensile
                 if(!m_cEqualsD && dst->managedD != src->managedD)
                     HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
 
-                //HIP_CHECK_EXC(hipDeviceSynchronize());
-
                 dst->alpha = src->alpha;
                 dst->beta = src->beta;
+            }
+
+            void copyInputs(std::shared_ptr<ManagedInputs> dst,
+                            std::shared_ptr<ManagedInputs> src,
+                            std::shared_ptr<ManagedInputs> bad,
+                            ContractionProblem const& problem)
+            {
+                hipMemcpyKind kind = copyKind(dst, src);
+
+                if(m_boundsCheck)
+                {
+                    if(!bad)
+                        throw std::runtime_error("bad inputs must be initialized for bounds check!");
+                    if(bad->gpu != src->gpu)
+                        throw std::runtime_error("bad inputs must be in the same location as the source");
+                    if(dst->managedA == src->managedA)
+                        throw std::runtime_error("A pointers are equal for bounds check!");
+                    if(dst->managedB == src->managedB)
+                        throw std::runtime_error("B pointers are equal for bounds check!");
+                    if(dst->managedC == src->managedC)
+                        throw std::runtime_error("C pointers are equal for bounds check!");
+                    if(dst->managedD == src->managedD)
+                        throw std::runtime_error("D pointers are equal for bounds check!");
+
+                    copyInputBuffers(dst, bad);
+
+                    Tensile::hip::CopyTensor(const_cast<AType *>(dst->a), src->a, problem.a(), kind);
+                    Tensile::hip::CopyTensor(const_cast<BType *>(dst->b), src->b, problem.b(), kind);
+
+                    if(!m_cEqualsD)
+                        Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
+
+                    Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
+
+                    dst->alpha = src->alpha;
+                    dst->beta  = src->beta;
+                }
+                else
+                {
+                    copyInputBuffers(dst, src);
+                }
+
             }
 
             void copyD(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
@@ -357,9 +499,14 @@ namespace Tensile
 
             std::shared_ptr<ManagedInputs> m_cpuConvInputs;
             std::shared_ptr<ManagedInputs> m_cpuInputs, m_cpuInputsPristine;
+            std::shared_ptr<ManagedInputs> m_cpuBadInputs;
             std::shared_ptr<ManagedInputs> m_gpuInputs, m_gpuInputsPristine;
+            std::shared_ptr<ManagedInputs> m_gpuBadInputs;
 
         };
+
+        using ManagedBFloat16ContractionInputs =
+        ManagedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
     }
 }
 

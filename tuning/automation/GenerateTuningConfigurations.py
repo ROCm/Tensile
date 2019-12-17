@@ -136,7 +136,7 @@ def ClassifySize(size):
     return sizeKey
 
 def GetProblemType(key):
-    _ , transposeA, transposeB = key
+    _ , transposeA, transposeB, dType = key
 
     initialParams = {}
 
@@ -149,6 +149,7 @@ def GetProblemType(key):
         initialParams["TransposeB"] = False
     else:
         initialParams["TransposeB"] = True
+    initialParams["DataType"] = dType
 
     problemType = generateProblemType(initialParams)
 
@@ -198,12 +199,16 @@ def generateDefaultScheme():
 
 def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList):
 
-    _ , transposeA, transposeB = problemKey
+    _ , transposeA, transposeB, dType = problemKey
     
     transposeType = "%s%s" % (transposeA.lower(),transposeB.lower())
     benchmarkGroup = None
 
     scheme = generateDefaultScheme()
+
+    if dType == "h":
+        scheme["AssertSummationElementMultiple"] = [2]
+        scheme["AssertFree0ElementMultiple"] = [2]
     
     if sizeKey == "batch":
         scheme["GlobalSplitU"] = [1]
@@ -282,7 +287,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library):
 
         problemTypeName = "%s%s" % (dataType, operationType)
 
-        _, transposeA, transposeB = key
+        _, transposeA, transposeB, _ = key
         transpose = "%s%s" % (transposeA.lower(), transposeB.lower())
         problemKey = "%s_%s_%s" % (library, problemTypeName, transpose)
         configurationFileName = "%s_%s" % (problemKey,outputName)
@@ -312,10 +317,8 @@ def OutputConfigs(problemMapper, configPath, outputName, library):
         newConfig = configDefs[key]
         newConfig.writeLibraryLogic(key)
 
-
-
 def GetOutputFileName(outputPath, namePart, key, ext):
-    function, transposeA, transposeB = key
+    function, transposeA, transposeB, dType = key
     fileName = namePart
 
     if "strided" in function:
@@ -404,6 +407,8 @@ def RunMain1():
     workingDirectory = args.workPath
     outputFIleName = args.outputFile
     outputPath = workingDirectory + "/configs"
+    if not os.path.exists(outputPath):
+        os.makedirs(outputPath)
 
     mapper = ProcesDefinitionFile(definitionFileName)
 
@@ -433,8 +438,14 @@ def RunMain():
 
     problemMapper = ProcessFile(inputFileName)
     configPath = os.path.join(outputPath, "configs")
+    if not os.path.exists(configPath):
+        os.makedirs(configPath)
     scriptPath = os.path.join(outputPath, "scripts")
+    if not os.path.exists(scriptPath):
+        os.makedirs(scriptPath)
     sizePath = os.path.join(outputPath, "sizes")
+    if not os.path.exists(sizePath):
+        os.makedirs(sizePath)
 
     OutputConfigs(problemMapper, configPath, outputName, library)
     OutputScript(problemMapper, scriptPath, namePart)

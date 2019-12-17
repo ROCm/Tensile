@@ -50,7 +50,7 @@ namespace Tensile
 
         bool isSourceKernel() const;
 
-        virtual double projectedPerformance(Problem const& problem) const;
+        virtual double projectedPerformance(Problem const& problem, Hardware const& hardware) const;
 
         bool solves(Problem const& problem,
                     Problem  const& inputs,
@@ -64,7 +64,7 @@ namespace Tensile
         std::vector<KernelInvocation> solveTyped(Problem     const& problem,
                                                  TypedInputs const& inputs,
                                                  Hardware    const& hardware) const;
-    
+
         template <typename TypedInputs>
         KernelInvocation generateSingleCall(Problem     const& problem,
                                             TypedInputs const& inputs,
@@ -107,6 +107,8 @@ namespace Tensile
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
             bool useBeta = true;
+            bool useInitialStridesAB = false;
+            bool useInitialStridesCD = false;
         };
 
         int index;

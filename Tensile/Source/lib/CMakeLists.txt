@@ -45,7 +45,7 @@ set(tensile_sources  ${tensile_sources}
 if(TENSILE_USE_LLVM)
     find_package(LLVM 6.0 QUIET CONFIG)
     if(NOT LLVM_FOUND)
-        find_package(LLVM 7.0 REQUIRED CONFIG)
+        find_package(LLVM REQUIRED CONFIG)
     endif()
     set(tensile_sources ${tensile_sources}
         source/llvm/YAML.cpp

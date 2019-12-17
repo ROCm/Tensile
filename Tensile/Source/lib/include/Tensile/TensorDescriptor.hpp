@@ -31,12 +31,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
+#include <iomanip>
 #include <numeric>
 #include <vector>
 
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/Macros.hpp>
 #include <Tensile/Utils.hpp>
+#include <Tensile/Debug.hpp>
 
 namespace Tensile
 {
@@ -258,44 +260,82 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
     template <typename T>
-    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc)
+    void WriteTensor1D(std::ostream & stream, T * data, TensorDescriptor const& desc, bool decorated=true)
     {
-        const size_t maxDims=8;
-        if(desc.dimensions() > maxDims)
-            throw std::runtime_error("Fix this function to work with dimensions > 8");
-        // Use techniques from Reference.cpp with CoordCount to increase dimension support
+        if(desc.dimensions() != 1)
+            throw std::runtime_error("WriteTensor1D is only compatible with 1-dimensional tensors.");
 
-        std::vector<size_t> is(maxDims,0);
-        std::vector<size_t> sizes = desc.sizes();
-        sizes.resize(maxDims,1);
+        if(decorated)
+            stream << "[";
 
-        stream << "Tensor(";
-        for (auto s : desc.sizes())
-            stream << s << ", ";
-        stream  << " data_ptr: " << data;
+        if(desc.sizes()[0] > 0)
+            stream << data[0];
 
-        stream << std::endl;
+        for(size_t i = 1; i < desc.sizes()[0]; i++)
+            stream << " " << data[i];
 
-        for(is[7] = 0; is[7] < sizes[7]; is[7]++)
-        for(is[6] = 0; is[6] < sizes[6]; is[6]++)
-        for(is[5] = 0; is[5] < sizes[5]; is[5]++)
-        for(is[4] = 0; is[4] < sizes[4]; is[4]++)
-        for(is[3] = 0; is[3] < sizes[3]; is[3]++)
-        for(is[2] = 0; is[2] < desc.sizes()[2]; is[2]++)
-        {
-            stream << "[" << std::endl;
-            for(is[0] = 0; is[0] < desc.sizes()[0]; is[0]++)
-            {
-                for(is[1] = 0; is[1] < desc.sizes()[1]; is[1]++)
-                {
-                    std::vector<size_t> validIs(is.begin(), is.begin()+desc.dimensions());
-                    size_t idx = desc.index(validIs);
-                    stream << data[idx] << " ";
-                }
-                stream << std::endl;
-            }
+        if(decorated)
             stream << "]" << std::endl;
+    }
+
+    // decorated will print brackets [] to indicate start/end of tensor dims
+    template <typename T>
+    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc, bool decorated=true)
+    {
+        stream << "Tensor(";
+        streamJoin(stream, desc.sizes(), ", ");
+        stream  << ", data_ptr: " << data << ")" << std::endl;
+
+        if(desc.dimensions() == 0)
+            return;
+
+        if(desc.dimensions() == 1)
+        {
+            WriteTensor1D(stream, data, desc, decorated);
+            return;
         }
+
+        auto const& sizes = desc.sizes();
+        std::vector<size_t> coord(desc.dimensions(), 0);
+        const auto stride0 = desc.strides()[0];
+
+        auto upperDimCount = CoordCount(sizes.begin() + 2, sizes.end());
+
+        for(size_t idx = 0; idx < upperDimCount; idx++)
+        {
+            CoordNumbered(idx, coord.begin()+2, coord.end(), sizes.begin()+2, sizes.end());
+
+            coord[0] = 0;
+            coord[1] = 0;
+
+            if(decorated)
+            {
+                stream << "(";
+                streamJoin(stream, coord, ", ");
+                stream << ")" << std::endl << "[" << std::endl;
+            }
+
+            for(coord[1] = 0; coord[1] < sizes[1]; coord[1]++)
+            {
+                coord[0] = 0;
+
+                auto const* localPtr = data + desc.index(coord);
+
+                if(sizes[0] > 0)
+                    stream << localPtr[0];
+
+                for(coord[0] = 1; coord[0] < sizes[0]; coord[0]++)
+                {
+                    stream << " " << localPtr[coord[0] * stride0];
+                }
+            }
+
+            if(decorated)
+            {
+                stream << std::endl << "]" << std::endl;
+            }
+        }
+
     }
 
 } // namespace
