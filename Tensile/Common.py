@@ -759,6 +759,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
     {"AssertMinApproxSize":        [ -1 ] },
+    {"AssertStrideAEqual":        [ "" ] },
+    {"AssertStrideBEqual":        [ "" ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
