@@ -47,7 +47,6 @@ namespace Tensile
                 case InitMode::Inf:       return "Inf";
                 case InitMode::BadInput:  return "BadInput";
                 case InitMode::BadOutput: return "BadOutput";
-                case InitMode::SerialIdx: return "SerialIdx";
 
                 case InitMode::Count:     break;
             }
@@ -73,7 +72,6 @@ namespace Tensile
             else if(strValue == ToString(InitMode::Inf))       mode = InitMode::Inf;
             else if(strValue == ToString(InitMode::BadInput))  mode = InitMode::BadInput;
             else if(strValue == ToString(InitMode::BadOutput)) mode = InitMode::BadOutput;
-            else if(strValue == ToString(InitMode::SerialIdx)) mode = InitMode::SerialIdx;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());

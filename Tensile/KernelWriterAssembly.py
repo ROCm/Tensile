@@ -7282,7 +7282,7 @@ class KernelWriterAssembly(KernelWriter):
         # determine column start address for each block
         kStr += inst("v_mul_lo_u32", vgpr(tid1),
                       hex(kernel["MatrixInstN"]), vgpr(tid1), "col element offset for each block")
-        startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
+        startStride = 1 if kernel["ProblemType"]["UseInitialStridesCD"] else 0
         # determine col VGPR statt address
         kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
                       vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \

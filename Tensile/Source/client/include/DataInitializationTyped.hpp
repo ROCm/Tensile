@@ -378,8 +378,8 @@ namespace Tensile
                 if(!m_cEqualsD)
                     initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
 
-                inputs.alpha = getValue<AlphaType>(m_alphaInit, 0);
-                inputs.beta = getValue<BetaType>(m_betaInit, 0);
+                inputs.alpha = getValue<AlphaType>(m_alphaInit);
+                inputs.beta = getValue<BetaType>(m_betaInit);
             }
 
             void initializeCPUBadInputs(ManagedInputs & inputs)

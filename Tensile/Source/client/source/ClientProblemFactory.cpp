@@ -73,7 +73,7 @@ namespace Tensile
             if(args.count("alpha-type")) m_alphaType = args["alpha-type"].as<DataType>();
             if(args.count("beta-type") ) m_betaType  = args["beta-type"].as<DataType>();
 
-            m_beta = DataInitialization::getValue<double>(args["init-beta"].as<InitMode>(), 0);
+            m_beta = DataInitialization::getValue<double>(args["init-beta"].as<InitMode>());
 
             m_problems = createProblems();
         }
