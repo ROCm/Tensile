@@ -52,6 +52,8 @@ namespace Tensile
         // if tensors are printed, use hexadecimal output format
         bool printTensorModeHex() const;
 
+        bool printLibraryVersion() const;
+
     private:
         friend LazySingleton<Debug>;
 

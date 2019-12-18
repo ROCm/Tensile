@@ -968,6 +968,7 @@ def TensileCreateLibrary():
 
   argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
                          help="Access key for embedding library files.")
+  argParser.add_argument("--version", help="Version string to embed into library file.")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1027,6 +1028,8 @@ def TensileCreateLibrary():
         newMasterLibrary = newLibrary
     else:
         newMasterLibrary.merge(newLibrary)
+
+  newMasterLibrary.version = args.version
 
   # create solution writer and kernel writer
   kernels = []

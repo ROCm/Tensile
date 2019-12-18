@@ -47,6 +47,7 @@ namespace Tensile
 
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         SolutionMap<MySolution> solutions;
+        std::string version;
 
         MasterSolutionLibrary() = default;
 

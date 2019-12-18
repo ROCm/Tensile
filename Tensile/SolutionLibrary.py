@@ -282,13 +282,18 @@ class MasterSolutionLibrary:
 
         return cls(solutionMap, library)
 
-
-    def __init__(self, solutions, library):
+    def __init__(self, solutions, library, version=None):
         self.solutions = solutions
         self.library = library
+        self.version = version
 
     def state(self):
-        return {'solutions': state(iter(list(self.solutions.values()))), 'library': state(self.library)}
+        rv = {'solutions': state(iter(list(self.solutions.values()))),
+              'library': state(self.library)}
+
+        if self.version is not None:
+            rv['version'] = self.version
+        return rv
 
     def applyNaming(self, naming=None):
         if naming is None:
