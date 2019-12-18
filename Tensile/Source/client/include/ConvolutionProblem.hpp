@@ -25,6 +25,7 @@
 
 #include <Tensile/Tensile.hpp>
 #include <Tensile/ContractionProblem_fwd.hpp>
+#include <Tensile/TensorDescriptor_fwd.hpp>
 #include <vector>
 
 namespace Tensile
@@ -61,17 +62,18 @@ namespace Tensile
             size_t channelPosition() const   { return m_channelPosition; };
 
             const std::vector<size_t> filterPositions() const  { return m_filterPositions; };
+
+            // 0,1,2 order is X,Y,Z
+            // size is number of spatial dims, no extra InvalidPos values
             const std::vector<size_t> spatialPositions() const { return m_spatialPositions; };
          private:
             size_t m_batchPosition;
             size_t m_channelPosition;
 
-            //! 0,1,2 order is X,Y,Z
-            //! always MaxNumSpatialDims elements.  Positions may be InvalidPos
-            std::vector<size_t> m_filterPositions;
 
             //! 0,1,2 order is X,Y,Z
             //! size is number of spatial dims, no extra InvalidPos values
+            std::vector<size_t> m_filterPositions;
             std::vector<size_t> m_spatialPositions;
         };
 
@@ -93,7 +95,7 @@ namespace Tensile
             std::vector<size_t> m_filterPositions;
         };
 
-        //! Use for tensorB and output which can take either format
+        //! Use for formatB and output which can take either format
         struct ComboFormat {
             const ActivationFormat &activation() const { return m_activation; };
             const WeightFormat &weights() const { return m_weights; };
@@ -104,18 +106,37 @@ namespace Tensile
             WeightFormat     m_weights;
         };
 
+        struct TENSILE_API LoopCounts {
+          LoopCounts() : scount(MaxNumSpatialDims,1), fcount(MaxNumSpatialDims,1) {};
+          void setupForData(ConvolutionProblem const& convProblem,
+                           ContractionProblem const& problem);
+          std::string description() const;
+          size_t batchCount;
+          size_t cinCount;
+          size_t coutCount;
+          std::vector<size_t> scount;
+          std::vector<size_t> fcount;
+        };
+
         ConvolutionProblem() {}
 
         void FromIdentifier(std::string identifier);
+        TensorDescriptor setupDataActivation(LoopCounts const& counts,
+                             ContractionProblem const& problem) const;
+        TensorDescriptor setupDataOutput(LoopCounts const& counts,
+                             ContractionProblem const& problem) const;
+        TensorDescriptor setupForwardWeights(LoopCounts const& counts,
+                             ContractionProblem const& problem) const;
         void validate(const ContractionProblem &problem) const;
 
+        const std::vector<size_t> spatials() const { return m_spatials;};
         const std::vector<size_t> filter() const { return m_filters;};
         const std::vector<size_t> stride() const { return m_strides;};
         const std::vector<size_t> dilation() const { return m_dilations;};
 
-        const ActivationFormat &tensorA() const { return m_tensorA; };
-        const ComboFormat &tensorB() const { return m_tensorB; };
-        const ComboFormat &tensorD() const { return m_tensorD; };
+        const ActivationFormat &formatA() const { return m_formatA; };
+        const ComboFormat &formatB() const { return m_formatB; };
+        const ComboFormat &formatD() const { return m_formatD; };
 
         //! Number of spatial dims after packing.
         size_t numSpatialDims() const { return m_numSpatialDims;}
@@ -130,6 +151,7 @@ namespace Tensile
         std::string m_operationIdentifier;
 
         //! 0,1,2 order is W,H,D(act) or X,Y,Z(weights)
+        std::vector<size_t> m_spatials;
         std::vector<size_t> m_filters;
         std::vector<size_t> m_strides;
         std::vector<size_t> m_dilations;
@@ -141,9 +163,9 @@ namespace Tensile
         size_t m_numFilterDims = 0;
         size_t m_numSpatialDims = 0;
 
-        ActivationFormat m_tensorA;
-        ComboFormat      m_tensorB;
-        ComboFormat      m_tensorD; // output tensor
+        ActivationFormat m_formatA;
+        ComboFormat      m_formatB;
+        ComboFormat      m_formatD; // output tensor
     };
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, ConvolutionProblem const& convolution);

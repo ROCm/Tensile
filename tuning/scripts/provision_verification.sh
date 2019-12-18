@@ -28,14 +28,14 @@ function provision_rocblas() {
 }
 
 
-HELP_STR="usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <githup tag>]  [-h|--help]"
+HELP_STR="usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <githup tag>] [-l|--library <gpu library>]  [-h|--help]"
 
 HELP=false
 ROCBLAS_BRANCH='develop'
 
 
 
-OPTS=`getopt -o ht:w:b:c:i:r: --long help,working-path:,size-log,output:,tag:,branch:,commit:,library:,type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o ht:w:b:c:i:r:l: --long help,working-path:,size-log,output:,tag:,branch:,commit:,library:,type: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -50,6 +50,7 @@ while true; do
     -c | --commit )       COMMIT="$2"; shift 2;;
     -i )                  ID="$2"; shift 2;;
     -r )                  TENSILE_PATH="$2"; shift 2;;
+    -l | --library )      LIBRARY="$2"; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -70,6 +71,11 @@ if [ -z ${TENSILE_PATH+foo} ]; then
    exit 2
 fi
 
+if [ -z ${LIBRARY+foo} ]; then
+   printf "GPU Library not specified, assuming Vega 20\n"
+   LIBRARY=vega20
+fi
+
 
 #determing full path of tools root
 TOOLS_ROOT=`dirname "$0"`
@@ -82,13 +88,14 @@ EXACT_PATH="${LIBRARY_ROOT}/exact"
 MERGE_PATH="${LIBRARY_ROOT}/merge"
 ASM_PATH="${LIBRARY_ROOT}/asm_full"
 ARCHIVE_PATH="${LIBRARY_ROOT}/archive"
-
+MASSAGE_PATH="${LIBRARY_ROOT}/massage"
 
 mkdir -p ${ROCBLAS_ROOT}
 mkdir -p ${EXACT_PATH}
 mkdir -p ${ASM_PATH}
 mkdir -p ${ARCHIVE_PATH}
 mkdir -p ${MERGE_PATH}
+mkdir -p ${MASSAGE_PATH}
 
 provision_rocblas reference
 provision_rocblas verify
@@ -109,20 +116,17 @@ cp ${VERIFY_LIBRARY_ARCHIVE}/* ${ARCHIVE_PATH}
 cp ${ARCHIVE_PATH}/*yaml ${ASM_PATH}
 
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge_rocblas_yaml_files.py
-MESSAGE_SCRIPT=../archive/massage.py
+#MESSAGE_SCRIPT=../archive/massage.py
+MESSAGE_SCRIPT=${VERIFY_LIBRARY_ARCHIVE}/massage.py
 
 EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
 ${EXE_MERGE}
 
 cp ${MERGE_PATH}/* ${VERIFY_LIBRARY_ASM}
-cp ${MERGE_PATH}/vega20*{SB,DB}* ${ARCHIVE_PATH}
-cp ${ARCHIVE_PATH}/*yaml ${VERIFY_LIBRARY_ASM}
-cp ${ARCHIVE_PATH}/*yaml ${VERIFY_LIBRARY_ARCHIVE}
+cp ${MERGE_PATH}/* ${VERIFY_LIBRARY_ARCHIVE}
+cp ${MERGE_PATH}/${LIBRARY}*{SB,DB,HB}* ${MASSAGE_PATH}
 
-pushd ${VERIFY_LIBRARY_ASM} > /dev/null
-python ${MESSAGE_SCRIPT}
-popd > /dev/null
-
+python ${MESSAGE_SCRIPT} ${MASSAGE_PATH} ${VERIFY_LIBRARY_ASM}
 
 BUILD_ROCBLAS="./install.sh -c"
 

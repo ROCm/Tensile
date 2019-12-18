@@ -39,15 +39,16 @@ namespace Tensile
         {
             switch(mode)
             {
-                case InitMode::Zero:    return "Zero";
-                case InitMode::One:     return "One";
-                case InitMode::Two:     return "Two";
-                case InitMode::Random:  return "Random";
-                case InitMode::NaN:     return "NaN";
-                case InitMode::SerialIdx: return "SerialIdx";
-                // case InitMode::SerialDim0: return "SerialDim0";
-                // case InitMode::SerialDim1: return "SerialDim1";
-                case InitMode::Count:   break;
+                case InitMode::Zero:      return "Zero";
+                case InitMode::One:       return "One";
+                case InitMode::Two:       return "Two";
+                case InitMode::Random:    return "Random";
+                case InitMode::NaN:       return "NaN";
+                case InitMode::Inf:       return "Inf";
+                case InitMode::BadInput:  return "BadInput";
+                case InitMode::BadOutput: return "BadOutput";
+
+                case InitMode::Count:     break;
             }
 
             throw std::runtime_error(concatenate("Invalid InitMode value: ", static_cast<int>(mode)));
@@ -68,9 +69,9 @@ namespace Tensile
             else if(strValue == ToString(InitMode::Two))       mode = InitMode::Two;
             else if(strValue == ToString(InitMode::Random))    mode = InitMode::Random;
             else if(strValue == ToString(InitMode::NaN))       mode = InitMode::NaN;
-            else if(strValue == ToString(InitMode::SerialIdx)) mode = InitMode::SerialIdx;
-            // else if (strValue == ToString(InitMode::SerialDim0)) mode = InitMode::SerialDim0;
-            // else if (strValue == ToString(InitMode::SerialDim1)) mode = InitMode::SerialDim1;
+            else if(strValue == ToString(InitMode::Inf))       mode = InitMode::Inf;
+            else if(strValue == ToString(InitMode::BadInput))  mode = InitMode::BadInput;
+            else if(strValue == ToString(InitMode::BadOutput)) mode = InitMode::BadOutput;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
@@ -186,16 +187,29 @@ namespace Tensile
               m_dMaxElements(0),
               m_cEqualsD(args["c-equal-d"].as<bool>()),
               m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
+              //, m_boundsCheck(args["bounds-check"].as<bool>())
         {
+            auto x = args.find("bounds-check");
+            auto arg = args["bounds-check"];
+            m_boundsCheck = arg.as<bool>();
+
             if (args.count("convolution-vs-contraction"))
                 m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
 
             for(auto const& problem: problemFactory.problems())
             {
-                m_aMaxElements = std::max(m_aMaxElements, problem.a().totalLogicalElements());
-                m_bMaxElements = std::max(m_bMaxElements, problem.b().totalLogicalElements());
-                m_cMaxElements = std::max(m_cMaxElements, problem.c().totalLogicalElements());
-                m_dMaxElements = std::max(m_dMaxElements, problem.d().totalLogicalElements());
+                m_aMaxElements = std::max(m_aMaxElements, problem.a().totalAllocatedElements());
+                m_bMaxElements = std::max(m_bMaxElements, problem.b().totalAllocatedElements());
+                m_cMaxElements = std::max(m_cMaxElements, problem.c().totalAllocatedElements());
+                m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
+            }
+
+            if(m_boundsCheck)
+            {
+                m_aMaxElements  += 1024;
+                m_bMaxElements  += 1024;
+                m_cMaxElements  += 1024;
+                m_dMaxElements  += 1024;
             }
         }
 

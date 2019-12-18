@@ -87,9 +87,6 @@ namespace Tensile
     {
         TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
 
-        bool packIndicesA = (problem.freeIndicesA().size() > 1) || sizeMapping.packBatchDims & 0x1;
-        bool packIndicesB = (problem.freeIndicesB().size() > 1) || sizeMapping.packBatchDims & 0x2;
-
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
         TensorDescriptor const& c = problem.c();
@@ -122,11 +119,11 @@ namespace Tensile
         rv.numWorkGroups.z = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
         {
-            if (packIndicesA)
+            if (sizeMapping.packBatchDims & 0x1)
                 rv.numWorkGroups.x *= problem.batchSize(i);
-            if (packIndicesB)
+            if (sizeMapping.packBatchDims & 0x2)
                 rv.numWorkGroups.y *= problem.batchSize(i);
-            if (!packIndicesA && !packIndicesB)
+            if (!sizeMapping.packBatchDims)
                 rv.numWorkGroups.z *= problem.batchSize(i);
         }
 
@@ -160,9 +157,9 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            uint64_t tensor2dSizeC = c.dimensions() <= 2 ? c.totalAllocatedElements() : c.strides().at(2);
-            uint64_t tensor2dSizeA = a.dimensions() <= 2 ? a.totalAllocatedElements() : a.strides().at(2);
-            uint64_t tensor2dSizeB = b.dimensions() <= 2 ? b.totalAllocatedElements() : b.strides().at(2);
+            uint64_t tensor2dSizeC = 0;
+            uint64_t tensor2dSizeA = (sizeMapping.packBatchDims & 0x1) ? a.totalAllocatedElements() : problem.allocatedElementsNonBatchA() ;
+            uint64_t tensor2dSizeB = (sizeMapping.packBatchDims & 0x2) ? b.totalAllocatedElements() : problem.allocatedElementsNonBatchB() ;
 
             rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
             rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
@@ -185,17 +182,20 @@ namespace Tensile
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
-        for(size_t i = 1; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+        size_t startStrideCD = problemType.useInitialStridesCD ? 0:1;
+        size_t startStrideAB = problemType.useInitialStridesAB ? 0:1;
 
-        for(size_t i = 1; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
+        for(size_t i = startStrideCD; i < d.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideD", i), d.strides()[i]);
 
-        for(size_t i = 1; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideA", i), a.sizes()[i] == 1 ? 0 : a.strides()[i]);
+        for(size_t i = startStrideCD; i < c.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideC", i), c.strides()[i]);
 
-        for(size_t i = 1; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
+        for(size_t i = startStrideAB; i < a.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideA", i), a.strides()[i]);
+
+        for(size_t i = startStrideAB; i < b.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideB", i), b.strides()[i]);
 
         {
             int idx=0;
@@ -206,7 +206,7 @@ namespace Tensile
             }
         }
 
-        if (packIndicesA)
+        if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
         {
             std::vector<size_t> packedIndices;
 
@@ -220,7 +220,7 @@ namespace Tensile
 
                 bool nonPackableBatch = false;
                 // TODO - base this check on if the batch is SetConstStrideA=0 - if so, don't pack
-                if (sizeMapping.packBatchDims & 0x2)
+                if (!(sizeMapping.packBatchDims & 0x1))
                 {
                     nonPackableBatch = problem.batchIndices().end() !=
                                  std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
@@ -241,7 +241,7 @@ namespace Tensile
                 rv.args.append<uint32_t>(concatenate("magicShiftSizeA_",idx), magicShift);
             }
         }
-        if (packIndicesB)
+        if (problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
         {
             std::vector<size_t> packedIndices;
             // Pack in all non-summation indices, except don't need magic number for the last one
@@ -254,7 +254,7 @@ namespace Tensile
 
                 bool nonPackableBatch = false;
                 // TODO - base this check on if the batch is SetConstStrideB=0 - if so, don't pack
-                if (sizeMapping.packBatchDims & 0x1)
+                if (!(sizeMapping.packBatchDims & 0x2))
                 {
                     nonPackableBatch = problem.batchIndices().end() !=
                                  std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
@@ -481,7 +481,7 @@ namespace Tensile
         }
     }
 
-    double ContractionSolution::projectedPerformance(Problem const& problem) const
+    double ContractionSolution::projectedPerformance(Problem const& problem, Hardware const& hardware) const
     {
         double M = problem.freeSizeA(0);
         double N = problem.freeSizeB(0);
@@ -510,7 +510,15 @@ namespace Tensile
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
         double NumCUs = 64;
-        double GlobalSplitU = sizeMapping.globalSplitU;
+
+	AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
+
+        if (pAMDGPU != nullptr)
+        {                     //computeUnitCount
+            NumCUs = pAMDGPU->computeUnitCount;
+        }
+
+	double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU = sizeMapping.workGroupSize.z;
         double IdealGranularityPerf = closestKPerformance;
 
