@@ -59,6 +59,8 @@ class Fbs(Enum):
   Sum=2      # Expect to be summation dimension
 
 ################################################################################
+RegDim=namedtuple("RegDim", "idx fbs dim")
+
 class Convolution:
   class Dimension:
     """
@@ -172,7 +174,6 @@ class Convolution:
             DimAB.OnlyA))
     cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1', DimAB.BothAB)
 
-    RegDim=namedtuple("RegDim", "idx fbs dim")
     if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
       # Make index assignments following standard Tensile Index assignment rules (see Common.py)
       # - Indices < NumCindices are batch or free indices and are present in TensorD
