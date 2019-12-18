@@ -1,9 +1,0 @@
-nightly_asm is collection of selected asm tests from the nightly run
-These provide better covereage than pre_checkin and skip the source tests so complete more quickly than full nightly.
-
-nightly_asm is simply links into directories in nightly.
-New directories in nightly will have to add a link in nightly_asm if desired.
-
-To run:
-
-$  PYTHONPATH=. py.test -v Tensile/Tests/nightly_asm
