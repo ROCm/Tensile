@@ -1035,6 +1035,7 @@ def TensileCreateLibrary():
     if not globalParameters["PackageLibrary"]:
       if fullMasterLibrary is None:
         fullMasterLibrary = deepcopy(newLibrary)
+        fullMasterLibrary.version = args.version
       else:
         fullMasterLibrary.merge(deepcopy(newLibrary))
 
@@ -1051,8 +1052,7 @@ def TensileCreateLibrary():
         masterLibraries[architectureName].merge(deepcopy(newLibrary))
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
-
-  newMasterLibrary.version = args.version
+        masterLibraries[architectureName].version = args.version
 
   # create solution writer and kernel writer
   kernels = []
