@@ -55,7 +55,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStrides']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -127,9 +127,12 @@ class ProblemType:
         if 'HighPrecisionAccumulate' in d:
             rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
 
-        rv.useInitialStrides = False
-        if 'UseInitialStrides' in d:
-            rv.useInitialStrides = d['UseInitialStrides']
+        rv.useInitialStridesAB = False
+        if 'UseInitialStridesAB' in d:
+            rv.useInitialStridesAB = d['UseInitialStridesAB']
+        rv.useInitialStridesCD = False
+        if 'UseInitialStridesCD' in d:
+            rv.useInitialStridesCD = d['UseInitialStridesCD']
 
         rv.setConstStrideA = []
         if 'SetConstStrideA' in d:
@@ -233,13 +236,36 @@ class ProblemType:
 
         return predicates
 
+def extractDimPredicate(cls, key, value, predicateName):
+    """
+    Extract the predicate for AssertStrideEqual* or AssertSizeEqual*
+    These are comma-separated pos:value pairs, ie
+    AssertStrideBEqual=["2:0,  3:1"]
+    """
+    predicates = []
+    for pair in value.replace(' ','').split(','):
+        (pos,val) = pair.split(':')
+        predicates.append(cls(predicateName, index=pos, value=val))
+    if len(predicates) == 1:
+        return predicates[0]
+    elif len(predicates) > 1:
+        return cls.And(predicates)
+    else:
+        raise RuntimeError("Unknown format for %s (%s) "%(key,value))
+
+
 class ProblemPredicate(Properties.Predicate):
     @classmethod
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
-        # TODO - change to use SetConstStrideB
-        if key == 'PackBatchDims' and value==1:
-            return cls("StrideBEqual", index=2, value=0)
+        if key == "AssertStrideAEqual":
+            return extractDimPredicate(cls, key, value, "StrideAEqual")
+        if key == "AssertStrideBEqual":
+            return extractDimPredicate(cls, key, value, "StrideBEqual")
+
+        if key == "AssertSizeEqual":
+            return extractDimPredicate(cls, key, value, "SizeEqual")
+
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
             return None
@@ -256,7 +282,7 @@ class ProblemPredicate(Properties.Predicate):
                 index = 0
             elif key == "AssertSummationElementMultiple":
                 tag = "BoundSizeMultiple"
-                index = 0
+                index = -1
             else:
                 raise RuntimeError("Unknown Multiple Value: {}".format(key))
 

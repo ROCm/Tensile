@@ -85,17 +85,23 @@ class Convolution:
     def __repr__(self):
       return self.shortChar
 
-  SummaryProperties=[\
+  SummaryProblemProperties=[\
         'OperationType','DestDataType','DataType','HighPrecisionAccumulate',\
         'TensorAFormat','TensorBFormat','TensorDFormat',\
         'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
         'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStrides',\
+        'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
+        ]
+  SummarySolutionProperties=[\
+        'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
         ]
 
   def __init__(self, problemTypeOut, convolutionType, config):
+    """
+    problemTypeOut contains problem type parms created by this constructor.
+    """
 
     self.convolutionDims={};
     self.convolutionType = convolutionType
@@ -299,23 +305,33 @@ class Convolution:
     problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB]
     problemTypeOut["UseBeta"] = False # MI kernels don't use beta
 
+    self.solutionParms = {}
+
     problemTypeOut["SetConstStrideA"]=[]
     for (idx,fbs,dim) in self.indexA:
       if dim.strideA != -1:
         problemTypeOut["SetConstStrideA"].append([idx,dim.strideA])
     problemTypeOut["SetConstStrideA"].sort()
+    if problemTypeOut["SetConstStrideA"]:
+        self.solutionParms["AssertStrideAEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideA"]])
 
     problemTypeOut["SetConstStrideB"]=[]
     for (idx,fbs,dim) in self.indexB:
       if dim.strideB != -1:
         problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
     problemTypeOut["SetConstStrideB"].sort()
+    if problemTypeOut["SetConstStrideB"]:
+        self.solutionParms["AssertStrideBEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideB"]])
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStrides"] = False
+      problemTypeOut["UseInitialStridesAB"] = False
     else:
-      problemTypeOut["UseInitialStrides"] = True
+      problemTypeOut["UseInitialStridesAB"] = True
 
     #self.printUsage(problemTypeOut)
 
@@ -517,11 +533,20 @@ class Convolution:
 
     print ()
     print ("ProblemType Definition:")
-    for k in Convolution.SummaryProperties:
+    for k in Convolution.SummaryProblemProperties:
       try:
         print ("  ", k, ":", problemType[k])
       except KeyError:
         pass
+
+    print ()
+    print ("Solution Assertions:")
+    for k in Convolution.SummarySolutionProperties:
+      try:
+        print ("  ", k, ":", self.solutionParms[k])
+      except KeyError:
+        pass
+
 
   def checkDims(self, freeIndices, batchIndices, sumIndices):
     for dimList in (self.indexA, self.indexB):
@@ -543,8 +568,6 @@ class Convolution:
     id += "_indices:" + '.'.join([x[1].shortChar for x in self.indexAssignments])
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
-    else:
-      raise RuntimeError ("convolution-vs-contraction requires ConvolutionConfig['Spatial']")
     id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
     id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
     id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])
@@ -828,7 +851,8 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["UseInitialStrides"]: name += "I"
+    if self["UseInitialStridesAB"]: name += "I"
+    if self["UseInitialStridesCD"]: name += "Ic"
     return name
 
   def keys(self):
@@ -1194,8 +1218,10 @@ class Solution:
       kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
-      kernel["ProblemType"]["UseInitialStrides"] = \
-          problemType["UseInitialStrides"]
+      kernel["ProblemType"]["UseInitialStridesAB"] = \
+          problemType["UseInitialStridesAB"]
+      kernel["ProblemType"]["UseInitialStridesCD"] = \
+          problemType["UseInitialStridesCD"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
       kernel["ProblemType"]["SetConstStrideB"] = \
@@ -1563,6 +1589,14 @@ class Solution:
 
     return True
 
+  @staticmethod
+  def addConstStride(state, key, value):
+      try:
+          if value not in state[key].replace(' ','').split(','):
+              state[key] = state[key] + ", " + value
+      except KeyError:
+          state[key] = value
+
 
   ########################################
   # assign all derived parameters
@@ -1615,24 +1649,22 @@ class Solution:
     assert(isPackedIndex(state, problemType["Index0"], 0x1))
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
-    if state["PackBatchDims"]==1:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideB"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
-                #problemType["SetConstStrideB"].append([bi,0])
-    if state["PackBatchDims"]==2:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideA"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)
-                #problemType["SetConstStrideA"].append([bi,0])
+    # Add AssertStride*Equal for PackBatchDims, if needed
+    for (mask, tc) in ((0x1,'B'), (0x2,'A')):
+        if state["PackBatchDims"] & mask:
+            for bi in problemType["IndicesBatch"]:
+                found = False
+                try:
+                    for pair in problemType["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                        (index,value)=pair.split(':')
+                        if index==bi and value==0:
+                            found = True
+                            break
+                except KeyError:
+                    None
+                if not found:
+                    Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
+                                "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
@@ -1677,6 +1709,10 @@ class Solution:
                 (state["DepthU"] * bpeAB), 2)))
     except ValueError:
         staggerStrideShift = 0
+    if staggerStrideShift < 0:
+      reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
+        % (state["StaggerUStride"], state["DepthU"], bpeAB))
+      return 
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
@@ -1696,6 +1732,12 @@ class Solution:
           state["VectorWidth"]))
       return
 
+    if state["PackSummationDims"] == 1:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
+        else:
+          state["AssertSummationElementMultiple"] = state["DepthU"]
+
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
        and state["ProblemType"]["DataType"].isHalf():
@@ -1708,6 +1750,9 @@ class Solution:
              state["AssertFree0ElementMultiple"] % 2 != 0):
            # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
             reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+
+    if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
+        reject(state, "PackSummationDims does not yet support assembly")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
@@ -2158,6 +2203,17 @@ class Solution:
           reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
                   (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
+    # these work everywhere, no special restrictions
+    state["AssertMinApproxSize"] = 0
+
+    if state["KernelLanguage"] == "Assembly":
+      if state["VectorWidth"] > 1:
+        # VW>1 kernels require dims>1
+        state["AssertMinApproxSize"] = 3
+    elif state["VectorWidth"] > 1:
+      # VW>1 kernels require dims>1
+      state["AssertMinApproxSize"] = 2
+    
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not

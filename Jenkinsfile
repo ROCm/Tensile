@@ -57,7 +57,7 @@ tensileCI:
 
                     popd
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e lint
+                    tox -v --workdir /tmp/.tensile-tox -e lint
 
                     doxygen docs/Doxyfile
                     """
@@ -79,7 +79,11 @@ tensileCI:
 
     tensile.timeout.test = 600
 
-    def test_dir = auxiliary.isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin"
+    def test_dir =  "Tensile/Tests"
+    def test_marks = "unit or pre_checkin"
+    if(auxiliary.isJobStartedByTimer())
+        test_marks += " or extended"
+
     def testCommand =
     {
         platform, project->
@@ -98,7 +102,7 @@ tensileCI:
 
                     popd
                     tox --version
-                    tox -vv --workdir /tmp/.tensile-tox -e py35 -- Tensile/UnitTests ${test_dir}
+                    tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
                     date
                 """
             platform.runCommand(this, command)

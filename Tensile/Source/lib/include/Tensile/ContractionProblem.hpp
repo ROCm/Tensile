@@ -271,6 +271,11 @@ namespace Tensile
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const { return m_maxProblemSize; }
 
+        /// Allocated elements excluding batch dimensions
+        /// Used in assembly kernels to determine buffer limits, if batch dimes not packed
+        size_t allocatedElementsNonBatchA() const { return m_allocatedElementsNonBatchA; }
+        size_t allocatedElementsNonBatchB() const { return m_allocatedElementsNonBatchB; }
+
         size_t flopsPerMac() const;
         size_t flopCount() const;
 
@@ -351,6 +356,10 @@ namespace Tensile
         double m_beta;
 
         size_t m_maxProblemSize = 1;
+
+        size_t m_allocatedElementsNonBatchA;
+        size_t m_allocatedElementsNonBatchB;
+
 
         void normalize();
         void consistencyCheck() const;

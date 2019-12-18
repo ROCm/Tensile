@@ -73,7 +73,7 @@ namespace Tensile
         std::vector<KernelInvocation> solveTyped(Problem     const& problem,
                                                  TypedInputs const& inputs,
                                                  Hardware    const& hardware) const;
-    
+
         template <typename TypedInputs>
         KernelInvocation generateSingleCall(Problem     const& problem,
                                             TypedInputs const& inputs,
@@ -115,8 +115,9 @@ namespace Tensile
             DataType cType = DataType::Float;
             DataType dType = DataType::Float;
             bool highPrecisionAccumulate = false;
-            bool useInitialStrides = false;
             bool useBeta = true;
+            bool useInitialStridesAB = false;
+            bool useInitialStridesCD = false;
         };
 
         int index;

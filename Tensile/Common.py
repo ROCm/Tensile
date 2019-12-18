@@ -61,6 +61,7 @@ globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues t
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
+globalParameters["BoundsCheck"] = False   # Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
 globalParameters["ValidationMaxToPrint"] = 4      # maximum number of mismatches to print
 globalParameters["ValidationPrintValids"] = False # print matches too
 # steps
@@ -75,6 +76,11 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 # specified constant MUST match the dimension in the problem or the tensile runtime will assert.
 # The batch size, spatial dims, Cin, and Cout are always read from the problem description.
 globalParameters["ConvolutionVsContraction"] = False
+
+# Set size and stride fields in convolution so they are consistent with requirements from convolution
+# Size/strides to be overriden must be defined as '-1' or a runtime error will be raised
+# Only valid if OperationType is a *Convolution.
+globalParameters["ProblemFromConvolution"] = False
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
@@ -85,6 +91,8 @@ globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?  0 does not check error codes correctly
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
+
+globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Useful to examine and debug overflow errors)
 
 ########################################
 # optimization knob controls
@@ -150,6 +158,7 @@ globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
 globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
+globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -174,6 +183,7 @@ globalParameters["CxxCompiler"] = "hcc"
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+globalParameters["PackageLibrary"] = False
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
@@ -424,6 +434,24 @@ validParameters = {
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
+    # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
+    "AssertMinApproxSize" : [0,1,2],
+
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [position, constValue].
+    # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
+    #   EX: [ [2,0] ] means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Like other assertions, these are used when kernel is generated and checked before running kernel
+    "AssertStrideAEqual":  -1,
+
+    "AssertStrideBEqual":  -1,
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [index, constValue].#
+    # Index is a member of the global index assignments.
+    "AssertSizeEqual":    -1,
+
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -557,6 +585,15 @@ validParameters = {
     # If True, allow macro-tile to span free dimensions.  Single workgroup can work across multiple free dimensions.
     # If False, macro-tile is always Free0*Free1.  Additional free dimensions are not supported.
     "PackFreeDims":              [False, True],
+
+    # Pack summation dims
+    # If 0, a for loops are generated for each summation dimension.
+    # If 1, summation dims are packed into a single loop and extracted as needed using mod/shift.  The innermost summation
+    #  dimension must be an integer multiple of the unroll loop - in other words the load tile is contiguous in memory.
+    #  In this mode, tensile can still prefetch data across the load tile dimension.
+    # If 2, summations dims are packed into a single loop as above.  In addition, the load tile does not need to be 
+    #  contiguous in memory and can span summation dimensions.
+    "PackSummationDims":         [0,1,2],
 
     # Granularity allowed when packing tensor dims.
     # Lower values are finer granularity which requires more dimension division operations on store path
@@ -719,6 +756,7 @@ defaultBenchmarkCommonParameters = [
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
+    {"AssertMinApproxSize":        [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -733,6 +771,7 @@ defaultBenchmarkCommonParameters = [
     {"PersistentKernel":          [ 0 ] },
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
+    {"PackSummationDims":         [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },
@@ -858,9 +897,13 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStrides":        False,
+    "UseInitialStridesAB":      False,  # use initial strides for AB.
+    "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
+    # SetConstStride* sets the specified stride in the problem.
+    # These no longer generate predicates - see AssertStrideEqualA/B below
     # List of pairs of [index, constValue].
+    # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
     #     strideA for index3 to constant '1' and stride for index2 to constant '4'.
     "SetConstStrideA":          [],
@@ -1315,6 +1358,13 @@ def versionIsCompatible(queryVersionString):
     if int(qStep) > int(tStep):
       return False
   return True
+
+def ClientExecutionLock():
+  if not globalParameters["ClientExecutionLockPath"]:
+    return open(os.devnull)
+
+  import filelock
+  return filelock.FileLock(globalParameters["ClientExecutionLockPath"])
 
 # convert python list to C++ initializer style syntax
 def listToInitializer(l):

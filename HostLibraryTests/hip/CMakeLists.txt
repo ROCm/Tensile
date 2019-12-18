@@ -60,6 +60,7 @@ add_custom_target(test_code_object
 
 set(test_sources ${test_sources}
     hip/HipSolutionAdapter_test.cpp
+    hip/CopyTensor_test.cpp
     hip/RunGEMMKernel_test.cpp PARENT_SCOPE)
 
 set(HIP_TEST_LIBRARIES

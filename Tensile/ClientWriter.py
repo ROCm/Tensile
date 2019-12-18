@@ -19,12 +19,12 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import YAMLIO
 
 import os
-from subprocess import Popen
+import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
 
@@ -88,7 +88,7 @@ def main( config ):
   enableHalf = False
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
-        indexOrder, exactLogic, rangeLogic, newLibrary) \
+        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
         = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
@@ -104,8 +104,9 @@ def main( config ):
   problemSizes = None
   stepName = None
   solutionSummationSizes = None
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions, solutionSummationSizes, stepBaseDir)
+  if logicFiles:
+      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+          functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -115,41 +116,46 @@ def main( config ):
   if globalParameters["ForceRedoLibraryClient"]:
     rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
         ignore_errors=True)
-  pushWorkingPath("build")
 
-  # write runScript
-  path = globalParameters["WorkingPath"]
   forBenchmark = False
   enableTileSelection = False
-  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
-
-  # run runScript
-  process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-  process.communicate()
-  if process.returncode:
-    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-  popWorkingPath() # build
+  returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection)
 
   popWorkingPath() # LibraryClient
 
-  return process.returncode
+  return returncode
 
 
 ################################################################################
 # Write Run Script
 ################################################################################
-def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
-  # create run.bat or run.sh which builds and runs
-  runScriptName = os.path.join(path, \
-    "run.%s" % ("bat" if os.name == "nt" else "sh") )
-  runScriptFile = open(runScriptName, "w")
-  echoLine = "@echo." if os.name == "nt" else "echo"
-  if os.name != "nt":
-    runScriptFile.write("#!/bin/bash\n\n")
+
+def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
+  # write runScript
+
+  pushWorkingPath("build")
+  path = globalParameters["WorkingPath"]
+  buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+
+  subprocess.check_call(buildScriptName, cwd=path)
+
+  # run runScript
+  with ClientExecutionLock():
+    process = subprocess.Popen(runScriptName, cwd=path)
+    process.communicate()
+
+  if process.returncode:
+    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+  popWorkingPath() # build
+  return process.returncode
+  
+
+def getBuildOldClientScript(libraryLogicPath, forBenchmark):
+  import io
+  runScriptFile = io.StringIO()
   q = "" if os.name == "nt" else "\""
-
-  runScriptFile.write("set -ex\n")
-
+  echoLine = "@echo." if os.name == "nt" else "echo"
   if globalParameters["NewClient"] < 2:
     runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
         % (echoLine, q, HR, q, q, q, q, HR, q))
@@ -193,6 +199,34 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     runScriptFile.write("cmake --build . --config %s%s\n" \
         % (globalParameters["CMakeBuildType"], " -- -j 8" \
         if os.name != "nt" else "") )
+
+  return runScriptFile.getvalue()
+
+def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+  filename = os.path.join(path, \
+    "build.%s" % ("bat" if os.name == "nt" else "sh") )
+  with open(filename, "w") as file:
+    file.write("#!/bin/bash\n\n")
+    file.write("set -ex\n")
+    file.write(getBuildOldClientScript(libraryLogicPath, forBenchmark))
+
+  if os.name != "nt":
+    os.chmod(filename, 0o777)
+  return filename
+
+
+def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+  # create run.bat or run.sh which builds and runs
+  runScriptName = os.path.join(path, \
+    "run.%s" % ("bat" if os.name == "nt" else "sh") )
+  runScriptFile = open(runScriptName, "w")
+  echoLine = "@echo." if os.name == "nt" else "echo"
+  if os.name != "nt":
+    runScriptFile.write("#!/bin/bash\n\n")
+  q = "" if os.name == "nt" else "\""
+
+  runScriptFile.write("set -ex\n")
+
 
   if forBenchmark:
     if os.name == "nt":
@@ -323,22 +357,24 @@ def normalizeConvolution(conv, problemSize, astrides):
                                 problemSize[conv.dimIdx('C')], problemSize[conv.dimIdx('K')])
 
     for i in range(len(refSize)):
-        if (refSize[i]!=-1 and refSize[i] != problemSize[i]):
-            raise RuntimeError (
-                    "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
+      if refSize[i]!=-1:
+        if problemSize[i] == -1:
+          if globalParameters["ProblemFromConvolution"]:
+            problemSize[i] = refSize[i]
+        elif refSize[i] != problemSize[i]:
+          raise RuntimeError (
+            "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
               (problemSize, refSize, i, problemSize[i], refSize[i], conv.convolutionChar(i)))
 
-    if globalParameters["ConvolutionVsContraction"]:
-      copyConvStrides = True
-      if copyConvStrides:
-          for i in range(len(refAStrides)):
-              if astrides[i]==-1:
-                  astrides[i] = refAStrides[i] # copy reference
-              elif astrides[i] != refAStrides[i]:
-                  raise RuntimeError (
-                    "at position %d problem strides (%s) don't match reference conv strides(%s)" \
-                            % (i, astrides, refAStrides))
-      elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
+    if globalParameters["ProblemFromConvolution"]:
+      for i in range(len(refAStrides)):
+        if astrides[i]==-1:
+          astrides[i] = refAStrides[i] # copy reference
+        elif refAStrides[i] != -1 and astrides[i] != refAStrides[i]:
+          raise RuntimeError (
+            "at position %d problem strides (%s) don't match reference conv strides(%s)" \
+                          % (i, astrides, refAStrides))
+    elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
         raise RuntimeError (
             "specified convolution uses strides that can't be represented in current Exact problem size format. Requires StrideA=", refAStrides)
 
@@ -347,8 +383,7 @@ def normalizeConvolution(conv, problemSize, astrides):
 def problemSizeParams(solution, problemSize):
 
     numIndices = len(solution.problemType.indices)
-
-    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    rv = []
 
     astrides = [-1] * solution.problemType.aDims
     for sc in solution.problemType.setConstStrideA:
@@ -368,7 +403,6 @@ def problemSizeParams(solution, problemSize):
         else:
             bstrides[index.b] = sc[1]
 
-    rv = [problemSizeArg]
     if len(problemSize) == numIndices:
       None
     elif len(problemSize) == numIndices + 4:
@@ -392,7 +426,9 @@ def problemSizeParams(solution, problemSize):
             ', '.join(map(str, problemSize))))
 
     if solution.problemType.convolution:
-        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, problemSize, astrides)
+        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, list(problemSize), astrides)
+    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    rv.insert(0, problemSizeArg)
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
@@ -474,13 +510,16 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("c-equal-d",                globalParameters["CEqualD"])
 
         if globalParameters["PrintTensorA"]:
-          param("print-tensor-a",         1);
+          param("print-tensor-a",         1)
         if globalParameters["PrintTensorB"]:
-          param("print-tensor-b",         1);
+          param("print-tensor-b",         1)
         if globalParameters["PrintTensorC"]:
-          param("print-tensor-c",         1);
+          param("print-tensor-c",         1)
         if globalParameters["PrintTensorD"]:
-          param("print-tensor-d",         1);
+          param("print-tensor-d",         1)
+
+        if globalParameters["BoundsCheck"]:
+          param("bounds-check", 1)
 
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
@@ -947,7 +986,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
           solution["AssertFree1ElementMultiple"],
-          0,
+          solution["AssertMinApproxSize"],
           "true" if solution["LdcEqualsLdd"] else "false",
           solution["PackBatchDims"]==2, \
           solution["PackBatchDims"]==1, \
@@ -1143,7 +1182,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # strides
     indexChars = globalParameters["IndexChars"]
     firstStride = 1
-    if problemType["UseInitialStrides"]:
+    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    if problemType["UseInitialStridesAB"]:
       firstStride = 0
     lastStrideD = problemType["NumIndicesC"]
     lastStrideC = problemType["NumIndicesC"]
@@ -1219,7 +1259,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
-    firstStride = 0 if problemType["UseInitialStrides"] else 1
+    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    firstStride = 0 if problemType["UseInitialStridesAB"] else 1
     lastStrideD = problemType["NumIndicesC"]
     lastStrideC = problemType["NumIndicesC"]
     lastStrideA = len(problemType["IndexAssignmentsA"])
@@ -1375,7 +1416,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           # strides
           indexChars = globalParameters["IndexChars"]
           firstStride = 1
-          if problemType["UseInitialStrides"]:
+          assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+          if problemType["UseInitialStridesAB"]:
             firstStride = 0
           lastStrideD = problemType["NumIndicesC"]
           lastStrideC = problemType["NumIndicesC"]

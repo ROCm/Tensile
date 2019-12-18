@@ -32,7 +32,13 @@ function(TensileCreateLibraryCmake
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
-
+# make Tensile_PACKAGE_LIBRARY and optional parameter 
+# to avoid breaking applications which us this
+  if (ARGN)
+    list (GET ARGN 0 Tensile_PACKAGE_LIBRARY)
+  else()
+    set(Tensile_PACKAGE_LIBRARY OFF)
+  endif()
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
 
@@ -49,6 +55,10 @@ function(TensileCreateLibraryCmake
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-merge-files")
   endif()
 
+  if(${Tensile_PACKAGE_LIBRARY})
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--package-library")
+  endif()
+  
   if(${Tensile_SHORT_FILE_NAMES})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--short-file-names")
   else()

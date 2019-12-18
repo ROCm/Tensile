@@ -157,9 +157,9 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            uint64_t tensor2dSizeC = c.dimensions() <= 2 ? c.totalAllocatedElements() : c.strides().at(2);
-            uint64_t tensor2dSizeA = a.dimensions() <= 2 ? a.totalAllocatedElements() : a.strides().at(2);
-            uint64_t tensor2dSizeB = b.dimensions() <= 2 ? b.totalAllocatedElements() : b.strides().at(2);
+            uint64_t tensor2dSizeC = 0;
+            uint64_t tensor2dSizeA = (sizeMapping.packBatchDims & 0x1) ? a.totalAllocatedElements() : problem.allocatedElementsNonBatchA() ;
+            uint64_t tensor2dSizeB = (sizeMapping.packBatchDims & 0x2) ? b.totalAllocatedElements() : problem.allocatedElementsNonBatchB() ;
 
             rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
             rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
@@ -182,19 +182,20 @@ namespace Tensile
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
-        size_t startStride = problemType.useInitialStrides ? 0:1;
+        size_t startStrideCD = problemType.useInitialStridesCD ? 0:1;
+        size_t startStrideAB = problemType.useInitialStridesAB ? 0:1;
 
-        for(size_t i = startStride; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+        for(size_t i = startStrideCD; i < d.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideD", i), d.strides()[i]);
 
-        for(size_t i = startStride; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
+        for(size_t i = startStrideCD; i < c.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideC", i), c.strides()[i]);
 
-        for(size_t i = startStride; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideA", i), a.sizes()[i] == 1 ? 0 : a.strides()[i]);
+        for(size_t i = startStrideAB; i < a.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideA", i), a.strides()[i]);
 
-        for(size_t i = startStride; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideB", i), b.sizes()[i] == 1 ? 0 : b.strides()[i]);
+        for(size_t i = startStrideAB; i < b.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate("strideB", i), b.strides()[i]);
 
         {
             int idx=0;
