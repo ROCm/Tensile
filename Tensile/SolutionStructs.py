@@ -1539,7 +1539,10 @@ class Solution:
 
     # Default GlobalStoreVectorWidth
     if state["StoreVectorWidth"] == -1:
-      state["StoreVectorWidth"] = 2  if state["ProblemType"]["DataType"].numBytes() == 2 else 4
+      #TODO : re-enable later after running testlists
+      #state["StoreVectorWidth"] = state["VectorWidth"]
+      # use wider store for best store optimization 
+      state["StoreVectorWidth"] = 4  
 
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
