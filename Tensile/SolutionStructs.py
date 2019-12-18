@@ -1650,6 +1650,9 @@ class Solution:
       print1("in assignDerivedParameters, state['Valid'] = False")
       return
 
+    # Init LoopIters parameter in case of early exit
+    state["LoopIters"] = state["LoopUnroll"]
+
     if state["MatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
         state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
