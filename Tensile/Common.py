@@ -92,6 +92,8 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
+globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Useful to examine and debug overflow errors)
+
 ########################################
 # optimization knob controls
 ########################################
@@ -182,6 +184,7 @@ globalParameters["CxxCompiler"] = "hcc"
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
 globalParameters["NewClientArgs"] = ""
+globalParameters["PackageLibrary"] = False
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
@@ -434,6 +437,21 @@ validParameters = {
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
     "AssertMinApproxSize" : [0,1,2],
+
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [position, constValue].
+    # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
+    #   EX: [ [2,0] ] means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Like other assertions, these are used when kernel is generated and checked before running kernel
+    "AssertStrideAEqual":  -1,
+
+    "AssertStrideBEqual":  -1,
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [index, constValue].#
+    # Index is a member of the global index assignments.
+    "AssertSizeEqual":    -1,
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -883,6 +901,8 @@ defaultProblemType = {
     "UseInitialStridesAB":      False,  # use initial strides for AB.
     "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
+    # SetConstStride* sets the specified stride in the problem.
+    # These no longer generate predicates - see AssertStrideEqualA/B below
     # List of pairs of [index, constValue].
     # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
