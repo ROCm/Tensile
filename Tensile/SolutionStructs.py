@@ -1737,10 +1737,11 @@ class Solution:
             for bi in problemType["IndicesBatch"]:
                 found = False
                 for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
-                    (index,value)=pair.split(':')
-                    if index==bi and value==0:
-                        found = True
-                        break
+                    if pair != '':
+                        (index,value)=pair.split(':')
+                        if index==bi and value==0:
+                            found = True
+                            break
                 if not found:
                     Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
                                 "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
