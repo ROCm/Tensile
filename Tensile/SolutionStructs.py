@@ -2144,7 +2144,7 @@ class Solution:
           % (state["LoopUnroll"]))
 
     state["LoopIters"] = state["LoopUnroll"]
-    if state["MatrixInstK"]:
+    if "MatrixInstK" in state:
       state["LoopIters"] //= state["MatrixInstK"]
 
     # Determine if we can load directly-to-LDS.
