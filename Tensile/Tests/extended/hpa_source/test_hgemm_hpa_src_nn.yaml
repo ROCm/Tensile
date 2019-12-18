@@ -1,6 +1,6 @@
 TestParameters:
     # Passes on 2.9 but maybe fails on newer compiler releases?
-    marks: [disabled]
+    marks: [skip]
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
