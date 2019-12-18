@@ -1,10 +1,9 @@
 import logging
-import pytest
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
 """
-These tests run the convolution-vs-contraction mode always, 
+These tests run the convolution-vs-contraction mode always
 """
 
 def test_simple(run_convolution_vs_contraction):
