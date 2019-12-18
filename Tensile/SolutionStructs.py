@@ -1651,7 +1651,8 @@ class Solution:
       return
 
     # Init LoopIters parameter in case of early exit
-    state["LoopIters"] = state["LoopUnroll"]
+    # For backwards compatibility with older yaml files
+    state["LoopIters"] = 0
 
     if state["MatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \

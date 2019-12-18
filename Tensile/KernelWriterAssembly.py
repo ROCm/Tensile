@@ -4486,7 +4486,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
-    if tc == "B": # ABlocks only
+    if kernel["MatrixInstruction"] and tc == "B": # ABlocks only
       divisor //= 4 # 4 simds
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
@@ -4498,17 +4498,23 @@ class KernelWriterAssembly(KernelWriter):
     sgid = qReg
 
     tIdx = tP["tensorIdx"]
-    if tc == "A": # For BBlocks, A and B use this case
+    if kernel["MatrixInstruction"]:
+      if tc == "A": # For BBlocks, A and B use this case
+        kStr += inst("s_mov_b32", \
+            sgpr(tmpSgpr), \
+            hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+            "MT%u+PAD"%tIdx )
+      else: # For BBlocks, don't use else case
+        kStr += inst("s_mov_b32", \
+            sgpr(tmpSgpr), \
+            #hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+            hex((kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]) // 4), \
+            "MT%u+PAD"%tIdx )
+    else:
       kStr += inst("s_mov_b32", \
           sgpr(tmpSgpr), \
-          hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
-          "MT%u+PAD"%tIdx )
-    else: # For BBlocks, don't use else case
-      kStr += inst("s_mov_b32", \
-          sgpr(tmpSgpr), \
-          #hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
-          hex((kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]) // 4), \
-          "MT%u+PAD"%tIdx )
+          hex(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]), \
+          "MT%u+PAD"%tP["tensorIdx"] )
     kStr += inst("v_mul_lo_u32", \
         vgpr(sgid), \
         sgpr(tmpSgpr), \
