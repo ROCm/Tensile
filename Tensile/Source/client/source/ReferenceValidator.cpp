@@ -252,7 +252,7 @@ namespace Tensile
             if(!m_enabled)
                 return rv;
 
-            if(m_printTensorA || m_printTensorB || m_printTensorC || m_printTensorD || m_printTensorRef)
+            if(m_printTensorA || m_printTensorB || m_printTensorC || m_printTensorD)
                 printTensorsTyped(reference, result);
 
             if(m_elementsToValidate != 0)
