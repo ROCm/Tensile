@@ -48,7 +48,7 @@ def test_ckyx_2x2(run_convolution_level):
     assert(z['NumIndicesC']==3)
     assert(z['IndexAssignmentsA']==[5, 4, 0, 3, 2])
     assert(z['IndexAssignmentsB']==[5, 4, 1, 3, 2])
-    assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
-    assert(conv.solutionParms["AssertStrideBEqual"] == "4:0,0:1")
+    assert(conv.solutionParms["AssertStrideAEqual"] == "0:1,2:1")
+    assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,4:0")
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
