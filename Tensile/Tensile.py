@@ -19,15 +19,19 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+if __name__ == "__main__":
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
+    exit(1)
+
 import os
 import sys
 import argparse
 from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-from . import YAMLIO
 from . import BenchmarkProblems
-from . import LibraryLogic
 from . import ClientWriter
+from . import LibraryLogic
+from . import YAMLIO
 from . import __version__
 
 ###############################################################################
@@ -47,11 +51,12 @@ def executeStepsInConfig( config ):
     BenchmarkProblems.main( config["BenchmarkProblems"] )
     print1("")
 
+
   ##############################################################################
   # Library Logic
   ##############################################################################
   libraryLogicDataPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["LibraryLogicPath"])
+    globalParameters["LibraryLogicPath"])
   if "LibraryLogic" in config:
     if os.path.exists(libraryLogicDataPath):
       libraryLogicFiles = os.listdir(libraryLogicDataPath)
@@ -116,6 +121,10 @@ def Tensile(userArgs):
       help="use serial kernel and solution names")
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
+  argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
+      action="store", default="hcc", help="select which compiler to use")
+  argParser.add_argument("--client-build-path", default=None)
+  argParser.add_argument("--client-lock", default=None)
   # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
@@ -143,8 +152,8 @@ def Tensile(userArgs):
   else:
     assignGlobalParameters({})
 
-  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
-  ensurePath(globalParameters["WorkingPath"])
+  globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
+  globalParameters["WorkingPath"] = globalParameters["OutputPath"]
 
   # override config with command-line options
   if args.device:
@@ -170,7 +179,13 @@ def Tensile(userArgs):
     globalParameters["ShortNames"] = True
   if args.noMergeFiles:
     globalParameters["MergeFiles"] = False
+  if args.CxxCompiler:
+    globalParameters['CxxCompiler'] = args.CxxCompiler
   print1("")
+  if args.client_build_path:
+    globalParameters["ClientBuildPath"] = args.client_build_path
+  if args.client_lock:
+    globalParameters["ClientExecutionLockPath"] = args.client_lock
 
   # Execute Steps in the config script
   executeStepsInConfig( config )
@@ -218,8 +233,3 @@ def TensileSGEMM5760():
 def main():
     Tensile(sys.argv[1:])
 
-
-# script run from commandline
-if __name__ == "__main__":
-    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
-    exit(1)

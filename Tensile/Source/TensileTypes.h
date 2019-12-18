@@ -28,6 +28,8 @@
 #include <math.h>
 #include "tensile_bfloat16.h"
 
+#include <cstddef>
+
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"
@@ -47,8 +49,6 @@
 // FIXME - steal hip error encodings since rocBLAS expects hip error codes to be returned...
 #define tensileStatusFailure hipErrorUnknown
 #define tensileStatusAssertFailure hipErrorRuntimeOther
-#define TensileComplexFloat float2
-#define TensileComplexDouble double2
 #define TensileHalf _Float16
 inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
 {
@@ -56,6 +56,124 @@ inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
    return os;
 }
 
+template <typename t>
+struct tensile_complex
+{
+    t x;
+    t y;
+
+    __host__ __device__ tensile_complex() = default;
+
+    constexpr __host__ __device__ tensile_complex(t real, t imag = 0)
+        : x{real}
+        , y{imag}
+    {
+    }
+
+    template <typename u, typename std::enable_if<std::is_arithmetic<u>{}>::type* = nullptr>
+    tensile_complex<t>& operator=(const u a)
+    {
+        x = a;
+        y = 0;
+        return (*this);
+    }
+};
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const tensile_complex<T>& data)
+{
+    if(data.y >= 0)
+    {
+        os << data.x << "+" << data.y << "i";
+    }
+    else
+    {
+        os << data.x << data.y << "i";
+    }
+
+    return os;
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> data)
+{
+    return data;
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> data)
+{
+    return tensile_complex<T>{-data.x, -data.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x + b.x, a.y + b.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x - b.x, a.y - b.y};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator*(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T> operator/(tensile_complex<T> a,
+                                                           tensile_complex<T> b)
+{
+    return tensile_complex<T>{(a.x * b.x + a.y * b.y) / (b.x * b.x + b.y * b.y),
+                              (a.y * b.x - a.x * b.y) / (b.x * b.x + b.y * b.y)};
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator+=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a + b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator-=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a - b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator*=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a * b);
+}
+
+template <typename T>
+constexpr __host__ __device__ tensile_complex<T>& operator/=(tensile_complex<T>& a,
+                                                             tensile_complex<T>  b)
+{
+    return (a = a / b);
+}
+template <typename T>
+constexpr __host__ __device__ bool operator==(tensile_complex<T>& a, tensile_complex<T>  b)
+{
+    return (a.x == b.x ) && (a.y == b.y);
+}
+
+
+using tensile_float_complex = tensile_complex<float>;
+using tensile_double_complex = tensile_complex<double>;
+
+#define TensileComplexFloat tensile_float_complex
+#define TensileComplexDouble tensile_double_complex
 #endif // HIP
 
 #define TensileInt8x4 uint32_t
@@ -153,7 +271,7 @@ private:
 
 
 // Base template for ProblemKey
-// -  stores the sizes
+// -  stores the sizes and strides
 // -  supports hash generation and comparison for lookup
 // TensileCreateLibrary.cpp will create a typedef for each specific problem, ie
 // ProblemKey_Cijk_Ailk_Bljk_SB.
@@ -243,6 +361,7 @@ private:
   // Data members:
   SizeType _sizes[NumSizes];
   bool     _equalStrides;
+  uint32_t _db;
 };
 
 //-------------
@@ -307,26 +426,36 @@ struct RandomDistance {
 class ProblemType
 {
 public:
-  ProblemType(const std::vector<int> &indicesFree,
-              const std::vector<int> &indicesSummation,
-              const std::vector<int> &indicesBatch)
+  ProblemType(const std::vector<unsigned> &indicesFree,
+              const std::vector<unsigned> &indicesSummation,
+              const std::vector<unsigned> &indicesBatch,
+              const std::vector<unsigned> &indexAssignmentsA,
+              const std::vector<unsigned> &indexAssignmentsB)
     : _indicesFree(indicesFree),
       _indicesSummation(indicesSummation),
-      _indicesBatch(indicesBatch)
+      _indicesBatch(indicesBatch),
+      _indexAssignmentsA(indexAssignmentsA),
+      _indexAssignmentsB(indexAssignmentsB)
   {
   }
 
-  int lastSummationIdx() const { return _indicesSummation.back(); };
-  int free0Idx() const { return _indicesFree[0]; };
-  int free1Idx() const { return _indicesFree[1]; };
-  bool isBatchIdx(int idx) const {
+  unsigned lastSummationIdx() const { return _indicesSummation.back(); };
+  unsigned free0Idx() const { return _indicesFree[0]; };
+  unsigned free1Idx() const { return _indicesFree[1]; };
+  bool isBatchIdx(unsigned idx) const {
     return std::find(_indicesBatch.begin(), _indicesBatch.end(), idx) != _indicesBatch.end();
   };
+  unsigned numIndicesC() const { return _indicesFree.size() + _indicesBatch.size(); };
+
+  const std::vector<unsigned> indexAssignmentsA() const { return _indexAssignmentsA; }
+  const std::vector<unsigned> indexAssignmentsB() const { return _indexAssignmentsB; }
 
 private:
-  const std::vector<int> _indicesFree;
-  const std::vector<int> _indicesSummation;
-  const std::vector<int> _indicesBatch;
+  const std::vector<unsigned> _indicesFree;
+  const std::vector<unsigned> _indicesSummation;
+  const std::vector<unsigned> _indicesBatch;
+  const std::vector<unsigned> _indexAssignmentsA;
+  const std::vector<unsigned> _indexAssignmentsB;
 };
 
 
@@ -344,13 +473,23 @@ struct ProblemProperties {
                     unsigned free0ElementMultiple,
                     unsigned free1ElementMultiple,
                     int approxSize,
-                    bool equalStrides)
+                    bool equalStrides,
+                    bool allBatchAStridesAreZero,
+                    bool allBatchBStridesAreZero)
     : _summationElementMultiple(summationElementMultiple),
       _free0ElementMultiple(free0ElementMultiple),
       _free1ElementMultiple(free1ElementMultiple),
       _approxSize(approxSize),
-      _equalStrides(equalStrides)
-     {}
+      _equalStrides(equalStrides),
+      _allBatchAStridesAreZero(allBatchAStridesAreZero),
+      _allBatchBStridesAreZero(allBatchBStridesAreZero),
+      _db(0)
+     {
+       const char *db = std::getenv("TENSILE_DB");
+       if (db) {
+         _db = strtol(db,nullptr,0);
+       }
+     }
 
   // Constructor used to compute assertions for a specified problem size
   template<class ProblemDimsType>
@@ -374,40 +513,102 @@ struct ProblemProperties {
     else if ((free1Size & 0x1) == 0) _free1ElementMultiple=2;
 
     bool allBelow1 = true;
-    bool allBelow32 = true;
     bool anyBelow1 = false;
+    bool anyBelow4 = false;
     for (int si=0; si!=pdims.numSizes(); si++) {
       if (!props->isBatchIdx(si)) {
         auto size = pdims.sizes(si);
-        if (size > 32)
-          allBelow32 = false;
         if (size > 1)
           allBelow1 = false;
         if (size == 1)
           anyBelow1 = true;
+        else if(size < 4)
+          anyBelow4 = true;
       }
     }
     if (allBelow1)
       _approxSize = 1; // really small
-    else if (allBelow32)
-      _approxSize = 2; // still small
-    else if (anyBelow1)
+    else if (anyBelow1 || anyBelow4)
       _approxSize = 2; // one dim not big enough
     else
       _approxSize = 99; // big enough
 
-    _equalStrides = ((pdims.strideD(0) == pdims.strideC(0)) &&
-                     (pdims.strideD(1) == pdims.strideC(1)));
+    _equalStrides = true;
+    // Would need to fix for UseInitialStrides, if UseInitialStrides==1 then don't subtract 1
+    for (int i=0; i<props->numIndicesC()-1; i++) {
+      if (pdims.strideD(i) != pdims.strideC(i)) {
+        _equalStrides = false;
+        break;
+      }
+    }
+
+    _allBatchAStridesAreZero = 1;
+    int strideIdx = 0;
+    for (auto &idx : props->indexAssignmentsA()) {
+      bool isb = props->isBatchIdx(idx);
+      // Would need to fix for UseInitialStrides
+      auto stride = strideIdx ==0 ? 1 : pdims.strideA(strideIdx-1);
+      if (props->isBatchIdx(idx) and stride != 0) {
+        _allBatchAStridesAreZero = 0;
+      }
+      strideIdx++;
+    }
+
+    _allBatchBStridesAreZero = 1;
+    strideIdx = 0;
+    for (auto &idx : props->indexAssignmentsB()) {
+      bool isb = props->isBatchIdx(idx);
+      // Would need to fix for UseInitialStrides
+      auto stride = strideIdx ==0 ? 1 : pdims.strideB(strideIdx-1);
+      if (props->isBatchIdx(idx) and stride != 0) {
+        _allBatchBStridesAreZero = 0;
+      }
+      strideIdx++;
+    }
+
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const ProblemProperties &solutionRequirements) const {
-    return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
-           (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
-           (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
-           ((this->_approxSize) >= solutionRequirements._approxSize) &&
-           ((this->_equalStrides) == solutionRequirements._equalStrides);
+      bool rv = (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
+                (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
+                (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
+                ((this->_approxSize) >= solutionRequirements._approxSize) &&
+                ((this->_equalStrides) == solutionRequirements._equalStrides) &&
+                ((this->_allBatchAStridesAreZero) >= solutionRequirements._allBatchAStridesAreZero) &&
+                ((this->_allBatchBStridesAreZero) >= solutionRequirements._allBatchBStridesAreZero)
+                ;
+
+#if 0
+      if(this->_db & 0x10)
+      {
+          if(!rv)
+          {
+#define check_print(name, oper) \
+              if(!(this->name oper solutionRequirements.name)) \
+              { \
+                  std::cout << #name << "failed: !(" << this->name << #oper << solutionRequirements.name << ")" << std::endl; \
+              }
+
+              std::cout << "Assertion failed:" << std::endl;
+              check_print(_summationElementMultiple, >=);
+              check_print(_free0ElementMultiple, >=);
+              check_print(_free1ElementMultiple, >=);
+              check_print(_approxSize, >=);
+              check_print(_equalStrides, ==);
+              check_print(_allBatchAStridesAreZero, >=);
+              check_print(_allBatchBStridesAreZero, >=);
+#undef check_print
+          }
+          else
+          {
+              std::cout << "Satisfied asserts!" << std::endl;
+          }
+      }
+#endif
+
+      return rv;
   }
 
   unsigned _summationElementMultiple;
@@ -415,6 +616,9 @@ struct ProblemProperties {
   unsigned _free1ElementMultiple;
   int      _approxSize;
   bool     _equalStrides;
+  bool     _allBatchAStridesAreZero; // for problems: true if all batchA strides are 0. Solutions: true if all batchA strides must be 0 to run the kernel. Prob,Soln:  x,0: ok:  0,1: FAILED_ASSERT, 1,1: OK .  P>=S
+  bool     _allBatchBStridesAreZero; // true if all batchB strides are 0
+  uint32_t _db;
 };
 
 

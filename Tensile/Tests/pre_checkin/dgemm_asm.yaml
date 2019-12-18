@@ -9,6 +9,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   NumElementsToValidate: -1
+  BoundsCheck: True
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -271,10 +272,13 @@ BenchmarkProblems:
 
 LibraryLogic:
     SolutionImportanceMin: 0
+    ScheduleName: "vega20"
+    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
+    ArchitectureName: "gfx906"
 
-    ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 [Radeon Instinct MI25]"]
-    ArchitectureName: "gfx900"
+    #ScheduleName: "vega10"
+    #DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 [Radeon Instinct MI25]"]
+    #ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
 #   DeviceNames: ["Device 6860"]

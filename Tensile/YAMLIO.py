@@ -22,6 +22,7 @@
 from .Common import print2, printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
+from . import Common
 from . import SolutionLibrary
 import os
 
@@ -126,6 +127,11 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   indexOrder    = logicTuple[2]
   exactLogic    = logicTuple[3]
   rangeLogic    = logicTuple[4]
+
+  tileSelection = False
+  if len(logicTuple) > 5 and logicTuple[5]:
+    tileSelection = True
+
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
   print2("# writeLogic( %s )" % ( filename ))
@@ -159,6 +165,20 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
     solutionState["ProblemType"]["ComputeDataType"] = \
         solutionState["ProblemType"]["ComputeDataType"].value
     solutionList.append(solutionState)
+
+  if tileSelection:
+    tileSolutions = logicTuple[5]
+    for solution in tileSolutions:
+      solutionState = solution.getAttributes()
+      solutionState["ProblemType"] = solutionState["ProblemType"].state
+      solutionState["ProblemType"]["DataType"] = \
+          solutionState["ProblemType"]["DataType"].value
+      solutionState["ProblemType"]["DestDataType"] = \
+          solutionState["ProblemType"]["DestDataType"].value
+      solutionState["ProblemType"]["ComputeDataType"] = \
+          solutionState["ProblemType"]["ComputeDataType"].value
+      solutionList.append(solutionState)
+
   data.append(solutionList)
   # index order
   data.append(indexOrder)
@@ -171,6 +191,12 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
 
   # rangeLogic
   data.append(rangeLogic)
+
+  if tileSelection:
+    tileSelectionLogic = {}
+    tileSelectionIndices = logicTuple[6]
+    tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
+    data.append(tileSelectionLogic)
 
   # open & write file
   try:
@@ -221,12 +247,9 @@ def readLibraryLogicForSchedule( filename ):
   for i in range(0, len(solutionStates)):
     solutionState = solutionStates[i]
     if solutionState["KernelLanguage"] == "Assembly":
-      isa0 = int(architectureName[3])
-      isa1 = int(architectureName[4])
-      isa2 = int(architectureName[5])
-      solutionState["ISA"] = (isa0, isa1, isa2)
+      solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
-      solutionState["ISA"] = (0, 0, 0)
+      solutionState["ISA"] = [0, 0, 0]
     solutionObject = Solution(solutionState)
     if solutionObject["ProblemType"] != problemType:
       printExit("ProblemType of file doesn't match solution: %s != %s" \

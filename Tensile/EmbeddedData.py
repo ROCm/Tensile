@@ -19,10 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
-
 from . import Common
-from . import Utils
 
 import itertools
 import os
@@ -173,10 +170,10 @@ class EmbeddedDataFile:
     def embed_data(self, assocType, data, nullTerminated=False, comment=None, key=None):
         if nullTerminated:
             empty = False
-            data = itertools.chain(Utils.tqdm(data, comment), [0])
+            data = itertools.chain(data, [0])
         else:
             empty = len(data) == 0
-            data = iter(Utils.tqdm(data, comment))
+            data = iter(data)
 
         with Namespace(self):
             if comment is not None:

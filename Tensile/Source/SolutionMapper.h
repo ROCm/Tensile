@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <limits>
 /*******************************************************************************
  * Functions to map from ProblemDims to the best available solution

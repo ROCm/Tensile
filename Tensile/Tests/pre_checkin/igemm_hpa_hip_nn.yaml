@@ -1,7 +1,10 @@
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
+  BoundsCheck: True
   KernelTime: True
+  NewClient: 2
+  MergeFiles: False
 
 BenchmarkProblems:
 

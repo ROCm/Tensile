@@ -19,14 +19,10 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import unicode_literals
 from .Common import ProgressBar
-import sys
 
-try:
-  UNICODE_EXISTS = bool(type(unicode))
-except NameError:
-  unicode = str
+import functools
+import sys
 
 class SpinnyThing:
     def __init__(self):
@@ -73,7 +69,7 @@ def state(obj):
     if isinstance(obj, dict):
         return dict([(k, state(v)) for k,v in list(obj.items())])
 
-    if any([isinstance(obj, cls) for cls in [str, int, float, unicode]]):
+    if any([isinstance(obj, cls) for cls in [str, int, float]]):
         return obj
 
     try:
@@ -83,6 +79,20 @@ def state(obj):
         pass
 
     return obj
+
+def state_key_ordering(cls):
+    def tup(obj):
+        return tuple([getattr(obj, k) for k in cls.StateKeys])
+
+    def lt(a, b):
+        return tup(a) < tup(b)
+    def eq(a, b):
+        return tup(a) == tup(b)
+
+    cls.__lt__ = lt
+    cls.__eq__ = eq
+
+    return functools.total_ordering(cls)
 
 def hash_combine(*objs, **kwargs):
     shift = 1

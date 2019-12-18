@@ -1443,11 +1443,12 @@ BenchmarkProblems:
 
 LibraryLogic:
 #   ScheduleName: "vega20"
-#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
+#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
 #   ArchitectureName: "gfx906"
 
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]",
+        Vega, Device 6864, Device 686c]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

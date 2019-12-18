@@ -19,25 +19,28 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from __future__ import print_function
-import os, sys
-from copy import deepcopy
-from copy import copy as shallowcopy
-import shutil
-from shutil import copy as shutil_copy
-import filecmp
 import csv
-from subprocess import Popen
+import filecmp
+import itertools
+import os
+import shutil
+import sys
 import time
+
+from copy import deepcopy
+
+from . import ClientExecutable
+from . import SolutionLibrary
+from . import YAMLIO
+from . import Utils
 from .BenchmarkStructs import BenchmarkProcess
+from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
+from .KernelWriterAssembly import KernelWriterAssembly
+from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType
 from .SolutionWriter import SolutionWriter
-from .KernelWriterSource import KernelWriterSource
-from .KernelWriterAssembly import KernelWriterAssembly
-from .ClientWriter import writeRunScript, writeClientParameters
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
-from . import YAMLIO
 
 ################################################################################
 # Benchmark Problem Type
@@ -56,6 +59,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   benchmarkProcess = BenchmarkProcess( problemTypeConfig, \
       problemSizeGroupConfig )
 
+  enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
   problemTypeName = str(benchmarkProcess.problemType)
   problemSizeGroupName = "%s_%02u" % (problemTypeName, problemSizeGroupIdx)
   pushWorkingPath(problemSizeGroupName)
@@ -148,18 +152,18 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         ]
 
     for f in filesToCopy:
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], f),
           globalParameters["WorkingPath"] )
     if globalParameters["RuntimeLanguage"] == "OCL":
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
           globalParameters["WorkingPath"] )
     else:
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
           globalParameters["WorkingPath"] )
-      shutil_copy(
+      shutil.copy(
           os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
           globalParameters["WorkingPath"] )
 
@@ -196,8 +200,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
-      for benchmarkIdx in range(0, len(benchmarkPermutations)):
-        benchmarkPermutation = benchmarkPermutations[benchmarkIdx]
+      for benchmarkIdx, benchmarkPermutation in enumerate(benchmarkPermutations):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
@@ -243,9 +246,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         print1("")
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
-      for solutionList in shallowcopy(solutions):
-        if len(solutionList) == 0:
-          solutions.remove(solutionList)
+      solutions = list([s for s in solutions if len(s) > 0])
     elif winners.winners=={}:
       print1("# Populating initial winners (%u solutions)\n" % len(benchmarkStep.hardcodedParameters))
       for hcParm in benchmarkStep.hardcodedParameters:
@@ -256,12 +257,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
 
     # create linear list
-    solutionList = []
-    for i in range(0, len(solutions)):
-      solutionsForHardcoded = solutions[i]
-      for j in range(0, len(solutionsForHardcoded)):
-        solution = solutionsForHardcoded[j]
-        solutionList.append(solution)
+    solutionList = list(itertools.chain.from_iterable(solutions))
+
     if len(solutionList) == 0:
         msg = "Your parameters resulted in 0 valid solutions."
         if globalParameters["PrintSolutionRejectionReason"]:
@@ -270,17 +267,46 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
             msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\" to see why each parameter combination was rejected."
         printExit(msg)
     if globalParameters["PrintLevel"] >= 1:
-      for i in range(0, len(solutions)):
-        solutionsForHardcoded = solutions[i]
-        for j in range(0, len(solutionsForHardcoded)):
-          solution = solutionsForHardcoded[j]
+      for i,solutionsForHardcoded in enumerate(solutions):
+        for j, solution in enumerate(solutionsForHardcoded):
           print2("#    (%u:%u) %s" % (i, j, \
               Solution.getNameFull(solution) ))
       print2(HR)
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy)
+        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
+
+    removeSolutions = []
+    for i in range(0, len(solutions)):
+      solutionsForHardcoded = solutions[i]
+      removeSolutions.append([])
+      for j in range(0, len(solutionsForHardcoded)):
+        solution = solutionsForHardcoded[j]
+        if solutionList.count(solution) == 0:
+          removeSolutions[i].append(solution)
+    
+    for i in range(0, len(solutions)):
+      solutionsForHardcoded = solutions[i]
+      for j in range(0, len(removeSolutions[i])):
+          solutionsForHardcoded.remove(removeSolutions[i][j])
+    
+    # remove hardcoded that don't have any valid benchmarks
+    removeHardcoded = []
+    for hardcodedIdx in range(0, numHardcoded):
+      if len(solutions[hardcodedIdx]) == 0:
+        hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
+        removeHardcoded.append(hardcodedParamDict)
+    removesExist = len(removeHardcoded) > 0
+    for hardcodedParam in removeHardcoded:
+      benchmarkStep.hardcodedParameters.remove(hardcodedParam)
+    
+    if removesExist:
+      print1("# Updating winners since kernelwriter removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
+      winners.wpdUpdate( benchmarkStep.hardcodedParameters )
+      numHardcoded = len(benchmarkStep.hardcodedParameters )
+      # remove from solution 2D list also
+      solutions = list([s for s in solutions if len(s) > 0])
 
     print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]
@@ -308,24 +334,19 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if benchmarkStep.isFinal():
       resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
+    newResultsFileName = resultsFileBase + "-new.csv" if globalParameters["NewClient"] == 1 else None
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
-      pushWorkingPath("build")
 
-      # write runScript
+
       libraryLogicPath = None
-      path = globalParameters["WorkingPath"]
       forBenchmark = True
-      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
+      returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection)
 
-      # run runScript
-      process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-      process.communicate()
-      if process.returncode:
+      if returncode:
         benchmarkTestFails += 1
-        printWarning("BenchmarkProblems: Benchmark Process exited with code %u" % process.returncode)
-      popWorkingPath() # build
+        printWarning("BenchmarkProblems: Benchmark Process exited with code %u" % returncode)
     else:
       print1("# Already benchmarked; skipping.")
 
@@ -333,7 +354,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions)
+    results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
     print2("CSV Results: %s" % results)
     winners.addResults(benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, solutions, results)
@@ -355,23 +376,59 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   return (resultsFileBaseFinal, benchmarkTestFails)
 # End benchmarkProblemType()
 
+def compareResults(old, new, name):
+    import math
+    try:
+        old = float(old)
+    except (ValueError, TypeError):
+        old = -1
+
+    try:
+        new = float(new)
+    except (ValueError, TypeError):
+        new = -1
+
+    def isbad(x):
+        return x <= 0 or math.isnan(x) or math.isinf(x)
+
+    if isbad(old) and isbad(new):
+        return 0
+    if isbad(old):
+        return 1
+    if isbad(new):
+        raise ValueError("Old is good ({}) and new is bad ({}). Name: {}".format(old, new, name))
+
+    return abs((old-new)/old)
 
 ################################################################################
 # Read GFlop/s from file
 ################################################################################
-def getResults(resultsFileName, solutions):
+def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName=None):
+
   try:
     resultsFile = open(resultsFileName, "r")
   except IOError:
     printExit("Can't open \"%s\" to get results" % resultsFileName )
 
+  newCSV = itertools.repeat(None)
+  if newResultsFileName is not None:
+    newFile = open(newResultsFileName, 'r')
+    newCSV = csv.reader(newFile)
+
+    diffFile = open(newResultsFileName+'-diff.csv', 'w')
+    diffCSV = csv.writer(diffFile)
+
   # setup data structures
-  numSolutions = 0
   results = []
+  numSolutions = 0
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
-      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+      # GEMM csv files contain "LDD" "LDC" "LDA" "LDB" columns
+      if solution["ProblemType"]["OperationType"] == "GEMM":
+        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
+      else:
+        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
       results[-1].append([])
       numSolutions += 1
 
@@ -381,33 +438,44 @@ def getResults(resultsFileName, solutions):
   rowLength = startIdx + numSolutions
 
   rowIdx = 0
-  for row in csvFile:
+  for row,newRow in zip(csvFile, newCSV):
     rowIdx+=1
     if rowIdx == 1:
+      if newRow is not None:
+        diffCSV.writerow(row)
+        diffCSV.writerow(newRow)
+        headerRow = row
       continue
     else:
       if len(row) < rowLength:
         printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
             % (resultsFileName, rowIdx, rowLength) )
         break
+      if newRow is not None:
+        diffCSV.writerow([compareResults(old,new,name) for old,new,name in itertools.zip_longest(row, newRow, headerRow)])
+
       idx = startIdx
-      for i in range(0, len(solutions)):
-        solutionsForHardcoded = solutions[i]
-        for j in range(0, len(solutionsForHardcoded)):
-          solution = solutionsForHardcoded[j]
+      for i,solutionsForHardcoded in enumerate(solutions):
+        for j,solution in enumerate(solutionsForHardcoded):
           gflops = float(row[idx])
+
           results[i][j].append(gflops)
           idx += 1
-  if rowIdx < 2:
+  if rowIdx < 2 and not enableTileSelection:
     printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
         % (resultsFileName, rowIdx) )
+
+  resultsFile.close()
+  if newResultsFileName is not None:
+    newFile.close()
+    diffFile.close()
   return results
 
 
 ################################################################################
 # Write Benchmark Files
 ################################################################################
-def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -441,10 +509,22 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
-  writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], [problemType], solutions, kernels, kernelsBetaOnly, \
-      solutionWriter, kernelWriterSource, kernelWriterAssembly )
+  codeObjectFiles = writeSolutionsAndKernels( \
+      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
+      solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
+  newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
+  newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
+  newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
+  newLibrary.applyNaming(kernelMinNaming)
+  YAMLIO.write(newLibraryFile, Utils.state(newLibrary))
+
+  codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
+
+  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles)
+
+  if len(solutions) == 0:
+    printExit("write solutions and kernels results 0 valid soultion.")
   ##############################################################################
   # Write CMake
   ##############################################################################
@@ -455,7 +535,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir)
+      filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
+
 
 ################################################################################
 # FrozenDictionary
@@ -505,14 +586,16 @@ class WinningParameterDict:
     if globalParameters["PrintLevel"] >= 1:
       print1("# Adding Results to Solution Database")
       progressBar = ProgressBar(len(results))
-    for hardcodedIdx in range(0, len(results)):
-      hardcodedResults = results[hardcodedIdx]
+    for hardcodedIdx,hardcodedResults in enumerate(results):
+      if not hardcodedResults: continue
+      
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
       winningScore = -9999 # -1 is score of invalid so use -9999 here
       # find fastest benchmark parameters for this hardcoded
-      for benchmarkIdx in range(0, len(hardcodedResults)):
-        benchmarkResult = hardcodedResults[benchmarkIdx]
+      for benchmarkIdx,benchmarkResult in enumerate(hardcodedResults):
+        if not benchmarkResult: continue
+        
         benchmarkScore = max(benchmarkResult) # take fastest regardless of size
         if benchmarkScore > winningScore:
           winningScore = benchmarkScore
@@ -579,8 +662,7 @@ class WinningParameterDict:
           fastestScore = -1
           fastestHardcodedParameters = {}
           fastestWinningParameters = {}
-          for matchIdx in range(0, len(matches)):
-            match = matches[matchIdx]
+          for matchIdx,match in enumerate(matches):
             hardcodedFrozen = match[0]
             winningParameters = match[1]
             score = match[2]
@@ -674,6 +756,9 @@ class WinningParameterDict:
 # Main
 ################################################################################
 def main( config ):
+  if globalParameters["NewClient"]:
+    ClientExecutable.getClientExecutable()
+
   dataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
@@ -685,8 +770,7 @@ def main( config ):
       problemSizeGroupConfigs = [{}]
     else:
       problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
-    for problemSizeGroupIdx in range(0, len(problemSizeGroupConfigs)):
-      problemSizeGroupConfig = problemSizeGroupConfigs[problemSizeGroupIdx]
+    for problemSizeGroupIdx,problemSizeGroupConfig in enumerate(problemSizeGroupConfigs):
       print2("ProblemTypeConfig: %s" % problemTypeConfig)
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
@@ -696,7 +780,8 @@ def main( config ):
           % (str(problemTypeObj), problemSizeGroupIdx) )
       newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
           % (str(problemTypeObj), problemSizeGroupIdx) )
-
+      newGranularityFileName = os.path.join(dataPath, "%s_%02u.gsp" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
       # skip if possible
       if globalParameters["ForceRedoBenchmarkProblems"] or \
           not os.path.exists(newResultsFileName):
@@ -705,7 +790,7 @@ def main( config ):
         (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
         totalTestFails += benchmarkErrors
-        
+
         print("clientExit=%u %s for %s" %\
                 (totalTestFails, "(ERROR)" if totalTestFails else "(PASS)", \
                 globalParameters["ConfigPath"]))
@@ -714,8 +799,12 @@ def main( config ):
         resultsFileBase = resultsFileBaseFinal
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
-        shutil_copy( resultsFileName, newResultsFileName )
-        shutil_copy( solutionsFileName, newSolutionsFileName )
+        granularityFileName = "%s_Granularity.csv" % (resultsFileBase)
+        if globalParameters["NewClient"] < 2:
+          shutil.copy( resultsFileName, newResultsFileName )
+        shutil.copy( solutionsFileName, newSolutionsFileName )
+        if os.path.isfile(granularityFileName):
+          shutil.copy( granularityFileName, newGranularityFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 

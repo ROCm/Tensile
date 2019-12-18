@@ -24,6 +24,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <cstddef>
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"
@@ -81,8 +82,8 @@ Type_return tensileMultiply( Type_a a, Type_b b );
 /*******************************************************************************
  * Add Templates
  ******************************************************************************/
-template< typename Type >
-Type tensileAdd( Type a, Type b );
+template< typename Type_return, typename Type_a, typename Type_b >
+Type_return tensileAdd( Type_a a, Type_b b );
 
 
 /*******************************************************************************
