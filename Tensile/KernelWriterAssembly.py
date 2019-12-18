@@ -30,7 +30,6 @@ from math import log, ceil, trunc, modf
 from copy import deepcopy
 import collections
 import traceback
-import struct
 
 ################################################################################
 # Memory Instruction
@@ -5214,7 +5213,6 @@ class KernelWriterAssembly(KernelWriter):
 
   def mfmaIter(self, kernel, m, innerUnroll):
     kStr = ""
-    dstRegs = self.destAgprs
     if kernel["ProblemType"]["DataType"].isSingle():
       for b in range(0, self.numColInsts):
         for a in range(0, self.numRowInsts):
@@ -7559,7 +7557,7 @@ class KernelWriterAssembly(KernelWriter):
       #MFMA acc registers holds strided C elements (1XN) in N consecutive lanes
       # below code trying to use vg20 [d1,d0,vc1,vc0] co-ordinates and map C lements into vg20 co-ordinates
       # TODO needs work on d1 mapping its not really  clean yet.  d1= holds B blocks and TT1/vectorWdith column blocks
-      numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
+      #numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
       ## number of rregisters required for row/block
       #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
       numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
@@ -7618,7 +7616,7 @@ class KernelWriterAssembly(KernelWriter):
       #  edgeVw = kernel["StoreVectorWidth"]
 
     if kernel["MatrixInstruction"]:
-      numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
+      #numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
       ## number of rregisters required for row/block
       #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
       numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
@@ -9707,7 +9705,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment("Mapping of Acc register -> C Vgpr register")
 
 
-    numRegsPerInstructions = self.destAgprs
+    #numRegsPerInstructions = self.destAgprs
     AccRegIdx =0
     VgprRegIdx = 0
     RowInstIdx = 0
