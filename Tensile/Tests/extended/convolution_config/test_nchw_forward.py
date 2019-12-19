@@ -263,8 +263,8 @@ def test_ncdhw_packed_strides_filter3d(run_convolution_level):
     assert(z['IndexAssignmentsA']==[8,7,6, 0, 1, 2, 5, 4])
     assert(z['IndexAssignmentsB']==[8,7,6, 5, 3, 4])
     assert(not z['UseInitialStridesAB'])
-    assert(conv.solutionParms["AssertStrideAEqual"] == "")
-    assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
+    assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,5:0")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_ncdhw_packed_strides3d(run_convolution_level):
