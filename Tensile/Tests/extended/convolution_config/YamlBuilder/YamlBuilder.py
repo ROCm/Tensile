@@ -80,7 +80,43 @@ class Solutions:
                     {"DepthU": [8]},
                     {"GlobalReadVectorWidth": [-1]},
                     {"VectorWidth": [1,4]},
-                    {"FractionalLoad": [0]}
+                    {"FractionalLoad": [0,1]}
+                ]
+
+        return s
+
+    @classmethod
+    def asm3_pbd(cls):
+        s = cls.asm3()
+        s["ForkParameters"].append({"PackBatchDims":  [1]})
+        return s
+
+    @classmethod
+    def asm3_pbd_splitu(cls):
+        s = cls.commonSetup()
+
+        s["ForkParameters"] = \
+                [
+                    {"PrefetchGlobalRead": [1]},
+                    {"KernelLanguage": ["Assembly"]},
+                    {"ThreadTile": [
+                        [ 4, 4 ],
+                        [ 4, 8 ],
+                        [ 8, 8],
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 8, 1],
+                        #[  8, 8, 2],
+                        #[  8, 8, 4],
+                        #[ 16, 8, 2],
+                        #[ 16, 16, 2],
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [-1]},
+                    {"GlobalSplitU": [1,2,3,5,7]},
+                    {"VectorWidth": [1,4]},
+                    {"PackBatchDims": [1]},
+                    {"FractionalLoad": [0,1]}
                 ]
 
         return s
