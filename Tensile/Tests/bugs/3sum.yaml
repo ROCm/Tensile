@@ -1,0 +1,53 @@
+BenchmarkProblems:
+- - DataType: s
+    IndexAssignmentsA: [6, 5, 0, 1, 4, 3]
+    IndexAssignmentsB: [6, 5, 4, 2, 3]
+    NumIndicesC: 4
+    OperationType: TensorContraction
+    #SetConstStrideA:
+      #- [6, 1]
+      #SetConstStrideB:
+      #- [3, 0]
+      #- [6, 1]
+    UseBeta: false
+    UseInitialStridesAB: false
+  - BenchmarkCommonParameters:
+    - EdgeType: [ShiftPtr]
+    BenchmarkFinalParameters:
+    - ProblemSizes:
+      - Exact: [8, 8,   16, 1, 64, 1, 1]  #  OK
+      - Exact: [8, 8,   16, 1, 128, 1, 1]  #  Crashes
+    BenchmarkForkParameters: null
+    BenchmarkJoinParameters: null
+    ForkParameters:
+    - PrefetchGlobalRead: [0]
+    - KernelLanguage: [Assembly]
+    - ThreadTile:
+      - [2, 2]
+    - WorkGroup:
+      - [8, 8, 1]
+    - DepthU: [8]
+    - GlobalReadVectorWidth: [-1]
+    - VectorWidth: [1, 4]
+    - FractionalLoad: [0]
+      #- AssertStrideBEqual: ['0:1,4:0']
+      #- AssertStrideAEqual: ['0:1']
+    InitialSolutionParameters: null
+    JoinParameters: null
+GlobalParameters: {CMakeBuildType: Release, EnqueuesPerSync: 1, ForceRedoBenchmarkProblems: true,
+  ForceRedoLibraryClient: true, ForceRedoLibraryLogic: true, KernelTime: true, LibraryPrintDebug: false,
+  MergeFiles: true, MinimumRequiredVersion: 4.2.0, NewClient: 2, NumElementsToValidate: 1000,
+  ProblemFromConvolution: true, ShortNames: false, SolutionSelectionAlg: 1, SyncsPerBenchmark: 1,
+  ValidationMaxToPrint: 4, ValidationPrintValids: false}
+
+    # Larger C values cause crash in nested summation loop
+
+    #Tensile Index Assignments and Usage:
+    #   Tensile    : ConvChar: Explanation/Usage
+    #  0('I') Free :     'W' : Spatial W. sizeI=W_o strideAI=strideW(TBD).
+    #  1('J') Free :     'H' : Spatial H. sizeJ=H_o strideAJ=W_in*strideH(TBD).
+    #  2('K') Free :     'K' : Cout. sizeK=Cout.
+    #  3('L') Batch:     'N' : Minibatch dimension. sizeL=N.  strideBL=0. [strideB:0]
+    #  4('M') Sum  :     'C' : Cin.  sizeM=Cin.  strideM=1
+    #  5('N') Sum  :     'Y' : FilterY. sizeN=FilterY(2). strideAN=DilationY(1)*W.
+    #  6('O') Sum  :     'X' : FilterX. sizeO=FilterX(2). strideAO=DilationX(1)*1. [strideA:1] [strideB:1]
