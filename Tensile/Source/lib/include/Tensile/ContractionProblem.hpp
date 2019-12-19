@@ -96,7 +96,7 @@ namespace Tensile
 
 
         virtual std::string description() const;
-	virtual ProblemKey<size_t> getKey() const;
+	    virtual ProblemKey<size_t> getKey() const;
 
         static ContractionProblem GEMM_Strides(bool transA, bool transB,
                                                DataType aType, DataType bType, DataType cType, DataType dType,

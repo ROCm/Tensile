@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -52,12 +53,9 @@ namespace Tensile
 
         virtual ~ProblemKey() = default;
 
-        void show() const {
-
-          for (auto x: _keys) {
-              std::cout << " " << x;
-          }
-          std::cout << std::endl;
+        void addKeyAttribute(T value)
+        {
+            _keys.push_back(value);
         }
 
         bool operator< (const ProblemKey<T> & p) const
@@ -128,6 +126,45 @@ namespace Tensile
         }
     };
 
+    template <typename MyProblemKey, typename MyProblemKeyHash, typename MySolution>
+    class TENSILE_API CachedProblemMap
+    {
+    public:
+        std::shared_ptr<MySolution> find(MyProblemKey key)
+        {
+            decltype(problemMap.end()) theSolution;
+            {
+                // Acquire a shared lock for reading map
+                std::shared_lock<std::shared_timed_mutex> lock(mutex);
+
+                // Look up the tuple in the map
+                theSolution = problemMap.find(key);
+
+                // If tuple already exists, atomically increment count and return
+                if(theSolution != problemMap.end())
+                {
+                    return theSolution->second;
+                }
+            } // Release shared lock
+
+            return nullptr;
+        }
+
+        void add (MyProblemKey key, std::shared_ptr<MySolution> entry)
+        {
+            // Acquire an exclusive lock for modifying map
+            std::lock_guard<std::shared_timed_mutex> lock(mutex);
+
+            // If doesn't already exist, insert tuple by moving
+            problemMap.emplace(key, entry);
+        }
+
+
+    private:
+        std::unordered_map<MyProblemKey, std::shared_ptr<MySolution>, MyProblemKeyHash> problemMap;
+        std::shared_timed_mutex mutex;
+    };
+
     class TENSILE_API Problem
     {
     public:
@@ -161,6 +198,10 @@ namespace Tensile
         Hardware();
         virtual ~Hardware();
 
+        virtual size_t id() const
+        {
+            return 0;
+        }
         virtual std::string description() const = 0;
     };
 

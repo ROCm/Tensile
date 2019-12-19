@@ -44,11 +44,11 @@ namespace Tensile
 
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) = 0;
+                             Hardware  const& hardware) const = 0;
 
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) = 0;
+                             Hardware  const& hardware) const = 0;
 
         virtual std::string type() const = 0;
         virtual std::string description() const = 0;
