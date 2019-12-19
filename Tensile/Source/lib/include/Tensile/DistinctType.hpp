@@ -35,6 +35,15 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup DataTypes
+     * @{
+     */
+
+    /**
+     * Allows the creation of a new type which is not automatically convertible
+     * to its underlying data type.
+     */
     template <typename T, typename Subclass>
     struct DistinctType
     {
@@ -78,5 +87,9 @@ namespace Tensile
             return LexicographicCompare(lhs.value, rhs);
         }
     };
+
+    /**
+     * @}
+     */
 }
 

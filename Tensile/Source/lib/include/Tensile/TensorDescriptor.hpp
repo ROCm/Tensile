@@ -99,6 +99,12 @@ namespace Tensile
         return false;
     }
 
+    /**
+     * Describes a tensor including dimensions, memory layout, and data type.
+     * Decoupled from any particular pointer value or memory location.
+     * 
+     * Provides functions for indexing and otherwise iterating through a tensor.
+     */
     class TENSILE_API TensorDescriptor
     {
     public:
@@ -278,7 +284,14 @@ namespace Tensile
             stream << "]" << std::endl;
     }
 
-    // decorated will print brackets [] to indicate start/end of tensor dims
+    /**
+     *  @brief Writes a tensor to an output stream.
+     * 
+     * \param stream The stream to write to
+     * \param data Pointer to the tensor data
+     * \param desc Tensor descriptor
+     * \param decorated Print brackets [] to indicate start/end of tensor dims
+     */
     template <typename T>
     void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc, bool decorated=true)
     {

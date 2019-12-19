@@ -33,8 +33,25 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Tensile
+     * \defgroup PropertyMatching Property Matching
+     * 
+     * @brief Distance-based matching of Property values to a table.
+     * 
+     * Generic algorithm for comparing an object to a table of predefined
+     * values based on Property objects and a Distance function. Used for
+     * MatchingLibrary.
+     */
+
+    /**
+     * \ingroup PropertyMatching
+     */
     namespace Matching
     {
+        /**
+         * @brief Abstract Distance function base class
+         */
         template <typename Key>
         class Distance
         {

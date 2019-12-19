@@ -34,18 +34,61 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Tensile
+     * \defgroup SolutionLibrary Solution Library Classes
+     * 
+     * \copydoc Tensile::SolutionLibrary
+     */
+
     template <typename MySolution>
     using SolutionSet = std::set<std::shared_ptr<MySolution>>;
 
+    /**
+     * \ingroup SolutionLibrary
+     * 
+     * @brief Abstract base class for Library objects that can provide a
+     * mapping from `Problem` and `Hardware` objects to Solution objects.
+     * 
+     * A complete SolutionLibrary is a tree of objects which each handles a
+     * single aspect of selecting a solution for a given problem. Each node in
+     * the tree will handle an aspect such as:
+     * - Compatibility with a particular model of GPU
+     * - Selecting kernels that solve a particular type of problem (transpose,
+     *   data type, etc.)
+     * - Selecting the fastest kernel based on benchmark results or other logic
+     * - Ensuring that a problem is compatible with any assumptions made by a
+     *   particular kernel (e.g. size or stride requirements)
+     * 
+     * A particular complete library might look like:
+     * - Master library which manages serialization
+     *   - GPU selection
+     *     - Problem type selection
+     *        - Predicated logic for specific sizes
+     *          - Matching library based on benchmarks
+     *            - Individual kernels
+     * 
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct TENSILE_API SolutionLibrary
     {
         virtual ~SolutionLibrary() = default;
 
+        /**
+         * Returns the single `Solution` object that best solves this
+         * particular `problem` on this particular piece of `hardware`.
+         * 
+         * May return `nullptr` if no such object exists.
+         */
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const = 0;
 
+        /**
+         * Returns all `Solution` objects that are capable of correctly solving this `problem` on this `hardware`.
+         * 
+         * May return an empty set if no such object exists.
+         */
         virtual SolutionSet<MySolution>
             findAllSolutions(MyProblem const& problem,
                              Hardware  const& hardware) const = 0;
