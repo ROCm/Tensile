@@ -6,6 +6,18 @@ from YamlBuilder.YamlBuilder import Solutions
 
 args={}
 
+TestConfig=namedtuple("TestConfig", "solution problem_func")
+Runner=namedtuple("Runner", "func solution")
+
+solutions = ["src1","asm3","asm3_pbd", "asm3_splitu"]
+#solutions = ["asm3"]
+
+# shortcuts for setting parameters in tests:
+pytest.defaultSizes = pytest.param((YamlBuilder.ProblemSizes, 1), id="default_sizes")
+pytest.resnetSizes  = pytest.param((YamlBuilder.ProblemSizesResNet,1),id="resnet")
+
+
+
 @pytest.fixture(scope="function")
 def file_with_test_name(request, tmp_path):
     def get(suffix):
@@ -15,15 +27,18 @@ def file_with_test_name(request, tmp_path):
 
 @pytest.fixture
 def run_nothing():
-    def run(conv, problemType, solution=Solutions.defaultSolution(), dataType='s'):
+    def run(conv, problemType, solution=Solutions.defaultSolution(), problemFunc=None, problemLevel=-1, dataType='s'):
         pass
     return run
 
 @pytest.fixture
 def run_generate_yaml(file_with_test_name):
-    def run(conv, problemType, solution=Solutions.defaultSolution(), dataType='s'):
-        problemLevel = args["src_problem_level"] if solution.__name__.startswith("src") else args["problem_level"]
-        config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemLevel)
+    def run(conv, problemType, solution=Solutions.defaultSolution(), problemFunc=None, problemLevel=-1, dataType='s'):
+        if problemFunc == None:
+            problemFunc = YamlBuilder.ProblemSizes
+        if problemLevel==-1:
+            problemLevel = args["src_problem_level"] if solution.__name__.startswith("src") else args["problem_level"]
+        config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, problemLevel)
         configFile = file_with_test_name(".contraction.yaml")
         print("Generate_YAML output:", configFile)
         config.write(configFile)
@@ -32,8 +47,8 @@ def run_generate_yaml(file_with_test_name):
 
 @pytest.fixture
 def run_contraction(tensile_args, tmp_path, run_generate_yaml, request):
-    def run(conv, problemType, solution, dataType='s'):
-        configFile = run_generate_yaml(conv, problemType, solution, dataType)
+    def run(conv, problemType, solution, problemFunc=None, problemLevel=-1, dataType='s'):
+        configFile = run_generate_yaml(conv, problemType, solution, problemFunc, problemLevel, dataType)
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
@@ -47,14 +62,9 @@ def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
-Runner=namedtuple("Runner", "func solution")
-
-solutions = ["src1","asm3","asm3_pbd", "asm3_pbd_splitu"]
-#solutions = ["asm3"]
-
-level_params = [pytest.param((0, None), id="Convolution_Class"),
-                pytest.param((1, Solutions.defaultSolution()), id="Generate_YAML:" + Solutions.defaultSolution().__name__)] + \
-               [pytest.param((2, getattr(Solutions,s)), id="Run_Contraction:"+s) for s in solutions]
+level_params = [pytest.param((0, Solutions.defaultSolution()), id="Convolution_Class"),
+                pytest.param((1, Solutions.defaultSolution()), id="Generate_YAML-" + Solutions.defaultSolution().__name__)] + \
+               [pytest.param((2, getattr(Solutions,s)), id="Run_Contraction-"+s) for s in solutions]
                #[pytest.param((3, Solutions.defaultSolution()), id="Run_Convolution_vs_Contraction:" + Solutions.defaultSolution().__name__)]
 
 @pytest.fixture(params=level_params)
