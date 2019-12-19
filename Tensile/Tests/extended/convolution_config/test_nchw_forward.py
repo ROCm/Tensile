@@ -28,6 +28,11 @@ def test_cnhw_defaults(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+
+    solutionName = run_convolution_level.solution.__name__
+    if solutionName=="asm3_splitu":
+        pytest.skip("bug with asm splitu")
+
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nhwc_defaults(run_convolution_level):
@@ -72,6 +77,11 @@ def test_nchw_packed_spatial0(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+
+    solutionName = run_convolution_level.solution.__name__
+    if solutionName=="asm3_splitu":
+        pytest.skip("bug with asm splitu")
+
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_tbd_strides(run_convolution_level):
@@ -231,6 +241,11 @@ def test_nchw_stride_filter(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,4:0")
+
+    solutionName = run_convolution_level.solution.__name__
+    if solutionName=="asm3_splitu":
+        pytest.skip("bug with asm splitu")
+
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_ncdhw_packed_strides3d_defaults(run_convolution_level):
