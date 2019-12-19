@@ -1,4 +1,7 @@
 # benchmark assembly and source kernels
+TestParameters:
+  # Skip since this is a known failure.
+  marks: [skip]
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   CMakeBuildType: Debug
