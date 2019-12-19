@@ -92,7 +92,7 @@ class Solutions:
         return s
 
     @classmethod
-    def asm3_pbd_splitu(cls):
+    def asm3_splitu(cls):
         s = cls.commonSetup()
 
         s["ForkParameters"] = \
@@ -207,6 +207,36 @@ class YamlBuilder:
 
         return maxSize
 
+    @classmethod
+    def ProblemSizesResNet(cls, conv, problemType, problemLevel):
+        exactSizes = []
+        n=64
+        for (c,h,w,k) in (
+                [1024,14,14,2048],
+                [1024,14,14,256],
+                [1024,14,14,512],
+                [128,28,28,128],
+                [128,28,28,512],
+                [2048,7,7,512],
+                [256,14,14,1024],
+                [256,14,14,256],
+                [256,56,56,128],
+                [256,56,56,512],
+                [256,56,56,64],
+                [3,230,230,64],
+                [512,28,28,1024],
+                [512,28,28,128],
+                [512,28,28,256],
+                [512,7,7,2048],
+                [512,7,7,512],
+                [64,56,56,256],
+                [64,56,56,64],
+                [64,56,56,64],
+             ):
+            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, spatialIn=[h,w])
+            exactSizes.append(problemSizes)
+        return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
+
 
     @classmethod
     def ProblemSizes(cls, conv, problemType, problemLevel):
@@ -248,7 +278,7 @@ class YamlBuilder:
         Generates a YamlBuilder object that will run in
         ConvolutionVsContraction mode.
         """
-        obj = cls.ConvolutionContraction(conv, {}, solution, dataType, problemLevel=1)
+        obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=1, dataType=dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
         obj.doc["GlobalParameters"]["ProblemFromConvolution"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
@@ -258,7 +288,8 @@ class YamlBuilder:
         return obj
 
     @classmethod
-    def ConvolutionContraction(cls, conv, problemType, solution, dataType, problemLevel=1):
+    def ConvolutionContraction(cls, conv, problemType, solution, dataType, \
+                                problemFunc, problemLevel=1):
         """
         Generates a YamlBuilder object that will run a convolution, in normal
         contraction mode.
@@ -275,7 +306,7 @@ class YamlBuilder:
         benchmarkParams = solution()
         for (key,value) in conv.solutionParms.items():
             benchmarkParams["ForkParameters"].append({key:[value]})
-        benchmarkParams["BenchmarkFinalParameters"] = cls.ProblemSizes(conv, problemType, problemLevel)
+        benchmarkParams["BenchmarkFinalParameters"] = problemFunc(conv, problemType, problemLevel)
 
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
 
