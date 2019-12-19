@@ -49,13 +49,13 @@ def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
 
 Runner=namedtuple("Runner", "func solution")
 
-solutions = ["src1","asm3"]
+solutions = ["src1","asm3","asm3_pbd", "asm3_pbd_splitu"]
 #solutions = ["asm3"]
 
 level_params = [pytest.param((0, None), id="Convolution_Class"),
                 pytest.param((1, Solutions.defaultSolution()), id="Generate_YAML:" + Solutions.defaultSolution().__name__)] + \
-               [pytest.param((2, getattr(Solutions,s)), id="Run_Contraction:"+s) for s in solutions] + \
-               [pytest.param((3, Solutions.defaultSolution()), id="Run_Convolution_vs_Contraction:" + Solutions.defaultSolution().__name__)]
+               [pytest.param((2, getattr(Solutions,s)), id="Run_Contraction:"+s) for s in solutions]
+               #[pytest.param((3, Solutions.defaultSolution()), id="Run_Convolution_vs_Contraction:" + Solutions.defaultSolution().__name__)]
 
 @pytest.fixture(params=level_params)
 def run_convolution_level(request,
