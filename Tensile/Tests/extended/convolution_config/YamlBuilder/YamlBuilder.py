@@ -195,11 +195,14 @@ class YamlBuilder:
         elif problemLevel==4:
             exactSizes += cls.genExacts(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
 
-        asize = cls.memSize(problemType["IndexAssignmentsA"], exactSizes)
-        bsize = cls.memSize(problemType["IndexAssignmentsB"], exactSizes)
-        dsize = cls.memSize(range(0,problemType["NumIndicesC"]), exactSizes)
-        print ("generated %d exact sizes.  ElementSizes: A=%d B=%d D=%d Total=%d" % \
-                (len(exactSizes), asize, bsize, dsize, asize+bsize+dsize))
+        try:
+            asize = cls.memSize(problemType["IndexAssignmentsA"], exactSizes)
+            bsize = cls.memSize(problemType["IndexAssignmentsB"], exactSizes)
+            dsize = cls.memSize(range(0,problemType["NumIndicesC"]), exactSizes)
+            print ("generated %d exact sizes.  ElementSizes: A=%d B=%d D=%d Total=%d" % \
+                    (len(exactSizes), asize, bsize, dsize, asize+bsize+dsize))
+        except KeyError:
+            None
 
         return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
 
