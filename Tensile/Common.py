@@ -61,6 +61,7 @@ globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues t
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
+globalParameters["BoundsCheck"] = False   # Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
 globalParameters["ValidationMaxToPrint"] = 4      # maximum number of mismatches to print
 globalParameters["ValidationPrintValids"] = False # print matches too
 # steps
@@ -90,6 +91,8 @@ globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?  0 does not check error codes correctly
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
+
+globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Useful to examine and debug overflow errors)
 
 ########################################
 # optimization knob controls
@@ -155,6 +158,7 @@ globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
 globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
+globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -180,6 +184,7 @@ globalParameters["Architecture"] = "all"
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+globalParameters["PackageLibrary"] = False
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
@@ -432,6 +437,21 @@ validParameters = {
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
     "AssertMinApproxSize" : [0,1,2],
+
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [position, constValue].
+    # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
+    #   EX: [ [2,0] ] means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Like other assertions, these are used when kernel is generated and checked before running kernel
+    "AssertStrideAEqual":  -1,
+
+    "AssertStrideBEqual":  -1,
+
+    # Assertions that require stride to be specified value.
+    # List of pairs of [index, constValue].#
+    # Index is a member of the global index assignments.
+    "AssertSizeEqual":    -1,
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -881,6 +901,8 @@ defaultProblemType = {
     "UseInitialStridesAB":      False,  # use initial strides for AB.
     "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
+    # SetConstStride* sets the specified stride in the problem.
+    # These no longer generate predicates - see AssertStrideEqualA/B below
     # List of pairs of [index, constValue].
     # Index is a member of the global index assignments (not an offset into IndexAssignmentsA/B)
     # EX: SetConstStrideA: [ [3, 1], [2, 4] ] sets
@@ -1337,6 +1359,13 @@ def versionIsCompatible(queryVersionString):
     if int(qStep) > int(tStep):
       return False
   return True
+
+def ClientExecutionLock():
+  if not globalParameters["ClientExecutionLockPath"]:
+    return open(os.devnull)
+
+  import filelock
+  return filelock.FileLock(globalParameters["ClientExecutionLockPath"])
 
 # convert python list to C++ initializer style syntax
 def listToInitializer(l):

@@ -29,6 +29,15 @@ namespace Tensile
 {
     namespace Matching
     {
+        /**
+         * \ingroup PropertyMatching
+         * \defgroup DistanceFunctions Distance Functions
+         */
+
+        /**
+         * \addtogroup DistanceFunctions
+         * @{
+         */
         template <typename Key>
         struct RatioDistance: public Distance<Key>
         {
@@ -98,6 +107,10 @@ namespace Tensile
                 return double(rand());
             }
         };
+
+        /**
+         * @}
+         */
 
     }
 }

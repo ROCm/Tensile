@@ -41,6 +41,21 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Tensile
+     * \defgroup DataTypes Data Type Info
+     * 
+     * @brief Definitions and metadata on supported data types.
+     */
+
+    /**
+     * \ingroup DataTypes
+     * @{
+     */
+
+    /**
+     * Data Type
+     */
     enum class DataType: int
     {
         Float,
@@ -59,6 +74,10 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
     std::istream& operator>>(std::istream& stream, DataType      & t);
 
+    /**
+     * \ingroup DataTypes
+     * \brief Runtime accessible data type metadata
+     */
     struct DataTypeInfo
     {
         static DataTypeInfo const& Get(int index);
@@ -89,6 +108,10 @@ namespace Tensile
         static std::map<std::string, DataType>  typeNames;
     };
 
+    /**
+     * \ingroup DataTypes
+     * \brief Compile-time accessible data type metadata.
+     */
     template <typename T>
     struct TypeInfo
     { };
@@ -139,36 +162,7 @@ namespace Tensile
     template<> struct TypeInfo<BFloat16>: public BaseTypeInfo<BFloat16, DataType::BFloat16, 1, false, false>  {};
 
 
-#if 0
-    template <>
-    struct TypeInfo<float>
-    {
-        const static DataType Enum = DataType::Float;
-
-        const static size_t ElementSize = sizeof(float);
-
-        static inline size_t dataBytes(size_t elements)
-        {
-            return elements * ElementSize;
-        }
-    };
-
-    template <>
-    struct TypeInfo<double>
-    {
-        const static DataType Enum = DataType::Double;
-
-        const static size_t ElementSize = 8;
-
-        static inline size_t dataBytes(size_t elements)
-        {
-            return elements * ElementSize;
-        }
-    };
-
-    template <>
-    struct TypeInfo<std::complex<float>>
-    {
-    };
-#endif
+    /**
+     * @}
+     */
 }

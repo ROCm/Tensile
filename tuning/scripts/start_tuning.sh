@@ -49,12 +49,12 @@ if [ -z ${OUTPUT_FILE+foo} ]; then
 fi
 
 if [ -z ${LIBRARY+foo} ]; then
-   printf "Need a libryry type (vega20|vega10)\n"
+   printf "Need a library type (arcturus|vega20|vega10)\n"
    exit 2
 fi
 
 if [ -z ${CONFIGURATION_TYPE+foo} ]; then
-   printf "Need a cofiguration type (hgemm|sgemm|dgemm|igemm)\n"
+   printf "Need a configuration type (hgemm|sgemm|dgemm|igemm)\n"
    exit 2
 fi
 

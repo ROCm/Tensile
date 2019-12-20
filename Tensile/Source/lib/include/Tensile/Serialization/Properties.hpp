@@ -95,18 +95,16 @@ namespace Tensile
             }
         };
 
-        template <typename Object, typename Value, typename IO>
-        using PropertySMT = SubclassMappingTraits<Property<Object, Value>, IO>;
+        template <typename IO>
+        const typename SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>::SubclassMap
+            SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>::subclasses =
+                SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>::GetSubclasses();
 
         template <typename IO>
-        const typename PropertySMT<ContractionProblem, size_t, IO>::SubclassMap
-            PropertySMT<ContractionProblem, size_t, IO>::subclasses =
-                PropertySMT<ContractionProblem, size_t, IO>::GetSubclasses();
+        const typename SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>::SubclassMap
+            SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>::subclasses =
+                SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>::GetSubclasses();
 
-        template <typename IO>
-        const typename PropertySMT<ContractionProblem, std::string, IO>::SubclassMap
-            PropertySMT<ContractionProblem, std::string, IO>::subclasses =
-                PropertySMT<ContractionProblem, std::string, IO>::GetSubclasses();
 
         template <typename IO> struct MappingTraits<Contraction::FreeSizeA,           IO>:
                            public AutoMappingTraits<Contraction::FreeSizeA,           IO> {};

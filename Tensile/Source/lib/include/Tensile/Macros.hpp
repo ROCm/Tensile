@@ -29,5 +29,9 @@
 #ifdef TENSILE_STATIC_ONLY
 #define TENSILE_API
 #else
+/**
+ * Marks a symbol as being visible from outside of a shared library which
+ * Tensile is a part of.
+ */
 #define TENSILE_API __attribute__ ((visibility("default")))
 #endif

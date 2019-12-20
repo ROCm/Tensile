@@ -37,6 +37,13 @@ namespace Tensile
 {
     namespace Predicates
     {
+        /**
+         * \addtogroup Predicates
+         * @{
+         */
+        /**
+         * @brief ContractionProblem predicates
+         */
         namespace Contraction
         {
             struct FreeSizeAMultiple: public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
@@ -124,6 +131,23 @@ namespace Tensile
                         return problem.boundSize(problem.boundIndices().size()+index) % value == 0;
                     else
                         return problem.boundSize(index) % value == 0;
+                }
+            };
+
+            struct ProblemSizeEqual: public Predicate_CRTP<ProblemSizeEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                ProblemSizeEqual() = default;
+                ProblemSizeEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "ProblemSizeEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.problemSizes()[index] == value;
                 }
             };
 
@@ -341,8 +365,11 @@ namespace Tensile
                     return problem.operationIdentifier() == value;
                 }
             };
-
         }
+
+        /**
+         * @}
+         */
     }
 }
 
