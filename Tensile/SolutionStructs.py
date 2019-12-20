@@ -141,6 +141,8 @@ class Convolution:
     self.padEnd   = self.dimxParm(config, "PadEnd",0)
     self.packSpatialDims = config.get("PackedSpatialDims", 1)
 
+    assert(type(self.packSpatialDims) == int)
+
     if not all(i==1 for i in self.stride[1:]):
       self.packSpatialDims = 0
 
@@ -365,6 +367,13 @@ class Convolution:
   def convolutionChar(self, dimIdx):
     return self.indexAssignments[dimIdx][1].shortChar
 
+  def markedConvolutionChar(self, dimIdx):
+    (fbs,dim) = self.indexAssignments[dimIdx]
+    if fbs==Fbs.Sum and dim.shortChar != 'C':
+        return "_" + dim.shortChar
+    else:
+        return dim.shortChar
+
   @property
   def filterTbd(self):
     return -1 in self.filter
@@ -533,8 +542,7 @@ class Convolution:
     print("Tensor Formats: A:%s B:%s D:%s\n" % (self.tensorAFormat, self.tensorBFormat, self.tensorDFormat))
     print("Tensile Index Assignments and Usage:")
     print("   Tensile    : ConvChar: Explanation/Usage")
-    for (idx,dim2) in enumerate(self.indexAssignments):
-        (fbs,dim)=dim2
+    for (idx,(fbs,dim)) in enumerate(self.indexAssignments):
         tensileChar = globalParameters['IndexChars'][idx]
         usage = str(dim)
         usage = usage.replace('#T', tensileChar)
@@ -552,13 +560,22 @@ class Convolution:
     print ("- (i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
     print ("  The runtime value must match the compile-time value.")
     print ("- Unspecified strides use default stride value:")
-    print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0")
+    print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0.")
+    print ("- [stride*,size*] in brackets list required values to run the generated solutions.")
+    print ("- Tensile IndexAssignments list the fastest-moving (in memory) index first.")
+    print ("- Overlapping / Hidden summation dimensions shown with leading '_'.")
 
     print ()
     print ("ProblemType Definition:")
     for k in Convolution.SummaryProblemProperties:
       try:
-        print ("  ", k, ":", problemType[k])
+        if k in ['IndexAssignmentsA', 'IndexAssignmentsB']:
+            comment = "# [" + ",".join([self.markedConvolutionChar(idx) for idx in problemType[k]]) + "]"
+        elif k == 'NumIndicesC':
+            comment = "# [" + ",".join([self.markedConvolutionChar(idx) for idx in range(0,problemType[k])] ) + "]"
+        else:
+            comment = ""
+        print ("  ", k, ":", problemType[k], comment)
       except KeyError:
         pass
 
