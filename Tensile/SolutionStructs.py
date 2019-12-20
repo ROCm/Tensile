@@ -1653,7 +1653,7 @@ class Solution:
     # Init LoopIters parameter in case of early exit
     # For backwards compatibility with older yaml files
     state["LoopIters"] = 0
-    if "LoopIters" in state:
+    if "LoopUnroll" in state:
       state["LoopIters"] = state["LoopUnroll"]
 
     if state["MatrixInstruction"]:
