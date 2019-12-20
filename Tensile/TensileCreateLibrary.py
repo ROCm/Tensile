@@ -86,7 +86,8 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
       #  archName = 'gfx'+''.join(map(str,arch))
         coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
         if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
-          coFile = os.path.join(destDir, archName, 'TensileLibrary_{}.co'.format(archName))
+          destArchDir = ensurePath(os.path.join(destDir, archName))
+          coFile = os.path.join(destArchDir, 'TensileLibrary_{}.co'.format(archName))
         args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
         subprocess.check_call(args, cwd=asmDir)
         coFiles.append(coFile)
@@ -308,9 +309,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
         kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
         kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
       kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
-    #else:
-    #  kernelSourceFile = None
-    #  kernelHeaderFile = None
 
   kernelsWithBuildErrs = {}
 
@@ -915,10 +913,6 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
       kernelMinNaming, kernelSerialNaming)
   kernelWriterAssembly = KernelWriterAssembly( \
       kernelMinNaming, kernelSerialNaming)
-
-  #generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
-  #generatedFile.write(CMakeHeader)
-  #generatedFile.write("set( TensileClient_SOLUTIONS\n")
 
   if globalParameters["LegacyComponents"]:
     generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
