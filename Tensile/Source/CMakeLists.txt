@@ -84,9 +84,12 @@ else()
     set(Tensile_CODE_OBJECT_VERSION V2 CACHE STRING "Which code object version to use")
     set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
     set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hcc hipcc)
+    set(Tensile_ARCHITECTURE all CACHE STRING "Which GPU architecture to use")
+    set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906 gfx908)
 
     message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
     message( STATUS "Tensile_COMPILER            from Tensile/Source/CMakeLists.txt: ${Tensile_COMPILER}")
+    message( STATUS "Tensile_ARCHITECTURE        from Tensile/Source/CMakeLists.txt: ${Tensile_ARCHITECTURE}")
 
     ###############################################################################
     # Benchmark Client
@@ -178,9 +181,10 @@ else()
       include(${CMAKE_SOURCE_DIR}/TensileCreateLibrary.cmake)
       TensileCreateLibraryCmake(
         ${Tensile_LOGIC_PATH}           # path
-        ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
+        ${Tensile_RUNTIME_LANGUAGE}     # HIP or OCL
         ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
+        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906, gfx908
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
         ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
