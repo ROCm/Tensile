@@ -28,6 +28,26 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Tensile
+     * \defgroup Properties Properties and Predicates
+     * 
+     * @brief Abstract expression evaluation
+     * 
+     * Property: \copydoc Tensile::Property
+     * 
+     * Predicate: \copydoc Tensile::Predicates::Predicate
+     */
+
+    /**
+     * \addtogroup Properties
+     * @{
+     */
+
+    /**
+     * @brief Simplifies implementation of `ToString()` for Property subclasses which
+     * may have `index` and/or `value` members.
+     */
     template <typename Class, bool HasIndex = Class::HasIndex, bool HasValue = Class::HasValue>
     struct PropertyHelper
     { };
@@ -68,16 +88,30 @@ namespace Tensile
         }
     };
 
+    /**
+     * Abstract object which retrieves a value from another object.
+     */
     template<typename Object, typename Value = size_t>
     class Property
     {
     public:
+        /**
+         * Name which uniquely identifies each subclass.
+         */
         virtual std::string type() const = 0;
         virtual ~Property() = default;
+
+        /**
+         * Retrieve the value from the specified object.
+         */
         virtual Value operator()(Object const& object) const = 0;
 
         virtual std::string toString() const = 0;
 
+        /**
+         * Retrieve the value from the specified object, while printing
+         * relevant debug information to the specified stream.
+         */
         virtual Value debugEval(Object const& object, std::ostream & stream) const
         {
             Value rv = (*this)(object);
@@ -86,6 +120,19 @@ namespace Tensile
         }
     };
 
+    /**
+     * @brief CRTP helper class which simplifies implementation of Property subclasses.
+     * 
+     * Implements the `type()` and `toString()` methods automatically.
+     * 
+     * The subclass must:
+     *  - Implement a `static std::string Type()` function which returns a
+     *  unique name for the class.
+     *  - Have `HasIndex` and `HasValue` value definitions which match the
+     *  reality of if it has `index` and/or `value` members.
+     * 
+     * \see https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
+     */
     template<typename Class, typename Object, typename Value = size_t>
     class Property_CRTP: public Property<Object, Value>
     {
@@ -124,5 +171,16 @@ namespace Tensile
 
         return stream;
     }
+
+    /**
+     * @}
+     */
+
+    /**
+     * \ingroup Properties
+     * \defgroup PropertyClasses Property Classes
+     * 
+     * @brief Individual Property classes
+     */
 }
 

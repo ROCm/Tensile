@@ -29,9 +29,11 @@ function(TensileCreateLibraryCmake
     Tensile_RUNTIME_LANGUAGE
     Tensile_COMPILER
     Tensile_CODE_OBJECT_VERSION
+    Tensile_ARCHITECTURE
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
+
 # make Tensile_PACKAGE_LIBRARY and optional parameter 
 # to avoid breaking applications which us this
   if (ARGN)
@@ -39,8 +41,11 @@ function(TensileCreateLibraryCmake
   else()
     set(Tensile_PACKAGE_LIBRARY OFF)
   endif()
+  
+  message(STATUS "Tensile_RUNTIME_LANGUAGE    from TensileCreateLibraryCmake : ${Tensile_RUNTIME_LANGUAGE}")
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
+  message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
 
   set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
@@ -71,6 +76,7 @@ function(TensileCreateLibraryCmake
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
 
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--architecture=${Tensile_ARCHITECTURE}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--cxx-compiler=${Tensile_COMPILER}")
 
@@ -115,10 +121,15 @@ function(TensileCreateLibraryCmake
   set(options)
   add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
   # specify gpu targets
-  set(Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
+  if( Tensile_ARCHITECTURE MATCHES "all" )  
+    set( Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
+  else()
+    set( Tensile_HIP_ISA ${Tensile_ARCHITECTURE})
+  endif()
   foreach( target ${Tensile_HIP_ISA} )
     target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
   endforeach()
+  
   if( Tensile_MERGE_FILES )
     target_include_directories(Tensile
       PUBLIC $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}> )

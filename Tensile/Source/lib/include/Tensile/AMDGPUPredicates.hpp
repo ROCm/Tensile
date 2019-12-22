@@ -35,6 +35,13 @@ namespace Tensile
 {
     namespace Predicates
     {
+        /**
+         * \addtogroup Predicates
+         * @{
+         */
+        /**
+         * @brief GPU Predicates
+         */
         namespace GPU
         {
             struct ProcessorEqual: public Predicate_CRTP<ProcessorEqual, AMDGPU>
@@ -69,6 +76,10 @@ namespace Tensile
                 }
             };
         }
+
+        /**
+         * @}
+         */
     }
 }
 

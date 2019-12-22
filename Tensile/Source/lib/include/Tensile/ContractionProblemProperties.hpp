@@ -28,6 +28,10 @@
 
 namespace Tensile
 {
+    /**
+     * \addtogroup PropertyClasses
+     * @{
+     */
     namespace Contraction
     {
         struct FreeSizeA: public Property_CRTP<FreeSizeA, ContractionProblem>
@@ -146,5 +150,9 @@ namespace Tensile
             }
         };
     }
+
+    /**
+     * @}
+     */
 }
 

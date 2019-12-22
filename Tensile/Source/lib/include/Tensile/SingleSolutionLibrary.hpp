@@ -30,6 +30,13 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup SolutionLibrary
+     * 
+     * Leaf of the tree. Represents a single `Solution` object. Can eliminate
+     * itself from consideration based on restrictions of that particular
+     * `Solution`.
+     */
     template <typename MyProblem, typename MySolution>
     struct SingleSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {

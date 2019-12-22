@@ -37,12 +37,23 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup SolutionLibrary
+     */ 
     struct ExactSelectionTableEntry
     {
         std::vector<size_t> key;
         int value;
     };
 
+    /**
+     * \ingroup SolutionLibrary
+     * 
+     * Compares the tile sizes of each kernel, the dimensions of the problem,
+     * and the number of compute units on the target GPU to select a kernel
+     * that fits the best on the GPU with the lowest amount of waste
+     * (“granularity loss”).
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct GranularitySelectionLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
