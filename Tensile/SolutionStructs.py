@@ -48,11 +48,6 @@ def pvar(state, field):
 def roundupRatio(dividend, divisor):
   return int(math.ceil(float(dividend) / float(divisor)))
 
-class DimAB(Enum):
-  OnlyA = 0  # Only allowed in A tensor
-  OnlyB = 1  # Only allowed in B tensor
-  BothAB = 2 # Must be in both A and B
-
 class Fbs(Enum):
   Free=0     # Expect to be free dimension
   Batch=1    # Expect to be batch dimension
@@ -69,10 +64,9 @@ class Convolution:
     based on the desired formats.
     """
     # stride=-1 indicates TBD stride; >=0 indicates a compile-time constant
-    def __init__(self, shortChar, description, dimAB, strideA=-1, strideB=-1):
+    def __init__(self, shortChar, description, strideA=-1, strideB=-1):
       self.shortChar = shortChar
       self.description = description
-      self.dimAB = dimAB
       self.strideA=strideA
       self.strideB=strideB
 
@@ -100,6 +94,16 @@ class Convolution:
   SummarySolutionProperties=[\
         'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
         ]
+
+  def initForwardConvolution(self, problemTypeOut, config, \
+                             ndim, cdim, kdim, sdims, fdims, \
+                             fil, stride, dilation):
+    """
+    Create dimensions
+    Output is registerA and registerB
+    """
+    None
+
 
   def __init__(self, problemTypeOut, convolutionType, config):
     """
@@ -140,8 +144,8 @@ class Convolution:
     self.padStart = self.dimxParm(config, "PadStart",0)
     self.padEnd   = self.dimxParm(config, "PadEnd",0)
     self.packSpatialDims = config.get("PackedSpatialDims", 1)
+    self.unrollOnChannel = config.get("UnrollOnChannel", 0)
 
-    assert(type(self.packSpatialDims) == int)
 
     if not all(i==1 for i in self.stride[1:]):
       self.packSpatialDims = 0
@@ -154,20 +158,14 @@ class Convolution:
     self.groupCount = config.get("GroupCount", 1)
     self.indexAssignments = []
 
-    if convolutionType == 'ConvolutionBackwardData':
-      cExpect=DimAB.OnlyB
-      kExpect=DimAB.BothAB
-    else:
-      cExpect=DimAB.BothAB
-      kExpect=DimAB.OnlyB
-
     # Index assignment have fastest-moving first
-    ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.', DimAB.BothAB)
-    kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.', kExpect)
+    ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.')
+    kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.')
+    cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1')
+
     if self.packSpatialDims:
       sdims = [Convolution.Dimension('HW', \
-          'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).', \
-          DimAB.OnlyA)]
+          'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).')]
     else:
       sdims = []
       schars = [1,'W','H','D']
@@ -179,9 +177,35 @@ class Convolution:
         else:
             strideMsg = "%s_in*stride%s(#S%d)"%(schars[si],sc,si)
         sdims.append(Convolution.Dimension(sc,  \
-            'Spatial %s. size#T=%s_o strideA#T=%s.'%(sc,sc,strideMsg), \
-            DimAB.OnlyA))
-    cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1', cExpect)
+            'Spatial %s. size#T=%s_o strideA#T=%s.'%(sc,sc,strideMsg)))
+
+    assert(type(self.packSpatialDims) == int)
+    fdims = []
+    for (rfi,filterValue) in enumerate(self.filter[::-1]):
+      if filterValue != 1:
+        fi = self.formatNumSpatialDims - rfi -1 # forward filter index, 0...
+        filterChar = chr(ord('X')+fi)
+        filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
+        prevChar = ['1', 'W', 'W*H']
+        # TODO - stride setconst maybe applies only for NCHW/CNHW format not NHWC
+        # can modify message here based on format or position of indices?
+        filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
+            % (filterChar, filterChar, filterValueStr, filterChar, fi, \
+               prevChar[fi])
+        fdims.append(Convolution.Dimension(filterChar, filterMsg))
+
+    # Create summation dimensions for non-unit filters and assign summation indices
+    assert(len(self.filter)) == self.formatNumSpatialDims
+
+    if convolutionType in ("ConvolutionForward"):
+      self.initForwardConvolution(problemTypeOut, config, \
+                                ndim=ndim, cdim=cdim, kdim=kdim, sdims=sdims, fdims=fdims, \
+                                fil=self.filter, stride=self.stride, dilation=self.dilation)
+    elif convolutionType in ("ConvolutionBackwardWeights"):
+      self.initForwardConvolution(problemTypeOut, config, \
+                                  ndim=cdim, cdim=ndim, kdim=kdim, sdims=fdims, fdims=sdims, \
+                                  fil=self.stride, stride=self.filter, dilation=self.dilation)
+
 
     if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
       # Make index assignments following standard Tensile Index assignment rules (see Common.py)
@@ -202,6 +226,8 @@ class Convolution:
           nidx = i ; i+=1
           kidx = i ; i+=1
           cidx = i ; i+=1
+        if self.unrollOnChannel:
+          cidx = 0
         sumIdx = cidx # cidx is first summation index, filter summations follow as needed
       elif convolutionType == 'ConvolutionBackwardData':
         if self.tensorDFormat in ('NCHW','NCDHW', 'NHWC','NDHWC'):
@@ -217,24 +243,10 @@ class Convolution:
           # need to re-order batch dim to control memory order in output space
         sumIdx = kidx # cidx is first summation index, filter summations follow as needed
 
-      # Create summation dimensions for non-unit filters and assign summation indices
-      assert(len(self.filter)) == self.formatNumSpatialDims
       filterDims = []
-      for (rfi,filterValue) in enumerate(self.filter[::-1]):
-        if filterValue != 1:
-          fi = self.formatNumSpatialDims - rfi -1 # forward filter index, 0...
-          sumIdx = sumIdx+1
-          filterChar = chr(ord('X')+fi)
-          filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
-          prevChar = ['1', 'W', 'W*H']
-          # TODO - stride setconst maybe applies only for NCHW/CNHW format not NHWC
-          # can modify message here based on format or position of indices?
-          filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
-              % (filterChar, filterChar, filterValueStr, filterChar, fi, \
-                 prevChar[fi])
-          filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.BothAB)
-
-          filterDims.append( RegDim(sumIdx, Fbs.Sum, filterDim) )
+      for filterDim in fdims:
+        sumIdx = sumIdx+1
+        filterDims.append( RegDim(sumIdx, Fbs.Sum, filterDim) )
 
       spatialDims = []
       # reverse dims  so can pass spatialDims to register functions in 'convolution' order
@@ -310,7 +322,7 @@ class Convolution:
           filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
               % (filterChar, filterChar, filterValueStr, filterChar, fi,\
                  prevChar[self.formatNumSpatialDims-fi-1])
-          filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.OnlyA, \
+          filterDim = Convolution.Dimension(filterChar, filterMsg, \
                         strideA=self.dilation[fi] if  fi==0 else -1)
           # assign the tensile indices here - 0..number_of_nonunit_filters-1
           # insert like a stack to feed 'conv' order expected by register* functions
@@ -327,7 +339,7 @@ class Convolution:
       if self.packSpatialDims:
         sdims = [Convolution.Dimension('HW', \
             'Spatially packed HW. size#T=H_i*W_i. strideA#T=strideW(#S0).', \
-            DimAB.BothAB, strideA=1)] # strides ignored since stride already applied
+            strideA=1)] # strides ignored since stride already applied
       else:
         raise RuntimeError ("backward weights only supports packSpatialDims")
 
@@ -533,8 +545,6 @@ class Convolution:
      - dim is Convolution.Dimension class that describes the dimension (for Usage info)
     """
     for (idx,fbs,dim) in dimList:
-      if dim.dimAB not in (DimAB.OnlyA, DimAB.BothAB):
-        raise RuntimeError ("dimension '%s' can't be registered to TensorA" % dim.shortChar)
       try:
         self.indexAssignments[idx]
       except IndexError:
@@ -548,8 +558,6 @@ class Convolution:
   def registerB(self, dimList):
     """ See registerA """
     for (idx,fbs,dim) in dimList:
-      if dim.dimAB not in (DimAB.OnlyB, DimAB.BothAB):
-        raise RuntimeError ("dimension '%s' can't be registered to TensorB" % dim.shortChar)
       try:
         self.indexAssignments[idx]
       except IndexError:

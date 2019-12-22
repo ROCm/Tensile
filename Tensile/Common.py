@@ -878,6 +878,17 @@ validConvolutionConfig= [
     # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
     "PackedSpatialDims",
 
+
+    # If 1:
+    #  - Unroll index is the channel index
+    #  - if PackSummationDims=0, this is likely highest perf since it provides a larger
+    #    iteration count for the unroll loop.
+    # If 0:
+    #   - Unroll index is filter index (Forward,BackwardData) or spatial index (BackwardWeights)
+    #   - provides better cache locality for most formats, but tigher looping.
+    #   - Likely a good idea with PackSummationDims=1 since there is only one unroll loop.
+    "UnrollOnChannel",
+
     # Input spatial dimensions (D,H,W)
     # Optional parameter for debug and testing.  This does not impact kernel generation.
     # If set,then each problem dimension size/stride will be checked to ensure they are
