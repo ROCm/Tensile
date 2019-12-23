@@ -3953,7 +3953,7 @@ class KernelWriterAssembly(KernelWriter):
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
                 assert(len([i for i in tP['ia'] if i in kernel["ProblemType"]["IndicesFree"] ]) == 1) # only one free index supported on this path
-                strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
+                strideF = "Stride%s%s"%(tc,self.indexChars[tP['tileIdx']])
                 kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideF), tileStride, \
                              "compute offset diff (scaled tileDim)")
                 if unrollStride:
@@ -4042,7 +4042,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       if kernel["CheckDimOverflow"] >=2:
         kStr += self.assert_eq(sgpr(tileStart+1),0)
-      strideF = self.stride(tc, tP['idx'])
+      strideF = self.stride(tc, tP['tileIdx'])
       if not self.isConstUnitStride(strideF):
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
                    strideF, "tlu=0, scaled tile-offset by stride")

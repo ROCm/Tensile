@@ -1920,7 +1920,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["ruc"] = self.readUnrollDimComponentsA             # read vector components along unroll dimension
       tP["wtc"] = self.writeTileDimComponentsA              # write vector components along tile dimension
       tP["wuc"] = self.writeUnrollDimComponentsA            # write vector components along unroll dimension
-      tP["idx"] = kernel["ProblemType"]["Index0"]           # index 0 is tile dimension belonging to A
+      tP["idx"] = kernel["ProblemType"]["Index0"]           # index 0 is tile dimension belonging to A. Note 'idx' may not be in tP['ia'].
       tP["rc"] = kernel["ProblemType"]["IndexAssignmentsA"][0] \
           in [kernel["ProblemType"]["Index01A"], \
           kernel["ProblemType"]["IndexUnroll"]]             # can read coalesced
