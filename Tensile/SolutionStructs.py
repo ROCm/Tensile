@@ -269,9 +269,10 @@ class Convolution:
     self.padStart = self.dimxParm(config, "PadStart",0)
     self.padEnd   = self.dimxParm(config, "PadEnd",0)
     self.packSpatialDims = config.get("PackedSpatialDims", 1)
+    self.packFilterDims  = config.get("PackedFilterDims", 1)
     self.unrollOnChannel = config.get("UnrollOnChannel", 0)
 
-
+    assert(type(self.packSpatialDims) == int)
     if not all(i==1 for i in self.stride[1:]):
       self.packSpatialDims = 0
 
@@ -289,8 +290,14 @@ class Convolution:
     cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1')
 
     if self.packSpatialDims:
-      sdims = [Convolution.Dimension('HW', \
-          'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).')]
+      if self.formatNumSpatialDims==2:
+        sdims = [Convolution.Dimension('HW', \
+            'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).')]
+      elif self.formatNumSpatialDims==3:
+        sdims = [Convolution.Dimension('DHW', \
+            'Spatially packed DHW. size#T=D_o*H_o*W_o. strideA#T=strideW(#S0).')]
+      else:
+        raise RuntimeError ("unsupported formatNumSpatialDims")
     else:
       sdims = []
       schars = [1,'W','H','D']
@@ -311,11 +318,9 @@ class Convolution:
     else:
       assert (self.numSpatialDims == self.formatNumSpatialDims)
 
-
-    assert(type(self.packSpatialDims) == int)
     fdims = []
     for (rfi,filterValue) in enumerate(self.filter[::-1]):
-      if filterValue != 1:
+      if not self.packFilterDims or filterValue != 1:
         fi = self.formatNumSpatialDims - rfi -1 # forward filter index, 0...
         filterChar = chr(ord('X')+fi)
         filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
