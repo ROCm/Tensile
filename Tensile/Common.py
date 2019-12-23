@@ -870,12 +870,17 @@ validConvolutionConfig= [
     # For grouped convolutions:
     "GroupCount",
 
-    # pack spatial dims (d,h,w) into single tensor dim
+    # pack spatial dims (d,h,w) into single tensor dim when possible
     # This is preferred for cases where these dimensions are packed in memory
     # since it reduces addressing overhead and will produce a more efficient kernel
-    # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
+    # Default is 1, multiple dimensions will be created if needed for strides or other cases.
     "PackedSpatialDims",
 
+    # pack filter dims (z,y,x) into single tensor dim when possible.
+    # This is preferred for cases where these dimensions are packed in memory
+    # since it reduces addressing overhead and will produce a more efficient kernel
+    # Default is 1, multiple dimensions will be created if needed for dilations or other cases.
+    "PackedFilterDims",
 
     # If 1:
     #  - Unroll index is the channel index
