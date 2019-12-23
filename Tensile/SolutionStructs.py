@@ -1789,18 +1789,7 @@ class Solution:
 
     state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
 
-    # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
-    # The order in PackedC*Indices also determines the order that dimensions are packed - the first elements in
-    # the list are the fastest-moving elements.
-    # grid size [0,1]
     problemType = state["ProblemType"]
-    state["PackedC0IdxChars"] = []
-    state["PackedC0IndicesX"] = []
-    indexChars = globalParameters["IndexChars"]
-    # Pack all the dimensions (batch and free) of A into grid[0]
-    assert(isPackedIndex(state, problemType["Index0"], 0x1))
-    assert(isPackedIndex(state, problemType["Index1"], 0x2))
-
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):
         Solution.addConstStride(state, "AssertStride%sEqual"%tc, "0:1")
@@ -1829,7 +1818,28 @@ class Solution:
               (index,value)=[int(x) for x in pair.split(':')]
               state[destKey][index] = value
 
-    for idx in problemType["IndexAssignmentsA"]:
+    # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # The order in PackedC*Indices also determines the order that dimensions are packed - the first elements in
+    # the list are the fastest-moving elements.
+    # The store code optimizes for C0 being the coalesced dimension and C1 the perp dimension.
+    # C0/C1 indices can come from IndexAssignmentsA or IndexAssignmentsB
+    # grid size [0,1]
+    state["PackedC0IdxChars"] = []
+    state["PackedC0IndicesX"] = []
+    indexChars = globalParameters["IndexChars"]
+    # Pack all the dimensions (batch and free) of A into grid[0]
+
+    if problemType["Index0"] in problemType["IndexAssignmentsA"]:
+      tc0 = 'A'
+      tc1 = 'B'
+    else:
+      tc0 = 'B'
+      tc1 = 'A'
+    assert(isPackedIndex(state, problemType["Index01A"], 0x1))
+    assert(isPackedIndex(state, problemType["Index01B"], 0x2))
+
+    # Pack all the dimensions (batch and free) of A into grid[0]
+    for idx in problemType["IndexAssignments%s"%tc0]:
       if isPackedIndex(state, idx, 0x1):
         assert (idx < problemType["NumIndicesC"])
         state["PackedC0IdxChars"].append("%s" % indexChars[idx])
@@ -1837,8 +1847,7 @@ class Solution:
 
     state["PackedC1IdxChars"] = []
     state["PackedC1IndicesX"] = []
-    # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsB"]:
+    for idx in problemType["IndexAssignments%s"%tc1]:
       if isPackedIndex(state, idx, 0x2):
         assert (idx < problemType["NumIndicesC"])
         state["PackedC1IdxChars"].append("%s" % indexChars[idx])
