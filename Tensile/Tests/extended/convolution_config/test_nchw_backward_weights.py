@@ -2,6 +2,7 @@ import logging,pytest
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
+@pytest.mark.skip(reason="need to retain 1x1 filter free dimension")
 def test_nchw_backwardweights_defaults(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
