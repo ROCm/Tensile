@@ -62,7 +62,7 @@ def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
         Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
     return run
 
-level_params = [pytest.param((0, Solutions.defaultSolution()), id="Convolution_Class"),
+level_params = [pytest.param((0, Solutions.src1), id="Convolution_Class"),
                 pytest.param((1, Solutions.defaultSolution()), id="Generate_YAML-" + Solutions.defaultSolution().__name__)] + \
                [pytest.param((2, getattr(Solutions,s)), id="Run_Contraction-"+s) for s in solutions]
                #[pytest.param((3, Solutions.defaultSolution()), id="Run_Convolution_vs_Contraction:" + Solutions.defaultSolution().__name__)]
