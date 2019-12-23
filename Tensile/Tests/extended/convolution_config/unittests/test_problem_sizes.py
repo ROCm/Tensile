@@ -1,4 +1,4 @@
-import pytest,logging
+import pytest
 from Tensile.SolutionStructs import Convolution
 from YamlBuilder.YamlBuilder import YamlBuilder
 
@@ -17,7 +17,8 @@ def test_2d_stride1(problemSizes):
                       })
 
     exacts = problemSizes[0](conv, z, problemSizes[1])
-    #print ("exacts=", exacts)
+    if exacts:
+        None
 
 
 @pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes])
@@ -32,7 +33,8 @@ def test_2d_stride2(problemSizes, problemLevel):
                       })
 
     exacts = problemSizes[0](conv, z, problemLevel)
-    #print ("exacts=", exacts)
+    if exacts:
+        None
 
 
 @pytest.mark.parametrize("problem_level", [1,2,3,4])
@@ -46,3 +48,5 @@ def test_3d(problem_level):
                       })
 
     exacts = YamlBuilder.ProblemSizes(conv, z, problem_level)
+    if exacts:
+        None
