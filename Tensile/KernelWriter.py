@@ -2048,6 +2048,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
   ##############################################################################
   # Global Read Addresses: Increments A/B
+  # This function declares the increments
   ##############################################################################
   @abc.abstractmethod
   def graIncrements(self, kernel, loopIdx, tP):

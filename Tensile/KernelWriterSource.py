@@ -1450,32 +1450,38 @@ class KernelWriterSource(KernelWriter):
         self.int64Str, tc, loopChar)
     if loopIdx==self.unrollIdx:
       kStr += declStr
-      kStr += "*LOCAL_DEPTHU"
-      if kernel["GlobalSplitU"] > 1 \
-          and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
-        kStr += "*GLOBAL_SPLITU"
+      if not kernel["PackSummationDims"]:
+        # PSD recomputes load address using globalReadIncrementFromBase - so don't subtract increments
+        # from previous iterations here.
+        kStr += "*LOCAL_DEPTHU"
+        if kernel["GlobalSplitU"] > 1 \
+            and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
+          kStr += "*GLOBAL_SPLITU"
     else:
-      # For Source kernel the address moves during the unroll loop
-      # but not during the tail loop - so higher-order summations
-      # need to only subtrace the increments performed in the unroll
-      # loop (truncate the iterations that are handled in tail loop).
-      tmpChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx+1]]
-      if loopIdx+1 == self.unrollIdx:
-        # special case needs to adjust (subtract) address incs made during unroll loop
-        if kernel["GlobalSplitU"] > 1:
-          numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
-          kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
-                  % (numIter, tmpChar) + self.endLine
-          kStr += self.calculateLoopNumIterGsu(kernel, numIter, True)
-          numIter += "*GLOBAL_SPLITU"
-        else:
-          numIter = "size%s/LOCAL_DEPTHU" % tmpChar
+      if kernel["PackSummationDims"]:
         kStr += declStr
-        kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
       else:
-        # other summation that does not immediately wrap the unroll inc:
-        kStr += declStr
-        kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
+        # For Source kernel the address moves during the unroll loop
+        # but not during the tail loop - so higher-order summations
+        # need to only subtract the increments performed in the unroll
+        # loop (truncate the iterations that are handled in tail loop).
+        tmpChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx+1]]
+        if loopIdx+1 == self.unrollIdx:
+          # special case needs to adjust (subtract) address incs made during unroll loop
+          if kernel["GlobalSplitU"] > 1:
+            numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
+            kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
+                    % (numIter, tmpChar) + self.endLine
+            kStr += self.calculateLoopNumIterGsu(kernel, numIter, True)
+            numIter += "*GLOBAL_SPLITU"
+          else:
+            numIter = "size%s/LOCAL_DEPTHU" % tmpChar
+          kStr += declStr
+          kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
+        else:
+          # other summation that does not immediately wrap the unroll inc:
+          kStr += declStr
+          kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
@@ -1827,9 +1833,8 @@ class KernelWriterSource(KernelWriter):
         #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
-      if kernel["PackSummationDims"]:
-        kStr += self.indent + "numIter%s = 0;" % loopChar + self.endLine
-      else:
+      # PSD declares numIter* as local vars and sets by extracting bits from psdIter
+      if not kernel["PackSummationDims"]:
         kStr += self.indent + "numIter%s = size%s" \
             % (loopChar, loopChar)
         if loopIdx == self.unrollIdx:
@@ -1987,7 +1992,8 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Increment A/B
+  # Global Read: Increment either A or B
+  # Called from globalReadIncrementAB below
   ##############################################################################
   def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex, incs=1):
     kStr = ""
@@ -1998,10 +2004,11 @@ class KernelWriterSource(KernelWriter):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
-            kStr += "%sglobalRead%s_%u_%u_%u_%u = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)globalRead%s_%u_%u_%u_%u) + %s*globalReadInc%s%s);%s" \
-                % (self.indent, tc, para, sPara, perp, sPerp, \
-                self.globalPtrStr, self.globalPtrStr, tP["tensorChar"], \
-                para, sPara, perp, sPerp, \
+            globalRead = "globalRead%s_%u_%u_%u_%u" % (tc, para, sPara, perp, sPerp)
+            kStr += "%s%s = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)%s) + %s*globalReadInc%s%s);%s" \
+                % (self.indent, globalRead,
+                self.globalPtrStr, self.globalPtrStr,
+                globalRead,
                 incs, tc, loopChar, \
                 self.endLine)
 
@@ -2053,17 +2060,34 @@ class KernelWriterSource(KernelWriter):
           #      self.endLine)
     return kStr
 
+  def globalReadIncrementFromBase(self, kernel, tP, sumOffset):
+    """ Recompute the address, starting from base address pointer + initial offset + summation offset """
+    kStr = ""
+    tc = tP["tensorChar"]
+    kStr += self.comment("global read inc %s from base"%(tc))
+    for perp in range(0, tP["nrp"]):
+      for sPerp in range(0, tP["nrpv"]):
+        for para in range(0, tP["nrc"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
+            globalRead = "globalRead%s_%u_%u_%u_%u" % (tc, para, sPara, perp, sPerp)
+            kStr += self.indent + \
+                "%s = %s + globalReadOffset%s_%u_%u_%u_%u + %s;" % (
+                  globalRead,
+                  tc,
+                  tc, para, sPara, perp, sPerp,
+                  sumOffset
+                ) + self.endLine
 
+    return kStr
+
+
+  ##############################################################################
+  # Global Read: Increment A and B
+  # Called from KernelWriter
+  # If PackSummationDims=1, this increments all 
+  ##############################################################################
   def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     imod = Code.Module("globalReadIncrementAB%s")
-
-    incA = Code.Module("globalReadIncrementA")
-    incA.addText(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
-    imod.addCode(incA)
-
-    incB = Code.Module("globalReadIncrementB")
-    incB.addText(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
-    imod.addCode(incB)
 
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       kStr = ""
@@ -2073,27 +2097,53 @@ class KernelWriterSource(KernelWriter):
         remainder = "(LOCAL_DEPTHU)"
       else:
         remainder = "(psdIter)"
-      lastChar = unrollChar
-      for os in range(self.otherSummations):
+      for os in reversed(range(problemType["NumIndicesSummation"])):
         # Only get here if we are packing summation dims
         otherSumDim  = problemType["IndicesSummation"][os]
         otherSumChar = self.indexChars[otherSumDim]
-        kStr += self.indent + "unsigned int newNumIter%s = %s/size%s;" % (otherSumChar, remainder, lastChar) + self.endLine
+        firstIter = (os==problemType["NumIndicesSummation"]-1)
+        lastIter  = (os==0)
+        kStr += self.endLine
 
-        if os != self.otherSummations-1:
+        if not lastIter:
+          kStr += self.indent + "unsigned int numIter%s = %s %% size%s;" % (otherSumChar, remainder, otherSumChar) + self.endLine
+
+          # set up remainder for next iteration:
           kStr += self.indent
-          if os==0:
+          if firstIter:
             kStr += "unsigned int "
-          kStr += "psdRemainder = %s %% size%s;" % (remainder, lastChar) + self.endLine
+          kStr += "psdRemainder = %s / size%s;" % (remainder, otherSumChar) + self.endLine
           remainder = "psdRemainder"
+        else:
+          # last iteration:
+          kStr += self.indent + "unsigned int numIter%s = %s;" % (otherSumChar, remainder) + self.endLine
 
-        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPA, prefetchIndex=0, \
-                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
-        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPB, prefetchIndex=0, \
-                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
-        kStr += self.indent + "numIter%s = newNumIter%s;" % (otherSumChar, otherSumChar) + self.endLine
-        lastChar = otherSumChar
-      incB.addText(kStr)
+        for (tc) in ('A','B'):
+          kStr += self.indent
+          if firstIter:
+            kStr += self.int64Str + " psdOffset%s = " % tc
+          else:
+            kStr += "psdOffset%s += " % tc
+          kStr += "numIter%s*globalReadInc%s%s;" % (otherSumChar, tc, otherSumChar)
+          kStr += self.endLine
+
+      # Add the A and B increments:
+      for (tc,tP) in (('A',self.tPA),('B',self.tPB)):
+        # makeSchedule is linked to the modules names - update both together
+        incCode = Code.Module("globalReadIncrement%s"%tc)
+        kStr += self.indent + self.globalReadIncrementFromBase(kernel, tP, "psdOffset%s"%tc)
+        incCode.addText(kStr)
+        kStr = ""
+        imod.addCode(incCode)
+    else:
+      # Non pack-summation-dims code path:
+      incA = Code.Module("globalReadIncrementA")
+      incA.addText(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+      imod.addCode(incA)
+
+      incB = Code.Module("globalReadIncrementB")
+      incB.addText(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
+      imod.addCode(incB)
 
     return imod
 
