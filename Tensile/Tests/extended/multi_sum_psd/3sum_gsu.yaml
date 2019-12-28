@@ -4,7 +4,7 @@ TestParameters:
 GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0
-  NumElementsToValidate: 1
+  NumElementsToValidate: -1
   KernelTime: True
   #PinClocks: True
   SleepPercent: 0
@@ -20,6 +20,7 @@ GlobalParameters:
   PrintTensorB: 0
   PrintTensorD: 0
   CpuThreads: 0
+  NewClient: 2
 
 BenchmarkProblems:
   ########################################
@@ -34,20 +35,12 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 4, 3, 0, 2]
       IndexAssignmentsB: [ 4, 3, 1, 2]
-      # 3 is Cin, 2 is batch index converted to a second summation index
-      #
-      # Standard batched NT is :
-      #  IndicesFree:  [0, 1]  # 0 is H*W, 1 is Cout
-      #  IndicesBatch: [2]  # N, but convert to summation in the config above
-      #  IndicesSum:   [3]
-      #  IndexAssignmentsA:   [3, 0, 2]
-      #  IndexAssignmentsB:   [3, 1, 2]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
-          #- TailLoop: [False]
+        # - LoopTail: [False]
       ForkParameters:
         - PackSummationDims: [1]
         - KernelLanguage: ["Source"]
