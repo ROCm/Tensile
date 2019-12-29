@@ -1918,10 +1918,10 @@ class Solution:
         return
 
     if state["PackSummationDims"] == 1:
-        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
-          reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
+        if state["DepthU"]*state["GlobalSplitU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
         else:
-          state["AssertSummationElementMultiple"] = state["DepthU"]
+          state["AssertSummationElementMultiple"] = state["DepthU"]*state["GlobalSplitU"]
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
