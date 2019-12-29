@@ -28,28 +28,29 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: False
       NumIndicesC: 2
-      IndexAssignmentsA: [ 4, 3, 0, 2]
-      IndexAssignmentsB: [ 4, 3, 1, 2]
+      IndexAssignmentsA: [ 0, 2]
+      IndexAssignmentsB: [ 1, 2]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
+          #- TailLoop: [False]
       ForkParameters:
-        - PackSummationDims: [1]
+        - PackSummationDims: [0,1]
         - KernelLanguage: ["Source"]
-        - PrefetchGlobalRead: [False,True]
-        - GlobalSplitU: [2,4]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - GlobalSplitU: [2]
         - ThreadTile:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
-          - [ 16, 16, 1 ]
-        - StaggerU: [0,32]
-        - DepthU: [ 4,8]
+        - DepthU: [ 4]
         - FractionalLoad: [1]
+        - StaggerUMapping: [0]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [1,2,5], [1,2,5], [16,16,128]]
+          - Exact: [ 64, 64, 8]

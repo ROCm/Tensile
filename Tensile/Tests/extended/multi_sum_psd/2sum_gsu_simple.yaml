@@ -5,8 +5,8 @@ GlobalParameters:
   KernelTime: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  DataInitTypeA: 1
-  DataInitTypeB: 1
+  DataInitTypeA: 3
+  DataInitTypeB: 3
   DataInitTypeC: 4
   DataInitTypeAlpha: 2
   DataInitTypeBeta: 0
@@ -31,33 +31,24 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 3, 0, 2]
       IndexAssignmentsB: [ 3, 1, 2]
-      # 3 is Cin, 2 is batch index converted to a second summation index
-      #
-      # Standard batched NT is :
-      #  IndicesFree:  [0, 1]  # 0 is H*W, 1 is Cout
-      #  IndicesBatch: [2]  # N, but convert to summation in the config above
-      #  IndicesSum:   [3]
-      #  IndexAssignmentsA:   [3, 0, 2]
-      #  IndexAssignmentsB:   [3, 1, 2]
-
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
           #- TailLoop: [False]
       ForkParameters:
-        - PackSummationDims: [1]
+        - PackSummationDims: [0,1]
         - KernelLanguage: ["Source"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
-        - GlobalSplitU: [1]
+        - GlobalSplitU: [2]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
         - StaggerU: [0]
         - StaggerUMapping: [0]
-        - DepthU: [ 8]
+        - DepthU: [ 4]
         - VectorWidth: [1]
         - FractionalLoad: [0]
         - WorkGroupMapping: [1]
@@ -65,6 +56,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 16, 16, 2, 4]
-            #- Exact: [ 16, 16, 2, 5]
-            #- Exact: [ 16, 16, 2, 8]
+          - Exact: [ 16, 16, 2, 8]

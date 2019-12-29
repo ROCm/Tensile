@@ -11,13 +11,13 @@ GlobalParameters:
   DataInitTypeC: 0
   DataInitTypeAlpha: 1
   DataInitTypeBeta: 0
-  PrintSolutionRejectionReason: 1
+  PrintSolutionRejectionReason: 0
   PrintWinnersOnly: 1
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
   CpuThreads: 0
-  NewClient: 1
+  NewClient: 2
 
 BenchmarkProblems:
   ########################################
@@ -37,11 +37,9 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
-          #- TailLoop: [False]
       ForkParameters:
         - PackSummationDims: [1]
         - KernelLanguage: ["Source"]
-        - AggressivePerfMode: [0]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
