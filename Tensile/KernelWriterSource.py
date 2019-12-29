@@ -1609,11 +1609,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def declareLoopNumIter(self, kernel):
     kStr = ""
-    if not kernel["PackSummationDims"]:
-      for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
-        loopChar = self.indexChars[loopIdx]
-        kStr += "%sint numIter%s;%s" \
-            % (self.indent, loopChar, self.endLine)
+    for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
+      loopChar = self.indexChars[loopIdx]
+      kStr += "%sint numIter%s;%s" \
+          % (self.indent, loopChar, self.endLine)
     return kStr
 
 
@@ -1808,19 +1807,15 @@ class KernelWriterSource(KernelWriter):
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
       # PSD declares numIter* as local vars and sets by extracting bits from psdIter
-      if not kernel["PackSummationDims"]:
-        numIter = "numIter%s"%loopChar
-        kStr += self.indent + "%s = size%s" \
-            % (numIter, loopChar)
-        if loopIdx == self.unrollIdx:
+      numIter = "numIter%s"%loopChar
+      kStr += self.indent + "%s = size%s" \
+          % (numIter, loopChar)
+      if not kernel["PackSummationDims"] and loopIdx == self.unrollIdx:
           kStr += " / LOCAL_DEPTHU"
-        kStr += ";" + self.endLine
-      else:
-        numIter = "size%s"%loopChar
+      kStr += ";" + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
-        typeDecl = "unsigned int " if kernel["PackSummationDims"] else ""
-        kStr += self.calculateLoopNumIterGsu(kernel, numIter, typeDecl + "numIter%s"%loopChar, False)
+        kStr += self.calculateLoopNumIterGsu(kernel, numIter, "numIter%s"%loopChar, False)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
 
       zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
@@ -1865,13 +1860,8 @@ class KernelWriterSource(KernelWriter):
     else:
       if kernel["PackSummationDims"] and loopIdx==self.unrollIdx and not tailLoop:
         kStr += self.indent + "unsigned int psdIter=%d*LOCAL_DEPTHU; // packed summation dim iterator" % (kernel["PrefetchGlobalRead"]) + self.endLine
-        if kernel["GlobalSplitU"] == 1:
-          totalIters = "(size%s" % self.unrollChar
-        else:
-          totalIters = "(numIter%s" % self.unrollChar
-        for os in range(self.otherSummations):
-          otherSumChar = self.indexChars[problemType["IndicesSummation"][os]]
-          totalIters += "*size%s" % otherSumChar
+        totalIters = "("
+        totalIters += "*".join(["numIter%s"%(self.indexChars[os]) for os in problemType["IndicesSummation"]])
         totalIters += ")"
         kStr += self.indent \
                 + "while (psdIter < %s) {" % (totalIters) \
