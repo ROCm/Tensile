@@ -1187,8 +1187,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     ########################################
     # Tail Loop
+    # PackSummationDims=1 requires that the tile slice does not cross DepthU
+    # which means tail loop not needed.
     ########################################
-    if kernel["LoopTail"]:
+    if kernel["LoopTail"] and not kernel["PackSummationDims"]:
       kl.append(self.comment3("Tail Loop"))
 
       # Update local write pointers in case the upcoming global reads are writing directly to LDS:
