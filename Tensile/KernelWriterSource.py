@@ -1454,9 +1454,9 @@ class KernelWriterSource(KernelWriter):
         # PSD recomputes load address using globalReadIncrementFromBase - so don't subtract increments
         # from previous iterations here.
         kStr += "*LOCAL_DEPTHU"
-        if kernel["GlobalSplitU"] > 1 \
-            and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
-          kStr += "*GLOBAL_SPLITU"
+      if kernel["GlobalSplitU"] > 1 \
+          and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
+        kStr += "*GLOBAL_SPLITU"
     else:
       if kernel["PackSummationDims"]:
         kStr += declStr
@@ -1472,7 +1472,7 @@ class KernelWriterSource(KernelWriter):
             numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
             kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
                     % (numIter, tmpChar) + self.endLine
-            kStr += self.calculateLoopNumIterGsu(kernel, numIter, True)
+            kStr += self.calculateLoopNumIterGsu(kernel, numIter, numIter, True)
             numIter += "*GLOBAL_SPLITU"
           else:
             numIter = "size%s/LOCAL_DEPTHU" % tmpChar
@@ -1481,7 +1481,8 @@ class KernelWriterSource(KernelWriter):
         else:
           # other summation that does not immediately wrap the unroll inc:
           kStr += declStr
-          kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
+          if not kernel["PackSummationDims"]:
+            kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
@@ -1636,10 +1637,11 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def declareLoopNumIter(self, kernel):
     kStr = ""
-    for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
-      loopChar = self.indexChars[loopIdx]
-      kStr += "%sint numIter%s;%s" \
-          % (self.indent, loopChar, self.endLine)
+    if not kernel["PackSummationDims"]:
+      for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
+        loopChar = self.indexChars[loopIdx]
+        kStr += "%sint numIter%s;%s" \
+            % (self.indent, loopChar, self.endLine)
     return kStr
 
 
@@ -1781,20 +1783,20 @@ class KernelWriterSource(KernelWriter):
   # needs to know the #loop iters as well, so this code allows the
   # code to be replicated in multiple places.
   ##############################################################################
-  def calculateLoopNumIterGsu(self, kernel, iterVar, hidden):
+  def calculateLoopNumIterGsu(self, kernel, srcIterVar, dstIterVar, hidden):
     kStr = ""
     if hidden:
       kStr += self.indent + "{" + self.endLine
     kStr += "%sunsigned int numIterMyWg = %s / GLOBAL_SPLITU;%s" \
-        % (self.indent, iterVar, self.endLine)
+        % (self.indent, srcIterVar, self.endLine)
     kStr += "%sunsigned int numIterPerWgRemainder = %s %% GLOBAL_SPLITU;%s" \
-        % (self.indent, iterVar, self.endLine)
+        % (self.indent, srcIterVar, self.endLine)
     kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
         % (self.indent, self.endLine)
     kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
     kStr += "%s}%s" % (self.indent, self.endLine)
     kStr += "%s%s = numIterMyWg;%s" \
-        % (self.indent, iterVar, self.endLine)
+        % (self.indent, dstIterVar, self.endLine)
     if hidden:
       kStr += self.indent + "}" + self.endLine
     return kStr
@@ -1835,14 +1837,18 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
       # PSD declares numIter* as local vars and sets by extracting bits from psdIter
       if not kernel["PackSummationDims"]:
-        kStr += self.indent + "numIter%s = size%s" \
-            % (loopChar, loopChar)
+        numIter = "numIter%s"%loopChar
+        kStr += self.indent + "%s = size%s" \
+            % (numIter, loopChar)
         if loopIdx == self.unrollIdx:
           kStr += " / LOCAL_DEPTHU"
         kStr += ";" + self.endLine
+      else:
+        numIter = "size%s"%loopChar
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
-        kStr += self.calculateLoopNumIterGsu(kernel, "numIter%s"%self.unrollChar, False)
+        typeDecl = "unsigned int " if kernel["PackSummationDims"] else ""
+        kStr += self.calculateLoopNumIterGsu(kernel, numIter, typeDecl + "numIter%s"%loopChar, False)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
 
       zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
@@ -1887,7 +1893,10 @@ class KernelWriterSource(KernelWriter):
     else:
       if kernel["PackSummationDims"] and loopIdx==self.unrollIdx and not tailLoop:
         kStr += self.indent + "unsigned int psdIter=%d*LOCAL_DEPTHU; // packed summation dim iterator" % (kernel["PrefetchGlobalRead"]) + self.endLine
-        totalIters = "(size%s" % self.unrollChar
+        if kernel["GlobalSplitU"] == 1:
+          totalIters = "(size%s" % self.unrollChar
+        else:
+          totalIters = "(numIter%s" % self.unrollChar
         for os in range(self.otherSummations):
           otherSumChar = self.indexChars[problemType["IndicesSummation"][os]]
           totalIters += "*size%s" % otherSumChar
@@ -2103,20 +2112,22 @@ class KernelWriterSource(KernelWriter):
         otherSumChar = self.indexChars[otherSumDim]
         firstIter = (os==problemType["NumIndicesSummation"]-1)
         lastIter  = (os==0)
-        kStr += self.endLine
 
+        kStr += self.endLine
+        sizeToExtract = "numIter%s"%otherSumChar if firstIter and kernel["GlobalSplitU"]>1 else "size%s"%otherSumChar
         if not lastIter:
-          kStr += self.indent + "unsigned int numIter%s = %s %% size%s;" % (otherSumChar, remainder, otherSumChar) + self.endLine
+          kStr += self.indent + "unsigned int iter%s = %s %% %s;" % (otherSumChar, remainder, sizeToExtract) + self.endLine
 
           # set up remainder for next iteration:
           kStr += self.indent
+
           if firstIter:
             kStr += "unsigned int "
-          kStr += "psdRemainder = %s / size%s;" % (remainder, otherSumChar) + self.endLine
+          kStr += "psdRemainder = %s / %s;" % (remainder, sizeToExtract) + self.endLine
           remainder = "psdRemainder"
         else:
           # last iteration:
-          kStr += self.indent + "unsigned int numIter%s = %s;" % (otherSumChar, remainder) + self.endLine
+          kStr += self.indent + "unsigned int iter%s = %s;" % (otherSumChar, remainder) + self.endLine
 
         for (tc) in ('A','B'):
           kStr += self.indent
@@ -2124,10 +2135,10 @@ class KernelWriterSource(KernelWriter):
             kStr += self.int64Str + " psdOffset%s = " % tc
           else:
             kStr += "psdOffset%s += " % tc
-          kStr += "numIter%s*globalReadInc%s%s;" % (otherSumChar, tc, otherSumChar)
+          kStr += "iter%s*globalReadInc%s%s;" % (otherSumChar, tc, otherSumChar)
           kStr += self.endLine
 
-      # Add the A and B increments:
+      # Add the psdOffsets for A and B:
       for (tc,tP) in (('A',self.tPA),('B',self.tPB)):
         # makeSchedule is linked to the modules names - update both together
         incCode = Code.Module("globalReadIncrement%s"%tc)
