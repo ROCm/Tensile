@@ -43,7 +43,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - PackSummationDims: [1]
+        - PackSummationDims: [0,1]
         - KernelLanguage: ["Source"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False,True]
