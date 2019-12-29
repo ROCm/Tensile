@@ -263,13 +263,16 @@ validParameters = {
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
+    # Split the unroll summation into multiple sections and combine the sections
+    # GSU applies only to the unroll summation dimension
+    "GlobalSplitU":               list(range(1, 1024+1)),
+
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
     # GSUWGMRR=False means workgroup 0,1,2,3 will all work on the same tile; =True means workgroup 0, N-1, 2N-1, 3N-1 will all work on the same tile
+    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     # GSUSARR=False means the 4 workgroups do whole chunks of the summation: k=0 -> K/4-1, k=K/4 -> 2K/4-1, k=2K/4 -> 3K/4-1, k=3K/4 -> 4K/4-1
     # GSUSARR=True means the 4 workgroups round robin split up the chunks of the summation: k=0 -> DU-1, 4DU -> 5DU-1, ...; k=1DU -> 2DU-1, 5DU -> 6DU-1...; ...
-    "GlobalSplitU":               list(range(1, 1024+1)),
-    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     # in opencl for some compilers, performance improved by putting a memfence after each subiteration; it prevented the loads of one subiteration from being moved
