@@ -29,6 +29,11 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup Tensile
+     * \addtogroup Utilities
+     * @{
+     */
     template <typename T>
     struct TENSILE_API vector2
     {
@@ -105,5 +110,9 @@ namespace Tensile
 
     using dim3 = vector3<size_t>;
     using int3 = vector3<int>;
+
+    /**
+     * @}
+     */
 }
 

@@ -28,6 +28,9 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup DataTypes
+     */
     struct Int8x4
     {
         Int8x4(int8_t xa, int8_t xb, int8_t xc, int8_t xd) : a(xa), b(xb), c(xc), d(xd) {};

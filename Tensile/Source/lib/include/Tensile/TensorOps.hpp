@@ -27,13 +27,17 @@
 
 namespace Tensile
 {
+    /**
+     * \addtogroup Problem
+     * @{
+     */
 
     using TensorOps = std::vector<TensorOp>;
 
     /**
-     * Represents a tensor operation that can be performed inline to a kernel.  For now can represent
-     * a complex conjugate but this could be where we represent inline activation layers
-     * later.
+     * Represents a tensor operation that can be performed inline to a kernel.
+     * For now can represent a complex conjugate but this could be where we
+     * represent inline activation layers later.
      */
     class TENSILE_API TensorOp
     {
@@ -82,4 +86,8 @@ namespace Tensile
 
     std::ostream& operator<<(std::ostream& stream, TensorOp::Type const& t);
     std::istream& operator>>(std::istream& stream, TensorOp::Type      & t);
+
+    /**
+     * @}
+     */
 }

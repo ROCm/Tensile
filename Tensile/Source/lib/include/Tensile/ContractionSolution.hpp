@@ -35,6 +35,13 @@
 namespace Tensile
 {
 
+    /**
+     * Represents a single kernel or set of kernels that can perform a single
+     * tensor contraction.
+     * 
+     * Can generate `KernelInvocation` objects to solve a particular problem
+     * given a set of `ContractionInputs`.
+     */
     class ContractionSolution: public Solution
     {
     public:
@@ -50,12 +57,14 @@ namespace Tensile
 
         bool isSourceKernel() const;
 
+        /**
+         * Calculate the projected performance based on granularity loss.
+         */
         virtual double projectedPerformance(Problem const& problem, Hardware const& hardware) const;
 
-        bool solves(Problem const& problem,
-                    Problem  const& inputs,
-                    Hardware    const& hardware) const;
-
+        /**
+         * Generate a set of kernel calls to solve a particular problem.
+         */
         virtual std::vector<KernelInvocation> solve(Problem  const& problem,
                                                     Inputs   const& inputs,
                                                     Hardware const& hardware) const;

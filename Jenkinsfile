@@ -29,7 +29,7 @@ import java.nio.file.Path;
 tensileCI:
 {
     def tensile = new rocProject('Tensile')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DCMAKE_CXX_FLAGS=-Werror -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(['gfx900 && ubuntu', 'gfx906 && ubuntu', 'gfx908 && ubuntu'], tensile)
 
@@ -58,9 +58,19 @@ tensileCI:
                     popd
                     tox --version
                     tox -v --workdir /tmp/.tensile-tox -e lint
+
+                    doxygen docs/Doxyfile
                     """
 
             platform.runCommand(this, command)
+
+            publishHTML([allowMissing: false,
+                         alwaysLinkToLastBuild: false,
+                         keepAll: false,
+                         reportDir: "${project.paths.project_build_prefix}/docs/html",
+                         reportFiles: 'index.html',
+                         reportName: 'Documentation',
+                         reportTitles: 'Documentation'])
         }
         finally
         {

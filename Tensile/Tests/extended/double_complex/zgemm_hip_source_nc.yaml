@@ -32,7 +32,7 @@ BenchmarkProblems:
           - [ 4, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
-          - [ 32,  4,  1 ]
+          #  - [ 32,  4,  1 ]  # temporarily disabled due to compiler regression starting ROCm 2.10
         - DepthU: [8]
         - VectorWidth: [-1]
       BenchmarkForkParameters:

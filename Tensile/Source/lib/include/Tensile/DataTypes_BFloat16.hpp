@@ -40,6 +40,11 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup DataTypes
+     * @{
+     */
+
     struct BFloat16
     {
         BFloat16()
@@ -147,6 +152,10 @@ namespace Tensile
 
     inline BFloat16 operator++(BFloat16& a) { a += BFloat16(1); return a; }
     inline BFloat16 operator++(BFloat16& a, int) { BFloat16 original_value = a; ++a; return original_value;}
+
+    /**
+     * @}
+     */
 }
 
 namespace std

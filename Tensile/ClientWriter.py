@@ -74,7 +74,7 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
         globalParameters["WorkingPath"] )
-
+  
   ##############################################################################
   # Read Logic Files
   ##############################################################################
@@ -164,6 +164,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
     runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
     runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
     runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+    runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
     if globalParameters["EnableHalf"]:
       runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
     if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
