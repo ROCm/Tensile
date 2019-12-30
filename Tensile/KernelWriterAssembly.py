@@ -1105,8 +1105,9 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
-    if kernel["MatrixInstruction"]:
-      localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+    #bf16mfma todo
+    #if kernel["MatrixInstruction"]:
+    #  localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1127,8 +1128,10 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
-    if kernel["MatrixInstruction"]:
-      localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+    #bf16mfma todo
+    #if kernel["MatrixInstruction"]:
+    #  localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
     self.localReadStrideCoalescedB = \
@@ -5282,6 +5285,17 @@ class KernelWriterAssembly(KernelWriter):
             # TODO Broadcast code
             #kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u] blgp:%u%s" \
             #  % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, bStr, aStr, accStart, accEnd, a, self.endLine)
+    elif kernel["ProblemType"]["DataType"].isBFloat16():
+      for b in range(0, self.numColInsts):
+        for a in range(0, self.numRowInsts):
+          for iui in range(0, innerUnroll):
+            accIdx = b * self.numRowInsts + a
+            accStart = accIdx * self.destAgprs
+            accEnd = accStart + self.destAgprs - 1
+            aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
+            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
+            kStr += "v_mfma_f32_%ux%ux%ubf16 a[%u:%u], %s, %s, a[%u:%u]%s" \
+              % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
     return kStr
 
   ##############################################################################
@@ -8653,7 +8667,8 @@ class KernelWriterAssembly(KernelWriter):
               "WARNING" if self.ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay")
         if self.ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = self.ss.cfg.numElementsPerBatchLimitedBySgprs
-
+        #bf16mfma todo
+        '''
         if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
           # only do an even number of halves - since these share hi/lo pieces of some registers?
           if numElementsPerBatch > 1:
@@ -8704,11 +8719,11 @@ class KernelWriterAssembly(KernelWriter):
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
-          kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
-              elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
-              tmpVgpr, \
-              elementSgprs, tmpSgpr)
-
+          #kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
+          #    elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
+          #    tmpVgpr, \
+          #    elementSgprs, tmpSgpr)
+        '''
         # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
 
