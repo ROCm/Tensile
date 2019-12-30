@@ -65,6 +65,8 @@ BenchmarkProblems:
         - GlobalSplitU: [1]
         - DepthU: [8]
         - VectorWidth: [-1]
+        - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

@@ -1106,8 +1106,11 @@ class KernelWriterAssembly(KernelWriter):
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
     #bf16mfma todo
-    #if kernel["MatrixInstruction"]:
-    #  localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+    if kernel["MatrixInstruction"]:
+      if kernel["ProblemType"]["DataType"].isBFloat16():
+        localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
+      else:
+        localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1129,8 +1132,11 @@ class KernelWriterAssembly(KernelWriter):
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
     #bf16mfma todo
-    #if kernel["MatrixInstruction"]:
-    #  localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+    if kernel["MatrixInstruction"]:
+      if kernel["ProblemType"]["DataType"].isBFloat16():
+        localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
+      else:
+        localReadWidth = tPB["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -7622,6 +7628,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["MatrixInstruction"]:
       ##TODO remove and use VectorWidth once VW mapping of TT is done
       fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+      mfmaColStoreVw = 1 #TODO check can hardcode or not
       elementsLoadedPerfullVw = kernel["NumThreads"]*fullVw
       elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
       if elementsLoadedPervw > elementsLoadedPerfullVw:
@@ -7647,8 +7654,8 @@ class KernelWriterAssembly(KernelWriter):
       numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
       #re-adjust columnBlock for  4x4mfma
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
-      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
-        for vc1 in range(0, kernel["VectorWidth"]):
+      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//mfmaColStoreVw)*numcolBlocksperInstruction)) :
+        for vc1 in range(0, mfmaColStoreVw):
           for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//fullVw):
             for vc0 in range(0, kernel["StoreVectorWidth"], fullVw):
               element = (tt1, tt0, vc1, vc0)
@@ -7694,6 +7701,7 @@ class KernelWriterAssembly(KernelWriter):
       #  edgeVw = kernel["StoreVectorWidth"]
 
     if kernel["MatrixInstruction"]:
+      mfmaColStoreVw = 1 #TODO check can hardcode or not
       #numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
       ## number of rregisters required for row/block
       #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
@@ -7703,8 +7711,8 @@ class KernelWriterAssembly(KernelWriter):
       numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
       #re-adjust columnBlock for  4x4mfma
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
-      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
-        for vc1 in range(0, kernel["VectorWidth"]):
+      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//mfmaColStoreVw)*numcolBlocksperInstruction)) :
+        for vc1 in range(0, mfmaColStoreVw):
           for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//kernel["StoreVectorWidth"]):
             for vc0 in range(0, kernel["StoreVectorWidth"], edgeVw):
               element = (tt1, tt0, vc1, vc0)
@@ -8013,8 +8021,9 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["MatrixInstruction"]:
             # calculate how many row registers need for each block
             # for MFMA 4x4, we would write all blocks ijn single storevectorWidth write 
+            mfmaColStoreVw = 1 #TODO check can hardcode or not
             numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"]) // globalParameters["WavefrontWidth"]
-            sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofDstRgs*kernel["VectorWidth"]
+            sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofDstRgs*mfmaColStoreVw
           else:
             sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
@@ -8640,7 +8649,6 @@ class KernelWriterAssembly(KernelWriter):
               print("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
                   % (self.kernelName, gwvwOrig, gwvw, currentOccupancy))
 
-
           if numVgprAvailable < minElements*numVgprsPerElement:
             print("info: growing pool += %d * %d for GlobalWrite\n" \
                 % (minElements,numVgprsPerElement))
@@ -8667,8 +8675,7 @@ class KernelWriterAssembly(KernelWriter):
               "WARNING" if self.ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay")
         if self.ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = self.ss.cfg.numElementsPerBatchLimitedBySgprs
-        #bf16mfma todo
-        '''
+
         if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
           # only do an even number of halves - since these share hi/lo pieces of some registers?
           if numElementsPerBatch > 1:
@@ -8719,11 +8726,10 @@ class KernelWriterAssembly(KernelWriter):
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
-          #kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
-          #    elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
-          #    tmpVgpr, \
-          #    elementSgprs, tmpSgpr)
-        '''
+          kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
+              elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
+              tmpVgpr, \
+              elementSgprs, tmpSgpr)
         # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
 
