@@ -1574,7 +1574,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     self.totalAgprs = 0
     if "MatrixInstM" in kernel:
-      numRowsPerMfma = kernel["MatrixInstK"]
+      numRowsPerMfma = 1 #kernel["MatrixInstK"] #should not use K
       numColsPerMfma = kernel["MatrixInstN"]
       self.numRowInsts = kernel["ThreadTile0"] // numRowsPerMfma
       self.numColInsts = kernel["ThreadTile1"] // numColsPerMfma
