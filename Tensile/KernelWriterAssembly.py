@@ -9835,13 +9835,14 @@ class KernelWriterAssembly(KernelWriter):
     numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
     numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     numRowInstructions = kernel["ThreadTile0"]
+    mfmaStoreVw = 1 #Todo check it can be other case or not
 
-    for ColInstIter in range (ColInstIdx, numColInstructions,kernel["VectorWidth"]) :
+    for ColInstIter in range (ColInstIdx, numColInstructions, mfmaStoreVw) :
       for ColblkIter in range (0, numColBlocks) :
-        for RowInstIter in range (RowInstIdx, numRowInstructions,kernel["VectorWidth"]) :
+        for RowInstIter in range (RowInstIdx, numRowInstructions, mfmaStoreVw) :
           for RowblkIter in range (0, numRowblocks) :
             for RegIter in range (0, numRowsPerBlock) :
-              for VwIter in range (0,kernel["VectorWidth"]) :
+              for VwIter in range (0, mfmaStoreVw) :
                 AccRegIdx = self.startVgprValuC + VwIter*self.destAgprs + RegIter + RowblkIter*numRowsPerBlock + RowInstIter*self.destAgprs + ColblkIter*(self.destAgprs//numColBlocks) + ColInstIter*numRowInstructions*self.destAgprs
                 kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%VgprRegIdx), "acc%u"%AccRegIdx, "copy areg to vreg")
                 VgprRegIdx = VgprRegIdx + 1
