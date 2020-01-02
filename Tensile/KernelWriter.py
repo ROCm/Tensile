@@ -2700,7 +2700,8 @@ for codeObjectFileName in codeObjectFileNames:
   ##############################################################################
 
   ##############################################################################
-  # Get Name
+  # Get Name, this is used for the GSU initialization kernels
+  # Client code looks for these specific names so must remain synced.
   ##############################################################################
   def getKernelNameBetaOnly(self, kernel):
     indexChars = globalParameters["IndexChars"]
@@ -2711,8 +2712,6 @@ for codeObjectFileName in codeObjectFileNames:
     name += "_"
     name += kernel["ProblemType"]["DataType"].toChar()
     if kernel["ProblemType"]["UseBeta"]: name += "B"
-    if kernel["ProblemType"]["UseInitialStridesAB"]: name += "I"
-    if kernel["ProblemType"]["UseInitialStridesCD"]: name += "Ic"
     return name
 
   @abc.abstractmethod
