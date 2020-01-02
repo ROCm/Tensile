@@ -9,7 +9,7 @@ args={}
 TestConfig=namedtuple("TestConfig", "solution problem_func")
 Runner=namedtuple("Runner", "func solution")
 
-solutions = ["src1","asm3","asm3_pbd", "asm3_splitu"]
+solutions = ["src1", "src5_gsu", "asm3","asm3_pbd", "asm3_splitu"]
 #solutions = ["asm3"]
 
 # shortcuts for setting parameters in tests:

@@ -4,6 +4,8 @@ import yaml
 
 class Solutions:
 
+    # If adding new solutions, update 'solutions' in conftest.py
+
     @classmethod
     def commonSetup(cls):
         return {
@@ -33,7 +35,30 @@ class Solutions:
                     {"DepthU": [8]},
                     {"GlobalReadVectorWidth": [1]},
                     {"VectorWidth": [1]},
-                    {"FractionalLoad": [0]}
+                ]
+
+        return s
+
+    @classmethod
+    def src5_gsu(cls):
+        # Has GSU configs + some other options.
+        s = cls.commonSetup()
+
+        s["ForkParameters"] = \
+                [
+                    {"PrefetchGlobalRead": [0]},
+                    {"KernelLanguage": ["Source"]},
+                    {"ThreadTile": [
+                        [ 8, 8 ]
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 16, 1 ]
+                        ]},
+                    {"DepthU": [4]},
+                    {"PackSummationDims": [0,1]},
+                    {"GlobalSplitU": [1,2,4]},
+                    {"GlobalReadVectorWidth": [1,-1]},
+                    {"VectorWidth": [1,-1]},
                 ]
 
         return s
@@ -113,7 +138,7 @@ class Solutions:
                         ]},
                     {"DepthU": [8]},
                     {"GlobalReadVectorWidth": [-1]},
-                    {"GlobalSplitU": [1,2,3,5,7]},
+                    {"GlobalSplitU": [1,2,3,4,8]},
                     {"VectorWidth": [1,4]},
                     {"PackBatchDims": [1]},
                     {"FractionalLoad": [0,1]}
