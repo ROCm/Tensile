@@ -69,8 +69,8 @@ function(TensileCreateLibraryFiles
         Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
 
   # Tensile_ROOT can be specified instead of using the installed path.
-  set(options NO_MERGE_FILES SHORT_FILE_NAMES GENERATE_PACKAGE)
-  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX)
+  set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
+  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX CODE_OBJECT_VERSION COMPILER ARCHITECTURE)
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -95,6 +95,12 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-short-file-names")
   endif()
 
+  if(Tensile_PRINT_DEBUG)
+    set(Options ${Options} "--library-print-debug")
+  else()
+    set(Options ${Options} "--no-library-print-debug")
+  endif()
+  
   if(Tensile_EMBED_LIBRARY STREQUAL "")
   else()
     set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
@@ -105,6 +111,18 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--embed-library-key=${Tensile_EMBED_KEY}")
   endif()
 
+  if(Tensile_CODE_OBJECT_VERSION)
+    set(Options ${Options} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
+  endif()
+ 
+  if(Tensile_COMPILER)
+    set(Options ${Options} "--cxx-compiler=${Tensile_COMPILER}")
+  endif()
+  
+  if(Tensile_ARCHITECTURE)
+    set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
+  endif()
+  
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
@@ -139,5 +157,4 @@ function(TensileCreateLibraryFiles
   endif()
 
 endfunction()
-
 

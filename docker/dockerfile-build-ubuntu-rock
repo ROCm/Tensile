@@ -12,7 +12,6 @@ ARG user_uid
 # Install dependent packages
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     rock-dkms \
-    rocm_smi64 \
     cmake \
     ca-certificates \
     doxygen \

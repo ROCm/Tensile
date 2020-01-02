@@ -29,10 +29,12 @@ function(TensileCreateLibraryCmake
     Tensile_RUNTIME_LANGUAGE
     Tensile_COMPILER
     Tensile_CODE_OBJECT_VERSION
+    Tensile_ARCHITECTURE
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
-# make Tensile_PACKAGE_LIBRARY and optional parameter 
+
+# make Tensile_PACKAGE_LIBRARY and optional parameter
 # to avoid breaking applications which us this
   if (ARGN)
     list (GET ARGN 0 Tensile_PACKAGE_LIBRARY)
@@ -41,9 +43,12 @@ function(TensileCreateLibraryCmake
     set(Tensile_PACKAGE_LIBRARY OFF)
     set(Tensile_INCLUDE_LEGACY_CODE ON)
   endif()
+
   set(options PACKAGE_LIBRARY Tensile_INCLUDE_LEGACY_CODE)
+  message(STATUS "Tensile_RUNTIME_LANGUAGE    from TensileCreateLibraryCmake : ${Tensile_RUNTIME_LANGUAGE}")
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
+  message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
 
   set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
@@ -61,10 +66,10 @@ function(TensileCreateLibraryCmake
   if(${Tensile_PACKAGE_LIBRARY})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--package-library")
   endif()
- 
+
   if( NOT ${Tensile_INCLUDE_LEGACY_CODE})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-legacy-components")
-  endif()  
+  endif()
 
   if(${Tensile_SHORT_FILE_NAMES})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--short-file-names")
@@ -78,6 +83,7 @@ function(TensileCreateLibraryCmake
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
 
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--architecture=${Tensile_ARCHITECTURE}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--cxx-compiler=${Tensile_COMPILER}")
 
@@ -125,7 +131,11 @@ function(TensileCreateLibraryCmake
     set(options)
     add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
     # specify gpu targets
-    set(Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
+    if( Tensile_ARCHITECTURE MATCHES "all" )
+      set( Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
+    else()
+      set( Tensile_HIP_ISA ${Tensile_ARCHITECTURE})
+    endif()
     foreach( target ${Tensile_HIP_ISA} )
       target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
     endforeach()
