@@ -947,6 +947,10 @@ defaultProblemType = {
     "UseInitialStridesAB":      False,  # use initial strides for AB.
     "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
 
+    "AllowNoFreeDims":          False,  # allow A or B to specify no free dims
+                                        # (if false, A and B must have at least one free dim)
+                                        # (if true, A and B must have at least one free or batch dim)
+
     # SetConstStride* sets the specified stride in the problem.
     # These no longer generate predicates - see AssertStrideEqualA/B below
     # List of pairs of [index, constValue].

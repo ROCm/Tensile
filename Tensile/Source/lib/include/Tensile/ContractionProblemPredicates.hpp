@@ -188,8 +188,11 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeA(0) >= value
-                        && problem.freeSizeB(0) >= value;
+                    // TODO: this is not quite right since it assumes batchSize(0) is lowest order in index assignments
+                    //   If tensor contains multiple batch dims this may not be true.
+                    //   Really should modify Contractions.py to select SizeN >= value, based on desired index requirement
+                    return problem.freeIndicesA().size() ? problem.freeSizeA(0) >= value : problem.batchSize(0) >= value
+                        && problem.freeIndicesB().size() ? problem.freeSizeB(0) >= value : problem.batchSize(0) >= value;
                 }
             };
 
