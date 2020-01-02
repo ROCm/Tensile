@@ -29,6 +29,7 @@
 #include <memory>
 #include <shared_mutex>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <Tensile/Macros.hpp>
@@ -181,13 +182,13 @@ namespace Tensile
             return nullptr;
         }
 
-        void add (MyProblemKey key, std::shared_ptr<MySolution> entry)
+        std::shared_ptr<MySolution> add (MyProblemKey key, std::shared_ptr<MySolution> entry)
         {
             // Acquire an exclusive lock for modifying map
             std::lock_guard<std::shared_timed_mutex> lock(mutex);
 
-            // If doesn't already exist, insert tuple by moving
-            problemMap.emplace(key, entry);
+            // If doesn't already exist, insert tuple
+            return problemMap.emplace(key, entry).first->second;
         }
 
 

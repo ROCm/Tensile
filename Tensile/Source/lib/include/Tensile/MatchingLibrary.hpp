@@ -76,14 +76,9 @@ namespace Tensile
                     return library->findBestSolution(problem, hardware);
                 };
 
-            auto closestEntry = table->findBestMatch(problem, transform);
+            std::shared_ptr<MySolution> closestEntry = table->findBestMatch(problem, transform);
 
-            if (closestEntry == nullptr)
-                return closestEntry;
-
-            problemMap.add(pkey, closestEntry);
-
-            return closestEntry;
+            return problemMap.add(pkey, closestEntry);
         }
 
         virtual std::shared_ptr<MySolution>
