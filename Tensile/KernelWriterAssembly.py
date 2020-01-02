@@ -2886,8 +2886,8 @@ class KernelWriterAssembly(KernelWriter):
 
         # tile index or unroll vgpr or summation
         # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
-        if indices[i] == kernel["ProblemType"]["Index0"] \
-            or indices[i] == kernel["ProblemType"]["Index1"] \
+        if     tc in ('A','C') and indices[i] == kernel["ProblemType"]["Index0"] \
+            or tc in ('B','C') and indices[i] == kernel["ProblemType"]["Index1"] \
             or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
           kStr += " vgprOffset%s" % idxChars[i]
           calcDims.append(i)
@@ -3850,6 +3850,7 @@ class KernelWriterAssembly(KernelWriter):
   def graFinalOffsets(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
+    problemType = kernel["ProblemType"]
     tVW = 1
     tVS = 0
     uVW = 1
@@ -3878,13 +3879,14 @@ class KernelWriterAssembly(KernelWriter):
 
             if graIdx==0 or not kernel["UseSgprForGRO"]:
               # emit global offset macro
+              # TODO -refactor this and macro def to pass all indices, use the ones we need
               if kernel["BufferLoad"]:
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
               else:
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
               packedIter = 0 #iterator through ia
               for i in tP["ia"]:
-                if i < kernel["ProblemType"]["NumIndicesC"]:
+                if i < problemType["NumIndicesC"]:
                   if i == tP["tileIdx"]:
                     kStr += ", %2u" % vgprTile
                   else:
@@ -3898,7 +3900,7 @@ class KernelWriterAssembly(KernelWriter):
                       if not kernel["BufferLoad"]:  # buffer load adds these to SRD not the GLOBAL_OFFSET here
                         kStr += ", sgprWorkGroup%u"%i
                 else: # summation index
-                  if i == kernel["ProblemType"]["IndexUnroll"]:
+                  if i == problemType["IndexUnroll"]:
                     kStr += ", %2u" % vgprUnroll
                   # other summation indices are ignored
 
@@ -3942,7 +3944,7 @@ class KernelWriterAssembly(KernelWriter):
               if tP["tlu"]:
                 tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
-                unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
+                unrollSummation = [ i for i in tP["ia"] if i in problemType["IndicesSummation"] ]
                 strideU = "Stride%s%s"%(tc,self.indexChars[unrollSummation[-1]])
                 kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideU), unrollStride, \
                              "compute offset diff (scaled unrollDim)")
@@ -3952,7 +3954,6 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
-                assert(len([i for i in tP['ia'] if i in kernel["ProblemType"]["IndicesFree"] ]) == 1) # only one free index supported on this path
                 strideF = "Stride%s%s"%(tc,self.indexChars[tP['tileIdx']])
                 kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideF), tileStride, \
                              "compute offset diff (scaled tileDim)")

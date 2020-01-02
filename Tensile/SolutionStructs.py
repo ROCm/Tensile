@@ -89,7 +89,7 @@ class Convolution:
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
         'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStridesAB', \
+        'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
         'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
@@ -364,6 +364,8 @@ class Convolution:
                                   formatA, formatB, formatD,
                                   ndim=cdim, cdim=ndim, kdim=kdim, sdims=fdims, fdims=sdims, \
                                   fil=self.stride, stride=self.filter, dilation=self.dilation)
+      if not fdims:
+        problemTypeOut["AllowNoFreeDims"] = True
 
     # convert from convolution order to tensor order:
     self.regDimsA.reverse()
@@ -841,11 +843,9 @@ class ProblemType:
       inA = i in state["IndexAssignmentsA"]
       inB = i in state["IndexAssignmentsB"]
       if inA and inB:
-        #state["NumIndicesBatch"] = (i+1)-state["NumIndicesFree"]
         state["IndicesBatch"].append(i)
 
       elif inA or inB:
-        #state["NumIndicesFree"] = (i+1)
         state["IndicesFree"].append(i)
       else:
         printExit("invalid index %u (inC but not (inA or inB))" % i)
@@ -855,7 +855,6 @@ class ProblemType:
       inA = i in state["IndexAssignmentsA"]
       inB = i in state["IndexAssignmentsB"]
       if inA and inB:
-        #state["NumIndicesSummation"] = (i+1)-state["NumIndicesC"]
         state["IndicesSummation"].append(i)
       else:
         printExit("invalid index %u (expected summation but not (inA and inB))" % i)
@@ -875,8 +874,8 @@ class ProblemType:
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
-    if state["NumIndicesFree"] < 2 :
-      printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
+    if not state["AllowNoFreeDims"] and state["NumIndicesFree"] < 2 :
+      printExit("Tensile requires >= 2 free indices; FreeIndices=%s."% state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -892,18 +891,15 @@ class ProblemType:
     #print2("IndexUnrollB: %u" % state["IndexUnrollB"])
 
     # assign d0, d1
-    state["Index01A"] = -1
-    state["Index01B"] = -1
-    for i in state["IndexAssignmentsA"]:
-      if i in state["IndicesFree"]:
-        state["Index01A"] = i
-        break
-    for i in state["IndexAssignmentsB"]:
-      if i in state["IndicesFree"]:
-        state["Index01B"] = i
-        break
+    if state["AllowNoFreeDims"]:
+      dimList = state["IndicesFree"] + state["IndicesBatch"]
+    else:
+      dimList = state["IndicesFree"]
+    state["Index01A"] = [i for i in state["IndexAssignmentsA"] if i in dimList][0]
+    state["Index01B"] = [i for i in state["IndexAssignmentsB"] if i in dimList][0]
     #print2("Index01A: %u" % state["Index01A"])
     #print2("Index01B: %u" % state["Index01B"])
+    # Store code is optimized for 0 as the fastest-moving in memory
     # whichever has lower stride in C (lower value), is 0, other is 1
     if state["Index01A"] < state["Index01B"]:
       state["Index0"]  = state["Index01A"]
@@ -936,7 +932,6 @@ class ProblemType:
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
     #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
-
 
 
   ########################################
@@ -1814,6 +1809,13 @@ class Solution:
           if pair != '':
               (index,value)=[int(x) for x in pair.split(':')]
               state[destKey][index] = value
+
+
+    for (tc,batchMask) in (('A', 0x1), ('B', 0x2)):
+      freeDims = [i for i in problemType["IndexAssignments%s"%tc] if i in problemType["IndicesFree"]]
+      if not freeDims and (not problemType["AllowNoFreeDims"] or not (state["PackBatchDims"] & batchMask)):
+        reject(state, "tensor%s contains no free indices.  Set AllowNoFreeDims and PackBatchDims&%s" % (tc, batchMask))
+        return False
 
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
     # The order in PackedC*Indices also determines the order that dimensions are packed - the first elements in
