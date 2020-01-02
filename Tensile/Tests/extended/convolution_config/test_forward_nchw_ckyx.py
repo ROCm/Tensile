@@ -21,8 +21,8 @@ def test_ckyx_1x1(run_convolution_level,problemSizes):
 
     solutionName = run_convolution_level.solution.__name__
     if (solutionName == "asm3_pbd" or solutionName=="asm3_splitu") and \
-       problemSizes[0] == YamlBuilder.ProblemSizesResNet:
-        pytest.skip("bug with asm splitu")
+        problemSizes[0] == YamlBuilder.ProblemSizesResNet:
+            pytest.skip("bug with ckyx mode?")
 
     run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
@@ -40,9 +40,6 @@ def test_ckyx_1x1_nopack(run_convolution_level):
     assert(z['IndexAssignmentsB']==[2, 4, 3])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
-
-    if run_convolution_level.solution.__name__ == "asm3_splitu":
-        pytest.skip("bug with asm splitu")
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
