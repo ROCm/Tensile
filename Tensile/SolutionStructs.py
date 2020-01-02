@@ -1907,6 +1907,7 @@ class Solution:
           reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
         else:
           state["AssertSummationElementMultiple"] = state["DepthU"]*state["GlobalSplitU"]
+        state["StaggerU"] = 0 # not supported with PSD, bug is maybe something with LOCAL_OFFSET scaling of the stagger vars
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
