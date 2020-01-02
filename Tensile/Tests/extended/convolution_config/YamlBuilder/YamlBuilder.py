@@ -33,6 +33,7 @@ class Solutions:
                         [  8, 8, 1 ]
                         ]},
                     {"DepthU": [8]},
+                    {"PackBatchDims": [1]}, # required to handle some Backward-Weights cases
                     {"GlobalReadVectorWidth": [1]},
                     {"VectorWidth": [1]},
                 ]
@@ -55,6 +56,7 @@ class Solutions:
                         [  8, 16, 1 ]
                         ]},
                     {"DepthU": [4]},
+                    {"PackBatchDims": [0,1]},
                     {"PackSummationDims": [0,1]},
                     {"GlobalSplitU": [1,2,4]},
                     {"GlobalReadVectorWidth": [1,-1]},
@@ -86,7 +88,7 @@ class Solutions:
         return s
 
     @classmethod
-    def asm3(cls):
+    def asm3_pbd(cls):
         s = cls.commonSetup()
 
         s["ForkParameters"] = \
@@ -105,15 +107,10 @@ class Solutions:
                     {"DepthU": [8]},
                     {"GlobalReadVectorWidth": [-1]},
                     {"VectorWidth": [1,4]},
-                    {"FractionalLoad": [0,1]}
+                    {"FractionalLoad": [0,1]},
+                    {"PackBatchDims": [0,1]},
                 ]
 
-        return s
-
-    @classmethod
-    def asm3_pbd(cls):
-        s = cls.asm3()
-        s["ForkParameters"].append({"PackBatchDims":  [1]})
         return s
 
     @classmethod
@@ -148,7 +145,7 @@ class Solutions:
 
     @classmethod
     def defaultSolution(cls):
-        return cls.asm3
+        return cls.asm3_pbd
 
 class YamlBuilder:
 
@@ -182,6 +179,7 @@ class YamlBuilder:
                 "SolutionSelectionAlg": 1,
                 "ProblemFromConvolution": True,
                 "NewClient": 2,
+                #"CpuThreads": 0,
             }
         }
 
