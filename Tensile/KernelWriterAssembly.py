@@ -7950,7 +7950,8 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["MatrixInstruction"]:
             # for 'B' blocks in MFMA d1 represents next block dimension 
             # offset requires stride calculation for next Block
-            strideD1 = kernel["MatrixInstN"]*kernel["VectorWidth"] + vc1
+            mfmaStoreVw = 1 #Todo check it can be other case or not
+            strideD1 = kernel["MatrixInstN"]*mfmaStoreVw + vc1
           else:
             strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
 
