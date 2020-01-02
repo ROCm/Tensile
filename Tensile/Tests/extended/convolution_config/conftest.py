@@ -9,8 +9,9 @@ args={}
 TestConfig=namedtuple("TestConfig", "solution problem_func")
 Runner=namedtuple("Runner", "func solution")
 
-solutions = ["src1", "src5_gsu", "asm3","asm3_pbd", "asm3_splitu"]
-#solutions = ["asm3"]
+# this control the default solutions used for each test.
+solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu"]
+#solutions = ["asm3_pbd"] # run a smaller set of tests
 
 # shortcuts for setting parameters in tests:
 pytest.defaultSizes = pytest.param((YamlBuilder.ProblemSizes, 1), id="default_sizes")
