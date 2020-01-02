@@ -59,7 +59,6 @@ def test_nchw_backwardweights_filter3x5(run_convolution_level):
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 
-@pytest.mark.skip(reason="advance functionality with no-pack")
 def test_nchw_backwardweights_filter3x5_nopack(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
@@ -69,8 +68,8 @@ def test_nchw_backwardweights_filter3x5_nopack(run_convolution_level):
                       })
     log.debug(conv.printUsage(z))
     assert(z['NumIndicesC']==4)
-    assert(z['IndexAssignmentsA']==[5, 0, 1, 2, 4])
-    assert(z['IndexAssignmentsB']==[5, 3, 4])
+    assert(z['IndexAssignmentsA']==[6, 5, 0, 1, 2, 4])
+    assert(z['IndexAssignmentsB']==[6, 5, 3, 4, 2])
     #assert(conv.solutionParms["AssertStrideAEqual"] == "1:1,3:1,0:1")
     #assert(conv.solutionParms["AssertStrideBEqual"] == "1:1")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
