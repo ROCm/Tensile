@@ -140,6 +140,7 @@ globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assi
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hcc, etc)
 
+# TODO - remove this when NewClient is mainstream
 globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.

@@ -169,6 +169,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         shutil.copy(
             os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
             globalParameters["WorkingPath"] )
+    else:
+      pushWorkingPath("source")
 
     ############################################################################
     # Enumerate Benchmark Permutations
@@ -328,7 +330,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           shutil.copy( f0, f1 )
       shutil.rmtree( sourceTmp, True )
 
-      popWorkingPath() # source
+    popWorkingPath() # source
 
     ############################################################################
     # Run Benchmark Script
