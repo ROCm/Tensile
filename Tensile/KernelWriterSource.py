@@ -1990,6 +1990,49 @@ class KernelWriterSource(KernelWriter):
 
     return kStr
 
+
+  def globalReadIncCheckStagger(self, iterVar, loopChar, tP, para, sPara, perp, sPerp):
+    kStr = ""
+    tc = tP["tensorChar"]
+
+    # Check to see if GRA wraps around edge:
+    gr = "globalRead%s_%u_%u_%u_%u" \
+            % (tP["tensorChar"], para, sPara, perp, sPerp)
+
+    kStr += "%sif ((%s) == staggerUIter) {%s" \
+            % (self.indent, iterVar, self.endLine)
+
+    if self.db["PrintStagger"]:
+      # note loop counter numIterK/numIterL hard-coded, manually hack if needed
+      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
+              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
+                        %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
+                       % (self.quote, \
+                          tc, \
+                          self.endLineQuote, \
+                          self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                          gr,tc, \
+                          self.endLine)
+
+    kStr += "  %s%s -= (origNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
+            % (self.indent, \
+               gr,  tc, loopChar,
+               self.endLine)
+    kStr += "%s}%s" % (self.indent, self.endLine)
+    if self.db["PrintStagger"]:
+      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
+              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
+                      %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
+                     % (self.quote, \
+                        tc, \
+                        self.endLineQuote, \
+                        self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                        gr,tc, \
+                        self.endLine)
+    return kStr
+
   ##############################################################################
   # Global Read: Increment either A or B
   # Called from globalReadIncrementAB below
@@ -2012,42 +2055,7 @@ class KernelWriterSource(KernelWriter):
                 self.endLine)
 
             if self.staggerU and loopIdx==self.unrollIdx:
-              # Check to see if GRA wraps around edge:
-              gr = "globalRead%s_%u_%u_%u_%u" \
-                      % (tP["tensorChar"], para, sPara, perp, sPerp)
-
-              kStr += "%sif ((numIter%s) == staggerUIter) {%s" \
-                      % (self.indent, loopChar, self.endLine)
-
-              if self.db["PrintStagger"]:
-                # note loop counter numIterK/numIterL hard-coded, manually hack if needed
-                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
-                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
-                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
-                                 % (self.quote, \
-                                    tc, \
-                                    self.endLineQuote, \
-                                    self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
-                                    gr,tc, \
-                                    self.endLine)
-
-              kStr += "  %s%s -= (origNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
-                      % (self.indent, \
-                         gr,  tc, loopChar,
-                         self.endLine)
-              kStr += "%s}%s" % (self.indent, self.endLine)
-              if self.db["PrintStagger"]:
-                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
-                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
-                                %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
-                               % (self.quote, \
-                                  tc, \
-                                  self.endLineQuote, \
-                                  self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
-                                  gr,tc, \
-                                  self.endLine)
+              kStr += self.globalReadIncCheckStagger("numIter%s"%loopChar, loopChar, tP, para, sPara, perp, sPerp)
 
           #else:
           #  kStr += "%sglobalRead%s_%u_%u%s += globalReadInc%s%s%s;%s" \
@@ -2059,7 +2067,7 @@ class KernelWriterSource(KernelWriter):
           #      self.endLine)
     return kStr
 
-  def globalReadIncrementFromBase(self, kernel, tP, sumOffset):
+  def globalReadIncrementFromBase(self, kernel, tP, sumOffset, loopChar):
     """ Recompute the address, starting from base address pointer + initial offset + summation offset """
     kStr = ""
     tc = tP["tensorChar"]
@@ -2076,6 +2084,8 @@ class KernelWriterSource(KernelWriter):
                   tc, para, sPara, perp, sPerp,
                   sumOffset
                 ) + self.endLine
+            if self.staggerU:
+              kStr += self.globalReadIncCheckStagger("iter%s"%loopChar, loopChar, tP, para, sPara, perp, sPerp)
 
     return kStr
 
@@ -2088,10 +2098,10 @@ class KernelWriterSource(KernelWriter):
   def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     imod = Code.Module("globalReadIncrementAB%s")
 
+    problemType = kernel["ProblemType"]
+    unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       kStr = ""
-      problemType = kernel["ProblemType"]
-      unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
       if prefetchIndex>0:
         remainder = "(LOCAL_DEPTHU)"
       else:
@@ -2132,7 +2142,7 @@ class KernelWriterSource(KernelWriter):
       for (tc,tP) in (('A',self.tPA),('B',self.tPB)):
         # makeSchedule is linked to the modules names - update both together
         incCode = Code.Module("globalReadIncrement%s"%tc)
-        kStr += self.indent + self.globalReadIncrementFromBase(kernel, tP, "psdOffset%s"%tc)
+        kStr += self.indent + self.globalReadIncrementFromBase(kernel, tP, "psdOffset%s"%tc, unrollChar)
         incCode.addText(kStr)
         kStr = ""
         imod.addCode(incCode)
