@@ -3069,18 +3069,37 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  ##############################################################################
+  def extractIndices(self, extractFrom, varPrefix, indices):
+    kStr = ""
+    for (i,index) in enumerate(indices):
+      kStr += "  unsigned int " + varPrefix + self.indexChars[index] \
+          + " = ( " + extractFrom
+      for j in reversed(list(range(i+1, len(indices)))):
+        index2 = indices[j]
+        kStr += " / size" + self.indexChars[index2]
+      kStr += ")"
+      #if i!=0:
+      if len(indices) > 1:
+        kStr += " % size" + self.indexChars[index]
+      kStr += ";" + self.endLine
+    return kStr
+
+  ##############################################################################
   # Kernel Body Beta-Only
   ##############################################################################
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
     kStr += "{%s" % self.endLine
+    problemType = kernel["ProblemType"]
 
     ########################################
     # defined initial strides
     firstStride = 0
-    if kernel["ProblemType"]["UseInitialStridesCD"]:
+    if problemType["UseInitialStridesCD"]:
       # no strides #defined
       lastStrideC = 0
+      assert 0  # need to fix beta-clear routine to pass initial stride parms
     else:
       # #define initial stride
       kStr += "/* hard-coded initial strides */%s" \
@@ -3094,21 +3113,21 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # GLOBAL_D()
     kStr += "#define GLOBAL_D(IDX%s" % self.indexChars[0]
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
     kStr += ") (( (IDX%s)*strideD%s" % (indexChar, indexChar)
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     # GLOBAL_C()
     kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
     kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
@@ -3120,77 +3139,62 @@ class KernelWriterSource(KernelWriter):
     #kStr += "  unsigned int wg" + self.tileChar1 + " = " \
     #    + self.getGroupIdStr + "(1);" + self.endLine
     ########################################
-    # wg other
-    nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
-    nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
-    nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
-    for i in range(0, len(nonTileFreeIndices)):
-      index = nonTileFreeIndices[i]
-      kStr += "  unsigned int wg" + self.indexChars[index] \
-          + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed(list(range(i+1, len(nonTileFreeIndices)))):
-        index2 = nonTileFreeIndices[j]
-        kStr += " / size" + self.indexChars[index2]
-      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
+    # wg other : batch dims
+    freeIdxC0 = [idx for idx in problemType["IndexAssignmentsA"] if idx in problemType["IndicesFree"]]
+    freeIdxC1 = [idx for idx in problemType["IndexAssignmentsB"] if idx in problemType["IndicesFree"]]
 
-    ######################################## # C indices
-    #kStr += "  unsigned int serial = %s(0);%s" \
-    #    % (self.getLocalIdStr, self.endLine)
-    # wg=8x8
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int globalC%s = " % self.indexChars[i]
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += "%s(%u)" % (self.getGlobalIdStr, \
-            kernel["ProblemType"]["Index0"])
-      elif i == kernel["ProblemType"]["Index1"]:
-        kStr += "%s(%u)" % (self.getGlobalIdStr, \
-            kernel["ProblemType"]["Index1"])
-      else:
-        kStr += "wg%s" % self.indexChars[i]
-      kStr += ";" + self.endLine
+    batchSizes = "*".join(["size%s"%self.indexChars[idx] for idx in problemType["IndicesBatch"]])
+    freeSizesC0 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC0])
+    freeSizesC1 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC1])
+
+    t = []
+    if freeSizesC0:
+      t.append("(%s(0) >=  %s)" % (self.getGlobalIdStr, freeSizesC0))
+    if freeSizesC1:
+      t.append("(%s(1) >=  %s)" % (self.getGlobalIdStr, freeSizesC1))
+    if batchSizes:
+      t.append("(%s(2) >=  %s)" % (self.getGlobalIdStr, batchSizes))
+    kStr += "  if ("
+    kStr += "\n   || ".join(t) + ")\n"
+    kStr += "    return;\n"
+
+    kStr += self.extractIndices(self.getGroupIdStr+"(2)", "wg", problemType["IndicesBatch"])
+    kStr += self.extractIndices(self.getGlobalIdStr+"(0)", "globalC", freeIdxC0)
+    kStr += self.extractIndices(self.getGlobalIdStr+"(1)", "globalC", freeIdxC1)
 
     ########################################
     # D index
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += " globalC%s" % self.indexChars[i]
-      if i < kernel["ProblemType"]["NumIndicesC"]-1:
-        kStr += ", "
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "globalC%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
     # C index
     kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += " globalC%s" % self.indexChars[i]
-      if i < kernel["ProblemType"]["NumIndicesC"]-1:
-        kStr += ", "
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "globalC%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
+
     #kStr += "printf(\\\"%%09llu\\\\n\\\", idx);%s" % (self.endLine)
-    kStr += "  if (globalC%s < size%s && globalC%s < size%s) {%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar1, self.tileChar1, \
-        self.endLine )
 
     ########################################
     # zero
-    kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
+    kStr += "#define SCALAR_ZERO %s%s" % ( problemType[\
         "DataType"].zeroString(self.language, 1), \
         self.endLine )
 
     ########################################
     # zero
-    if kernel["ProblemType"]["UseBeta"]:
-      if kernel["ProblemType"]["DataType"].isComplex():
-        kStr += "    if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
+    if problemType["UseBeta"]:
+      if problemType["DataType"].isComplex():
+        kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
       else:
-        kStr += "    if(beta == SCALAR_ZERO) {%s" % self.endLine
-      kStr += "      D[idxD] = SCALAR_ZERO;%s" % self.endLine
-      kStr += "    } else {%s" % self.endLine
-      kStr += "      D[idxD] = C[idxC]*beta;%s" % self.endLine
-      kStr += "    }%s" % self.endLine
+        kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
+      kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
+      kStr += "  } else {%s" % self.endLine
+      kStr += "    D[idxD] = C[idxC]*beta;%s" % self.endLine
+      kStr += "  }%s" % self.endLine
     else:
-      kStr += "    D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
-    kStr += "  }%s" % self.endLine
-
-
+      kStr += "  D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
 
     ########################################
     # end
