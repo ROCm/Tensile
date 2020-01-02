@@ -341,9 +341,19 @@ namespace Tensile
         rv.workGroupSize.y = 8;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(d.sizes()[0], rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(d.sizes()[1], rv.workGroupSize.y);
-        rv.numWorkGroups.z = d.dimensions() > 2 ? d.sizes()[2] : 1;
+        size_t wiX = 1;
+        size_t wiY = 1;
+        size_t wiZ = 1;
+        for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
+          wiX *= problem.freeSizeA(i);
+        for(size_t i = 0; i < problem.freeIndicesB().size(); i++)
+          wiY *= problem.freeSizeB(i);
+        for(size_t i = 0; i < problem.batchIndices().size(); i++)
+          wiZ *= problem.batchSize(i);
+
+        rv.numWorkGroups.x = CeilDivide(wiX, rv.workGroupSize.x);
+        rv.numWorkGroups.y = CeilDivide(wiY, rv.workGroupSize.y);
+        rv.numWorkGroups.z = CeilDivide(wiZ, rv.workGroupSize.z);
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;

@@ -1328,28 +1328,8 @@ class Solution:
       betas.append(True)
     for beta in betas:
       kernel = {}
-      kernel["ProblemType"] = {}
+      kernel["ProblemType"] = deepcopy(problemType)
       kernel["ProblemType"]["UseBeta"] = beta
-      kernel["ProblemType"]["DataType"] = problemType["DataType"]
-      kernel["ProblemType"]["DestDataType"] = problemType["DestDataType"]
-      kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
-      kernel["ProblemType"]["Index0"] = problemType["Index0"]
-      kernel["ProblemType"]["Index1"] = problemType["Index1"]
-      kernel["ProblemType"]["UseInitialStridesAB"] = \
-          problemType["UseInitialStridesAB"]
-      kernel["ProblemType"]["UseInitialStridesCD"] = \
-          problemType["UseInitialStridesCD"]
-      kernel["ProblemType"]["SetConstStrideA"] = \
-          problemType["SetConstStrideA"]
-      kernel["ProblemType"]["SetConstStrideB"] = \
-          problemType["SetConstStrideB"]
-      kernel["ProblemType"]["ZeroPadA"] = \
-          problemType["ZeroPadA"]
-      kernel["ProblemType"]["ZeroPadB"] = \
-          problemType["ZeroPadB"]
-      kernel["ProblemType"]["ConvolutionConfig"] = \
-          problemType["ConvolutionConfig"]
-      kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernel["KernelLanguage"] = "Source"
       kernels.append(kernel)
     return kernels
