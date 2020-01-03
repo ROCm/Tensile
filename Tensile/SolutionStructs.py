@@ -95,6 +95,9 @@ class Convolution:
         'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
         ]
 
+  # valid lowest filter dimensions, these we can attach compile-time constant strides:
+  ValidLowestFilterDim= ('X','XY', 'XYZ', 'W', 'HW', 'DHW')
+
   def initForwardConvolution(self, problemTypeOut, config, \
                              formatA, formatB, formatD,
                              ndim, cdim, kdim, sdims, fdims, \
@@ -186,7 +189,7 @@ class Convolution:
 
     problemTypeOut["NumIndicesC"] = 2+len(spatialRegDims)
 
-    # Attach constant strides, if possible:
+    # Attach constant strides to A, if possible:
     nonFilterDims = [dim for dim in self.regDimsA if dim not in filterRegDims]
     setStride=False
     if sdims and nonFilterDims[-1].dim == sdims[0]:
@@ -196,19 +199,19 @@ class Convolution:
       setStride = True
       cdim.strideA = 1
 
-    if filterRegDims and self.regDimsA[-1].dim==filterRegDims[-1].dim:
-      if filterRegDims[-1].dim.shortChar=='X':
+    if filterRegDims and self.regDimsA[-1].dim == filterRegDims[-1].dim:
+      if filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
         filterRegDims[-1].dim.strideA = self.dilation[0]
     elif not setStride:
       raise RuntimeError ("unexpected lowest dimension in tensorAFormat(%s)"%self.tensorAFormat)
 
-    # Attach constant strides, if possible:
+    # Attach constant strides to B, if possible:
     if self.regDimsB[-1].dim == cdim:
       cdim.strideB=1
     elif self.regDimsB[-1].dim == kdim:
       kdim.strideB=1
     elif filterRegDims and self.regDimsB[-1].dim == filterRegDims[-1].dim:
-      if filterRegDims[-1].dim.shortChar=='X':
+      if filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
         filterRegDims[-1].dim.strideB = 1
     else:
       raise RuntimeError ("unexpected lowest dimension in tensorBFormat(%s)"%self.tensorAFormat)
@@ -292,7 +295,7 @@ class Convolution:
     # Index assignment have fastest-moving first
     ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.')
     kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.')
-    cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1')
+    cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.')
 
     if self.packSpatialDims:
       if self.formatNumSpatialDims==2:
@@ -355,15 +358,20 @@ class Convolution:
                                 ndim=ndim, cdim=kdim, kdim=cdim, sdims=sdims, fdims=fdims, \
                                 fil=self.filter, stride=self.dilation, dilation=self.stride)
     elif convolutionType in ("ConvolutionBackwardWeights"):
-      # swaps ndim and cdim, filter and spatial
+      # swaps ndim and cdim; filter and spatial
       formatA=self.swap(self.tensorBFormat, 'C', 'N')
       # convert activation->weight format, ie NCHW->KCYX
       formatB=self.swap(self.tensorBFormat, 'WHD', 'XYZ').replace('C','K').replace('N','C')
       formatD=self.swap(self.tensorDFormat, 'C,K,XYZ', 'N,C,WHD')  # ie CKYX -> NCHW
       self.initForwardConvolution(problemTypeOut, config, \
                                   formatA, formatB, formatD,
-                                  ndim=cdim, cdim=ndim, kdim=kdim, sdims=fdims, fdims=sdims, \
+                                  ndim=cdim, cdim=ndim, kdim=kdim, sdims=list(reversed(fdims)), \
+                                  fdims=list(reversed(sdims)), \
                                   fil=self.stride, stride=self.filter, dilation=self.dilation)
+      # fdims (filter dims) become the free dims for backward-weights.
+      # if these dims have size==1 and stride==default they may be collapsed to empty list.
+      # set AllowNoFreeDims to tell Tensile to use the batch dim as a virtual free dims
+      # this forces PackBatchDims and sets Index* appropriately.
       if not fdims:
         problemTypeOut["AllowNoFreeDims"] = True
 
