@@ -120,6 +120,7 @@ def test_nchw_filter2x1(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "1:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "3:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_filter2x1_dilation(run_convolution_level):
@@ -201,6 +202,7 @@ def test_nchw_stride_filter(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,4:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {5:2, 6:2})
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 

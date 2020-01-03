@@ -237,6 +237,9 @@ namespace Tensile
                            BoundIndices const& boundIndices,
                            double beta);
 
+        //! Returns size given original index assignment (in range 0..NumIndicesC+boundSizes)
+        size_t size(size_t idx) const;
+
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
 
