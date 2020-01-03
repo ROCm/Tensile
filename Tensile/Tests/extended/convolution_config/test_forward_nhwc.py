@@ -12,8 +12,8 @@ def test_nhwc_defaults(run_convolution_level):
     assert(z['IndexAssignmentsA']==[3, 1, 2])
     assert(z['IndexAssignmentsB']==[3, 0, 2])
     assert(not z['UseInitialStridesAB'])
-    assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
-    assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertStrideAEqual"] == {0:1})
+    assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,2:0})
     assert(conv.solutionParms["AssertSizeEqual"] == {})
 
     solutionName = run_convolution_level.solution.__name__
@@ -32,8 +32,8 @@ def test_nhwc_filter2x2(run_convolution_level):
     assert(z['IndexAssignmentsA']==[3, 5, 4, 1, 2])
     assert(z['IndexAssignmentsB']==[5, 4, 3, 0, 2])
     assert(not z['UseInitialStridesAB'])
-    assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
-    assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,4:0")
+    assert(conv.solutionParms["AssertStrideAEqual"] == {0:1})
+    assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,4:0})
     assert(conv.solutionParms["AssertSizeEqual"] == {5:2, 4:3})
     #skip since bug in asm output swap required by NHWC
     solutionName = run_convolution_level.solution.__name__
