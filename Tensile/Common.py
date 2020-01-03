@@ -457,17 +457,23 @@ validParameters = {
     "AssertMinApproxSize" : [0,1,2],
 
 
-    # Assertions that require stride to be specified value.
-    # String with comma-separated pairs of position:constValue.
+    # Assertions/Predicates that require stride to be specified value.
+    # Dictionary of pairs of {position:constValue}
     # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
-    #   EX: "[2:0]"  means IndexAssignmentsB[2] must be 0 to run the solution.
+    #   EX: "{2:0}"  means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Use this syntax to specify multiple Fork values in a YAML config file.
+
+    #- AssertStrideAEqual:
+    #  - {5: 2, 6: 2} # these are two AssertStrideAEqual predicates for the same solution.
+    #  - {5: 2}       # this is a second solution generated with a single predicate.
+
     # Like other assertions, these are used when kernel is generated and checked before running kernel.
     "AssertStrideAEqual":  -1,
 
     "AssertStrideBEqual":  -1,
 
     # Assertions that require stride to be specified value.
-    # List of pairs of [index, constValue].
+    # Dictary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
     "AssertSizeEqual":    -1,
 
@@ -787,9 +793,9 @@ defaultBenchmarkCommonParameters = [
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
     {"AssertMinApproxSize":        [ -1 ] },
-    {"AssertStrideAEqual":        [ "" ] },
-    {"AssertStrideBEqual":        [ "" ] },
-    {"AssertSizeEqual":           [ -1 ] },
+    {"AssertStrideAEqual":        [ {} ] },
+    {"AssertStrideBEqual":        [ {} ] },
+    {"AssertSizeEqual":           [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
