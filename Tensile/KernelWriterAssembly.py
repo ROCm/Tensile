@@ -5570,14 +5570,33 @@ class KernelWriterAssembly(KernelWriter):
 
         ss.setupStoreElementsForBatch(kernel, fullVw, elements, None)
 
+        if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          vgpr_bfmask = self.vgprPool.checkOut(1)
+          kStr += inst("v_mov_b32", vgpr(vgpr_bfmask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
+
         for elementIdx in range(0, len(elements)):
           kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
+          # pack stores, beta and non-beta reach here:
+          for vi in range(0, fullVw):
+            sumIdxV = ss.elementSumIdx[elementIdx] + vi
+            #TODO add fp16 hpa as well
+            if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              assert (fullVw % 2 == 0)
+              if vi%2 == 0:
+                kStr += inst("v_lshrrev_b32", vgpr("ValuC+%u"%sumIdxV), "16", vgpr("ValuC+%u"%sumIdxV), "convert C to bf16" )
+              elif vi%2 == 1:
+                d = ss.elementSumIdx[elementIdx] + vi//2
+                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgpr_bfmask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
+
           addrCalc = ss.elementAddr[elementIdx]
           sumIdx = ss.elementSumIdx[elementIdx]
 
           kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
                               edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
+
+        if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          self.vgprPool.checkIn(vgpr_bfmask, "vgpr_bfmask : %d" % vgpr_bfmask)
 
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
@@ -9387,8 +9406,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("apply mask, calc new C and issue write")
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        vgpr_bfmaks = self.vgprPool.checkOut(1)
-        kStr += inst("v_mov_b32", vgpr(vgpr_bfmaks), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
+        vgpr_bfmask = self.vgprPool.checkOut(1)
+        kStr += inst("v_mov_b32", vgpr(vgpr_bfmask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
 
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
@@ -9511,14 +9530,14 @@ class KernelWriterAssembly(KernelWriter):
                 kStr += inst("v_lshrrev_b32", vgpr("ValuC+%u"%sumIdxV), "16", vgpr("ValuC+%u"%sumIdxV), "convert C to bf16" )
               elif vi%2 == 1:
                 d = ss.elementSumIdx[elementIdx] + vi//2
-                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgpr_bfmaks), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword") 
+                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgpr_bfmask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
 
         addrCalc = ss.elementAddr[elementIdx]
         kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01, edge)
         storesIssued += 1
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        self.vgprPool.checkIn(vgpr_bfmaks, "vgpr_bfmask : %d" % vgpr_bfmaks)
+        self.vgprPool.checkIn(vgpr_bfmask, "vgpr_bfmask : %d" % vgpr_bfmask)
 
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
