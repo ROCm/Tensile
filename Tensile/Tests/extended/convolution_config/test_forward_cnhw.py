@@ -14,6 +14,7 @@ def test_cnhw_defaults(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 

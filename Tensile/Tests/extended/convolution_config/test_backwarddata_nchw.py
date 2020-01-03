@@ -15,6 +15,7 @@ def test_nchw_backwarddata_defaults(run_convolution_level):
     assert(z['IndexAssignmentsB']==[3, 1, 2])
     #assert(conv.solutionParms["AssertStrideAEqual"] == "1:1,0:1")
     #assert(conv.solutionParms["AssertStrideBEqual"] == "1:1")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 @pytest.mark.skip(reason="backward_data under construction")
@@ -30,6 +31,7 @@ def test_nchw_backwarddata_filter3x1(run_convolution_level):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(conv.solutionParms["AssertStrideAEqual"] == "2:1,0:1")
     #assert(conv.solutionParms["AssertStrideBEqual"] == "1:1")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:1})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 @pytest.mark.skip(reason="backward_data under construction")
@@ -45,6 +47,7 @@ def test_nchw_backwarddata_filter1x3(run_convolution_level):
     assert(z['IndexAssignmentsB']==[4, 2, 3])
     #assert(conv.solutionParms["AssertStrideAEqual"] == "1:1,2:1,0:1")
     #assert(conv.solutionParms["AssertStrideBEqual"] == "1:1")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:1})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 @pytest.mark.skip(reason="backward_data under construction")
@@ -60,6 +63,7 @@ def test_nchw_backwarddata_filter3x5(run_convolution_level):
     assert(z['IndexAssignmentsB']==[5, 3, 4])
     #assert(conv.solutionParms["AssertStrideAEqual"] == "1:1,3:1,0:1")
     #assert(conv.solutionParms["AssertStrideBEqual"] == "1:1")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:3,5:5})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_backwarddata_filter3x5_nopack(run_convolution_level):
@@ -75,4 +79,5 @@ def test_nchw_backwarddata_filter3x5_nopack(run_convolution_level):
     #assert(z['IndexAssignmentsB']==[5, 3, 4])
     #assert(conv.solutionParms["AssertStrideAEqual"] == "1:1,3:1,0:1")
     #assert(conv.solutionParms["AssertStrideBEqual"] == "1:1")
+    assert(conv.solutionParms["AssertSizeEqual"] == {5:3,6:5})
     run_convolution_level.func(conv, z, run_convolution_level.solution)

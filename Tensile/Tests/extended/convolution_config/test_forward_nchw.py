@@ -14,6 +14,7 @@ def test_nchw_defaults(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_packed_spatial0(run_convolution_level):
@@ -29,6 +30,7 @@ def test_nchw_packed_spatial0(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
@@ -46,6 +48,7 @@ def test_nchw_tbd_strides(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_const_strides(run_convolution_level):
@@ -61,6 +64,7 @@ def test_nchw_const_strides(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:2")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_const_use_initial_strides(run_convolution_level):
@@ -76,6 +80,7 @@ def test_nchw_const_use_initial_strides(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:3")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 @pytest.mark.parametrize("unrollOnChannel", [0,1])
@@ -101,6 +106,7 @@ def test_nchw_filter2x2(run_convolution_level, unrollOnChannel):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1,2:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,4:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2, filterDims[1]:2})
 
     if unrollOnChannel:
         pytest.skip("bug with unroll on channel mode")
@@ -138,6 +144,7 @@ def test_nchw_filter2x1_dilation(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "1:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "3:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_filter1x2(run_convolution_level):
@@ -154,6 +161,7 @@ def test_nchw_filter1x2(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1,1:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,3:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_filter1x2_dilation(run_convolution_level):
@@ -171,6 +179,7 @@ def test_nchw_filter1x2_dilation(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:2,1:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,3:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_dilation(run_convolution_level):
@@ -219,6 +228,7 @@ def test_ncdhw_packed_strides3d_defaults(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 @pytest.mark.skip(reason="out of registers in asm runs")
@@ -238,6 +248,7 @@ def test_ncdhw_packed_strides_filter3d(run_convolution_level):
     assert(not z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,5:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {8:2,7:2,6:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_ncdhw_packed_strides3d(run_convolution_level):
@@ -255,4 +266,5 @@ def test_ncdhw_packed_strides3d(run_convolution_level):
     assert(z['UseInitialStridesAB'])
     assert(conv.solutionParms["AssertStrideAEqual"] == "")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
