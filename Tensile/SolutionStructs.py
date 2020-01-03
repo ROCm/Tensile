@@ -64,20 +64,21 @@ class Convolution:
     based on the desired formats.
     """
     # stride=-1 indicates TBD stride; >=0 indicates a compile-time constant
-    def __init__(self, shortChar, description, strideA=-1, strideB=-1):
+    def __init__(self, shortChar, description, size=-1, strideA=-1, strideB=-1):
       self.shortChar = shortChar
       self.description = description
+      self.size=size
       self.strideA=strideA
       self.strideB=strideB
 
     def __str__(self):
       s = "%5s : %s" % ("'%s'"%self.shortChar, self.description)
-      if 1:
-        if self.strideA != -1:
-          s+=" [strideA:%d]"%self.strideA
-        if self.strideB != -1:
-          s+=" [strideB:%d]"%self.strideB
-      #s += " (strideA=%d strideB=%d)" % (self.strideA, self.strideB)
+      if self.size != -1:
+        s+=" [size:%d]"%self.size
+      if self.strideA != -1:
+        s+=" [strideA:%d]"%self.strideA
+      if self.strideB != -1:
+        s+=" [strideB:%d]"%self.strideB
       return s
     def __repr__(self):
       return self.shortChar
@@ -92,7 +93,7 @@ class Convolution:
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
-        'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
+        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', \
         ]
 
   # valid lowest filter dimensions, these we can attach compile-time constant strides:
@@ -338,7 +339,7 @@ class Convolution:
         filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
             % (filterChar, filterChar, filterValueStr, filterChar, fi, \
                prevChar[fi])
-        fdims.append(Convolution.Dimension(filterChar, filterMsg))
+        fdims.append(Convolution.Dimension(filterChar, filterMsg, size=filterValue))
 
     # Create summation dimensions for non-unit filters and assign summation indices
     assert(len(self.filter)) == self.formatNumSpatialDims
@@ -405,6 +406,9 @@ class Convolution:
             ",".join(sorted(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
                       for s in strideb]))
     problemTypeOut["SetConstStrideB"] = strideb
+
+
+    self.solutionParms["AssertSizeEqual"] = {regDim.idx:regDim.dim.size for regDim in self.indexAssignments if regDim.dim.size != -1}
 
     if "0:1" in self.solutionParms["AssertStrideAEqual"] and \
        "0:1" in self.solutionParms["AssertStrideBEqual"]:
@@ -2593,7 +2597,8 @@ class Solution:
             data[paramName] = [ paramValue ]
     maxObjs = 1
     for paramName in data:
-      data[paramName] = sorted(data[paramName])
+      if not isinstance(data[paramName][0],dict):
+        data[paramName] = sorted(data[paramName])
       maxObjs *= len(data[paramName])
     numDigits = len(str(maxObjs))
     return [ data, numDigits ]
@@ -2661,6 +2666,9 @@ class Solution:
         if i < len(value)-1:
           abbrev += "_"
       return abbrev
+    elif isinstance(value, dict):
+      s =  "_".join(["%d_%d"%(pos,k) for pos,k in value.items()])
+      return s
     else:
       printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)

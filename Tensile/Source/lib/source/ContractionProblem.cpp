@@ -720,6 +720,15 @@ namespace Tensile
         return m_boundSizes[idx];
     }
 
+    size_t ContractionProblem::size(size_t idx) const
+    {
+        if (idx < c().sizes().size())
+            return c().sizes()[idx];
+        else
+            return m_boundSizes.at(idx - c().sizes().size());
+    }
+
+
     size_t ContractionProblem::flopsPerMac() const
     {
         return 2;

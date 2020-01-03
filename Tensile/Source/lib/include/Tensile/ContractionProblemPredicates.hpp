@@ -196,6 +196,33 @@ namespace Tensile
                 }
             };
 
+            struct SizeEqual: public Predicate_CRTP<SizeEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                SizeEqual() = default;
+                SizeEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "SizeEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.size(index) == value;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.size(index) << " == " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+
             struct StrideAEqual: public Predicate_CRTP<StrideAEqual, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };

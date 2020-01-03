@@ -789,6 +789,7 @@ defaultBenchmarkCommonParameters = [
     {"AssertMinApproxSize":        [ -1 ] },
     {"AssertStrideAEqual":        [ "" ] },
     {"AssertStrideBEqual":        [ "" ] },
+    {"AssertSizeEqual":           [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
