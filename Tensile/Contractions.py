@@ -236,22 +236,6 @@ class ProblemType:
 
         return predicates
 
-def extractDimPredicate(cls, key, value, predicateName):
-    """
-    Extract the predicate for AssertStrideEqual*
-    value is comma-separated pos:value pairs, ie
-    AssertStrideBEqual=["2:0,  3:1"]
-    """
-    predicates = []
-    for pos,val in enumerate(value):
-        if val != -1:
-            predicates.append(cls(predicateName, index=pos, value=val))
-    if len(predicates) == 1:
-        return predicates[0]
-    elif len(predicates) > 1:
-        return cls.And(predicates)
-
-
 def extractDimPredicateFromDict(cls, key, value, predicateName):
     """
     Extract the predicate for AssertStrideEqual*
@@ -266,23 +250,20 @@ def extractDimPredicateFromDict(cls, key, value, predicateName):
     elif len(predicates) > 1:
         return cls.And(predicates)
 
-
 class ProblemPredicate(Properties.Predicate):
     @classmethod
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
-        if key == "AssertStrideAEqualList":
-            return extractDimPredicate(cls, key, value, "StrideAEqual")
-        if key == "AssertStrideBEqualList":
-            return extractDimPredicate(cls, key, value, "StrideBEqual")
+        if key == "AssertStrideAEqual":
+            return extractDimPredicateFromDict(cls, key, value, "StrideAEqual")
+        if key == "AssertStrideBEqual":
+            return extractDimPredicateFromDict(cls, key, value, "StrideBEqual")
 
         if key == "AssertSizeEqual":
             return extractDimPredicateFromDict(cls, key, value, "SizeEqual")
 
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':
-            return None
-        if key == 'AssertStrideAEqual' or key == 'AssertStrideBEqual':
             return None
 
         if key.endswith('Multiple'):

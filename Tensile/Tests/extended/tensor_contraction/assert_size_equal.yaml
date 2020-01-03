@@ -56,8 +56,10 @@ BenchmarkProblems:
     - PackBatchDims: [1]
     - GlobalReadVectorWidth: [1]
     - VectorWidth: [1]
-    - AssertStrideAEqual: ['0:1']
-    - AssertStrideBEqual: ['0:1,4:0']
+    - AssertStrideAEqual:
+      - {0 : 1}
+    - AssertStrideBEqual:
+      - {0 : 1, 4 : 0}
     - AssertSizeEqual: # Note syntax for multiple dictionary keys
       - {5: 2, 6: 2}
       - {5: 2}

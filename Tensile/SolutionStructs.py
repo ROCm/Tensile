@@ -389,11 +389,10 @@ class Convolution:
     stridea=[]
     for (idx,fbs,dim) in self.regDimsA:
       if dim.strideA != -1:
-        stridea.append([idx,dim.strideA])
+        stridea.append([idx, dim.strideA])
     stridea.sort()
     self.solutionParms["AssertStrideAEqual"] = \
-            ",".join(sorted(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
-                      for s in stridea]))
+            {problemTypeOut["IndexAssignmentsA"].index(s[0]) : s[1] for s in stridea}
     problemTypeOut["SetConstStrideA"] = stridea
 
     strideb=[]
@@ -403,15 +402,14 @@ class Convolution:
     strideb.sort()
 
     self.solutionParms["AssertStrideBEqual"] = \
-            ",".join(sorted(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
-                      for s in strideb]))
+            {problemTypeOut["IndexAssignmentsB"].index(s[0]) : s[1] for s in strideb}
     problemTypeOut["SetConstStrideB"] = strideb
 
 
     self.solutionParms["AssertSizeEqual"] = {regDim.idx:regDim.dim.size for regDim in self.indexAssignments if regDim.dim.size != -1}
 
-    if "0:1" in self.solutionParms["AssertStrideAEqual"] and \
-       "0:1" in self.solutionParms["AssertStrideBEqual"]:
+    if self.solutionParms["AssertStrideAEqual"].get(0,-1) == 1 and \
+       self.solutionParms["AssertStrideBEqual"].get(0,-1) == 1:
       # optimize if no initial stride needed in A or B
       # allow yaml to override this for testing UseInitialStridesAB
       if "UseInitialStridesAB" not in problemTypeOut:
@@ -1729,15 +1727,6 @@ class Solution:
 
     return True
 
-  @staticmethod
-  def addConstStride(state, key, value):
-      try:
-          if value not in state[key].replace(' ','').split(','):
-              state[key] = state[key] + ", " + value
-      except KeyError:
-          state[key] = value
-
-
   ########################################
   # assign all derived parameters
   @staticmethod
@@ -1791,32 +1780,13 @@ class Solution:
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):
-        Solution.addConstStride(state, "AssertStride%sEqual"%tc, "0:1")
+        state["AssertStride%sEqual"%tc][0]=1
 
     # Add AssertStride*Equal for PackBatchDims, if needed
     for (mask, tc) in ((0x1,'B'), (0x2,'A')):
-        if state["PackBatchDims"] & mask:
-            for bi in problemType["IndicesBatch"]:
-                found = False
-                for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
-                    if pair != '':
-                        (index,value)=pair.split(':')
-                        if index==bi and value==0:
-                            found = True
-                            break
-                if not found:
-                    Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
-                                "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
-
-    # Create array to ease later lookups
-    for tc in ('A', 'B'):
-        destKey = "AssertStride%sEqualList"%tc
-        state[destKey] = [-1] * len(problemType["IndexAssignments%s"%tc])
-        for pair in state["AssertStride%sEqual"%tc].replace(' ','').split(','):
-          if pair != '':
-              (index,value)=[int(x) for x in pair.split(':')]
-              state[destKey][index] = value
-
+      if state["PackBatchDims"] & mask:
+        for bi in problemType["IndicesBatch"]:
+          state["AssertStride%sEqual"%tc][problemType["IndexAssignments%s"%tc].index(bi)] = 0
 
     for (tc,batchMask) in (('A', 0x1), ('B', 0x2)):
       freeDims = [i for i in problemType["IndexAssignments%s"%tc] if i in problemType["IndicesFree"]]
@@ -2196,7 +2166,7 @@ class Solution:
 
       unitStride = False
       stride = -1
-      stride = state["AssertStride%sEqualList"%tc][pos]
+      stride = state["AssertStride%sEqual"%tc].get(pos,-1)
       if stride==1:
         unitStride = True
       if not unitStride and state["GlobalLoadVectorWidth%s"%tc] != 1:
