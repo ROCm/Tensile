@@ -18,6 +18,7 @@ def test_ckyx_1x1(run_convolution_level,problemSizes):
     assert(z['IndexAssignmentsB']==[1, 3, 2])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
 
     solutionName = run_convolution_level.solution.__name__
     if (solutionName == "asm3_pbd" or solutionName=="asm3_splitu") and \
@@ -40,6 +41,7 @@ def test_ckyx_1x1_nopack(run_convolution_level):
     assert(z['IndexAssignmentsB']==[2, 4, 3])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,2:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {})
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
@@ -49,7 +51,7 @@ def test_ckyx_2x2(run_convolution_level):
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
                       'TensorBFormat': 'CKYX',
-                      'Filter': '2x2',
+                      'Filter': '2x3',
                       })
     log.debug(conv.printUsage(z))
     assert(z['NumIndicesC']==3)
@@ -57,5 +59,6 @@ def test_ckyx_2x2(run_convolution_level):
     assert(z['IndexAssignmentsB']==[5, 4, 1, 3, 2])
     assert(conv.solutionParms["AssertStrideAEqual"] == "0:1,2:1")
     assert(conv.solutionParms["AssertStrideBEqual"] == "0:1,4:0")
+    assert(conv.solutionParms["AssertSizeEqual"] == {5:3, 4:2})
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
