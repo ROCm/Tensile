@@ -1881,7 +1881,9 @@ class Solution:
             state["VectorWidth"]))
         return
 
-    if state["PackSummationDims"] == 1:
+    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1:
+        # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
+        # problems that require tail loop.
         if state["DepthU"]*state["GlobalSplitU"] % state["AssertSummationElementMultiple"] != 0:
           reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
         else:

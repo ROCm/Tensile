@@ -1442,6 +1442,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.otherSummationLoops  = self.actualSummationLoops-1
     self.otherSummations      = kernel["ProblemType"]["NumIndicesSummation"]-1 # not loops but summations vars
 
+    # If 0, unroll loop is decremented by 1 each iteration and scaled by DEPTHU when number of summation elements
+    # is required.
+    # if 1, unroll loop starts at 0 and increments by DEPTHU.  No scaling is required.  This mode is required
+    # for pack summation dims, but can also be used independently and this is useful for isolation and testing.
+    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"]
+
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
     self.prefetchAcrossPersistent2 = 0 and self.prefetchAcrossPersistent

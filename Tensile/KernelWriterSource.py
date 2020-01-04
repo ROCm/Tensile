@@ -1810,7 +1810,7 @@ class KernelWriterSource(KernelWriter):
       numIter = "numIter%s"%loopChar
       kStr += self.indent + "%s = size%s" \
           % (numIter, loopChar)
-      if not kernel["PackSummationDims"] and loopIdx == self.unrollIdx:
+      if not self.unrollIncIsDepthU and loopIdx == self.unrollIdx:
           kStr += " / LOCAL_DEPTHU"
       kStr += ";" + self.endLine
 
@@ -1856,13 +1856,16 @@ class KernelWriterSource(KernelWriter):
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if kernel["LoopDoWhile"]:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
-      assert(not kernel["PackSummationDims"])
+      assert(not self.unrollIncIsDepthU)
     else:
-      if kernel["PackSummationDims"] and loopIdx==self.unrollIdx and not tailLoop:
+      if self.unrollIncIsDepthU and loopIdx==self.unrollIdx and not tailLoop:
         kStr += self.indent + "unsigned int psdIter=%d*LOCAL_DEPTHU; // packed summation dim iterator" % (kernel["PrefetchGlobalRead"]) + self.endLine
-        totalIters = "("
-        totalIters += "*".join(["numIter%s"%(self.indexChars[os]) for os in problemType["IndicesSummation"]])
-        totalIters += ")"
+        if kernel["PackSummationDims"]:
+          totalIters = "("
+          totalIters += "*".join(["numIter%s"%(self.indexChars[os]) for os in problemType["IndicesSummation"]])
+          totalIters += ")"
+        else:
+          totalIters = "numIter%s" % loopChar
         kStr += self.indent \
                 + "while (psdIter < %s) {" % (totalIters) \
                 + self.endLine
@@ -2065,7 +2068,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Increment A and B
   # Called from KernelWriter
-  # If PackSummationDims=1, this increments all 
+  # If PackSummationDims=1, this increments all counters for A and B
   ##############################################################################
   def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     imod = Code.Module("globalReadIncrementAB%s")
