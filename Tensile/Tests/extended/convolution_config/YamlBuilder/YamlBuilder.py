@@ -154,7 +154,7 @@ class YamlBuilder:
 
     def write(self, fname):
         with open(str(fname), "w") as f:
-            yaml.dump(self.doc, f)
+            yaml.dump(self.doc, f, default_flow_style=None)
 
     @classmethod
     def Header(cls,debug):
