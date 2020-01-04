@@ -625,6 +625,9 @@ validParameters = {
     #  contiguous in memory and can span summation dimensions. (not supported yet)
     "PackSummationDims":         [0,1],
 
+    # debug mode, uses the PackSummationDims method to increment the unroll loop counter
+    "UnrollIncIsDepthU":         [0,1],
+
     # Granularity allowed when packing tensor dims.
     # Lower values are finer granularity which requires more dimension division operations on store path
     # but supports more flexible tensor dimes.
@@ -811,6 +814,7 @@ defaultBenchmarkCommonParameters = [
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackSummationDims":         [ 0 ] },
+    {"UnrollIncIsDepthU":         [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
     {"VectorAtomicWidth":         [ -1 ] },
