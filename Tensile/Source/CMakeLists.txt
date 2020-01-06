@@ -174,10 +174,11 @@ else()
       endif()
     endif()
 
-
     ###############################################################################
     # Create Tensile Library
     if(NOT Tensile_CLIENT_BENCHMARK)
+      set( PACKAGE_TENSILE_LIBRARY OFF )
+      set( USE_LEGACY_CODE ON )
       include(${CMAKE_SOURCE_DIR}/TensileCreateLibrary.cmake)
       TensileCreateLibraryCmake(
         ${Tensile_LOGIC_PATH}           # path
@@ -188,6 +189,8 @@ else()
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
         ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
+        ${PACKAGE_TENSILE_LIBRARY}
+        ${USE_LEGACY_CODE}
         Tensile_ROOT ${Tensile_ROOT}
         )
       target_link_libraries( ${ClientName} PUBLIC Tensile )
