@@ -847,6 +847,8 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s offset0:%s offset1:%s" )
     ds_read_b32 = MemoryInstruction("ds_read_b32",    1, 1, 1, 1, \
         "%s, %s offset:%s" )
+    ds_read_u16 = MemoryInstruction("ds_read_u16",    1, 1, 1, 0.5, \
+        "%s, %s offset:%s" )
     ########################################
     # Local Write
     ds_write_b128 = MemoryInstruction("ds_write_b128",  1, 1, 4, 4, \
@@ -919,7 +921,7 @@ class KernelWriterAssembly(KernelWriter):
           "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
             chosen_store_dword ],
           "LocalRead": [ ds_read_b128, ds_read2_b64,
-            ds_read_b64, ds_read2_b32, ds_read_b32 ],
+            ds_read_b64, ds_read2_b32, ds_read_b32, ds_read_u16 ],
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
           }, # 900
@@ -1107,10 +1109,9 @@ class KernelWriterAssembly(KernelWriter):
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
     #bf16mfma todo
     if kernel["MatrixInstruction"]:
-      if kernel["ProblemType"]["DataType"].isBFloat16():
-        localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
-      else:
-        localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+        localReadWidth = tPA["bpe"]/self.bpr # since only NT form in LDS is supported, the
+                                             # only sensible way of loading along k-dimension 
+                                             # is one element at a time
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1133,10 +1134,9 @@ class KernelWriterAssembly(KernelWriter):
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
     #bf16mfma todo
     if kernel["MatrixInstruction"]:
-      if kernel["ProblemType"]["DataType"].isBFloat16():
-        localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
-      else:
-        localReadWidth = tPB["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+        localReadWidth = tPB["bpe"]/self.bpr # since only NT form in LDS is supported, the
+                                             # only sensible way of loading along k-dimension 
+                                             # is one element at a time
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
