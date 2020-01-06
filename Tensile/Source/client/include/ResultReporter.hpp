@@ -79,7 +79,7 @@ namespace Tensile
 
             // Performance-related
             const std::string Validation  = "validation";
-            const std::string TimeNS      = "time-ns";
+            const std::string TimeUS      = "time-us";
             const std::string SpeedGFlops = "gflops";
             const std::string EnqueueTime = "enqueue-time";
 

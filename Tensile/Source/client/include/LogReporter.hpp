@@ -81,7 +81,7 @@ namespace Tensile
                         new LogReporter(LogLevel::Debug,
                                         {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
                                          OperationIdentifier, ProblemSizes, SolutionName,
-                                         Validation, TimeNS, SpeedGFlops,
+                                         Validation, TimeUS, SpeedGFlops,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
                                         stream));

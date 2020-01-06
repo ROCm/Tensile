@@ -112,7 +112,8 @@ def test_nchw_filter2x2(run_convolution_level, unrollOnChannel):
         pytest.skip("bug with unroll on channel mode")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-def test_nchw_filter2x1(run_convolution_level):
+@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes, pytest.inceptionSizes])
+def test_nchw_filter2x1(run_convolution_level, problemSizes):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -127,7 +128,25 @@ def test_nchw_filter2x1(run_convolution_level):
     assert(conv.solutionParms["AssertStrideAEqual"] == {1:1})
     assert(conv.solutionParms["AssertStrideBEqual"] == {3:0})
     assert(conv.solutionParms["AssertSizeEqual"] == {4:2})
-    run_convolution_level.func(conv, z, run_convolution_level.solution)
+    run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
+
+@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes, pytest.inceptionSizes])
+def test_nchw_filter7x1(run_convolution_level, problemSizes):
+    z={} # problemType definition
+    conv = Convolution(z, 'ConvolutionForward',
+              config={'TensorAFormat': 'NCHW',
+                      'TensorBFormat': 'KCYX',
+                      'Filter': '7x1',
+                      })
+    log.debug(conv.printUsage(z))
+    assert(z['NumIndicesC']==3)
+    assert(z['IndexAssignmentsA']==[4, 0, 3, 2])
+    assert(z['IndexAssignmentsB']==[4, 3, 1, 2])
+    assert(z['UseInitialStridesAB'])
+    assert(conv.solutionParms["AssertStrideAEqual"] == {1:1})
+    assert(conv.solutionParms["AssertStrideBEqual"] == {3:0})
+    assert(conv.solutionParms["AssertSizeEqual"] == {4:2})
+    run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
 def test_nchw_filter2x1_dilation(run_convolution_level):
     z={} # problemType definition
