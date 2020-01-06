@@ -9522,12 +9522,15 @@ class KernelWriterAssembly(KernelWriter):
                 # src0 = beta = f32 = opsel 00
                 # src1 = dataV = f16.lo = opsel 10 or 11 depending on even/odd
                 # src2 = sumIdxV = f32 = opsel 00
+                tmpVgpr = self.vgprPool.checkOut(1)
                 dataCExternal = ss.elementData[elementIdx] + vi//2
-                hi16 = sumIdxV%2
-                kStr += inst(self.mixinst, vgpr("ValuC+%u"%sumIdxV), sgpr("Beta"), \
-                    vgpr(dataCExternal), vgpr("ValuC+%u"%sumIdxV), \
-                    "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (hi16), \
-                    "//C*=beta")
+                if (sumIdxV%2) == 1:
+                  kStr += inst("v_and_b32", vgpr(tmpVgpr), vgpr(dataCExternal), vgpr(vgpr_bfmask), "convert bf16 to fp32")
+                else:
+                  kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), "16", vgpr(dataCExternal), "convert bf16 to fp32" )
+                kStr += inst("v_mac_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(tmpVgpr), sgpr("Beta"), \
+                    "finalSum = sum*alpha + C*beta")
+                self.vgprPool.checkIn(tmpVgpr)
 
             elif kernel["ProblemType"]["DataType"].isSingle():
               kStr += inst("v_mac_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
