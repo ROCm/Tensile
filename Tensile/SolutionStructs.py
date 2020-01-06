@@ -1888,7 +1888,11 @@ class Solution:
           reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
         else:
           state["AssertSummationElementMultiple"] = state["DepthU"]*state["GlobalSplitU"]
-        state["StaggerU"] = 0 # not supported with PSD, bug is maybe something with LOCAL_OFFSET scaling of the stagger vars
+
+    if len(problemType["IndicesSummation"]) > 1:
+      # not supported with multiple summations, bug is maybe something with
+      # how stagger iteration is wraped when unroll loop exits
+      state["StaggerU"] = 0
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
