@@ -37,7 +37,7 @@ def reject(state, *args):
     sys.stdout.write("\nreject: ")
     for a in args:
       print(a)
-    traceback.print_stack(None, 2)
+    #traceback.print_stack(None, 2)
   if state != None:
     state["Valid"] = False
 
@@ -2176,6 +2176,17 @@ class Solution:
             "Non-unit stride(%s) for coalesced dimension (index=%d) requires GlobalLoadVectorWidth%s==1" \
                 % ("TBD" if stride==-1 else str(stride), \
                    problemType["IndexAssignments%s"%tc][pos], tc))
+
+      for p in state["AssertStride%sEqual"%tc].keys():
+        if p>len(problemType["IndexAssignments%s"%tc]):
+          raise RuntimeError ("AssertStride%sEqual index position %d is > len(IndexAssignments%s)" % \
+                                tc, p, tc)
+
+    maxIndex = max(problemType["IndexAssignmentsA"] + problemType["IndexAssignmentsB"])
+    for p in state["AssertSizeEqual"]:
+      if p>maxIndex:
+        raise RuntimeError ("AssertSize index position=%d is > maxIndex=%d" % (p, maxIndex))
+
 
     # Some of these might become 0?
     if 0:
