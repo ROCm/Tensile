@@ -49,6 +49,7 @@ namespace Tensile
             void setHeaderForKey(std::string const& key, std::string const& header);
 
             void setValueForKey(std::string const& key, std::string const& value);
+            void setValueForKey(std::string const& key, double const& value);
 
             template <typename T>
             typename std::enable_if<!std::is_same<T, std::string>::value, void>::type

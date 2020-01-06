@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include <iomanip>
 #include <CSVStackFile.hpp>
 
 #include <Tensile/Utils.hpp>
@@ -154,6 +155,15 @@ namespace Tensile
         void CSVStackFile::setValueForKey(std::string const& key, std::string const& value)
         {
             m_currentRow[key] = value;
+        }
+
+        void CSVStackFile::setValueForKey(std::string const& key, double const& value)
+        {
+            setValueForKey(key, boost::lexical_cast<std::string>(value));
+            //std::ostringstream ss;
+            //ss << std::fixed << std::setprecision(2) << value;
+            //ss << value;
+            //setValueForKey(key, ss.str());
         }
     }
 }
