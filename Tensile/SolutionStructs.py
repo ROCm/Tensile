@@ -1894,6 +1894,8 @@ class Solution:
           reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
         else:
           state["AssertSummationElementMultiple"] = state["DepthU"]*state["GlobalSplitU"]
+        # not supported with PSD
+        state["StaggerU"] = 0
 
     if len(problemType["IndicesSummation"]) > 1:
       # not supported with multiple summations, bug is maybe something with
