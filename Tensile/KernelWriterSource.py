@@ -92,7 +92,6 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
     # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
-    self.useMagicNumber = False
     self.db={}
     self.db["PrintStagger"] = 0
 
@@ -475,7 +474,8 @@ class KernelWriterSource(KernelWriter):
 
       kStr += "#endif%s" % self.endLine
 
-    kStr += "#define MAGIC_DIV(dividend, magicNumber, magicShift) ((uint64_t)(dividend) * magicNumber >> magicShift)%s" % self.endLine
+    kStr += "#define MAGIC_DIV1(dividend, magicNumber, magicShift) ((uint64_t)(dividend) * magicNumber >> magicShift)%s" % self.endLine
+
 
     ####################################
     # MACs
@@ -983,6 +983,16 @@ class KernelWriterSource(KernelWriter):
         kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
         kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
 
+    if kernel["MagicDivAlg"] == 2:
+      kStr += "typedef struct MagicStruct {unsigned M; int a; int s;} MagicStruct;" + self.endLine
+      kStr += "const unsigned MAGIC_STRUCT_A = 0x80000000; // for extracting a-bit from shift kernarg" + self.endLine
+      kStr += "#define MAGIC_DIV2(dividend, magic) (((((uint64_t)(dividend) * magic.M) >> 32) + dividend*magic.a) >> magic.s)%s" % self.endLine
+      for idxChar in sorted(set(kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1])):
+        kStr += "  MagicStruct magicStruct%s;"%(idxChar) + self.endLine
+        kStr += "  magicStruct%s.M = magicNumberSize%s;" % (idxChar, idxChar) + self.endLine
+        kStr += "  magicStruct%s.a = (magicShiftSize%s & MAGIC_STRUCT_A) ? 1:0;" %(idxChar, idxChar) + self.endLine
+        kStr += "  magicStruct%s.s = magicShiftSize%s & (~MAGIC_STRUCT_A);" %(idxChar, idxChar) + self.endLine
+
 
     return kStr
 
@@ -1232,10 +1242,14 @@ class KernelWriterSource(KernelWriter):
               #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
             else:
               # if another free dim or a packed batch dim
-              if self.useMagicNumber:
+              if kernel["MagicDivAlg"]:
                 c = globalParameters["IndexChars"][lastIdx]
-                kStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
-                        % (gro, lastGro, c, c, self.endLine)
+                if kernel["MagicDivAlg"]==1:
+                  kStr += "  unsigned int %s = MAGIC_DIV1(%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                          % (gro, lastGro, c, c, self.endLine)
+                elif kernel["MagicDivAlg"]==2:
+                  kStr += "  unsigned int %s = MAGIC_DIV2(%s, magicStruct%s);%s" \
+                          % (gro, lastGro, c, self.endLine)
                 kStr += "  %s -= (%s*size%s);%s" \
                     % (lastGro, gro, self.indexChars[lastIdx], self.endLine)
               else:
@@ -2529,10 +2543,14 @@ class KernelWriterSource(KernelWriter):
         # later iterations extract dimension from previous using mod, 
         # then div to remove the extracted bits for next iteration
         #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
-        if self.useMagicNumber:
+        if kernel["MagicDivAlg"]:
           c = globalParameters["IndexChars"][lastIndex]
-          kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
-                  % (self.indexChars[lastIndex], c, c, self.endLine)
+          if kernel["MagicDivAlg"]==1:
+            kStr += "MAGIC_DIV1(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                    % (self.indexChars[lastIndex], c, c, self.endLine)
+          elif kernel["MagicDivAlg"]==2:
+            kStr += "MAGIC_DIV2(globalC%s, magicStruct%s);%s" \
+                    % (self.indexChars[lastIndex], c, self.endLine)
           kStr += "  globalC%s -= (globalC%s*size%s);%s" \
                   % (self.indexChars[lastIndex], self.indexChars[idx], \
                      self.indexChars[lastIndex], self.endLine)
