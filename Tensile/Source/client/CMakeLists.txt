@@ -1,6 +1,8 @@
 
 #set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
+
 set(client_sources
     source/BenchmarkTimer.cpp
     source/CSVStackFile.cpp
