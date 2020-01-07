@@ -21,6 +21,7 @@
 
 import sys,traceback
 from collections import namedtuple
+from warnings import warn
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
@@ -2477,7 +2478,11 @@ class Solution:
             (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) ):
       state["PersistentKernel"] = 0
 
+    if  state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
+      warn("MagicDivAlg==2 does not work with legacy client")
+
     problemType["AssignedDerivedParameters"] = True
+
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name

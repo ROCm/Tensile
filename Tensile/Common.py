@@ -528,6 +528,12 @@ validParameters = {
     #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
 
+
+    # 0=don't use magic div (source only)
+    # 1=magic div alg #1.  Slightly faster but limited range (if magic number is 2^32)
+    # 2=magic div alg#2.  Slightly slower but handles all unsigned ints up to 2^32
+    "MagicDivAlg":       [0,1,2],
+
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
@@ -805,6 +811,7 @@ defaultBenchmarkCommonParameters = [
     {"StaggerU":                  [ 32 ] },   # recommend [0,32]
     {"StaggerUStride":            [ 256 ] },  # recommend 256 for V10,V20
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
+    {"MagicDivAlg":               [ 2 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
