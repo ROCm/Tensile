@@ -87,6 +87,7 @@ namespace Tensile
                 iot::mapRequired(io, "workGroupMapping",    s.workGroupMapping);
 
                 iot::mapOptional(io, "packBatchDims",       s.packBatchDims);
+                iot::mapOptional(io, "magicDivAlg",         s.magicDivAlg);
                 iot::mapRequired(io, "persistentKernel",    s.persistentKernel);
                 iot::mapRequired(io, "sourceKernel",        s.sourceKernel);
             }

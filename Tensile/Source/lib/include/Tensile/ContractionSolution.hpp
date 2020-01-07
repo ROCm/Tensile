@@ -102,6 +102,7 @@ namespace Tensile
             int workGroupMapping;
 
             size_t packBatchDims;
+            int    magicDivAlg=1;
             size_t persistentKernel;
 
             bool sourceKernel;
@@ -141,7 +142,9 @@ namespace Tensile
                              Inputs   const& inputs,
                              Hardware const& hardware) const;
 
-        uint32_t magicNumber(uint32_t x, uint32_t *magicShift) const;
+        uint32_t magicNumberAlg1(uint32_t x, uint32_t *magicShift) const;
+        uint32_t magicNumberAlg2(uint32_t x, uint32_t *magicShift) const;
+        uint32_t magicNumber(int magicDivAlg, uint32_t x, uint32_t *magicShift) const;
         uint32_t smallMagicNumber(uint32_t x) const;
     };
 
