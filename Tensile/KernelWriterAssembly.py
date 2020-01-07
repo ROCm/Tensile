@@ -7216,11 +7216,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment1("computeStoreVgprs")
 
-    tmpV0 = self.vgprPool.checkOut(5) #v2 v5 v75
-    tmpV1 = tmpV0+1                   #v4
-    tmpV2 = tmpV0+2                   #v3
-    tmpV3 = tmpV0+3                   #v6 v74
-    tmpV4 = tmpV0+4
     tmpS0 = self.getTmpSgpr(3)
     tmpS1 = tmpS0+1
     wgMT1 = tmpS0+2
@@ -7244,6 +7239,11 @@ class KernelWriterAssembly(KernelWriter):
         self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
 
     if kernel["MatrixInstruction"]:
+      tmpV0 = self.vgprPool.checkOut(5) #v2 v5 v75
+      tmpV1 = tmpV0+1                   #v4
+      tmpV2 = tmpV0+2                   #v3
+      tmpV3 = tmpV0+3                   #v6 v74
+      tmpV4 = tmpV0+4
       mfma_addr0 = self.vgprPool.checkOut(1) #To store output address offset for non-edge case
       mfma_addr1 = self.vgprPool.checkOut(1) #but should not use address offset here
       if 0:
@@ -7332,12 +7332,15 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(log2(kw.bpeCexternal)), "c base") # Always 4? 
         self.mfma_addr0 = mfma_addr0
         self.mfma_addr1 = mfma_addr1
+      self.vgprPool.checkIn(tmpV0)
     else:
+      tmpV0 = self.vgprPool.checkOut(2)
       kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
           tmpV0, tmpS0)
       kStr += staticMultiply(vgpr(tid0), vgpr(tid0), tid0Scale, sgpr(tmpS1))
       if tid1Scale != 1:
         kStr += staticMultiply(vgpr(tid1), vgpr(tid1), tid1Scale, sgpr(tmpS1))
+      self.vgprPool.checkIn(tmpV0)
 
       if kernel["BufferStore"]:
         # compute rowStart- this is just tid1 scaled by appropriate stride.
@@ -7394,7 +7397,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(tid1), \
           "coord1 = tid1*VW + wg1*MT1")
 
-    self.vgprPool.checkIn(tmpV0)
+    
     self.coord0 = tid0
     self.coord1 = tid1
 
