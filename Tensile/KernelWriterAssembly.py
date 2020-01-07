@@ -4898,6 +4898,11 @@ class KernelWriterAssembly(KernelWriter):
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       # size % DepthU
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounter, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
+      if kernel["MatrixInstruction"]:
+        kStr += "/* calculate number of remaining loops in terms of how many matrix instructions */\n"
+        kStr += "//numIter%s = ((numIter%s + MatrixInst%s - 1) / MatrixInst%s)\n"%(self.unrollChar, self.unrollChar, self.unrollChar, self.unrollChar)
+        kStr += inst("s_add_u32", sgpr(loopCounter), sgpr(loopCounter), kernel["MatrixInstK"]-1, "")
+        kStr += scalarStaticDivideAndRemainder(loopCounter, None, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 0)
 
 
       if kernel["LocalSplitU"] > 1:
@@ -6604,6 +6609,8 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
     if self.inTailLoop:
       inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
+      if kernel["MatrixInstruction"]:
+        inc *= kernel["MatrixInstK"]
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("_v_add_co_u32", \
@@ -6615,7 +6622,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       if tP["localReadInstruction"].numOffsets == 1:
         if kernel["MatrixInstruction"]:
-          tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]*kernel["MatrixInstK"] + kernel["LdsPad%s"%tc])
+          tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc])*kernel["MatrixInstK"]
         else:
           tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc])
         kStr += self.comment1("N/A, lro->%d"%tP["localReadOffset"])
@@ -6672,7 +6679,7 @@ class KernelWriterAssembly(KernelWriter):
               paramList = []
               paramList.append(vgpr(tmpVgpr + kIdx%2))
               paramList.append(vgpr("LocalReadAddr%s"%tc))
-              offset = ((rIdx * kernel["MatrixInstN"] + (kIdx%2)*kernel["MacroTile%s" % tP["tensorIdx"]] + tP["localReadOffset"]) \
+              offset = ((rIdx * kernel["MatrixInstN"] + (kIdx%2)*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
                 *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
               paramList.append(int(offset))
               oIdx = 0
