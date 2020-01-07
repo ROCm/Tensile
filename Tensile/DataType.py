@@ -35,6 +35,7 @@ class DataType:
         {
             'char': 'S',
             'name': 'single',
+            'nameAbbrev': 'f32',
             'enum': 'Float',
             'reg': 1,
             'ocl': 'float',
@@ -48,6 +49,7 @@ class DataType:
         {
             'char': 'D',
             'name': 'double',
+            'nameAbbrev': 'f64',
             'enum': 'Double',
             'reg': 2,
             'ocl': 'double',
@@ -61,6 +63,7 @@ class DataType:
         {
             'char': 'C',
             'name': 'complexSingle',
+            'nameAbbrev': 'f32c',
             'enum': 'ComplexFloat',
             'reg': 2,
             'ocl': 'float2',
@@ -74,6 +77,7 @@ class DataType:
         {
             'char': 'Z',
             'name': 'complexDouble',
+            'nameAbbrev': 'f64c',
             'enum': 'ComplexDouble',
             'reg': 4,
             'ocl': 'double2',
@@ -87,6 +91,7 @@ class DataType:
         {
             'char': 'H',
             'name': 'half',
+            'nameAbbrev': 'f16',
             'enum': 'Half',
             'reg': 0.5,
             'ocl': 'ERROR',
@@ -100,6 +105,7 @@ class DataType:
         {
             'char': '4xi8',
             'name': 'int8x4',
+            'nameAbbrev': 'i8',
             'enum': 'Int8x4',
             'reg': 1,
             'ocl': 'ERROR',
@@ -113,6 +119,7 @@ class DataType:
         {
             'char': 'I',
             'name': 'int32',
+            'nameAbbrev': 'i32',
             'enum': 'Int32',
             'reg': 1,
             'ocl': 'ERROR',
@@ -126,6 +133,7 @@ class DataType:
         {
             'char': 'B',
             'name': 'bfloat16',
+            'nameAbbrev': 'bf16',
             'enum': 'BFloat16',
             'reg': 0.5,
             'ocl': 'ERROR',
@@ -155,6 +163,8 @@ class DataType:
         return self.properties['char']
     def toName(self):
         return self.properties['name']
+    def toNameAbbrev(self):
+        return self.properties['nameAbbrev']
     def toEnum(self):
         return self.properties['enum']
     def toOpenCL(self):

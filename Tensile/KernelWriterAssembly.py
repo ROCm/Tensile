@@ -5281,32 +5281,22 @@ class KernelWriterAssembly(KernelWriter):
   def mfmaIter(self, kernel, m, innerUnroll):
     # TODO: should return Code.Module or string?
     kStr = ""
-    if kernel["ProblemType"]["DataType"].isSingle():
-      for b in range(0, self.numColInsts):
-        for a in range(0, self.numRowInsts):
-          for iui in range(0, innerUnroll):
-            accIdx = b * self.numRowInsts + a
-            accStart = accIdx * self.destAgprs
-            accEnd = accStart + self.destAgprs - 1
-            aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
-            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
-            kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u]%s" \
-              % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
-            # TODO Broadcast code
-            #kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u] blgp:%u%s" \
-            #  % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, bStr, aStr, accStart, accEnd, a, self.endLine)
-    elif kernel["ProblemType"]["DataType"].isBFloat16():
-      kStr += "s_nop 2\n" # a must; for freshly written vregs to be consumed by matrix instruction
-      for b in range(0, self.numColInsts):
-        for a in range(0, self.numRowInsts):
-          for iui in range(0, innerUnroll):
-            accIdx = b * self.numRowInsts + a
-            accStart = accIdx * self.destAgprs
-            accEnd = accStart + self.destAgprs - 1
-            aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
-            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
-            kStr += "v_mfma_f32_%ux%ux%ubf16 a[%u:%u], %s, %s, a[%u:%u]%s" \
-              % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
+    if kernel["ProblemType"]["DataType"].isBFloat16():
+      kStr += "s_nop 2\n" # a must; for VALU packing writes to be consumed by matrix instruction 
+                          # this can be removed once the vregs are directly loaded via ds_read 
+    for b in range(0, self.numColInsts):
+      for a in range(0, self.numRowInsts):
+        for iui in range(0, innerUnroll):
+          accIdx = b * self.numRowInsts + a
+          accStart = accIdx * self.destAgprs
+          accEnd = accStart + self.destAgprs - 1
+          aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
+          bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
+          kStr += "v_mfma_f32_%ux%ux%u%s a[%u:%u], %s, %s, a[%u:%u]%s" \
+            % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], kernel["ProblemType"]["DataType"].toNameAbbrev(), accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
+          # TODO Broadcast code
+          #kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u] blgp:%u%s" \
+          #  % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, bStr, aStr, accStart, accEnd, a, self.endLine)
     return kStr
 
   ##############################################################################
