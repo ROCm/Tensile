@@ -249,26 +249,26 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       kernelsWithBuildErrs[kernelName] = err
       #print "*** warning: invalid kernel#%s"%kernelName
 
-    if kernelSourceFile:
+    #if kernelSourceFile:
       # write kernel.cpp
-      if not globalParameters["MergeFiles"]:
-        filename = os.path.join(outputPath, "Kernels", kernelName+".cpp")
-        sourceFilenames.append(filename)
-        kernelSourceFile = open(filename, "w")
-        kernelSourceFile.write(CHeader)
+    if not globalParameters["MergeFiles"]:
+      filename = os.path.join(outputPath, "Kernels", kernelName+".cpp")
+      sourceFilenames.append(filename)
+      kernelSourceFile = open(filename, "w")
+      kernelSourceFile.write(CHeader)
 
-      kernelSourceFile.write(src)
+    kernelSourceFile.write(src)
 
-      if not globalParameters["MergeFiles"]:
-        kernelSourceFile.close()
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
         # write kernel.h
-        kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName+".h"), "w")
-        kernelHeaderFile.write(CHeader)
+      kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName+".h"), "w")
+      kernelHeaderFile.write(CHeader)
 
-      kernelHeaderFile.write(header)
+    kernelHeaderFile.write(header)
 
-      if not globalParameters["MergeFiles"]:
-        kernelHeaderFile.close()
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
 
   return sourceFilenames
 
@@ -308,7 +308,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
+      kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
     kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
   kernelsWithBuildErrs = {}
