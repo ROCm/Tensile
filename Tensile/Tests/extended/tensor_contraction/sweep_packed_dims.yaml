@@ -15,17 +15,20 @@ BenchmarkProblems:
     - EdgeType: [ShiftPtr]
     BenchmarkFinalParameters:
     - ProblemSizes:
-        - Range: [[1,1,1000], [16], [2], [8]]
-        - Range: [[81400,1,82000], [16], [2], [8]]
-        - Range: [[1000,15,10000], [16], [2], [8]]
-        - Range: [[10000,61,100000], [16], [2], [8]]
-        - Range: [[100000,257,1000000], [16], [2], [8]]
+        - Range: [[89400,1,89500], [16], [2], [8]]
+
+        - Range: [[1,1,500], [16], [2], [8]]
+        - Range: [[500,7,1000], [16], [2], [8]]
+        - Range: [[1000,15,5000], [16], [2], [8]]
+        - Range: [[5000,257,100000], [16], [2], [8]]
+        - Range: [[100000,521,500000], [16], [2], [8]]
+        - Range: [[500000,2027,1000000], [16], [2], [8]]
     BenchmarkForkParameters: null
     BenchmarkJoinParameters: null
     ForkParameters:
     - PrefetchGlobalRead: [1]
       #- CheckDimOverflow: [2]
-    - KernelLanguage: [Source]
+    - KernelLanguage: [Source,Assembly]
     - ThreadTile:
       - [2, 2]
     - WorkGroup:
