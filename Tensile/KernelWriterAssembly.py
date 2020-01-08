@@ -780,7 +780,6 @@ class KernelWriterAssembly(KernelWriter):
     else:
       self.groOffsetInMacroTile = 0
 
-
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
@@ -2752,6 +2751,7 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += "\n"
     kStr += self.macroRegister("DepthU", kernel["DepthU"])
+    kStr += self.macroRegister("GSU", kernel["GlobalSplitU"])
     kStr += self.comment1("Number of elements to shift-left SRD")
     kStr += self.macroRegister("SrdShiftLeftA", self.srdShiftLeft['A'])
     kStr += self.macroRegister("SrdShiftLeftB", self.srdShiftLeft['B'])
@@ -4178,48 +4178,40 @@ class KernelWriterAssembly(KernelWriter):
 
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
-    # depthU
-    depthU = kernel["DepthU"]
+    gsu = 1
     if kernel["GlobalSplitU"] > 1 \
         and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
-      depthU *= kernel["GlobalSplitU"]
+      gsu = kernel["GlobalSplitU"]
 
     assert(self.unrollIdx == kernel["ProblemType"]["NumIndicesSummation"]-1)
     if loopIdx==self.unrollIdx:
-      if tP["tlu"]:
-        if self.globalReadIncsUseVgpr:
-          tmpSgpr = self.getTmpSgpr(1)
-          kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-              hex(depthU*tP["bpe"]), stride, \
-              "incr = stride%s*%u*bpe"%(loopChar, depthU) )
-          kStr += inst("s_mov_b32", \
-              sgpr(tmpSgpr+1), \
-              hex(0), \
-              "(carry)")
-          kStr += inst("v_mov_b32", \
-              vgpr("GlobalReadIncs%s+%u+0"%(tc, 2*loopIdx)), \
-              sgpr(tmpSgpr+0), \
-              "" )
-          kStr += inst("v_mov_b32", \
-              vgpr("GlobalReadIncs%s+%u+1"%(tc, 2*loopIdx)), \
-              sgpr(tmpSgpr+1), \
-              "" )
-        else: # not globalReadIncsUseVgpr, ie use SGPR
-          kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
-              hex(depthU*tP["bpe"]), stride, \
-              "incr%s%s = stride%s*%u*bpe (unrollIdx)"%(tc, loopChar, loopChar, depthU) )
-
-      else: # transposed
-        if self.globalReadIncsUseVgpr:
-          kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+%u+0"%(tc, 2*loopIdx)), \
-              hex(depthU*tP["bpe"]), \
-              "incr = %u*bpe"%depthU )
-          kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+%u+1"%(tc, 2*loopIdx)), \
-              hex(0), "incr = %u*bpe (upper)"%depthU )
-        else:
+      if self.globalReadIncsUseVgpr:
+        tmpSgpr = self.getTmpSgpr(1)
+        kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
+            "DepthU*%d"%(gsu*tP["bpe"]), stride, \
+            "incr%s%s = %s*DepthU*bpe (unrollIdx)"%(tc, loopChar, stride) )
+        # TODO - this should be mul-H??
+        kStr += inst("s_mov_b32", \
+            sgpr(tmpSgpr+1), \
+            hex(0), \
+            "(carry)")
+        kStr += inst("v_mov_b32", \
+            vgpr("GlobalReadIncs%s+%u+0"%(tc, 2*loopIdx)), \
+            sgpr(tmpSgpr+0), \
+            "" )
+        kStr += inst("v_mov_b32", \
+            vgpr("GlobalReadIncs%s+%u+1"%(tc, 2*loopIdx)), \
+            sgpr(tmpSgpr+1), \
+            "" )
+      else: # not globalReadIncsUseVgpr, ie use SGPR
+        if self.isConstUnitStride(stride):
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
-              hex(depthU*tP["bpe"]), \
-              "incr = %u*bpe"%depthU )
+              "DepthU*%d"%(gsu*tP["bpe"]), \
+              "incr%s%s = %s*DepthU*bpe (unrollIdx)"%(tc, loopChar, stride) )
+        else:
+          kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), \
+              "DepthU*%d"%(gsu*tP["bpe"]), stride, \
+              "incr%s%s = %s*DepthU*bpe (unrollIdx)"%(tc, loopChar, stride) )
     else:
       # other summation
       if self.globalReadIncsUseVgpr:
@@ -4270,8 +4262,9 @@ class KernelWriterAssembly(KernelWriter):
             sgpr(graInc), \
             hex(log2(tP["bpe"])),
             "<- scale by bpe")
-        if 0 and tP["isB"]:
-          kStr += self.assert_ne(sgpr("WorkGroup1"),0)
+        if 0 and tP["isB"] and loopIdx==0:
+          kStr += self.bomb()
+          #kStr += self.assert_ne(sgpr("WorkGroup1"),0)
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
@@ -5557,7 +5550,7 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
     kStr = ""
 
-    kStr += inst("s_add_u32 ", \
+    kStr += inst("s_add_u32", \
          sgpr("Srd%s+0"%(tc)), \
          sgpr("Srd%s+0"%(tc)), \
          incLower, \
