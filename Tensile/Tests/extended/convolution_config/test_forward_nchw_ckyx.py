@@ -21,9 +21,6 @@ def test_ckyx_1x1(run_convolution_level,problemSizes):
     assert(conv.solutionParms["AssertSizeEqual"] == {})
 
     solutionName = run_convolution_level.solution.__name__
-    if (solutionName == "asm3_pbd" or solutionName=="asm3_splitu") and \
-        problemSizes[0] == YamlBuilder.ProblemSizesResNet:
-            pytest.skip("bug with ckyx mode?")
 
     run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
