@@ -611,10 +611,10 @@ class Convolution:
   def printUsage(self, problemType):
     print()
     print("Tensor Formats: A:%s B:%s D:%s\n" % (self.tensorAFormat, self.tensorBFormat, self.tensorDFormat))
-    print("Convolution Config: filter:%s stride:%s dilation:%s spatial:%s packedSpatial:%d group:%d padStart:%s padEnd:%s\n" \
+    print("Convolution Config: filter:%s stride:%s dilation:%s spatial:%s packedSpatial:%d group:%d padStart:%s padEnd:%s unrollOnChannel:%d\n" \
         % (self.filter, self.stride, self.dilation, \
            str(self.spatial) if self.spatial else "tbd", self.packSpatialDims, \
-           self.groupCount, self.padStart, self.padEnd))
+           self.groupCount, self.padStart, self.padEnd, self.unrollOnChannel))
     print("Tensile Index Assignments and Usage:")
     print("   Tensile    : ConvChar: Explanation/Usage")
     for (idx,regDim) in enumerate(self.indexAssignments):
@@ -934,10 +934,13 @@ class ProblemType:
     unrollIdxB = state["IndexAssignmentsB"].index(state["IndexUnroll"])
     state["TLUA"] = strideIdxA < unrollIdxA
     state["TLUB"] = strideIdxB < unrollIdxB
+    #state["TLUB"] = True # hack
 
     if globalParameters["PrintIndexAssignments"]:
-      print1("TLUA:  %s" % state["TLUA"])
-      print1("TLUB:  %s" % state["TLUB"])
+      print1("TLUA:  %s (stridePosA(%d) <? unrollIdxA(%d)" % \
+			(state["TLUA"], strideIdxA, unrollIdxA))
+      print1("TLUB:  %s (stridePosB(%d) <? unrollIdxB(%d)" % \
+	  		(state["TLUB"], strideIdxB, unrollIdxB))
       print1("Index01A:  %s" % state["Index01A"])
       print1("Index01B:  %s" % state["Index01B"])
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
