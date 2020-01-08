@@ -34,8 +34,8 @@
 /******************************************/
 /* Optimizations and Config:              */
 /******************************************/
-/* ThreadTile= 4 x 8 */
-/* SubGroup= 16 x 16 */
+/* ThreadTile= 4 x 4 */
+/* SubGroup= 16 x 32 */
 /* VectorWidth=4 */
 /* GlobalLoadVectorWidthA=4, GlobalLoadVectorWidthB=4 */
 /* DirectToLdsA=False */
@@ -211,7 +211,7 @@ amdhsa.kernels:
     .group_segment_fixed_size:   60000
     .kernarg_segment_align:      8
     .kernarg_segment_size:       152
-    .max_flat_workgroup_size:    256
+    .max_flat_workgroup_size:    512
     .private_segment_fixed_size: 0
     .sgpr_count:                 98
     .sgpr_spill_count:           0
