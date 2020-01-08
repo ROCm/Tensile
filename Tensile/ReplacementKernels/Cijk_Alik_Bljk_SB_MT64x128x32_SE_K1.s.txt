@@ -41,8 +41,8 @@ Cijk_Alik_Bljk_SB_MT64x128x32_SE_K1:
 /******************************************/
 /* Optimizations and Config:              */
 /******************************************/
-/* ThreadTile= 4 x 8 */
-/* SubGroup= 16 x 16 */
+/* ThreadTile= 4 x 4 */
+/* SubGroup= 16 x 32 */
 /* VectorWidth=4 */
 /* GlobalLoadVectorWidthA=4, GlobalLoadVectorWidthB=4 */
 /* DirectToLdsA=False */
@@ -212,13 +212,13 @@ Kernels:
         ValueType:       U32
     CodeProps:
       KernargSegmentSize: 148
-      GroupSegmentFixedSize: 57344
+      GroupSegmentFixedSize: 60000
       PrivateSegmentFixedSize: 0
       KernargSegmentAlign:  8
       WavefrontSize:        64
       NumSGPRs:             98
       NumVGPRs:             108
-      MaxFlatWorkGroupSize: 256
+      MaxFlatWorkGroupSize: 512
 .end_amd_amdgpu_hsa_metadata
 
 /******************************************/
