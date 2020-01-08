@@ -1,7 +1,7 @@
 BenchmarkProblems:
 - - DataType: s
-    IndexAssignmentsA: [3, 0, 2]
-    IndexAssignmentsB: [3, 1, 2]
+    IndexAssignmentsA: [3, 1, 2]
+    IndexAssignmentsB: [3, 0, 2]
     NumIndicesC: 3
     OperationType: TensorContraction
     #SetConstStrideA:
@@ -15,9 +15,9 @@ BenchmarkProblems:
     - EdgeType: [ShiftPtr]
     BenchmarkFinalParameters:
     - ProblemSizes:
-      #- Exact: [16, 16, 1, 8] # passes on source and asm
+      - Exact: [16, 16, 1, 8] # passes on source and asm
       - Exact: [16, 32, 1, 8] # fails - multiple tiles.
-        #- Exact: [32, 16, 1, 8] # fails - multiple tiles.
+      - Exact: [32, 16, 1, 8] # fails - multiple tiles.
     BenchmarkForkParameters: null
     BenchmarkJoinParameters: null
     ForkParameters:
@@ -31,8 +31,6 @@ BenchmarkProblems:
     - GlobalReadVectorWidth: [1]
     - VectorWidth: [1]
     - FractionalLoad: [0]
-      #- AssertStrideBEqual: ['0:1,2:0']
-      #- AssertStrideAEqual: ['0:1']
     InitialSolutionParameters: null
     JoinParameters: null
 GlobalParameters: {CMakeBuildType: Release, EnqueuesPerSync: 1, ForceRedoBenchmarkProblems: true,

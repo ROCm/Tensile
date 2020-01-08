@@ -1,4 +1,3 @@
-# A config to generate a fast kernel for large DGEMMs
 GlobalParameters:
   EnqueuesPerSync: 30
   LibraryPrintDebug: False
@@ -9,7 +8,7 @@ GlobalParameters:
   DataInitTypeBeta : 0
   PrintSolutionRejectionReason: 0
   PrintWinnersOnly: 1
-  NewClient: 0
+  NewClient: 2
 
 BenchmarkProblems:
   ########################################
@@ -67,3 +66,4 @@ BenchmarkProblems:
 # Seems globalReadInc calc is correct - the K loop executes entirely in
 # tail loop (which does not change the global read offset) so
 # globalReadInc should just be strideK - 0.  But doesn't work here.
+# A config to generate a fast kernel for large DGEMMs
