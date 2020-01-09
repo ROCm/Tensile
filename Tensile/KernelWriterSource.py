@@ -1806,7 +1806,10 @@ class KernelWriterSource(KernelWriter):
         % (self.indent, srcIterVar, self.endLine)
     kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
         % (self.indent, self.endLine)
-    kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
+    if self.unrollIncIsDepthU:
+      kStr += "%s  numIterMyWg += LOCAL_DEPTHU;%s" % (self.indent, self.endLine)
+    else:
+      kStr += "%s  numIterMyWg ++;%s" % (self.indent, self.endLine)
     kStr += "%s}%s" % (self.indent, self.endLine)
     kStr += "%s%s = numIterMyWg;%s" \
         % (self.indent, dstIterVar, self.endLine)

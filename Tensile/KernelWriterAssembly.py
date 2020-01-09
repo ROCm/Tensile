@@ -554,7 +554,7 @@ class KernelWriterAssembly(KernelWriter):
 
   def loopCounterName(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
-    return "LoopCounter%s"%(self.indexChars[loopDim])
+    return "LoopCounter%s"%(globalParameters["IndexChars"][loopDim])
 
   def loopCounter(self, kernel, loopIdx):
     """
@@ -563,6 +563,14 @@ class KernelWriterAssembly(KernelWriter):
     """
     return sgpr(self.loopCounterName(kernel,loopIdx))
 
+  def checkLastIter(self, kernel, comment="at last iteration?"):
+    """ Return last iteration of unroll loop. """
+    if self.unrollIncIsDepthU:
+      return inst("s_cmp_gt_u32", self.loopCounter(kernel, self.unrollIdx), \
+          sgpr("UnrollLoopLastIter"), comment)
+    else:
+      return inst("s_cmp_eq_u32", self.loopCounter(kernel, self.unrollIdx), \
+          0, comment)
 
   def isConstUnitStride(self, stride):
       return stride.startswith("const")
@@ -800,6 +808,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
+
+    self.use64bProductOfSums = 0
 
     # Check if the address setup code for LWA and GRO causes register growth.
     # This is not an error condition but bears further investigation.
@@ -1429,7 +1439,7 @@ class KernelWriterAssembly(KernelWriter):
       numSgprGlobalReadIncsB = kernel["ProblemType"]["NumIndicesSummation"] \
           * self.rpgo
 
-    numSgprLoopCounters = 1 * kernel["ProblemType"]["NumIndicesSummation"]
+    numSgprLoopCounters = 1 * self.actualSummationLoops
 
 
     ########################################
@@ -1536,6 +1546,9 @@ class KernelWriterAssembly(KernelWriter):
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
     self.lastPostLoopSgpr = self.sgprIdx
+
+    if self.unrollIncIsDepthU:
+      self.defineSgpr("UnrollLoopLastIter", 1) # product of all summation dimensions
 
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
@@ -4347,21 +4360,21 @@ class KernelWriterAssembly(KernelWriter):
         tmpSgpr = self.getTmpSgpr(3)
         # Summations always appear in both A and B, can compute number of iterations just once:
         if loopIdxPrev==self.unrollIdx:
-          unrollLoopCounter= self.loopCounterName(kernel, self.unrollIdx)
+          loopCounterName= self.loopCounterName(kernel, self.unrollIdx)
           if tP["isA"]:
-            quotient = unrollLoopCounter
+            quotient = loopCounterName
             dividend = "SizesSum+%u"%self.unrollIdx
             divisor = kernel["DepthU"]
             kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
                         divisor, tmpSgpr+2, 0)
 
             if kernel["GlobalSplitU"] > 1:
-              kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
+              kStr += self.calculateLoopNumIterGsu(kernel, loopCounterName, tmpSgpr)
 
-            kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
+            kStr += inst("s_mul_i32", sgpr(loopCounterName), sgpr(loopCounterName), \
                       kernel["GlobalSplitU"]*kernel["DepthU"], \
-                      "=UnrollLoopCounter*DepthU")
-          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
+                      "=loopCounterName*DepthU")
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(loopCounterName), \
                 "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
         else:
           kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, self.sizeRef(dimIdxPrev), \
@@ -4725,8 +4738,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     assert(self.doShadowInit and kernel["PrefetchGlobalRead"])
 
-    kStr += inst("s_cmp_eq_u32", self.loopCounter(kernel, self.unrollIdx), \
-        hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+    kStr += self.checkLastIter(kernel)
     if kernel["SuppressNoLoadLoop"]:
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
@@ -4794,7 +4806,19 @@ class KernelWriterAssembly(KernelWriter):
   # Declare Loop Num Iterations
   ##############################################################################
   def declareLoopNumIter(self, kernel):
-    return ""
+    kStr =""
+    if self.unrollIncIsDepthU:
+      kStr += inst ("s_mov_b32", sgpr("UnrollLoopLastIter"), self.loopSizeRef(kernel, self.unrollIdx), "init")
+      if kernel["PackSummationDims"]:
+        for idx in range(self.otherSummations):
+          assert not self.use64bProductOfSums
+          kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), \
+                          self.loopSizeRef(kernel, idx), "")
+      if kernel["GlobalSplitU"] > 1:
+        tmpSgpr = self.getTmpSgpr(3)
+        kStr += self.calculateLoopNumIterGsu(kernel, "UnrollLoopLastIter", tmpSgpr)
+
+    return kStr
 
 
   ##############################################################################
@@ -4924,23 +4948,23 @@ class KernelWriterAssembly(KernelWriter):
 
   # tmpSgpr is allocation of at least 3 tmpSgpr
 
-  # Output: Unroll LoopCounter SGPR contains the number of unroll iterations for
+  # Output: SGPR(destName) contains the number of unroll iterations for
   # this workgroup.
   ##############################################################################
-  def calculateLoopNumIterGsu(self, kernel, tmpSgpr):
+  def calculateLoopNumIterGsu(self, kernel, destName, tmpSgpr):
     kStr = ""
 
-    loopCounterName = self.loopCounterName(kernel, self.unrollIdx)
-    loopCounter = sgpr(loopCounterName)
-    quotient = loopCounterName
+    loopCounter = sgpr(destName)
+    quotient = destName
     remainder = "GSUSumIdx+1" # numIterPerWgRemainder
     dividend = tmpSgpr+2 # numIterMyWg
     divisor = kernel["GlobalSplitU"]
-    kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide" )
+    kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide IterGsu" )
     kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
 
     # if gsuSumIdx < numIterPerWgRemainder
-    kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(1), loopCounter, "tmp<-numIterMyWg++" )
+    kStr += inst("s_add_u32", sgpr(tmpSgpr), "DepthU" if self.unrollIncIsDepthU else "1", \
+                  loopCounter, "tmp<-numIterMyWg+" )
     kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
         "gsuSumIdx < numIterPerWgRemainder" )
     kStr += inst("s_cmov_b32", loopCounter, sgpr(tmpSgpr), "numIterMyWg++ if needed" )
@@ -5001,7 +5025,7 @@ class KernelWriterAssembly(KernelWriter):
         # (size % DepthU) + LSU - 1
         kStr += inst("s_add_u32", loopCounter, hex(kernel["LocalSplitU"]-1), loopCounter, "(size % DepthU) + LSU - 1" )
         dividend = tmpSgpr+2
-        kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide" )
+        kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide LSU" )
         kStr += scalarStaticDivideAndRemainder( loopCounter, None, dividend, kernel["LocalSplitU"], tmpSgpr, 0)
 
       # if GSU numIter=0 if gsuSumIdx != remainder
@@ -5029,7 +5053,7 @@ class KernelWriterAssembly(KernelWriter):
       #sumSize = self.sumSize(kernel, loopIdx)
       if self.unrollIncIsDepthU:
         kStr += inst("s_mov_b32", loopCounter, \
-                  "%d*DepthU"%(0 * kernel["PrefetchGlobalRead"]), \
+                  "%d*DepthU"%(kernel["PrefetchGlobalRead"]), \
                   "init loop counter, unrollIncIsDepthU mode")
 
       else:
@@ -5041,7 +5065,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += scalarStaticDivideAndRemainder(quotient, None, sumSize, divisor, tmpSgpr, 0)
         # if GSU numIter++ if gsuSumIdx < remainder
         if kernel["GlobalSplitU"] > 1:
-          kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
+          kStr += self.calculateLoopNumIterGsu(kernel, loopCounterName, tmpSgpr)
 
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
                 loopCounter, \
@@ -5195,7 +5219,7 @@ class KernelWriterAssembly(KernelWriter):
         if self.unrollIncIsDepthU:
           kStr += inst("s_cmp_ge_u32", \
               loopCounter, \
-              sgpr("ProductOfSummations"), \
+              sgpr("UnrollLoopLastIter"), \
               "LoopCounter%s > EndCounter"%(loopChar) )
         else:
           kStr += inst("s_cmp_le_u32", \
@@ -5261,6 +5285,10 @@ class KernelWriterAssembly(KernelWriter):
         "inc counter%s"%(loopChar) )
 
       endCounter = 0
+      kStr += inst("s_cmp_eq_i32", \
+          loopCounter, \
+          hex(endCounter), \
+        "counter%s==%d"%(loopChar,endCounter) )
     else: # not tailloop
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -5268,31 +5296,45 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelEnd = self.getLabelNum("LoopEnd%s"%(loopChar) )
       loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
       loopCounter = self.loopCounter(kernel, loopIdx)
-      unrollInc = "DepthU" if self.unrollIncIsDepthU and loopIdx==self.unrollIdx else 1
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
-      kStr += inst("s_sub_u32", \
-          loopCounter, loopCounter, \
-          unrollInc, \
-          "dec counter%s"%(loopChar) )
 
-      # If PrefetchGlobalRead=1 the loads in the loop prefetch next macro-tile
-      # For the final trip through the unroll loop we need to ensure those loads stay in bounds.
+      if self.unrollIncIsDepthU and loopIdx==self.unrollIdx:
+        # TODO - move to top of loop, ahead of address incs.
+        kStr += inst("s_add_u32", \
+            loopCounter, loopCounter, \
+            "DepthU", \
+            "dec counter%s"%(loopChar) )
 
-      # One technique is to create a copy of the unroll loop with all loads removed.
-      # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
-      # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
-      # increments appropriately.
-      # Also sum idx other than unroll always compare against 0 (there is no PGR to account for)
-      if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
-        endCounter = 1
+        assert (not kernel["SuppressNoLoadLoop"]) # not accounting for end-of-loop iteration change here in deprecated mode
+
+        kStr += inst("s_cmp_ge_u32", \
+            loopCounter, \
+            sgpr("UnrollLoopLastIter"), \
+          "counter%s==0"%(loopChar) )
       else:
-        endCounter = 0
+        kStr += inst("s_sub_u32", \
+            loopCounter, loopCounter, \
+            1, \
+            "dec counter%s"%(loopChar) )
 
-    kStr += inst("s_cmp_eq_i32", \
-        loopCounter, \
-        hex(endCounter), \
-        "counter%s==0"%(loopChar) )
+        # If PrefetchGlobalRead=1 the loads in the loop prefetch next macro-tile
+        # For the final trip through the unroll loop we need to ensure those loads stay in bounds.
+
+        # One technique is to create a copy of the unroll loop with all loads removed.
+        # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
+        # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
+        # increments appropriately.
+        # Also sum idx other than unroll always compare against 0 (there is no PGR to account for)
+        if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
+          endCounter = 1
+        else:
+          endCounter = 0
+
+        kStr += inst("s_cmp_eq_i32", \
+            loopCounter, \
+            hex(endCounter), \
+          "counter%s==%d"%(loopChar,endCounter) )
 
     if not finalLoop:
       # just an exit check, else fall through to the next loop copy
@@ -5542,8 +5584,7 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
     kStr = ""
     if prefetch:
-      kStr += inst("s_cmp_eq_u32", self.loopCounter(kernel, self.unrollIdx), \
-          hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+      kStr += self.checkLastIter(kernel)
       if not isPap:
         if self.doShadowInit:
           kStr += inst("s_cbranch_scc1 %s"\
@@ -10604,10 +10645,14 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
 # doRemainder==2 : only compute remainder (not quotient unless required for remainder)
 # dreg == dividend
 # tmpSgpr must be 2 SPGRs
+# qReg and dReg can be "sgpr[..]" or names of sgpr (will call sgpr)
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     doRemainder=1):
 
   assert (qReg != tmpSgpr)
+
+
+  qRegSgpr = qReg if type(qReg) == str and qReg.startswith("s[") else sgpr(qReg)
 
   dRegSgpr = dReg if type(dReg) == str and dReg.startswith("s[") else sgpr(dReg)
 
@@ -10615,8 +10660,8 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
     if doRemainder != 2:
-      kStr += inst("s_lshr_b32", sgpr(qReg), dRegSgpr, divisor_log2, \
-          "%s = %s / %u"%(sgpr(qReg), dRegSgpr, divisor) )
+      kStr += inst("s_lshr_b32", qRegSgpr, dRegSgpr, divisor_log2, \
+          "%s = %s / %u"%(qRegSgpr, dRegSgpr, divisor) )
     if doRemainder:
       kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), dRegSgpr, \
           "%s = %s %% %u"%(sgpr(rReg), dRegSgpr, divisor) )
@@ -10641,13 +10686,13 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "STATIC_DIV: divisior=%s"%divisor)
     kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), hex(magicHi), dRegSgpr, "tmp1 = dividend * magic hi")
     kStr += inst("s_lshl_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(16), "left shift 16 bits")
-    kStr += inst("s_mul_i32", sgpr(qReg), dRegSgpr, hex(magicLo), "tmp0 = dividend * magic lo")
-    kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr(qReg), sgpr(tmpSgpr+0), "add lo")
+    kStr += inst("s_mul_i32", qRegSgpr, dRegSgpr, hex(magicLo), "tmp0 = dividend * magic lo")
+    kStr += inst("s_add_u32", sgpr(tmpSgpr+0), qRegSgpr, sgpr(tmpSgpr+0), "add lo")
     kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), hex(0), "add hi")
     kStr += inst("s_lshr_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(shift), "tmp1 = (dividend * magic) << shift")
-    kStr += inst("s_mov_b32", sgpr(qReg), sgpr(tmpSgpr), "quotient")
+    kStr += inst("s_mov_b32", qRegSgpr, sgpr(tmpSgpr), "quotient")
     if doRemainder:
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(qReg), hex(divisor), "quotient*divisor")
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), qRegSgpr, hex(divisor), "quotient*divisor")
       kStr += inst("s_sub_u32", sgpr(rReg), dRegSgpr, sgpr(tmpSgpr), "rReg = dividend - quotient*divisor")
   return kStr
 
