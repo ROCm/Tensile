@@ -539,24 +539,30 @@ class KernelWriterAssembly(KernelWriter):
 
   ########################################
   ########################################
-  def size(self, tc, dim):
+  def sizeRef(self, idx):
     """
-    Return sgpr() with the specified size
+    Return sgpr() or const with the specified size
     See above definitions for how these are mapped to Free or Sum sizes
     based on the problem definition.
     """
-    if tc in ['A','B','C','D']:
-      return sgpr("Size%s%s"%(tc,self.indexChars[dim]))
-    else:
-      raise ValueError("unexpected tensorChar='%s' in size function"%tc)
+    idxChar= globalParameters["IndexChars"][idx]
+    return sgpr("Size%s"%idxChar)
+
+  def loopSizeRef(self, kernel, loopIdx):
+    loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    return self.sizeRef(loopDim)
 
   def loopCounterName(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
     return "LoopCounter%s"%(self.indexChars[loopDim])
 
   def loopCounter(self, kernel, loopIdx):
-    """ Return loopCounter for loopIdx wrapped in "SGPR" syntax """
+    """
+    Return loopCounter for loopIdx wrapped in "SGPR" syntax
+    loop idx is 0...unrollIdx
+    """
     return sgpr(self.loopCounterName(kernel,loopIdx))
+
 
   def isConstUnitStride(self, stride):
       return stride.startswith("const")
@@ -2811,20 +2817,19 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
     kStr += self.comment1("Size Assignments")
     problemType = kernel["ProblemType"]
-    for tc in ('D','C'):
-      for idx in range(0, problemType["NumIndicesC"]):
-        idxChar= self.indexChars[idx]
-        kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
-                  "sgprSizesFree+%u"%(idx))
-    for tc in ('A','B'):
-      for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
-        idxChar= self.indexChars[idx]
-        if idx < problemType["NumIndicesC"]:
-          kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
-                    "sgprSizesFree+%u"%(idx))
-        else:
-          kStr += self.macroRegister("sgprSize%s%s"%(tc,idxChar), \
-                    "sgprSizesSum+%u"%(idx - problemType["NumIndicesC"]))
+    for idx in range(max(problemType["IndexAssignmentsA"] + problemType["IndexAssignmentsB"])+1):
+      idxChar= globalParameters["IndexChars"][idx]
+      if idx in problemType["IndicesFree"] or idx in problemType["IndicesBatch"]:
+        idxType="Free"
+      elif idx in problemType["IndicesSummation"]:
+        idxType="Sum"
+        idx = idx - problemType["NumIndicesC"]
+      else:
+        raise ValueError("unexpected index type in size assignments")
+
+      kStr += self.macroRegister("sgprSize%s"%(idxChar), \
+                  "sgprSizes%s+%u"%(idxType, idx))
+
 
     kStr += "\n"
     kStr += self.comment1("Stride Assignments")
@@ -3825,7 +3830,7 @@ class KernelWriterAssembly(KernelWriter):
       # Subtract the static component from SizesFree:
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
-      kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.size(tc, tP["idx"]), sgpr(tmpSgpr), \
+      kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.sizeRef(tP["idx"]), sgpr(tmpSgpr), \
                 "edge = Size%s - WG*MT"%(tP["tileChar"]))
       # use math here to use unsigned (to increase range)
       #  - add srdShiftLeft to tmpSgpr - ensure it is always positive
@@ -3837,7 +3842,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("_v_add_co_u32", vgpr(shiftedEdge), "vcc", vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
     else:
       tmpSgpr = self.getTmpSgpr(1)
-      kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.size(tc, tP["idx"]), margin, \
+      kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.sizeRef(tP["idx"]), margin, \
           "edge = Size%s-%u"%(tP["tileChar"], margin) )
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
@@ -4355,7 +4360,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
                 "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
         else:
-          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, self.size(tc, dimIdxPrev), \
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, self.sizeRef(dimIdxPrev), \
                 "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
 
         # subtract amount that previous inner loop will have already incremented:
@@ -5020,7 +5025,7 @@ class KernelWriterAssembly(KernelWriter):
       #sumSize = self.sumSize(kernel, loopIdx)
       if self.unrollIncIsDepthU:
         kStr += inst("s_mov_b32", loopCounter, \
-                  sgpr(sumSize), \
+                  "%d*DepthU"%(0 * kernel["PrefetchGlobalRead"]), \
                   "init loop counter, unrollIncIsDepthU mode")
 
       else:
@@ -5064,8 +5069,8 @@ class KernelWriterAssembly(KernelWriter):
         tmpSgpr = self.getTmpSgpr(2)
         kStr += "\n"
         kStr += self.comment1("ElementEdge%s%s" % (tc, sumDimChar))
-        kStr += inst("s_add_u32", sgpr(tmpSgpr), self.size('A',freeDim), \
-                  self.size('A', sumDim), "")
+        kStr += inst("s_add_u32", sgpr(tmpSgpr), self.sizeRef(freeDim), \
+                  self.sizeRef(sumDim), "")
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
                   self.stride('A', sumDim), "elementEdgeAK")
         # srdShiftLeft is included in GRO so need to add this to edge.
@@ -6192,12 +6197,12 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = problemType["IndicesSummation"].index(sumDim)
       # TODO - fix for GSU, need LOCAL_DEPTHU*GSUp
       if guardK:
-        imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), \
+        imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.sizeRef(freeDim), \
           self.loopCounter(kernel,loopIdx), "compute elementCounter%s, step2"%(sumChar))
       else:
         imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.loopCounter(kernel,loopIdx), \
           "DepthU", "compute elementCounter%s, step1"%(sumChar))
-        imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), \
+        imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.sizeRef(freeDim), \
           sgpr(zpTmp), "compute elementCounter%s, step2"%(sumChar))
       imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.stride(tc,freeDim), sgpr(zpTmp), "scale by stride")
       imod.header.addInst("s_lshl_b32", sgpr(zpTmp), sgpr(zpTmp), log2(self.bpeAB), "scale by bpe")
@@ -7446,11 +7451,11 @@ class KernelWriterAssembly(KernelWriter):
       if len(indices) > 1:
         for i,idx in enumerate(indices[1:]):
           if i==0:
-            kStr += inst("s_mul_i32", sgpr(packedSizes), self.size('C', indices[0]), \
-                      self.size('C', idx), "first packed size")
+            kStr += inst("s_mul_i32", sgpr(packedSizes), self.sizeRef(indices[0]), \
+                      self.sizeRef(idx), "first packed size")
           else:
             kStr += inst("s_mul_i32", sgpr(packedSizes), sgpr(packedSizes), \
-                      self.size ('C', idx), "first packed size")
+                      self.sizeRef (idx), "first packed size")
 
 
     return kStr
@@ -8323,7 +8328,7 @@ class KernelWriterAssembly(KernelWriter):
         #   - tmp+1 is DIV output
         #   - tmp+2 is scratch
         idxChar= globalParameters["IndexChars"][idx]
-        kStr += kw.comment1("extract %s"%kw.size('A', idx))
+        kStr += kw.comment1("extract %s"%kw.sizeRef(idx))
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
         kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" % \
                  (tmpVgpr+1, vgpr(packedBits), sgpr("MagicNumberSize%s"%idxChar), \
@@ -8332,7 +8337,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # compute remainder, packedBits % sizeIdx - this is the 'extracted' index that must be scaled
         # remainder is mul and sub
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), kw.size('A', idx), \
+        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), kw.sizeRef(idx), \
                      "remainder part 1")
         kStr += inst("_v_sub_u32", vgpr(tmpVgpr+2), vgpr(packedBits), vgpr(tmpVgpr+2),
                       "remainder part 2")
@@ -8354,7 +8359,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if len(packedIndices)>1:
         # if we unpacked something, then scale it to BPE
-        kStr += kw.comment1("extract final %s"%kw.size('A', packedIndices[-1]))
+        kStr += kw.comment1("extract final %s"%kw.sizeRef(packedIndices[-1]))
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
                   kw.stride(storeChar, packedIndices[-1]), "scale final extracted dim")
         kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
@@ -8517,10 +8522,10 @@ class KernelWriterAssembly(KernelWriter):
           sizeBoundary = [0,0]
           sizeBoundary[0] = \
               sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
-              else kw.size('C', kernel["ProblemType"]["Index0"])
+              else kw.sizeRef(kernel["ProblemType"]["Index0"])
           sizeBoundary[1] = \
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
-              else kw.size('C', kernel["ProblemType"]["Index1"])
+              else kw.sizeRef(kernel["ProblemType"]["Index1"])
 
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), \
                     sizeBoundary[0], "coord0 < size0" )
@@ -8656,10 +8661,10 @@ class KernelWriterAssembly(KernelWriter):
     sizeBoundary = [0,0]
     sizeBoundary[0] = \
         sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
-        else self.size('C', kernel["ProblemType"]["Index0"])
+        else self.sizeRef(kernel["ProblemType"]["Index0"])
     sizeBoundary[1] = \
         sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
-        else self.size('C', kernel["ProblemType"]["Index1"])
+        else self.sizeRef(kernel["ProblemType"]["Index1"])
 
     kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, sizeBoundary[0], \
         kernel["MacroTile0"], tmpS45, 2)
