@@ -1885,16 +1885,6 @@ class Solution:
             state["VectorWidth"]))
         return
 
-    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1:
-        # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
-        # problems that require tail loop.
-        if state["DepthU"]*state["GlobalSplitU"] % state["AssertSummationElementMultiple"] != 0:
-          reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
-        else:
-          state["AssertSummationElementMultiple"] = state["DepthU"]*state["GlobalSplitU"]
-        # not supported with PSD
-        state["StaggerU"] = 0
-
     if len(problemType["IndicesSummation"]) > 1:
       # not supported with multiple summations, bug is maybe something with
       # how stagger iteration is wraped when unroll loop exits
@@ -2142,6 +2132,21 @@ class Solution:
     ########################################
     # end DepthU loop
     ########################################
+
+
+    assert(state["DepthU"]> 0)
+
+
+    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1:
+        # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
+        # problems that require tail loop.
+        if state["DepthU"]*state["GlobalSplitU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU*GlobalSplitU is integer multiple of ASEM")
+        else:
+          state["AssertSummationElementMultiple"] = state["DepthU"]*state["GlobalSplitU"]
+        # not supported with PSD
+        state["StaggerU"] = 0
+
 
     if not state["FractionalLoad"]:
       if not Solution.setGlobalLoadTileDimClassic(state, "A", state["NumLoadsA"], \
@@ -2478,8 +2483,9 @@ class Solution:
             (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) ):
       state["PersistentKernel"] = 0
 
-    if  state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
-      warn("MagicDivAlg==2 does not work with legacy client")
+    if state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
+      warn("MagicDivAlg==2 does not work with legacy client, forcing MagicDivAlg=1")
+      state["MagicDivAlg"] = 1
 
     problemType["AssignedDerivedParameters"] = True
 
