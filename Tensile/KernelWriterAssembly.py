@@ -569,7 +569,11 @@ class KernelWriterAssembly(KernelWriter):
 
   ########################################
   ########################################
-  def stride(self, tc, dim):
+  def strideRef(self, tc, dim):
+    """
+    Return sgpr with specified stride or define starting with const if constant.
+    dim is index 0...max indices and is in global index space.
+    """
     problemType = self.kernel["ProblemType"]
     if tc in ['A','B']:
       if not problemType["UseInitialStridesAB"] and \
@@ -2996,13 +3000,13 @@ class KernelWriterAssembly(KernelWriter):
             # offset * stride
             kStr += inst("v_mul_lo_u32", \
                 destLo,
-                self.stride(tc, indices[i]), \
+                self.strideRef(tc, indices[i]), \
                 offset, \
                 "mul d%u lower"%i)
             if not justOffset32:
               kStr += inst("v_mul_hi_u32", \
                   destHi,
-                  self.stride(tc, indices[i]), \
+                  self.strideRef(tc, indices[i]), \
                   offset, \
                   "mul d%u upper"%i)
           else: # offset is SGPR:
@@ -3015,12 +3019,12 @@ class KernelWriterAssembly(KernelWriter):
               # offset * stride
               kStr += inst("v_mul_lo_u32", \
                   "v[\\vgprTmp+0]", \
-                  self.stride(tc, indices[i]), \
+                  self.strideRef(tc, indices[i]), \
                   "v[\\vgprTmp+2]",  \
                   "other stride mul d%u lower"%i)
               kStr += inst("v_mul_hi_u32", \
                   "v[\\vgprTmp+1]", \
-                  self.stride(tc, indices[i]), \
+                  self.strideRef(tc, indices[i]), \
                   "v[\\vgprTmp+2]",  \
                   "mul d%u upper"%i)
               needAdd = 1
@@ -4076,7 +4080,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       if kernel["CheckDimOverflow"] >=2:
         kStr += self.assert_eq(sgpr(tileStart+1),0)
-      strideF = self.stride(tc, tP['tileIdx'])
+      strideF = self.strideRef(tc, tP['tileIdx'])
       if not self.isConstUnitStride(strideF):
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
                    strideF, "tlu=0, scaled tile-offset by stride")
@@ -4090,7 +4094,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.assert_eq(sgpr(stmp+1),0)
         # TODO - PackSummationDims handling needs to handle multiple sum dims
         unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
-        stride = self.stride(tc,unrollSummation[-1])
+        stride = self.strideRef(tc,unrollSummation[-1])
         if tP["tlu"] and not self.isConstUnitStride(stride):
           # non-transpose case, unroll is in perp dim and should be scaled by unroll Stride
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
@@ -4286,7 +4290,7 @@ class KernelWriterAssembly(KernelWriter):
     dimIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] # dimension index
     loopChar = self.indexChars[dimIdx]
 
-    stride = self.stride(tc, dimIdx)
+    stride = self.strideRef(tc, dimIdx)
 
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
@@ -4336,7 +4340,7 @@ class KernelWriterAssembly(KernelWriter):
         loopIdxPrev = loopIdx + 1
         dimIdxPrev    = kernel["ProblemType"]["IndicesSummation"][loopIdxPrev] # dimension index
         loopCharPrev  = self.indexChars[dimIdxPrev]
-        stridePrev = self.stride(tc, dimIdxPrev)
+        stridePrev = self.strideRef(tc, dimIdxPrev)
 
         kStr += self.comment("compute globalReadInc for higher-level loop")
 
@@ -5072,7 +5076,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", sgpr(tmpSgpr), self.sizeRef(freeDim), \
                   self.sizeRef(sumDim), "")
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
-                  self.stride('A', sumDim), "elementEdgeAK")
+                  self.strideRef('A', sumDim), "elementEdgeAK")
         # srdShiftLeft is included in GRO so need to add this to edge.
         # Do this after the scale is applied.
         kStr += inst("s_add_u32", sgpr(tmpSgpr), \
@@ -5089,10 +5093,10 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", sgpr(tmpSgpr+1), \
                       sgpr(tmpSgpr+1), 1 , "")
 
-        if not self.isConstUnitStride(self.stride('A', freeDim)):
+        if not self.isConstUnitStride(self.strideRef('A', freeDim)):
             kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), \
                       sgpr(tmpSgpr+1), \
-                      self.stride('A', freeDim), "scale")
+                      self.strideRef('A', freeDim), "scale")
 
         kStr += inst("s_sub_u32", sgpr("ElementEdge%s%s"%(tc, sumDimChar)), \
                   sgpr(tmpSgpr), sgpr(tmpSgpr+1), \
@@ -6204,7 +6208,7 @@ class KernelWriterAssembly(KernelWriter):
           "DepthU", "compute elementCounter%s, step1"%(sumChar))
         imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.sizeRef(freeDim), \
           sgpr(zpTmp), "compute elementCounter%s, step2"%(sumChar))
-      imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.stride(tc,freeDim), sgpr(zpTmp), "scale by stride")
+      imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.strideRef(tc,freeDim), sgpr(zpTmp), "scale by stride")
       imod.header.addInst("s_lshl_b32", sgpr(zpTmp), sgpr(zpTmp), log2(self.bpeAB), "scale by bpe")
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
@@ -8344,10 +8348,10 @@ class KernelWriterAssembly(KernelWriter):
 
         if i==0:
           kStr += inst("v_mul_lo_u32", vgpr(self.addrVgpr), vgpr(tmpVgpr+2), \
-                    kw.stride(storeChar, idx), "addrCalc <- scaled extracted dim")
+                    kw.strideRef(storeChar, idx), "addrCalc <- scaled extracted dim")
         else:
           kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+2), \
-                    kw.stride(storeChar, idx), "scale extracted dim")
+                    kw.strideRef(storeChar, idx), "scale extracted dim")
           kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
                     vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
 
@@ -8361,7 +8365,7 @@ class KernelWriterAssembly(KernelWriter):
         # if we unpacked something, then scale it to BPE
         kStr += kw.comment1("extract final %s"%kw.sizeRef(packedIndices[-1]))
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
-                  kw.stride(storeChar, packedIndices[-1]), "scale final extracted dim")
+                  kw.strideRef(storeChar, packedIndices[-1]), "scale final extracted dim")
         kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
                   vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
 
