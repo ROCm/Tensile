@@ -8021,8 +8021,8 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["MatrixInstruction"]:
             # for 'B' blocks in MFMA d1 represents next block dimension 
             # offset requires stride calculation for next Block
-            mfmaStoreVw = 1 #Todo check it can be other case or not
-            strideD1 = kernel["MatrixInstN"]*mfmaStoreVw + vc1
+            mfmaColStoreVw = 1 #Todo check it can be other case or not
+            strideD1 = kernel["MatrixInstN"]*mfmaColStoreVw + vc1
           else:
             strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
 
@@ -9910,14 +9910,14 @@ class KernelWriterAssembly(KernelWriter):
     numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
     numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     numRowInstructions = kernel["ThreadTile0"]
-    mfmaStoreVw = 1 #Todo check it can be other case or not
+    mfmaColStoreVw = 1 #Todo check it can be other case or not
 
-    for ColInstIter in range (ColInstIdx, numColInstructions, mfmaStoreVw) :
+    for ColInstIter in range (ColInstIdx, numColInstructions, mfmaColStoreVw) :
       for ColblkIter in range (0, numColBlocks) :
-        for RowInstIter in range (RowInstIdx, numRowInstructions, mfmaStoreVw) :
+        for RowInstIter in range (RowInstIdx, numRowInstructions, mfmaColStoreVw) :
           for RowblkIter in range (0, numRowblocks) :
             for RegIter in range (0, numRowsPerBlock) :
-              for VwIter in range (0, mfmaStoreVw) :
+              for VwIter in range (0, mfmaColStoreVw) :
                 AccRegIdx = self.startVgprValuC + VwIter*self.destAgprs + RegIter + RowblkIter*numRowsPerBlock + RowInstIter*self.destAgprs + ColblkIter*(self.destAgprs//numColBlocks) + ColInstIter*numRowInstructions*self.destAgprs
                 kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%VgprRegIdx), "acc%u"%AccRegIdx, "copy areg to vreg")
                 VgprRegIdx = VgprRegIdx + 1
