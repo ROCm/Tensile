@@ -22,7 +22,7 @@
 import sys,traceback
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
+from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -85,17 +85,23 @@ class Convolution:
     def __repr__(self):
       return self.shortChar
 
-  SummaryProperties=[\
+  SummaryProblemProperties=[\
         'OperationType','DestDataType','DataType','HighPrecisionAccumulate',\
         'TensorAFormat','TensorBFormat','TensorDFormat',\
         'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
         'SetConstStrideA', 'SetConstStrideB',\
-        'UseBeta', 'UseInitialStrides',\
+        'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
+        ]
+  SummarySolutionProperties=[\
+        'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
         ]
 
   def __init__(self, problemTypeOut, convolutionType, config):
+    """
+    problemTypeOut contains problem type parms created by this constructor.
+    """
 
     self.convolutionDims={};
     self.convolutionType = convolutionType
@@ -299,23 +305,33 @@ class Convolution:
     problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB]
     problemTypeOut["UseBeta"] = False # MI kernels don't use beta
 
+    self.solutionParms = {}
+
     problemTypeOut["SetConstStrideA"]=[]
     for (idx,fbs,dim) in self.indexA:
       if dim.strideA != -1:
         problemTypeOut["SetConstStrideA"].append([idx,dim.strideA])
     problemTypeOut["SetConstStrideA"].sort()
+    if problemTypeOut["SetConstStrideA"]:
+        self.solutionParms["AssertStrideAEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideA"]])
 
     problemTypeOut["SetConstStrideB"]=[]
     for (idx,fbs,dim) in self.indexB:
       if dim.strideB != -1:
         problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
     problemTypeOut["SetConstStrideB"].sort()
+    if problemTypeOut["SetConstStrideB"]:
+        self.solutionParms["AssertStrideBEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideB"]])
 
     if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
        [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
-      problemTypeOut["UseInitialStrides"] = False
+      problemTypeOut["UseInitialStridesAB"] = False
     else:
-      problemTypeOut["UseInitialStrides"] = True
+      problemTypeOut["UseInitialStridesAB"] = True
 
     #self.printUsage(problemTypeOut)
 
@@ -517,11 +533,20 @@ class Convolution:
 
     print ()
     print ("ProblemType Definition:")
-    for k in Convolution.SummaryProperties:
+    for k in Convolution.SummaryProblemProperties:
       try:
         print ("  ", k, ":", problemType[k])
       except KeyError:
         pass
+
+    print ()
+    print ("Solution Assertions:")
+    for k in Convolution.SummarySolutionProperties:
+      try:
+        print ("  ", k, ":", self.solutionParms[k])
+      except KeyError:
+        pass
+
 
   def checkDims(self, freeIndices, batchIndices, sumIndices):
     for dimList in (self.indexA, self.indexB):
@@ -543,8 +568,6 @@ class Convolution:
     id += "_indices:" + '.'.join([x[1].shortChar for x in self.indexAssignments])
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
-    else:
-      raise RuntimeError ("convolution-vs-contraction requires ConvolutionConfig['Spatial']")
     id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
     id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
     id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])
@@ -828,7 +851,8 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["UseInitialStrides"]: name += "I"
+    if self["UseInitialStridesAB"]: name += "I"
+    if self["UseInitialStridesCD"]: name += "Ic"
     return name
 
   def keys(self):
@@ -1194,8 +1218,10 @@ class Solution:
       kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
-      kernel["ProblemType"]["UseInitialStrides"] = \
-          problemType["UseInitialStrides"]
+      kernel["ProblemType"]["UseInitialStridesAB"] = \
+          problemType["UseInitialStridesAB"]
+      kernel["ProblemType"]["UseInitialStridesCD"] = \
+          problemType["UseInitialStridesCD"]
       kernel["ProblemType"]["SetConstStrideA"] = \
           problemType["SetConstStrideA"]
       kernel["ProblemType"]["SetConstStrideB"] = \
@@ -1230,14 +1256,48 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    state["SubGroup0"] = state["WorkGroup"][0]
-    state["SubGroup1"] = state["WorkGroup"][1]
-    state["LocalSplitU"] = state["WorkGroup"][2]
-    state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
+    if state["MatrixInstruction"]:
+      if state["MatrixInstruction"][0] != -1:
+        if len(state["MatrixInstruction"]) == 4:
+          # check for valid instruction with input type
+          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
+          if state["ThreadTile"][1] % itemsPerThread != 0:
+            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
+          state["MatrixInstM"] = state["MatrixInstruction"][0]
+          state["MatrixInstN"] = state["MatrixInstruction"][1]
+          state["MatrixInstK"] = state["MatrixInstruction"][2]
+          state["MatrixInstB"] = state["MatrixInstruction"][3]
+    else:
+      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
+        reject(state, "Invalid value for ThreadTile")
+
+    if state["MatrixInstruction"]:
+      if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
+        reject(state, "Error calcualting InstSplit")
+      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstM"] * state["MatrixInstB"]) # BBlocks
+      state["MIWG0"] = state["MatrixInstM"] if state["WorkGroup"][0] < state["MatrixInstM"] else  state["WorkGroup"][0]
+      # raise rejection 
+      if ((state["MIWG0"]%state["MatrixInstM"]) != 0):
+        reject(state, "WorkGroup0 must be mulitple of MatrixInstM")
+      #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
+      #  reject(state, "Error calculating MIWG1")
+
+      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MIWG0"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
+      state["SubGroup0"] = state["MIWG0"] # TODO calc
+      state["SubGroup1"] = state["MIWG1"]
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
+    else:
+      state["SubGroup0"] = state["WorkGroup"][0]
+      state["SubGroup1"] = state["WorkGroup"][1]
+
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
     state["ThreadTile0"] = state["ThreadTile"][0]
     state["ThreadTile1"] = state["ThreadTile"][1]
 
+    # TODO MI - SubGroup0 temporarily == MIWG0, revisit later
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
@@ -1307,6 +1367,8 @@ class Solution:
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
     state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
+    #if state["MatrixInstruction"] and not state["PrefetchGlobalRead"]:
+    #  state["NumLoads%s"%tc] = totalVectors * pv // (state["NumThreads"] // 4)  # 4 simds/cu
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -1385,7 +1447,7 @@ class Solution:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
           // state["NumLoadsPerpendicular%s"%tc]
-
+    
     return True
 
 
@@ -1563,6 +1625,14 @@ class Solution:
 
     return True
 
+  @staticmethod
+  def addConstStride(state, key, value):
+      try:
+          if value not in state[key].replace(' ','').split(','):
+              state[key] = state[key] + ", " + value
+      except KeyError:
+          state[key] = value
+
 
   ########################################
   # assign all derived parameters
@@ -1579,6 +1649,17 @@ class Solution:
     if not state["Valid"]:
       print1("in assignDerivedParameters, state['Valid'] = False")
       return
+
+    # Init LoopIters parameter in case of early exit
+    # For backwards compatibility with older yaml files
+    state["LoopIters"] = 0
+    if "LoopUnroll" in state:
+      state["LoopIters"] = state["LoopUnroll"]
+
+    if state["MatrixInstruction"]:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
@@ -1615,24 +1696,22 @@ class Solution:
     assert(isPackedIndex(state, problemType["Index0"], 0x1))
     assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
-    if state["PackBatchDims"]==1:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideB"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideB"%bi)
-                #problemType["SetConstStrideB"].append([bi,0])
-    if state["PackBatchDims"]==2:
-        for bi in problemType["IndicesBatch"]:
-            found = False
-            for sc in problemType["SetConstStrideA"]:
-                if sc[0]==bi and sc[1]==0:
-                    found = True
-            if not found:
-                print ("Warning: batch index [%s,0] should be in SetConstStrideA"%bi)
-                #problemType["SetConstStrideA"].append([bi,0])
+    # Add AssertStride*Equal for PackBatchDims, if needed
+    for (mask, tc) in ((0x1,'B'), (0x2,'A')):
+        if state["PackBatchDims"] & mask:
+            for bi in problemType["IndicesBatch"]:
+                found = False
+                try:
+                    for pair in problemType["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                        (index,value)=pair.split(':')
+                        if index==bi and value==0:
+                            found = True
+                            break
+                except KeyError:
+                    None
+                if not found:
+                    Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
+                                "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
 
     for idx in problemType["IndexAssignmentsA"]:
       if isPackedIndex(state, idx, 0x1):
@@ -1677,6 +1756,10 @@ class Solution:
                 (state["DepthU"] * bpeAB), 2)))
     except ValueError:
         staggerStrideShift = 0
+    if staggerStrideShift < 0:
+      reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
+        % (state["StaggerUStride"], state["DepthU"], bpeAB))
+      return 
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
@@ -1689,12 +1772,19 @@ class Solution:
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         state["VectorWidth"] //= 2
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if state["ThreadTile0"] % state["VectorWidth"] != 0 \
-        or state["ThreadTile1"] % state["VectorWidth"] != 0:
-      reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
-          % (state["ThreadTile0"], state["ThreadTile1"], \
-          state["VectorWidth"]))
-      return
+    if not state["MatrixInstruction"]:
+      if state["ThreadTile0"] % state["VectorWidth"] != 0 \
+          or state["ThreadTile1"] % state["VectorWidth"] != 0:
+        reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
+            % (state["ThreadTile0"], state["ThreadTile1"], \
+            state["VectorWidth"]))
+        return
+
+    if state["PackSummationDims"] == 1:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
+        else:
+          state["AssertSummationElementMultiple"] = state["DepthU"]
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
@@ -1709,10 +1799,19 @@ class Solution:
            # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
             reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
 
+    if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
+        reject(state, "PackSummationDims does not yet support assembly")
+
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
+    # Default GlobalStoreVectorWidth
+    if state["StoreVectorWidth"] == -1:
+      #TODO : re-enable later after running testlists
+      #state["StoreVectorWidth"] = state["VectorWidth"]
+      # use wider store for best store optimization 
+      state["StoreVectorWidth"] = 4  
 
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
@@ -2050,6 +2149,9 @@ class Solution:
       reject(state, "LoopUnroll %u is less than 2" \
           % (state["LoopUnroll"]))
 
+    state["LoopIters"] = state["LoopUnroll"]
+    if "MatrixInstK" in state:
+      state["LoopIters"] //= state["MatrixInstK"]
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -2274,6 +2376,10 @@ class Solution:
     requiredParameters["MacroTile1"] = False # always prepended
     requiredParameters["DepthU"] = False # always prepended
     requiredParameters["LdcEqualsLdd"] = False # always prepended
+    requiredParameters["MatrixInstM"] = False # always prepended
+    requiredParameters["MatrixInstN"] = False # always prepended
+    requiredParameters["MatrixInstK"] = False # always prepended
+    requiredParameters["MatrixInstB"] = False # always prepended
     requiredParameters["Kernel"] = True # distinguish kernels from solutions
                                         # for single-source compilation
     return requiredParameters
@@ -2302,6 +2408,10 @@ class Solution:
       name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
+    if "MatrixInstM" in state:
+      name += "%s%ux%ux%ux%u_" \
+          % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"] )
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"

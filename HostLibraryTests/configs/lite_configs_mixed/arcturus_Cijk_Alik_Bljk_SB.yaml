@@ -61,7 +61,7 @@
   TransposeA: true
   TransposeB: false
   UseBeta: true
-  UseInitialStrides: false
+  UseInitialStridesAB: false
   ZeroPadA: []
   ZeroPadB: []
 - - AggressivePerfMode: 1
@@ -229,7 +229,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -431,7 +431,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -637,7 +637,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -843,7 +843,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1049,7 +1049,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1255,7 +1255,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1461,7 +1461,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1667,7 +1667,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -1873,7 +1873,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -2079,7 +2079,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -2285,7 +2285,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -2491,7 +2491,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -2697,7 +2697,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -2903,7 +2903,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -3109,7 +3109,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -3315,7 +3315,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -3521,7 +3521,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -3727,7 +3727,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -3933,7 +3933,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -4139,7 +4139,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -4345,7 +4345,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -4551,7 +4551,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -4757,7 +4757,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -4962,7 +4962,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -5167,7 +5167,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -5372,7 +5372,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -5577,7 +5577,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -5782,7 +5782,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -5987,7 +5987,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -6192,7 +6192,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false
@@ -6397,7 +6397,7 @@
       TransposeA: true
       TransposeB: false
       UseBeta: true
-      UseInitialStrides: false
+      UseInitialStridesAB: false
       ZeroPadA: []
       ZeroPadB: []
     ReplacementKernel: false

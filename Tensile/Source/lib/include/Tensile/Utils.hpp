@@ -36,6 +36,13 @@
 
 namespace Tensile
 {
+
+    /**
+     * \ingroup Tensile
+     * \addtogroup Utilities
+     * @{
+     */
+
     template <typename T>
     T CeilDivide(T num, T den)
     {
@@ -133,8 +140,16 @@ namespace Tensile
         value.read(stream);
         return stream;
     }
+
+    /**
+     * @}
+     */
 }
 
+/*
+ * \addtogroup Utilities
+ * @{
+ */
 #define TENSILE_STR_(x) #x
 #define TENSILE_STR(x) TENSILE_STR_(x)
 #define TENSILE_LINENO TENSILE_STR(__LINE__)
@@ -149,3 +164,6 @@ namespace Tensile
         }                                                                     \
     } while(false)
 
+/**
+ * @}
+ */

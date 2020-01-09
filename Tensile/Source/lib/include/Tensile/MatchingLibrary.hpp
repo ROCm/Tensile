@@ -33,12 +33,21 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup SolutionLibrary
+     * 
+     * Uses a distance function to select kernels based on benchmarks.
+     * Benchmarks are performed to determine the optimal kernel at a number of
+     * specific sizes. At runtime, we find the benchmarked size that is closest
+     * to the size asked for.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct ProblemMatchingLibrary: public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
         using Table = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
         std::shared_ptr<Table> table;
+        mutable CachedProblemMap<ProblemKey<size_t>, Tensile::ProblemKeyHash<size_t> ,MySolution> problemMap;
 
         static std::string Type() { return "Matching"; }
         virtual std::string type() const override { return Type(); }
@@ -50,20 +59,34 @@ namespace Tensile
                 return concatenate(type(), ": ", table->description());
         }
 
-        
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        std::shared_ptr<MySolution>
+            findSolutionInCache(MyProblem const& problem, Hardware const& hardware) const
         {
+            ProblemKey<size_t> pkey = problem.getKey();
+            pkey.addKeyAttribute(hardware.id());
+
+            std::shared_ptr<MySolution> theSolution = problemMap.find(pkey);
+
+            if (theSolution != nullptr)
+                return theSolution;
+
             typename Table::Transform transform =
                 [&](Element library) -> std::shared_ptr<MySolution>
                 {
                     return library->findBestSolution(problem, hardware);
                 };
 
-            auto closestEntry = table->findBestMatch(problem, transform);
+            std::shared_ptr<MySolution> closestEntry = table->findBestMatch(problem, transform);
 
-            return closestEntry;
+            return problemMap.add(pkey, closestEntry);
+        }
+
+        virtual std::shared_ptr<MySolution>
+            findBestSolution(MyProblem const& problem,
+                             Hardware  const& hardware) const override
+        {
+            auto cachedSolution = findSolutionInCache(problem, hardware);
+            return cachedSolution;
         }
 
         virtual SolutionSet<MySolution>

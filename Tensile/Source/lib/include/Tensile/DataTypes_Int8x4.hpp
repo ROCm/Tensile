@@ -28,6 +28,9 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup DataTypes
+     */
     struct Int8x4
     {
         Int8x4(int8_t xa, int8_t xb, int8_t xc, int8_t xd) : a(xa), b(xb), c(xc), d(xd) {};
@@ -46,6 +49,14 @@ namespace Tensile
                  + static_cast<int32_t>(b) * static_cast<int32_t>(other.b)
                  + static_cast<int32_t>(c) * static_cast<int32_t>(other.c)
                  + static_cast<int32_t>(d) * static_cast<int32_t>(other.d);
+        }
+
+        inline bool operator==(Int8x4 const& rhs) const
+        {
+            return a == rhs.a
+                && b == rhs.b
+                && c == rhs.c
+                && d == rhs.d;
         }
     };
 

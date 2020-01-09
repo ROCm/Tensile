@@ -33,7 +33,13 @@
 
 namespace Tensile
 {
-
+    /**
+     * \ingroup Tensile
+     * \ingroup Embedding
+     * 
+     * @brief Interface for retrieving a SolutionLibrary object which as been
+     * stored in the executable via EmbedData/EmbeddedData.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     class TENSILE_API EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
     {

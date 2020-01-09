@@ -226,13 +226,14 @@ def generateProblemType(initialParams):
     return problemType
 
 
+arcturusLibraryLogic={'ArchitectureName': 'gfx908', 'DeviceNames': ['Device 7380', 'Device 7388', 'Device 738c', 'Device 7390', 'Device 731f'], 'ScheduleName': 'arcturus'}
 vega20LibraryLogic={'ArchitectureName': 'gfx906', 'DeviceNames': ['Device 66a0', 'Device 66a1', 'Device 66a7', 'Vega 20'], 'ScheduleName': 'vega20'}
 vega10LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6863', 'Device 6862', 'Device 687f', 'Device 6860', 'Device 6861', 'Vega 10 XTX [Radeon Vega Frontier Edition]', 'Vega [Radeon RX Vega]'], 'ScheduleName': 'vega10'}
 mi25LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6860'], 'ScheduleName': 'mi25'}
 r9nanoLibraryLogic={'ArchitectureName': 'gfx803', 'DeviceNames': ['Device 7300'], 'ScheduleName': 'r9nano'}
 hipLibraryLogic={'ArchitectureName': 'fallback', 'DeviceNames': ['Device 0000'], 'ScheduleName': 'hip'}
 
-libraryLogicMapper={'vega20': vega20LibraryLogic, 'vega10': vega10LibraryLogic, 'mi25': mi25LibraryLogic, 'r9nano': r9nanoLibraryLogic, 'hip': hipLibraryLogic}
+libraryLogicMapper={'arcturus': arcturusLibraryLogic, 'vega20': vega20LibraryLogic, 'vega10': vega10LibraryLogic, 'mi25': mi25LibraryLogic, 'r9nano': r9nanoLibraryLogic, 'hip': hipLibraryLogic}
 
 def getLibraryLogic(logicType):
     libraryLogic = libraryLogicMapper[logicType]

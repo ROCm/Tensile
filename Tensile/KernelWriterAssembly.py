@@ -112,7 +112,10 @@ class RegisterPool:
   # Convenience function that takes a range and returns it in string form
   def addRange(self, start, stop, tag=""):
     self.add(start, stop-start+1, tag)
-    return "%d-%d" % (start, stop)
+    if (start == stop):
+      return "%d"%(start)
+    else:
+      return "%d-%d" % (start, stop)
 
   ########################################
   # Adds registers to the pool so they can be used as temps
@@ -409,6 +412,7 @@ class KernelWriterAssembly(KernelWriter):
     #  - Checks after alpha calc for each element.  Later elements (in the TT) will not yet have applied their alpha.
     #  - Only works if matrix is integral multiple of macro-tile (no edges) - check is dumb so doesn't know
     #    which work-items are outside the valid edge.
+    #  - Does not work in OptNoLoadLoop
     self.db["CheckValueC"]  = False
     # value expected if CheckValueC is set. Use '.' for FP.
     # For example could be 16.0 if U=8 and alpha=2
@@ -416,7 +420,23 @@ class KernelWriterAssembly(KernelWriter):
 
     # Force an expected value for all C outputs.
     # May be useful for checking store path
+    # See same caveats as CheckValueC
     self.db["ForceExpectedValue"]  = False
+
+    # Force VSerial value into the output, this will
+    # not match reference but can be useful to see which work-items are
+    # storing which values
+    # See same caveats as CheckValueC
+    self.db["ForceVSerial"] = False
+
+    # can't do both of these since they both override output
+    assert (not (self.db["ForceExpectedValue"] and self.db["ForceVSerial"]))
+
+
+    self.db["ForceInputValueA"] = False
+    self.db["ForceInputValueB"] = False
+    self.db["ForceValueA"] = 1.0
+    self.db["ForceValueB"] = 1.0
 
     self.db["CheckStoreC"] = -1 # -1 disables, reload and verify output data.  Specify expected constant value.
     #self.db["CheckStoreC"] = 1024.0 # possible value
@@ -534,13 +554,13 @@ class KernelWriterAssembly(KernelWriter):
   def stride(self, tc, dim):
     problemType = self.kernel["ProblemType"]
     if tc in ['A','B']:
-      if not problemType["UseInitialStrides"] and \
+      if not problemType["UseInitialStridesAB"] and \
           dim == problemType["IndexAssignments%s"%tc][0]:
         return ("constStride%s%s"%(tc,self.indexChars[dim]))
       else:
         return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
     elif tc in ['D','C']:
-      if not problemType["UseInitialStrides"] and dim == 0:
+      if not problemType["UseInitialStridesCD"] and dim == 0:
         return ("constStride%s%s"%(tc,self.indexChars[dim]))
       else:
         return sgpr("Stride%s%s"%(tc,self.indexChars[dim]))
@@ -706,6 +726,9 @@ class KernelWriterAssembly(KernelWriter):
     self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     self.sgprs[name] = self.sgprIdx
     self.sgprIdx += numSgprs
+    if self.sgprIdx >= self.maxSgprs:
+      print ("warning: too many kernel arguments (sgpr=%d)! Overflowed SGPRS." % (self.sgprIdx))
+
     return
 
   ##############################################################################
@@ -718,8 +741,6 @@ class KernelWriterAssembly(KernelWriter):
     self.do["NullKernel"]  = dkp >= 9 or dkp == -9
 
     self.kernel = kernel
-    self.tPA = tPA
-    self.tPB = tPB
 
     # init these here in case some kernel pieces are disabled for performance exploration:
     tPA["localReadOffset"] = 0
@@ -763,7 +784,7 @@ class KernelWriterAssembly(KernelWriter):
     # will be run before the no-load-loop iteration where registers are still
     # tight.  Realistically we just have the GlobalToLocal VGPRs, all else is
     # growth.
-    self.preventVgprOverflowDuringNewTile = True
+    self.preventVgprOverflowDuringNewTile = 0 and not globalParameters["ForceGenerateKernel"]
 
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
@@ -796,6 +817,9 @@ class KernelWriterAssembly(KernelWriter):
       defaultIsa = (9,0,0)
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
+    
+    if kernel["MatrixInstruction"] and not self.version == (9,0,8):
+      printExit("MatrixInstruction not supported for {0}".format(self.version))
 
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
@@ -922,7 +946,7 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ProblemType"]["DataType"].numRegisters())
     self.bpeCexternal = int(self.bpr*\
         kernel["ProblemType"]["DataType"].numRegisters())
-#jgolds Need to check device for support
+    #jgolds Need to check device for support
     if kernel["ProblemType"]["HighPrecisionAccumulate"]:
         if kernel["ProblemType"]["DataType"].isHalf():
             self.bpeCinternal = int(self.bpr*1)
@@ -931,7 +955,7 @@ class KernelWriterAssembly(KernelWriter):
             self.bpeCinternal = int(self.bpr* kernel["ProblemType"]["DataType"].numRegisters())
         elif kernel["ProblemType"]["DataType"].isBFloat16():
             self.bpeCinternal = int(self.bpr*1)
-            print("need_replacement_kernel %s" % self.kernelName)
+            # print("need_replacement_kernel %s" % self.kernelName)
         else:
             print("HighPrecisionAccumulate only valid when DataType is half, Int8x4.")
             self.bpeCinternal = int(self.bpr*\
@@ -1081,6 +1105,9 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
+    if kernel["MatrixInstruction"]:
+      localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
+
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
     self.localReadStrideCoalescedA = \
@@ -1100,6 +1127,8 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
+    if kernel["MatrixInstruction"]:
+      localReadWidth = tPA["bpe"]//self.bpr # TODO ok for all tile sizes? change for bf16
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
     self.localReadStrideCoalescedB = \
@@ -1135,12 +1164,18 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num vgprs: valu
-#jgolds bpeCinternal because we are allocating accumulation registers here
+    #jgolds bpeCinternal because we are allocating accumulation registers here
     self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)//self.bpr
 
     valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
-    self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
-    self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
+    if kernel["MatrixInstruction"]:
+      self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
+      #self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
+      #self.numVgprValuBPerBlock = kernel["MacroTile1"] // (4 * kernel["MatrixInstN"] * kernel["MatrixInstB"]) # BBlocks
+      self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * tPA["bpe"]) // (kernel["MatrixInstN"] * self.bpr) # ABlocks
+    else:
+      self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
+      self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
     numVgprValuA = self.numVgprValuAPerBlock * valuBlocks
     numVgprValuB = self.numVgprValuBPerBlock * valuBlocks
 
@@ -1330,9 +1365,10 @@ class KernelWriterAssembly(KernelWriter):
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     self.numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
-    if not kernel["ProblemType"]["UseInitialStrides"]:
+    if not kernel["ProblemType"]["UseInitialStridesCD"]:
       self.numSgprStridesD -= 1
       self.numSgprStridesC -= 1
+    if not kernel["ProblemType"]["UseInitialStridesAB"]:
       self.numSgprStridesA -= 1
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
@@ -1368,9 +1404,11 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WorkGroup1", 1)
       self.defineSgpr("WorkGroup0", 1)
 
-    for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
-      if not isPackedIndex(kernel,i):
-        self.defineSgpr("WorkGroup%u"%i, 1)
+    wg=2
+    for idx in kernel["ProblemType"]["IndicesBatch"]:
+      if not isPackedIndex(kernel,idx):
+        self.defineSgpr("WorkGroup%u"%wg, 1)
+        wg+=1
 
     self.lastUserSgprPlus1=self.sgprIdx  # For initSgpr, this is one past the past user sgpr
 
@@ -1503,12 +1541,33 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
       self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
 
+    # debug flag to allocate dummy / unused sgpr
+    # useful when comparing code that adds new kernel arguments to see what
+    # was actually changed
+    numDummySgpr= 0
+    for i in range(numDummySgpr):
+      self.defineSgpr("DummySgpr%d"%i, 1)
+
     # TODO-persistent - likely recompute some of the registers above.
     if kernel["PersistentKernel"]:
       self.lastPostLoopSgpr = self.sgprIdx
 
     self.totalSgprs = self.sgprIdx
     self.setStartTmpPool(self.totalSgprs)
+
+    ########################################
+    # AGPR Allocation
+    ########################################
+    self.totalAgprs = 0
+    if "MatrixInstM" in kernel:
+      numRowsPerMfma = kernel["MatrixInstK"]
+      numColsPerMfma = kernel["MatrixInstN"]
+      self.numRowInsts = kernel["ThreadTile0"] // numRowsPerMfma
+      self.numColInsts = kernel["ThreadTile1"] // numColsPerMfma
+      numMfmas = self.numRowInsts * self.numColInsts
+      self.destAgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]  # Agprs for 1 mfma
+      self.totalAgprs = numMfmas * self.destAgprs                                                   # Agprs for all
+
     ########################################
     # Register Pools
     ########################################
@@ -1526,6 +1585,11 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs, 's', 0, 0)
+
+    self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, 0)
+    # C regs are not used during initialization so mark them as available - 
+    # we will claim then just before the start of the unroll loop:
+    self.agprPool.add(0, self.totalAgprs, "ValuC-Block")
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["globalReadInstruction"] = self.globalReadInstructionA
@@ -1565,6 +1629,9 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
     if self.db["ForceExpectedValue"] : print ("\n***WARNING: ForceExpectedValue enabled, may impact functionality\n")
+    if self.db["ForceVSerial"] : print ("\n***WARNING: ForceVSerial enabled, will impact functionality\n")
+    if self.db["ForceInputValueA"] : print ("\n***WARNING: ForceInputValueA enabled, may impact functionality\n")
+    if self.db["ForceInputValueB"] : print ("\n***WARNING: ForceInputValueB enabled, may impact functionality\n")
     if self.db["CheckStoreC"] >=0  : print ("\n***WARNING: CheckStoreC enabled, may impact performance\n")
     if self.db["ForceEdgeStores"] : print ("\n***WARNING: ForceEdgeStores enabled, may impact performance\n")
     if self.db["AssertNoEdge"] : print ("\n***WARNING: AssertNoEdge enabled, may impact functionality and performance\n")
@@ -1831,6 +1898,17 @@ class KernelWriterAssembly(KernelWriter):
       if beAggressive:
         kStr += "s_setprio 0 // Reset priority after macs%s" % self.endLine
 
+    # bfloat16
+    elif kernel["ProblemType"]["DataType"].isBFloat16():
+      if self.version == (9,0,8):
+        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          kStr += ""
+        else:
+          kStr += ""
+      else:
+        printExit("Bfloat16 not supported for arch=%u" % self.version )
+
+
     # integer i8
     elif kernel["ProblemType"]["DataType"].isInt8x4():
       for b in range(0, kernel["ThreadTile1"]):
@@ -2061,8 +2139,10 @@ class KernelWriterAssembly(KernelWriter):
     kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsB"]) # strides
-    if not kernel["ProblemType"]["UseInitialStrides"]:
-      kernArgReg -= 4 # strides
+    if not kernel["ProblemType"]["UseInitialStridesAB"]:
+      kernArgReg -= 2 # strides
+    if not kernel["ProblemType"]["UseInitialStridesCD"]:
+      kernArgReg -= 2 # strides
     kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
     kernArgReg += kernel["ProblemType"]["NumIndicesC"]
     if globalParameters["DebugKernel"]:
@@ -2236,7 +2316,7 @@ class KernelWriterAssembly(KernelWriter):
       if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f32"
 
     if globalParameters["CodeObjectVersion"] == "V2":
-#     Codeobject V2 metadata
+      # Codeobject V2 metadata
       kStr += ".amd_amdgpu_hsa_metadata\n"
       kStr += "Version: [ 1, 0 ]\n"
       kStr += "Kernels:\n"
@@ -2260,6 +2340,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic"); ka_size += 8
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.v2Argument(                         "alpha",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
@@ -2270,6 +2351,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += self.v2Argument(                        "beta",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
@@ -2329,7 +2411,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "      MaxFlatWorkGroupSize: %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], self.endLine )
       kStr += ".end_amd_amdgpu_hsa_metadata\n"
     else:
-#     Codeobject V3 metadata
+      # Codeobject V3 metadata
       kStr += ".amdgpu_metadata\n"
       kStr += "---\n"
       kStr += "amdhsa.version:\n"
@@ -2358,6 +2440,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
 
       if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.v3Argument(                         "alpha",       4, offset,      "by_value", cptValueType); offset += 4
@@ -2368,6 +2451,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += self.v3Argument(                        "beta",       4, offset,      "by_value", cptValueType); offset += 4
@@ -2617,20 +2701,20 @@ class KernelWriterAssembly(KernelWriter):
       for idx in range(0, problemType["NumIndicesC"]):
         i = idx
         idxChar= self.indexChars[idx]
-        if i == 0 and not kernel["ProblemType"]["UseInitialStrides"]:
+        if i == 0 and not kernel["ProblemType"]["UseInitialStridesCD"]:
           kStr += self.macroRegister("constStride%s%s"%(tc,idxChar), 1)
         else:
-          if not kernel["ProblemType"]["UseInitialStrides"]:
+          if not kernel["ProblemType"]["UseInitialStridesCD"]:
             i = i-1
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
                     "sgprStrides%s+%u"%(tc, i))
     for tc in ('A','B'):
       for i, idx in enumerate(problemType["IndexAssignments%s"%tc]):
         idxChar= self.indexChars[idx]
-        if i == 0 and not kernel["ProblemType"]["UseInitialStrides"]:
+        if i == 0 and not kernel["ProblemType"]["UseInitialStridesAB"]:
           kStr += self.macroRegister("constStride%s%s"%(tc,idxChar), 1)
         else:
-          if not kernel["ProblemType"]["UseInitialStrides"]:
+          if not kernel["ProblemType"]["UseInitialStridesAB"]:
             i = i-1
           kStr += self.macroRegister("sgprStride%s%s"%(tc,idxChar), \
                     "sgprStrides%s+%u"%(tc, i))
@@ -2678,6 +2762,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tc
       calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
       for i in range(0, numDim):
+        if tc == 'C':
+          useInitialStrides = kernel["ProblemType"]["UseInitialStridesCD"]
+          idxChar = self.indexChars[i]
+        else:
+          useInitialStrides = kernel["ProblemType"]["UseInitialStridesAB"]
+          idxChar = self.indexChars[tP['ia'][i]]
+
         # tile index or unroll vgpr or summation
         # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
         if indices[i] == kernel["ProblemType"]["Index0"] \
@@ -2711,7 +2802,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # true for first addr calc. In this case, we can directly write addr
       # rather than accumulating through a tmp
-      writeDirectToAddr = justOffset32
+      writeDirectToAddr = 1
       for i in calcDims:
         # should have eliminated these above
         idx = indices[i]
@@ -2741,7 +2832,7 @@ class KernelWriterAssembly(KernelWriter):
 
         needAdd = 0
         # should be indices[i]??
-        if i==0 and not kernel["ProblemType"]["UseInitialStrides"]:
+        if i==0 and not useInitialStrides:
           # slide into next address calc - can do addr = pendingOffset + nextAddrCalc
           pendingOffset = offset
           writeDirectToAddr = 0
@@ -2793,15 +2884,17 @@ class KernelWriterAssembly(KernelWriter):
         if needAdd:
           writeDirectToAddr = 0 # safety net, once we write address can't directly overwrite it later
           destLo = "v[\\vgprAddr+0]"
+          destHi = "v[\\vgprAddr+1]"
           # addr += offset * stride (lo) : accumulate just-computed address term into addr
 
-          src = pendingOffset if pendingOffset else destLo
+          srcLo = pendingOffset if pendingOffset else destLo
+          srcHi = 0 if pendingOffset else destHi
           kStr += inst("_v_add_co_u32", \
             destLo, \
             "vcc", \
-            src, \
+            srcLo, \
             "v[\\vgprTmp+0]", \
-            "accumulate d%u lower"%i)
+            "accumulate %s lower"%idxChar)
 
           # addr += offset * stride (hi)
           if not justOffset32:
@@ -2809,9 +2902,9 @@ class KernelWriterAssembly(KernelWriter):
                 "v[\\vgprAddr+1]", \
                 "vcc", \
                 "v[\\vgprTmp+1]",  \
-                0, \
+                srcHi, \
                 "vcc", \
-                "accumulate d%u upper"%i)
+                "accumulate %s upper"%idxChar)
           pendingOffset = None
 
       # pendingOffset but never got a chance to apply it,
@@ -2888,9 +2981,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("_v_sub_co_u32",     "v[\\vRemainder]", "vcc",            "v[\\vDividend]", "v[\\vRemainder]", "final result" )
     kStr += ".endm%s" % self.endLine
 
-    kStr += self.defineMACMacro(kernel, kernel["InnerUnroll"], True)
-    if kernel["InnerUnroll"] > 1:
-      kStr += self.defineMACMacro(kernel, 1, True) # define OneIter case
+    if not kernel["MatrixInstruction"]:
+      kStr += self.defineMACMacro(kernel, kernel["InnerUnroll"], True)
+      if kernel["InnerUnroll"] > 1:
+        kStr += self.defineMACMacro(kernel, 1, True) # define OneIter case
 
     if self.overflowedResources:
       print("")
@@ -2989,6 +3083,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # for half precision or smaller, data is padded to fill up 32-bits
       if kernel["ProblemType"]["DataType"].isHalf() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle() or \
          kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += self.getKernArg("Alpha")
@@ -3004,6 +3099,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += inst("s_load_dword", sgpr("Beta"), \
@@ -3717,15 +3813,22 @@ class KernelWriterAssembly(KernelWriter):
                   self.vgprPool.checkIn(boundsVgpr)
 
             if graIdx >0 and (kernel["UseSgprForGRO"] or self.checkGRO):
+              # compute offsets for scalar global read offsets:
               if kernel["UseSgprForGRO"]:
                 scalarGro = "ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1)
               else:
                 scalarGro = self.getTmpSgpr(1)
 
+              # this needs unroll stride in some cases and free stride in others
+              # if we have multiple free strides - what is expected behavior?
+              # could just extract the first free dimension from A?
+              stride1 = "Stride%s%s"%(tc,self.indexChars[tP["idx"]])
               if tP["tlu"]:
                 tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s+0"%tc), unrollStride, \
+                unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
+                strideU = "Stride%s%s"%(tc,self.indexChars[unrollSummation[-1]])
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideU), unrollStride, \
                              "compute offset diff (scaled unrollDim)")
                 if tileStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), tileStride, \
@@ -3733,7 +3836,9 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s+0"%tc), tileStride, \
+                assert(len([i for i in tP['ia'] if i in kernel["ProblemType"]["IndicesFree"] ]) == 1) # only one free index supported on this path
+                strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr(strideF), tileStride, \
                              "compute offset diff (scaled tileDim)")
                 if unrollStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), unrollStride, \
@@ -3750,7 +3855,7 @@ class KernelWriterAssembly(KernelWriter):
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
                 print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
-                      "Strides%s="%tc)
+                      "stride=%s"%(stride1))
 
                 kStr += self.assert_vector_diff(vgpr("GlobalReadOffset%s+%u"%(tc,0)), \
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
@@ -3810,17 +3915,21 @@ class KernelWriterAssembly(KernelWriter):
     # Compute tileStart #elements from the 2D array start
     # Add tile (and unroll if GSU) component into SRD - SRD will point to beginning of the macro-tile:
     if self.groOffsetInMacroTile:
+      # packed modes can't use this mode, and code here assumes 1 index.
+      assert(len(kernel["PackedC0IndicesX"])==1)
+      assert(len(kernel["PackedC1IndicesX"])==1)
+
       wroteTileStart = True
-      startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
+      #tP['ia'][1]
 
       # This is guaranteed to fit in 32-bit since the WG*MT is a number of elements in some unsigned direction:
       kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       if kernel["CheckDimOverflow"] >=2:
         kStr += self.assert_eq(sgpr(tileStart+1),0)
       if not tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
+        strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
-                  sgpr("Strides%s+%u"%(tc,startStride)), \
-                  "tlu=0, scaled tile-offset by stride")
+                   sgpr(strideF), "tlu=0, scaled tile-offset by stride")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -3829,17 +3938,19 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), kernel["DepthU"], sgpr("GSUSumIdx"), "gsuOffset = DepthU*bpe*GSUSumIdx")
         if kernel["CheckDimOverflow"] >=2:
           kStr += self.assert_eq(sgpr(stmp+1),0)
-        if tP["tlu"]: # non-transpose case, tile is in perp dim and should be scaled by Stride
+        if tP["tlu"]: # non-transpose case, unroll is in perp dim and should be scaled by unroll Stride
+          # TODO - PackSummationDims handling needs to handle multiple sum dims
+          unrollSummation = [ i for i in tP["ia"] if i in kernel["ProblemType"]["IndicesSummation"] ]
+          strideU = "Stride%s%s"%(tc,self.indexChars[unrollSummation[-1]])
           kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
-                    sgpr("Strides%s+%u"%(tc,startStride)), \
-                    "tlu=1, scaled unroll-offset by stride")
+                    sgpr(strideU), "tlu=1, scaled unroll-offset by stride")
 
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffet term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
 
 
     # Output : tileStart[0:1] have offset in elements from the 2D start of the tile.
-    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile; 
+    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile;
     # This is used to compute the limit.
     # Later we modify tileStart to include batch and higher-order dims and add this to SRD.
 
@@ -3897,23 +4008,27 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
       kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePadConst, "extend limit for pre-pad")
 
-    # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
+    # Apply any high-order address components to the tileStart and eventually the SRD - batch idx for batched gemm
     numDim = len(indices)
+    wg=2 # TODO - refactor since only WG2 is supported and this is always batch
     for i in range(1, numDim):
       idx = indices[i]
       if idx == kernel["ProblemType"]["Index0"] \
           or idx == kernel["ProblemType"]["Index1"] \
           or idx in kernel["ProblemType"]["IndicesSummation"] \
-          or isPackedIndex(kernel, i):
+          or isPackedIndex(kernel, idx):
             continue # these will be captured in GRO not the SRD (or other summations are always 0)
       else:
+        assert(wg==2) # can only have one wg2 with a batch. Other dimensions should be packed into wg0/wg1
+        stride = "Stride%s%s"%(tc,self.indexChars[tP['ia'][i]])
         if not wroteTileStart:
-          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
+          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
           wroteTileStart = True
         else:
-          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
+          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
           kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
           kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
+        wg+=1
 
     # Add the tile start to the SRD
     if wroteTileStart:
@@ -3961,8 +4076,8 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-##############################################################################
-# Global Read Addresses: Addresses A/B
+  ##############################################################################
+  # Global Read Addresses: Addresses A/B
   ##############################################################################
   def graAddresses(self, kernel, tP):
     kStr = ""
@@ -4084,24 +4199,27 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment("compute globalReadInc for higher-level loop")
 
         tmpSgpr = self.getTmpSgpr(3)
-        unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
         # Summations always appear in both A and B, can compute number of iterations just once:
-        if tP["isA"]:
-          quotient = unrollLoopCounter
-          dividend = "SizesSum+%u"%self.unrollIdx
-          divisor = kernel["DepthU"]
-          kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
-                      divisor, tmpSgpr+2, 0)
+        if loopIdxPrev==self.unrollIdx:
+          unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
+          if tP["isA"]:
+            quotient = unrollLoopCounter
+            dividend = "SizesSum+%u"%self.unrollIdx
+            divisor = kernel["DepthU"]
+            kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, \
+                        divisor, tmpSgpr+2, 0)
 
-          if kernel["GlobalSplitU"] > 1:
-            kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
+            if kernel["GlobalSplitU"] > 1:
+              kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
 
-          kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
-                    kernel["GlobalSplitU"]*kernel["DepthU"], \
-                    "=UnrollLoopCounter*DepthU")
-
-        kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
-              "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+            kStr += inst("s_mul_i32", sgpr(unrollLoopCounter), sgpr(unrollLoopCounter), \
+                      kernel["GlobalSplitU"]*kernel["DepthU"], \
+                      "=UnrollLoopCounter*DepthU")
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, sgpr(unrollLoopCounter), \
+                "<- stride%s%s * myWgUnrollIters" %(tc, loopCharPrev))
+        else:
+          kStr += inst("s_mul_i32", sgpr(graInc), stridePrev, self.size(tc, dimIdxPrev), \
+                "<- stride%s%s * size%s%s" %(tc, loopCharPrev, tc, loopCharPrev))
 
         # subtract amount that previous inner loop will have already incremented:
         kStr += inst("s_sub_i32", sgpr(graInc), \
@@ -4342,9 +4460,15 @@ class KernelWriterAssembly(KernelWriter):
         % (self.commentPrefix, tP["tileChar"], tP["tileChar"], \
         tP["tileChar"], self.commentSuffix, self.endLine)
     divisor = kernel["SubGroup1"]
+    if kernel["MatrixInstruction"]:
+      divisor = kernel["MacroTile1"] // 4 # ABlocks
+      #divisor = kernel["ThreadTile1"] # BBlocks
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
-    dividendReg = self.tmplroB
+    if kernel["MatrixInstruction"]:
+      dividendReg = "Serial"
+    else:
+      dividendReg = self.tmplroB
     tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
@@ -4362,6 +4486,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
+    if kernel["MatrixInstruction"] and tc == "B": # ABlocks only
+      divisor //= 4 # 4 simds
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
     dividendReg = "Serial"
@@ -4371,16 +4497,30 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
     sgid = qReg
 
-    kStr += inst("s_mov_b32", \
-        sgpr(tmpSgpr), \
-        hex(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]), \
-        "MT%u+PAD"%tP["tensorIdx"] )
+    tIdx = tP["tensorIdx"]
+    if kernel["MatrixInstruction"]:
+      if tc == "A": # For BBlocks, A and B use this case
+        kStr += inst("s_mov_b32", \
+            sgpr(tmpSgpr), \
+            hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+            "MT%u+PAD"%tIdx )
+      else: # For BBlocks, don't use else case
+        kStr += inst("s_mov_b32", \
+            sgpr(tmpSgpr), \
+            #hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+            hex((kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]) // 4), \
+            "MT%u+PAD"%tIdx )
+    else:
+      kStr += inst("s_mov_b32", \
+          sgpr(tmpSgpr), \
+          hex(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]), \
+          "MT%u+PAD"%tP["tensorIdx"] )
     kStr += inst("v_mul_lo_u32", \
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         vgpr(sgid), \
-        "sgid=sgid*(MT%u+PAD)"%tP["tensorIdx"] )
-    if kernel["VectorWidth"] > 1:
+        "sgid=sgid*(MT%u+PAD)"%tIdx )
+    if kernel["VectorWidth"] > 1 and not kernel["MatrixInstruction"]:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
     kStr += inst("_v_add_lshl_u32", \
@@ -4388,7 +4528,7 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         vgpr(tP["gpr"]["lro"]), \
         hex(log2(tP["bpe"])), \
-        "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tP["tensorIdx"]) )
+        "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tIdx) )
 
     #if tP["isA"]:
     #  kStr += self.bomb(113)
@@ -4465,6 +4605,28 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
+
+    # if using MFMAs, initialize ACC VGPRS as well
+    if "MatrixInstM" in kernel:
+      kStr = ""
+      self.agprPool.remove(0, self.totalAgprs, "ValuC")
+      for i in range(0, self.totalAgprs):
+        kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "init Acc vgprs")
+
+      # TODO: Remove debug code when finished
+      # for debug, write 42 and check results
+      # write 42 into vgprs
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), "0x"+struct.pack('>f', 42.0).hex(), "write 42")
+      # copy over to agprs
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_accvgpr_write", "acc%u"%i, vgpr("ValuC+%u"%i), "write 42 into agprs")
+      # restore vgprs
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "restore 0")
+      #kStr += "s_barrier // debug\n"
+      #kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+      #kStr += self.bomb()
 
     if kernel["PersistentKernel"]:
       # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
@@ -5033,6 +5195,15 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["InitSgpr"] & 0x2:
       kStr += self.sgprPool.initTmps(self.initSgprValue)
 
+    # copy accumulated C from agpr to vgpr
+    if "MatrixInstM" in kernel:
+      #for i in range(0, self.totalAgprs):
+      #  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+      #TODO avoid s_nop if its possible
+      instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
+      kStr += "s_nop %u\n" % instCycles
+      kStr += self.MapAcctoArchRegs(kernel,option=0)
+
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
@@ -5040,6 +5211,28 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["SuppressNoLoadLoop"]:
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
 
+    return kStr
+
+  ##############################################################################
+  # MFMA Iteration
+  ##############################################################################
+
+  def mfmaIter(self, kernel, m, innerUnroll):
+    kStr = ""
+    if kernel["ProblemType"]["DataType"].isSingle():
+      for b in range(0, self.numColInsts):
+        for a in range(0, self.numRowInsts):
+          for iui in range(0, innerUnroll):
+            accIdx = b * self.numRowInsts + a
+            accStart = accIdx * self.destAgprs
+            accEnd = accStart + self.destAgprs - 1
+            aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
+            bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
+            kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u]%s" \
+              % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
+            # TODO Broadcast code
+            #kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u] blgp:%u%s" \
+            #  % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, bStr, aStr, accStart, accEnd, a, self.endLine)
     return kStr
 
   ##############################################################################
@@ -5078,6 +5271,7 @@ class KernelWriterAssembly(KernelWriter):
     beAggressive = kernel["AggressivePerfMode"]
     macIdx = 0
 
+    # half precision
     if kernel["ProblemType"]["DataType"].isHalf():
       for blockB in range(0, kernel["ThreadTile1"]//2):
         for blockA in range(0, kernel["ThreadTile0"]//2):
@@ -5085,6 +5279,7 @@ class KernelWriterAssembly(KernelWriter):
           if beAggressive and not doOnce:
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
+
     # integer i8
     elif kernel["ProblemType"]["DataType"].isInt8x4():
       for blockB in range(0, kernel["ThreadTile1"]):
@@ -5093,6 +5288,7 @@ class KernelWriterAssembly(KernelWriter):
           if beAggressive and not doOnce:
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
+
     # single precision
     elif kernel["ProblemType"]["DataType"].isSingle():
       for blockB in range(0, kernel["ThreadTile1"]):
@@ -5106,7 +5302,7 @@ class KernelWriterAssembly(KernelWriter):
           if macIdx == kernel["PerformanceSyncLocation"]:
             imod.addInst("s_barrier ","extra barrier for performance")
           macIdx += 1
-    
+
     # double precision
     elif kernel["ProblemType"]["DataType"].isDouble():
       for blockB in range(0, kernel["ThreadTile1"]):
@@ -5183,6 +5379,10 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), sgpr(tmpSgpr), "alpha == 1.0?")
           else: # HPA
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+
+        elif kernel["ProblemType"]["DataType"].isBFloat16():
+          kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+
         elif kernel["ProblemType"]["DataType"].isInt8x4():
           kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
 
@@ -5267,6 +5467,14 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment1("Stores for OptNLL")
         self.getNamedLabel("Summation_End")
 
+        # add copyback if required
+        if kernel["MatrixInstruction"]:
+          instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
+          kStr += "s_nop %u\n" % instCycles
+          ##for i in range(0, self.totalAgprs):
+          ##  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+          kStr += self.MapAcctoArchRegs(kernel,option=0)
+
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
         # optimized NLL has edge=beta=atomic=False by design
@@ -5290,8 +5498,8 @@ class KernelWriterAssembly(KernelWriter):
           sumIdx = ss.elementSumIdx[elementIdx]
 
           kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
-                            edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
-          kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr)
+                              edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
+          kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
 
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
@@ -5400,8 +5608,9 @@ class KernelWriterAssembly(KernelWriter):
   #   self.unrollIdx, or an idx from 0..NumIndicesSummation
   # prefetchIndex is >0 (1...PrefetchGlobalRead) if this increment follows a
   #   global prefetch or 0 otherwise
+  # incs is number of increments to perform
   ##############################################################################
-  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex):
+  def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex, incs=1):
     if not self.do["GlobalInc"]: return ""
     tc = tP["tensorChar"]
     loopChar = self.indexChars[ \
@@ -5488,6 +5697,12 @@ class KernelWriterAssembly(KernelWriter):
 
     return imod
 
+  def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
+    imod = Code.Module("globalReadIncrementAB%s")
+    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
+    return imod
+
 
   ##############################################################################
   # Global Read:
@@ -5512,14 +5727,14 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["BufferLoad"]:
       kStr += self.comment1("flat addressing - max read address = size[n] * stride[n-1]")
       dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
       sizeIdx = tP["ia"][dim]
       sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
       if sizeIdxIsSum:
         sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+      # TODO-multiply by largest stride
       kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
                   sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                  sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+                  sgpr("Stride%s%s"%(tc, self.indexChars[tP['ia'][-1]])), \
                   "64b tensor%s size in elements"%tc)
       kStr += inst("s_lshl_b64", \
         sgpr(maxAddrSgpr,2), \
@@ -5578,7 +5793,8 @@ class KernelWriterAssembly(KernelWriter):
             # for each component in vector
             while r < loadWidth*self.bpr//tP["bpe"]:
               numElementsPerLoad = 1
-              if kernel["ProblemType"]["DataType"].isHalf():
+              if kernel["ProblemType"]["DataType"].isHalf() or \
+                 kernel["ProblemType"]["DataType"].isBFloat16():
                 if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
                   # Pack two FP16 values into a single load dword x2
                   numElementsPerLoad = 2
@@ -5632,7 +5848,8 @@ class KernelWriterAssembly(KernelWriter):
 
                 offset = r * tP["bpe"]
                 hi16 = 0
-                if kernel["ProblemType"]["DataType"].isHalf():
+                if kernel["ProblemType"]["DataType"].isHalf() or \
+                   kernel["ProblemType"]["DataType"].isBFloat16():
                   if numElementsPerLoad==2:
                     # Pack two FP16 values into a single load dword x2
                     r += 1 # skip next element since we loaded 2X here
@@ -6182,6 +6399,8 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
                     blockWidth))
+              if self.db["ForceInputValue%s"%tc]:
+                localWriteCode.addInst("v_mov_b32", vgpr("G2L%s+%u"%(tc, g2lIdx)), self.db["ForceValue%s"%tc], "ForceInputValue")
             for oIdx in range(0, numOffsets):
               paramList.append(offset)
 
@@ -6204,6 +6423,7 @@ class KernelWriterAssembly(KernelWriter):
             loopCnt+=1
       if tmpLocalWriteAddr != -1:
         self.vgprPool.checkIn(tmpLocalWriteAddr)
+
 
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
     if 0 and tP["isB"]: # post-lds-write
@@ -6327,8 +6547,15 @@ class KernelWriterAssembly(KernelWriter):
     #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
+    if (kernel["MatrixInstruction"]):
+      numVectorsPerTile = 1 # TODO Fix for > tile
     #print "numVectorsPerTile", numVectorsPerTile
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
+    if kernel["MatrixInstruction"]:
+      if tc == "A":
+        numReadsPerVector = kernel["ThreadTile0"] # TODO controls instruction tile shape, recalc if definition changes
+      else:
+        numReadsPerVector = kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
     #print "numReadsPerVector", numReadsPerVector
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
@@ -6338,7 +6565,11 @@ class KernelWriterAssembly(KernelWriter):
         paramList.append(destVgpr)
         paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets):
-          paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+          if kernel["MatrixInstruction"]:
+            paramList.append(((rIdx*blockWidth * kernel["MatrixInstN"] + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+              + tP["localReadOffset"])*tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier)
+          else:
+            paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
               + tP["localReadOffset"])*tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier)
         paramTuple = tuple(paramList)
         comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
@@ -6665,6 +6896,7 @@ class KernelWriterAssembly(KernelWriter):
       assert(kernel["VectorWidth"]%2 == 0)
       elementStep = 2*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isInt8x4() or \
+         kernel["ProblemType"]["DataType"].isBFloat16() or \
          kernel["ProblemType"]["DataType"].isSingle():
       elementStep = 1*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isDouble() or \
@@ -6924,13 +7156,11 @@ class KernelWriterAssembly(KernelWriter):
         # Used if the output is transposed?
         addToSrd = False
       elif i == kernel["ProblemType"]["Index1"]:
-        # TODO-packed : this likely needs to change for packedc1, we are using raw packed Index1 here
-        #--
         coord = sgpr(wgMT1)
         addToSrd = True
       elif not isPackedIndex(kernel, i):
         # group index, this is higher-order Tensor dimension, just add to SRD base:
-        coord = sgpr("WorkGroup%u"%i)
+        coord = sgpr("WorkGroup2")
         addToSrd = True
       else:
         # could be packed higher-order index, just ignore
@@ -6939,7 +7169,8 @@ class KernelWriterAssembly(KernelWriter):
 
       if addToSrd:
         # These are constant across all workitems, just add to the SRD:
-        kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesC+%u"%(i-1)), "Scale %s by Stride"%coord)
+        strideC = "StrideC%s"%self.indexChars[i]
+        kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(strideC), "CScale %s by Stride"%coord)
         #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
         kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
@@ -6948,7 +7179,8 @@ class KernelWriterAssembly(KernelWriter):
 
         if not kernel["LdcEqualsLdd"]:
           # These are constant across all workitems, just add to the SRD:
-          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesD+%u"%(i-1)), "Scale %s by Stride"%coord)
+          stride = "StrideD%s" % (self.indexChars[i])
+          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(stride), "Scale %s by Stride"%coord)
           #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
           kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
@@ -6976,15 +7208,17 @@ class KernelWriterAssembly(KernelWriter):
   # computeStoreVgprs
   # Compute workitem/TT offsets in VGPRS
   # and coord0/coord1
+  # tid0Scale specifies the number of output elements in 0/coalesced dim
+  # that should be written by each work-item in each batch element.
   ##############################################################################
   def computeStoreVgprs(self, kernel, divisor, tid0Scale, tid1Scale):
 
     kStr = ""
+    kStr += self.comment1("computeStoreVgprs")
+
     tmpS0 = self.getTmpSgpr(3)
     tmpS1 = tmpS0+1
     wgMT1 = tmpS0+2
-
-    kStr += self.comment1("computeStoreVgprs")
 
     if self.prefetchAcrossPersistent:
       wg0="PrevWorkGroup0"
@@ -7004,66 +7238,166 @@ class KernelWriterAssembly(KernelWriter):
       if not kernel["LdcEqualsLdd"]:
         self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
 
-    tmpV0 = self.vgprPool.checkOut(2)
-    kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
-        tmpV0, tmpS0)
-    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), tid0Scale, sgpr(tmpS1))
-    if tid1Scale != 1:
-      kStr += staticMultiply(vgpr(tid1), vgpr(tid1), tid1Scale, sgpr(tmpS1))
-    self.vgprPool.checkIn(tmpV0)
+    if kernel["MatrixInstruction"]:
+      tmpV0 = self.vgprPool.checkOut(5) #v2 v5 v75
+      tmpV1 = tmpV0+1                   #v4
+      tmpV2 = tmpV0+2                   #v3
+      tmpV3 = tmpV0+3                   #v6 v74
+      tmpV4 = tmpV0+4
+      mfma_addr0 = self.vgprPool.checkOut(1) #To store output address offset for non-edge case
+      mfma_addr1 = self.vgprPool.checkOut(1) #but should not use address offset here
+      if 0:
+        kStr += vectorStaticDivide(tmpV0, "Serial", globalParameters["WavefrontWidth"], tmpV1, tmpS0)
+        #kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0) # BBlocks
+        kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), kernel["MacroTile1"] // 4, tmpS0) # ABlocks
+        kStr += inst("v_and_b32", vgpr(tmpV0), hex(kernel["MatrixInstM"]-1), vgpr("Serial"), "vectorStaticDiv vgprTmp = vgprSerial % 32") # TODO 32???
+        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV0), vgpr(tmpV1), "store coord1")
+        kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr), vgpr(tid1), sgpr("StridesC"), "rowstart VGPR")
+        kStr += "\n"
+        kStr += inst("v_and_b32", vgpr(tmpV1), hex(globalParameters["WavefrontWidth"]-1), vgpr("Serial"), "")
+        kStr += vectorStaticDivide(tmpV3, tmpV1, kernel["MatrixInstM"], tmpV4, tmpS0)
+        kStr += staticMultiply(vgpr(tmpV3), vgpr(tmpV3), 4, sgpr(tmpS0)) # Always 4?
+        kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV2), vgpr(tmpV0), "")
+        kStr += "\n"
+        kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
+        kStr += inst("v_add_co_u32", vgpr(tmpV3), "vcc", sgpr(tmpS0), vgpr(tmpV3), "")
+        kStr += inst("v_mov_b32", vgpr(tid0), vgpr(tmpV3), "store coord0")
+        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(2), "c base") # Always 4?
+        kStr += "\n"
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV1), hex(32), sgpr("StridesC"), "scale by 32 for second column of 64/simd (B-tile/256)")
+        kStr += inst("v_add_u32", vgpr(tmpV0), vgpr(tmpV1), vgpr(self.cinRowPtr), "")
+        kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(2), "c base") # Always 4?
+        self.mfma_addr0 = mfma_addr0
+        self.mfma_addr1 = mfma_addr1
+      else:
+        #determine  column block groups of each SIMD for given MFMA & WG
+        # calculate starting column block-id for each SIMD 
+        kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", globalParameters["WavefrontWidth"], \
+          tmpV0, tmpS0)
+        numColBlocks = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+        if numColBlocks > 1:
+          kStr += inst("v_mul_lo_u32", vgpr(tid1),hex(numColBlocks),vgpr(tid1), \
+                      "Col-id = tid1*MatrixInstN")
+        #if (kernel["InstSplit"] > 1):
+          # tid1&tid0 << InstSplit to handle single Block (instSplit>1) case
+        #  kStr += inst("v_lshrrev_b32", vgpr(tid1),
+        #                hex(log2(kernel["InstSplit"])), vgpr(tid1), \
+        #                "vectorStaticDiv tid1 = tid1<<log2(InstSplit)")
+        # determine column start address for each block
+        kStr += inst("v_mul_lo_u32", vgpr(tid1),
+                      hex(kernel["MatrixInstN"]), vgpr(tid1), "col element offset for each block")
+        startStride = 1 if kernel["ProblemType"]["UseInitialStridesCD"] else 0
+        # determine col VGPR statt address
+        kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
+                      vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
+                      "Col-block-offset = Col-id*Stride")
+        if not kernel["LdcEqualsLdd"]:
+          kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
+                        vgpr(tmpV1), sgpr("StridesD+%u"%(startStride)), \
+                        "Col-block-offset = Col-id*Stride")
 
-    if kernel["BufferStore"]:
-      # compute rowStart- this is just tid1 scaled by appropriate stride.
-      # rowPtr is offset from the beginning of the tile/SRD not the tensor base
-      # when incremented, it moves in units of (col) Stride to get to a new row
-      # it is used for address computation, not element range detection.
-      # rowPtr is in the element space and must be scaled by bpe if bytes are required.
-      # Do this before code below which overwries the tid1:
-      # TODO-packed
-      # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
-      #--
-      assert (len(kernel["PackedC1IndicesX"]) == 1) # would need to extract/scale indices from coord1
-      startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-      kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
-                  vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
-                  "rowStart vgpr")
-      if not kernel["LdcEqualsLdd"]:
-        kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
-                    vgpr(tid1), sgpr("StridesD+%u"%(startStride)), \
+        kStr += inst("v_and_b32", vgpr(tmpV1), hex(kernel["MatrixInstN"]-1), vgpr("Serial"), "colId-perBlock= vgprSerial%MatrixInstN")
+        #TODO fix-me for ldc!=ldd
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "")
+        kStr += inst("v_add_u32", vgpr(self.cinRowPtr), vgpr(tmpV2),vgpr(self.cinRowPtr),"rowStart VGPR")
+        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV1),vgpr(tid1),"coord1 offset in MacroTile")
+
+        kStr += "\n"
+        if (kernel["MatrixInstM"] != 4):
+          kStr += inst("v_lshrrev_b32", vgpr(tmpV3),
+                      hex(log2(kernel["MatrixInstM"])), vgpr(tid0), \
+                      "vectorStaticDiv vgprTmp = tid0 / matrixInstM")
+          # determine row-id of each block(MFMA 'B') 2 rows for mfma32x32 4 rows for mfma16x16
+          # for MFMA_4x4 16 blks are mapped along rows and cols determied by miwg0  (miwg0/4 = numRows in 16 blocks and remaining in col dimension)
+          rowIdPerColblock = globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]
+          kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(rowIdPerColblock), vgpr(tmpV3), "tmpV3 = tmpV3 << 2 (4xMatrixInstN per block")   # mulitple by 4 for row-starting id for each matrixN columns (static for mfma32/mfma16)
+        else:
+           assert(0) 	#TODO fix me for MFMA 4x4 instruction 
+        kStr += "\n"
+        kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]), sgpr("WorkGroup0"), "wgp0 * MT0")
+        kStr += inst("v_add_co_u32", vgpr(tid0), "vcc", sgpr(tmpS0), vgpr(tid0), "coord0 = (tid0 / matrixInstM)<<2 + wg0*MT0")
+        #kStr += inst("v_add_lshl_u32", vgpr(mfma_addr0), vgpr(tmpV3), vgpr(self.cinRowPtr), hex(log2(kw.bpeCexternal)), "init cb addr <-  cinRowStart + coord0, scaled by BPE") # Always 4?
+        #TODO review below code
+        kStr += inst("s_mul_i32", \
+            sgpr(wgMT1), \
+            hex(kernel["MacroTile1"]), \
+            sgpr(wg1), \
+            "<- wg1*MT1")
+        kStr += inst("_v_add_co_u32", \
+            vgpr(tid1), \
+            "vcc", \
+            sgpr(wgMT1), \
+            vgpr(tid1), \
+            "coord1 = tid1*VW + wg1*MT1")
+        #kStr += inst("v_add_lshl_u32", vgpr(mfma_addr1), vgpr(tmpV3), vgpr(tmpV0), hex(log2(kw.bpeCexternal)), "c base") # Always 4? 
+        self.mfma_addr0 = mfma_addr0
+        self.mfma_addr1 = mfma_addr1
+      self.vgprPool.checkIn(tmpV0)
+    else:
+      tmpV0 = self.vgprPool.checkOut(2)
+      kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
+          tmpV0, tmpS0)
+      kStr += staticMultiply(vgpr(tid0), vgpr(tid0), tid0Scale, sgpr(tmpS1))
+      if tid1Scale != 1:
+        kStr += staticMultiply(vgpr(tid1), vgpr(tid1), tid1Scale, sgpr(tmpS1))
+      self.vgprPool.checkIn(tmpV0)
+
+      if kernel["BufferStore"]:
+        # compute rowStart- this is just tid1 scaled by appropriate stride.
+        # rowPtr is offset from the beginning of the tile/SRD not the tensor base
+        # when incremented, it moves in units of (col) Stride to get to a new row
+        # it is used for address computation, not element range detection.
+        # rowPtr is in the element space and must be scaled by bpe if bytes are required.
+        # Do this before code below which overwries the tid1:
+        # TODO-packed
+        # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
+        #--
+        packedC1 = kernel["PackedC1IndicesX"]
+        assert (len(packedC1) == 1) # would need to extract/scale indices from coord1
+        strideC1 = "StrideC%s" % (self.indexChars[packedC1[0]])
+        kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
+                    vgpr(tid1), sgpr(strideC1), \
                     "rowStart vgpr")
-      kStr += "\n"
+        if not kernel["LdcEqualsLdd"]:
+          strideD1 = "StrideD%s" % (self.indexChars[packedC1[0]])
+          kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
+                      vgpr(tid1), sgpr(strideD1), \
+                      "rowStart vgpr")
+        kStr += "\n"
 
-      #kStr += self.assert_ne(sgpr("WorkGroup1"),1)
+        #kStr += self.assert_ne(sgpr("WorkGroup1"),1)
 
-    # Compute coord0 and coord1
-    # These are element offsets from the beginning of the tensor.
-    # These are 'flattened' meaning they span packed tensor dims.
-    # They need to be preserved so can use in comparisons against
-    # product-of-packed sizes to determine OOB cases. (for Edge tiles only)
-    kStr += inst("s_mul_i32", \
-        sgpr(tmpS0), \
-        hex(kernel["MacroTile0"]), \
-        sgpr(wg0), \
-        "%s = wg0*MT0"%sgpr(tmpS0))
+      # Compute coord0 and coord1
+      # These are element offsets from the beginning of the tensor.
+      # These are 'flattened' meaning they span packed tensor dims.
+      # They need to be preserved so can use in comparisons against
+      # product-of-packed sizes to determine OOB cases. (for Edge tiles only)
+      kStr += inst("s_mul_i32", \
+          sgpr(tmpS0), \
+          hex(kernel["MacroTile0"]), \
+          sgpr(wg0), \
+          "%s = wg0*MT0"%sgpr(tmpS0))
 
-    # coord = tid*VW + workgroup offset
-    kStr += inst("_v_add_co_u32", \
-        vgpr(tid0), \
-        "vcc", \
-        sgpr(tmpS0), \
-        vgpr(tid0), \
-        "coord0 = tid0*VW + wg0*MT0")
-    kStr += inst("s_mul_i32", \
-        sgpr(wgMT1), \
-        hex(kernel["MacroTile1"]), \
-        sgpr(wg1), \
-        "<- wg1*MT1")
-    kStr += inst("_v_add_co_u32", \
-        vgpr(tid1), \
-        "vcc", \
-        sgpr(wgMT1), \
-        vgpr(tid1), \
-        "coord1 = tid1*VW + wg1*MT1")
+      # coord = tid*VW + workgroup offset
+      kStr += inst("_v_add_co_u32", \
+          vgpr(tid0), \
+          "vcc", \
+          sgpr(tmpS0), \
+          vgpr(tid0), \
+          "coord0 = tid0*VW + wg0*MT0")
+      kStr += inst("s_mul_i32", \
+          sgpr(wgMT1), \
+          hex(kernel["MacroTile1"]), \
+          sgpr(wg1), \
+          "<- wg1*MT1")
+      kStr += inst("_v_add_co_u32", \
+          vgpr(tid1), \
+          "vcc", \
+          sgpr(wgMT1), \
+          vgpr(tid1), \
+          "coord1 = tid1*VW + wg1*MT1")
+
+    
     self.coord0 = tid0
     self.coord1 = tid1
 
@@ -7178,6 +7512,10 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(self.coord0)
     self.vgprPool.checkIn(self.coord1)
 
+    if kernel["MatrixInstruction"]:
+      self.vgprPool.checkIn(self.mfma_addr0)
+      self.vgprPool.checkIn(self.mfma_addr1)
+
     if kernel["BufferStore"]:
       self.vgprPool.checkIn(self.cinRowPtr)
       if not kernel["LdcEqualsLdd"]:
@@ -7206,19 +7544,54 @@ class KernelWriterAssembly(KernelWriter):
         return 1000  # no limit
 
   ##############################################################################
+  # Partition thread-tile into writeElements for store code
+  # This function creates the writeElement mapping for full tiles
+  # (ie non-edge cases)
   ##############################################################################
   def notLocalFullTileElements(self, kernel):
     elements = []
-    fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    if kernel["MatrixInstruction"]:
+      ##TODO remove and use VectorWidth once VW mapping of TT is done
+      fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+      elementsLoadedPerfullVw = kernel["NumThreads"]*fullVw
+      elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+      if elementsLoadedPervw > elementsLoadedPerfullVw:
+        fullVw = kernel["StoreVectorWidth"]
+    else:
+      fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
 
-    # Full tile loop:
-    for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
-      for vc1 in range(0, kernel["VectorWidth"]):
-        for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
-          for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
-            element = (tt1, tt0, vc1, vc0)
-            elements.append(element)
+    if kernel["MatrixInstruction"]:
+      #vg20 C registers holds coalscing C elements (MT0x1) in subgroup0  consecutive lanes 
+      #MFMA acc registers holds strided C elements (1XN) in N consecutive lanes
+      # below code trying to use vg20 [d1,d0,vc1,vc0] co-ordinates and map C lements into vg20 co-ordinates
+      # TODO needs work on d1 mapping its not really  clean yet.  d1= holds B blocks and TT1/vectorWdith column blocks
+      #numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
+      ## number of rregisters required for row/block
+      #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
+      numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
+      numStoresperBlock = 4 if kernel["MatrixInstM"] == 4 else  numStoresperInstruction//kernel["MatrixInstB"]
+      #TODO HACK to support latest
+      numRowBlocksperInstruction = 1 if kernel["MatrixInstM"] == 4  else (kernel["MIWG0"] // kernel["MatrixInstM"])
+      #this variable really tracks number of regster 'blocks' required  for each column block
+      # for mfma_4x4 we only need 4 register and thats been accounted numStoresperInstruction
+      numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+      #re-adjust columnBlock for  4x4mfma
+      #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
+      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//fullVw):
+            for vc0 in range(0, kernel["StoreVectorWidth"], fullVw):
+              element = (tt1, tt0, vc1, vc0)
+              elements.append(element)
+    else:
+      # Full tile loop:
+      for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
+            for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
+              element = (tt1, tt0, vc1, vc0)
+              elements.append(element)
 
     return (fullVw, elements)
 
@@ -7228,6 +7601,9 @@ class KernelWriterAssembly(KernelWriter):
   # element() specifies TT 'coordinate' to write
   # vectorWidths specifies width of vector to store
   # TODO - why does this use VectorWidth to control store width?  Could be GlobalWriteVectorWidth?
+  #
+  # Function creates one mapping for full tiles and one for edge tiles,
+  # then calls globalWriteElements to generate the code for the new tiles.
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
@@ -7241,12 +7617,36 @@ class KernelWriterAssembly(KernelWriter):
     edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
-    for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
-      for vc1 in range(0, kernel["VectorWidth"]):
-        for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
-          for vc0 in range(0, kernel["VectorWidth"], edgeVw):
-            element = (tt1, tt0, vc1, vc0)
-            elements[True].append(element)
+    #if kernel["MatrixInstruction"]:
+      ##TODO remove and use VectorWidth once VW mapping of TT is done
+      #elementsLoadedPeredgeVw = kernel["NumThreads"]*edgeVw
+      #elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+      #if elementsLoadedPervw > elementsLoadedPeredgeVw:
+      #  edgeVw = kernel["StoreVectorWidth"]
+
+    if kernel["MatrixInstruction"]:
+      #numRowsPerStore = 1 if kernel["MatrixInstM"] == 4 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
+      ## number of rregisters required for row/block
+      #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
+      numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
+      numStoresperBlock = 4 if kernel["MatrixInstM"] == 4 else  numStoresperInstruction//kernel["MatrixInstB"]
+      numRowBlocksperInstruction = 1 if kernel["MatrixInstM"] == 4  else (kernel["MIWG0"] // kernel["MatrixInstM"])
+      numcolBlocksperInstruction = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+      #re-adjust columnBlock for  4x4mfma
+      #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
+      for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//kernel["VectorWidth"])*numcolBlocksperInstruction)) :
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//kernel["StoreVectorWidth"]):
+            for vc0 in range(0, kernel["StoreVectorWidth"], edgeVw):
+              element = (tt1, tt0, vc1, vc0)
+              elements[True].append(element)
+    else:
+      for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
+            for vc0 in range(0, kernel["VectorWidth"], edgeVw):
+              element = (tt1, tt0, vc1, vc0)
+              elements[True].append(element)
 
     vectorWidths = [fullVw, edgeVw]
     kStr =  self.globalWriteElements(kernel, vectorWidths, elements)
@@ -7470,13 +7870,28 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["LocalSplitU"] > 1:
           strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
         else:
-          strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
+          if kernel["MatrixInstruction"]:
+            # for 'B' blocks in MFMA d1 represents next block dimension 
+            # offset requires stride calculation for next Block
+            strideD1 = kernel["MatrixInstN"]*kernel["VectorWidth"] + vc1
+          else:
+            strideD1 = (kernel["SubGroup1"]*kernel["VectorWidth"])
+
         coordOffset1 = d1*strideD1 + vc1
 
         newCoord1 = (self.firstBatch and elementIdx==0) or (coordOffset1 != self.lastCoordOffset1)
 
         # gpr and offset assignments for element
-        coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
+        if kernel["MatrixInstruction"]:
+          # TODO Currently only works for 32x32x1x2, revisit calc and element loop
+          # coordOffset0 = (d0 // 32) * 32 + ((d0 // 4) % 4) * 8 + (d0 % 4) # BBlocks
+          #coordOffset0 = (d0 // 32) * 32 + ((d0 // (4 // kernel["VectorWidth"]))) * 8 + (d0 % (4 // kernel["VectorWidth"])) * kernel["VectorWidth"]  # ABlocks
+          #TODO 4x4 MFMA requires fix
+          numRowsPerReg = 1 if kernel["MatrixInstM"] == 4 else (globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]) 
+          coordOffset0 = d0 * numRowsPerReg * kernel["StoreVectorWidth"] + vc0
+        else:
+          coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
+
         if self.optSingleColVgpr:
           # use same address vgpr for all
           addr = self.sharedColVgprs
@@ -7521,7 +7936,18 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["LocalSplitU"] > 1:
           sumIdx = kw.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
         else:
-          sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+          bestVw = kernel["VectorWidth"]
+          elementsLoadedPerVw = kernel["NumThreads"]*bestVw
+          elementsLoadedPerbestVw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+          if elementsLoadedPerVw < elementsLoadedPerbestVw:
+            bestVw = kernel["StoreVectorWidth"]
+          if kernel["MatrixInstruction"]:
+            # calculate how many row registers need for each block
+            # for MFMA 4x4, we would write all blocks ijn single storevectorWidth write 
+            numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"]) // globalParameters["WavefrontWidth"]
+            sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofDstRgs*kernel["VectorWidth"]
+          else:
+            sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
 
@@ -7588,7 +8014,7 @@ class KernelWriterAssembly(KernelWriter):
 
     """
     def emitAddressCoordIncrement(self, kernel, ss, tmpVgpr, tmpS01, edge):
-
+      
       kStr = ""
       kw = self.kernelWriter
       (d1,d0,vc1,vc0) = self.element
@@ -7635,6 +8061,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       kw = self.kernelWriter
       packedIndices = kernel["PackedC0IndicesX"]
+      packedBits = self.coord0Vgpr # start with coord0, will move to temp below
       for i,idx in enumerate(packedIndices[:-1]):
         # vgprTmp assignments:
         #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
@@ -7642,7 +8069,6 @@ class KernelWriterAssembly(KernelWriter):
         #   - tmp+2 is scratch
         idxChar= globalParameters["IndexChars"][idx]
         kStr += kw.comment1("extract %s"%kw.size('A', idx))
-        packedBits = self.coord0Vgpr # start with coord0, will move to temp below
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
         kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" % \
                  (tmpVgpr+1, vgpr(packedBits), \
@@ -7671,18 +8097,19 @@ class KernelWriterAssembly(KernelWriter):
                     "Copy remaining bits for next divide")
           packedBits = tmpVgpr+0
 
+      if len(packedIndices)>1:
+        # if we unpacked something, then scale it to BPE
+        kStr += kw.comment1("extract final %s"%kw.size('A', packedIndices[-1]))
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+2), vgpr(tmpVgpr+1), \
                   kw.stride(storeChar, packedIndices[-1]), "scale final extracted dim")
         kStr += inst("_v_add_u32", vgpr(self.addrVgpr), vgpr(self.addrVgpr), \
                   vgpr(tmpVgpr+2), "addrCalc += scaled extracted dim ")
+
         kStr += inst("_v_add_lshl_u32", vgpr(self.addrVgpr), \
                   vgpr(kw.cinRowPtr), \
                   vgpr(self.addrVgpr), \
                   hex(log2(kw.bpeCexternal)), \
                   "packed: add rowPtr and scaleToBpe")
-
-        if 0:
-          kStr += kw.bomb()
 
       return kStr
 
@@ -7782,18 +8209,21 @@ class KernelWriterAssembly(KernelWriter):
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
           self.rowIncDirtyRowPtr = 1
+          assert (not kernel["ProblemType"]["UseInitialStridesCD"])
+          assert (len(kernel["PackedC1IndicesX"])==1)
+
+          strideChar = self.kernelWriter.indexChars[kernel["PackedC1IndicesX"][0]]
           kStr += self.addScaled(vgpr(kw.cinRowPtr),  vgpr(kw.cinRowPtr),  \
-                    sgpr("StridesC+0"), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
+                    sgpr("StrideC%s"%strideChar), self.rowInc, tmpS01, "ROWINC- Move cinRowPtr to next row")
           if not kernel["LdcEqualsLdd"]:
             kStr += self.addScaled(vgpr(kw.coutRowPtr), vgpr(kw.coutRowPtr), \
-                      sgpr("StridesD+0"), self.rowInc, tmpS01, "Move coutRowPtr to next row")
+                      sgpr("StrideD%s"%strideChar), self.rowInc, tmpS01, "Move coutRowPtr to next row")
 
       # Now do the edge check and compute the address in bytes:
       if kernel["BufferStore"]:
         if edge:
           # Set address to -1 if OOB on either dimension
           # and only check the x/coord0 index here, save a couple inst
-          # TODO-packed: compare against product-of-packed sizes, see other code
           sizeBoundary = [0,0]
           sizeBoundary[0] = \
               sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
@@ -7857,19 +8287,23 @@ class KernelWriterAssembly(KernelWriter):
     If optSrdIncForRow, this will move the SRD forward
     If not, this could generate some other instructions
     """
-    def incrementToNextRow(self, tc, ss, stmp):
+    def incrementToNextRow(self, kernel, tc, ss, stmp):
       kStr = ""
       numRows = self.rowInc
       if ss.optSrdIncForRow:
         if numRows:
+          packedC1 = kernel["PackedC1IndicesX"]
+          assert(len(packedC1) == 1)  # would need to extract each dim and scale
+          strideCD1 = "Stride%s%s"%(tc,self.kernelWriter.indexChars[packedC1[0]])
           if numRows > 1:
-            kStr += inst("s_mul_i32", sgpr(stmp), sgpr("Strides%s+0"%(tc)), \
-                numRows*self.kernelWriter.bpeCexternal, \
-                "scale Stride%s *= %u * bpe"%(tc,numRows))
+            kStr += inst("s_mul_i32", sgpr(stmp), \
+                         sgpr(strideCD1), \
+                         numRows*self.kernelWriter.bpeCexternal, \
+                         "scale Stride%s *= numRows(%u) * bpe"%(tc,numRows))
           else:
             kStr += inst("s_lshl_b32 ", \
                   sgpr(stmp), \
-                  sgpr("Strides%s+0"%(tc)), \
+                  sgpr(strideCD1), \
                   log2(self.kernelWriter.bpeCexternal), \
                   "incToNextRow: Scale by BPE")
 
@@ -7928,14 +8362,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # check edge0 ###
     # s23 = rMT0 = Size0 % MT0
-    # TODO-packed #
-    # something like:
-    # for idxChar in kernel["PackedC0Indices"]:
-    #   sizesFreeIndex = ord(idcChar) - ord(globalParameters["IndexChars"][0])  # convert char to index
-    #   packedSize *= sgpr[SizedFree+%u"%sizesFreeIndex]
-    # May want to allocate an SGPR to save this value
     #--
-    kStr += self.comment1("TODO-packed- compare against product of all packed C0 sizes not just SizesFree+0")
     sizeBoundary = [0,0]
     sizeBoundary[0] = \
         sgpr("PackedSize0") if len(kernel["PackedC0IndicesX"]) > 1 \
@@ -8331,7 +8758,7 @@ class KernelWriterAssembly(KernelWriter):
   # Add stores for the element with addrCalc and sumIdx.
   # tmpS01 is a single :temp sGPR
   ##############################################################################
-  def addStore(self, kernel, ss, addrCalc, sumIdx, tmpS01):
+  def addStore(self, kernel, ss, addrCalc, sumIdx, tmpS01, edge):
     kStr = ""
     if self.do["GlobalWrite"]:
       # perform vector stores here, so no VI indexing.
@@ -8352,10 +8779,16 @@ class KernelWriterAssembly(KernelWriter):
         addr0 = vgpr(addrCalc.addrVgpr,2)
         addr1 = ""
 
+      #if kernel["MatrixInstruction"] and not edge:
+      # addr0 = vgpr(self.mfma_addr0)
+        #if (sumIdx // 32) % 2 == 0: # BBlocks
+      #  if (sumIdx // 32) % 2 == 0: # ABlocks
+      #    addr0 = vgpr(self.mfma_addr0)
+
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
-        kStr += addrCalc.incrementToNextRow("D", ss, tmpS01)
-      if kernel["ProblemType"]["DataType"].isHalf():
+        kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
+      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
         if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
           kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, \
                     addr0, addr1, addrCalc.globalOffset, ntStr, hi16=sumIdx%2)
@@ -8430,6 +8863,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
           if self.db["ForceExpectedValue"]:
             kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), self.db["ValueCExpectedValue"], "force expected value" )
+          if self.db["ForceVSerial"]:
+            kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), vgpr("Serial"), "force expected value to serial" )
           if self.db["CheckValueC"]:
             kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
             kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
@@ -8593,10 +9028,10 @@ class KernelWriterAssembly(KernelWriter):
         loadsIssued += 1
 
         if ss.optSrdIncForRow and addrCalc.rowInc:
-          kStr += addrCalc.incrementToNextRow("C", ss, tmpS01)
+          kStr += addrCalc.incrementToNextRow(kernel, "C", ss, tmpS01)
 
           #if not kernel["LdcEqualsLdd"]:
-          #  kStr += addrCalc.incrementToNextRow("D", ss.optSrdIncForRow, tmpS01)
+          #  kStr += addrCalc.incrementToNextRow(kernel, "D", ss.optSrdIncForRow, tmpS01)
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
@@ -8974,7 +9409,7 @@ class KernelWriterAssembly(KernelWriter):
                 kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
 
         addrCalc = ss.elementAddr[elementIdx]
-        kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01)
+        kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01, edge)
         storesIssued += 1
 
           #kStr += self.bomb(5)
@@ -9158,8 +9593,12 @@ class KernelWriterAssembly(KernelWriter):
       if skipLocalRead > -1:
         numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // kernel["VectorWidth"]) \
             // self.localReadInstructionA.numOffsets
-        numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) \
-            // self.localReadInstructionB.numOffsets
+        if kernel["MatrixInstruction"]:
+          numB = kernel["InnerUnroll"]*((kernel["ThreadTile1"]//kernel["MatrixInstN"])// kernel["VectorWidth"]) \
+              // self.localReadInstructionB.numOffsets
+        else:
+          numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) \
+              // self.localReadInstructionB.numOffsets
         lgkmcnt += skipLocalRead * (numA + numB)
 
     vmcnt = 0 if skipGlobalRead > -1 else -1
@@ -9261,6 +9700,46 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmp)
     self.vgprPool.checkIn(tmpAddr)
     return kStr
+
+  ##############################################################################
+  # MapAcctoArch 
+  # function to map MFMA Acc  Registers to Arch VGPR regsiter
+  # option : 
+  #         0 - one-to-one mapping of ACC -> VGPR  using VW
+  #         1 - using ds swizzle map strided lanes output of MFMA to  coalscing 
+  #             lanes of v_mac
+  ##############################################################################
+  def MapAcctoArchRegs(self, kernel, option):
+    kStr = ""
+    kStr += self.comment("Mapping of Acc register -> C Vgpr register")
+
+
+    #numRegsPerInstructions = self.destAgprs
+    AccRegIdx =0
+    VgprRegIdx = 0
+    RowInstIdx = 0
+    ColInstIdx = 0
+
+    #only support option=0
+    assert(option==0)
+
+    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"]//kernel["MatrixInstB"]
+    numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
+    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
+    numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
+    numRowInstructions = kernel["ThreadTile0"]
+
+    for ColInstIter in range (ColInstIdx, numColInstructions,kernel["VectorWidth"]) :
+      for ColblkIter in range (0, numColBlocks) :
+        for RowInstIter in range (RowInstIdx, numRowInstructions,kernel["VectorWidth"]) :
+          for RowblkIter in range (0, numRowblocks) :
+            for RegIter in range (0, numRowsPerBlock) :
+              for VwIter in range (0,kernel["VectorWidth"]) :
+                AccRegIdx = self.startVgprValuC + VwIter*self.destAgprs + RegIter + RowblkIter*numRowsPerBlock + RowInstIter*self.destAgprs + ColblkIter*(self.destAgprs//numColBlocks) + ColInstIter*numRowInstructions*self.destAgprs
+                kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%VgprRegIdx), "acc%u"%AccRegIdx, "copy areg to vreg")
+                VgprRegIdx = VgprRegIdx + 1
+    return kStr
+
 
   ##############################################################################
   #

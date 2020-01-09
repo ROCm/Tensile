@@ -14,7 +14,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     rock-dkms \
     cmake \
     ca-certificates \
+    doxygen \
     git \
+    graphviz \
     pkg-config \
     python3 \
     python3-dev \

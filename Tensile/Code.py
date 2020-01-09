@@ -51,6 +51,9 @@ class Module(Item):
     self.name = name
     self.itemList = []
 
+  def findNamedItem(self, targetName):
+    return next((item for item in self.itemList if item.name==targetName), None)
+
   def __str__(self):
     s = ""
     if printModuleNames:
