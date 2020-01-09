@@ -5804,6 +5804,8 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
         kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+        if self.version == (10,1,0):
+          kStr += "s_waitcnt_vscnt null, 0\n"
         kStr += "s_barrier // debug\n"
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
@@ -9042,12 +9044,18 @@ class KernelWriterAssembly(KernelWriter):
           # for example assuming we can have two elements and can use pk_mul
           # here:
           if beta and interleaveStoreVmcnt:
-            vmcnt = loadsIssued + elementIdx - storesIssued - 1
+            if self.version == (10,1,0):
+              vmcnt = loadsIssued - elementIdx - 1
+              vmComment = "{} = {} - {} - 1".format(vmcnt, loadsIssued, elementIdx)
+            else:
+              vmcnt = loadsIssued - elementIdx + storesIssued - 1
+              vmComment = "{} = {} - {} + {} - 1".format(vmcnt, loadsIssued, elementIdx, storesIssued)
+
             maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
             vmcnt = min(vmcnt, maxVmcnt)
             #print "wmvcnt=", vmcnt
             kStr += "\n"
-            kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved)")
+            kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved) " + vmComment)
           for vi in range(0, gwvw):
             dataV = ss.elementData[elementIdx] + int(vi*ss.cfg.numVgprsPerDataPerVI)
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
@@ -9359,7 +9367,12 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
     if kernel["NumThreads"] > 64 and self.do["Sync"]:
-      return self.indent + self.syncStr + " //" + comment + self.endLine
+      kStr = ""
+      if self.version == (10,1,0):
+        kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
+
+      kStr += self.indent + self.syncStr + " //" + comment + self.endLine
+      return kStr
     else:
       return "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
               comment + self.endLine

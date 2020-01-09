@@ -646,8 +646,7 @@ class WinningParameterDict:
     else:
       if globalParameters["PrintLevel"] >= 1:
         print1("# Updating Solution Database")
-        progressBar = ProgressBar(len(newHardcodedParameterList))
-      for newHardcodedParameters in newHardcodedParameterList:
+      for newHardcodedParameters in Utils.tqdm(newHardcodedParameterList):
         #(oldHardcodedParameters, winningParameters, score) = \
         matches = WinningParameterDict.get(newHardcodedParameters, oldWinners)
         if len(matches) == 1: # plain update
@@ -673,8 +672,6 @@ class WinningParameterDict:
           newHardcodedParameters.update(fastestHardcodedParameters)
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ fastestWinningParameters, fastestScore ]
-        if globalParameters["PrintLevel"] >= 1:
-          progressBar.increment()
 
 
     # return resulting hardcodedParameterList
@@ -800,8 +797,7 @@ def main( config ):
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
         granularityFileName = "%s_Granularity.csv" % (resultsFileBase)
-        if globalParameters["NewClient"] < 2:
-          shutil.copy( resultsFileName, newResultsFileName )
+        shutil.copy( resultsFileName, newResultsFileName )
         shutil.copy( solutionsFileName, newSolutionsFileName )
         if os.path.isfile(granularityFileName):
           shutil.copy( granularityFileName, newGranularityFileName )

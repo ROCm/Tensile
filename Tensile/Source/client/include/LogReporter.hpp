@@ -45,29 +45,32 @@ namespace Tensile
         class LogReporter: public ResultReporter
         {
         public:
-            LogReporter(LogLevel level, std::initializer_list<const char *> keys, std::ostream & stream)
+            LogReporter(LogLevel level, std::initializer_list<const char *> keys, std::ostream & stream, bool dumpTensors)
                 : m_level(level),
                   m_stream(stream),
-                  m_csvOutput(stream)
+                  m_csvOutput(stream),
+                  m_dumpTensors(dumpTensors)
             {
                 for(auto const& key: keys)
                     m_csvOutput.setHeaderForKey(key, key);
             }
 
-            LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::ostream & stream)
+            LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::ostream & stream, bool dumpTensors)
                 : m_level(level),
                   m_stream(stream),
-                  m_csvOutput(stream)
+                  m_csvOutput(stream),
+                  m_dumpTensors(dumpTensors)
             {
                 for(auto const& key: keys)
                     m_csvOutput.setHeaderForKey(key, key);
             }
 
-            LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::shared_ptr<std::ostream> stream)
+            LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::shared_ptr<std::ostream> stream, bool dumpTensors)
                 : m_level(level),
                   m_stream(*stream),
                   m_ownedStream(stream),
-                  m_csvOutput(stream)
+                  m_csvOutput(stream),
+                  m_dumpTensors(dumpTensors)
             {
                 for(auto const& key: keys)
                     m_csvOutput.setHeaderForKey(key, key);
@@ -76,6 +79,7 @@ namespace Tensile
             template <typename Stream>
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args, Stream & stream)
             {
+                bool dumpTensors = args["dump-tensors"].as<bool>();
                 using namespace ResultKey;
                 return std::shared_ptr<LogReporter>(
                         new LogReporter(LogLevel::Debug,
@@ -84,7 +88,7 @@ namespace Tensile
                                          Validation, TimeNS, SpeedGFlops,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
-                                        stream));
+                                        stream, dumpTensors));
             }
 
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
@@ -140,8 +144,19 @@ namespace Tensile
             {
                 if(logAtLevel(level))
                 {
-                    m_stream << name << ": " << tensor << std::endl;
-                    WriteTensor(m_stream, data, tensor, ptrVal);
+                    if(m_dumpTensors)
+                    {
+                        std::string fname = concatenate("tensor_", name, ".bin");
+                        std::ofstream ofile(fname.c_str());
+                        ofile.write(reinterpret_cast<const char *>(data), tensor.totalAllocatedBytes());
+
+                        m_stream << "Dumped tensor to file " << fname << std::endl;
+                    }
+                    else
+                    {
+                        m_stream << name << ": " << tensor << std::endl;
+                        WriteTensor(m_stream, data, tensor, ptrVal);
+                    }
                 }
             }
 
@@ -196,6 +211,7 @@ namespace Tensile
 
             bool m_firstRun = true;
             bool m_inSolution = false;
+            bool m_dumpTensors = false;
 
             CSVStackFile m_csvOutput;
         };

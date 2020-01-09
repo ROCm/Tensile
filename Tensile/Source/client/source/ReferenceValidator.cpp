@@ -26,6 +26,7 @@
 
 #include "ReferenceValidator.hpp"
 #include "ResultReporter.hpp"
+#include "ResultComparison.hpp"
 #include "DataInitializationTyped.hpp"
 
 #include "Reference.hpp"
@@ -54,16 +55,18 @@ namespace Tensile
             m_printTensorD = args["print-tensor-d"].as<bool>();
             m_printTensorRef = args["print-tensor-ref"].as<bool>();
 
+            m_printAny = m_printTensorA
+                      || m_printTensorB
+                      || m_printTensorC
+                      || m_printTensorD
+                      || m_printTensorRef;
+
             m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
             if(args.count("convolution-identifier"))
                 m_convolutionProblem.FromIdentifier(args["convolution-identifier"].as<std::string>());
 
             m_enabled = m_elementsToValidate != 0
-                     || m_printTensorA
-                     || m_printTensorB
-                     || m_printTensorC
-                     || m_printTensorD
-                     || m_printTensorRef;
+                     || m_printAny;
         }
 
         bool ReferenceValidator::needMoreBenchmarkRuns() const
@@ -251,13 +254,16 @@ namespace Tensile
             if(!m_enabled)
                 return rv;
 
-            if(m_printTensorA || m_printTensorB
-            || m_printTensorC || m_printTensorD
-            || m_printTensorRef)
+            if(m_printAny)
                 printTensorsTyped(reference, result);
 
             if(m_elementsToValidate != 0)
-                rv = checkResultsTyped(reference, result);
+            {
+                //RMSComparison<typename ManagedInputs::DType> compareValid(1e-7, m_printMax > 0);
+                PointwiseComparison<typename ManagedInputs::DType> compareValid(m_printValids, m_printMax, m_printMax > 0);
+                InvalidComparison<typename ManagedInputs::DType> compareInvalid(m_printMax, m_printMax > 0);
+                rv = checkResultsTyped(reference, result, compareValid, compareInvalid);
+            }
 
             return rv;
         }
@@ -312,7 +318,7 @@ namespace Tensile
                     reinterpret_cast<typename ManagedInputs::CType const*>(
                         m_cpuResultBuffer.data());
 
-                m_reporter->logTensor(LogLevel::Verbose, "C/D", buffer,
+                m_reporter->logTensor(LogLevel::Verbose, "C_D", buffer,
                                       m_problem.c(), result.c);
             }
             else
@@ -351,8 +357,9 @@ namespace Tensile
             }
         }
 
-        template <typename ManagedInputs>
-        bool ReferenceValidator::checkResultsTyped(ManagedInputs const& reference, ManagedInputs const& result)
+        template <typename ManagedInputs, typename CompareValid, typename CompareInvalid>
+        bool ReferenceValidator::checkResultsTyped(ManagedInputs const& reference, ManagedInputs const& result,
+                                                   CompareValid & compareValid, CompareInvalid & compareInvalid)
         {
             using Type = typename ManagedInputs::DType;
             auto const& tensor = m_problem.d();
@@ -394,24 +401,7 @@ namespace Tensile
             for(ptrdiff_t i = 0; i < elementsBeforeData; i++)
             {
                 boundsCheckElements++;
-                if(!DataInitialization::isBadOutput(resultBuffer[i]))
-                {
-                    errors++;
-                    if(doPrint)
-                    {
-                        if(!printedPreBuffer)
-                        {
-                            std::cout << "Value written before output buffer:" << std::endl;
-                            printedPreBuffer = true;
-                        }
-                         
-                        std::cout << "Index " << i << " / " << elementsBeforeData
-                                  << ": found " << resultBuffer[i]
-                                  << " instead of "
-                                  << DataInitialization::getValue<Type, InitMode::BadOutput>()
-                                  << std::endl;
-                    }
-                }
+                compareInvalid.before(resultBuffer[i], i, elementsBeforeData);
             }
 
             auto compareValues =
@@ -464,25 +454,7 @@ namespace Tensile
                     {
                         for(auto innerIndex = prevBaseIndex + innerDimSize; innerIndex < baseElemIndex; innerIndex++)
                         {
-                            boundsCheckElements++;
-                            if(!DataInitialization::isBadOutput(resultData[innerIndex]))
-                            {
-                                errors++;
-                                if(doPrint)
-                                {
-                                    if(!printedInsideBuffer)
-                                    {
-                                        std::cout << "Value written outside tensor, inside output buffer:" << std::endl;
-                                        printedInsideBuffer = true;
-                                    }
-                                    
-                                    std::cout << "Index " << innerIndex << " / " << baseElemIndex
-                                            << ": found " << resultData[innerIndex]
-                                            << " instead of "
-                                            << DataInitialization::getValue<Type, InitMode::BadOutput>()
-                                            << std::endl;
-                                }
-                            }
+                            compareInvalid.inside(resultData[innerIndex], innerIndex, baseElemIndex);
                         }
                     }
 
@@ -495,7 +467,7 @@ namespace Tensile
                         Type referenceValue = reference.d[elemIndex];
                         Type resultValue = resultData[elemIndex];
 
-                        compareValues(referenceValue, resultValue, elemIndex, (i*tensor.sizes()[0]) + j);
+                        compareValid(referenceValue, resultValue, elemIndex, (i*tensor.sizes()[0]) + j);
                     }
                 }
             }
@@ -510,44 +482,31 @@ namespace Tensile
                     Type referenceValue = reference.d[elemIndex];
                     Type resultValue = resultData[elemIndex];
 
-                    compareValues(referenceValue, resultValue, elemIndex, elemNumber);
+                    compareValid(referenceValue, resultValue, elemIndex, elemNumber);
                 }
             }
 
             for(ptrdiff_t i = 0; i < elementsAfterData; i++)
             {
-                boundsCheckElements++;
-                if(!DataInitialization::isBadOutput(resultAfterData[i]))
-                {
-                    errors++;
-                    if(doPrint)
-                    {
-                        if(!printedPostBuffer)
-                        {
-                            std::cout << "Value written after output buffer:" << std::endl;
-                            printedPreBuffer = true;
-                        }
-                         
-                        std::cout << "Index " << i << " / " << elementsAfterData
-                                  << ": found " << resultAfterData[i]
-                                  << " instead of "
-                                  << DataInitialization::getValue<Type, InitMode::BadOutput>()
-                                  << std::endl;
-                    }
-                }
+                compareInvalid.after(resultAfterData[i], i, elementsAfterData);
             }
 
             if(boundsCheckElements > 0)
                 std::cout << "Performed bounds check on " << boundsCheckElements
                           << " elements (" << elementsBeforeData << " before data)" << std::endl;
 
-            if(errors > 0)
+            compareValid.report();
+            compareInvalid.report();
+
+            if(compareValid.error() || compareInvalid.error())
             {
                 m_errorInSolution = true;
                 m_error = true;
+
+                return true;
             }
 
-            return (errors > 0);
+            return false;
         }
 
         void ReferenceValidator::postSolution()

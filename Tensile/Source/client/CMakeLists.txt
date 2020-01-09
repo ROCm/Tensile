@@ -17,7 +17,7 @@ set(client_sources
     source/TimingEvents.cpp
     )
 
-find_package(Boost COMPONENTS program_options)
+find_package(Boost  COMPONENTS program_options filesystem REQUIRED)
 
 add_library(TensileClient STATIC ${client_sources})
 

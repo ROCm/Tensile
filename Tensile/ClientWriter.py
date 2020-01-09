@@ -522,6 +522,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
           param("print-tensor-c",         1)
         if globalParameters["PrintTensorD"]:
           param("print-tensor-d",         1)
+        if globalParameters["PrintTensorRef"]:
+          param("print-tensor-ref",         1)
 
         if globalParameters["BoundsCheck"]:
           param("bounds-check", 1)

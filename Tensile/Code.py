@@ -256,7 +256,7 @@ class WaitCnt (Module):
 
     if len(main_args) > 0:
       rv.addInst("s_waitcnt", *main_args, self.comment)
-      if wait_store and self.version == (10,1,0):
+      if wait_store and self.version == (10,1,0) and self.vmcnt != -1:
         rv.addInst("s_waitcnt_vscnt", "null", self.vmcnt, "writes")
     else:
       rv.addComment0(self.comment)

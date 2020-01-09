@@ -493,10 +493,10 @@ namespace Tensile
                     Tensile::hip::CopyTensor(const_cast<AType *>(dst->a), src->a, problem.a(), kind);
                     Tensile::hip::CopyTensor(const_cast<BType *>(dst->b), src->b, problem.b(), kind);
 
-                    if(!m_cEqualsD)
-                        Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
+                    Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
 
-                    Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
+                    if(!m_cEqualsD)
+                        Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
 
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
