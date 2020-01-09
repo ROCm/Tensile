@@ -179,6 +179,9 @@ class YamlBuilder:
                 "SolutionSelectionAlg": 1,
                 "ProblemFromConvolution": True,
                 "NewClient": 2,
+                "DataInitTypeAlpha": 1, # use optimized OptNoLoadLoop, if available
+                "DataInitTypeC": 4, # NANs
+                "DataInitTypeD": 4, # NANs
                 #"CpuThreads": 0,
             }
         }

@@ -886,7 +886,7 @@ class ProblemType:
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
     if not state["AllowNoFreeDims"] and state["NumIndicesFree"] < 2 :
-      printExit("Tensile requires >= 2 free indices; FreeIndices=%s."% state["IndicesFree"])
+      printExit("Tensile requires >= 2 free indices or set AllowNoFreeDims; FreeIndices=%s."% state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
