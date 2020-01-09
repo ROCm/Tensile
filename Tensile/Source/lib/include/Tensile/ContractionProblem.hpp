@@ -34,7 +34,17 @@
 
 namespace Tensile
 {
+    /**
+     * \addtogroup Problem
+     * @{
+     */
 
+    /**
+     * Describes a tensor contraction in by using TensorDescriptor objects for
+     * each input or output tensor as well as indices describing transposes,
+     * summations, etc. This is decoupled from any particular pointers, which
+     * are provided in ContractionInputs objects.
+     */
     class TENSILE_API ContractionProblem: public Problem
     {
     public:
@@ -66,8 +76,8 @@ namespace Tensile
          */
         struct FreeIndex
         {
-            bool isA;  //< True=index is in A; False=index is in B
-            size_t i;  //< Dimension in A or B (depending on isA)
+            bool isA; //< True=index is in A; False=index is in B
+            size_t i; //< Dimension in A or B (depending on isA)
             size_t c; //< Dimension of C which corresponds for this index
             size_t d; //< Dimension of D which corresponds for this index
         };
@@ -83,7 +93,7 @@ namespace Tensile
         using BatchIndices = std::vector<BatchIndex>;
 
         /**
-         * Represents a bound or summed index in a tensor contraction.
+         * Represents a bound (or summed) index in a tensor contraction.
          */
         struct BoundIndex
         {
@@ -96,7 +106,12 @@ namespace Tensile
 
 
         virtual std::string description() const;
+	    virtual ProblemKey<size_t> getKey() const;
 
+        /**
+         * Create a ContractionProblem representing a batched GEMM, specifying
+         * strides between matrices.
+         */
         static ContractionProblem GEMM_Strides(bool transA, bool transB,
                                                DataType aType, DataType bType, DataType cType, DataType dType,
                                                size_t m, size_t n, size_t k, size_t batchSize,
@@ -106,11 +121,19 @@ namespace Tensile
                                                size_t ldd, size_t dStride,
                                                double beta);
 
+        /**
+         * Create a ContractionProblem representing a batched SGEMM, with
+         * leading dimensions, but no strides.
+         */
         static ContractionProblem GEMM(bool transA, bool transB,
                                        size_t m, size_t n, size_t k,
                                        size_t lda, size_t ldb, size_t ldc,
-                                       double beta, bool colMajor, size_t batchCount);
+                                       double beta, bool unused, size_t batchCount);
 
+        /**
+         * Create a ContractionProblem representing a batched GEMM based on the
+         * dimensions of each of the tensors.
+         */
         static ContractionProblem GEMM(bool transA, bool transB,
                                        TensorDescriptor const& a, TensorOps const& aOps,
                                        TensorDescriptor const& b, TensorOps const& bOps,
@@ -118,6 +141,10 @@ namespace Tensile
                                        TensorDescriptor const& d, TensorOps const& dOps,
                                        double beta);
 
+        /**
+         * Converts an identifier such as `Contraction_l_AlikC_Bjlk_Cijk_Dijk`
+         * into a set of indices and operations.
+         */
         static void IdentifierToIndices(std::string  const& identifier, 
                                         FreeIndices       & freeIndices,
                                         BatchIndices      & batchIndices,
@@ -127,6 +154,36 @@ namespace Tensile
                                         TensorOps         & cOps,
                                         TensorOps         & dOps);
 
+        /**
+         * Create a ContractionProblem from a definition of each index, the
+         * size of each index, the strides of each tensor, and any operations.
+         * 
+         * @param freeIndices  Free indices
+         * @param batchIndices Batch indices
+         * @param boundIndices Bound indices
+         * @param indexSizes   Size of each index, in the order of appearance in
+         *                     the D tensor.
+         * 
+         * @param aType    Data type of A
+         * @param aStrides Strides of A
+         * @param aOps     Operations to apply to A as it is read
+         * 
+         * @param bType    Data type of B
+         * @param bStrides Strides of B
+         * @param bOps     Operations to apply to B as it is read
+         * 
+         * @param cType    Data type of C
+         * @param cStrides Strides of C
+         * @param cOps     Operations to apply to C as it is read
+         * 
+         * @param dType    Data type of D
+         * @param dStrides Strides of D
+         * @param dOps     Operations to apply to D as it is read
+         * 
+         * @param beta Representative value of beta. Is only used to possibly
+         *             select a more efficient kernel if we know that
+         *             `beta == 0` or `beta == 1`.
+         */
         static ContractionProblem FromIndexSizes(FreeIndices const& freeIndices,
                                                  BatchIndices const& batchIndices,
                                                  BoundIndices const& boundIndices,
@@ -137,6 +194,32 @@ namespace Tensile
                                                  DataType dType, std::vector<size_t> const& dStrides, TensorOps const& dOps,
                                                  double beta);
 
+        /**
+         * Create a ContractionProblem based on an operation identifier such as
+         * `Contraction_l_AlikC_Bjlk_Cijk_Dijk` and individual index sizes.
+         * 
+         * @param operationIdentifier String that represents this exact
+         *                            operation in terms of transposes, data
+         *                            types, and operations.
+         * @param indexSizes   Size of each index, in the order of appearance in
+         *                     the D tensor.
+         * 
+         * @param aType    Data type of A
+         * @param aStrides Strides of A
+         * 
+         * @param bType    Data type of B
+         * @param bStrides Strides of B
+         * 
+         * @param cType    Data type of C
+         * @param cStrides Strides of C
+         * 
+         * @param dType    Data type of D
+         * @param dStrides Strides of D
+         * 
+         * @param beta Representative value of beta. Is only used to possibly
+         *             select a more efficient kernel if we know that
+         *             `beta == 0` or `beta == 1`.
+         */
         static ContractionProblem FromIndexSizes(std::string const& operationIdentifier,
                                                  std::vector<size_t> const& indexSizes,
                                                  DataType aType, std::vector<size_t> const& aStrides,
@@ -182,6 +265,7 @@ namespace Tensile
         }
 
         std::vector<size_t> const& problemSizes() const { return m_problemSizes; }
+	std::vector<size_t> const& problemStrides() const { return m_problemStrides; }
 
         void setHighPrecisionAccumulate(bool value) { m_highPrecisionAccumulate = value; }
         bool highPrecisionAccumulate()        const { return m_highPrecisionAccumulate; }
@@ -255,8 +339,8 @@ namespace Tensile
         bool m_transB;
         bool m_highPrecisionAccumulate = false;
 
-        FreeIndices  m_freeIndicesA; // in same order as IndexAssignmentsA
-        FreeIndices  m_freeIndicesB; // in same order as IndexAssignmentsB
+        FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
+        FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
         FreeIndices  m_freeIndices;
         BatchIndices m_batchIndices;
         BoundIndices m_boundIndices;
@@ -270,6 +354,7 @@ namespace Tensile
         std::vector<size_t> m_boundSizes;
 
         std::vector<size_t> m_problemSizes;
+	std::vector<size_t> m_problemStrides;
 
         double m_beta;
 
@@ -298,6 +383,10 @@ namespace Tensile
         virtual ~ContractionInputs();
     };
 
+    /**
+     * Contains actual pointer and argument values for a particular set of
+     * inputs.
+     */
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     struct TENSILE_API TypedContractionInputs: public ContractionInputs
     {
@@ -333,5 +422,9 @@ namespace Tensile
     TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::FreeIndex       & free);
     TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::BatchIndex      & batch);
     TENSILE_API std::istream & operator>>(std::istream & stream, ContractionProblem::BoundIndex      & bound);
+
+    /**
+     * @}
+     */
 }
 

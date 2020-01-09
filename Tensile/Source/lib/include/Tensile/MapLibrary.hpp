@@ -32,12 +32,20 @@
 
 namespace Tensile
 {
+    /**
+     * \ingroup SolutionLibrary
+     */ 
     template<typename MyProblem, typename MySolution, typename MyKey>
     using LibraryMap = std::unordered_map<MyKey, LibraryEntry<MyProblem, MySolution>>;
 
     /**
-     * Represents a set of solutions where each problem can map to only one sub-library.
-     * Examples are number of dimensions, transposes, etc.
+     * \ingroup SolutionLibrary
+     * 
+     * Represents a set of solutions where each problem can map to only one
+     * sub-library, as opposed to an `ExactLogicLibrary` where fall-through can
+     * occur.
+     * 
+     * Example: Problem type: Number of dimensions, transposes, etc.
      */
     template <typename MyProblem, typename MySolution, typename Key = std::string>
     struct ProblemMapLibrary: public SolutionLibrary<MyProblem, MySolution>

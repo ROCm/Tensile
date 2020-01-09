@@ -149,7 +149,7 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
     printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
   popWorkingPath() # build
   return process.returncode
-  
+
 
 def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   import io
@@ -164,6 +164,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
     runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
     runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
     runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+    runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
     if globalParameters["EnableHalf"]:
       runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
     if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
@@ -877,7 +878,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       if i < problemSizes.totalProblemSizes-1:
         h += ","
       else:
-        h += "" 
+        h += ""
     h += "};\n"
     h += "const unsigned int minStrides[%u] = {" \
         % problemTypes[0]["TotalIndices"]
@@ -938,8 +939,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     maximumD = problemSizes.maxD
     maximumC = problemSizes.maxC
-    maximumA = problemSizes.maxA 
-    maximumB = problemSizes.maxB 
+    maximumA = problemSizes.maxA
+    maximumB = problemSizes.maxB
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
@@ -1006,7 +1007,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     numSummations = len(solutionSummationSizes)
     h += "const unsigned int numSummations = %d;\n" % (numSummations)
-    
+
     h += "const unsigned int summations[numSummations] = {%d" % (solutionSummationSizes[0])
     for i in range(1, numSummations):
       h += ", %d" % (solutionSummationSizes[i])
@@ -1038,7 +1039,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += " };\n"
     h += "\n"
 
-    
+
 
   else:
     # Function Names

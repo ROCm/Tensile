@@ -30,6 +30,14 @@
 
 namespace Tensile
 {
+    /** 
+     * \ingroup Hardware
+     * Represents a particular AMD GPU in terms of processor model and number of
+     * compute units.
+     * 
+     * See subclass in `hip` directory which can create an instance
+     * automatically.
+     */
     struct TENSILE_API AMDGPU: public Hardware
     {
         static std::string Type() { return "AMDGPU"; }
@@ -53,6 +61,10 @@ namespace Tensile
         std::string deviceName;
 
         virtual bool runsKernelTargeting(Processor p) const;
+        virtual size_t id() const
+        {
+            return (size_t) processor;
+        }
         virtual std::string description() const;
     };
 

@@ -22,7 +22,7 @@
 import sys,traceback
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig
+from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -1256,14 +1256,48 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    state["SubGroup0"] = state["WorkGroup"][0]
-    state["SubGroup1"] = state["WorkGroup"][1]
-    state["LocalSplitU"] = state["WorkGroup"][2]
-    state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
+    if state["MatrixInstruction"]:
+      if state["MatrixInstruction"][0] != -1:
+        if len(state["MatrixInstruction"]) == 4:
+          # check for valid instruction with input type
+          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
+          if state["ThreadTile"][1] % itemsPerThread != 0:
+            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
+          state["MatrixInstM"] = state["MatrixInstruction"][0]
+          state["MatrixInstN"] = state["MatrixInstruction"][1]
+          state["MatrixInstK"] = state["MatrixInstruction"][2]
+          state["MatrixInstB"] = state["MatrixInstruction"][3]
+    else:
+      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
+        reject(state, "Invalid value for ThreadTile")
+
+    if state["MatrixInstruction"]:
+      if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
+        reject(state, "Error calcualting InstSplit")
+      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstM"] * state["MatrixInstB"]) # BBlocks
+      state["MIWG0"] = state["MatrixInstM"] if state["WorkGroup"][0] < state["MatrixInstM"] else  state["WorkGroup"][0]
+      # raise rejection 
+      if ((state["MIWG0"]%state["MatrixInstM"]) != 0):
+        reject(state, "WorkGroup0 must be mulitple of MatrixInstM")
+      #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
+      #  reject(state, "Error calculating MIWG1")
+
+      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MIWG0"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
+      state["SubGroup0"] = state["MIWG0"] # TODO calc
+      state["SubGroup1"] = state["MIWG1"]
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
+    else:
+      state["SubGroup0"] = state["WorkGroup"][0]
+      state["SubGroup1"] = state["WorkGroup"][1]
+
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
     state["ThreadTile0"] = state["ThreadTile"][0]
     state["ThreadTile1"] = state["ThreadTile"][1]
 
+    # TODO MI - SubGroup0 temporarily == MIWG0, revisit later
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
@@ -1333,6 +1367,8 @@ class Solution:
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
     state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
+    #if state["MatrixInstruction"] and not state["PrefetchGlobalRead"]:
+    #  state["NumLoads%s"%tc] = totalVectors * pv // (state["NumThreads"] // 4)  # 4 simds/cu
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -1411,7 +1447,7 @@ class Solution:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
           // state["NumLoadsPerpendicular%s"%tc]
-
+    
     return True
 
 
@@ -1614,6 +1650,17 @@ class Solution:
       print1("in assignDerivedParameters, state['Valid'] = False")
       return
 
+    # Init LoopIters parameter in case of early exit
+    # For backwards compatibility with older yaml files
+    state["LoopIters"] = 0
+    if "LoopUnroll" in state:
+      state["LoopIters"] = state["LoopUnroll"]
+
+    if state["MatrixInstruction"]:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
       state["ThreadTileB"] = state["ThreadTile1"]
@@ -1725,12 +1772,13 @@ class Solution:
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         state["VectorWidth"] //= 2
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if state["ThreadTile0"] % state["VectorWidth"] != 0 \
-        or state["ThreadTile1"] % state["VectorWidth"] != 0:
-      reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
-          % (state["ThreadTile0"], state["ThreadTile1"], \
-          state["VectorWidth"]))
-      return
+    if not state["MatrixInstruction"]:
+      if state["ThreadTile0"] % state["VectorWidth"] != 0 \
+          or state["ThreadTile1"] % state["VectorWidth"] != 0:
+        reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
+            % (state["ThreadTile0"], state["ThreadTile1"], \
+            state["VectorWidth"]))
+        return
 
     if state["PackSummationDims"] == 1:
         if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
@@ -1758,6 +1806,12 @@ class Solution:
     if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
+    # Default GlobalStoreVectorWidth
+    if state["StoreVectorWidth"] == -1:
+      #TODO : re-enable later after running testlists
+      #state["StoreVectorWidth"] = state["VectorWidth"]
+      # use wider store for best store optimization 
+      state["StoreVectorWidth"] = 4  
 
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
@@ -2095,6 +2149,9 @@ class Solution:
       reject(state, "LoopUnroll %u is less than 2" \
           % (state["LoopUnroll"]))
 
+    state["LoopIters"] = state["LoopUnroll"]
+    if "MatrixInstK" in state:
+      state["LoopIters"] //= state["MatrixInstK"]
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -2319,6 +2376,10 @@ class Solution:
     requiredParameters["MacroTile1"] = False # always prepended
     requiredParameters["DepthU"] = False # always prepended
     requiredParameters["LdcEqualsLdd"] = False # always prepended
+    requiredParameters["MatrixInstM"] = False # always prepended
+    requiredParameters["MatrixInstN"] = False # always prepended
+    requiredParameters["MatrixInstK"] = False # always prepended
+    requiredParameters["MatrixInstB"] = False # always prepended
     requiredParameters["Kernel"] = True # distinguish kernels from solutions
                                         # for single-source compilation
     return requiredParameters
@@ -2347,6 +2408,10 @@ class Solution:
       name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
+    if "MatrixInstM" in state:
+      name += "%s%ux%ux%ux%u_" \
+          % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"] )
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"

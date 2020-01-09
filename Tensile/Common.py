@@ -180,12 +180,14 @@ else:
 
 globalParameters["CodeObjectVersion"] = "V2"
 globalParameters["CxxCompiler"] = "hcc"
+globalParameters["Architecture"] = "all"
 
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
 globalParameters["NewClientArgs"] = ""
 globalParameters["PackageLibrary"] = False
+globalParameters["LegacyComponents"] = True
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
@@ -202,8 +204,7 @@ for numThreads in range(64, 1025, 64):
           workGroup = [sg0, sg1, nsg]
           validWorkGroups.append(workGroup)
 
-
-validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] + list(range(20, 256, 4))
 validThreadTiles = []
 for i in validThreadTileSides:
   for j in validThreadTileSides:
@@ -223,6 +224,14 @@ depthUs.extend(list(range(2,512+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
+
+validMFMA = {}
+validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
+validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
+validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
+
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
     "LoopTail":                   [ False, True ], # tail loop handles non multiples of unrolled summation loop
@@ -541,6 +550,11 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+    # MatrixInstruction: (M x N x K x B)
+    # XDLOPS tile definition, only valid for gfx908
+    # If empty, do not use these instructions
+    "MatrixInstruction":          validMatrixInstructions,
+
     # If positive, each switch includes switches <= the specified switch.
     # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
     # If negative, setting is precise and will disable only the specified code piece.
@@ -627,6 +641,11 @@ validParameters = {
     # If False, store 1 element per instruction.
     # If True, store vector-width elements per instruction.
     "VectorStore":                    [False, True],
+
+    # Controls desired width (#elements) for stores from reg to global memory.
+    # When MatrixInstruciton == None, derived parameter gwvw takes precedence.
+    # -1 : Set StoreVectorWidth = VectorWidth
+    "StoreVectorWidth":           [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
@@ -725,6 +744,7 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ True ] },
+    {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
@@ -784,6 +804,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"MatrixInstruction":         [ [] ] },
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },

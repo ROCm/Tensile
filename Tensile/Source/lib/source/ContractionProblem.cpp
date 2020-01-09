@@ -570,6 +570,11 @@ namespace Tensile
         m_problemSizes.insert(m_problemSizes.end(), m_c.sizes().begin(), m_c.sizes().end());
         m_problemSizes.insert(m_problemSizes.end(), m_boundSizes.begin(), m_boundSizes.end());
 
+        m_problemStrides.insert(m_problemStrides.end(), m_a.strides().begin(), m_a.strides().end());
+        m_problemStrides.insert(m_problemStrides.end(), m_b.strides().begin(), m_b.strides().end());
+        m_problemStrides.insert(m_problemStrides.end(), m_c.strides().begin(), m_c.strides().end());
+        m_problemStrides.insert(m_problemStrides.end(), m_d.strides().begin(), m_d.strides().end());
+
         m_allocatedElementsNonBatchA = 1;
         for(int idx = 0; idx < a().dimensions(); idx++)
         {
@@ -737,6 +742,11 @@ namespace Tensile
             rv *= size;
 
         return rv;
+    }
+
+    ProblemKey<size_t> ContractionProblem::getKey() const {
+        ProblemKey<size_t> pkey((size_t)this->transA(), (size_t)this->transB(), (size_t)this->c().dataType(), this->problemSizes(), this->problemStrides());
+        return pkey;
     }
 
     void ContractionProblem::getIndexNames(std::string & aNames,
