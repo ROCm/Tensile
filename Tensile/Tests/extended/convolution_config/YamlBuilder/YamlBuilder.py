@@ -36,7 +36,7 @@ class YamlBuilder:
         }
 
     @classmethod
-    def SGEMM_1(cls):
+    def src1(cls):
         return {
             "InitialSolutionParameters": None,
             "BenchmarkCommonParameters": [{"EdgeType": ["ShiftPtr"]}],
@@ -44,6 +44,33 @@ class YamlBuilder:
                 [
                     {"PrefetchGlobalRead": [0]},
                     {"KernelLanguage": ["Source"]},
+                    {"ThreadTile": [
+                        [ 2, 2 ]
+                        ]},
+                    {"WorkGroup": [
+                        [  8, 8, 1 ]
+                        #[ 16, 8, 1]
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [1]},
+                    {"VectorWidth": [1]},
+                    {"FractionalLoad": [0]}
+                ],
+            "BenchmarkForkParameters": None,
+            "JoinParameters": None,
+            "BenchmarkJoinParameters": None,
+            "BenchmarkFinalParameters": None
+        }
+
+    @classmethod
+    def asm3(cls):
+        return {
+            "InitialSolutionParameters": None,
+            "BenchmarkCommonParameters": [{"EdgeType": ["ShiftPtr"]}],
+            "ForkParameters":
+                [
+                    {"PrefetchGlobalRead": [0]},
+                    {"KernelLanguage": ["Assembly"]},
                     {"ThreadTile": [
                         [ 2, 2 ]
                         ]},
@@ -108,7 +135,7 @@ class YamlBuilder:
 
         tensileProblemType.update(problemType)
 
-        benchmarkParams = cls.SGEMM_1()
+        benchmarkParams = cls.asm3()
         benchmarkParams["BenchmarkFinalParameters"] = cls.ProblemSizes(conv)
 
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]

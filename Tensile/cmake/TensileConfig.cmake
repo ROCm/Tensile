@@ -69,7 +69,7 @@ function(TensileCreateLibraryFiles
         Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
 
   # Tensile_ROOT can be specified instead of using the installed path.
-  set(options NO_MERGE_FILES SHORT_FILE_NAMES)
+  set(options NO_MERGE_FILES SHORT_FILE_NAMES GENERATE_PACKAGE)
   set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX)
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -83,6 +83,10 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-merge-files")
   else()
     set(Options ${Options} "--merge-files")
+  endif()
+
+  if(Tensile_GENERATE_PACKAGE)
+    set(Options ${Options} "--package-library")
   endif()
 
   if(Tensile_SHORT_FILE_NAMES)
