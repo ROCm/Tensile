@@ -462,8 +462,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
           solutionWriter.getHeaderFileString(solution))
       if not globalParameters["MergeFiles"]:
         solutionHeaderFile.close()
-      if globalParameters["ShowProgressBar"]:
-        progressBar.increment()
     # close merged
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
@@ -1083,7 +1081,6 @@ def TensileCreateLibrary():
       if solution not in solutions:
         solutions.append(solution)
 
-<<<<<<< HEAD
     if globalParameters["PackageLibrary"]:
       if architectureName in masterLibraries:
         masterLibraries[architectureName].merge(deepcopy(newLibrary))
@@ -1091,8 +1088,6 @@ def TensileCreateLibrary():
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
 
-=======
->>>>>>> 394e6ae2f08004b0f24f46aa9f2b9da42a8f185f
   # create solution writer and kernel writer
   kernels = []
   kernelsBetaOnly = []

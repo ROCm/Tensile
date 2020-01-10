@@ -2104,14 +2104,11 @@ class KernelWriterAssembly(KernelWriter):
     def macro(op, dtype):
       dict = {'op': op, 'dtype': dtype}
       mStr = ".macro _v_cmpx_{op}_{dtype} dst, src0, src1=".format(**dict) + self.endLine
-      if self.version == (10,1,0):
-        if False:
-          mStr += r"   v_cmpx_{op}_{dtype} \src0 \src1".format(**dict) + self.endLine
-        else:
-          mStr += r"   v_cmp_{op}_{dtype} \dst \src0 \src1".format(**dict) + self.endLine
-          mStr += r"   s_mov_b64 exec \dst" + self.endLine
-      else:
+      if self.archCaps["CMPXWritesSGPR"]:
         mStr += r"   v_cmpx_{op}_{dtype} \dst \src0 \src1 ".format(**dict) + self.endLine
+      else:
+        mStr += r"   v_cmp_{op}_{dtype} \dst \src0 \src1".format(**dict) + self.endLine
+        mStr += r"   s_mov_b64 exec \dst" + self.endLine
       mStr += ".endm" + self.endLine
       return mStr
 
@@ -2249,7 +2246,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  %s %u // lds bytes%s" \
       % ( tWord, group_segment_size, self.endLine )
 
-    if self.version == (10,1,0):
+    if self.archCaps["HasWave32"]:
       if globalParameters["CodeObjectVersion"] == "V2":
         kStr += "  wavefront_size = 6 // 64-thread wavefronts%s" % self.endLine
       else:
@@ -5255,12 +5252,12 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug" + self.endLine
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)" + self.endLine
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += "s_waitcnt_vscnt null, 0" + self.endLine
 
     if kernel["SuppressNoLoadLoop"]:
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for all summation activity")
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
     return kStr
@@ -5961,7 +5958,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
         kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           kStr += "s_waitcnt_vscnt null, 0\n"
         kStr += "s_barrier // debug\n"
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
@@ -6176,7 +6173,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x1:
         imod.footer.addInst( "s_barrier", "debug")
         imod.footer.addInst( "s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "conservative wait")
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           imod.footer.addInst( "s_waitcnt_vscnt", "null", "0", "stores")
         imod.footer.addInst( "s_barrier", "debug")
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
@@ -6485,7 +6482,7 @@ class KernelWriterAssembly(KernelWriter):
     if 0 and tP["isB"]: # post-lds-write
     #if 0 and self.localWriteDoCnt >= 0:
       localWriteCode.addInst( "s_waitcnt lgkmcnt(0) & vmcnt(0)", "")
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         localWriteCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
       localWriteCode.addInst("s_barrier", "dump LDS" )
       localWriteCode.addText(self.assert_ne(sgpr("WorkGroup0"),1))
@@ -6638,7 +6635,7 @@ class KernelWriterAssembly(KernelWriter):
         # TODO - handle vector-load
         if self.db["CheckValue1%s"%tc]:
             localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
-            if self.version == (10,1,0):
+            if self.archCaps["SeparateVscnt"]:
               localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
             if kernel["ProblemType"]["DataType"].isHalf():
               localReadCode.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
@@ -7085,7 +7082,7 @@ class KernelWriterAssembly(KernelWriter):
             # ds_write value
             #kStr += dump(vgpr(regIdx))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
-    if self.version == (10,1,0):
+    if self.archCaps["SeparateVscnt"]:
       kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     kStr += self.syncThreads(kernel, "post-lsu local write")
     #kStr += self.dumpLds(kernel, 0, 16)
@@ -7116,7 +7113,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("ds_read_b32", vgpr("ValuC+%u"%regIdx), \
                 vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all reads")
-    if self.version == (10,1,0):
+    if self.archCaps["SeparateVscnt"]:
       kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     self.vgprPool.checkIn(baseAddr)
     return kStr
@@ -9017,7 +9014,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] & 0x10:
       kStr += "s_barrier // debug\n"
       kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
       kStr += "s_barrier // debug\n"
     if not edge and self.db["ForceEdgeStores"]>=2:
@@ -9191,7 +9188,7 @@ class KernelWriterAssembly(KernelWriter):
       # wait for batched load
       # TODO - we are always atomic here?
       kStr += inst("s_waitcnt", "vmcnt(0)", "wait C (atomic)" )
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       ########################################
@@ -9241,7 +9238,7 @@ class KernelWriterAssembly(KernelWriter):
       ########################################
       # wait for first attempt write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       ########################################
@@ -9334,7 +9331,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # wait for batched write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       # check batched write success
@@ -9386,7 +9383,7 @@ class KernelWriterAssembly(KernelWriter):
       # wait for batched load
       if beta and not interleaveStoreVmcnt:
         kStr += inst("s_waitcnt", "vmcnt(0)", "wait C")
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
       kStr += self.comment("apply mask, calc new C and issue write")
@@ -9410,7 +9407,7 @@ class KernelWriterAssembly(KernelWriter):
           # for example assuming we can have two elements and can use pk_mul
           # here:
           if beta and interleaveStoreVmcnt:
-            if self.version == (10,1,0):
+            if self.archCaps["SeparateVscnt"]:
               vmcnt = loadsIssued - elementIdx - 1
               vmComment = "{} = {} - {} - 1".format(vmcnt, loadsIssued, elementIdx)
             else:
@@ -9504,7 +9501,7 @@ class KernelWriterAssembly(KernelWriter):
       if self.db["CheckStoreC"]>=0:
         # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
         for elementIdx in range(0, len(batchElements)):
           addr = ss.elementAddr[elementIdx].addrVgpr
@@ -9535,7 +9532,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*4, \
                       addr0, addr1, soffset=0, offset=0, extraFields="").toStr()
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
         # Add checks for expected values:
@@ -9556,7 +9553,7 @@ class KernelWriterAssembly(KernelWriter):
       if self.db["ConservativeWaitCnt"] & 0x40:
         kStr += "s_barrier // debug\n"
         kStr += inst("s_waitcnt", "vmcnt(0)", "ConservativeWaitCnt" )
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
         kStr += "s_barrier // debug\n"
 
@@ -9713,7 +9710,7 @@ class KernelWriterAssembly(KernelWriter):
        (self.db["ConservativeWaitCnt"] & 0x8) and skipLocalRead  != -1:
         imod = Code.Module("ConservativeWaitCnt")
         imod.addInst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "debug %s"%comment )
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           imod.addInst("s_waitcnt_vscnt", "null", "0", "writes")
         imod.addInst("s_barrier", "debug" )
         return imod
@@ -9738,7 +9735,7 @@ class KernelWriterAssembly(KernelWriter):
   def syncThreads(self, kernel, comment=""):
     if kernel["NumThreads"] > 64 and self.do["Sync"]:
       kStr = ""
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
 
       kStr += self.indent + self.syncStr + " //" + comment + self.endLine
@@ -9755,7 +9752,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.comment("dump lds state")
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
-      if self.version == (10,1,0):
+      if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
       kStr += inst("s_barrier", "dump LDS" )
       tmp = self.vgprPool.checkOut(1)
@@ -9769,7 +9766,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("ds_read_b32", vgpr(tmp), \
             vgpr(tmpAddr) + " offset:%u"%(i*kernel["NumThreads"]*4), "dump lds")
         kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "dump" )
-        if self.version == (10,1,0):
+        if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
         kStr += self.dump(vgpr(tmp))
       self.vgprPool.checkIn(tmp)
@@ -9784,7 +9781,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("init lds state")
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
-    if self.version == (10,1,0):
+    if self.archCaps["SeparateVscnt"]:
       kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     kStr += inst("s_barrier", "init LDS" )
     tmp = self.vgprPool.checkOut(1)
@@ -9803,7 +9800,7 @@ class KernelWriterAssembly(KernelWriter):
           "//init lds" + self.endLine)
 
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for LDS init to complete" )
-    if self.version == (10,1,0):
+    if self.archCaps["SeparateVscnt"]:
       kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
     kStr += inst("s_barrier", "init LDS exit" )
     self.vgprPool.checkIn(tmp)

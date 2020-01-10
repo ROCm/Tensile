@@ -43,6 +43,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
 
+  @property
+  def asmCaps(self):
+    """
+    Assembler capabilities for the current ISA version.
+    """
+    return globalParameters["AsmCaps"][self.version]
+
+  @property
+  def archCaps(self):
+    """
+    Architectural capabilities for the current ISA version.
+    """
+    return globalParameters["ArchCaps"][self.version]
+
   ##############################################################################
   # makeSchedule:  Schedule work into interations.
 

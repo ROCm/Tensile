@@ -1112,7 +1112,10 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"] = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
+  rv["HasEccHalf"]     = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
+  rv["SeparateVscnt"]  = isaVersion == (10,1,0)
+  rv["CMPXWritesSGPR"] = isaVersion != (10,1,0)
+  rv["HasWave32"]      = isaVersion == (10,1,0)
 
   return rv
 
