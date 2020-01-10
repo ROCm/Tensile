@@ -17,6 +17,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
 

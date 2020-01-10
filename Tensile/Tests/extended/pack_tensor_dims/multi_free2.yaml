@@ -22,7 +22,6 @@ GlobalParameters:
   DataInitTypeBeta: 0
   KernelTime: True
   LibraryPrintDebug: 0
-  ClientArgs: "--stride_b 0"
   NewClient: 2
   CpuThreads: 0
 

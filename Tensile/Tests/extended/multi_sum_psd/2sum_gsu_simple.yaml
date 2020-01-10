@@ -35,7 +35,6 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
-          #- TailLoop: [False]
       ForkParameters:
         - PackSummationDims: [0,1]
         - KernelLanguage: ["Source"]
