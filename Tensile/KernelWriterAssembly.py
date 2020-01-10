@@ -6729,8 +6729,10 @@ class KernelWriterAssembly(KernelWriter):
           # TODO - handle vector-load
           if self.db["CheckValue1%s"%tc]:
               localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
-              if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+              if kernel["ProblemType"]["DataType"].isHalf():
                 localReadCode.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
+              elif kernel["ProblemType"]["DataType"].isBFloat16():
+                localReadCode.append(self.assert_eq(destVgpr, hex(0x3f803f80))) # packed 1s
               elif kernel["ProblemType"]["DataType"].isInt8x4() or \
                   kernel["ProblemType"]["DataType"].isSingle():
                 localReadCode.addText(self.assert_eq(destVgpr, 1.0))
