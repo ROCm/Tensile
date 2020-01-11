@@ -870,7 +870,14 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
-    for idxChar in self.magicIndexChars:
+    for idxChar in self.magicSumChars:
+      s += ",%s  unsigned magicNumberNumIter%s /*PSD*/" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicShiftNumIter%s /*PSD*/" % (self.endLine, idxChar)
+      if kernel["GlobalSplitU"]>1 and idxChar==self.unrollChar:
+          s += ",%s  unsigned magicNumberNumIter%s_GsuRemainder /*PSD */" % (self.endLine, idxChar)
+          s += ",%s  unsigned magicShiftNumIter%s_GsuRemainder /*PSD */" % (self.endLine, idxChar)
+
+    for idxChar in self.magicNonSumChars:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
 
@@ -1011,22 +1018,27 @@ class KernelWriterSource(KernelWriter):
         kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
         kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
 
-    self.magicIndexChars = []
+    self.magicSumChars = []
     if kernel["PackSummationDims"]:
-      self.magicIndexChars += [globalParameters["IndexChars"][c] for \
+      self.magicSumChars += [globalParameters["IndexChars"][c] for \
           c in kernel["ProblemType"]["IndicesSummation"][1:]]
-    self.magicIndexChars += kernel["PackedC0IdxChars"][:-1]
-    self.magicIndexChars += kernel["PackedC1IdxChars"][:-1]
+
+    self.magicNonSumChars = kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1]
 
     if kernel["MagicDivAlg"] == 2:
       kStr += "typedef struct MagicStruct {unsigned M; int a; int s;} MagicStruct;" + self.endLine
       kStr += "const unsigned MAGIC_STRUCT_A = 0x80000000; // for extracting a-bit from shift kernarg" + self.endLine
       kStr += "#define MAGIC_DIV2(dividend, magic) (((((uint64_t)(dividend) * magic.M) >> 32) + dividend*magic.a) >> magic.s)%s" % self.endLine
-      for idxChar in self.magicIndexChars:
-        kStr += "  MagicStruct magicStruct%s;"%(idxChar) + self.endLine
-        kStr += "  magicStruct%s.M = magicNumberSize%s;" % (idxChar, idxChar) + self.endLine
-        kStr += "  magicStruct%s.a = (magicShiftSize%s & MAGIC_STRUCT_A) ? 1:0;" %(idxChar, idxChar) + self.endLine
-        kStr += "  magicStruct%s.s = magicShiftSize%s & (~MAGIC_STRUCT_A);" %(idxChar, idxChar) + self.endLine
+
+      sumParms=[(idxChar, "magicStruct%s"%idxChar, "NumIter%s"%idxChar) for idxChar in self.magicSumChars]
+      if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and sumParms:
+          sumParms.append([self.unrollChar, "magicStruct%s_GsuRemainder"%self.unrollChar, "NumIter%s_GsuRemainder" % self.unrollChar])
+      for (idxChar, magicStruct, parmName) in sumParms + [(idxChar, "magicStruct%s"%idxChar, "Size%s"%idxChar) for idxChar in self.magicNonSumChars]:
+        kStr += self.endLine
+        kStr += "  MagicStruct %s;"%(magicStruct) + self.endLine
+        kStr += "  %s.M = magicNumber%s;" % (magicStruct, parmName) + self.endLine
+        kStr += "  %s.a = (magicShift%s & MAGIC_STRUCT_A) ? 1:0;" %(magicStruct, parmName) + self.endLine
+        kStr += "  %s.s = magicShift%s & (~MAGIC_STRUCT_A);" %(magicStruct, parmName) + self.endLine
 
 
     return kStr
@@ -2153,9 +2165,6 @@ class KernelWriterSource(KernelWriter):
 
           if self.psdUuseMagic:
             assert kernel["MagicDivAlg"] == 2  # older alg not supported
-            if kernel["GlobalSplitU"] != 1:
-                raise RuntimeError ("GSU not supported with psdUuseMagic")
-                # need to pass num iterations in,
             kStr += self.indent
             if firstIter:
               kStr += "unsigned int "
