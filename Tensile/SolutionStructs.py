@@ -2489,8 +2489,14 @@ class Solution:
       state["PersistentKernel"] = 0
 
     if state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
-      warn("MagicDivAlg==2 does not work with legacy client, forcing MagicDivAlg=1")
+      warn("Legacy client does not support MagicDivAlg==2, forcing MagicDivAlg=1")
       state["MagicDivAlg"] = 1
+
+    if state["PackSummationDims"] == 2 and globalParameters["NewClient"] != 2:
+      raise RuntimeError ("Legacy client does not support PackSummationDims (ASEM issues), aborting")
+
+    if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
+      raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
     problemType["AssignedDerivedParameters"] = True
 
