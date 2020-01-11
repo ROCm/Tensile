@@ -1483,6 +1483,16 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
+    if kernel["PackSummationDims"]:
+      for idx in kernel["ProblemType"]["IndicesSummation"][:-1]:
+        idxChar = self.indexChars[idx]
+        self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+        if kernel["MagicDivAlg"]==2:
+          self.defineSgpr("MagicAbitSize%s"%idxChar, 1)
+
+    # for packed batches without stride restrictions need to do something different here
+    assert sorted(kernel["PackedC0IdxChars"]+kernel["PackedC1IdxChars"]) == \
+           sorted(set(kernel["PackedC0IdxChars"]+kernel["PackedC1IdxChars"]))
     for idxChar in kernel["PackedC0IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)

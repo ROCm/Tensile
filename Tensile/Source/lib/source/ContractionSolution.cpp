@@ -278,6 +278,18 @@ namespace Tensile
             }
         }
 
+        if (sizeMapping.packSummationDims)
+            // boundIndices are ordered with unroll last.
+            // Magic numbers for all but first are needed to unpack other dims.
+            for (auto si=1; si<problem.boundIndices().size(); si++)
+            {
+                auto size = problem.boundSize(si);
+                uint32_t magicShift;
+                rv.args.append<uint32_t>(concatenate("magicNumberNumIter_",si),
+                                          magicNumber(sizeMapping.magicDivAlg, size, &magicShift));
+                rv.args.append<uint32_t>(concatenate("magicShiftNumIter_",si), magicShift);
+            }
+
         if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
         {
             std::vector<size_t> packedIndices;

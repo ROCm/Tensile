@@ -91,7 +91,9 @@ class KernelWriterSource(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = "  "
-    # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
+
+    self.psdUuseMagic = 0 # use magic number calc for pack summaton dims
+
     self.db={}
     self.db["PrintStagger"] = 0
 
@@ -840,12 +842,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
-    for idxChar in kernel["PackedC0IdxChars"][:-1]:
+    for idxChar in self.magicIndexChars:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
-    for idxChar in kernel["PackedC1IdxChars"][:-1]:
-      s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
-      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
+
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
     # kernel["PersistentKernel"]:
@@ -983,11 +983,18 @@ class KernelWriterSource(KernelWriter):
         kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
         kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
 
+    self.magicIndexChars = []
+    if kernel["PackSummationDims"]:
+      self.magicIndexChars += [globalParameters["IndexChars"][c] for \
+          c in kernel["ProblemType"]["IndicesSummation"][1:]]
+    self.magicIndexChars += kernel["PackedC0IdxChars"][:-1]
+    self.magicIndexChars += kernel["PackedC1IdxChars"][:-1]
+
     if kernel["MagicDivAlg"] == 2:
       kStr += "typedef struct MagicStruct {unsigned M; int a; int s;} MagicStruct;" + self.endLine
       kStr += "const unsigned MAGIC_STRUCT_A = 0x80000000; // for extracting a-bit from shift kernarg" + self.endLine
       kStr += "#define MAGIC_DIV2(dividend, magic) (((((uint64_t)(dividend) * magic.M) >> 32) + dividend*magic.a) >> magic.s)%s" % self.endLine
-      for idxChar in sorted(set(kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1])):
+      for idxChar in self.magicIndexChars:
         kStr += "  MagicStruct magicStruct%s;"%(idxChar) + self.endLine
         kStr += "  magicStruct%s.M = magicNumberSize%s;" % (idxChar, idxChar) + self.endLine
         kStr += "  magicStruct%s.a = (magicShiftSize%s & MAGIC_STRUCT_A) ? 1:0;" %(idxChar, idxChar) + self.endLine
@@ -2095,31 +2102,49 @@ class KernelWriterSource(KernelWriter):
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       kStr = ""
       if prefetchIndex>0:
-        remainder = "(LOCAL_DEPTHU)"
+        psdPackedBits = "(LOCAL_DEPTHU)"
       else:
-        remainder = "(psdIter)"
+        psdPackedBits = "(psdIter)"
       for os in reversed(range(problemType["NumIndicesSummation"])):
         # Only get here if we are packing summation dims
-        otherSumDim  = problemType["IndicesSummation"][os]
-        otherSumChar = self.indexChars[otherSumDim]
+        sumDim  = problemType["IndicesSummation"][os]
+        sumChar = self.indexChars[sumDim]
         firstIter = (os==problemType["NumIndicesSummation"]-1)
         lastIter  = (os==0)
 
         kStr += self.endLine
-        sizeToExtract = "numIter%s"%otherSumChar if firstIter and kernel["GlobalSplitU"]>1 else "size%s"%otherSumChar
         if not lastIter:
-          kStr += self.indent + "unsigned int iter%s = %s %% %s;" % (otherSumChar, remainder, sizeToExtract) + self.endLine
+          c = "//" if self.psdUuseMagic else "" # show non-magic code commented out
+          kStr += self.indent + c + "unsigned int iter%s = %s %% numIter%s;" % \
+              (sumChar, psdPackedBits, sumChar) + self.endLine
 
-          # set up remainder for next iteration:
-          kStr += self.indent
-
+          kStr += self.indent + c
           if firstIter:
             kStr += "unsigned int "
-          kStr += "psdRemainder = %s / %s;" % (remainder, sizeToExtract) + self.endLine
-          remainder = "psdRemainder"
+          kStr += "psdPackedBits = %s / numIter%s;" % (psdPackedBits, sumChar) + self.endLine
+
+          if self.psdUuseMagic:
+            assert kernel["MagicDivAlg"] == 2  # older alg not supported
+            if kernel["GlobalSplitU"] != 1:
+                raise RuntimeError ("GSU not supported with psdUuseMagic")
+                # need to pass num iterations in,
+            kStr += self.indent
+            if firstIter:
+              kStr += "unsigned int "
+            kStr += "tmpBits = MAGIC_DIV2(%s, magicStruct%s);" % (psdPackedBits, sumChar) + self.endLine
+            kStr += self.indent + "unsigned int iter%s = %s - tmpBits*numIter%s;" % \
+                (sumChar, psdPackedBits, sumChar) + self.endLine
+
+            kStr += self.indent
+            if firstIter:
+              kStr += "unsigned int "
+            kStr += "psdPackedBits = tmpBits;" + self.endLine
+
+          # set up bits for next iteration:
+          psdPackedBits = "psdPackedBits"
         else:
           # last iteration:
-          kStr += self.indent + "unsigned int iter%s = %s;" % (otherSumChar, remainder) + self.endLine
+          kStr += self.indent + "unsigned int iter%s = %s;" % (sumChar, psdPackedBits) + self.endLine
 
         for (tc) in ('A','B'):
           kStr += self.indent
@@ -2127,7 +2152,7 @@ class KernelWriterSource(KernelWriter):
             kStr += self.int64Str + " psdOffset%s = " % tc
           else:
             kStr += "psdOffset%s += " % tc
-          kStr += "iter%s*globalReadInc%s%s;" % (otherSumChar, tc, otherSumChar)
+          kStr += "iter%s*globalReadInc%s%s;" % (sumChar, tc, sumChar)
           kStr += self.endLine
 
       # Add the psdOffsets for A and B:

@@ -98,7 +98,7 @@ namespace Tensile
         struct BoundIndex
         {
             BoundIndex(size_t xa=0, size_t xb=0) : a(xa), b(xb) {};
-            size_t a, b;
+            size_t a, b; //! positions in a or b tensor
             ZeroPad aZeroPad;
             ZeroPad bZeroPad;
         };

@@ -102,6 +102,7 @@ namespace Tensile
             int workGroupMapping;
 
             size_t packBatchDims;
+            int    packSummationDims=0;
             int    magicDivAlg=1;
             size_t persistentKernel;
 
