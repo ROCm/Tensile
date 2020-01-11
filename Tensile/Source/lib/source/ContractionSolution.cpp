@@ -114,7 +114,7 @@ namespace Tensile
         magu.M = q2 + 1; // Magic number
         magu.s = p - 32; // and shift amount to return
 
-       *magicShift = magu.s;
+        *magicShift = magu.s;
         const uint32_t abit = 0x80000000;
         if (magu.a)
           *magicShift |= abit;
@@ -283,11 +283,24 @@ namespace Tensile
             // Magic numbers for all but first are needed to unpack other dims.
             for (auto si=1; si<problem.boundIndices().size(); si++)
             {
-                auto size = problem.boundSize(si);
+                auto numIter = problem.boundSize(si);
+                bool isUnroll = si==problem.boundIndices().size()-1;
+                if (isUnroll) {
+                    numIter = numIter / sizeMapping.globalSplitU;
+                }
                 uint32_t magicShift;
                 rv.args.append<uint32_t>(concatenate("magicNumberNumIter_",si),
-                                          magicNumber(sizeMapping.magicDivAlg, size, &magicShift));
+                                          magicNumber(sizeMapping.magicDivAlg, numIter, &magicShift));
                 rv.args.append<uint32_t>(concatenate("magicShiftNumIter_",si), magicShift);
+
+                if (isUnroll and sizeMapping.globalSplitU>1)
+                {
+                    // compute magic number for gsu remainder iterations:
+                    // Kernel will select whether to use above or remainder portion based on work-group assignment
+                    rv.args.append<uint32_t>(concatenate("magicNumberNumIter_GsuRemainder"),
+                                              magicNumber(sizeMapping.magicDivAlg, numIter+sizeMapping.depthU, &magicShift));
+                    rv.args.append<uint32_t>(concatenate("magicShiftNumIter_GsuRemainder"), magicShift);
+                }
             }
 
         if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
