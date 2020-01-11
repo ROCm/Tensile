@@ -1505,7 +1505,7 @@ class KernelWriterSource(KernelWriter):
             numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
             kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
                     % (numIter, tmpChar) + self.endLine
-            kStr += self.calculateLoopNumIterGsu(kernel, numIter, numIter, True)
+            kStr += self.calculateLoopNumIterGsu(kernel, numIter, numIter, hidden=True)
             numIter += "*GLOBAL_SPLITU"
           else:
             numIter = "size%s/LOCAL_DEPTHU" % tmpChar
@@ -1819,19 +1819,19 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     if hidden:
       kStr += self.indent + "{" + self.endLine
-    kStr += "%sunsigned int numIterMyWg = %s / GLOBAL_SPLITU;%s" \
-        % (self.indent, srcIterVar, self.endLine)
-    kStr += "%sunsigned int numIterPerWgRemainder = %s %% GLOBAL_SPLITU;%s" \
-        % (self.indent, srcIterVar, self.endLine)
-    kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
-        % (self.indent, self.endLine)
-    if self.unrollIncIsDepthU:
-      kStr += "%s  numIterMyWg += LOCAL_DEPTHU;%s" % (self.indent, self.endLine)
+      indent = self.indent + "  "
     else:
-      kStr += "%s  numIterMyWg ++;%s" % (self.indent, self.endLine)
-    kStr += "%s}%s" % (self.indent, self.endLine)
+      indent = self.indent
+    kStr += "%sunsigned int numIterMyWg = %s / GLOBAL_SPLITU;%s" \
+        % (indent, srcIterVar, self.endLine)
+    kStr += "%sunsigned int numIterPerWgRemainder = %s %% GLOBAL_SPLITU;%s" \
+        % (indent, srcIterVar, self.endLine)
+    kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
+        % (indent, self.endLine)
+    kStr += indent + "  numIterMyWg ++;" + self.endLine
+    kStr += "%s}%s" % (indent, self.endLine)
     kStr += "%s%s = numIterMyWg;%s" \
-        % (self.indent, dstIterVar, self.endLine)
+        % (indent, dstIterVar, self.endLine)
     if hidden:
       kStr += self.indent + "}" + self.endLine
     return kStr
@@ -1870,17 +1870,20 @@ class KernelWriterSource(KernelWriter):
         #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
-      # PSD declares numIter* as local vars and sets by extracting bits from psdIter
-      numIter = "numIter%s"%loopChar
-      kStr += self.indent + "%s = size%s" \
-          % (numIter, loopChar)
-      if not self.unrollIncIsDepthU and loopIdx == self.unrollIdx:
-          kStr += " / LOCAL_DEPTHU"
-      kStr += ";" + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
-        kStr += self.calculateLoopNumIterGsu(kernel, numIter, "numIter%s"%loopChar, False)
+        kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \
+                                             "numIter%s"%loopChar, hidden=False)
         #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
+
+        if self.unrollIncIsDepthU:
+            kStr += self.indent + "numIter%s *= LOCAL_DEPTHU;"%loopChar + self.endLine
+      else:
+        kStr += self.indent + "numIter%s = size%s" \
+            % (loopChar, loopChar)
+        if not self.unrollIncIsDepthU and loopIdx == self.unrollIdx:
+            kStr += " / LOCAL_DEPTHU"
+        kStr += ";" + self.endLine
 
       zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
       zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)

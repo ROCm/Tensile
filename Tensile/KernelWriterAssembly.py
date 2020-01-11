@@ -4818,15 +4818,26 @@ class KernelWriterAssembly(KernelWriter):
   def declareLoopNumIter(self, kernel):
     kStr =""
     if self.unrollIncIsDepthU:
-      kStr += inst ("s_mov_b32", sgpr("UnrollLoopLastIter"), self.loopSizeRef(kernel, self.unrollIdx), "init")
+      if kernel["GlobalSplitU"] > 1:
+        tmpSgpr = self.getTmpSgpr(2)
+        quotient = "UnrollLoopLastIter"
+        dividend = self.loopSizeRef(kernel, self.unrollIdx) # sumSize
+        divisor = kernel["DepthU"]
+        kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
+        tmpSgpr = self.getTmpSgpr(3)
+        kStr += self.calculateLoopNumIterGsu(kernel, "UnrollLoopLastIter", tmpSgpr)
+        kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), "DepthU", "scale")
+
+      else:
+        kStr += inst ("s_mov_b32", sgpr("UnrollLoopLastIter"), self.loopSizeRef(kernel, self.unrollIdx), "init")
+
+
       if kernel["PackSummationDims"]:
+          # CHECKME - this should use result of calc call above
         for idx in range(self.otherSummations):
           assert not self.use64bProductOfSums
           kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), \
-                          self.loopSizeRef(kernel, idx), "")
-      if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(3)
-        kStr += self.calculateLoopNumIterGsu(kernel, "UnrollLoopLastIter", tmpSgpr)
+                            self.loopSizeRef(kernel, idx), "")
 
     return kStr
 
@@ -4973,7 +4984,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
 
     # if gsuSumIdx < numIterPerWgRemainder
-    kStr += inst("s_add_u32", sgpr(tmpSgpr), "DepthU" if self.unrollIncIsDepthU else "1", \
+    kStr += inst("s_add_u32", sgpr(tmpSgpr), "1", \
                   loopCounter, "tmp<-numIterMyWg+" )
     kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
         "gsuSumIdx < numIterPerWgRemainder" )
@@ -5072,7 +5083,7 @@ class KernelWriterAssembly(KernelWriter):
         quotient = loopCounterName
         dividend = sumSize
         divisor = kernel["DepthU"]
-        kStr += scalarStaticDivideAndRemainder(quotient, None, sumSize, divisor, tmpSgpr, 0)
+        kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
         # if GSU numIter++ if gsuSumIdx < remainder
         if kernel["GlobalSplitU"] > 1:
           kStr += self.calculateLoopNumIterGsu(kernel, loopCounterName, tmpSgpr)
