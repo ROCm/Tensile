@@ -58,7 +58,7 @@ class Solutions:
                     {"DepthU": [4]},
                     {"PackBatchDims": [0,1]},
                     {"PackSummationDims": [0,1]},
-                    {"GlobalSplitU": [1,2,4]},
+                    {"GlobalSplitU": [1,2,3,4,7,17]},
                     {"GlobalReadVectorWidth": [1,-1]},
                     {"VectorWidth": [1,-1]},
                 ]
@@ -135,7 +135,7 @@ class Solutions:
                         ]},
                     {"DepthU": [8]},
                     {"GlobalReadVectorWidth": [-1]},
-                    {"GlobalSplitU": [1,2,3,4,8]},
+                    {"GlobalSplitU": [1,2,3,4,8,17]},
                     {"VectorWidth": [1,4]},
                     {"PackBatchDims": [1]},
                     {"FractionalLoad": [0,1]}

@@ -4,7 +4,7 @@ from collections import namedtuple
 from YamlBuilder.YamlBuilder import YamlBuilder
 from YamlBuilder.YamlBuilder import Solutions
 
-args={}
+pytest.args={}
 
 TestConfig=namedtuple("TestConfig", "solution problem_func")
 Runner=namedtuple("Runner", "func solution")
@@ -17,8 +17,6 @@ solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu"]
 pytest.defaultSizes = pytest.param((YamlBuilder.ProblemSizes, 1), id="default_sizes")
 pytest.resnetSizes  = pytest.param((YamlBuilder.ProblemSizesResNet,1),id="resnet")
 pytest.inceptionSizes  = pytest.param((YamlBuilder.ProblemSizesInception,1),id="inception")
-
-
 
 @pytest.fixture(scope="function")
 def file_with_test_name(request, tmp_path):
@@ -39,7 +37,7 @@ def run_generate_yaml(file_with_test_name):
         if problemFunc == None:
             problemFunc = YamlBuilder.ProblemSizes
         if problemLevel==-1:
-            problemLevel = args["src_problem_level"] if solution.__name__.startswith("src") else args["problem_level"]
+            problemLevel = pytest.args["src_problem_level"] if solution.__name__.startswith("src") else pytest.args["problem_level"]
         config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, problemLevel)
         configFile = file_with_test_name(".contraction.yaml")
         print("Generate_YAML output:", configFile)
@@ -83,9 +81,15 @@ def run_convolution_level(request,
     argLevel = request.config.getoption("--test-level")
     if curLevel > argLevel:
         pytest.skip()
-    return Runner(level_fixtures[curLevel], request.param[1])
+    return Runner(level_fixtures[curLevel], [request.param[1]])
 
 def pytest_addoption(parser):
+    parser.addoption(
+        "--no-conv-assertions", action="store_true", 
+        help='''
+        Disable assertiong on Convolution class.
+        ''')
+
     parser.addoption(
         "--test-level", action="store", type=int, default=2,
         help='''
@@ -115,6 +119,10 @@ def pytest_addoption(parser):
         )
 
 def pytest_configure(config):
-    args["test_level"] = config.getoption('--test-level')
-    args["src_problem_level"] = config.getoption('--src-problem-level')
-    args["problem_level"] = config.getoption('--problem-level')
+    pytest.args["test_level"] = config.getoption('--test-level')
+    pytest.args["src_problem_level"] = config.getoption('--src-problem-level')
+    pytest.args["problem_level"] = config.getoption('--problem-level')
+    try:
+        pytest.args["no_conv_assertions"]= config.getoption('--no-conv-assertions')
+    except ValueError:
+        pytest.args["no_conv_assertions"]=1

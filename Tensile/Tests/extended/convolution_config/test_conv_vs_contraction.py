@@ -135,6 +135,7 @@ def test_filter_stride_dilation_0(run_convolution_vs_contraction):
               config={'TensorAFormat': 'NCHW',
                       'TensorBFormat': 'KCYX',
                       'TensorDFormat': 'NCHW',
+                      'UnrollOnChannel': 0,
                       'Filter': '2x3',
                       'Stride': '2x3',
                       'Dilation': '2x3',
