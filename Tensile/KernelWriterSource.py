@@ -92,7 +92,7 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
 
-    self.psdUuseMagic = 0 # use magic number calc for pack summaton dims
+    self.psdUuseMagic = 1 # use magic number calc for pack summaton dims
 
     self.db={}
     self.db["PrintStagger"] = 0
@@ -2143,7 +2143,12 @@ class KernelWriterSource(KernelWriter):
             kStr += self.indent
             if firstIter:
               kStr += "unsigned int "
-            kStr += "tmpBits = MAGIC_DIV2(%s, magicStruct%s);" % (psdPackedBits, sumChar) + self.endLine
+            if os == self.unrollIdx and kernel["GlobalSplitU"]>1:
+              magicStruct = "((gsuSumIdx < numIterPerWgRemainder) ? magicStruct%s_GsuRemainder : magicStruct%s)"\
+                  % (sumChar, sumChar)
+            else:
+              magicStruct = "magicStruct%s" % sumChar
+            kStr += "tmpBits = MAGIC_DIV2(%s, %s);" % (psdPackedBits, magicStruct) + self.endLine
             kStr += self.indent + "unsigned int iter%s = %s - tmpBits*numIter%s;" % \
                 (sumChar, psdPackedBits, sumChar) + self.endLine
 

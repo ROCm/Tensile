@@ -19,9 +19,6 @@ GlobalParameters:
   NewClient: 2
 
 BenchmarkProblems:
-  ########################################
-  # NT - standard
-  ########################################
   -
     - # ProblemType
       OperationType: TensorContraction
@@ -38,11 +35,12 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - PackSummationDims: [0,1]
-        - PackBatchDims: [1]
+          #- UnrollIncIsDepthU: [0]
+        - PackBatchDims: [0,1]
         - KernelLanguage: [Source]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
-          #- GlobalSplitU: [2]
+        - GlobalSplitU: [1,2]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
@@ -57,5 +55,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024, 1024, 4, 2, 8]
-          - Exact: [ 16, 16, 4, 2, 8]
+          - Exact: [ 1024, 1024, 4, 2, 48] # big enough to get some interesting batch packing
+          - Exact: [ 16, 16, 4, 2, 48]

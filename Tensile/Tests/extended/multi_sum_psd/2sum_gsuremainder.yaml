@@ -17,6 +17,7 @@ GlobalParameters:
   PrintTensorD: 0
   CpuThreads: 0
   NewClient: 2
+  #MergeFiles: 0
 
 BenchmarkProblems:
   -
@@ -33,14 +34,15 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
+        - LoopTail: [0]
       ForkParameters:
-        - PackSummationDims: [1]
-          #- UnrollIncIsDepthU: [0]
+        - PackSummationDims: [0,1]
+        #- UnrollIncIsDepthU: [0,1]
         - PackBatchDims: [0,1]
-        - KernelLanguage: [Source]
+          #- KernelLanguage: [Source,Assembly]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
-        - GlobalSplitU: [1,2,3]
+        - GlobalSplitU: [4]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
@@ -55,6 +57,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024, 1024, 4, 2, 48] # big enough to get some interesting batch packing
-          - Exact: [ 16, 16, 4, 2, 48]
-          - Exact: [ 16, 16, 4, 2, 2064] # big enough to have multiple GSU partitions and remainders on GSU==3
+          - Range: [ [16,], [16], [2], [1,2,8], [4,4,300]]
