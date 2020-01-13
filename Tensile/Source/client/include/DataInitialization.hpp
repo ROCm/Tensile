@@ -42,12 +42,12 @@ namespace Tensile
     {
         enum class InitMode
         {
-            Zero = 0, One, Two, Random, NaN, Inf, BadInput, BadOutput, SerialIdx, SerialDim0, SerialDim1, Count
+            Zero = 0, One, Two, Random, NaN, Inf, BadInput, BadOutput, SerialIdx, SerialDim0, SerialDim1, Identity, Count
         };
 
         static bool IsProblemDependent(InitMode const& mode)
         {
-            return mode == InitMode::SerialIdx || mode == InitMode::SerialDim0 || mode == InitMode::SerialDim1;
+            return mode == InitMode::SerialIdx || mode == InitMode::SerialDim0 || mode == InitMode::SerialDim1 || mode == InitMode::Identity;
         }
 
         std::string ToString(InitMode mode);
@@ -93,6 +93,7 @@ namespace Tensile
                     case InitMode::SerialIdx:
                     case InitMode::SerialDim0:
                     case InitMode::SerialDim1:
+                    case InitMode::Identity:
                     case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
                 }
             }
@@ -123,6 +124,7 @@ namespace Tensile
                     case InitMode::SerialIdx:
                     case InitMode::SerialDim0:
                     case InitMode::SerialDim1:
+                    case InitMode::Identity:
                     case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
                 }
             }
@@ -133,17 +135,18 @@ namespace Tensile
             {
                 switch(mode)
                 {
-                    case InitMode::Zero:      initArray<T, InitMode::Zero  >(array, tensor); break;
-                    case InitMode::One:       initArray<T, InitMode::One   >(array, tensor); break;
-                    case InitMode::Two:       initArray<T, InitMode::Two   >(array, tensor); break;
-                    case InitMode::Random:    initArray<T, InitMode::Random>(array, tensor); break;
-                    case InitMode::NaN:       initArray<T, InitMode::NaN   >(array, tensor); break;
-                    case InitMode::Inf:       initArray<T, InitMode::Inf   >(array, tensor); break;
-                    case InitMode::BadInput:  initArray<T, InitMode::BadInput>(array, tensor); break;
-                    case InitMode::BadOutput: initArray<T, InitMode::BadOutput>(array, tensor); break;
+                    case InitMode::Zero:       initArray<T, InitMode::Zero  >(array, tensor); break;
+                    case InitMode::One:        initArray<T, InitMode::One   >(array, tensor); break;
+                    case InitMode::Two:        initArray<T, InitMode::Two   >(array, tensor); break;
+                    case InitMode::Random:     initArray<T, InitMode::Random>(array, tensor); break;
+                    case InitMode::NaN:        initArray<T, InitMode::NaN   >(array, tensor); break;
+                    case InitMode::Inf:        initArray<T, InitMode::Inf   >(array, tensor); break;
+                    case InitMode::BadInput:   initArray<T, InitMode::BadInput>(array, tensor); break;
+                    case InitMode::BadOutput:  initArray<T, InitMode::BadOutput>(array, tensor); break;
                     case InitMode::SerialIdx:  initArraySerialIdx<T>(array, tensor); break;
                     case InitMode::SerialDim0: initArraySerialDim<T>(array, 0, tensor); break;
                     case InitMode::SerialDim1: initArraySerialDim<T>(array, 1, tensor); break;
+                    case InitMode::Identity:   initArrayIdentity<T>(array, tensor); break;
                     case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
                 }
             }
@@ -187,6 +190,19 @@ namespace Tensile
                 {
                     CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
                     array[tensor.index(coord)] = static_cast<T>(coord[dim]);
+                }
+            }
+
+            template <typename T>
+            void initArrayIdentity(T * array, TensorDescriptor const& tensor)
+            {
+                auto const& sizes = tensor.sizes();
+                auto count = CoordCount(sizes.begin(), sizes.end());
+                std::vector<size_t> coord(tensor.dimensions(), 0);
+                for(size_t idx = 0; idx < count; idx++)
+                {
+                    CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
+                    array[tensor.index(coord)] = static_cast<T>(coord[0] == coord[1] ? 1 : 0);
                 }
             }
 
