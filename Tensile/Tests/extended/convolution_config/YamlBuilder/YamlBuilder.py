@@ -327,7 +327,7 @@ class YamlBuilder:
 
         if -1 in spatialIn:
             raise RuntimeError('Spatial must be completely specified, not "%s"'%spatialIn)
-        if -1 in conv.filter:
+        if -1 in conv.cc.fil:
             raise RuntimeError('Filter must be completely specified, not "%s"'%conv.config['Filter'])
 
         exactSizes = []
