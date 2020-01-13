@@ -55,7 +55,26 @@ class Fbs(Enum):
   Sum=2      # Expect to be summation dimension
 
 ################################################################################
-RegDim=namedtuple("RegDim", "idx fbs dim")
+RegDim=namedtuple("RegDim", ["idx", "fbs", "dim"])
+
+class ConvolutionConfig:
+  def __init__(self, fil=None, stride=None, dilation=None, \
+                  spatial=None, groupCount=1, \
+                  padStart=None, padEnd=None):
+    self.fil = fil
+    self.stride = stride
+    self.dilation = dilation
+    self.spatial = spatial
+    self.groupCount = groupCount
+    self.padStart = padStart
+    self.padEnd = padEnd
+
+  def __str__ (self):
+      return("filter:%s stride:%s dilation:%s spatial:%s group:%d padStart:%s padEnd:%s" \
+            % (str(self.fil) if self.fil else "tbd",
+               self.stride, self.dilation, \
+               str(self.spatial) if self.spatial else "tbd", \
+               self.groupCount, self.padStart, self.padEnd))
 
 class Convolution:
   class Dimension:
@@ -124,6 +143,9 @@ class Convolution:
     #   - fastest moving in format is rightmost and should have idx=0, then
     #     increase index moving left through the format.
     #print ("formatA=", formatA, "formatB=", formatB, "formatD=", formatD)
+
+    self.normalizedCC = ConvolutionConfig(fil=fil, stride=stride, dilation=dilation, \
+                                          spatial=None)
     if formatD in ('NCHW','NCDHW'):
       sidx = 0
       i = len(sdims)
@@ -196,14 +218,14 @@ class Convolution:
     setStride=False
     if sdims and nonFilterDims[-1].dim == sdims[0]:
       setStride = True
-      sdims[0].strideA = self.stride[0]
+      sdims[0].strideA = self.cc.stride[0]
     elif nonFilterDims[-1].dim==cdim:
       setStride = True
       cdim.strideA = 1
 
     if filterRegDims and self.regDimsA[-1].dim == filterRegDims[-1].dim:
       if filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
-        filterRegDims[-1].dim.strideA = self.dilation[0]
+        filterRegDims[-1].dim.strideA = self.cc.dilation[0]
     elif not setStride:
       raise RuntimeError ("unexpected lowest dimension in tensorAFormat(%s)"%self.tensorAFormat)
 
@@ -235,7 +257,8 @@ class Convolution:
 
     self.convolutionDims={};
     self.convolutionType = convolutionType
-    self.config = config
+    self.config = config # input configuraiton
+    self.cc = ConvolutionConfig() # parsed configuration
 
     for k in config:
       if k not in validConvolutionConfig:
@@ -272,24 +295,27 @@ class Convolution:
       self.spatial  = self.dimxParm(config, "Spatial",-1)
     else:
       self.spatial = None
-    self.filter   = self.dimxParm(config, "Filter",1)
-    self.stride   = self.dimxParm(config, "Stride",1)
-    self.dilation = self.dimxParm(config, "Dilation",1)
-    self.padStart = self.dimxParm(config, "PadStart",0)
-    self.padEnd   = self.dimxParm(config, "PadEnd",0)
-    self.packSpatialDims = config.get("PackedSpatialDims", 1)
-    self.packFilterDims  = config.get("PackedFilterDims", 1)
-    self.unrollOnChannel = config.get("UnrollOnChannel", 0)
+    self.cc.fil   = self.dimxParm(config, "Filter",1)
+    self.cc.stride   = self.dimxParm(config, "Stride",1)
+    self.cc.dilation = self.dimxParm(config, "Dilation",1)
+    self.cc.padStart = self.dimxParm(config, "PadStart",0)
+    self.cc.padEnd   = self.dimxParm(config, "PadEnd",0)
+    self.packedSpatialDims = config.get("PackedSpatialDims", 1)
+    self.packedFilterDims  = config.get("PackedFilterDims", 1)
+    self.unrollOnChannel = config.get("UnrollOnChannel", 1)
 
-    assert(type(self.packSpatialDims) == int)
+    assert(type(self.packedFilterDims) == int)
+    assert(type(self.packedSpatialDims) == int)
     assert(type(self.unrollOnChannel) == int)
-    if not all(i==1 for i in self.stride[1:]):
-      self.packSpatialDims = 0
+    if not all(i==1 for i in self.cc.dilation[1:]):
+      self.packedFilterDims = 0
+    if not all(i==1 for i in self.cc.stride[1:]):
+      self.packedSpatialDims = 0
 
-    assert all(i==0 for i in self.padStart)  # padding not supported yet
-    assert all(i==0 for i in self.padEnd)    # padding not supported yet
-    assert (len(self.filter)==len(self.stride)==len(self.dilation) \
-            ==len(self.padStart)==len(self.padEnd))
+    assert all(i==0 for i in self.cc.padStart)  # padding not supported yet
+    assert all(i==0 for i in self.cc.padEnd)    # padding not supported yet
+    assert (len(self.cc.fil)==len(self.cc.stride)==len(self.cc.dilation) \
+            ==len(self.cc.padStart)==len(self.cc.padEnd))
 
     self.groupCount = config.get("GroupCount", 1)
     self.indexAssignments = []
@@ -299,7 +325,7 @@ class Convolution:
     kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.')
     cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.')
 
-    if self.packSpatialDims:
+    if self.packedSpatialDims:
       if self.formatNumSpatialDims==2:
         sdims = [Convolution.Dimension('HW', \
             'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).')]
@@ -323,15 +349,15 @@ class Convolution:
 
     # dims actually used in the tensor.
     self.numSpatialDims = len(sdims)
-    if self.packSpatialDims:
+    if self.packedSpatialDims:
       assert (self.numSpatialDims <= self.formatNumSpatialDims)
     else:
       assert (self.numSpatialDims == self.formatNumSpatialDims)
 
     fdims = []
-    for (rfi,filterValue) in enumerate(self.filter[::-1]):
-      if not self.packFilterDims or filterValue != 1:
-        fi = self.formatNumSpatialDims - rfi -1 # forward filter index, 0...
+    for (rfi,filterValue) in enumerate(self.cc.fil[::-1]):
+      if not self.packedFilterDims or filterValue != 1:
+        fi = self.formatNumSpatialDims - rfi - 1 # forward filter index, 0...
         filterChar = chr(ord('X')+fi)
         filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
         prevChar = ['1', 'W', 'W*H']
@@ -343,7 +369,7 @@ class Convolution:
         fdims.append(Convolution.Dimension(filterChar, filterMsg, size=filterValue))
 
     # Create summation dimensions for non-unit filters and assign summation indices
-    assert(len(self.filter)) == self.formatNumSpatialDims
+    assert(len(self.cc.fil)) == self.formatNumSpatialDims
 
     # Output format: C->K -> doesn't matter
     # what about if both C and K present in output (ie weights)  CK
@@ -351,14 +377,14 @@ class Convolution:
       self.initForwardConvolution(problemTypeOut, config, \
                                 self.tensorAFormat, self.tensorBFormat, self.tensorDFormat,
                                 ndim=ndim, cdim=cdim, kdim=kdim, sdims=sdims, fdims=fdims, \
-                                fil=self.filter, stride=self.stride, dilation=self.dilation)
+                                fil=self.cc.fil, stride=self.cc.stride, dilation=self.cc.dilation)
     elif convolutionType in ("ConvolutionBackwardData"):
       # swaps cdim and kdim
       formatB=self.swap(self.tensorBFormat, 'C', 'K')
       self.initForwardConvolution(problemTypeOut, config, \
                                 self.tensorAFormat, formatB, self.tensorDFormat,
                                 ndim=ndim, cdim=kdim, kdim=cdim, sdims=sdims, fdims=fdims, \
-                                fil=self.filter, stride=self.dilation, dilation=self.stride)
+                                fil=self.cc.fil, stride=self.cc.dilation, dilation=self.cc.stride)
     elif convolutionType in ("ConvolutionBackwardWeights"):
       # swaps ndim and cdim; filter and spatial
       formatA=self.swap(self.tensorBFormat, 'C', 'N')
@@ -369,7 +395,8 @@ class Convolution:
                                   formatA, formatB, formatD,
                                   ndim=cdim, cdim=ndim, kdim=kdim, sdims=list(reversed(fdims)), \
                                   fdims=list(reversed(sdims)), \
-                                  fil=self.stride, stride=self.filter, dilation=self.dilation)
+                                  fil=self.cc.spatial, stride=self.cc.dilation, \
+                                  dilation=self.cc.stride)
       # fdims (filter dims) become the free dims for backward-weights.
       # if these dims have size==1 and stride==default they may be collapsed to empty list.
       # set AllowNoFreeDims to tell Tensile to use the batch dim as a virtual free dims
@@ -445,19 +472,19 @@ class Convolution:
 
   @property
   def filterTbd(self):
-    return -1 in self.filter
+    return -1 in self.cc.fil
 
   @property
   def strideTbd(self):
-    return -1 in self.stride
+    return -1 in self.cc.stride
 
   @property
   def dilationTbd(self):
-    return -1 in self.dilation
+    return -1 in self.cc.dilation
 
   @property
   def padTbd(self):
-    return -1 in self.padStart or -1 in self.padEnd
+    return -1 in self.cc.padStart or -1 in self.cc.padEnd
 
   def makeProblem(self, keepTbd, n, c, k, spatialIn=None):
     """
@@ -496,8 +523,8 @@ class Convolution:
     spatialTbd = -1 in spatialIn
 
     # convert any TBD<0 to default 0
-    padStart = [0 if p<0 else p for p in self.padStart]
-    padEnd   = [0 if p<0 else p for p in self.padEnd]
+    padStart = [0 if p<0 else p for p in self.cc.padStart]
+    padEnd   = [0 if p<0 else p for p in self.cc.padEnd]
 
     # convert to Output dimensions:
     spatialOut=[0]*len(spatialIn)
@@ -506,20 +533,24 @@ class Convolution:
         spatialTbd = 1
         spatialOut[i] = -1
       else:
-        spatialOut[i] = int((spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i]))
+        spatialOut[i] = int((spatialIn[i] - abs(self.cc.fil[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.cc.stride[i]))
 
-    for fi,filterValue in enumerate(self.filter):
-      if filterValue != 1 and filterValue != -1:
-        pos = self.convolutionDims[chr(ord('X')+fi)].idx
-        if keepTbd and self.filterTbd:
-          sizes[pos] = -1
-        else:
-          sizes[pos] = filterValue
+    #import pdb; pdb.set_trace()
+    for fi,filterValue in enumerate(self.cc.fil):
+      if filterValue != -1:
+        try:
+          pos = self.convolutionDims[chr(ord('X')+fi)].idx
+          if keepTbd and self.filterTbd:
+            sizes[pos] = -1
+          else:
+            sizes[pos] = filterValue
 
-        if keepTbd and (self.dilationTbd or self.strideTbd):
-          astrides[pos] = -1
-        else:
-          astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.dilation[fi])
+          if keepTbd and (self.dilationTbd or self.strideTbd):
+            astrides[pos] = -1
+          else:
+            astrides[pos] = abs(self.cc.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.cc.dilation[fi])
+        except KeyError:
+          None
 
     if self.numSpatialDims==1:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
@@ -531,7 +562,7 @@ class Convolution:
       if keepTbd and self.strideTbd:
         astrides[pos] = -1
       else:
-        astrides[pos] = abs(self.stride[0])
+        astrides[pos] = abs(self.cc.stride[0])
     else:
       for si,sout in enumerate(spatialOut):
         spatialChars=['W','H','D']
@@ -544,7 +575,7 @@ class Convolution:
         if keepTbd and (spatialTbd or self.strideTbd):
           astrides[pos]=-1
         else:
-          astrides[pos]=abs(self.stride[0]) if si==0 else spatialIn[si-1]*abs(self.stride[si])
+          astrides[pos]=abs(self.cc.stride[0]) if si==0 else spatialIn[si-1]*abs(self.cc.stride[si])
 
     if not keepTbd:
       assert all(i!=-1 for i in sizes)
@@ -611,20 +642,20 @@ class Convolution:
   def printUsage(self, problemType):
     print()
     print("Tensor Formats: A:%s B:%s D:%s\n" % (self.tensorAFormat, self.tensorBFormat, self.tensorDFormat))
-    print("Convolution Config: filter:%s stride:%s dilation:%s spatial:%s packedSpatial:%d group:%d padStart:%s padEnd:%s unrollOnChannel:%d\n" \
-        % (self.filter, self.stride, self.dilation, \
-           str(self.spatial) if self.spatial else "tbd", self.packSpatialDims, \
-           self.groupCount, self.padStart, self.padEnd, self.unrollOnChannel))
+    print("Input Conv: %s packedFilter:%d packedSpatiol:%d unrollOnChannel:%d\n" % \
+            (str(self.cc), self.packedFilterDims, self.packedSpatialDims, \
+             self.unrollOnChannel))
+    print("Normalized Conv: %s unrollOnChannel:%d\n" % (str(self.normalizedCC), self.unrollOnChannel))
     print("Tensile Index Assignments and Usage:")
     print("   Tensile    : ConvChar: Explanation/Usage")
     for (idx,regDim) in enumerate(self.indexAssignments):
         tensileChar = globalParameters['IndexChars'][idx]
         usage = str(regDim.dim)
         usage = usage.replace('#T', tensileChar)
-        for i in range(len(self.stride)):
-            usage = usage.replace('#S%d'%i, str(self.stride[i]) if self.stride[i]>=0 else 'TBD')
-        for i in range(len(self.dilation)):
-            usage = usage.replace('#D%d'%i, str(self.dilation[i]) if self.dilation[i]>=0 else 'TBD')
+        for i in range(len(self.cc.stride)):
+            usage = usage.replace('#S%d'%i, str(self.cc.stride[i]) if self.cc.stride[i]>=0 else 'TBD')
+        for i in range(len(self.cc.dilation)):
+            usage = usage.replace('#D%d'%i, str(self.cc.dilation[i]) if self.cc.dilation[i]>=0 else 'TBD')
         print("  %d('%c') %-5s:   %s" % (idx, tensileChar, str(regDim.fbs).split('.')[1], usage))
 
     if 0:
@@ -644,6 +675,10 @@ class Convolution:
     print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0.")
     print ("- [stride*,size*] in brackets list required values to run the generated solutions.")
     print ("- Tensile IndexAssignments list the fastest-moving (in memory) index first.")
+    print ("- spatial and filter dimension collapsing:")
+    print ("    - dims with default strides are collapsed with adjacent dims.")
+    print ("    - dims with size==1 are removed.")
+    print ("    - PackSpatialDims=0 / PackFilterDims=0 forcibly disables collapsing.")
     print ("- Overlapping / Hidden summation dimensions shown below with leading '_'.")
 
     print ()
@@ -689,11 +724,11 @@ class Convolution:
     id += "_indices:" + '.'.join([x.dim.shortChar for x in self.indexAssignments])
     if self.spatial:
       id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
-    id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
-    id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
-    id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])
-    id += "_padStart:" + "x".join([str(x) for x in self.padStart[::-1]])
-    id += "_padEnd:" + "x".join([str(x) for x in self.padEnd[::-1]])
+    id += "_filter:" + "x".join([str(x) for x in self.cc.fil[::-1]])
+    id += "_stride:" + "x".join([str(x) for x in self.cc.stride[::-1]])
+    id += "_dilation:" + "x".join([str(x) for x in self.cc.dilation[::-1]])
+    id += "_padStart:" + "x".join([str(x) for x in self.cc.padStart[::-1]])
+    id += "_padEnd:" + "x".join([str(x) for x in self.cc.padEnd[::-1]])
     return id
 
 
