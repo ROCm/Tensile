@@ -39,14 +39,17 @@ namespace Tensile
         {
             switch(mode)
             {
-                case InitMode::Zero:      return "Zero";
-                case InitMode::One:       return "One";
-                case InitMode::Two:       return "Two";
-                case InitMode::Random:    return "Random";
-                case InitMode::NaN:       return "NaN";
-                case InitMode::Inf:       return "Inf";
-                case InitMode::BadInput:  return "BadInput";
-                case InitMode::BadOutput: return "BadOutput";
+                case InitMode::Zero:       return "Zero";
+                case InitMode::One:        return "One";
+                case InitMode::Two:        return "Two";
+                case InitMode::Random:     return "Random";
+                case InitMode::NaN:        return "NaN";
+                case InitMode::Inf:        return "Inf";
+                case InitMode::BadInput:   return "BadInput";
+                case InitMode::BadOutput:  return "BadOutput";
+                case InitMode::SerialIdx:  return "SerialIdx";
+                case InitMode::SerialDim0: return "SerialDim0";
+                case InitMode::SerialDim1: return "SerialDim1";
 
                 case InitMode::Count:     break;
             }
@@ -64,14 +67,17 @@ namespace Tensile
             std::string strValue;
             stream >> strValue;
 
-            if(     strValue == ToString(InitMode::Zero))      mode = InitMode::Zero;
-            else if(strValue == ToString(InitMode::One))       mode = InitMode::One;
-            else if(strValue == ToString(InitMode::Two))       mode = InitMode::Two;
-            else if(strValue == ToString(InitMode::Random))    mode = InitMode::Random;
-            else if(strValue == ToString(InitMode::NaN))       mode = InitMode::NaN;
-            else if(strValue == ToString(InitMode::Inf))       mode = InitMode::Inf;
-            else if(strValue == ToString(InitMode::BadInput))  mode = InitMode::BadInput;
-            else if(strValue == ToString(InitMode::BadOutput)) mode = InitMode::BadOutput;
+            if(     strValue == ToString(InitMode::Zero))       mode = InitMode::Zero;
+            else if(strValue == ToString(InitMode::One))        mode = InitMode::One;
+            else if(strValue == ToString(InitMode::Two))        mode = InitMode::Two;
+            else if(strValue == ToString(InitMode::Random))     mode = InitMode::Random;
+            else if(strValue == ToString(InitMode::NaN))        mode = InitMode::NaN;
+            else if(strValue == ToString(InitMode::Inf))        mode = InitMode::Inf;
+            else if(strValue == ToString(InitMode::BadInput))   mode = InitMode::BadInput;
+            else if(strValue == ToString(InitMode::BadOutput))  mode = InitMode::BadOutput;
+            else if(strValue == ToString(InitMode::SerialIdx))  mode = InitMode::SerialIdx;
+            else if(strValue == ToString(InitMode::SerialDim0)) mode = InitMode::SerialDim0;
+            else if(strValue == ToString(InitMode::SerialDim1)) mode = InitMode::SerialDim1;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
@@ -211,6 +217,8 @@ namespace Tensile
                 m_cMaxElements  += 1024;
                 m_dMaxElements  += 1024;
             }
+
+            m_problemDependentData = IsProblemDependent(m_aInit) || IsProblemDependent(m_bInit) || IsProblemDependent(m_cInit) || IsProblemDependent(m_dInit);
         }
 
         DataInitialization::~DataInitialization()
