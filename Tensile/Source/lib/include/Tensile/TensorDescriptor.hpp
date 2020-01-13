@@ -341,6 +341,7 @@ namespace Tensile
                 {
                     stream << " " << localPtr[coord[0] * stride0];
                 }
+                stream << std::endl;
             }
 
             if(decorated)
