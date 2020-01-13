@@ -142,8 +142,8 @@ namespace Tensile
                     case InitMode::BadInput:  initArray<T, InitMode::BadInput>(array, tensor); break;
                     case InitMode::BadOutput: initArray<T, InitMode::BadOutput>(array, tensor); break;
                     case InitMode::SerialIdx:  initArraySerialIdx<T>(array, tensor); break;
-                    case InitMode::SerialDim0: initArraySerialDim0<T>(array, tensor); break;
-                    case InitMode::SerialDim1: initArraySerialDim1<T>(array, tensor); break;
+                    case InitMode::SerialDim0: initArraySerialDim<T>(array, 0, tensor); break;
+                    case InitMode::SerialDim1: initArraySerialDim<T>(array, 1, tensor); break;
                     case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
                 }
             }
@@ -178,7 +178,7 @@ namespace Tensile
             }
 
             template <typename T>
-            void initArraySerialDim0(T * array, TensorDescriptor const& tensor)
+            void initArraySerialDim(T * array, int dim, TensorDescriptor const& tensor)
             {
                 auto const& sizes = tensor.sizes();
                 auto count = CoordCount(sizes.begin(), sizes.end());
@@ -186,20 +186,7 @@ namespace Tensile
                 for(size_t idx = 0; idx < count; idx++)
                 {
                     CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
-                    array[tensor.index(coord)] = static_cast<T>(coord[0]);
-                }
-            }
-
-            template <typename T>
-            void initArraySerialDim1(T * array, TensorDescriptor const& tensor)
-            {
-                auto const& sizes = tensor.sizes();
-                auto count = CoordCount(sizes.begin(), sizes.end());
-                std::vector<size_t> coord(tensor.dimensions(), 0);
-                for(size_t idx = 0; idx < count; idx++)
-                {
-                    CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
-                    array[tensor.index(coord)] = static_cast<T>(coord[1]);
+                    array[tensor.index(coord)] = static_cast<T>(coord[dim]);
                 }
             }
 
