@@ -60,6 +60,10 @@ namespace Tensile
         std::string deviceName;
 
         virtual bool runsKernelTargeting(Processor p) const;
+        virtual size_t id() const
+        {
+            return (size_t) processor;
+        }
         virtual std::string description() const;
     };
 

@@ -185,6 +185,7 @@ globalParameters["Architecture"] = "all"
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
 globalParameters["PackageLibrary"] = False
+globalParameters["LegacyComponents"] = True
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
