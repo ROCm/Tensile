@@ -3,43 +3,35 @@
 
 def runCompileCommand(platform, project)
 {
-    try
-    {
-        project.paths.construct_build_prefix()
+    project.paths.construct_build_prefix()
 
-        def command = """#!/usr/bin/env bash
-                set -ex
+    def command = """#!/usr/bin/env bash
+            set -ex
 
-                hostname
+            hostname
 
-                export PATH=/opt/rocm/bin:$PATH
-                cd ${project.paths.project_build_prefix}
+            export PATH=/opt/rocm/bin:$PATH
+            cd ${project.paths.project_build_prefix}
 
-                mkdir build
-                pushd build
-                ${project.paths.build_command}
-                make -j
+            mkdir build
+            pushd build
+            ${project.paths.build_command}
+            make -j
 
-                popd
-                tox --version
-                tox -v --workdir /tmp/.tensile-tox -e lint
-                """
+            popd
+            tox --version
+            tox -v --workdir /tmp/.tensile-tox -e lint
+            """
 
-        platform.runCommand(this, command)
+    platform.runCommand(this, command)
 
-        publishHTML([allowMissing: false,
-                    alwaysLinkToLastBuild: false,
-                    keepAll: false,
-                    reportDir: "${project.paths.project_build_prefix}/docs/html",
-                    reportFiles: 'index.html',
-                    reportName: 'Documentation',
-                    reportTitles: 'Documentation'])
-
-        
-    }
-    finally
-    {
-    }
+    publishHTML([allowMissing: false,
+                alwaysLinkToLastBuild: false,
+                keepAll: false,
+                reportDir: "${project.paths.project_build_prefix}/docs/html",
+                reportFiles: 'index.html',
+                reportName: 'Documentation',
+                reportTitles: 'Documentation'])
 }
 
 def runTestCommand (platform, project, test_marks)
