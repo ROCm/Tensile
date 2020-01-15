@@ -1,4 +1,4 @@
-import logging,pytest
+import logging
 from pytest import args
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")

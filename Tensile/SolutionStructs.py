@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import sys,traceback
+import sys
 from collections import namedtuple
 from warnings import warn
 from functools import reduce
