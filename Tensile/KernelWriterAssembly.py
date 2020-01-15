@@ -8371,6 +8371,41 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.addScaled(vgpr(kw.coutRowPtr), vgpr(kw.coutRowPtr), \
                       sgpr("StrideD%s"%strideChar), self.rowInc, tmpS01, "Move coutRowPtr to next row")
 
+      # Shift Pointer for MFMA:
+      #   For MFMA shift pointer, correct data is stored in another thread.
+      #   Therefore, MFMA cannot use v_mov to amend store data
+      #   It needs to modify the coord1 of thread directly.
+      if not kernel["GuaranteeNoPartialB"] and kw.readTileDimVectorB and kernel["MatrixInstruction"] and edge:
+        (d1,d0,vc1,vc0) = self.element
+        if (d1 == vc1 == d0 == vc0 == 0) or self.newCoord1:
+          kStr += kw.comment("shift vector components d1")
+          vw = kernel["GlobalLoadVectorWidthB"]
+          vTmp1 = tmpVgpr01
+          vTmp2 = tmpVgpr01+1
+          sTmp1 = tmpS01
+          sTmp2 = tmpS01+2
+          kStr += inst("v_cmp_eq_u32", sgpr(sTmp1,2), vgpr(self.coord1Vgpr), \
+                        sgpr("SizesFree+1"), "if coord1 is edge+1")
+          kStr += inst("v_and_b32", vgpr(vTmp1), vgpr(self.coord1Vgpr), vw-1, "mod VW")
+          kStr += inst("v_cmp_eq_u32", sgpr(sTmp2,2), vgpr(vTmp1), vw-1, "if coord1-1 is odd edge")
+          kStr += inst("s_and_b64", sgpr(sTmp1,2), sgpr(sTmp1,2), sgpr(sTmp2,2), "if meet both conditions")
+          kStr += inst("s_lshr_b64", sgpr(sTmp2,2), sgpr(sTmp1,2), vw-1, "if threadx meet conditions, set threadx-1 bit in another sgprs")
+          kStr += inst("v_sub_u32", vgpr(vTmp1), vgpr(self.coord1Vgpr), 1, "tmp = coord1 - 1")
+          kStr += inst("v_add_u32", vgpr(vTmp2), vgpr(self.coord1Vgpr), 1, "tmp = coord1 + 1")
+          kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp1), \
+                        sgpr(sTmp1,2), "coord1 shift left if (coord1 of threadx-1 is edge and odd)" )
+          kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp2), \
+                        sgpr(sTmp2,2), "coord1 shift right if (coord1 of threadx is edge and odd)" )
+
+          kStr += inst("v_sub_u32", vgpr(vTmp1), vgpr(kw.cinRowPtr), sgpr("StridesC"), "tmp = rowStart - StridesC")
+          kStr += inst("v_add_u32", vgpr(vTmp2), vgpr(kw.cinRowPtr), sgpr("StridesC"), "tmp = rowStart + StridesC")
+          kStr += inst("v_cndmask_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowPtr), vgpr(vTmp1), \
+                        sgpr(sTmp1,2), "rawStart shift left if (coord1 of threadx-1 is edge and odd)" )
+          kStr += inst("v_cndmask_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowPtr), vgpr(vTmp2), \
+                        sgpr(sTmp2,2), "rawStart shift right if (coord1 of threadx is edge and odd)" )
+          kStr += "\n"
+
+
       # Now do the edge check and compute the address in bytes:
       if kernel["BufferStore"]:
         if edge:
