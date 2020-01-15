@@ -81,7 +81,7 @@ def run_convolution_level(request,
     argLevel = request.config.getoption("--test-level")
     if curLevel > argLevel:
         pytest.skip()
-    return Runner(level_fixtures[curLevel], [request.param[1]])
+    return Runner(level_fixtures[curLevel], request.param[1])
 
 def pytest_addoption(parser):
     parser.addoption(
