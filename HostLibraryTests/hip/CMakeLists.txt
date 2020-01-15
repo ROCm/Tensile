@@ -1,5 +1,4 @@
 
-if(true)
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite"
@@ -8,14 +7,12 @@ TensileCreateLibraryFiles(
     EMBED_KEY     kernels_lite
     VAR_PREFIX LITE NO_MERGE_FILES
     )
-endif()
 
 message("LITE_ALL_FILES: ${LITE_ALL_FILES}")
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite")
 file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite")
 
-if(true)
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs_mixed"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
@@ -25,12 +22,10 @@ TensileCreateLibraryFiles(
     VAR_PREFIX LITE_MIXED
     NO_MERGE_FILES
     )
-endif()
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
 file(COPY ${LITE_MIXED_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")
 
-if(true)
 # Link a second copy of the lite_configs library to test that there are no issues with duplicate symbols.
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"
@@ -40,7 +35,6 @@ TensileCreateLibraryFiles(
     EMBED_KEY     kernels_lite_2
     VAR_PREFIX LITE_2
     )
-endif()
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_2")
 file(COPY ${LITE_2_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_2")
@@ -56,7 +50,6 @@ TensileCreateLibraryFiles(
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/tile_aware_selection")
 file(COPY "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_selection/library" DESTINATION "${TEST_DATA_DIR}/tile_aware_selection")
 #file(COPY ${TILE_AWARE_SELECTION_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/tile_aware_selection")
-
 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)

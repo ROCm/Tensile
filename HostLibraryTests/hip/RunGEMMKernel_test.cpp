@@ -194,7 +194,6 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     }
 };
 
-#if 0
 TEST_P(RunGEMMKernelTest , KernelsTileSelection)
 {
     auto params = GetParam();
@@ -226,7 +225,6 @@ TEST_P(RunGEMMKernelTest , KernelsTileSelection)
         ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
-#endif
 
 TEST_P(RunGEMMKernelTest, BestSolution)
 {

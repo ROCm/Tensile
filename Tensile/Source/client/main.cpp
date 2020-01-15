@@ -377,7 +377,7 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<ProgressListener>());
 
     listeners.addListener(std::make_shared<BenchmarkTimer>(args));
-    //listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
+    listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
     reporters->addReporter(LogReporter::Default(args));

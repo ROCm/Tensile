@@ -35,7 +35,7 @@
 
 using namespace Tensile;
 
-struct LibraryPerformanceTest: public ::testing::TestWithParam<std::string>
+struct LibraryPerformanceTest: public ::testing::TestWithParam<std::tuple<std::string, bool>>
 {
 };
 
@@ -47,13 +47,16 @@ TEST_P(LibraryPerformanceTest, CreateProblem)
 
 TEST_P(LibraryPerformanceTest, LoadLibrary)
 {
-    auto filename = GetParam();
+    auto filename = std::get<0>(GetParam());
     auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
 }
 
 TEST_P(LibraryPerformanceTest, FindSolution)
 {
-    auto filename = GetParam();
+    std::string filename;
+    bool hasNavi;
+    std::tie(filename, hasNavi) = GetParam();
+
     auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
 
     {
@@ -63,7 +66,7 @@ TEST_P(LibraryPerformanceTest, FindSolution)
             auto problem = RandomGEMM();
             auto solution = library->findBestSolution(problem, hardware);
 
-            //ASSERT_NE(solution, nullptr);
+            ASSERT_NE(solution, nullptr) << i << problem;
         }
     }
 
@@ -74,15 +77,16 @@ TEST_P(LibraryPerformanceTest, FindSolution)
             auto problem = RandomGEMM();
             auto solution = library->findBestSolution(problem, hardware);
 
-            //ASSERT_NE(solution, nullptr);
+            if(hasNavi)
+                ASSERT_NE(solution, nullptr) << i << problem;
         }
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(LLVM, LibraryPerformanceTest,
         ::testing::Values(
-            "KernelsLite.yaml",
-            "KernelsLiteMixed.yaml",
-            "KernelsLiteNavi.yaml"
+            std::make_tuple("KernelsLite.yaml",      false),
+            std::make_tuple("KernelsLiteMixed.yaml", false),
+            std::make_tuple("KernelsLiteNavi.yaml",  true)
             ));
 

@@ -1237,6 +1237,9 @@ def assignGlobalParameters( config ):
 
     asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
     archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
+
+    print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
