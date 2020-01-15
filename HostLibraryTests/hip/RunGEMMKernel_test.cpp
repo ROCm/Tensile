@@ -194,6 +194,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     }
 };
 
+#if 0
 TEST_P(RunGEMMKernelTest , KernelsTileSelection)
 {
     auto params = GetParam();
@@ -225,6 +226,7 @@ TEST_P(RunGEMMKernelTest , KernelsTileSelection)
         ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
 }
+#endif
 
 TEST_P(RunGEMMKernelTest, BestSolution)
 {
@@ -515,6 +517,19 @@ TestLibraries(bool debug)
         auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("kernels_lite_mixed/TensileLibrary.yaml").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
         for(auto file: TestData::Instance().glob("kernels_lite_mixed/*.*co"))
+            adapter->loadCodeObjectFile(file.native());
+
+        rv.emplace_back(library, adapter, true);
+    }
+
+    {
+        auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("tile_aware_selection/library/TensileLibrary.yaml").native());
+
+        auto adapter = std::make_shared<hip::SolutionAdapter>(debug);
+        for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*co"))
+            adapter->loadCodeObjectFile(file.native());
+
+        for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
             adapter->loadCodeObjectFile(file.native());
 
         rv.emplace_back(library, adapter, true);

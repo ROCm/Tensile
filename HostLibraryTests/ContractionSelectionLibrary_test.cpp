@@ -133,6 +133,7 @@ TEST(ContractionSelectionLibraryTest, TransposeSelection)
     mlib.library = lib;
 }
 
+#if 0
 TEST(ContractionSelectionLibraryTest, Caching)
 {
 
@@ -214,4 +215,4 @@ TEST(ContractionSelectionLibraryTest, Caching)
     EXPECT_EQ(theSolution3, theSolution3_cached);
 
 }
-
+#endif 

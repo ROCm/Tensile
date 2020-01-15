@@ -79,4 +79,9 @@ namespace Tensile
 
         return rv.str();
     }
+
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU g)
+    {
+        return stream << g.description();
+    }
 }

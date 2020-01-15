@@ -28,6 +28,8 @@
 
 #include <Tensile/SolutionLibrary.hpp>
 
+#include <Tensile/CachingLibrary.hpp>
+#include <Tensile/Debug.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/MapLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
@@ -152,6 +154,13 @@ namespace Tensile
                 iot::setContext(io, &lib.solutions);
 
                 iot::mapRequired(io, "library", lib.library);
+
+                if(!iot::outputting(io))
+                {
+                    auto cache = std::make_shared<CachingLibrary<MyProblem, MySolution>>(lib.library);
+
+                    lib.library = cache;
+                }
             }
 
             const static bool flow = false;

@@ -65,6 +65,11 @@ namespace Tensile
             return (size_t) processor;
         }
         virtual std::string description() const;
+
+        bool operator==(AMDGPU const& rhs) const
+        {
+            return processor == rhs.processor && computeUnitCount == rhs.computeUnitCount;
+        }
     };
 
     inline bool operator<(AMDGPU::Processor l, AMDGPU::Processor r)
@@ -88,6 +93,5 @@ namespace Tensile
     }
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU g);
 }
-
-

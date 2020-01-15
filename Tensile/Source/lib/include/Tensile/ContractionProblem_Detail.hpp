@@ -29,6 +29,7 @@
 #include <Tensile/Comparison.hpp>
 
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/TensorDescriptor_Detail.hpp>
 
 namespace Tensile
 {
@@ -71,4 +72,43 @@ namespace Tensile
                                         lhs.b, rhs.b);
         }
     };
+
+    template <>
+    struct Comparison<ContractionProblem>
+    {
+        enum { implemented = true };
+
+        static int compare(ContractionProblem const& lhs,
+                           ContractionProblem const& rhs)
+        {
+            return LexicographicCompare(
+                lhs.operationIdentifier(),     rhs.operationIdentifier(),
+                lhs.highPrecisionAccumulate(), rhs.highPrecisionAccumulate(),
+                lhs.a(), rhs.a(),
+                lhs.b(), rhs.b(),
+                lhs.c(), rhs.c(),
+                lhs.d(), rhs.d());
+        }
+    };
 }
+
+namespace std
+{
+    template <>
+    struct hash<Tensile::ContractionProblem>
+    {
+        inline size_t operator()(Tensile::ContractionProblem const& problem)
+        {
+            return Tensile::hash_combine(
+                problem.operationIdentifier(),
+                problem.a(),
+                problem.b(),
+                problem.c(),
+                problem.d(),
+                problem.highPrecisionAccumulate()
+            );
+        }
+    };
+
+}
+

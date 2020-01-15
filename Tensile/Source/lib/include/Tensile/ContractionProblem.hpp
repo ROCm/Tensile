@@ -106,7 +106,6 @@ namespace Tensile
 
 
         virtual std::string description() const;
-	    virtual ProblemKey<size_t> getKey() const;
 
         /**
          * Create a ContractionProblem representing a batched GEMM, specifying
@@ -265,7 +264,7 @@ namespace Tensile
         }
 
         std::vector<size_t> const& problemSizes() const { return m_problemSizes; }
-	std::vector<size_t> const& problemStrides() const { return m_problemStrides; }
+        std::vector<size_t> const& problemStrides() const { return m_problemStrides; }
 
         void setHighPrecisionAccumulate(bool value) { m_highPrecisionAccumulate = value; }
         bool highPrecisionAccumulate()        const { return m_highPrecisionAccumulate; }
@@ -354,7 +353,7 @@ namespace Tensile
         std::vector<size_t> m_boundSizes;
 
         std::vector<size_t> m_problemSizes;
-	std::vector<size_t> m_problemStrides;
+        std::vector<size_t> m_problemStrides;
 
         double m_beta;
 
