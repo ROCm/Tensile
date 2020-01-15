@@ -639,7 +639,7 @@ class Convolution:
         raise RuntimeError ("%s parm '%s' must have %d spatial dims'"%(parmName, parm, self.formatNumSpatialDims))
     return rv
 
-  def printUsage(self, problemType):
+  def printUsage(self, problemType, details=False):
     print()
     print("Tensor Formats: A:%s B:%s D:%s\n" % (self.tensorAFormat, self.tensorBFormat, self.tensorDFormat))
     print("Input Conv: %s packedFilter:%d packedSpatiol:%d unrollOnChannel:%d\n" % \
@@ -664,22 +664,24 @@ class Convolution:
       print ("  BatchIndices:", ','.join([str(x) for x in self.batchIndices]))
       print ("  SumIndices:", ','.join([str(x) for x in self.sumIndices]))
 
-    print ()
-    print ("- Spatial sizes D_i, H_i, W_i refer to size of INPUT dimension.")
-    print ("- Spatial sizes D_o, H_o, W_o refer to size of OUTPUT dimension.")
-    print ("     For example W_o =  (W_i - X - padStart - padEnd + 1)/stride")
-    print ("- (TBD)' indicates the parm is flexible and must be specified at runtime.")
-    print ("- (i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
-    print ("  The runtime value must match the compile-time value.")
-    print ("- Unspecified strides use default stride value:")
-    print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0.")
-    print ("- [stride*,size*] in brackets list required values to run the generated solutions.")
-    print ("- Tensile IndexAssignments list the fastest-moving (in memory) index first.")
-    print ("- spatial and filter dimension collapsing:")
-    print ("    - dims with default strides are collapsed with adjacent dims.")
-    print ("    - dims with size==1 are removed.")
-    print ("    - PackSpatialDims=0 / PackFilterDims=0 forcibly disables collapsing.")
-    print ("- Overlapping / Hidden summation dimensions shown below with leading '_'.")
+    if details:
+      print ()
+      print ("- Spatial sizes D_i, H_i, W_i refer to size of INPUT dimension.")
+      print ("- Spatial sizes D_o, H_o, W_o refer to size of OUTPUT dimension.")
+      print ("     For example W_o =  (W_i - X - padStart - padEnd + 1)/stride")
+      print ("- (TBD)' indicates the parm is flexible and must be specified at runtime.")
+      print ("- (i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
+      print ("  The runtime value must match the compile-time value.")
+      print ("- Unspecified strides use default stride value:")
+      print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0.")
+      print ("- [stride*,size*] in brackets list required values to run the generated solutions.")
+      print ("- Tensile IndexAssignments list the fastest-moving (in memory) index first.")
+      print ("- Dimension collapsing:")
+      print ("    - spatial dims with default strides and no zero-pad are collapsed with adjacent dims.")
+      print ("    - Nx1 filter with dilationY=1 collapse into a single filter.")
+      print ("    - 1xN filter with dilationX=1 collapse into a single filter.")
+      print ("    - PackSpatialDims=0 / PackFilterDims=0 forcibly disables collapsing.")
+      print ("- Overlapping / Hidden summation dimensions shown below with leading '_'.")
 
     print ()
     print ("ProblemType Definition:")
@@ -787,7 +789,7 @@ class ProblemType:
     if self.convolution:
       if globalParameters["PrintConvolutionUsage"]:
         print()
-        self.convolution.printUsage(self)
+        self.convolution.printUsage(self, True)
         print()
       self.convolution.checkDims(self.state["IndicesFree"], self.state["IndicesBatch"], self.state["IndicesSummation"])
 
