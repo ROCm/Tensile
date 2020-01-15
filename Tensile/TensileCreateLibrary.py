@@ -148,10 +148,16 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
       extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
 
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(linkArgs))
       subprocess.check_call(linkArgs)
 
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(extractArgs))
       subprocess.check_call(extractArgs, cwd=buildPath)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
@@ -163,6 +169,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
 
+      if globalParameters["PrintCodeCommands"]:
+        print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
       coFilenames = [soFilename]
