@@ -116,9 +116,9 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> prepareCPUInputsTyped(ContractionProblem const& problem)
             {
                 if(!m_cpuInputsPristine)
-                    m_cpuInputsPristine = createNewCPUInputs();
+                    m_cpuInputsPristine = createNewCPUInputs(problem);
 
-                if(m_cpuInputs && !m_boundsCheck)
+                if(m_cpuInputs && !m_boundsCheck && !m_problemDependentData)
                 {
                     copyD(m_cpuInputs, m_cpuInputsPristine);
                 }
@@ -126,6 +126,9 @@ namespace Tensile
                 {
                     if(!m_cpuInputs)
                         m_cpuInputs = allocNewCPUInputs();
+
+                    if(m_problemDependentData)
+                        initializeCPUInputs(*m_cpuInputsPristine, problem);
 
                     if(m_boundsCheck && !m_cpuBadInputs)
                     {
@@ -160,10 +163,10 @@ namespace Tensile
                 std::shared_ptr<ManagedInputs> pristine;
                 std::shared_ptr<ManagedInputs> bad;
 
-                if(m_keepPristineCopyOnGPU)
+                if(m_keepPristineCopyOnGPU && !m_problemDependentData)
                 {
                     if(!m_gpuInputsPristine)
-                        m_gpuInputsPristine = createNewGPUInputs();
+                        m_gpuInputsPristine = createNewGPUInputs(problem);
 
                     pristine = m_gpuInputsPristine;
 
@@ -178,7 +181,7 @@ namespace Tensile
                 else
                 {
                     if(!m_cpuInputsPristine)
-                        m_cpuInputsPristine = createNewCPUInputs();
+                        m_cpuInputsPristine = createNewCPUInputs(problem);
 
                     pristine = m_cpuInputsPristine;
 
@@ -191,7 +194,7 @@ namespace Tensile
                     }
                 }
 
-                if(m_gpuInputs && !m_boundsCheck)
+                if(m_gpuInputs && !m_boundsCheck && !m_problemDependentData)
                 {
                     copyD(m_gpuInputs, pristine);
                 }
@@ -200,25 +203,28 @@ namespace Tensile
                     if(!m_gpuInputs)
                         m_gpuInputs = allocNewGPUInputs(pristine);
 
+                    if(m_problemDependentData)
+                        initializeCPUInputs(*m_cpuInputsPristine, problem);
+
                     copyInputs(m_gpuInputs, pristine, bad, problem);
                 }
 
                 return m_gpuInputs;
             }
 
-            std::shared_ptr<ManagedInputs> createNewCPUInputs()
+            std::shared_ptr<ManagedInputs> createNewCPUInputs(ContractionProblem const& problem)
             {
                 auto rv = allocNewCPUInputs();
-                initializeCPUInputs(*rv);
+                initializeCPUInputs(*rv, problem);
 
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> createNewGPUInputs()
+            std::shared_ptr<ManagedInputs> createNewGPUInputs(ContractionProblem const& problem)
             {
                 auto rv = allocNewGPUInputs();
                 if(!m_cpuInputsPristine)
-                    m_cpuInputsPristine = createNewCPUInputs();
+                    m_cpuInputsPristine = createNewCPUInputs(problem);
                 copyInputBuffers(rv, m_cpuInputsPristine);
 
                 return rv;
@@ -367,16 +373,27 @@ namespace Tensile
                 return rv;
             }
 
-            void initializeCPUInputs(ManagedInputs & inputs)
+            void initializeCPUInputs(ManagedInputs & inputs, ContractionProblem const& problem)
             {
                 if(inputs.gpu)
                     throw std::runtime_error("Initializing GPU inputs as CPU.");
 
-                initArray(m_aInit, inputs.managedA.get(), m_aMaxElements);
-                initArray(m_bInit, inputs.managedB.get(), m_bMaxElements);
-                initArray(m_cInit, inputs.managedC.get(), m_cMaxElements);
-                if(!m_cEqualsD)
-                    initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
+                if (m_problemDependentData)
+                {
+                    initArray(m_aInit, inputs.managedA.get(), problem.a());
+                    initArray(m_bInit, inputs.managedB.get(), problem.b());
+                    initArray(m_cInit, inputs.managedC.get(), problem.c());
+                    if(!m_cEqualsD)
+                        initArray(m_dInit, inputs.managedD.get(), problem.d());
+                }
+                else
+                {
+                    initArray(m_aInit, inputs.managedA.get(), m_aMaxElements);
+                    initArray(m_bInit, inputs.managedB.get(), m_bMaxElements);
+                    initArray(m_cInit, inputs.managedC.get(), m_cMaxElements);
+                    if(!m_cEqualsD)
+                        initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
+                }
 
                 inputs.alpha = getValue<AlphaType>(m_alphaInit);
                 inputs.beta = getValue<BetaType>(m_betaInit);

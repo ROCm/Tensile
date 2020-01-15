@@ -448,6 +448,13 @@ def dataInitName(num):
     if num == 2: return 'Two'
     if num == 3: return 'Random'
     if num == 4: return 'NaN'
+    if num == 5: return 'Inf'
+    if num == 6: return 'BadInput'
+    if num == 7: return 'BadOutput'
+    if num == 8: return 'SerialIdx'
+    if num == 9: return 'SerialDim0'
+    if num == 10: return 'SerialDim1'
+    if num == 11: return 'Identity'
 
 def dataInitParams(problemType):
     initA = globalParameters['DataInitTypeA']

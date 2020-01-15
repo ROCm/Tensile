@@ -296,10 +296,22 @@ class ProblemPredicate(Properties.Predicate):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
     @classmethod
+    def CompoundPredicates(cls, state, problemType):
+        rv = []
+
+        if 'VectorWidth' in state and state['VectorWidth'] > 1:
+            if not problemType.aType.isInt8x4():
+                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['VectorWidth'])]
+
+        return rv
+
+    @classmethod
     def FromOriginalState(cls, d, problemType, morePreds=[]):
         problemTypePreds = problemType.predicates(True, True, True)
+        compoundPreds = cls.CompoundPredicates(d, problemType)
+        extraPreds = problemTypePreds + compoundPreds + morePreds
 
-        return super().FromOriginalState(d, problemTypePreds + morePreds)
+        return super().FromOriginalState(d, extraPreds)
 
 class SizeMapping:
     StateKeys = ['workGroup',
