@@ -50,6 +50,7 @@ namespace Tensile
                 case InitMode::SerialIdx:  return "SerialIdx";
                 case InitMode::SerialDim0: return "SerialDim0";
                 case InitMode::SerialDim1: return "SerialDim1";
+                case InitMode::Identity:   return "Identity";
 
                 case InitMode::Count:     break;
             }
@@ -78,6 +79,7 @@ namespace Tensile
             else if(strValue == ToString(InitMode::SerialIdx))  mode = InitMode::SerialIdx;
             else if(strValue == ToString(InitMode::SerialDim0)) mode = InitMode::SerialDim0;
             else if(strValue == ToString(InitMode::SerialDim1)) mode = InitMode::SerialDim1;
+            else if(strValue == ToString(InitMode::Identity))   mode = InitMode::Identity;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
