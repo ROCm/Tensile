@@ -1,4 +1,4 @@
-import logging
+import logging,pytest
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
@@ -31,6 +31,7 @@ def test_stride1x2(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_stride2x1(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -43,6 +44,7 @@ def test_stride2x1(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_stride2x3(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -105,6 +107,7 @@ def test_dilation1x2(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_dilation2x1(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -117,6 +120,7 @@ def test_dilation2x1(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_dilation2x3(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
