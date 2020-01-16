@@ -509,20 +509,9 @@ s_setprio 0 // Reset priority after macs
 .long 0x7EA40566
 .long 0xD1130067, 0x0000A08F
 .long 0x7EA20567
-.long 0xC0020140, 0x00000074
 .long 0xBF068151
-.long 0xBF8400B3
+.long 0xBF8400A9
 .long 0xBF8CC07F
-.long 0x86580387
-.long 0x92580558
-.long 0x81580258
-.long 0x8F598358
-.long 0xBE820059
-.long 0x86595887
-.long 0x8F5A8303
-.long 0x8E5A835A
-.long 0x81595A59
-.long 0xBE830059
 .long 0xBE880034
 .long 0xBE890035
 .long 0xBE8B00FF, 0x00020000
@@ -704,16 +693,6 @@ s_setprio 0 // Reset priority after macs
 .long 0x68C4C4FF, 0x00002200
 .long 0x68C6C4FF, 0x00002200
 .long 0xBF8CC07F
-.long 0x86580387
-.long 0x92580558
-.long 0x81580258
-.long 0x8F598358
-.long 0xBE820059
-.long 0x86595887
-.long 0x8F5A8303
-.long 0x8E5A835A
-.long 0x81595A59
-.long 0xBE830059
 .long 0xBE900022
 .long 0xBE910023
 .long 0xBE9200FF, 0x80000000
