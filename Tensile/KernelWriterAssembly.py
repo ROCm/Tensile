@@ -790,7 +790,6 @@ class KernelWriterAssembly(KernelWriter):
     # For Beta:
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
     # appropriate vmwnts into the stores so they issue as loads become available
-    # TODO: change back to 1
     self.interleaveStoreVmcnt = 1 and kernel["BufferStore"]
 
 
