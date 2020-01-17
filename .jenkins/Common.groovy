@@ -41,7 +41,7 @@ def runTestCommand (platform, project, test_marks)
     try
     {
         def command = """#!/usr/bin/env bash
-                set -ex
+                set -x
 
                 hostname
 
@@ -50,11 +50,23 @@ def runTestCommand (platform, project, test_marks)
 
                 pushd build
                 ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+                HOST_ERR=$?
 
                 popd
                 tox --version
                 tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
+                PY_ERR=$?
                 date
+
+                if [[ $HOST_ERR -ne 0 ]]
+                then
+                    exit $HOST_ERR
+                fi
+
+                if [[ $PY_ERR -ne 0 ]]
+                then
+                    exit $PY_ERR
+                fi
             """
         platform.runCommand(this, command)
     }
