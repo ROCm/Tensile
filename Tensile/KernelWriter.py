@@ -781,7 +781,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           """
           kl.append("    /* print Local state */" + self.endLine)
           kl.append("    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine)
-          kl.append("      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" \)
+          kl.append("      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" )
               % self.endLine
           kl.append("    }" + self.endLine)
           """
@@ -1291,7 +1291,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.comment("shift vector components d0"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
-        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB:
+        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersB))
 
