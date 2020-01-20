@@ -29,7 +29,7 @@ from . import EmbeddedData
 from . import Utils
 from . import YAMLIO
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-                   CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, \
+                   CHeader, CMakeHeader, assignGlobalParameters, \
                    listToInitializer
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
@@ -128,8 +128,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     soFilename = base + '.so'
     soFilepath = os.path.join(buildPath, soFilename)
 
+    def isSupported(arch):
+        return globalParameters["AsmCaps"][arch]["SupportedISA"] and \
+               globalParameters["AsmCaps"][arch]["SupportedSource"]
+
     archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-             if globalParameters["AsmCaps"][arch]["SupportedISA"]]
+             if isSupported(arch)]
 
     archFlags = ['--amdgpu-target=' + arch for arch in archs]
 
@@ -394,8 +398,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   print1("# Writing Solutions")
   if globalParameters["LegacyComponents"]:
-    if globalParameters["ShowProgressBar"]:
-      progressBar = ProgressBar(len(solutions))
     ##############################################################################
     # Write Solutions
     ##############################################################################
@@ -436,8 +438,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
     solutionHeaderFile.write(h)
 
-  # ???
-    for solution in solutions:
+    for solution in Utils.tqdm(solutions):
       # get solution name
       if not globalParameters["MergeFiles"]:
         solutionFileName = solutionWriter.getSolutionName(solution)
@@ -461,8 +462,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
           solutionWriter.getHeaderFileString(solution))
       if not globalParameters["MergeFiles"]:
         solutionHeaderFile.close()
-      if globalParameters["ShowProgressBar"]:
-        progressBar.increment()
     # close merged
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
@@ -504,7 +503,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
   ########################################
   # problemType
-  for problemType in logicData:
+  for problemType in Utils.tqdm(logicData):
 
     # function argument list
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
@@ -989,6 +988,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--no-short-file-names",    dest="ShortNames",        action="store_false")
   argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
+  argParser.add_argument("--no-enumerate",           action="store_true")
   argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False)
   argParser.add_argument("--no-legacy-components",   dest="LegacyComponents",  action="store_false", default=True)
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
@@ -996,6 +996,7 @@ def TensileCreateLibrary():
 
   argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
                          help="Access key for embedding library files.")
+  argParser.add_argument("--version", help="Version string to embed into library file.")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1013,6 +1014,8 @@ def TensileCreateLibrary():
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
   arguments["CodeFromFiles"] = False
   arguments["EmbedLibrary"] = args.EmbedLibrary
+  if args.no_enumerate:
+    arguments["ROCmAgentEnumeratorPath"] = False
   arguments["PackageLibrary"] = args.PackageLibrary
   arguments["LegacyComponents"] = args.LegacyComponents
 
@@ -1060,6 +1063,7 @@ def TensileCreateLibrary():
     if not globalParameters["PackageLibrary"]:
       if fullMasterLibrary is None:
         fullMasterLibrary = deepcopy(newLibrary)
+        fullMasterLibrary.version = args.version
       else:
         fullMasterLibrary.merge(deepcopy(newLibrary))
 
@@ -1076,6 +1080,13 @@ def TensileCreateLibrary():
     for solution in solutionsForSchedule:
       if solution not in solutions:
         solutions.append(solution)
+
+    if globalParameters["PackageLibrary"]:
+      if architectureName in masterLibraries:
+        masterLibraries[architectureName].merge(deepcopy(newLibrary))
+      else:
+        masterLibraries[architectureName] = deepcopy(newLibrary)
+        masterLibraries[architectureName].version = args.version
 
   # create solution writer and kernel writer
   kernels = []

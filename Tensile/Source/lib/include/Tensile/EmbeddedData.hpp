@@ -26,10 +26,13 @@
 
 #pragma once
 
+#include <iostream>
 #include <memory>
+#include <typeinfo>
 #include <unordered_map>
 #include <vector>
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/Macros.hpp>
 #include <Tensile/Singleton.hpp>
 
@@ -84,11 +87,15 @@ namespace Tensile
 
         static Items & GetMutable()
         {
+
             return GetMutable("");
         }
 
         static Items & GetMutable(std::string const& key)
         {
+            if(Debug::Instance().printEmbeddedDataInit())
+                std::cout << "Embedding an object of type " << typeid(Object).name()
+                          << " with key " << key << std::endl;
             return Base::Instance().items[key];
         }
 
