@@ -55,7 +55,7 @@ def runTestCommand (platform, project, test_marks)
                 popd
                 tox --version
                 tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
-                PY_ERR=$?
+                PY_ERR=\$?
                 date
 
                 if [[ \$HOST_ERR -ne 0 ]]
