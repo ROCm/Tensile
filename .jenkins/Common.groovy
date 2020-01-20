@@ -45,12 +45,12 @@ def runTestCommand (platform, project, test_marks)
 
                 hostname
 
-                export PATH=/opt/rocm/bin:$PATH
+                export PATH=/opt/rocm/bin:\$PATH
                 cd ${project.paths.project_build_prefix}
 
                 pushd build
                 ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-                HOST_ERR=$?
+                HOST_ERR=\$?
 
                 popd
                 tox --version
@@ -58,14 +58,14 @@ def runTestCommand (platform, project, test_marks)
                 PY_ERR=$?
                 date
 
-                if [[ $HOST_ERR -ne 0 ]]
+                if [[ \$HOST_ERR -ne 0 ]]
                 then
-                    exit $HOST_ERR
+                    exit \$HOST_ERR
                 fi
 
-                if [[ $PY_ERR -ne 0 ]]
+                if [[ \$PY_ERR -ne 0 ]]
                 then
-                    exit $PY_ERR
+                    exit \$PY_ERR
                 fi
             """
         platform.runCommand(this, command)
