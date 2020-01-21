@@ -94,8 +94,9 @@ namespace Tensile
             template <typename TypedInputs>
             bool validateTyped(TypedInputs const& reference, TypedInputs const& result);
 
-            template <typename TypedInputs>
-            bool checkResultsTyped(TypedInputs const& reference, TypedInputs const& result);
+            template <typename ManagedInputs, typename CompareValid, typename CompareInvalid>
+            bool checkResultsTyped(ManagedInputs const& reference, ManagedInputs const& result,
+                                   CompareValid & compareValid, CompareInvalid & compareInvalid);
 
             template <typename TypedInputs>
             void printTensorsTyped(TypedInputs const& reference, TypedInputs const& result);
@@ -127,6 +128,7 @@ namespace Tensile
             bool m_printTensorC;
             bool m_printTensorD;
             bool m_printTensorRef;
+            bool m_printAny;
 
             bool m_convolutionVsContraction;
 

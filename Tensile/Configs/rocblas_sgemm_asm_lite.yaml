@@ -565,9 +565,9 @@ LibraryLogic:
 #   DeviceNames: ["Device 6860"]
 #   ArchitectureName: "gfx900"
 
-#   ScheduleName: "r9nano"
-#   DeviceNames: ["Device 7300"]
-#   ArchitectureName: "gfx803"
+   ScheduleName: "r9nano"
+   DeviceNames: ["Device 7300"]
+   ArchitectureName: "gfx803"
 
 #   ScheduleName: "hip"
 #   DeviceNames: ["Device 0000"]

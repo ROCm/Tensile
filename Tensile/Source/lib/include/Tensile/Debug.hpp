@@ -42,6 +42,8 @@ namespace Tensile
 
         bool printKernelArguments() const;
 
+        bool printEmbeddedDataInit() const;
+
         // print tensor dims, strides, memory sizes
         bool printTensorInfo() const;
 
@@ -52,6 +54,8 @@ namespace Tensile
 
         // if tensors are printed, use hexadecimal output format
         bool printTensorModeHex() const;
+
+        bool printLibraryVersion() const;
 
     private:
         friend LazySingleton<Debug>;

@@ -59,6 +59,13 @@ namespace Tensile
             m_debug = debug || Debug::Instance().printKernelArguments();
         }
 
+        SolutionAdapter::SolutionAdapter(bool debug, std::string const& name)
+            : m_debug(debug),
+              m_name(name)
+        {
+            m_debug = debug || Debug::Instance().printKernelArguments();
+        }
+
         SolutionAdapter::~SolutionAdapter()
         {
             for(auto module: m_modules)
@@ -72,8 +79,14 @@ namespace Tensile
 
             if(error == hipErrorFileNotFound)
                 throw std::runtime_error(concatenate("Code object file '", path, "' not found."));
+            else if(error == hipErrorUnknown)
+            {
+                return;
+            }
             else
-                HIP_CHECK_EXC(error);
+            {
+                HIP_CHECK_EXC_MESSAGE(error, path);
+            }
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
@@ -259,7 +272,9 @@ namespace Tensile
                 stream << "]";
             }
 
-            stream << " (" << adapter.m_modules.size() << " total modules)" << std::endl;
+            stream << " (" << adapter.name()
+                   << ", " << adapter.m_modules.size()
+                   << " total modules)" << std::endl;
 
             return stream;
         }

@@ -80,6 +80,15 @@ namespace Tensile
         return value & 0x800;
     }
 
+    bool Debug::printEmbeddedDataInit() const
+    {
+        return value & 0x1000;
+    }
+
+    bool Debug::printLibraryVersion() const
+    {
+        return value & 0x2000;
+    }
 
     Debug::Debug()
         : value(DEBUG_SM)

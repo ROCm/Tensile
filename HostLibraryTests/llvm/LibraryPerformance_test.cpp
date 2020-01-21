@@ -35,28 +35,58 @@
 
 using namespace Tensile;
 
-TEST(LibraryPerformanceTest, CreateProblem)
+struct LibraryPerformanceTest: public ::testing::TestWithParam<std::tuple<std::string, bool>>
+{
+};
+
+TEST_P(LibraryPerformanceTest, CreateProblem)
 {
     for(int i = 0; i < 1000; i++)
         RandomGEMM();
 }
 
-TEST(LibraryPerformanceTest, LoadLibrary)
+TEST_P(LibraryPerformanceTest, LoadLibrary)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("KernelsLiteMixed.yaml").native());
+    auto filename = std::get<0>(GetParam());
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
 }
 
-TEST(LibraryPerformanceTest, FindSolution)
+TEST_P(LibraryPerformanceTest, FindSolution)
 {
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file("KernelsLiteMixed.yaml").native());
-    AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
+    std::string filename;
+    bool hasNavi;
+    std::tie(filename, hasNavi) = GetParam();
 
-    for(int i = 0; i < 10000; i++)
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
+
     {
-        auto problem = RandomGEMM();
+        AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
+        for(int i = 0; i < 10000; i++)
+        {
+            auto problem = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
 
-        auto solution = library->findBestSolution(problem, hardware);
+            ASSERT_NE(solution, nullptr) << i << problem;
+        }
+    }
 
-        //ASSERT_NE(solution, nullptr);
+    {
+        AMDGPU hardware(AMDGPU::Processor::gfx1010, 64, "Navi");
+        for(int i = 0; i < 10000; i++)
+        {
+            auto problem = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
+
+            if(hasNavi)
+                ASSERT_NE(solution, nullptr) << i << problem;
+        }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(LLVM, LibraryPerformanceTest,
+        ::testing::Values(
+            std::make_tuple("KernelsLite.yaml",      false),
+            std::make_tuple("KernelsLiteMixed.yaml", false),
+            std::make_tuple("KernelsLiteNavi.yaml",  true)
+            ));
+

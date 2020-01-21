@@ -134,6 +134,8 @@ namespace Tensile
 
             static void mapping(IO & io, Library & lib)
             {
+                iot::mapOptional(io, "version", lib.version);
+
                 std::vector<std::shared_ptr<MySolution>> solutions;
 
                 if(iot::outputting(io))

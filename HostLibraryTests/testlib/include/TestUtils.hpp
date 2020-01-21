@@ -95,7 +95,11 @@ namespace Tensile
 #pragma omp parallel num_threads(32)
         {
             RNG myrng = rng;
-            myrng.seed(seed_base + omp_get_thread_num());
+            auto seed = seed_base;
+#ifdef _OPENMP
+            seed += omp_get_thread_num();
+#endif
+            myrng.seed(seed);
 
             std::vector<size_t> index3{0,0,0};
 
