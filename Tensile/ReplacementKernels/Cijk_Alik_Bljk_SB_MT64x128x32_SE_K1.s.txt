@@ -368,6 +368,7 @@ Kernels:
 
 
 
+
 .long 0xC00A0D00, 0x00000028
 .long 0xC00A0C00, 0x00000050
 .long 0xC00A0600, 0x00000008
@@ -383,7 +384,7 @@ Kernels:
 .long 0xD1130067, 0x0000A08F
 .long 0x7EA20567
 .long 0xBF068151
-.long 0xBF84020E
+.long 0xBF840212
 .long 0xBF8CC07F
 .long 0xBE880034
 .long 0xBE890035
@@ -400,7 +401,9 @@ Kernels:
 .long 0x92545402
 .long 0x8E558452
 .long 0x92533055
+.long 0x92553104
 .long 0x81545354
+.long 0x80545554
 .long 0x2000CA85
 .long 0xD2850004, 0x00020030
 .long 0x2602CA9F
@@ -434,6 +437,8 @@ Kernels:
 .long 0x925532A0
 .long 0x92555552
 .long 0x81545554
+.long 0x92553304
+.long 0x80545554
 .long 0x2004CA85
 .long 0x2606CA9F
 .long 0xD2850004, 0x00020432
