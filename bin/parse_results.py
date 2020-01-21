@@ -2,40 +2,51 @@
 
 import sys,fileinput, csv
 
-db = 0
+class Reader:
 
-csv_field_names = None
-csv_table=[]
-for line in fileinput.input(sys.argv[1:]):
-    if line.startswith("run,"):
-        csv_field_names = line.replace(' ', '').split(',')
-    elif csv_field_names and "Contraction" in line:
-        csv_table.append(line)
-        if db:
-            print ("L=",line),
+    def formatCol(self, row, colName):
+        return ('{0: <%d}'%self.maxLen[colName]).format(row[colName])
 
-dictReader = csv.DictReader(csv_table, csv_field_names, skipinitialspace=True)
+    def readFile(self):
+        db = 0
 
-fieldsToKeep= ('problem-sizes', 'solution', 'time-us', 'gflops')
+        csv_field_names = None
+        csv_table=[]
+        for line in fileinput.input(sys.argv[1:]):
+            if line.startswith("run,"):
+                csv_field_names = line.replace(' ', '').split(',')
+            elif csv_field_names and "Contraction" in line:
+                csv_table.append(line)
+                if db:
+                    print ("L=",line),
 
-maxLen={}
-for k in fieldsToKeep:
-    maxLen[k] = 0
+        dictReader = csv.DictReader(csv_table, csv_field_names, skipinitialspace=True)
 
-dataOut=[]
-for row in dictReader:
-    if db:
-        print("R=", (row["solution"], row["time-us"], row["gflops"]))
+        fieldsToKeep= ('problem-sizes', 'solution', 'time-us', 'gflops')
 
-    keep = {}
-    for k in fieldsToKeep:
-        keep[k] = row[k]
-        maxLen[k] = max(len(row[k]), maxLen[k])
+        self.maxLen={}
+        for k in fieldsToKeep:
+            self.maxLen[k] = 0
 
-    dataOut.append((keep))
+        self.dataOut=[]
+        for row in dictReader:
+            if db:
+                print("R=", (row["solution"], row["time-us"], row["gflops"]))
 
-# sort by gflops
-dataOut.sort(key = lambda row: int(row["gflops"]), reverse=True)
+            keep = {}
+            for k in fieldsToKeep:
+                keep[k] = row[k]
+                self.maxLen[k] = max(len(row[k]), self.maxLen[k])
 
-for row in dataOut:
-    print (('{0: <%d}'%maxLen['solution']).format(row['solution']), " %6.1f %6d" %(float(row['time-us']), int(row['gflops'])))
+            self.dataOut.append((keep))
+
+        # sort by gflops
+        self.dataOut.sort(key = lambda row: int(row["gflops"]), reverse=True)
+
+        for row in self.dataOut:
+            print (self.formatCol(row,'problem-sizes'), self.formatCol(row, 'solution'), " %6.1f %6d" %(float(row['time-us']), int(row['gflops'])))
+
+
+
+r = Reader()
+r.readFile()
