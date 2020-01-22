@@ -4,10 +4,11 @@ from collections import namedtuple
 from YamlBuilder.YamlBuilder import YamlBuilder
 from YamlBuilder.YamlBuilder import Solutions
 
-pytest.args={}
+args={}
 
-TestConfig=namedtuple("TestConfig", "solution problem_func")
-Runner=namedtuple("Runner", "func solution")
+TestConfig=namedtuple("TestConfig", ["solution", "problem_func"])
+Runner=namedtuple("Runner", ["func", "solution"])
+TensileState=namedtuple("TensileState", ["args"])
 
 # this control the default solutions used for each test.
 solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu"]
@@ -37,7 +38,7 @@ def run_generate_yaml(file_with_test_name):
         if problemFunc == None:
             problemFunc = YamlBuilder.ProblemSizes
         if problemLevel==-1:
-            problemLevel = pytest.args["problem_level"] if solution.__name__.startswith("src") else pytest.args["problem_level"]
+            problemLevel = args["problem_level"] if solution.__name__.startswith("src") else args["problem_level"]
         config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, problemLevel)
         configFile = file_with_test_name(".contraction.yaml")
         print("Generate_YAML output:", configFile)
@@ -69,6 +70,7 @@ level_params = [pytest.param((0, Solutions.src1), id="Convolution_Class"),
 
 @pytest.fixture(params=level_params)
 def run_convolution_level(request,
+                          pytestconfig,
                           run_nothing,
                           run_generate_yaml,
                           run_contraction,
@@ -85,7 +87,7 @@ def run_convolution_level(request,
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--no-conv-assertions", action="store_true", 
+        "--no-conv-assertions", action="store_true", default=1,
         help='''
         Disable assertiong on Convolution class.
         ''')
@@ -110,9 +112,16 @@ def pytest_addoption(parser):
         )
 
 def pytest_configure(config):
-    pytest.args["test_level"] = config.getoption('--test-level')
-    pytest.args["problem_level"] = config.getoption('--problem-level')
+    args["test_level"] = config.getoption('--test-level')
+    args["problem_level"] = config.getoption('--problem-level')
     try:
-        pytest.args["no_conv_assertions"]= config.getoption('--no-conv-assertions')
+        args["no_conv_assertions"]= config.getoption('--no-conv-assertions')
     except ValueError:
-        pytest.args["no_conv_assertions"]=1
+        args["no_conv_assertions"]=1
+
+@pytest.fixture()
+def tensile_state(pytestconfig):
+    """
+    Shared tensile state, including args.
+    """
+    return TensileState(args=args)

@@ -1,10 +1,9 @@
 import logging,pytest
-from pytest import args
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
 @pytest.mark.parametrize("unrollOnChannel", [0,1], ids=["unrollOnChannel0", "unrollOnChannel1"])
-def test_nchw_backwardweights_defaults(run_convolution_level, unrollOnChannel):
+def test_nchw_backwardweights_defaults(tensile_state, run_convolution_level, unrollOnChannel):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
@@ -12,7 +11,7 @@ def test_nchw_backwardweights_defaults(run_convolution_level, unrollOnChannel):
                       'UnrollOnChannel': unrollOnChannel,
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         (cdim,filterDims) = (3,[2]) if conv.unrollOnChannel else (2,[3])
         assert(z['NumIndicesC']==2)
         assert(z['IndexAssignmentsA']==filterDims + [0, cdim])
@@ -22,14 +21,14 @@ def test_nchw_backwardweights_defaults(run_convolution_level, unrollOnChannel):
         assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-def test_nchw_backwardweights_filter3x1(run_convolution_level):
+def test_nchw_backwardweights_filter3x1(tensile_state, run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
                       'Filter': '3x1',
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         (cdim,filterDims) = (4,[3]) if conv.unrollOnChannel else (3,[4])
         assert(z['NumIndicesC']==3)
         assert(z['IndexAssignmentsA']==filterDims + [0, 1, cdim])
@@ -39,14 +38,14 @@ def test_nchw_backwardweights_filter3x1(run_convolution_level):
         assert(conv.solutionParms["AssertSizeEqual"] == {0:3})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-def test_nchw_backwardweights_filter1x3(run_convolution_level):
+def test_nchw_backwardweights_filter1x3(tensile_state, run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
                       'Filter': '1x3',
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         (cdim,filterDims) = (4,[3]) if conv.unrollOnChannel else (3,[4])
         assert(z['NumIndicesC']==3)
         assert(z['IndexAssignmentsA']==filterDims + [0, 1, cdim])
@@ -56,14 +55,14 @@ def test_nchw_backwardweights_filter1x3(run_convolution_level):
         assert(conv.solutionParms["AssertSizeEqual"] == {0:3})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-def test_nchw_backwardweights_filter3x5(run_convolution_level):
+def test_nchw_backwardweights_filter3x5(tensile_state, run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
                       'Filter': '3x5',
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         # TODO - need to expand filter dims
         (cdim,filterDims) = (5,[4]) if conv.unrollOnChannel else (4,[5])
         assert(z['NumIndicesC']==4)
@@ -77,7 +76,7 @@ def test_nchw_backwardweights_filter3x5(run_convolution_level):
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 
-def test_nchw_backwardweights_filter3x5_nopack(run_convolution_level):
+def test_nchw_backwardweights_filter3x5_nopack(tensile_state, run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
@@ -85,7 +84,7 @@ def test_nchw_backwardweights_filter3x5_nopack(run_convolution_level):
                       'PackedSpatialDims': 0,
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         # TODO - need to expand filter dims
         (cdim,filterDims) = (6,[5,4]) if conv.unrollOnChannel else (4,[6,5])
         assert(z['NumIndicesC']==4)
