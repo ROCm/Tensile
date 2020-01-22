@@ -442,10 +442,14 @@ namespace Tensile
         size_t wiX = 1;
         size_t wiY = 1;
         size_t wiZ = 1;
-        for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
-          wiX *= problem.freeSizeA(i);
-        for(size_t i = 0; i < problem.freeIndicesB().size(); i++)
-          wiY *= problem.freeSizeB(i);
+        // free index order of a and b doesn't matter since we are multiplying them together
+        for(auto freeIdx : problem.freeIndices())
+        {
+          if (freeIdx.isA)
+            wiX *= problem.d().sizes()[freeIdx.d];
+          else
+            wiY *= problem.d().sizes()[freeIdx.d];
+        }
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
           wiZ *= problem.batchSize(i);
 
@@ -487,10 +491,8 @@ namespace Tensile
                                                         Hardware    const& hardware) const
     {
         std::string name = concatenate("C", problem.cNames(),
-                                        "_A", problem.aNames(),
-                                        "_B", problem.bNames(),
                                         "_",
-                                        TypeInfo<typename TypedInputs::AType>::Abbrev());
+                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {

@@ -47,7 +47,6 @@ namespace Tensile
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
         using Table = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
         std::shared_ptr<Table> table;
-        mutable CachedProblemMap<ProblemKey<size_t>, Tensile::ProblemKeyHash<size_t> ,MySolution> problemMap;
 
         static std::string Type() { return "Matching"; }
         virtual std::string type() const override { return Type(); }
@@ -59,17 +58,10 @@ namespace Tensile
                 return concatenate(type(), ": ", table->description());
         }
 
-        std::shared_ptr<MySolution>
-            findSolutionInCache(MyProblem const& problem, Hardware const& hardware) const
+        virtual std::shared_ptr<MySolution>
+            findBestSolution(MyProblem const& problem,
+                             Hardware  const& hardware) const override
         {
-            ProblemKey<size_t> pkey = problem.getKey();
-            pkey.addKeyAttribute(hardware.id());
-
-            std::shared_ptr<MySolution> theSolution = problemMap.find(pkey);
-
-            if (theSolution != nullptr)
-                return theSolution;
-
             typename Table::Transform transform =
                 [&](Element library) -> std::shared_ptr<MySolution>
                 {
@@ -78,15 +70,7 @@ namespace Tensile
 
             std::shared_ptr<MySolution> closestEntry = table->findBestMatch(problem, transform);
 
-            return problemMap.add(pkey, closestEntry);
-        }
-
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
-        {
-            auto cachedSolution = findSolutionInCache(problem, hardware);
-            return cachedSolution;
+            return closestEntry;
         }
 
         virtual SolutionSet<MySolution>
