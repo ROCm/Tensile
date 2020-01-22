@@ -37,7 +37,7 @@ def run_generate_yaml(file_with_test_name):
         if problemFunc == None:
             problemFunc = YamlBuilder.ProblemSizes
         if problemLevel==-1:
-            problemLevel = pytest.args["src_problem_level"] if solution.__name__.startswith("src") else pytest.args["problem_level"]
+            problemLevel = pytest.args["problem_level"] if solution.__name__.startswith("src") else pytest.args["problem_level"]
         config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, problemLevel)
         configFile = file_with_test_name(".contraction.yaml")
         print("Generate_YAML output:", configFile)
@@ -108,19 +108,9 @@ def pytest_addoption(parser):
         3= hundreds of problems
         '''
         )
-    parser.addoption(
-        "--src-problem-level", action="store", type=int, default=2,
-        help='''
-        How many exact configurations to generate for contraction testing for src* solutions.
-        1= single problem
-        2= tens of problems
-        3= hundreds of problems
-        '''
-        )
 
 def pytest_configure(config):
     pytest.args["test_level"] = config.getoption('--test-level')
-    pytest.args["src_problem_level"] = config.getoption('--src-problem-level')
     pytest.args["problem_level"] = config.getoption('--problem-level')
     try:
         pytest.args["no_conv_assertions"]= config.getoption('--no-conv-assertions')

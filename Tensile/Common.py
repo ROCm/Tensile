@@ -471,7 +471,7 @@ validParameters = {
     "AssertStrideBEqual":  -1,
 
     # Assertions that require stride to be specified value.
-    # Dictary of pairs of {index, constValue}.
+    # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
     "AssertSizeEqual":    -1,
 

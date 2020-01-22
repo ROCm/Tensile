@@ -447,11 +447,11 @@ class Convolution:
 
     iaa = problemTypeOut["IndexAssignmentsA"]
     iab = problemTypeOut["IndexAssignmentsB"]
-    allIndicies = list(range(len(self.indexAssignments)))
+    allIndices = list(range(len(self.indexAssignments)))
     self.sumIndices  = list(range(problemTypeOut["NumIndicesC"], len(self.indexAssignments)))
-    self.batchIndices = [idx for idx in allIndicies \
+    self.batchIndices = [idx for idx in allIndices \
                    if idx in iaa and idx in iab and idx not in self.sumIndices]
-    self.freeIndices = [idx for idx in allIndicies \
+    self.freeIndices = [idx for idx in allIndices \
                    if idx not in self.sumIndices and idx not in self.batchIndices]
     self.checkDims(self.freeIndices, self.batchIndices, self.sumIndices)
 
@@ -908,12 +908,12 @@ class ProblemType:
         printExit("invalid index %u (expected summation but not (inA and inB))" % i)
     # print index assignments
     if globalParameters["PrintIndexAssignments"]:
-      print1("IndicesFree:  %s" % state["IndicesFree"])
-      print1("IndicesBatch: %s" % state["IndicesBatch"])
-      print1("IndicesSum:   %s" % state["IndicesSummation"])
-      print1("IndexAssignmentsA:   %s" % state["IndexAssignmentsA"])
-      print1("IndexAssignmentsB:   %s" % state["IndexAssignmentsB"])
-      print1("NumIndicesC:  %s" % state["NumIndicesC"])
+      print("IndicesFree:  %s" % state["IndicesFree"])
+      print("IndicesBatch: %s" % state["IndicesBatch"])
+      print("IndicesSum:   %s" % state["IndicesSummation"])
+      print("IndexAssignmentsA:   %s" % state["IndexAssignmentsA"])
+      print("IndexAssignmentsB:   %s" % state["IndexAssignmentsB"])
+      print("NumIndicesC:  %s" % state["NumIndicesC"])
 
     for k in ('IndexAssignmentsA','IndexAssignmentsB'):
       if len(state[k]) != len(set(state[k])):
@@ -974,12 +974,12 @@ class ProblemType:
     #state["TLUB"] = True # hack
 
     if globalParameters["PrintIndexAssignments"]:
-      print1("TLUA:  %s (stridePosA(%d) <? unrollIdxA(%d)" % \
+      print("TLUA:  %s (stridePosA(%d) <? unrollIdxA(%d)" % \
 			(state["TLUA"], strideIdxA, unrollIdxA))
-      print1("TLUB:  %s (stridePosB(%d) <? unrollIdxB(%d)" % \
+      print("TLUB:  %s (stridePosB(%d) <? unrollIdxB(%d)" % \
 	  		(state["TLUB"], strideIdxB, unrollIdxB))
-      print1("Index01A:  %s" % state["Index01A"])
-      print1("Index01B:  %s" % state["Index01B"])
+      print("Index01A:  %s" % state["Index01A"])
+      print("Index01B:  %s" % state["Index01B"])
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
     #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
