@@ -237,7 +237,7 @@ class ProblemType:
 
         return predicates
 
-def extractDimPredicateFromDict(cls, key, value, predicateName):
+def extractDimPredicate(cls, key, value, predicateName):
     """
     Extract the predicate for AssertStrideEqual*
     Value is a dictionary
@@ -256,12 +256,12 @@ class ProblemPredicate(Properties.Predicate):
     def FromOriginalKeyPair(cls, pair):
         (key, value) = pair
         if key == "AssertStrideAEqual":
-            return extractDimPredicateFromDict(cls, key, value, "StrideAEqual")
+            return extractDimPredicate(cls, key, value, "StrideAEqual")
         if key == "AssertStrideBEqual":
-            return extractDimPredicateFromDict(cls, key, value, "StrideBEqual")
+            return extractDimPredicate(cls, key, value, "StrideBEqual")
 
         if key == "AssertSizeEqual":
-            return extractDimPredicateFromDict(cls, key, value, "SizeEqual")
+            return extractDimPredicate(cls, key, value, "SizeEqual")
 
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':

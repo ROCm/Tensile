@@ -159,11 +159,15 @@ namespace Tensile
 
         void CSVStackFile::setValueForKey(std::string const& key, double const& value)
         {
-            setValueForKey(key, boost::lexical_cast<std::string>(value));
-            //std::ostringstream ss;
-            //ss << std::fixed << std::setprecision(2) << value;
-            //ss << value;
-            //setValueForKey(key, ss.str());
+            if (value > 0.1)
+            {
+                std::ostringstream ss;
+                ss << std::fixed << std::setprecision(2) << value;
+                ss << value;
+                setValueForKey(key, ss.str());
+            }
+            else
+                setValueForKey(key, boost::lexical_cast<std::string>(value));
         }
     }
 }
