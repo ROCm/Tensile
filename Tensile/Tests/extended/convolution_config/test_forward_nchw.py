@@ -233,7 +233,7 @@ def test_nchw_filter1x2_dilation(run_convolution_level):
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-def test_nchw_dilation(run_convolution_level):
+def test_nchw_dilation2x2(run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -241,13 +241,14 @@ def test_nchw_dilation(run_convolution_level):
                       })
     log.debug(conv.printUsage(z))
     if not args["no_conv_assertions"]:
+        (cdim, filterDims) = (5,[4,3]) if conv.unrollOnChannel else (5,[4,3])
         assert(z['NumIndicesC']==3)
-        assert(z['IndexAssignmentsA']==[0, 3, 2])
-        assert(z['IndexAssignmentsB']==[3, 1, 2])
-        assert(not z['UseInitialStridesAB'])
-        assert(conv.solutionParms["AssertStrideAEqual"] == {0:1})
-        assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,2:0})
-        assert(conv.solutionParms["AssertSizeEqual"] == {})
+        assert(z['IndexAssignmentsA']==filterDims + [0, cdim, 2])
+        assert(z['IndexAssignmentsB']==filterDims + [cdim, 1, 2])
+        assert(z['UseInitialStridesAB'])
+        assert(conv.solutionParms["AssertStrideAEqual"] == {0:2,2:1})
+        assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,filterDims[0]:0})
+        assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:1, filterDims[1]:1})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_stride_filter(run_convolution_level):
