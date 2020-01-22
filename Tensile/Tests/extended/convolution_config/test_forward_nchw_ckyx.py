@@ -1,11 +1,10 @@
 import logging,pytest
-from pytest import args
 from Tensile.SolutionStructs import Convolution
 
 log =logging.getLogger("testlog")
 
 @pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes])
-def test_ckyx_1x1(run_convolution_level,problemSizes):
+def test_ckyx_1x1(tensile_state, run_convolution_level,problemSizes):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -13,7 +12,7 @@ def test_ckyx_1x1(run_convolution_level,problemSizes):
                       'Filter': '1x1',
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         assert(z['NumIndicesC']==3)
         assert(z['IndexAssignmentsA']==[0, 3, 2])
         assert(z['IndexAssignmentsB']==[1, 3, 2])
@@ -23,7 +22,7 @@ def test_ckyx_1x1(run_convolution_level,problemSizes):
 
     run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
-def test_ckyx_1x1_nopack(run_convolution_level):
+def test_ckyx_1x1_nopack(tensile_state, run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -32,7 +31,7 @@ def test_ckyx_1x1_nopack(run_convolution_level):
                       'Filter': '1x1',
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         assert(z['NumIndicesC']==4)
         assert(z['IndexAssignmentsA']==[0, 1, 4, 3])
         assert(z['IndexAssignmentsB']==[2, 4, 3])
@@ -43,7 +42,7 @@ def test_ckyx_1x1_nopack(run_convolution_level):
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 
-def test_ckyx_2x2(run_convolution_level):
+def test_ckyx_2x2(tensile_state, run_convolution_level):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -51,7 +50,7 @@ def test_ckyx_2x2(run_convolution_level):
                       'Filter': '2x3',
                       })
     log.debug(conv.printUsage(z))
-    if not args["no_conv_assertions"]:
+    if not tensile_state.args["no_conv_assertions"]:
         filterDims = [4,3] if conv.unrollOnChannel else [5,4]
         cdim = 5 if conv.unrollOnChannel else 3
         assert(z['NumIndicesC']==3)

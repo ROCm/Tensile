@@ -3,13 +3,16 @@ from Tensile.SolutionStructs import Convolution
 
 log =logging.getLogger("testlog")
 
-def test_simple(run_convolution_level):
+def test_simple(tensile_state, run_convolution_level):
     "Isolated simple test for developement testing"
+
+
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
                       'Filter': '1x1',
                       })
+
     log.debug(conv.printUsage(z))
     assert(z['NumIndicesC']==3)
     assert(z['IndexAssignmentsA']==[0, 3, 2])
