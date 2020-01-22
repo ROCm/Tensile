@@ -36,7 +36,7 @@ namespace std
     {
         inline size_t operator()(Tensile::AMDGPU const& gpu) const
         {
-            return Tensile::hash_combine(gpu.processor, gpu.computeUnitCount);
+            return Tensile::hash_combine(static_cast<size_t>(gpu.processor), gpu.computeUnitCount);
         }
     };
 }
