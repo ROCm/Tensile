@@ -33,6 +33,7 @@
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/Utils.hpp>
 #include <Tensile/Debug.hpp>
+#include <Tensile/Comparison.hpp>
 
 namespace Tensile {
     const size_t TensorDescriptor::UseDefaultStride = static_cast<size_t>(-1);
@@ -164,11 +165,4 @@ namespace Tensile {
         return stream << t.ToString();
     }
 
-
-    //std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t)
-    //{
-    //    return LogRange(stream, t.lens, ", ");
-    //}
-
 }
-
