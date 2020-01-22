@@ -245,7 +245,7 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        rv.args.append<typename TypedInputs::DType       *>("d", inputs.d);
+        rv.args.append<typename TypedInputs::DType const *>("d", inputs.d);
         rv.args.append<typename TypedInputs::CType const *>("c", inputs.c);
         rv.args.append<typename TypedInputs::AType const *>("a", inputs.a);
         rv.args.append<typename TypedInputs::BType const *>("b", inputs.b);
@@ -490,7 +490,7 @@ namespace Tensile
                                         "_A", problem.aNames(),
                                         "_B", problem.bNames(),
                                         "_",
-                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
+                                        TypeInfo<typename TypedInputs::AType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {

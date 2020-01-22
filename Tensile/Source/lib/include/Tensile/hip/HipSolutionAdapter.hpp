@@ -40,9 +40,10 @@ namespace Tensile
         public:
             SolutionAdapter();
             SolutionAdapter(bool debug);
+            SolutionAdapter(bool debug, std::string const& name);
             ~SolutionAdapter();
 
-            virtual std::string name() const { return "HipSolutionAdapter"; }
+            virtual std::string name() const { return m_name; }
 
             void loadCodeObjectFile(std::string const& path);
 
@@ -80,6 +81,7 @@ namespace Tensile
             std::vector<hipModule_t> m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
             bool m_debug = false;
+            std::string m_name = "HipSolutionAdapter";
 
             std::vector<std::string> m_loadedModuleNames;
 

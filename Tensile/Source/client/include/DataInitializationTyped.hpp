@@ -434,7 +434,7 @@ namespace Tensile
                 inputs.beta = getValue<BetaType>(m_betaInit);
             }
 
-            hipMemcpyKind copyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
+            hipMemcpyKind getCopyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
                 if(src->gpu)
                 {
@@ -463,7 +463,7 @@ namespace Tensile
             void copyInputBuffers(std::shared_ptr<ManagedInputs> dst,
                                   std::shared_ptr<ManagedInputs> src)
             {
-                hipMemcpyKind kind = copyKind(dst, src);
+                hipMemcpyKind kind = getCopyKind(dst, src);
 
                 if(dst->managedA != src->managedA)
                     HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::ElementSize * m_aMaxElements, kind));
@@ -486,7 +486,7 @@ namespace Tensile
                             std::shared_ptr<ManagedInputs> bad,
                             ContractionProblem const& problem)
             {
-                hipMemcpyKind kind = copyKind(dst, src);
+                hipMemcpyKind kind = getCopyKind(dst, src);
 
                 if(m_boundsCheck)
                 {
@@ -505,13 +505,33 @@ namespace Tensile
 
                     copyInputBuffers(dst, bad);
 
+                    {
+                        ptrdiff_t aPadding = dst->aElements - problem.a().totalAllocatedElements();
+                        dst->a = dst->managedA.get() + aPadding/2;
+                    }
+
+                    {
+                        ptrdiff_t bPadding = dst->bElements - problem.b().totalAllocatedElements();
+                        dst->b = dst->managedB.get() + bPadding/2;
+                    }
+
+                    {
+                        ptrdiff_t cPadding = dst->cElements - problem.c().totalAllocatedElements();
+                        dst->c = dst->managedC.get() + cPadding/2;
+                    }
+
+                    {
+                        ptrdiff_t dPadding = dst->dElements - problem.d().totalAllocatedElements();
+                        dst->d = dst->managedD.get() + dPadding/2;
+                    }
+
                     Tensile::hip::CopyTensor(const_cast<AType *>(dst->a), src->a, problem.a(), kind);
                     Tensile::hip::CopyTensor(const_cast<BType *>(dst->b), src->b, problem.b(), kind);
 
-                    if(!m_cEqualsD)
-                        Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
+                    Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
 
-                    Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
+                    if(!m_cEqualsD)
+                        Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
 
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
@@ -525,7 +545,7 @@ namespace Tensile
 
             void copyD(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
-                hipMemcpyKind kind = copyKind(dst, src);
+                hipMemcpyKind kind = getCopyKind(dst, src);
 
                 HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
             }

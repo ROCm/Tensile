@@ -156,8 +156,7 @@ namespace Tensile
 
         batchIndices.push_back({2,2,2,2});
 
-        if(beta != 0.0)
-            c = d;
+        c = d;
 
         TensorOps nop;
 

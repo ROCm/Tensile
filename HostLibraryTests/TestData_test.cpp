@@ -40,7 +40,7 @@ TEST(TestData, Simple)
     EXPECT_FALSE(is_regular_file( data.file("fjdlksljfjldskj")));
 
     auto files = data.glob("*.yaml");
-    EXPECT_EQ(files.size(), 4);
+    EXPECT_EQ(files.size(), 5);
     for(auto file: files)
     {
         std::cout << file << std::endl;

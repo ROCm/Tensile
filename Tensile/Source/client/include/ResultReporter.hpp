@@ -151,7 +151,7 @@ namespace Tensile
             }
 
             virtual void logMessage(LogLevel level, std::string const& message) {}
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor) {}
+            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor, void const* ptrVal) {}
 
             /// RunListener interface functions
 

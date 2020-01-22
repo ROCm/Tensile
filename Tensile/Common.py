@@ -137,6 +137,7 @@ globalParameters["PrintTensorB"] = 0          # Print TensorB after initializati
 globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
+globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hcc, etc)
 
@@ -158,7 +159,7 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
 globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
@@ -192,6 +193,7 @@ globalParameters["Architecture"] = "all"
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+globalParameters["NewClientArgs"] = ""
 globalParameters["PackageLibrary"] = False
 globalParameters["LegacyComponents"] = True
 
@@ -1135,17 +1137,53 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
     return exePath
   return None
 
-# Try to assemble the asmString for the specified target processor
-# Success is defined as assembler returning no error code or stderr/stdout
+def GetAsmCaps(isaVersion):
+  """ Determine assembler capabilities by testing short instructions sequences """
+  rv = {}
+  rv["SupportedISA"] = tryAssembler(isaVersion, "", "")
+  rv["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"] = tryAssembler(isaVersion, "", "v_add_nc_u32 v0,v0,1")
+  rv["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
+  if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
+    rv["MaxVmcnt"] = 63
+  elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
+    rv["MaxVmcnt"] = 15
+  else:
+    rv["MaxVmcnt"] = 0
+
+  rv["SupportedSource"] = (isaVersion != (10,1,0))
+
+  return rv
+
+def GetArchCaps(isaVersion):
+  rv = {}
+  rv["HasEccHalf"]     = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
+  rv["SeparateVscnt"]  = isaVersion == (10,1,0)
+  rv["CMPXWritesSGPR"] = isaVersion != (10,1,0)
+  rv["HasWave32"]      = isaVersion == (10,1,0)
+
+  return rv
+
 def tryAssembler(isaVersion, options, asmString):
+  """
+  Try to assemble the asmString for the specified target processor
+  Success is defined as assembler returning no error code or stderr/stdout
+  """
+  if isaVersion == (10,1,0):
+    options += ' -mwavefrontsize64'
+
   asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
-             % (globalParameters["AssemblerPath"], isaVersion, options)
+             % (globalParameters["AssemblerPath"], gfxName(isaVersion), options)
 
   sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
 
   try:
     result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
     if globalParameters["PrintLevel"] >=2:
+        print("isaVersion: ", isaVersion)
         print("asm_cmd: ", asmCmd)
         print("output :", result)
     if result != "":
@@ -1157,6 +1195,27 @@ def tryAssembler(isaVersion, options, asmString):
 
   return 1 # syntax works
 
+def gfxArch(name):
+    import re
+    match = re.search(r'gfx(\d{3,})', name)
+    if not match: return None
+
+    ipart = match.group(1)
+
+    step = int(ipart[-1])
+    ipart = ipart[:-1]
+
+    minor = int(ipart[-1])
+    ipart = ipart[:-1]
+
+    major = int(ipart)
+
+    rv = (major, minor, step)
+
+    return rv
+
+def gfxName(arch):
+    return 'gfx' + ''.join(map(str,arch))
 
 ################################################################################
 # Assign Global Parameters
@@ -1192,58 +1251,45 @@ def assignGlobalParameters( config ):
 
   # ROCm Agent Enumerator Path
   globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
-  globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
+  if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
+    globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   if globalParameters["AssemblerPath"] is None:
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
   globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+
+  if "ROCmAgentEnumeratorPath" in config:
+    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
     line = process.stdout.readline().decode()
     while line != "":
-      gfxIdx = line.find("gfx")
-      if gfxIdx >= 0:
-        major = int(line[gfxIdx+3:gfxIdx+4])
-        minor = int(line[gfxIdx+4:gfxIdx+5])
-        step  = int(line[gfxIdx+5:gfxIdx+6])
-        if (major,minor,step) in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: gfx%u%u%u"%(major, minor, step))
-          globalParameters["CurrentISA"] = (major, minor, step)
+      arch = gfxArch(line.strip())
+      if arch is not None:
+        if arch in globalParameters["SupportedISA"]:
+          print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
+          globalParameters["CurrentISA"] = arch
         line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
-  # Determine assembler capabilities by testing short instructions sequences:
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
-  for (v) in globalParameters["SupportedISA"] + [(0,0,0)]:
-    globalParameters["AsmCaps"][v] = {}
-    globalParameters["ArchCaps"][v] = {}
-    isaVersion = "gfx" + "".join(map(str,v))
-    globalParameters["AsmCaps"][v]["SupportedISA"] = tryAssembler(isaVersion, "", "")
-    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
-    globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-    globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
-    globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
-    globalParameters["AsmCaps"][v]["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
-    if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
-      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 63
-    elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
-      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 15
-    else:
-      globalParameters["AsmCaps"][v]["MaxVmcnt"] = 0
+  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
+    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
+    globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
-    caps = ""
-    for k in globalParameters["AsmCaps"][v]:
-      caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
+    asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
+    archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
 
-    print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
-    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6) or v==(9,0,8))
-    print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))
+    print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+
+    print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+    print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
@@ -1392,7 +1438,7 @@ def pushWorkingPath( foldername ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
-  ensurePath( globalParameters["WorkingPath"] )
+  return ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
   # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \

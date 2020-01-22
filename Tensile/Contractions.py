@@ -25,6 +25,7 @@ from . import Properties
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state, state_key_ordering
 
+from . import Common
 
 @state_key_ordering
 class FreeIndex:
@@ -390,13 +391,11 @@ class Solution:
         else:
             rv.ideals = {}
 
-        if d['KernelLanguage'] == 'Assembly':
-            if 'ISA' not in d:
-                d['ISA'] = list(map(int,deviceInfo[1][3:6]))
-
-            rv.hardwarePredicate = Hardware.HardwarePredicate.FromISA(d['ISA'])
-        else:
-            d['ISA'] = [0,0,0]
+        if 'ISA' not in d:
+            if d['KernelLanguage'] == 'Assembly':
+                d['ISA'] = Common.gfxArch(deviceInfo[1])
+            else:
+                d['ISA'] = [0,0,0]
 
         rv.originalSolution = OriginalSolution(d)
         # hacky, can just construct Convolution yet again?

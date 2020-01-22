@@ -23,6 +23,7 @@ import itertools
 
 from . import Properties
 from . import Hardware
+from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
@@ -242,7 +243,7 @@ class MasterSolutionLibrary:
                 if devicePart == 'fallback':
                     pred = Hardware.HardwarePredicate("TruePred")
                 else:
-                    isa = tuple(map(int,devicePart[3:6]))
+                    isa = Common.gfxArch(devicePart)
                     pred = Hardware.HardwarePredicate.FromISA(isa)
 
                 newLib.rows.append({'predicate': pred, 'library': library})
@@ -281,13 +282,18 @@ class MasterSolutionLibrary:
 
         return cls(solutionMap, library)
 
-
-    def __init__(self, solutions, library):
+    def __init__(self, solutions, library, version=None):
         self.solutions = solutions
         self.library = library
+        self.version = version
 
     def state(self):
-        return {'solutions': state(iter(list(self.solutions.values()))), 'library': state(self.library)}
+        rv = {'solutions': state(iter(list(self.solutions.values()))),
+              'library': state(self.library)}
+
+        if self.version is not None:
+            rv['version'] = self.version
+        return rv
 
     def applyNaming(self, naming=None):
         if naming is None:

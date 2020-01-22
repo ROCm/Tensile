@@ -28,7 +28,6 @@ import abc
 import os
 import shutil
 import subprocess
-from os import path, chmod
 
 ################################################################################
 # Kernel Writer
@@ -43,6 +42,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
+
+  @property
+  def asmCaps(self):
+    """
+    Assembler capabilities for the current ISA version.
+    """
+    return globalParameters["AsmCaps"][self.version]
+
+  @property
+  def archCaps(self):
+    """
+    Architectural capabilities for the current ISA version.
+    """
+    return globalParameters["ArchCaps"][self.version]
 
   ##############################################################################
   # makeSchedule:  Schedule work into interations.
@@ -217,11 +230,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
             readsToWait = readsToWait - 1
             # TODO - gfx9 supports higher max VMCNT
             if 1:
-              imod.addCode(Code.WaitCnt(-1, min(maxVmcnt, readsToWait), \
+              imod.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait), \
                   "wait for global read before writing to local"))
             else:
               print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
-              imod.addCode(Code.Waitcnt(-1, 0, "conservative waitcnt"))
+              imod.addCode(Code.WaitCnt(self.version, -1, 0, "conservative waitcnt"))
           imod.addCode(item)
           self.perIterLocalWriteCode[u].addCode(imod)
         itemsToSched = itemsToSched[itemPerIter:]
@@ -768,7 +781,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           """
           kl.append("    /* print Local state */" + self.endLine)
           kl.append("    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine)
-          kl.append("      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" \)
+          kl.append("      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" )
               % self.endLine
           kl.append("    }" + self.endLine)
           """
@@ -1032,14 +1045,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   waitCntVal = waitCntItems[iter] + 1 if (self.perIterLocalWriteCode[u].count()>0) else waitCntItems[iter]
                   # read + write instructions lgkmcnt (1=> for write)
                   # build waitCnt using new lgkmcnt
-                  waitCode = Code.WaitCnt(waitCntVal,-1,"wait for prior local read")
+                  waitCode = Code.WaitCnt(self.version, waitCntVal,-1,"wait for prior local read")
                 subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                          self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
                          pointerCode, waitCode, macIterCodeGrp)
               else:
                   #last group only pointer + localWrite Code
                 if self.enable["Wait"]:
-                  waitCode = Code.WaitCnt(waitCntItems[iter],-1,"wait for prior local read & local writes")
+                  waitCode = Code.WaitCnt(self.version, waitCntItems[iter],-1,"wait for prior local read & local writes")
                 subIterCode.addCode(waitCode)
                 subIterCode.addCode(macIterCodeGrp)
               kl.append(subIterCode) # add scheduled "other", local reads, local writes
@@ -1280,7 +1293,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.comment("shift vector components d0"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
-        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB:
+        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersB))
 
@@ -1352,10 +1365,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
   #
   ##############################################################################
 
-  ##############################################################################
-  # single line comment
-  ##############################################################################
   def comment1(self, text):
+    """
+    single line comment
+    """
+
     s = ""
     s += self.indent
     s += self.commentPrefix
@@ -1364,19 +1378,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
     s += self.endLine
     return s
 
-  ##############################################################################
-  # comment with prior newline
-  ##############################################################################
   def comment(self, text):
+    """
+    comment with prior newline
+    """
+
     s = ""
     s += self.endLine
     s += self.comment1(text)
     return s
 
-  ##############################################################################
-  # 3-line comment
-  ##############################################################################
   def comment3(self, text):
+    """
+    3-line comment
+    """
+
     s = ""
     s += self.endLine
     s += self.indent
@@ -1385,11 +1401,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     s += self.commentSuffix
     s += self.endLine
 
-    s += self.indent
-    s += self.commentPrefix
-    s += " %-38s " % text
-    s += self.commentSuffix
-    s += self.endLine
+    for line in text.split("\n"):
+      s += self.indent
+      s += self.commentPrefix
+      s += " %-38s " % line
+      s += self.commentSuffix
+      s += self.endLine
 
     s += self.indent
     s += self.commentPrefix
@@ -2537,11 +2554,11 @@ for codeObjectFileName in codeObjectFileNames:
   def writeByteArrayScript(self):
     asmPath = self.getAssemblyDirectory()
 
-    bytearrayFileName = path.join(asmPath,"insert_byte_array.py")
-    if not path.isfile(bytearrayFileName):
+    bytearrayFileName = os.path.join(asmPath,"insert_byte_array.py")
+    if not os.path.isfile(bytearrayFileName):
       with open(bytearrayFileName, 'w') as bytearrayFile:
         bytearrayFile.write(self.byteArrayScriptSource())
-      chmod(bytearrayFileName, 0o777)
+      os.chmod(bytearrayFileName, 0o777)
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
@@ -2552,6 +2569,7 @@ for codeObjectFileName in codeObjectFileNames:
     if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
     REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
 
+    print("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
     if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
       return REPLACEMENT_KERNEL_PATH
 
@@ -2559,7 +2577,7 @@ for codeObjectFileName in codeObjectFileNames:
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
     kernelName = self.getKernelName(kernel)
-    fileBase = path.join(asmPath, kernelName )
+    fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
     replacementKernel = self.getReplacementKernelPath(kernel)
@@ -2586,7 +2604,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getAssembledKernelObjectFile(self, kernel):
     assemblyFileName = self.getKernelObjectAssemblyFile(kernel)
 
-    base, ext = path.splitext(assemblyFileName)
+    base, ext = os.path.splitext(assemblyFileName)
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
@@ -2599,7 +2617,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getSingleCodeObjectFile(self, kernel):
     objectFileName = self.getAssembledKernelObjectFile(kernel)
 
-    base, ext = path.splitext(objectFileName)
+    base, ext = os.path.splitext(objectFileName)
     coFileName = base + '.co'
 
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)

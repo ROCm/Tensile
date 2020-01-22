@@ -86,10 +86,10 @@ namespace Tensile
                     r->logMessage(level, message);
             }
 
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor) override
+            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor, void const* ptrValue) override
             {
                 for(auto r: m_reporters)
-                    r->logTensor(level, name, data, tensor);
+                    r->logTensor(level, name, data, tensor, ptrValue);
             }
 
             /// RunListener interface functions
