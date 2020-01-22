@@ -33,6 +33,7 @@ from .Common import globalParameters, HR, print1, print2, printExit, ensurePath,
                    listToInitializer
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
+from .KernelWriter import KernelWriter
 from .SolutionStructs import Solution
 from .SolutionWriter import SolutionWriter
 
@@ -1098,7 +1099,8 @@ def TensileCreateLibrary():
         kernels.append(kernel)
     solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
     for kernel in solutionKernelsBetaOnly:
-      if kernel not in kernelsBetaOnly:
+      if KernelWriter.getKernelNameBetaOnly(kernel) not in \
+          [KernelWriter.getKernelNameBetaOnly(k) for k in kernelsBetaOnly]:
         kernelsBetaOnly.append(kernel)
 
   # if any kernels are assembly, append every ISA supported
