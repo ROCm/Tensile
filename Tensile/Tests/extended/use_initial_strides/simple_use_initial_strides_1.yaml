@@ -1,6 +1,3 @@
-TestParameters:
-  marks: [xfail] # HCC 3.0 bug
-
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
