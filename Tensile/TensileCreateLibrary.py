@@ -163,7 +163,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       if globalParameters["PrintCodeCommands"]:
         print(' '.join(extractArgs))
-      subprocess.check_call(extractArgs)
+      subprocess.check_call(extractArgs, cwd=buildPath)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
