@@ -2736,8 +2736,6 @@ for codeObjectFileName in codeObjectFileNames:
     name += "_"
     name += kernel["ProblemType"]["DestDataType"].toChar()
     if kernel["ProblemType"]["UseBeta"]: name += "B"
-    if kernel["ProblemType"]["UseInitialStridesAB"]: name += "I"
-    if kernel["ProblemType"]["UseInitialStridesCD"]: name += "Ic"
 
     return name
 
