@@ -1891,6 +1891,10 @@ class Solution:
     packedC1 = len(state["PackedC1IdxChars"])>1
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
+    if not bufferLoad:
+      state["DirectToLds"] = False
+      state["_UseSgprForGRO"] = False
+      state["FractionalLoad"] = False
 
     #These modes only work under certain conditions, apply them here:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
@@ -1966,11 +1970,6 @@ class Solution:
       # use wider store for best store optimization 
       state["StoreVectorWidth"] = 4  
 
-    if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
-      state["BufferLoad"] = False
-      state["DirectToLds"] = False
-      state["_UseSgprForGRO"] = False
-      state["FractionalLoad"] = False
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
@@ -2431,19 +2430,19 @@ class Solution:
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
-    if state["BufferLoad"] and state["_UseSgprForGRO"] and state["EdgeType"]=="ShiftPtr":
+    if bufferLoad and state["_UseSgprForGRO"] and state["EdgeType"]=="ShiftPtr":
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
 
-    if not state["BufferLoad"] or not state["GuaranteeNoPartialA"]:
+    if not bufferLoad or not state["GuaranteeNoPartialA"]:
       # Restrict GRVW/VW combos so shift-ptr logic will work
       if state["GlobalLoadVectorWidthA"] > 1 \
           and state["GlobalLoadVectorWidthA"] != state["VectorWidth"]:
           reject(state, "GlobalLoadVectorWidthA %u must be == VectorWidth %u or == 1" % \
                   (state["GlobalLoadVectorWidthA"], state["VectorWidth"]))
 
-    if not state["BufferLoad"] or not state["GuaranteeNoPartialB"]:
+    if not bufferLoad or not state["GuaranteeNoPartialB"]:
       # Restrict GRVW/VW combos so shift-ptr logic will work
       if state["GlobalLoadVectorWidthB"] > 1 \
           and state["GlobalLoadVectorWidthB"] != state["VectorWidth"]:
@@ -2465,7 +2464,7 @@ class Solution:
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not
     # individual vector registers doing bounds compares.
-    if not state["BufferLoad"] and state["FractionalLoad"]:
+    if not bufferLoad and state["FractionalLoad"]:
         reject(state, "Fractional requires BufferLoad")
 
     if state["_UseSgprForGRO"] == -1:
@@ -2492,7 +2491,7 @@ class Solution:
       if state["EdgeType"] != "ShiftPtr":
         reject(state, "Packed dims requires EdgeType==ShiftPtr")
       if state["KernelLanguage"] == "Assembly":
-        if not state["BufferLoad"]:
+        if not bufferLoad:
           reject(state, "Packed dims for Assembly requires BufferLoad")
         if not state["LdcEqualsLdd"]:
           # this would require an extra VGPR for addressing (since shared VGPRS are per-row)
@@ -2515,8 +2514,8 @@ class Solution:
       if problemType["ZeroPad%s"%tc] and state["KernelLanguage"] == "Assembly":
         if state["GlobalLoadVectorWidth%s"%tc] != 1:
           reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
-        if not state["BufferLoad"]:
-          reject(state, "asm ZeroPad requires BufferLoad")
+        if not bufferLoad:
+          rejecn(state, "asm ZeroPad requires BufferLoad")
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
@@ -2714,7 +2713,7 @@ class Solution:
           abbrev += "_"
       return abbrev
     elif isinstance(value, dict):
-      s =  "_".join(["%d_%d"%(pos,k) for pos,k in value.items()])
+      s =  "_".join(["%d%d"%(pos,k) for pos,k in value.items()])
       return s
     else:
       printExit("Parameter \"%s\" is new object type" % str(value) )
