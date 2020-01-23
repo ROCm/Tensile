@@ -2515,7 +2515,7 @@ class Solution:
         if state["GlobalLoadVectorWidth%s"%tc] != 1:
           reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
         if not bufferLoad:
-          rejecn(state, "asm ZeroPad requires BufferLoad")
+          reject(state, "asm ZeroPad requires BufferLoad")
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
