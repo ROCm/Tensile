@@ -2733,12 +2733,8 @@ for codeObjectFileName in codeObjectFileNames:
     name = "C"
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       name += indexChars[i].lower()
-    name += '_A'
-    name += ''.join([indexChars[i].lower() for i in kernel["ProblemType"]["IndexAssignmentsA"]])
-    name += '_B'
-    name += ''.join([indexChars[i].lower() for i in kernel["ProblemType"]["IndexAssignmentsB"]])
     name += "_"
-    name += kernel["ProblemType"]["DataType"].toChar()
+    name += kernel["ProblemType"]["DestDataType"].toChar()
     if kernel["ProblemType"]["UseBeta"]: name += "B"
     if kernel["ProblemType"]["UseInitialStridesAB"]: name += "I"
     if kernel["ProblemType"]["UseInitialStridesCD"]: name += "Ic"
