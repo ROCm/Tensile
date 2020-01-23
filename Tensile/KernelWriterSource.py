@@ -3216,8 +3216,10 @@ class KernelWriterSource(KernelWriter):
     #    + self.getGroupIdStr + "(1);" + self.endLine
     ########################################
     # wg other : batch dims
-    freeIdxC0 = [idx for idx in problemType["IndexAssignmentsA"] if idx in problemType["IndicesFree"]]
-    freeIdxC1 = [idx for idx in problemType["IndexAssignmentsB"] if idx in problemType["IndicesFree"]]
+    freeIdxC0 = [idx for idx in range(problemType["NumIndicesC"]) \
+                        if idx in problemType["IndexAssignmentsA"] and idx in problemType["IndicesFree"]]
+    freeIdxC1 = [idx for idx in range(problemType["NumIndicesC"]) \
+                        if idx in problemType["IndexAssignmentsB"] and idx in problemType["IndicesFree"]]
 
     batchSizes = "*".join(["size%s"%self.indexChars[idx] for idx in problemType["IndicesBatch"]])
     freeSizesC0 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC0])
