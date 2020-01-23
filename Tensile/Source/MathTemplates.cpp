@@ -234,6 +234,15 @@ template< >
 unsigned int tensileMultiply( unsigned int a, unsigned int b ) {
   return a*b;
 }
+// mixed signed/unsigned int for igemm tests
+template< >
+unsigned int tensileMultiply( int a, int b ) {
+  return a * b;
+}
+template< >
+unsigned int tensileMultiply(int a, unsigned int b) {
+  return a * b;
+}
 // mixed tensile_bfloat16 float
 template< >
 tensile_bfloat16 tensileMultiply( tensile_bfloat16 a, tensile_bfloat16 b ) {
