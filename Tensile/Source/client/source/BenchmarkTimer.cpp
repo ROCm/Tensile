@@ -40,11 +40,12 @@ namespace Tensile
     {
         static_assert(BenchmarkTimer::clock::is_steady, "Clock must be steady.");
 
-        BenchmarkTimer::BenchmarkTimer(po::variables_map const& args)
+        BenchmarkTimer::BenchmarkTimer(po::variables_map const& args, Hardware const& hardware)
             : m_numWarmups(          args["num-warmups"].as<int>()),
               m_numBenchmarks(       args["num-benchmarks"].as<int>()),
               m_numEnqueuesPerSync(  args["num-enqueues-per-sync"].as<int>()),
               m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>()),
+              m_hardware(hardware),
               m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark),
               m_useGPUTimer(         args["use-gpu-timer"].as<bool>()),
               m_sleepPercent(        args["sleep-percent"].as<int>()),
@@ -80,6 +81,28 @@ namespace Tensile
         {
             m_numEnqueuesInSolution = 0;
             m_timeInSolution = double_millis::zero();
+
+            ContractionSolution::ProjectedPerformance pp =
+              solution.projectedPerformance(m_problem, m_hardware);
+
+            m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
+            m_reporter->report(ResultKey::Tile1Granularity, pp.tile1Granularity);
+            m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
+            m_reporter->report(ResultKey::WaveGranularity, pp.waveGranularity);
+            m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
+
+            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
+
+            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
+
+            m_reporter->report(ResultKey::AluUs, pp.staticModel.aluUs);
+            m_reporter->report(ResultKey::MemReadUs, pp.staticModel.memReadUs);
+            m_reporter->report(ResultKey::MemWriteUs, pp.staticModel.memWriteUs);
+
+            m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
+            m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
+
+            // TODO-perfcounter - add memory global reads and writes from performance counter
         }
 
         void BenchmarkTimer::postSolution()
@@ -97,6 +120,7 @@ namespace Tensile
 
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
+
         }
 
         bool BenchmarkTimer::needMoreRunsInSolution() const

@@ -159,7 +159,7 @@ namespace Tensile
 
         void CSVStackFile::setValueForKey(std::string const& key, double const& value)
         {
-            if (1 and value > 1.0)
+            if (value > 0.01)
             {
                 std::ostringstream ss;
                 ss << std::fixed << std::setprecision(2) << value;

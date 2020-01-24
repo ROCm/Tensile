@@ -57,6 +57,8 @@ namespace Tensile
         ~AMDGPU();
 
         Processor   processor = Processor::gfx900;
+        int         wavefrontSize = 64;
+        int         simdPerCu = 4;
         int         computeUnitCount = 0;
         std::string deviceName;
 

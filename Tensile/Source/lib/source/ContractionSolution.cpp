@@ -150,6 +150,69 @@ namespace Tensile
         return static_cast<uint32_t>(magicNum);
     }
 
+
+    std::vector<size_t> generatePackedIndicesA(ContractionSolution::Problem const &problem,
+                                               size_t packBatchDims)
+    {
+        std::vector<size_t> packedIndices;
+
+        // TODO -move packedIndices calc to problem decode.
+        for (auto idx=0; idx<problem.a().dimensions(); idx++)
+        {
+            bool isSum = problem.boundIndices().end() !=
+                          std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                            [idx](const ContractionProblem::BoundIndex &bi)
+                            {return bi.a == idx;});
+
+            bool nonPackableBatch = false;
+            // TODO - base this check on if the batch is SetConstStrideA=0 - if so, don't pack
+            if (!(packBatchDims & 0x1))
+            {
+                nonPackableBatch = problem.batchIndices().end() !=
+                             std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
+                                [idx](const ContractionProblem::BatchIndex &bi)
+                                {return bi.a == idx;});
+            }
+
+            if (!isSum && !nonPackableBatch)
+                packedIndices.push_back(idx);
+        }
+
+        return packedIndices;
+    }
+
+
+    std::vector<size_t> generatePackedIndicesB(ContractionSolution::Problem const &problem,
+                                               size_t packBatchDims)
+    {
+        std::vector<size_t> packedIndices;
+
+        // Pack in all non-summation indices, except don't need magic number for the last one
+        for (auto idx=0; idx<problem.b().dimensions(); idx++)
+        {
+            bool isSum = problem.boundIndices().end() !=
+                         std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
+                            [idx](const ContractionProblem::BoundIndex &bi)
+                            {return bi.b == idx;});
+
+            bool nonPackableBatch = false;
+            // TODO - base this check on if the batch is SetConstStrideB=0 - if so, don't pack
+            if (!(packBatchDims & 0x2))
+            {
+                nonPackableBatch = problem.batchIndices().end() !=
+                             std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
+                                [idx](const ContractionProblem::BatchIndex &bi)
+                                {return bi.b == idx;});
+            }
+
+            if (!isSum && !nonPackableBatch)
+                packedIndices.push_back(idx);
+        }
+
+        return packedIndices;
+    }
+
+
     template <typename TypedInputs>
     KernelInvocation ContractionSolution::generateSingleCall(ContractionSolution::Problem const& problem,
                                                              TypedInputs                  const& inputs,
@@ -307,29 +370,8 @@ namespace Tensile
 
         if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
         {
-            std::vector<size_t> packedIndices;
+            std::vector<size_t> packedIndices = generatePackedIndicesA(problem, sizeMapping.packBatchDims);
 
-            // TODO -move packedIndices calc to problem decode.
-            for (auto idx=0; idx<problem.a().dimensions(); idx++)
-            {
-                bool isSum = problem.boundIndices().end() !=
-                              std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
-                                [idx](const ContractionProblem::BoundIndex &bi)
-                                {return bi.a == idx;});
-
-                bool nonPackableBatch = false;
-                // TODO - base this check on if the batch is SetConstStrideA=0 - if so, don't pack
-                if (!(sizeMapping.packBatchDims & 0x1))
-                {
-                    nonPackableBatch = problem.batchIndices().end() !=
-                                 std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
-                                    [idx](const ContractionProblem::BatchIndex &bi)
-                                    {return bi.a == idx;});
-                }
-
-                if (!isSum && !nonPackableBatch)
-                    packedIndices.push_back(idx);
-            }
             // Pack in all non-summation indices, except don't need magic number for the last one
             for (auto pi=packedIndices.begin(); pi!=packedIndices.end()-1; pi++)
             {
@@ -343,28 +385,8 @@ namespace Tensile
         }
         if (problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
         {
-            std::vector<size_t> packedIndices;
-            // Pack in all non-summation indices, except don't need magic number for the last one
-            for (auto idx=0; idx<problem.b().dimensions(); idx++)
-            {
-                bool isSum = problem.boundIndices().end() !=
-                             std::find_if(problem.boundIndices().begin(), problem.boundIndices().end(),
-                                [idx](const ContractionProblem::BoundIndex &bi)
-                                {return bi.b == idx;});
+            std::vector<size_t> packedIndices = generatePackedIndicesB(problem, sizeMapping.packBatchDims);
 
-                bool nonPackableBatch = false;
-                // TODO - base this check on if the batch is SetConstStrideB=0 - if so, don't pack
-                if (!(sizeMapping.packBatchDims & 0x2))
-                {
-                    nonPackableBatch = problem.batchIndices().end() !=
-                                 std::find_if(problem.batchIndices().begin(), problem.batchIndices().end(),
-                                    [idx](const ContractionProblem::BatchIndex &bi)
-                                    {return bi.b == idx;});
-                }
-
-                if (!isSum && !nonPackableBatch)
-                    packedIndices.push_back(idx);
-            }
             // Pack in all non-summation indices, except don't need magic number for the last one
             for (auto pi=packedIndices.begin(); pi!=packedIndices.end()-1; pi++)
             {
@@ -611,12 +633,100 @@ namespace Tensile
         }
     }
 
-    double ContractionSolution::projectedPerformance(Problem const& problem, Hardware const& hardware) const
+    ContractionSolution::StaticPerformanceModel ContractionSolution::staticPerformanceModel
+        (double M, double N, double K, double NumBatches, double MT0, double MT1,
+         double NumCUs, double TotalGranularity, int GlobalSplitU) const
     {
-        double M = problem.freeSizeA(0);
-        double N = problem.freeSizeB(0);
-        double NumBatches = problem.batchSize(0);
-        double K = problem.boundSize(0);
+        StaticPerformanceModel spm;
+
+        double beta = 0.0; // TODO-model - base on input value
+        int betaReads=0, betaWrites=0;
+        if (GlobalSplitU==1)
+        {
+            if (beta != 0.0)
+                betaReads = 1.0;
+        }
+        else
+        {
+            if (beta == 0)
+                betaWrites = 1; // zero output
+            else if (beta != 1.0) // if 1.0, just atomic update output
+            {
+                // if not 1.0, read, scale, write, then atomic update in kernel
+                betaReads = 1; // initial read for scale
+                betaWrites = 1; // writeback after scale
+            }
+        }
+
+        spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * (problemType.aType == DataType::Float ? 4 : 2); // hack
+        spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * (problemType.bType == DataType::Float ? 4 : 2); // hack
+        spm.memReadBytesC = (NumBatches*M*N) * betaReads * (problemType.cType == DataType::Float ? 4 : 2); // hack
+#if 0
+        spm.memReadBytesB = (M*N*K)/MT0 * TypeInfo<typename TypedInputs::BType>::ElementSize();
+        //if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
+        //spm.memReadBytesC = (M*N) *TypeInfo<typename TypedInputs::CType>::ElementSize();
+        spm.memWriteBytesD   = (M*N) *TypeInfo<typename TypedInputs::DType>::ElementSize();
+#endif
+
+        auto  dSize = (problemType.dType == DataType::Float ? 4 : 2); // hack
+        if (GlobalSplitU == 1)
+            spm.memWriteBytesD   = (NumBatches*M*N)*(1+betaWrites);
+        else
+        {
+            bool hardwareAtomic = false;  //TODO-model
+            double atomicOperations = hardwareAtomic ? 2:3; //read-mod-write or cas  //TODO-model
+            double atomicCollisions = 1.0;  //TODO-could be based on K, GSU
+            spm.memWriteBytesD   = (NumBatches*M*N) * (betaWrites + atomicOperations * atomicCollisions);
+        }
+        spm.memReadBytes = spm.memReadBytesA + spm.memReadBytesB + spm.memReadBytesC;
+
+        double readEfficiency = .85; // TODO-model: read from arch with yaml override
+        double l2ReadHit = 0.0; // TODO-model: read from arch with yaml override
+        double l2WriteHit = .50; // TODO-model: read from arch with yaml override
+        double memBandwidthMBps = 1000*1000; // TODO-model: read width from hipDeviceProp and clock from smi
+        double l2BandwidthMBps = 2*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
+        double peakMFlops = 1300*NumCUs*128;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
+
+        spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
+        spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
+
+        double flops = 2.0*NumBatches*M*N*K;
+        spm.aluUs = flops/(peakMFlops*TotalGranularity);
+
+        return spm;
+    }
+
+    ContractionSolution::ProjectedPerformance ContractionSolution::projectedPerformance(
+        Problem const& problem, Hardware const& hardware) const
+    {
+        ProjectedPerformance pp;
+
+        double M=1.0, N=1.0;
+        if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
+        {
+            std::vector<size_t> packedIndices = generatePackedIndicesA(problem, sizeMapping.packBatchDims);
+            for (auto pi=packedIndices.begin(); pi!=packedIndices.end(); pi++)
+                M *= problem.a().sizes()[*pi];
+        } else
+            M = problem.freeSizeA(0);
+
+        if (problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
+        {
+            std::vector<size_t> packedIndices = generatePackedIndicesB(problem, sizeMapping.packBatchDims);
+            for (auto pi=packedIndices.begin(); pi!=packedIndices.end(); pi++)
+                N *= problem.b().sizes()[*pi];
+        }
+        else
+            N = problem.freeSizeB(0);
+
+
+        double NumBatches = 1;
+        if (sizeMapping.packBatchDims == 0)
+        {
+            for(size_t i = 0; i < problem.batchIndices().size(); i++)
+                NumBatches *= problem.batchSize(i);
+        }
+        double K = problem.boundSize(0); // TODO - fix for multiple summations
 
         auto it = ideals.begin();
 
@@ -641,29 +751,40 @@ namespace Tensile
         double MT1 = sizeMapping.macroTile.y;
         double NumCUs = 64;
 
-	AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
-
+        AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
         if (pAMDGPU != nullptr)
-        {                     //computeUnitCount
+        {
             NumCUs = pAMDGPU->computeUnitCount;
         }
 
-	double GlobalSplitU = sizeMapping.globalSplitU;
+        double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU = sizeMapping.workGroupSize.z;
         double IdealGranularityPerf = closestKPerformance;
 
-        double Tiles0 = ceil(M / MT0);
-        double Tiles1 = ceil(N / MT1);
+        pp.numTiles0 = M / MT0;
+        pp.numTiles1 = N / MT1;
 
-        double TileGranularity0 = (M / MT0) / Tiles0;
-        double TileGranularity1 = (N / MT1) / Tiles1;
+        pp.tilesPerCu = (NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1)) /
+                          (NumCUs / GlobalSplitU / LocalSplitU);
+        pp.tile0Granularity = pp.numTiles0/ceil(pp.numTiles0);
+        pp.tile1Granularity = pp.numTiles1/ceil(pp.numTiles1);
 
-        double TilesPerCu = (NumBatches * Tiles0 * Tiles1) / (NumCUs / GlobalSplitU / LocalSplitU);
-        double CuGranularity = TilesPerCu / ceil(TilesPerCu);
+        pp.waveGranularity = std::min(1.00,
+                                static_cast<double>(
+                                pp.tilesPerCu *
+                                sizeMapping.workGroupSize.x*
+                                sizeMapping.workGroupSize.y*
+                                sizeMapping.workGroupSize.z)
+                                / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
 
-        double projectedPerformance = IdealGranularityPerf * TileGranularity0 * TileGranularity1 * CuGranularity;
+        pp.cuGranularity = pp.tilesPerCu / ceil(pp.tilesPerCu);
+        pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.cuGranularity * pp.waveGranularity;
 
-        return projectedPerformance;
+        pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
+
+        pp.staticModel = staticPerformanceModel(M, N, K, NumBatches, MT0, MT1, NumCUs, pp.totalGranularity, GlobalSplitU);
+
+        return pp;
     }
 
 }

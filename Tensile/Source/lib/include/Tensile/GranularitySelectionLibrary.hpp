@@ -93,17 +93,17 @@ namespace Tensile
 
             this->description();
 
-            double bestPerformance = 0.0;  
+            double bestPerformance = 0.0;
             auto iter = solutions.begin();
             if(iter == solutions.end())
                 return std::shared_ptr<MySolution>();
 
             std::shared_ptr<MySolution> bestSolution = iter->second;
             if (bestSolution)
-                bestPerformance = bestSolution->projectedPerformance(problem, hardware);
+                bestPerformance = bestSolution->projectedPerformance(problem, hardware).speedGFlops;
 
             iter++;
-            
+
             if(debug)
             {
                 std::cout << "best performance: " << bestPerformance << std::endl;
@@ -112,11 +112,11 @@ namespace Tensile
             while(iter != solutions.end())
             {
                 auto mySolution = iter->second;
-                double myPerformance = mySolution->projectedPerformance(problem, hardware);
+                double myPerformance = mySolution->projectedPerformance(problem, hardware).speedGFlops;
 
                 if(mySolution)
                 {
-                    auto myPerformance = mySolution->projectedPerformance(problem, hardware);
+                    auto myPerformance = mySolution->projectedPerformance(problem, hardware).speedGFlops;
                     if(myPerformance > bestPerformance)
                     {
                         bestPerformance = myPerformance;
