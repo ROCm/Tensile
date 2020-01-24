@@ -2381,6 +2381,7 @@ class Solution:
     requiredParameters["MacroTile1"] = False # always prepended
     requiredParameters["DepthU"] = False # always prepended
     requiredParameters["LdcEqualsLdd"] = False # always prepended
+    requiredParameters["MatrixInstruction"] = False # covered by parameters below
     requiredParameters["MatrixInstM"] = False # always prepended
     requiredParameters["MatrixInstN"] = False # always prepended
     requiredParameters["MatrixInstK"] = False # always prepended
