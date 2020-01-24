@@ -1,5 +1,6 @@
 import copy, operator, pytest
 from functools import reduce
+from Tensile.SolutionStructs import ConvolutionConfig
 import yaml
 
 
@@ -219,7 +220,8 @@ class YamlBuilder:
             for c in ckRange:
                 for k in ckRange:
                     for s in spatials:
-                        (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, s)
+                        pcc = ConvolutionConfig(spatial=s)
+                        (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, pcc)
                         exactSizes.append(problemSizes)
         return exactSizes
 
@@ -262,7 +264,8 @@ class YamlBuilder:
                 [64,56,56,64],
                 [64,56,56,64],
              ):
-            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, spatialIn=[h,w])
+            pcc = ConvolutionConfig(spatial=[h,w])
+            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, pcc)
             exactSizes.append(problemSizes)
         return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
 
@@ -316,7 +319,8 @@ class YamlBuilder:
 		(96,35,35,96,3,3),
 		(96,35,35,96,3,3),
              ):
-            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, spatialIn=[h,w])
+            pcc = ConvolutionConfig(spatial=[h,w])
+            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, pcc)
             exactSizes.append(problemSizes)
         return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
 
@@ -334,7 +338,8 @@ class YamlBuilder:
             raise RuntimeError('Filter must be completely specified, not "%s"'%conv.config['Filter'])
 
         exactSizes = []
-        (problemSizes,problemStrides) = conv.makeProblem(False, n=8, c=32, k=16, spatialIn=spatialIn)
+        pcc=ConvolutionConfig(spatial=spatialIn)
+        (problemSizes,problemStrides) = conv.makeProblem(False, n=8, c=32, k=16, pcc=pcc)
         exactSizes.append(problemSizes)
 
         if problemLevel==2:

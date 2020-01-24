@@ -381,54 +381,62 @@ def normalizeConvolution(conv, problemSize, astrides):
 
     return (problemSize, astrides)
 
-def problemSizeParams(solution, problemSize):
+def problemSizeParams(solution, problem):
 
     numIndices = len(solution.problemType.indices)
     rv = []
 
-    astrides = [-1] * solution.problemType.aDims
-    for sc in solution.problemType.setConstStrideA:
-        index = solution.problemType.indices[sc[0]]
-        if type(index) == FreeIndex:
-            assert(index.isA)
-            astrides[index.i] = sc[1]
-        else:
-            astrides[index.a] = sc[1]
+    # FIXME-problem, this is hack to set strides which can be replaced by specifying strides with problem
+    if problem.stridesA:
+        astrides = problem.stridesA
+    else:
+        astrides = [-1] * solution.problemType.aDims
+        for sc in solution.problemType.setConstStrideA:
+            index = solution.problemType.indices[sc[0]]
+            if type(index) == FreeIndex:
+                assert(index.isA)
+                astrides[index.i] = sc[1]
+            else:
+                astrides[index.a] = sc[1]
 
-    bstrides = [-1] * solution.problemType.bDims
-    for sc in solution.problemType.setConstStrideB:
-        index = solution.problemType.indices[sc[0]]
-        if type(index) == FreeIndex:
-            assert(not index.isA)
-            bstrides[index.i] = sc[1]
-        else:
-            bstrides[index.b] = sc[1]
+    if problem.stridesB:
+      bstrides = problem.stridesB
+    else:
+      bstrides = [-1] * solution.problemType.bDims
+      for sc in solution.problemType.setConstStrideB:
+          index = solution.problemType.indices[sc[0]]
+          if type(index) == FreeIndex:
+              assert(not index.isA)
+              bstrides[index.i] = sc[1]
+          else:
+              bstrides[index.b] = sc[1]
 
-    if len(problemSize) == numIndices:
-      None
-    elif len(problemSize) == numIndices + 4:
+    if len(problem.sizes) == numIndices:
+        None
+    elif len(problem.sizes) == numIndices + 4:
+        # FIXME-problem, this is new client format with strides tacked onto sizes
         if astrides[1] == -1:
-          astrides[1] = problemSize[numIndices+2]
+          astrides[1] = problem.sizes[numIndices+2]
         else:
           raise RuntimeError("problem-specified lda(%u) conflicts with setConstStrideA(%u)" % \
-              (astrides[1], problemSize[numIndices+2]))
+              (astrides[1], problem.sizes[numIndices+2]))
 
         if bstrides[1] == -1:
-          bstrides[1] = problemSize[numIndices+3]
+          bstrides[1] = problem.sizes[numIndices+3]
         else:
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
-              (bstrides[1], problemSize[numIndices+3]))
+              (bstrides[1], problem.sizes[numIndices+3]))
 
-        rv.append(('d-strides', "-1," + str(problemSize[numIndices+1])))
-        rv.append(('c-strides', "-1," + str(problemSize[numIndices+0])))
+        rv.append(('d-strides', "-1," + str(problem.sizes[numIndices+1])))
+        rv.append(('c-strides', "-1," + str(problem.sizes[numIndices+0])))
     else:
         raise RuntimeError(
-            "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize), numIndices,
-            ', '.join(map(str, problemSize))))
+            "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize.sizes), numIndices,
+            ', '.join(map(str, problem.sizes))))
 
-    if solution.problemType.convolution:
-        (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, list(problemSize), astrides)
-    problemSizeArg = ('problem-size', ','.join(map(str, problemSize[:numIndices])))
+    #if solution.problemType.convolution:
+    #    (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, list(problemSize), astrides)
+    problemSizeArg = ('problem-size', ','.join(map(str, problem.sizes[:numIndices])))
     rv.insert(0, problemSizeArg)
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
@@ -512,8 +520,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
         param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
 
-        for problemSize in problemSizes.sizes:
-            for key,value in problemSizeParams(newSolution, problemSize):
+        for problem in problemSizes.problems:
+            for key,value in problemSizeParams(newSolution, problem):
                 param(key,value)
             #param('problem-size', ','.join(map(str,problemSize)))
 
@@ -878,10 +886,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         % problemSizes.totalProblemSizes
     h += "const unsigned int problemSizes[numProblems][%u] = {\n" \
         % (problemTypes[0]["TotalIndices"] + problemType["NumIndicesLD"])
-    for i in range(0, problemSizes.totalProblemSizes):
-      line = "  {%5u" %problemSizes.sizes[i][0]
+    for i in range(problemSizes.totalProblemSizes):
+      #assert problemSizes.problems[i].stridesA == None # new stride functionality only supported on new client, not here
+      problemSize = problemSizes.problems[i].sizes
+      line = "  {%5u" %problemSize[0]
       for j in range(1, problemTypes[0]["TotalIndices"] + problemType["NumIndicesLD"]):
-        line += ",%5u" % problemSizes.sizes[i][j]
+        line += ",%5u" % problemSize[j]
       line += " }"
       h += line
       if i < problemSizes.totalProblemSizes-1:
