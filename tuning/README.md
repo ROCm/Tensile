@@ -1,10 +1,11 @@
 
+#Tuning with tensile
 
-## Tensile tuning process for rocBLAS
+## Using Tensile and rocBLAS
 
 #### Tensile tuning step
 
-See the [Tensile tuning](https://github.com/ROCmSoftwarePlatform/Tensile/wiki) wiki for how the tuning works. The staging area we use for the our process is withing build directors in the root level of the Tensile clone. This step will produce LibraryLogic files within each for the build subdirectories. `../build-hgemm_asm_full/3_LibraryLogic`.
+See the [Tensile tuning](https://github.com/ROCmSoftwarePlatform/Tensile/wiki) wiki for more details of Tensile and the specifics of the tuning process. The staging area we use for the our process is within build directories in the root level of the Tensile clone. This step will produce LibraryLogic files within each for the build subdirectories. `../build-hgemm_asm_full/3_LibraryLogic`.
 
 #### Building rocBLAS with new configurations
 
@@ -16,11 +17,11 @@ run `./install -c` in the rocBLAS source directory. See [rocBLAS build](https://
 
 #### Performance measurements
 
-The performance can be measure using rocblas-bench.
+The performance can be measured using rocblas-bench.
 
 Run benchmarks with the following:
 
-`cd [BUILD_DIR]/release/clients/staging`
+`cd ${BUILD_DIR}/release/clients/staging`
 `./rocblas-bench -h`
 
 The following are examples for running particular gemm and gemv benchmark:
@@ -30,106 +31,162 @@ The following are examples for running particular gemm and gemv benchmark:
 
 
 
-## Tensile Automation Scripts
+# Automation
 
-#### Analyze benchmark results
+## Installing
 
-The PeformanceAnalysis.py takes a path containing a set of performance results for rocblas-benchmark and produces an aggregated results in a csv file. For this to work the inputs files are numbered testname.*
+The automation utilities are intended to be a set of tools independent of any formal Tensile components and as such, there is no need to have a Tensile clone to work with them. They can be copied to any working area in which the tuning is being performed. Any provisioning operation of Tensile or rocBLAS which the tuning work-flow depends upon are provided by the utilities.
 
-example.
+### installing the required components
 
-`hpa_hgemm_resnet50_list1.1`  
-`hpa_hgemm_resnet50_list1.2`  
-`hpa_hgemm_resnet50_list1.3`  
-`hpa_hgemm_resnet50_list1.4`
+```bash
+$ sudo apt install python-pip
+$ sudo apt install python3-pip
+$ sudo pip install pandas
+$ sudo pip3 install pandas
+$ sudo pip3 install matplotlib
+$ sudo pip install openpyxl
+$ sudo apt-get install python3-tk
+```
 
+The automation scripts is a set of utilities which enables the work-flow of the process for performance optimization using Tensile and rocBLAS.
+
+## Provisioning the Tuning.
+
+### Extracting rocBLAS call information
+This step is driven by the scripts/provision_tuning.sh script. This script will take a log file traces the rocblas-bench calls extracts the sizes and generates the log file which can be used in tuning. It will also provision Tensile and stage it to run the actual tuning.
+
+
+The log file can be generated using ROCBLAS_LAYER=2 in rocblas bench. e.g.
+
+`$ ROCBLAS_LAYER=2 ./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1.0 --lda 1600 --ldb 1024 --beta 1.0 --ldc 1600`
+
+This will produce the calls to rocblas. Example output.
 
 ```
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
+transA,transB,M,N,K,alpha,lda,ldb,beta,ldc,rocblas-Gflops,us
+N,N,1600,512,1024,-1,1600,1024,1,1600,6641.81,252.6
+```
+
+### Tuning scripts
+#### `provision_tuning.sh`
+
+```bash
 usage: 
 
-PeformanceAnalysis.py [-h] input_path output_path
+./provision_tuning.sh [-w|--working-path <path>] [-z | --size-log <logfile path>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]
 
-positional arguments:
-  input_path   path where the results are located
-  output_path  path where the processed files are to go
-
-optional arguments:
-  -h, --help   show this help message and exit
-```
-
-
-CompareResults.py takes two aggregated performance results (current and new) and produces a csv with the comparisons in the same csv file.
-
-```
-usage: 
-
-CompareResults.py [-h] current_file new_file combined_file
-
-positional arguments:
-  current_file   path where the current results are located
-  new_file       path where the new files are located
-  combined_file  path where the combined results are located
-
-optional arguments:
-  -h, --help     show this help message and exit
-```
-
-#### Operational Scripts
-
-TensileExtractSizes.py inputs a Tensile LogicFile and write out all the sizes
-
-```
-usage: 
-
-TensileExtractSizes.py [-h] ExactLogicPath OutputPath
-
-positional arguments:
-  ExactLogicPath  Path to the exact LibraryLogic.yaml input files.
-  OutputPath      Where to write library files?
-
-optional arguments:
-  -h, --help      show this help message and exit
-```
-
-##### for staging the tuning process
-
-The `script/stage_tuning.sh` takes a source directory a destination directory and a list of Tensile configuration files and populates the build area to set up
-Tensile tuning. 
-
-```
-Usage:
-
-stage_tuning.sh InputConfigPath BuildPath file1.yaml file2.yaml ...
-
-
-InputConfigPath: is the path where the tensile configurations are located
-BuildPath: this the staging area for the tuning, usually the Tensile root path
-
-file?.yaml: the configuration files that are being populated
+args:
+-w|--working-path       the working directory
+-z | --size-log         the path to the log file used to generate the sizes
+-b|--branch             the github branch id
+-c                      github commit id
+-t|--tag                github tag
+-o|--output             output file name
+-y | --type             the datatype to tune for (hgemm|sgemm|dgemm)
+-l | --library          the library to use (arcturus|vega10|vega20)
+-n                      if this is enabled the utility will generate the config files without provisioning tensile
+-h|--help               this help file
 
 ```
 
-example:
+Example use case
 
-`stage_tuning.sh Tensile/Configs Tensile rocblas_hgemm_asm_lite.yaml rocblas_sgemm_asm_lite.yaml`
+```bash
+$ ./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception_rocblas-configs_unique.log -r tensile_tuning/tensile/Tensilen-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20
+```
 
-This will create a doit-all.sh script in the Tensile directory all with two directories build-rocblas_hgemm_asm_lite and build-rocblas_sgemm_asm_lite
+When this is run the tuning will be provisioned in the directory ./tensile_tuing. The following directories will be generated.
 
-the ./doit-all.sh will launch Tensile for each of the configuration yamls. each sub directory contains a doit.sh, which executes tensile for the config, and the configuration file corresponding to the directory name. 
-
-
-
-
-
-
-
-
-
-
+```
+configs:        this is where the tuning configurations that were created will be placed
+make:           this constructs a set of scripts which will execute the tuning process get placed in the Tensile path
+scripts:        generated scripts with rocblas calls which will be used for testing
+sizes:          the extracted sizes csv file
+tensile:        the directory which tensile gets cloned to
+```
 
 
+After this is executed everything will be provisioned. The tuning can be launched with the following steps:
+
+```bash
+$ cd tensile_tuning/tensile/Tensile
+$ ./doit-all.sh
+```
 
 
+### provision and run verification
+#### provision_verification.sh
+
+```bash
+usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <github tag>]  [-h|--help]
+
+args:
+-h | --help             help
+-w | --working-path     the working path name
+-t | --tag              a github tag
+-b | --branch           github branch name
+-c | --commit           github commit id
+-r                      the Tensile path where the tuning which contains the tuning results
 
 
+When this utility is ran, it will create the following directories in the working path:
 
+```
+library\exact               contains the new logic files
+library\merge               contains the new logic merged into the reference logic file, this gets copied to rocBLAS-verify for testing
+rocblas\rocBLAS-reference   contains the reference build of rocblas
+rocblas\rocBLAS-verify      contains a build of rocblas with the new logic merged in
+```
+
+This will provision and build the reference and the verification version of rocBLAS. After it is provisioned, we can copy over the test scripts and execute the scripts in both clones.
+
+Example:
+
+```bash
+$ ./tuning/scripts/provision_verification.sh -w validate -r tensile_tuning/tensile/Tensile
+$ cp tensile_tuning/scripts/* validate/rocblas/rocBLAS-reference/build/release/clients/staging
+$ cp tensile_tuning/scripts/* validate/rocblas/rocBLAS-validate/build/release/clients/staging
+$ pushd validate/rocblas/rocBLAS-reference/build/release/clients/staging
+$ ./doit_all.sh
+$ popd
+$ pushd validate/rocblas/rocBLAS-validate/build/release/clients/staging
+$ ./doit_all.sh
+$ popd
+
+```
+
+
+### Analyze benchmark results
+#### analyze-results.sh
+
+
+```bash
+usage: ./analyze-results.sh [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-h|--help]
+
+args:
+-b|--benchmark-path     the benchmark path (rocBLAS with new logic)
+-r|--reference-path     the reference path (rocBLAS for reference)
+-o|--output             the output of the analysis
+-f                      frequency which the gpu was set at during validation
+-s                      the size of the datatype
+-h|--help               the help
+
+```
+
+When this utility is ran, it will generate analysis in the following directories:
+
+```
+final           results with the old and new logic compared
+new             results for the version of rocBLAS with the new logic
+reference       results for the version of rocBLAS without the new logic
+```
+
+Example:
+```
+$ ./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results
+```

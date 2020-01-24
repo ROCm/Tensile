@@ -23,6 +23,7 @@
 #include "Tools.h"
 #include <mutex>
 #include <unistd.h>
+#include <cstddef>
 
 #ifdef WIN32
 __declspec(thread) KernelMap kernelMap;

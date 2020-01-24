@@ -56,7 +56,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -89,7 +89,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1, 2, 4, 8]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -118,7 +118,7 @@ BenchmarkProblems:
           - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -144,7 +144,7 @@ BenchmarkProblems:
           - [ 4, 4, 4 ]
         - GlobalSplitU: [2, 4, 8]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -188,7 +188,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -221,7 +221,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1, 2, 4, 8]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -250,7 +250,7 @@ BenchmarkProblems:
           - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -276,7 +276,7 @@ BenchmarkProblems:
           - [ 4, 4, 4 ]
         - GlobalSplitU: [2, 4, 8]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -320,7 +320,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -353,7 +353,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 8]
         - GlobalSplitU: [1, 2, 4, 8]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -382,7 +382,7 @@ BenchmarkProblems:
           - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -408,7 +408,7 @@ BenchmarkProblems:
           - [ 4, 4, 4 ]
         - GlobalSplitU: [2, 4, 8]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -452,7 +452,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 4]
         - GlobalSplitU: [1]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -485,7 +485,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [1, 4]
         - GlobalSplitU: [1, 2, 4, 8]
         - DepthU: [ 8, 16, 32 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -514,7 +514,7 @@ BenchmarkProblems:
           - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -540,7 +540,7 @@ BenchmarkProblems:
           - [ 4, 4, 4 ]
         - GlobalSplitU: [2, 4, 8]
         - DepthU: [ -1 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [-1, 1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -553,20 +553,21 @@ BenchmarkProblems:
 
 LibraryLogic:
 #   ScheduleName: "vega20"
-#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7"]
+#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
 #   ArchitectureName: "gfx906"
 
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]", 
+        "Vega 10 [Radeon Instinct MI25]", Vega, Device 6864, Device 686c]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
 #   DeviceNames: ["Device 6860"]
 #   ArchitectureName: "gfx900"
 
-#   ScheduleName: "r9nano"
-#   DeviceNames: ["Device 7300"]
-#   ArchitectureName: "gfx803"
+   ScheduleName: "r9nano"
+   DeviceNames: ["Device 7300"]
+   ArchitectureName: "gfx803"
 
 #   ScheduleName: "hip"
 #   DeviceNames: ["Device 0000"]

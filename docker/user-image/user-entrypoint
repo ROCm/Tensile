@@ -1,0 +1,13 @@
+#!/bin/bash
+
+useradd -m $_USER --uid $_UID
+
+if [ "$#" -gt 0 ]; then
+    echo $#
+    echo sudo -u $_USER "$@"
+    exec su -l $_USER -c "$@"
+else
+    echo su --login $_USER
+    su --login $_USER
+fi
+

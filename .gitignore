@@ -7,3 +7,10 @@ Tensile.egg-info
 build*
 dist
 .cache
+
+a.out
+0_Build
+1_BenchmarkProblems
+2_BenchmarkData
+3_LibraryLogic
+4_LibraryClient

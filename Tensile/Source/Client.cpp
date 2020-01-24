@@ -38,6 +38,8 @@ int main( int argc, char *argv[] ) {
 
 #if Tensile_CLIENT_BENCHMARK
   solutionLocks = new SolutionLock[maxNumSolutions];
+#else
+  tensileInitialize();
 #endif
 
   // parse command line parameters
@@ -60,187 +62,110 @@ int main( int argc, char *argv[] ) {
   std::cout << "ApiUs, ";
 #endif
   std::cout << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total, TimeStamp" << std::endl;
+
+
+#if Tensile_CLIENT_BENCHMARK
+#define TENSILE_CLIENT_CALL_PROBLEM                                     \
+      invalids = benchmarkProblemSizes(initialD, initialC, initialA,    \
+          initialB, alpha, beta, referenceD, referenceC,                \
+          deviceOnHostD, deviceOnHostC);
+#else
+#define TENSILE_CLIENT_CALL_PROBLEM                                     \
+      invalids = callLibrary(initialD, initialC, initialA, initialB,    \
+          alpha, beta, lda, ldb, ldc, ldd,                              \
+          strideA, strideB, strideC, strideD,                           \
+          referenceD, referenceC,                                       \
+          deviceOnHostD, deviceOnHostC);
+#endif
+
+#if Tensile_CLIENT_BENCHMARK
+#define TENSILE_CLIENT_CALL_BENCHMARK_SOLUTIONS                         \
+    if (runBenchmarkSolutions != 0) {                                   \
+        benchmarkSolutions(initialD, initialC, initialA,                \
+              initialB, alpha, beta, referenceD, referenceC,            \
+              deviceOnHostD, deviceOnHostC);                            \
+    }
+#else
+#define TENSILE_CLIENT_CALL_BENCHMARK_SOLUTIONS
+#endif
+
+#define TENSILE_CLIENT_CALL_SETUP(Ti, To, Tc)                           \
+    To *initialD;                                                       \
+    To *initialC;                                                       \
+    Ti *initialA;                                                       \
+    Ti *initialB;                                                       \
+    Tc alpha;                                                           \
+    Tc beta;                                                            \
+    To *referenceD;                                                     \
+    To *referenceC;                                                     \
+    To *deviceOnHostD;                                                  \
+    To *deviceOnHostC;                                                  \
+    initData(&initialD, &initialC, &initialA, &initialB, &alpha, &beta, \
+        &referenceD, &referenceC, &deviceOnHostD, &deviceOnHostC);      \
+                                                                        \
+    TENSILE_CLIENT_CALL_BENCHMARK_SOLUTIONS                             \
+                                                                        \
+    for (unsigned int i = 0; i < numBenchmarks; i++) {                  \
+      TENSILE_CLIENT_CALL_PROBLEM                                       \
+    }                                                                   \
+    destroyData(initialD, initialC, initialA, initialB,                 \
+        referenceD, referenceC, deviceOnHostD, deviceOnHostC);
+
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
-    float *initialD_float;
-    float *initialC_float;
-    float *initialA_float;
-    float *initialB_float;
-    float alpha_float;
-    float beta_float;
-    float *referenceC_float;
-    float *deviceOnHostD_float;
-    float *deviceOnHostC_float;
-    initData(&initialD_float, &initialC_float, &initialA_float, &initialB_float, &alpha_float,
-        &beta_float, &referenceC_float, &deviceOnHostD_float, &deviceOnHostC_float);
-
-    for (unsigned int i = 0; i < numBenchmarks; i++) {
-#if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_float, initialC_float, initialA_float,
-          initialB_float, alpha_float, beta_float, referenceC_float,
-          deviceOnHostD_float, deviceOnHostC_float);
-#else
-      invalids = callLibrary(initialD_float, initialC_float, initialA_float, initialB_float,
-          alpha_float, beta_float, strideA, strideB, strideC, referenceC_float, 
-          deviceOnHostD_float, deviceOnHostC_float);
-#endif
-    }
-    destroyData(initialD_float, initialC_float, initialA_float, initialB_float,
-        referenceC_float, deviceOnHostD_float, deviceOnHostC_float);
+    TENSILE_CLIENT_CALL_SETUP(float, float, float)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_DOUBLE
   case enum_double: {
-    double *initialD_double;
-    double *initialC_double;
-    double *initialA_double;
-    double *initialB_double;
-    double alpha_double;
-    double beta_double;
-    double *referenceC_double;
-    double *deviceOnHostD_double;
-    double *deviceOnHostC_double;
-    initData(&initialD_double, &initialC_double, &initialA_double, &initialB_double,
-        &alpha_double, &beta_double, &referenceC_double, &deviceOnHostD_double, &deviceOnHostC_double);
-    for (unsigned int i = 0; i < numBenchmarks; i++) {
-#if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_double, initialC_double, initialA_double,
-          initialB_double, alpha_double, beta_double, referenceC_double,
-          deviceOnHostD_double, deviceOnHostC_double);
-#else
-      invalids = callLibrary(initialD_double, initialC_double, initialA_double, initialB_double,
-          alpha_double, beta_double, strideA, strideB, strideC, referenceC_double,
-          deviceOnHostD_double, deviceOnHostC_double);
-#endif
-    }
-    destroyData(initialD_double, initialC_double, initialA_double, initialB_double,
-        referenceC_double, deviceOnHostD_double, deviceOnHostC_double);
+    TENSILE_CLIENT_CALL_SETUP(double, double, double)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXFLOAT
   case enum_TensileComplexFloat: {
-    TensileComplexFloat *initialD_TCF;
-    TensileComplexFloat *initialC_TCF;
-    TensileComplexFloat *initialA_TCF;
-    TensileComplexFloat *initialB_TCF;
-    TensileComplexFloat alpha_TCF;
-    TensileComplexFloat beta_TCF;
-    TensileComplexFloat *referenceC_TCF;
-    TensileComplexFloat *deviceOnHostD_TCF;
-    TensileComplexFloat *deviceOnHostC_TCF;
-    initData(&initialD_TCF, &initialC_TCF, &initialA_TCF, &initialB_TCF, &alpha_TCF,
-        &beta_TCF, &referenceC_TCF, &deviceOnHostD_TCF, &deviceOnHostC_TCF);
-    for (unsigned int i = 0; i < numBenchmarks; i++) {
-#if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostD_TCF, deviceOnHostC_TCF);
-#else
-      invalids = callLibrary(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, strideA, strideB, strideC, referenceC_TCF,
-          deviceOnHostD_TCF, deviceOnHostC_TCF);
-#endif
-    }
-    destroyData(initialD_TCF, initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
-        deviceOnHostD_TCF, deviceOnHostC_TCF);
+    TENSILE_CLIENT_CALL_SETUP(TensileComplexFloat, TensileComplexFloat, TensileComplexFloat)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXDOUBLE
   case enum_TensileComplexDouble: {
-    TensileComplexDouble *initialD_TCD;
-    TensileComplexDouble *initialC_TCD;
-    TensileComplexDouble *initialA_TCD;
-    TensileComplexDouble *initialB_TCD;
-    TensileComplexDouble alpha_TCD;
-    TensileComplexDouble beta_TCD;
-    TensileComplexDouble *referenceC_TCD;
-    TensileComplexDouble *deviceOnHostD_TCD;
-    TensileComplexDouble *deviceOnHostC_TCD;
-    initData(&initialD_TCD, &initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
-        &beta_TCD, &referenceC_TCD, &deviceOnHostD_TCD, &deviceOnHostC_TCD);
-    for (unsigned int i = 0; i < numBenchmarks; i++) {
-#if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostD_TCD, deviceOnHostC_TCD);
-#else
-      invalids = callLibrary(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, strideA, strideB, strideC, referenceC_TCD,
-          deviceOnHostD_TCD, deviceOnHostC_TCD);
-#endif
-    }
-    destroyData(initialD_TCD, initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
-        deviceOnHostD_TCD, deviceOnHostC_TCD);
+    TENSILE_CLIENT_CALL_SETUP(TensileComplexDouble, TensileComplexDouble, TensileComplexDouble)
     }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILEHALF
   case enum_TensileHalf: {
-    TensileHalf *initialD_TH;
-    TensileHalf *initialC_TH;
-    TensileHalf *initialA_TH;
-    TensileHalf *initialB_TH;
-    TensileHalf alpha_TH;
-    TensileHalf beta_TH;
-    TensileHalf *referenceC_TH;
-    TensileHalf *deviceOnHostD_TH;
-    TensileHalf *deviceOnHostC_TH;
-    initData(&initialD_TH, &initialC_TH, &initialA_TH, &initialB_TH, &alpha_TH,
-        &beta_TH, &referenceC_TH, &deviceOnHostD_TH, &deviceOnHostC_TH);
-    for (unsigned int i = 0; i < numBenchmarks; i++) {
-#if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, referenceC_TH, deviceOnHostD_TH, deviceOnHostC_TH);
-#else
-      invalids = callLibrary(initialD_TH, initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, strideA, strideB, strideC, referenceC_TH,
-          deviceOnHostD_TH, deviceOnHostC_TH);
-#endif
-    }
-    destroyData(initialD_TH, initialC_TH, initialA_TH, initialB_TH, referenceC_TH,
-        deviceOnHostD_TH, deviceOnHostC_TH);
+    TENSILE_CLIENT_CALL_SETUP(TensileHalf, TensileHalf, TensileHalf)
     }
     break;
 #endif
 
 
-//TODO: define Tensile_DATA_TYPE_TENSILEINT
-//#ifdef Tensile_DATA_TYPE_TENSILEINT
+#ifdef Tensile_DATA_TYPE_TENSILEINT8X4
   case enum_TensileInt8x4: {
-    TensileInt32 *initialD_TI;
-    TensileInt32 *initialC_TI;
-    TensileInt8x4 *initialA_TI;
-    TensileInt8x4 *initialB_TI;
-    TensileInt32 alpha_TI;
-    TensileInt32 beta_TI;
-    TensileInt32 *referenceC_TI;
-    TensileInt32 *deviceOnHostD_TI;
-    TensileInt32 *deviceOnHostC_TI;
-    initData(&initialD_TI, &initialC_TI, &initialA_TI, &initialB_TI, &alpha_TI,
-        &beta_TI, &referenceC_TI, &deviceOnHostD_TI, &deviceOnHostC_TI);
-    for (unsigned int i = 0; i < numBenchmarks; i++) {
-#if Tensile_CLIENT_BENCHMARK
-      invalids = benchmarkProblemSizes(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
-          alpha_TI, beta_TI, referenceC_TI, deviceOnHostD_TI, deviceOnHostC_TI);
-#else
-      invalids = callLibrary(initialD_TI, initialC_TI, initialA_TI, initialB_TI,
-          alpha_TI, beta_TI, strideA, strideB, strideC, referenceC_TI,
-          deviceOnHostD_TI, deviceOnHostC_TI);
-#endif
-    }
-    destroyData(initialD_TI, initialC_TI, initialA_TI, initialB_TI, referenceC_TI,
-        deviceOnHostD_TI, deviceOnHostC_TI);
+    TENSILE_CLIENT_CALL_SETUP(TensileInt8x4, TensileInt32, TensileInt32)
     }
     break;
-//#endif
+#endif
+
+#ifdef Tensile_DATA_TYPE_TENSILE_BFLOAT16
+  case enum_tensile_bfloat16: {
+    TENSILE_CLIENT_CALL_SETUP(tensile_bfloat16, tensile_bfloat16, float)
+    }
+    break;
+#endif
+
 
 
   default:
     break;
     // nothing
 
+#undef TENSILE_CLIENT_CALL_SETUP
+#undef TENSILE_CLIENT_CALL_PROBLEM
   }
 
   // cleanup
@@ -262,7 +187,6 @@ int main( int argc, char *argv[] ) {
   if (invalids) {
 #if Tensile_CLIENT_BENCHMARK
     printf("\nInvalid Solutions: %u/%u\n", static_cast<unsigned int>(invalidSolutions.size()), numSolutions);
-    // for (unsigned int i = 0; i < numInvalidSolutions; i++) {
     for (std::set<unsigned int>::iterator i = invalidSolutions.begin(); i != invalidSolutions.end(); i++) {
       unsigned int invalidSolutionIdx = *i;
       printf("[%2u] %s\n", invalidSolutionIdx, solutions[invalidSolutionIdx]._name);

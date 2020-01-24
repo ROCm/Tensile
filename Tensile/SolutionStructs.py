@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,154 +19,15 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
 import sys,traceback
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from functools import reduce
+from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from .Common import validTensorAFormats, validTensorBFormats, validTensorDFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
-
-################################################################################
-# Data Type
-################################################################################
-class DataType:
-  single        = 0
-  double        = 1
-  complexSingle = 2
-  complexDouble = 3
-  half          = 4
-  int8x4        = 5
-  int32         = 6
-  num           = 7
-  none          = 8
-
-  # data type properties
-  idxChar    = 0
-  idxReg     = 1
-  idxOpenCL  = 2
-  idxHIP     = 3
-  idxLibType = 4
-  idxLibEnum = 5
-  #    char, reg,    ocl,       hip,       libType,                 libEnum
-  properties = [
-      ["S",    1,   "float",   "float",        "float",                "tensileDataTypeFloat"        ],
-      ["D",    2,   "double",  "double",       "double",               "tensileDataTypeDouble"       ],
-      ["C",    2,   "float2",  "float2",       "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
-      ["Z",    4,   "double2", "double2",      "TensileComplexDouble", "tensileDataTypeComplexDouble"],
-      ["H",    0.5, "ERROR",   "tensile_half", "TensileHalf",          "tensileDataTypeHalf"         ],
-      ["4xi8", 1,   "ERROR",   "uint32_t",     "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
-      ["I",    1,   "ERROR",   "int32_t",      "TensileInt32",         "tensileDataTypeInt32"        ]
-  ]
-
-  ########################################
-  def __init__( self, value ):
-    if isinstance(value, int):
-      self.value = value
-    elif isinstance(value, basestring):
-      for propertiesIdx in range(0,6):
-        for dataTypeIdx in range(0,self.num):
-          if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
-            self.value = dataTypeIdx
-            return
-    elif isinstance(value, DataType):
-      self.value = value.value
-    else:
-      printExit("initializing DataType to %s %s" % (str(type(value)), str(value)) )
-
-
-  ########################################
-  def toChar(self):
-    return self.properties[self.value][self.idxChar]
-  def toOpenCL(self):
-    return self.properties[self.value][self.idxOpenCL]
-  def toHIP(self):
-    return self.properties[self.value][self.idxHIP]
-  def toDevice(self, language):
-    if language == "OCL":
-      return self.toOpenCL()
-    else:
-      return self.toHIP()
-  def toCpp(self):
-    return self.properties[self.value][self.idxLibType]
-  def getLibString(self):
-    return self.properties[self.value][self.idxLibEnum]
-
-  ########################################
-  def zeroString(self, language, vectorWidth):
-    if language == "HIP":
-      if self.value == self.complexSingle:
-        return "make_float2(0.f, 0.f)"
-      if self.value == self.complexDouble:
-        return "make_double2(0.0, 0.0)"
-
-    zeroString = "("
-    zeroString += self.toDevice(language)
-    if vectorWidth > 1:
-      zeroString += str(vectorWidth)
-    zeroString += ")("
-
-    """
-    if self.value == self.half:
-      single = "0"
-      vectorWidth = 1
-    elif self.value == self.single:
-      single = "0.f"
-    elif self.value == self.double:
-      single = "0.0"
-    elif self.value == self.complexSingle:
-      single = "0.f, 0.f"
-    elif self.value == self.complexDouble:
-      single = "0.0, 0.0"
-    """
-    zeroString += "0"
-    zeroString += ")"
-    return zeroString
-
-  ########################################
-  def isReal(self):
-    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
-      return True
-    else:
-      return False
-  def isComplex(self):
-    return not self.isReal()
-  def isDouble(self):
-    return self.value == self.double or self.value == self.complexDouble
-  def isSingle(self):
-    return self.value == self.single
-  def isHalf(self):
-    return self.value == self.half
-  def isInt32(self):
-    return self.value == self.int32
-  def isInt8x4(self):
-    return self.value == self.int8x4
-  def isNone(self):
-    return self.value == self.none
-
-  ########################################
-  def numRegisters( self ):
-    return self.properties[self.value][self.idxReg]
-  def numBytes( self ):
-    return int(self.numRegisters() * 4)
-  def flopsPerMac(self):
-    return 2 if self.isReal() else 8
-
-  def __str__(self):
-    return self.toChar()
-
-  def __repr__(self):
-    return self.__str__()
-
-  def getAttributes(self):
-    return (self.value)
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
+from .Utils import roundUpToNearestMultiple
+from .DataType import DataType
+from enum import Enum
 
 ########################################
 # Print a reject message :
@@ -186,15 +47,543 @@ def pvar(state, field):
 def roundupRatio(dividend, divisor):
   return int(math.ceil(float(dividend) / float(divisor)))
 
+class DimAB(Enum):
+  OnlyA = 0  # Only allowed in A tensor
+  OnlyB = 1  # Only allowed in B tensor
+  BothAB = 2 # Must be in both A and B
+
+class Fbs(Enum):
+  Free=0     # Expect to be free dimension
+  Batch=1    # Expect to be batch dimension
+  Sum=2      # Expect to be summation dimension
+
+################################################################################
+class Convolution:
+  class Dimension:
+    """
+    A description of the dimension - short char, usage, and const strides
+    Dimensions are later assigned tensile indices and assigned to A/B
+    based on the desired formats.
+    """
+    # stride=-1 indicates TBD stride; >=0 indicates a compile-time constant
+    def __init__(self, shortChar, description, dimAB, strideA=-1, strideB=-1):
+      self.shortChar = shortChar
+      self.description = description
+      self.dimAB = dimAB
+      self.strideA=strideA
+      self.strideB=strideB
+
+    def __str__(self):
+      s = "%5s : %s" % ("'%s'"%self.shortChar, self.description)
+      if 1:
+        if self.strideA != -1:
+          s+=" [strideA:%d]"%self.strideA
+        if self.strideB != -1:
+          s+=" [strideB:%d]"%self.strideB
+      #s += " (strideA=%d strideB=%d)" % (self.strideA, self.strideB)
+      return s
+    def __repr__(self):
+      return self.shortChar
+
+  SummaryProblemProperties=[\
+        'OperationType','DestDataType','DataType','HighPrecisionAccumulate',\
+        'TensorAFormat','TensorBFormat','TensorDFormat',\
+        'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
+        'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
+        'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
+        'SetConstStrideA', 'SetConstStrideB',\
+        'UseBeta', 'UseInitialStridesAB', 'UseInitialStridesCD', \
+        ]
+  SummarySolutionProperties=[\
+        'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeEqual', \
+        ]
+
+  def __init__(self, problemTypeOut, convolutionType, config):
+    """
+    problemTypeOut contains problem type parms created by this constructor.
+    """
+
+    self.convolutionDims={};
+    self.convolutionType = convolutionType
+    self.config = config
+
+    for k in config:
+      if k not in validConvolutionConfig:
+        raise RuntimeError ("unknown convolution config field '%s'"%k)
+
+    self.tensorAFormat  = config.get("TensorAFormat",  "NCHW")
+    assert self.tensorAFormat in validTensorAFormats
+    self.formatNumSpatialDims = len(self.tensorAFormat)-2
+    assert (self.formatNumSpatialDims>=2 and self.formatNumSpatialDims<=3)
+
+    self.tensorBFormat = config.get("TensorBFormat", "KCYX" if self.formatNumSpatialDims==2 else 'KCZYX')
+    assert self.tensorBFormat in validTensorBFormats
+    self.tensorDFormat = config.get("TensorDFormat",
+          'KCYX' if convolutionType=='ConvolutionBackwardWeights' else self.tensorAFormat)
+
+    if self.tensorDFormat == 0:
+      self.tensorDFormat = self.tensorAFormat
+    assert self.tensorDFormat in validTensorDFormats
+    assert len(self.tensorAFormat) == len(self.tensorBFormat) == len(self.tensorDFormat)
+
+    # index 0,1,2 = W,H,D = X,Y,Z
+    if config.get("Spatial",None):
+      self.spatial  = self.dimxParm(config, "Spatial",-1)
+    else:
+      self.spatial = None
+    self.filter   = self.dimxParm(config, "Filter",1)
+    self.stride   = self.dimxParm(config, "Stride",1)
+    self.dilation = self.dimxParm(config, "Dilation",1)
+    self.padStart = self.dimxParm(config, "PadStart",0)
+    self.padEnd   = self.dimxParm(config, "PadEnd",0)
+    self.packSpatialDims = config.get("PackedSpatialDims", 1)
+
+    if not all(i==1 for i in self.stride[1:]):
+      self.packSpatialDims = 0
+
+    assert all(i==0 for i in self.padStart)  # padding not supported yet
+    assert all(i==0 for i in self.padEnd)    # padding not supported yet
+    assert (len(self.filter)==len(self.stride)==len(self.dilation) \
+            ==len(self.padStart)==len(self.padEnd))
+
+    self.groupCount = config.get("GroupCount", 1)
+    self.indexAssignments = []
+
+    # Index assignment have fastest-moving first
+    ndim = Convolution.Dimension('N',   'Minibatch dimension. size#T=N.  strideB#T=0.', DimAB.BothAB)
+    kdim = Convolution.Dimension('K',   'Cout. size#T=Cout.', DimAB.OnlyB)
+    if self.packSpatialDims:
+      constStrideA = -1 # default no const
+      if self.stride[0] != -1:
+        constStrideA=self.stride[0]
+      sdims = [Convolution.Dimension('HW', \
+          'Spatially packed HW. size#T=H_o*W_o. strideA#T=strideW(#S0).', \
+          DimAB.OnlyA, strideA=constStrideA)]
+    else:
+      sdims = []
+      schars = [1,'W','H','D']
+      # sdims[0] is W
+      for si in range(self.formatNumSpatialDims):
+        sc=schars[si+1]
+        constStrideA = -1 # default no const
+        if si==0:
+            if self.stride[si] != -1:
+                constStrideA=self.stride[si]
+            strideMsg = "stride%s(#S0)"%sc
+        else:
+            strideMsg = "%s_in*stride%s(#S%d)"%(schars[si],sc,si)
+        sdims.append(Convolution.Dimension(sc,  \
+            'Spatial %s. size#T=%s_o strideA#T=%s.'%(sc,sc,strideMsg), \
+            DimAB.OnlyA, strideA=constStrideA))
+    cdim = Convolution.Dimension('C', 'Cin.  size#T=Cin.  stride#T=1', DimAB.BothAB)
+
+    if convolutionType in ("ConvolutionForward", "ConvolutionBackwardData"):
+      # Make index assignments following standard Tensile Index assignment rules (see Common.py)
+      # - Indices < NumCindices are batch or free indices and are present in TensorD
+      # - Indices >= NumCindices are summation indices.  cidx is cin / summation so must be after nidx
+      # - Memory order for TensorD is NumCindices...0, with 0 the fastest-moving dim.
+      # Specific assignments to A and B (and associated impact on memory order of those tensors) is
+      # specified by order of parms to registerA and registerB below.
+      if self.tensorDFormat in ('NCHW','NCDHW', 'NHWC','NDHWC'):
+        kidx = len(sdims)
+        nidx = kidx+1
+        cidx = nidx+1
+      elif self.tensorDFormat in ("CNHW", "CNDHW"):
+        # need to re-order batch dim to control memory order in output space
+        nidx = len(sdims)
+        kidx = nidx+1
+        cidx = kidx+1
+
+      sumIdx = cidx # cidx is first summation index, filter summations follow as needed
+      # Create summation dimensions for non-unit filters and assign summation indices
+
+      assert(len(self.filter)) == self.formatNumSpatialDims
+      filterDims = []
+      for (rfi,filterValue) in enumerate(self.filter[::-1]):
+        if filterValue != 1:
+          fi = self.formatNumSpatialDims - rfi -1 # forward filter index, 0...
+          sumIdx = sumIdx+1
+          filterChar = chr(ord('X')+fi)
+          filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
+          prevChar = ['1', 'W', 'W*H']
+          # TODO - stride setconst maybe applies only for NCHW/CNHW format not NHWC
+          # can modify message here based on format or position of indices?
+          filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
+              % (filterChar, filterChar, filterValueStr, filterChar, fi, \
+                 prevChar[fi])
+          filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.BothAB,
+                       strideA=self.dilation[fi] if  fi==0 else -1)
+          filterDims.append( (sumIdx, Fbs.Sum, filterDim) )
+
+      spatialDims = []
+      # reverse dims  so can pass spatialDims to register functions in 'convolution' order
+      for si,sdim in enumerate(sdims):
+        spatialDims.insert(0, (si, Fbs.Free, sdim))
+      self.numSpatialDims = len(spatialDims) # dims actually used in the tensor
+
+      if self.tensorAFormat in ("NCHW", "NCDHW"):
+        self.registerA( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum,cdim)] + spatialDims + filterDims )
+      elif self.tensorAFormat in ("NHWC", "NDHWC"):
+        self.registerA( [(nidx,Fbs.Batch,ndim)] + spatialDims + filterDims + [(cidx,Fbs.Sum,cdim)] )
+      elif self.tensorAFormat in ("CNHW", "CNDHW"):
+        self.registerA( [(cidx,Fbs.Sum,cdim), (nidx,Fbs.Batch,ndim)] + spatialDims + filterDims )
+      else:
+        raise RuntimeError ("unknown activation format '%s'"%self.tensorAFormat)
+
+      problemTypeOut["NumIndicesC"] = 2+len(spatialDims)
+
+      transposeCK =  convolutionType=="ConvolutionBackwardData"
+      ndim.strideB = 0
+      if self.tensorBFormat in ("KCYX",'KCZYX') and not transposeCK or\
+         self.tensorBFormat in ("CKYX",'CKZYX') and transposeCK:
+        self.registerB( [(nidx,Fbs.Batch,ndim), (kidx,Fbs.Free,kdim), (cidx,Fbs.Sum,cdim)] + filterDims )
+      elif self.tensorBFormat in ("CKYX",'CKZYX') and not transposeCK or\
+           self.tensorBFormat in ("KCYX",'KCZYX') and transposeCK:
+        self.registerB( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum, cdim), (kidx,Fbs.Free,kdim)] + filterDims )
+      elif self.tensorBFormat in ("CYXK",'CZYXK') and not transposeCK or\
+           self.tensorBFormat in ("KYXC",'KZYXC') and transposeCK:
+        self.registerB( [(nidx,Fbs.Batch,ndim), (cidx,Fbs.Sum, cdim)] + filterDims + [(kidx,Fbs.Free,kdim)] )
+      elif self.tensorBFormat in ("KYXC",'KZYXC') and not transposeCK or\
+           self.tensorBFormat in ("CYXK",'CZYXK') and transposeCK:
+        self.registerB( [(nidx,Fbs.Batch,ndim), (kidx,Fbs.Free, kdim)] + filterDims + [(cidx,Fbs.Sum,cdim)] )
+      else:
+        raise RuntimeError ("unknown weight format '%s'"%self.tensorBFormat)
+
+    if convolutionType=="ConvolutionBackwardWeights":
+      # index assignments - create filter dims
+      filterDims = []
+      #import pdb; pdb.set_trace()
+      for (fi,filterValue) in enumerate(self.filter):
+        if filterValue != 1:
+          prevChar = ['1', 'W', 'W*H']
+          filterChar = chr(ord('X')+fi)
+          filterValueStr = "TBD" if filterValue==-1 else str(filterValue)
+          filterMsg = "Filter%s. size#T=Filter%s(%s). strideA#T=Dilation%s(#D%d)*%s." \
+              % (filterChar, filterChar, filterValueStr, filterChar, fi,\
+                 prevChar[self.formatNumSpatialDims-fi-1])
+          filterDim = Convolution.Dimension(filterChar, filterMsg, DimAB.OnlyA, \
+                        strideA=self.dilation[fi] if  fi==0 else -1)
+          # assign the tensile indices here - 0..number_of_nonunit_filters-1
+          # insert like a stack to feed 'conv' order expected by register* functions
+          filterDims.insert(0,( (len(filterDims), Fbs.Free, filterDim)))
+
+      if self.tensorDFormat in ("KCYX", "KCZYX"):
+        cidx=len(filterDims)  # free
+        kidx=cidx+1      # free
+        nidx=kidx+1      # summation
+        sidxStart=nidx+1      # spatial summations (if needed)
+      else:
+        raise RuntimeError ("unknown tensorD format '%s'"%self.tensorDFormat)
+
+      if self.packSpatialDims:
+        sdims = [Convolution.Dimension('HW', \
+            'Spatially packed HW. size#T=H_i*W_i. strideA#T=strideW(#S0).', \
+            DimAB.BothAB, strideA=1)] # strides ignored since stride already applied
+      else:
+        raise RuntimeError ("backward weights only supports packSpatialDims")
+
+      spatialDims = []
+      # reverse dims  so can pass spatialDims to register functions in 'convolution' order
+      for si,sdim in enumerate(sdims):
+        spatialDims.insert(0, (sidxStart+si, Fbs.Sum, sdim))
+      self.numSpatialDims = len(spatialDims) # dims actually used in the tensor
+
+
+      if self.tensorAFormat in ("NCHW", "NCDHW"):
+        self.registerA( [(nidx,Fbs.Sum,ndim), (cidx,Fbs.Free,cdim)] + filterDims + spatialDims)
+        self.registerB( [(nidx,Fbs.Sum,ndim), (kidx,Fbs.Free,kdim)] + spatialDims)
+      else:
+        raise RuntimeError ("unknown tensorA format '%s'"%self.tensorAFormat)
+
+      problemTypeOut["NumIndicesC"] = 2+len(filterDims)
+
+    # convert from convolution order to tensor order:
+    self.indexA.reverse()
+    self.indexB.reverse()
+
+    problemTypeOut["IndexAssignmentsA"] = [x[0] for x in self.indexA]
+    problemTypeOut["IndexAssignmentsB"] = [x[0] for x in self.indexB]
+    problemTypeOut["UseBeta"] = False # MI kernels don't use beta
+
+    self.solutionParms = {}
+
+    problemTypeOut["SetConstStrideA"]=[]
+    for (idx,fbs,dim) in self.indexA:
+      if dim.strideA != -1:
+        problemTypeOut["SetConstStrideA"].append([idx,dim.strideA])
+    problemTypeOut["SetConstStrideA"].sort()
+    if problemTypeOut["SetConstStrideA"]:
+        self.solutionParms["AssertStrideAEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsA"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideA"]])
+
+    problemTypeOut["SetConstStrideB"]=[]
+    for (idx,fbs,dim) in self.indexB:
+      if dim.strideB != -1:
+        problemTypeOut["SetConstStrideB"].append([idx,dim.strideB])
+    problemTypeOut["SetConstStrideB"].sort()
+    if problemTypeOut["SetConstStrideB"]:
+        self.solutionParms["AssertStrideBEqual"] = \
+                ",".join(["%d:%d"%(problemTypeOut["IndexAssignmentsB"].index(s[0]),s[1]) \
+                          for s in problemTypeOut["SetConstStrideB"]])
+
+    if [x for x in problemTypeOut["SetConstStrideA"] if x==[0,1]] or \
+       [x for x in problemTypeOut["SetConstStrideB"] if x==[0,1]]:
+      problemTypeOut["UseInitialStridesAB"] = False
+    else:
+      problemTypeOut["UseInitialStridesAB"] = True
+
+    #self.printUsage(problemTypeOut)
+
+  def dimIdx(self, convolutionChar):
+    return self.convolutionDims[convolutionChar][0]
+
+  def convolutionChar(self, dimIdx):
+    return self.indexAssignments[dimIdx][1].shortChar
+
+  @property
+  def filterTbd(self):
+    return -1 in self.filter
+
+  @property
+  def strideTbd(self):
+    return -1 in self.stride
+
+  @property
+  def dilationTbd(self):
+    return -1 in self.dilation
+
+  @property
+  def padTbd(self):
+    return -1 in self.padStart or -1 in self.padEnd
+
+  def makeProblem(self, keepTbd, n, c, k, spatialIn=None):
+    """
+    Generate valid problem dims for specified convolution
+    Return [ [sizes],[stridesA] ]
+
+    If keepTbd is true, then makeProblem will compute known values but return -1 for unknowns.
+    For example, a constant filter parm can be used to compute some tensor sizes.  One the other hand,
+    if spatial dims are not specified, then this function cannot compute the associated dimension size
+    or stride and will leave them as -1.
+      - -1 sizes are invalid and should be ignored by caller; however the other sizes can be used as a reference
+      - -1 strides are valid.  (The client will compute a sensible default for -1 strides)
+
+    TBD values are assumed to be 1 (filter/dilation/stride) or 0(pad) via abs(..) function
+    """
+    numDims = 1 + max(max([x[0] for x in self.indexA]), max([x[0] for x in self.indexB]))
+    sizes = [-1]*numDims
+    astrides = [-1]*numDims
+
+    sizes[self.convolutionDims['N'][0]]=n
+    sizes[self.convolutionDims['C'][0]]=c
+    sizes[self.convolutionDims['K'][0]]=k
+
+    if spatialIn==None:
+      if self.spatial != None:
+        spatialIn = self.spatial
+      else:
+        if keepTbd:
+          spatialIn = [-1]*self.formatNumSpatialDims
+        else:
+          raise RuntimeError ("problemSize must specify spatial parms or set ConvolutionConfig.spatial")
+
+    if len(spatialIn) != self.formatNumSpatialDims:
+      raise RuntimeError ("len(spatialIn=", spatialIn, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
+
+    spatialTbd = -1 in spatialIn
+
+    # convert any TBD<0 to default 0
+    padStart = [0 if p<0 else p for p in self.padStart]
+    padEnd   = [0 if p<0 else p for p in self.padEnd]
+
+    # convert to Output dimensions:
+    spatialOut=[0]*len(spatialIn)
+    for i in range(self.formatNumSpatialDims):
+      if keepTbd and (spatialTbd or self.filterTbd or self.strideTbd or self.padTbd):
+        spatialTbd = 1
+        spatialOut[i] = -1
+      else:
+        spatialOut[i] = int((spatialIn[i] - abs(self.filter[i]) + 1 - padStart[i] - padEnd[i]) / abs(self.stride[i]))
+
+    #import pdb; pdb.set_trace()
+    for fi,filterValue in enumerate(self.filter):
+      if filterValue != 1 and filterValue != -1:
+        pos = self.convolutionDims[chr(ord('X')+fi)][0]
+        if keepTbd and self.filterTbd:
+          sizes[pos] = -1
+        else:
+          sizes[pos] = filterValue
+
+        if keepTbd and (self.dilationTbd or self.strideTbd):
+          astrides[pos] = -1
+        else:
+          astrides[pos] = abs(self.dilation[0]) if fi==0 else spatialIn[fi-1]*abs(self.dilation[fi])
+
+    if self.numSpatialDims==1:
+      spatialName="DHW"[3-self.formatNumSpatialDims:]
+      pos=self.convolutionDims[spatialName][0]
+      if keepTbd and spatialTbd:
+        sizes[pos] = -1
+      else:
+        sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
+      if keepTbd and self.strideTbd:
+        astrides[pos] = -1
+      else:
+        astrides[pos] = abs(self.stride[0])
+    else:
+      for si,sout in enumerate(spatialOut):
+        spatialChars=['W','H','D']
+        pos = self.convolutionDims[spatialChars[si]][0]
+        if keepTbd and spatialTbd:
+          sizes[pos] = -1
+        else:
+          sizes[pos] = sout
+
+        if keepTbd and (spatialTbd or self.strideTbd):
+          astrides[pos]=-1
+        else:
+          astrides[pos]=abs(self.stride[0]) if si==0 else spatialIn[si-1]*abs(self.stride[si])
+
+    if not keepTbd:
+      assert all(i!=-1 for i in sizes)
+
+    # translate to strides for A tensor in IndexAssignmentsA order:
+    orderedStrides=[]
+    for (idx,fbs,dim) in self.indexA:
+      orderedStrides.append(astrides[idx])
+
+    return (sizes, orderedStrides)
+
+  def registerA(self, dimList):
+    """
+    Provide a list of indices in convolution order - these will be reversed when assigned to IndexAssignmentsAB
+    The order of items in the list determines the IndexAssignment order.
+    Each tuple in the list is (idx,fbs,dim).
+     - idx is the tensor index
+     - fbs indicates if the tensor is expected to be Free,Sum,or Batch.  This is used for later check.
+     - dim is Convolution.Dimension class that describes the dimension (for Usage info)
+    """
+    for (idx,fbs,dim) in dimList:
+      if dim.dimAB not in (DimAB.OnlyA, DimAB.BothAB):
+        raise RuntimeError ("dimension '%s' can't be registered to TensorA" % dim.shortChar)
+      #print("registerA idx=", idx, "dim=", dim)
+      try:
+        self.indexAssignments[idx] = None
+      except IndexError:
+        self.indexAssignments.extend([None]*(1+idx-len(self.indexAssignments)))
+      self.indexAssignments[idx] = (fbs,dim)
+      self.convolutionDims[dim.shortChar] = (idx,dim)
+    self.indexA = dimList
+
+  def registerB(self, dimList):
+    """ See registerA """
+    for (idx,fbs,dim) in dimList:
+      if dim.dimAB not in (DimAB.OnlyB, DimAB.BothAB):
+        raise RuntimeError ("dimension '%s' can't be registered to TensorB" % dim.shortChar)
+      #print("B", idx, dim)
+      try:
+        self.indexAssignments[idx] = None
+      except IndexError:
+        self.indexAssignments.extend([None]*(1+idx-len(self.indexAssignments)))
+      self.indexAssignments[idx] = (fbs,dim)
+      self.convolutionDims[dim.shortChar] = (idx,dim)
+
+    self.indexB = dimList
+
+  def dimxParm(self, config, parmName, default):
+    parm =config.get(parmName)
+    if not parm:
+      rv = [default ] * self.formatNumSpatialDims
+    else:
+      rv=[]
+      for x in parm.split('x'):
+        if x.upper()=='N':
+          rv.append(-1)
+        else:
+          rv.append(int(x))
+      rv.reverse() # rightmost number is 0
+    if len(rv) != self.formatNumSpatialDims:
+        raise RuntimeError ("%s parm '%s' must have %d spatial dims'"%(parmName, parm, self.formatNumSpatialDims))
+    return rv
+
+  def printUsage(self, problemType):
+    print("Tensile Index Assignments and Usage:")
+    print("   Tensile    : ConvChar: Explanation/Usage")
+    for (idx,dim2) in enumerate(self.indexAssignments):
+        (fbs,dim)=dim2
+        tensileChar = globalParameters['IndexChars'][idx]
+        usage = str(dim)
+        usage = usage.replace('#T', tensileChar)
+        for i in range(len(self.stride)):
+            usage = usage.replace('#S%d'%i, str(self.stride[i]) if self.stride[i]>=0 else 'TBD')
+        for i in range(len(self.dilation)):
+            usage = usage.replace('#D%d'%i, str(self.dilation[i]) if self.dilation[i]>=0 else 'TBD')
+        print("  %d('%c') %-5s:   %s" % (idx, tensileChar, str(fbs).split('.')[1], usage))
+
+    print ()
+    print ("- Spatial sizes D_i, H_i, W_i refer to size of INPUT dimension.")
+    print ("- Spatial sizes D_o, H_o, W_o refer to size of OUTPUT dimension.")
+    print ("     For example W_o =  (W_i - X - padStart - padEnd + 1)/stride")
+    print ("- (TBD)' indicates the parm is flexible and must be specified at runtime.")
+    print ("- (i)' where i is an integer constant, indicates the parm is hard-coded at compile time.")
+    print ("  The runtime value must match the compile-time value.")
+    print ("- Unspecified strides use default stride value:")
+    print ("    stride[i] = (stride[i-1]*size[i]) for i>0 ; 1 for i==0")
+
+    print ()
+    print ("ProblemType Definition:")
+    for k in Convolution.SummaryProblemProperties:
+      try:
+        print ("  ", k, ":", problemType[k])
+      except KeyError:
+        pass
+
+    print ()
+    print ("Solution Assertions:")
+    for k in Convolution.SummarySolutionProperties:
+      try:
+        print ("  ", k, ":", self.solutionParms[k])
+      except KeyError:
+        pass
+
+
+  def checkDims(self, freeIndices, batchIndices, sumIndices):
+    for dimList in (self.indexA, self.indexB):
+      for (idx,fbs,dim) in dimList:
+        if fbs==Fbs.Free and idx not in freeIndices:
+          raise RuntimeError ("dimension %d('%s') expected to be free dimension" % (idx, dim.shortChar))
+        elif fbs==Fbs.Batch and idx not in batchIndices:
+          raise RuntimeError ("dimension %d('%s') expected to be batch dimension" % (idx, dim.shortChar))
+        elif fbs==Fbs.Sum and idx not in sumIndices:
+          raise RuntimeError ("dimension %d('%s') expected to be summation dimension" % (idx, dim.shortChar))
+
+
+  def identifier(self):
+    id = self.convolutionType
+    id += "_" + self.tensorAFormat
+    id += "_" + self.tensorBFormat
+    id += "_" + self.tensorDFormat
+    id += "_spatialDims:" + str(self.numSpatialDims)
+    id += "_indices:" + '.'.join([x[1].shortChar for x in self.indexAssignments])
+    if self.spatial:
+      id += "_spatial:" + "x".join([str(x) for x in self.spatial[::-1]])
+    id += "_filter:" + "x".join([str(x) for x in self.filter[::-1]])
+    id += "_stride:" + "x".join([str(x) for x in self.stride[::-1]])
+    id += "_dilation:" + "x".join([str(x) for x in self.dilation[::-1]])
+    id += "_padStart:" + "x".join([str(x) for x in self.padStart[::-1]])
+    id += "_padEnd:" + "x".join([str(x) for x in self.padEnd[::-1]])
+    return id
+
+
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
 class ProblemType:
-  operationTypes = ["GEMM", "TensorContraction"]
-
   ########################################
   def __init__(self, config):
     self.state = {}
+
     for key in defaultProblemType:
       assignParameterWithDefault(self.state, key, config, defaultProblemType)
 
@@ -213,13 +602,64 @@ class ProblemType:
         printExit("NO dest data type or data type specified")
         self["DataType"] = DataType(0)
 
+
+    if "ComputeDataType" in config:
+      self["ComputeDataType"] = DataType(config["ComputeDataType"])
+    else:
+      if "DestDataType" in config:
+        self["ComputeDataType"] = DataType(config["DestDataType"])
+      else:
+        if "DataType" in config:
+          self["ComputeDataType"] = DataType(config["DataType"])
+        else:
+          printExit("NO compute data type, or dest data type, or data type specified")
+          self["DataType"] = DataType(0)
+
+    self.convolution = None
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
     elif self["OperationType"] == "TensorContraction":
-      self.initTensorContraction(config)
+      self.initTensorContraction(self.state)
+    elif self["OperationType"] in ("ConvolutionForward", "ConvolutionBackwardData", "ConvolutionBackwardWeights"):
+      self.initConvolution(config, self["OperationType"])
+    else:
+      printExit("Unsupported OperationType = %s" % self["OperationType"])
+
 
     self.state["AssignedDerivedParameters"] = False
     ProblemType.assignDerivedParameters(self.state)
+
+    if self.convolution:
+      if globalParameters["PrintConvolutionUsage"]:
+        print()
+        self.convolution.printUsage(self)
+        print()
+      self.convolution.checkDims(self.state["IndicesFree"], self.state["IndicesBatch"], self.state["IndicesSummation"])
+
+    for tc in ('A', 'B'):
+      freeDims={}
+      sumDims={}
+      for zp in self["ZeroPad%s"%tc] :
+        (freeDim, sumDim, leading, trailing) = zp
+        if freeDim not in self.state["IndicesFree"]:
+          printExit("ZeroPad%s=%s dim=%u is not a free index"%(tc, zp, freeDim))
+        if freeDim not in self.state["IndexAssignments%s"%tc]:
+          printExit("ZeroPad%s=%s dim=%u is not in IndexAssignments%s"%(tc, zp, freeDim, tc))
+        if sumDim not in self.state["IndicesSummation"]:
+          printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
+        if freeDim in freeDims:
+          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple"%(tc, zp, freeDim))
+        freeDims[freeDim] = 1
+        if sumDim in sumDims:
+          printExit("ZeroPad%s=%s sumDim=%u occurs in more than one tuple"%(tc, zp, sumDim))
+        sumDims[sumDim] = 1
+
+    for tc in ('A', 'B'):
+      for sc in self["SetConstStride%s"%tc] :
+          (anchorDim, stride) = sc[:2]
+          if anchorDim not in self.state["IndexAssignments%s"%tc]:
+              printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, sc, anchorDim, tc))
+
 
 
   ########################################
@@ -238,11 +678,32 @@ class ProblemType:
     else:
       self["NumIndicesC"] = 2
 
+    self["NumIndicesLD"] = 4
+    self["IndexAssignmentsLD"][0] = self["NumIndicesC"] + 1
+    for i in range(1, len(self["IndexAssignmentsLD"])):
+      self["IndexAssignmentsLD"][i] = self["IndexAssignmentsLD"][i-1] + 1
+
   ########################################
   def initTensorContraction(self, config):
     assignParameterRequired(self.state, "NumIndicesC", config)
     assignParameterRequired(self.state, "IndexAssignmentsA", config)
     assignParameterRequired(self.state, "IndexAssignmentsB", config)
+    self["NumIndicesLD"] = 0
+
+  ########################################
+  def initConvolution(self, config, convolutionType):
+    convolutionConfig = {}
+    try:
+      if config['ConvolutionConfig'] != None:
+        for dict in config['ConvolutionConfig']:
+          for k,v in dict.items():
+            convolutionConfig[k] = v
+    except KeyError:
+      raise RuntimeError ("OperationType %s must include ConvolutioConfig section in ProblemType"%convolutionType)
+
+    self.convolution = Convolution(self, convolutionType, convolutionConfig)
+    self["NumIndicesLD"] = 0
+    self["UseBeta"] = False
 
   ########################################
   def isGEMM(self):
@@ -292,18 +753,23 @@ class ProblemType:
       else:
         printExit("invalid index %u (expected summation but not (inA and inB))" % i)
     # print index assignments
-    #print1("IndicesFree:  %s" % state["IndicesFree"])
-    #print1("IndicesBatch: %s" % state["IndicesBatch"])
-    #print1("IndicesSum:   %s" % state["IndicesSummation"])
+    if 0:
+      print1("IndicesFree:  %s" % state["IndicesFree"])
+      print1("IndicesBatch: %s" % state["IndicesBatch"])
+      print1("IndicesSum:   %s" % state["IndicesSummation"])
+      print1("IndexAssignmentsA:   %s" % state["IndexAssignmentsA"])
+      print1("IndexAssignmentsB:   %s" % state["IndexAssignmentsB"])
+
+
+    for k in ('IndexAssignmentsA','IndexAssignmentsB'):
+      if len(state[k]) != len(set(state[k])):
+        printExit("duplicate index in %s=%s"% (k,state[k]))
+
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
-    if len(state["IndexAssignmentsA"]) != len(state["IndexAssignmentsB"]):
-      printExit("Tensile requires #A indices == #B indices, need to fix numIndicesAB")
     if state["NumIndicesFree"] < 2 :
       printExit("Tensile requires >= 2 free indices; FreeIndices=%s."%state["IndicesFree"])
-    #if state["NumIndicesFree"] != 2 and not state["PackFreeDims"]:
-    #  printExit(">2 free indices requires PackFreeDims==1. FreeIndices=%s."%state["IndicesFree"])
 
     # by default, unroll index will be the last/inner summation index
     state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
@@ -354,7 +820,6 @@ class ProblemType:
     unrollIdxB = state["IndexAssignmentsB"].index(state["IndexUnroll"])
     state["TLUA"] = strideIdxA < unrollIdxA
     state["TLUB"] = strideIdxB < unrollIdxB
-
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
     #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
@@ -386,11 +851,12 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["UseInitialStrides"]: name += "I"
+    if self["UseInitialStridesAB"]: name += "I"
+    if self["UseInitialStridesCD"]: name += "Ic"
     return name
 
   def keys(self):
-    return self.state.keys()
+    return list(self.state.keys())
   def __len__(self):
     return len(self.state)
   def __iter__(self):
@@ -413,6 +879,13 @@ class ProblemType:
       return result
     return not result
 
+  def get(self, key, default=None):
+    try:
+      return self.state[key]
+    except:
+      return default
+
+
 
 ################################################################################
 # ProblemSizeRange
@@ -421,10 +894,14 @@ class ProblemSizeRange:
 
   ########################################
   def __init__(self, problemType, config):
-    self.totalIndices = 1+max(problemType["IndexAssignmentsA"])
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"]) + problemType["NumIndicesLD"]
     if len(config) < self.totalIndices:
       for i in range(len(config), self.totalIndices):
-        config.append(0)
+        if i < self.totalIndices - problemType["NumIndicesLD"]:
+          config.append(0)
+        else:
+          config.append([0])
+
     self.indexMax = []
     self.indexIsSized = []
     self.indicesSized = []
@@ -559,34 +1036,47 @@ class ProblemSizes:
     self.ranges = []
     self.exacts = []
     self.minStrides = None
-    for dictionary in config:
-      for sizeTypeKey in dictionary:
-        if sizeTypeKey == "Range":
-          psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
-          self.ranges.append( psr )
-        elif sizeTypeKey == "Exact":
-          e = dictionary[sizeTypeKey]
-          if len(e) != problemType["TotalIndices"]:
-            printExit("ExactSize %s doesn't match indices of ProblemType %s" \
-                % (e, problemType) )
+    if config:
+      for dictionary in config:
+        for sizeTypeKey in dictionary:
+          if sizeTypeKey == "Range":
+            psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
+            self.ranges.append( psr )
+          elif sizeTypeKey == "Exact":
+            e = dictionary[sizeTypeKey]
+            if len(e) == problemType["TotalIndices"]:
+              if problemType["OperationType"] == "GEMM":
+                e += [-1, -1, -1, -1]
+              self.exacts.append(tuple(e))
+            elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
+              self.exacts.append(tuple(e))
+            else:
+              printExit("ExactSize %s doesn't match indices of ProblemType %s" \
+                  % (e, problemType) )
+
+          elif sizeTypeKey == "MinStride":
+            e = dictionary[sizeTypeKey]
+            if len(e) != problemType["TotalIndices"]:
+              printExit("MinStride %s doesn't match indices of ProblemType %s" \
+                  % (e, problemType) )
+            if self.minStrides:
+              printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
+                  % (self.minStrides, e) )
+
+            self.minStrides=(tuple(e))
           else:
-            self.exacts.append(tuple(e))
-        elif sizeTypeKey == "MinStride":
-          e = dictionary[sizeTypeKey]
-          if len(e) != problemType["TotalIndices"]:
-            printExit("MinStride %s doesn't match indices of ProblemType %s" \
-                % (e, problemType) )
-          if self.minStrides:
-            printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
-                % (self.minStrides, e) )
+            printExit("ProblemSize Type %s not supported"%sizeTypeKey)
 
-          self.minStrides=(tuple(e))
-        else:
-          printExit("ProblemSize Type %s not supported"%sizeTypeKey)
-
-    if not self.minStrides: 
+    if not self.minStrides:
       # set harmless default mins of 0
       self.minStrides = ([0]* problemType["TotalIndices"])
+
+    # not the ideal spot, but convert leading dims that are below the minimum size
+    if problemType["OperationType"] == "GEMM":
+      for i in range(0, len(self.ranges)):
+        self.ranges[i].problemSizes[:] = \
+          [self.convertLeadingDims(problemSize) for problemSize in self.ranges[i].problemSizes]
+      self.exacts[:] = [self.convertLeadingDims(problemSize) for problemSize in self.exacts]
 
     self.sizes = set()
     for sizeRange in self.ranges:
@@ -596,22 +1086,49 @@ class ProblemSizes:
     self.totalProblemSizes = len(self.sizes)
 
     # max sizes
+    self.maxD = 0
     self.maxC = 0
     self.maxA = 0
     self.maxB = 0
     for problemSize in self.sizes:
-      sizeC = 1
-      sizeA = 1
-      sizeB = 1
-      for i in range(0, problemType["NumIndicesC"]):
+      sizeLdd = problemSize[self.problemType["IndexAssignmentsLD"][0]] if problemType["OperationType"] == "GEMM" else problemSize[0]
+      sizeD = max(self.minStrides[0], sizeLdd)
+      for i in range(1, problemType["NumIndicesC"]):
+        sizeD *= max(self.minStrides[i], problemSize[i])
+
+      sizeLdc = problemSize[self.problemType["IndexAssignmentsLD"][1]] if problemType["OperationType"] == "GEMM" else problemSize[0]
+      sizeC = max(self.minStrides[0], sizeLdc)
+      for i in range(1, problemType["NumIndicesC"]):
         sizeC *= max(self.minStrides[i], problemSize[i])
-      for i in self.problemType["IndexAssignmentsA"]:
+
+      sizeLda = problemSize[self.problemType["IndexAssignmentsLD"][2]] \
+                if problemType["OperationType"] == "GEMM" \
+                else problemSize[self.problemType["IndexAssignmentsA"][0]]
+      sizeA = max(self.minStrides[self.problemType["IndexAssignmentsA"][0]], sizeLda)
+      for i in self.problemType["IndexAssignmentsA"][1:]:
         sizeA *= max(self.minStrides[i], problemSize[i])
-      for i in self.problemType["IndexAssignmentsB"]:
+
+      sizeLdb = problemSize[self.problemType["IndexAssignmentsLD"][3]] \
+                if problemType["OperationType"] == "GEMM" \
+                else problemSize[self.problemType["IndexAssignmentsB"][0]]
+      sizeB = max(self.minStrides[self.problemType["IndexAssignmentsB"][0]], sizeLdb)
+      for i in self.problemType["IndexAssignmentsB"][1:]:
         sizeB *= max(self.minStrides[i], problemSize[i])
+
+      self.maxD = max(self.maxD, sizeD)
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
+
+
+  def convertLeadingDims(self, problemSize):
+    return problemSize[:self.problemType["NumIndicesC"]+1] + \
+           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentsLD"][0]]),) + \
+           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentsLD"][1]]),) + \
+           (max(problemSize[self.problemType["IndexAssignmentsLD"][2]],
+                problemSize[self.problemType["IndexAssignmentsA"][0]]),) + \
+           (max(problemSize[self.problemType["IndexAssignmentsLD"][3]],
+                problemSize[self.problemType["IndexAssignmentsB"][0]]),)
 
   def __str__(self):
     s = "ProblemSizes\n"
@@ -627,6 +1144,16 @@ def isPackedIndex(ks, index, batchMask=0x3):
   problemType = ks["ProblemType"]
   return index in problemType["IndicesFree"] and ks["PackFreeDims"] or \
          index in problemType["IndicesBatch"] and (ks["PackBatchDims"] & batchMask)
+
+def isExtractableIndex(ks, index, tc='x'):
+  xA = index in ks['PackedC0IndicesX'][:-1]
+  xB = index in ks['PackedC1IndicesX'][:-1]
+  if tc=='A':
+    return xA
+  elif tc=='B':
+    return xB
+  else:
+    return xA or xB
 
 ################################################################################
 # Solution
@@ -648,6 +1175,12 @@ class Solution:
     # assign parameters with defaults
     for key in defaultSolution:
       assignParameterWithDefault(self._state, key, config, defaultSolution)
+
+    if 'ISA' not in self._state:
+      if 'ISA' in config:
+        self._state['ISA'] = config['ISA']
+      else:
+        self._state['ISA'] = list(globalParameters["CurrentISA"])
 
     # assign parameters without defaults
     for key in config:
@@ -682,11 +1215,25 @@ class Solution:
       kernel["ProblemType"]["UseBeta"] = beta
       kernel["ProblemType"]["DataType"] = problemType["DataType"]
       kernel["ProblemType"]["DestDataType"] = problemType["DestDataType"]
+      kernel["ProblemType"]["ComputeDataType"] = problemType["ComputeDataType"]
       kernel["ProblemType"]["Index0"] = problemType["Index0"]
       kernel["ProblemType"]["Index1"] = problemType["Index1"]
-      kernel["ProblemType"]["UseInitialStrides"] = \
-          problemType["UseInitialStrides"]
+      kernel["ProblemType"]["UseInitialStridesAB"] = \
+          problemType["UseInitialStridesAB"]
+      kernel["ProblemType"]["UseInitialStridesCD"] = \
+          problemType["UseInitialStridesCD"]
+      kernel["ProblemType"]["SetConstStrideA"] = \
+          problemType["SetConstStrideA"]
+      kernel["ProblemType"]["SetConstStrideB"] = \
+          problemType["SetConstStrideB"]
+      kernel["ProblemType"]["ZeroPadA"] = \
+          problemType["ZeroPadA"]
+      kernel["ProblemType"]["ZeroPadB"] = \
+          problemType["ZeroPadB"]
+      kernel["ProblemType"]["ConvolutionConfig"] = \
+          problemType["ConvolutionConfig"]
       kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
+      kernel["KernelLanguage"] = "Source"
       kernels.append(kernel)
     return kernels
 
@@ -701,6 +1248,7 @@ class Solution:
   # assign tile sizes
   @staticmethod
   def assignProblemIndependentDerivedParameters(state):
+
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
         return
@@ -708,14 +1256,53 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    state["SubGroup0"] = state["WorkGroup"][0]
-    state["SubGroup1"] = state["WorkGroup"][1]
-    state["LocalSplitU"] = state["WorkGroup"][2]
-    state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
+    if state["MatrixInstruction"]:
+      if state["MatrixInstruction"][0] != -1:
+        if len(state["MatrixInstruction"]) == 4:
+          # check for valid instruction with input type
+          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
+          if state["ThreadTile"][1] % itemsPerThread != 0:
+            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
+          state["MatrixInstM"] = state["MatrixInstruction"][0]
+          state["MatrixInstN"] = state["MatrixInstruction"][1]
+          state["MatrixInstK"] = state["MatrixInstruction"][2]
+          state["MatrixInstB"] = state["MatrixInstruction"][3]
+      if not state["ProblemType"]["HighPrecisionAccumulate"] and \
+         not state["ProblemType"]["DataType"].isSingle() :
+        reject(state, "Matrix instructions for half types are natively accumulated" + \
+         " in fp32 precision. Please add the following config:" + \
+         "\n - HighPrecisionAccumulate: True")
+    else:
+      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
+        reject(state, "Invalid value for ThreadTile")
+
+    if state["MatrixInstruction"]:
+      if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
+        reject(state, "Error calcualting InstSplit")
+      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstM"] * state["MatrixInstB"]) # BBlocks
+      state["MIWG0"] = state["MatrixInstM"] if state["WorkGroup"][0] < state["MatrixInstM"] else  state["WorkGroup"][0]
+      # raise rejection 
+      if ((state["MIWG0"]%state["MatrixInstM"]) != 0):
+        reject(state, "WorkGroup0 must be mulitple of MatrixInstM")
+      #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
+      #  reject(state, "Error calculating MIWG1")
+
+      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MIWG0"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
+      state["SubGroup0"] = state["MIWG0"] # TODO calc
+      state["SubGroup1"] = state["MIWG1"]
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
+    else:
+      state["SubGroup0"] = state["WorkGroup"][0]
+      state["SubGroup1"] = state["WorkGroup"][1]
+
+      state["LocalSplitU"] = state["WorkGroup"][2]
+      state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
     state["ThreadTile0"] = state["ThreadTile"][0]
     state["ThreadTile1"] = state["ThreadTile"][1]
 
+    # TODO MI - SubGroup0 temporarily == MIWG0, revisit later
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
@@ -728,8 +1315,8 @@ class Solution:
 
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
-      macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
-          state["MacroTile1"]/state["MacroTile0"])
+      macroTileShape = max(state["MacroTile0"]//state["MacroTile1"], \
+          state["MacroTile1"]//state["MacroTile0"])
       if macroTileShape > state["MacroTileShapeMax"] \
           or macroTileShape < state["MacroTileShapeMin"]:
         reject(state, "rejecting MacroTile Shape %u:%u for Min:Max %u:%u" \
@@ -758,7 +1345,7 @@ class Solution:
     validDepthU = True
     if totalVectors < state["NumThreads"]:
       # Try to reduce size of vector so every thread has a load to do
-      pv = state["NumThreads"] / totalVectors # partial vector
+      pv = state["NumThreads"]//totalVectors
       if not state["FractionalLoad"]:
         if state["NumThreads"] % totalVectors != 0:
           reject(None, "NumThreads %u %% totalVectors %u != 0" \
@@ -780,12 +1367,13 @@ class Solution:
               % (totalVectors, state["NumThreads"]))
           validDepthU = False
 
-    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"] / pv
+    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"]//pv
 
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
-    state["NumLoads%s"%tc] = totalVectors * pv / state["NumThreads"]
-
+    state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
+    #if state["MatrixInstruction"] and not state["PrefetchGlobalRead"]:
+    #  state["NumLoads%s"%tc] = totalVectors * pv // (state["NumThreads"] // 4)  # 4 simds/cu
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -804,9 +1392,8 @@ class Solution:
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
-      for nlc in range(1, state["NumLoads%s"%tc]+1):
-        nlp = state["NumLoads%s"%tc] / nlc
-        #print nlc, nlp
+      for nlc in range(1, int(state["NumLoads%s"%tc]+1)):
+        nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:
@@ -822,7 +1409,7 @@ class Solution:
     elif state["NumLoadsCoalesced%s"%tc] == -1:
       foundValid = False
       for nlc in range(state["NumLoads%s"%tc], 0, -1):
-        nlp = state["NumLoads%s"%tc] / nlc
+        nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
             and totalElementsPerp % nlp == 0:
@@ -841,7 +1428,7 @@ class Solution:
         return False
 
       state["NumLoadsPerpendicular%s"%tc] = state["NumLoads%s"%tc] \
-          / state["NumLoadsCoalesced%s"%tc]
+          // state["NumLoadsCoalesced%s"%tc]
 
       if state["NumLoads%s"%tc] % state["NumLoadsCoalesced%s"%tc] != 0:
         reject(state, "%s: numLoads %u %% numLoadsCoalesced %u != 0" \
@@ -859,13 +1446,13 @@ class Solution:
 
     if state["ProblemType"]["TLU%s"%tc]:
       state["LSC%s"%tc] = state["MacroTile%s"%tc] \
-          / state["NumLoadsCoalesced%s"%tc]
+          // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-          / state["NumLoadsPerpendicular%s"%tc]
-
+          // state["NumLoadsPerpendicular%s"%tc]
+    
     return True
 
 
@@ -930,11 +1517,11 @@ class Solution:
       perpDim = state["MacroTile%s"%tc]
 
     if dbFract:
-        print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
+        print("\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
           % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
             parDim, perpDim, \
             state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
-            state["NumThreads"], state["GlobalReadVectorWidth"])
+            state["NumThreads"], state["GlobalReadVectorWidth"]))
 
     # Try to find a GRVW which is smaller than the LSC and also does not force
     # the LSC to wrap - both of these conditions can be tested with lsc % grvw ==0.
@@ -956,34 +1543,34 @@ class Solution:
       else:
         # work-group exceeds read dimension so wraps to multiple rows
         state["LSC%s"%tc] = parDim
-        state["LSP%s"%tc] = min(perpDim, elementsLoadedPerInst / parDim)
+        state["LSP%s"%tc] = min(perpDim, elementsLoadedPerInst // parDim)
         state["NumLoadsCoalesced%s"%tc] = 1
         state["NumLoadsPerpendicular%s"%tc] = roundupRatio(perpDim , state["LSP%s"%tc])
 
       # Vector loads can't wrap to next P dim, so LSC must be divisible by vector elements;
       if dbFract:
-        print "  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw)
+        print("  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw))
       if state["LSC%s"%tc] % grvw == 0:
         bestVw = grvw
         # Try to shrink GRVW if possible while keeping same LSC and LSP:
         # For example, avoid cases where we use a GRVW=4 with many empty addresses
         # when a GRVW=1 will do instead.
         validElementsLoadedPerInst = state["LSC%s"%tc] * state["LSP%s"%tc]
-        grvw /= 2
+        grvw //= 2
         while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
             if dbFract:
-              print "  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc]
+              print("  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc])
             bestVw = grvw
-          grvw /= 2
+          grvw //= 2
         break
 
       # TODO - could have this generate dwordx3 loads in addition, step down by 1 instead of div2
       # Would need to change asm code gen to generate x3
-      grvw /= 2
+      grvw //= 2
       # end-- while loop
 
     if bestVw == -1:
@@ -1015,15 +1602,15 @@ class Solution:
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
-      print "  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
              nlc, nlp, \
              nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
              parDim, perpDim, \
              parDim*perpDim, \
              nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
-             (float)(parDim*perpDim) / \
-             (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0 \
+             float(parDim*perpDim), \
+             float(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0) \
              )
 
       for p in range(0,nlp):
@@ -1034,14 +1621,22 @@ class Solution:
           perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
 
         validElements = state["LSC%s"%tc] * perp
-        print "  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
+        print("  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
               (state["GlobalLoadVectorWidth%s"%tc], \
               state["LSC%s"%tc], perp, \
               elementWidth, \
-              validElements/state["GlobalLoadVectorWidth%s"%tc],
-              state["NumThreads"])
+              validElements//state["GlobalLoadVectorWidth%s"%tc],
+              state["NumThreads"]))
 
     return True
+
+  @staticmethod
+  def addConstStride(state, key, value):
+      try:
+          if value not in state[key].replace(' ','').split(','):
+              state[key] = state[key] + ", " + value
+      except KeyError:
+          state[key] = value
 
 
   ########################################
@@ -1049,6 +1644,7 @@ class Solution:
   @staticmethod
   def assignDerivedParameters(state):
     Solution.assignProblemIndependentDerivedParameters(state)
+
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
         return
@@ -1058,6 +1654,17 @@ class Solution:
     if not state["Valid"]:
       print1("in assignDerivedParameters, state['Valid'] = False")
       return
+
+    # Init LoopIters parameter in case of early exit
+    # For backwards compatibility with older yaml files
+    state["LoopIters"] = 0
+    if "LoopUnroll" in state:
+      state["LoopIters"] = state["LoopUnroll"]
+
+    if state["MatrixInstruction"]:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
@@ -1083,32 +1690,56 @@ class Solution:
     state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
 
     # Determine which indices will be packed together as this impacts several different parms (sizes, magic numbers, etc)
+    # The order in PackedC*Indices also determines the order that dimensions are packed - the first elements in
+    # the list are the fastest-moving elements.
     # grid size [0,1]
     problemType = state["ProblemType"]
-    state["PackedC0Indices"] = []
+    state["PackedC0IdxChars"] = []
+    state["PackedC0IndicesX"] = []
     indexChars = globalParameters["IndexChars"]
     # Pack all the dimensions (batch and free) of A into grid[0]
-    for idx in problemType["IndexAssignmentsA"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x1) or \
-           idx == problemType["Index0"]):
-        state["PackedC0Indices"].append("%s" % indexChars[idx])
+    assert(isPackedIndex(state, problemType["Index0"], 0x1))
+    assert(isPackedIndex(state, problemType["Index1"], 0x2))
 
-    state["PackedC1Indices"] = []
+    # Add AssertStride*Equal for PackBatchDims, if needed
+    for (mask, tc) in ((0x1,'B'), (0x2,'A')):
+        if state["PackBatchDims"] & mask:
+            for bi in problemType["IndicesBatch"]:
+                found = False
+                try:
+                    for pair in problemType["AssertStride%sEqual"%tc].replace(' ','').split(','):
+                        (index,value)=pair.split(':')
+                        if index==bi and value==0:
+                            found = True
+                            break
+                except KeyError:
+                    None
+                if not found:
+                    Solution.addConstStride(state, "AssertStride%sEqual"%tc, \
+                                "%d:0" % problemType["IndexAssignments%s"%tc].index(bi))
+
+    for idx in problemType["IndexAssignmentsA"]:
+      if isPackedIndex(state, idx, 0x1):
+        assert (idx < problemType["NumIndicesC"])
+        state["PackedC0IdxChars"].append("%s" % indexChars[idx])
+        state["PackedC0IndicesX"].append(idx)
+
+    state["PackedC1IdxChars"] = []
+    state["PackedC1IndicesX"] = []
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignmentsB"]:
-      if idx < problemType["NumIndicesC"] and \
-          (isPackedIndex(state, idx, 0x2) or \
-           idx == problemType["Index1"]):
-        state["PackedC1Indices"].append("%s" % indexChars[idx])
+      if isPackedIndex(state, idx, 0x2):
+        assert (idx < problemType["NumIndicesC"])
+        state["PackedC1IdxChars"].append("%s" % indexChars[idx])
+        state["PackedC1IndicesX"].append(idx)
 
     # If dims are packed, then need to ensure a global vector load isn't split by a tensor dim
     # (since this could result in non-contiguous addresses)
     # Current implementation ensures that the vector load is not partial across the Free* boundary:
     # GlobalLoadVectorWidth=1 will always meet this requirement.
     # (TODO - could make this more sophisticated if dims use default strides and are thus contiguous)
-    packedC0 = len(state["PackedC0Indices"])>1
-    packedC1 = len(state["PackedC1Indices"])>1
+    packedC0 = len(state["PackedC0IdxChars"])>1
+    packedC1 = len(state["PackedC1IdxChars"])>1
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
 
@@ -1119,8 +1750,8 @@ class Solution:
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
     state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"])
 
-    #print("PackedC0Indices", state["PackedC0Indices"])
-    #print("PackedC1Indices", state["PackedC1Indices"])
+    #print("PackedC0IdxChars", state["PackedC0IdxChars"])
+    #print("PackedC1IdxChars", state["PackedC1IdxChars"])
 
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
@@ -1130,6 +1761,10 @@ class Solution:
                 (state["DepthU"] * bpeAB), 2)))
     except ValueError:
         staggerStrideShift = 0
+    if staggerStrideShift < 0:
+      reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
+        % (state["StaggerUStride"], state["DepthU"], bpeAB))
+      return 
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
@@ -1140,14 +1775,21 @@ class Solution:
       state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
       while state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
-        state["VectorWidth"] /= 2
+        state["VectorWidth"] //= 2
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if state["ThreadTile0"] % state["VectorWidth"] != 0 \
-        or state["ThreadTile1"] % state["VectorWidth"] != 0:
-      reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
-          % (state["ThreadTile0"], state["ThreadTile1"], \
-          state["VectorWidth"]))
-      return
+    if not state["MatrixInstruction"]:
+      if state["ThreadTile0"] % state["VectorWidth"] != 0 \
+          or state["ThreadTile1"] % state["VectorWidth"] != 0:
+        reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
+            % (state["ThreadTile0"], state["ThreadTile1"], \
+            state["VectorWidth"]))
+        return
+
+    if state["PackSummationDims"] == 1:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
+          reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
+        else:
+          state["AssertSummationElementMultiple"] = state["DepthU"]
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
@@ -1162,14 +1804,19 @@ class Solution:
            # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
             reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
 
+    if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
+        reject(state, "PackSummationDims does not yet support assembly")
+
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
-
-    if state["MinGlobalWriteVectorWidth"] == -1:
-      state["MinGlobalWriteVectorWidth"] = 2 \
-        if state["ProblemType"]["DataType"].isHalf() else 1
+    # Default GlobalStoreVectorWidth
+    if state["StoreVectorWidth"] == -1:
+      #TODO : re-enable later after running testlists
+      #state["StoreVectorWidth"] = state["VectorWidth"]
+      # use wider store for best store optimization 
+      state["StoreVectorWidth"] = 4  
 
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
@@ -1191,7 +1838,7 @@ class Solution:
       reject(state, "NumElementsPerWorkGroup %u < NumThreads %u; reduce LocalSplitU" \
           % (numElementsPerWorkGroup, state["NumThreads"]))
       return
-    state["NumElementsPerThread"] = numElementsPerWorkGroup / \
+    state["NumElementsPerThread"] = numElementsPerWorkGroup // \
         state["NumThreads"]
     state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
     if state["NumElementsPerThread"] % state["GlobalWriteVectorWidth"] != 0:
@@ -1199,7 +1846,7 @@ class Solution:
           % (state["NumElementsPerThread"], state["GlobalWriteVectorWidth"]))
       return
     state["NumGlobalWriteVectorsPerThread"] = state["NumElementsPerThread"] \
-        / state["GlobalWriteVectorWidth"]
+        // state["GlobalWriteVectorWidth"]
 
 
     # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways store
@@ -1253,7 +1900,6 @@ class Solution:
         if state["AssertFree0ElementMultiple"] < 2:
           reject(state, "Assembly GSU half requires AF0EM>=2 (for atomics on edge tiles)")
 
-
     ########################################
     # Initial DepthU
     ########################################
@@ -1305,8 +1951,8 @@ class Solution:
         if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU):
           validDepthU = False
       else:
-        tva = totalElementsA / state["GlobalReadVectorWidth"]
-        tvb = totalElementsB / state["GlobalReadVectorWidth"]
+        tva = totalElementsA // state["GlobalReadVectorWidth"]
+        tvb = totalElementsB // state["GlobalReadVectorWidth"]
         if not Solution.setGlobalLoadVectorWidth(state, "A", tva):
           validDepthU = False
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
@@ -1319,20 +1965,20 @@ class Solution:
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA / state["GlobalReadVectorWidth"]
-      totalVectorsCoalescedB = totalElementsCoalescedB / state["GlobalReadVectorWidth"]
-      totalVectorsA = totalElementsA / state["GlobalReadVectorWidth"]
-      totalVectorsB = totalElementsB / state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalReadVectorWidth"]
+      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"] 
+      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"] 
 
       if 0:
-        print "info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
+        print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
                        pvar(state, "ThreadTile0"), pvar(state, "ThreadTile1"), \
                        "WG=%ux%u" % (state["WorkGroup"][0], state["WorkGroup"][1]), \
-                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB")
-        print "info: totalElementsCoalescedA=", totalElementsCoalescedA, \
-              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA
-        print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
-              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
+                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB"))
+        print("info: totalElementsCoalescedA=", totalElementsCoalescedA, \
+              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA)
+        print("info: totalElementsCoalescedB=", totalElementsCoalescedB, \
+              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
 
       #if state["ProblemType"]["DataType"].isHalf() \
       #    and (state["GlobalLoadVectorWidthA"] == 1 \
@@ -1418,8 +2064,8 @@ class Solution:
 
     # Some of these might become 0?
     if 0:
-      print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
-            pvar(state, "LVCB"), pvar(state, "LVPB")
+      print("info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
+            pvar(state, "LVCB"), pvar(state, "LVPB"))
 
     # lds buffer size for A, B
     if state["KernelLanguage"] == "Source" and \
@@ -1436,10 +2082,11 @@ class Solution:
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
-    ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
-
+    ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
-    ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+    # import pdb
+    # pdb.set_trace()
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:
@@ -1463,8 +2110,8 @@ class Solution:
     ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds max occupancy
-    ldsSizeOccupancy = globalParameters["DeviceLDS"] / state["MaxOccupancy"]
-    ldsNumElementsOccupancy = ldsSizeOccupancy / state["ProblemType"]["DataType"].numBytes()
+    ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
+    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
@@ -1476,13 +2123,12 @@ class Solution:
 
     # LoopUnroll  = DepthU / LocalSplitU
     if "LocalSplitU" in state and "DepthU" in state:
-      state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
+      state["LoopUnroll"] = state["DepthU"] // state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
       state["Valid"] = False
     if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
       reject(state, "InnerUnroll only supported on assembly")
-    state["LoopUnroll"] /= state["InnerUnroll"]
-
+    state["LoopUnroll"] //= state["InnerUnroll"]
     ldl = state["LocalDotLayout"]
     if ldl > 1:
       # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
@@ -1495,19 +2141,22 @@ class Solution:
         return
 
     if 0:
-      print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
-      print "info: ", pvar(state["ProblemType"], "TLUA"), \
+      print("info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB"))
+      print("info: ", pvar(state["ProblemType"], "TLUA"), \
           pvar(state, "NumLoadsCoalescedA"), pvar(state, "NumLoadsPerpendicularA"), \
-          pvar(state, "LSCA"), pvar(state, "LSPA")
-      print "info:", pvar(state["ProblemType"], "TLUB"), \
+          pvar(state, "LSCA"), pvar(state, "LSPA"))
+      print("info:", pvar(state["ProblemType"], "TLUB"), \
           pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
-          pvar(state, "LSCB"), pvar(state, "LSPB")
+          pvar(state, "LSCB"), pvar(state, "LSPB"))
 
     # LoopUnroll too small
     if state["LoopUnroll"] < 2:
       reject(state, "LoopUnroll %u is less than 2" \
           % (state["LoopUnroll"]))
 
+    state["LoopIters"] = state["LoopUnroll"]
+    if "MatrixInstK" in state:
+      state["LoopIters"] //= state["MatrixInstK"]
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -1521,7 +2170,7 @@ class Solution:
       elementMultipleOk = not state["ProblemType"]["DataType"].isHalf() \
                           or state["AssertSummationElementMultiple"] % 2 == 0
 
-      wavefronts = state["NumThreads"] / globalParameters["WavefrontWidth"]
+      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
       numBytes = state["ProblemType"]["DataType"].numBytes()
 
       # DirectToLds loads return 256 bytes/wave
@@ -1546,29 +2195,29 @@ class Solution:
           state["LocalWriteUseSgprB"] = True
 
       if 0:
-        print "DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
-              "wavefronts=", wavefronts, ")"
-        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
-              "=>", (state["LSCA"] * numBytes == 256 * wavefronts)
-        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
-              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4)
-        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
-              "=>", (state["LSCB"] * numBytes == 256 * wavefronts)
-        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
-              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4)
+        print("DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
+              "wavefronts=", wavefronts, ")")
+        print("  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCA"] * numBytes == 256 * wavefronts))
+        print("  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4))
+        print("  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCB"] * numBytes == 256 * wavefronts))
+        print("  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4))
 
-        print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
+        print("A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
                " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsA=", state["DirectToLdsA"], \
                " NumLoadsCoalescedA=", state["NumLoadsCoalescedA"], \
-               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"]
-        print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
+               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"])
+        print("B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
                " LSCB=", state["LSCB"],"LSPB=", state["LSPB"],  "GLVB_B=", state["GlobalLoadVectorWidthB"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsB=", state["DirectToLdsB"], \
                " NumLoadsCoalescedB=", state["NumLoadsCoalescedB"], \
-               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"]
+               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"])
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
@@ -1616,16 +2265,17 @@ class Solution:
           reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
                   (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
+    # these work everywhere, no special restrictions
+    state["AssertMinApproxSize"] = 0
+
     if state["KernelLanguage"] == "Assembly":
-      # Asm kernels only work if all dims are > 32
-      state["AssertMinApproxSize"] = 1
+      if state["VectorWidth"] > 1:
+        # VW>1 kernels require dims>1
+        state["AssertMinApproxSize"] = 3
     elif state["VectorWidth"] > 1:
       # VW>1 kernels require dims>1
       state["AssertMinApproxSize"] = 2
-    else:
-      # these work everywhere, no special restrictions
-      state["AssertMinApproxSize"] = 0
-
+    
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not
@@ -1653,20 +2303,37 @@ class Solution:
       reject(state, "packedC1 requires GuaranteeNoPartialB")
 
     if packedC0 or packedC1:
+
+      state["UseSgprForGRO"] = 0
+
       if state["EdgeType"] != "ShiftPtr":
         reject(state, "Packed dims requires EdgeType==ShiftPtr")
-      if state["KernelLanguage"] == "Assembly" and \
-        (not state["BufferLoad"] or state["UseSgprForGRO"]):
-        reject(state, "Packed dims for Assembly requires BufferLoad and UseSgprForGRO=0")
+      if state["KernelLanguage"] == "Assembly":
+        if not state["BufferLoad"]:
+          reject(state, "Packed dims for Assembly requires BufferLoad")
+        if not state["LdcEqualsLdd"]:
+          # this would require an extra VGPR for addressing (since shared VGPRS are per-row)
+          # and also would require that the dimension extraction and scale code be implemented
+          # for LDD as well. see emitExtractAndScalePackedDims
+          reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["PackGranularity"]==2 \
+    if packedC0 and state["VectorStore"] and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
           reject(state, "packedC0 requires AF0EM>VectorWidth (for stores)")
-    if packedC1 and state["PackGranularity"]==2 \
+    if packedC1 and state["VectorStore"] and state["PackGranularity"]==2 \
         and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
 
+    # current requirement to avoid buffer loads that span multiple entries
+    # if the summation dim participating in the ZeroPad is not fast-moving then
+    # likely have more performant options.
+    for tc in ('A', 'B'):
+      if problemType["ZeroPad%s"%tc] and state["KernelLanguage"] == "Assembly":
+        if state["GlobalLoadVectorWidth%s"%tc] != 1:
+          reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
+        if not state["BufferLoad"]:
+          reject(state, "asm ZeroPad requires BufferLoad")
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
@@ -1695,12 +2362,12 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        if key in validParameters.keys():
+        if key in list(validParameters.keys()):
           requiredParameters[key] = False
     else:
       for key in keys:
         required = False
-        if key in validParameters.keys():
+        if key in list(validParameters.keys()):
           for i in range(1, len(objs)):
             if objs[0][key] != objs[i][key]:
               required = True
@@ -1713,6 +2380,11 @@ class Solution:
     requiredParameters["MacroTile0"] = False # always prepended
     requiredParameters["MacroTile1"] = False # always prepended
     requiredParameters["DepthU"] = False # always prepended
+    requiredParameters["LdcEqualsLdd"] = False # always prepended
+    requiredParameters["MatrixInstM"] = False # always prepended
+    requiredParameters["MatrixInstN"] = False # always prepended
+    requiredParameters["MatrixInstK"] = False # always prepended
+    requiredParameters["MatrixInstB"] = False # always prepended
     requiredParameters["Kernel"] = True # distinguish kernels from solutions
                                         # for single-source compilation
     return requiredParameters
@@ -1722,7 +2394,7 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      if key in validParameters.keys():
+      if key in list(validParameters.keys()):
         requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
@@ -1741,6 +2413,15 @@ class Solution:
       name += "%s%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
+    if "MatrixInstM" in state:
+      name += "%s%ux%ux%ux%u_" \
+          % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"] )
+    if "LdcEqualsLdd" in state:
+      if state["LdcEqualsLdd"]:
+        name += "SE_"
+      else:
+        name += "SN_"
     for key in sorted(state.keys()):
       if key in requiredParameters:
         if requiredParameters[key]:
@@ -1749,7 +2430,7 @@ class Solution:
           else:
             first = False
           name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
-              Solution.getParameterValueAbbreviation(state[key]) )
+              Solution.getParameterValueAbbreviation(key, state[key]) )
     return name
 
   ########################################
@@ -1760,7 +2441,7 @@ class Solution:
     for objIdx in range(0, len(objs)):
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
-        if paramName in validParameters.keys():
+        if paramName in list(validParameters.keys()):
           paramValue = obj[paramName]
           if paramName in data:
             if paramValue not in data[paramName]:
@@ -1784,7 +2465,7 @@ class Solution:
     serial = 0
     multiplier = 1
     for paramName in sorted(state.keys()):
-      if paramName in validParameters.keys():
+      if paramName in list(validParameters.keys()):
         paramValue = state[paramName]
         paramData = data[paramName]
         paramNameMultiplier = len(paramData)
@@ -1802,7 +2483,7 @@ class Solution:
   def getParametersIndented(state, indent):
     s = ""
     s += "%sProblemType: %s\n" % (indent, str(state["ProblemType"]))
-    for key in state:
+    for key in sorted(state):
       s += "%s%s: %s\n" % (indent, str(key), str(state[key]))
     return s
 
@@ -1813,7 +2494,7 @@ class Solution:
 
   ########################################
   @ staticmethod
-  def getParameterValueAbbreviation( value ):
+  def getParameterValueAbbreviation( key, value ):
     if isinstance(value, str):
       return ''.join([c for c in value if c.isupper()])
     elif isinstance(value, bool):
@@ -1825,17 +2506,17 @@ class Solution:
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):
       return str(value)
-    elif isinstance(value, list):
-      abbrev = ""
-      for i in range(0, len(value)):
-        abbrev += Solution.getParameterValueAbbreviation(value[i])
-        if i < len(value)-1:
-          abbrev += "_"
-      return abbrev
-    elif isinstance(value, tuple):
+    elif isinstance(value, tuple) or key == 'ISA':
       abbrev = ""
       for i in range(0, len(value)):
         abbrev += str(value[i])
+      return abbrev
+    elif isinstance(value, list):
+      abbrev = ""
+      for i in range(0, len(value)):
+        abbrev += Solution.getParameterValueAbbreviation(key, value[i])
+        if i < len(value)-1:
+          abbrev += "_"
       return abbrev
     else:
       printExit("Parameter \"%s\" is new object type" % str(value) )
@@ -1843,7 +2524,7 @@ class Solution:
 
   # make class look like dict
   def keys(self):
-    return self._state.keys()
+    return list(self._state.keys())
   def __len__(self):
     return len(self._state)
   def __iter__(self):
