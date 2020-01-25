@@ -1,6 +1,7 @@
-import copy, operator
+import copy, operator, pytest
 from functools import reduce
 import yaml
+
 
 class Solutions:
 
@@ -391,3 +392,8 @@ class YamlBuilder:
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
 
         return cls(doc)
+
+    # shortcuts for setting parameters in tests:
+defaultSizes = pytest.param((YamlBuilder.ProblemSizes, 1), id="default_sizes")
+resnetSizes  = pytest.param((YamlBuilder.ProblemSizesResNet,1),id="resnet")
+inceptionSizes  = pytest.param((YamlBuilder.ProblemSizesInception,1),id="inception")

@@ -1,11 +1,12 @@
 import pytest
 from Tensile.SolutionStructs import Convolution
 from YamlBuilder.YamlBuilder import YamlBuilder
+from YamlBuilder.YamlBuilder import defaultSizes, resnetSizes
 
 @pytest.mark.parametrize(
         "problemSizes",
         [pytest.param((YamlBuilder.ProblemSizes,level), id="default-lvl=%d"%level) for level in [1,2,3,4]] +
-        [pytest.resnetSizes]
+        [resnetSizes]
         )
 def test_2d_stride1(problemSizes):
     "Test number of problems generated"
@@ -21,7 +22,7 @@ def test_2d_stride1(problemSizes):
         None
 
 
-@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes])
+@pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes])
 @pytest.mark.parametrize("problemLevel", [1,2,3,4])
 def test_2d_stride2(problemSizes, problemLevel):
     "Test number of problems generated"

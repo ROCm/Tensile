@@ -12,10 +12,6 @@ TensileState=namedtuple("TensileState", ["args"])
 solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu"]
 #solutions = ["asm3_pbd"] # run a smaller set of tests
 
-# shortcuts for setting parameters in tests:
-pytest.defaultSizes = pytest.param((YamlBuilder.ProblemSizes, 1), id="default_sizes")
-pytest.resnetSizes  = pytest.param((YamlBuilder.ProblemSizesResNet,1),id="resnet")
-pytest.inceptionSizes  = pytest.param((YamlBuilder.ProblemSizesInception,1),id="inception")
 
 @pytest.fixture(scope="function")
 def file_with_test_name(request, tmp_path):
