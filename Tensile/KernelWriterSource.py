@@ -486,6 +486,8 @@ class KernelWriterSource(KernelWriter):
           kStr += "}%s" % (self.endLine)
           kStr += self.endLine
         else:
+          kStr += self.endLine
+          kStr += "template <typename T>%s" % (self.endLine)
           kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
               % (self.volatileStr, self.globalPtrStr, self.endLine)
           kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
