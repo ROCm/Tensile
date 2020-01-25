@@ -472,6 +472,6 @@ TestLibraries(bool debug)
 
 INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, RunGEMMKernelTest,
         ::testing::Combine(::testing::ValuesIn(TestProblems()),
-                           ::testing::ValuesIn(TestLibraries(true))));
+                           ::testing::ValuesIn(TestLibraries(false))));
 
 

@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <shared_mutex>
+
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 

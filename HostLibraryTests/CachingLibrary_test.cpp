@@ -39,7 +39,9 @@
 #include <memory>
 #include <random>
 
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 TEST(Cache, Simple)
 {
@@ -63,8 +65,12 @@ TEST(Cache, Threaded)
 
     #pragma omp parallel num_threads(32)
     {
+        int seed = 0;
+#ifdef _OPENMP
+        seed = omp_get_thread_num();
+#endif
         std::uniform_int_distribution<int> dist(0,10);
-        std::mt19937 rng(omp_get_thread_num());
+        std::mt19937 rng(seed);
 
         for(int i = 0; i < 10000; i++)
         {

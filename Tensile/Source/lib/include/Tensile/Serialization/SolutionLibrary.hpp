@@ -157,12 +157,12 @@ namespace Tensile
 
                 iot::mapRequired(io, "library", lib.library);
 
-                if(!iot::outputting(io))
-                {
-                    auto cache = std::make_shared<CachingLibrary<MyProblem, MySolution>>(lib.library);
+                //if(!iot::outputting(io))
+                //{
+                //    auto cache = std::make_shared<CachingLibrary<MyProblem, MySolution>>(lib.library);
 
-                    lib.library = cache;
-                }
+                //    lib.library = cache;
+                //}
             }
 
             const static bool flow = false;
