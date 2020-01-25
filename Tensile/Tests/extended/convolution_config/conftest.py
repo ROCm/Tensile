@@ -4,8 +4,6 @@ from collections import namedtuple
 from YamlBuilder.YamlBuilder import YamlBuilder
 from YamlBuilder.YamlBuilder import Solutions
 
-args={}
-
 TestConfig=namedtuple("TestConfig", ["solution", "problem_func"])
 Runner=namedtuple("Runner", ["func", "solution"])
 TensileState=namedtuple("TensileState", ["args"])
@@ -33,12 +31,12 @@ def run_nothing():
     return run
 
 @pytest.fixture
-def run_generate_yaml(file_with_test_name):
+def run_generate_yaml(request, file_with_test_name):
     def run(conv, problemType, solution=Solutions.defaultSolution(), problemFunc=None, problemLevel=-1, dataType='s'):
         if problemFunc == None:
             problemFunc = YamlBuilder.ProblemSizes
         if problemLevel==-1:
-            problemLevel = args["problem_level"] if solution.__name__.startswith("src") else args["problem_level"]
+            problemLevel = request.config.getoption("--problem-level")
         config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, problemLevel)
         configFile = file_with_test_name(".contraction.yaml")
         print("Generate_YAML output:", configFile)
@@ -111,17 +109,14 @@ def pytest_addoption(parser):
         '''
         )
 
-def pytest_configure(config):
-    args["test_level"] = config.getoption('--test-level')
-    args["problem_level"] = config.getoption('--problem-level')
-    try:
-        args["no_conv_assertions"]= config.getoption('--no-conv-assertions')
-    except ValueError:
-        args["no_conv_assertions"]=1
-
 @pytest.fixture()
-def tensile_state(pytestconfig):
+def tensile_state(request):
     """
     Shared tensile state, including args.
     """
+    args={}
+    try:
+        args["no_conv_assertions"]= request.config.getoption('--no-conv-assertions')
+    except ValueError:
+        args["no_conv_assertions"]=1
     return TensileState(args=args)
