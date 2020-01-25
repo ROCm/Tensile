@@ -1,9 +1,10 @@
 import logging,pytest
 from Tensile.SolutionStructs import Convolution
+from YamlBuilder.YamlBuilder import defaultSizes, resnetSizes, inceptionSizes
 
 log =logging.getLogger("testlog")
 
-@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes])
+@pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes, inceptionSizes])
 def test_ckyx_1x1(tensile_state, run_convolution_level,problemSizes):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',

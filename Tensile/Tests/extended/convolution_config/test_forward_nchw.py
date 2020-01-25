@@ -1,5 +1,6 @@
 import logging,pytest
 from Tensile.SolutionStructs import Convolution
+from YamlBuilder.YamlBuilder import defaultSizes, resnetSizes, inceptionSizes
 log =logging.getLogger("testlog")
 
 def test_nchw_defaults(tensile_state, run_convolution_level):
@@ -17,7 +18,7 @@ def test_nchw_defaults(tensile_state, run_convolution_level):
         assert(conv.solutionParms["AssertSizeEqual"] == {})
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes, pytest.inceptionSizes])
+@pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes, inceptionSizes])
 def test_nchw_filter1x1(tensile_state, run_convolution_level, problemSizes):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -128,7 +129,7 @@ def test_nchw_filter2x2(tensile_state, run_convolution_level, unrollOnChannel):
 
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
-@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes, pytest.inceptionSizes])
+@pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes, inceptionSizes])
 def test_nchw_filter2x1(tensile_state, run_convolution_level, problemSizes):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -149,7 +150,7 @@ def test_nchw_filter2x1(tensile_state, run_convolution_level, problemSizes):
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2})
     run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
-@pytest.mark.parametrize("problemSizes", [pytest.defaultSizes, pytest.resnetSizes, pytest.inceptionSizes])
+@pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes, inceptionSizes])
 def test_nchw_filter7x1(tensile_state, run_convolution_level, problemSizes):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
