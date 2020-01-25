@@ -458,45 +458,46 @@ class KernelWriterSource(KernelWriter):
         kStr += "  } while (assumed != old);%s" % (self.endLine)
         kStr += "}%s" % (self.endLine)
         """
-        kStr += self.endLine
-        kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
-        kStr += "{%s" % (self.endLine)
-        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-        kStr += self.endLine
-        kStr += "__device__ inline unsigned int atomicAddType(unsigned int *fPtr, unsigned int operand)%s" % (self.endLine)
-        kStr += "{%s" % (self.endLine)
-        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-        kStr += self.endLine
-        kStr += "__device__ inline unsigned long long int atomicAddType(unsigned long long int *fPtr, unsigned long long int operand)%s" % (self.endLine)
-        kStr += "{%s" % (self.endLine)
-        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-        kStr += self.endLine
-        kStr += "__device__ inline float atomicAddType(float *fPtr, float operand)%s" % (self.endLine)
-        kStr += "{%s" % (self.endLine)
-        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-        kStr += self.endLine
-        kStr += "__device__ inline double atomicAddType(double *fPtr, double operand)%s" % (self.endLine)
-        kStr += "{%s" % (self.endLine)
-        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-        kStr += self.endLine
-   
-        #kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
-        #    % (self.volatileStr, self.globalPtrStr, self.endLine)
-        #kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
-        #kStr += "  T oldValue, newValue;%s" % (self.endLine)
-        #kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
-        #kStr += "  do {%s" % (self.endLine)
-        #kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
-        #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
-        #    % (self.atomicCasStr, self.endLine)
-        #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
-        #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_relaxed, std::memory_order_release) );%s" % (self.endLine)
-        #kStr += "}%s" % (self.endLine)
+        if globalParameters["CxxCompiler"] == "hipcc":
+          kStr += self.endLine
+          kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
+          kStr += "{%s" % (self.endLine)
+          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+          kStr += "}%s" % (self.endLine)
+          kStr += self.endLine
+          kStr += "__device__ inline unsigned int atomicAddType(unsigned int *fPtr, unsigned int operand)%s" % (self.endLine)
+          kStr += "{%s" % (self.endLine)
+          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+          kStr += "}%s" % (self.endLine)
+          kStr += self.endLine
+          kStr += "__device__ inline unsigned long long int atomicAddType(unsigned long long int *fPtr, unsigned long long int operand)%s" % (self.endLine)
+          kStr += "{%s" % (self.endLine)
+          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+          kStr += "}%s" % (self.endLine)
+          kStr += self.endLine
+          kStr += "__device__ inline float atomicAddType(float *fPtr, float operand)%s" % (self.endLine)
+          kStr += "{%s" % (self.endLine)
+          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+          kStr += "}%s" % (self.endLine)
+          kStr += self.endLine
+          kStr += "__device__ inline double atomicAddType(double *fPtr, double operand)%s" % (self.endLine)
+          kStr += "{%s" % (self.endLine)
+          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+          kStr += "}%s" % (self.endLine)
+          kStr += self.endLine
+        else:
+          kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
+              % (self.volatileStr, self.globalPtrStr, self.endLine)
+          kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
+          kStr += "  T oldValue, newValue;%s" % (self.endLine)
+          kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
+          kStr += "  do {%s" % (self.endLine)
+          kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
+          #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+          #    % (self.atomicCasStr, self.endLine)
+          #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
+          kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_relaxed, std::memory_order_release) );%s" % (self.endLine)
+          kStr += "}%s" % (self.endLine)
 
       kStr += "#endif%s" % self.endLine
 
