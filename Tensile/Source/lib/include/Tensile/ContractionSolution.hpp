@@ -67,9 +67,9 @@ namespace Tensile
           size_t memReadBytes=0.0;
 
           //! Times in US
+          double aluUs=0.0; //! Estimated alu cycles
           double memReadUs=0.0; //! Estimated memory read cycles
           double memWriteUs=0.0; //! Estimated memory write cycles
-          double aluUs=0.0; //! Estimated alu cycles
         };
 
         struct ProjectedPerformance
@@ -188,5 +188,7 @@ namespace Tensile
         uint32_t smallMagicNumber(uint32_t x) const;
     };
 
+    std::ostream & operator<<(std::ostream & stream, ContractionSolution::StaticPerformanceModel const& spm);
+    std::ostream & operator<<(std::ostream & stream, ContractionSolution::ProjectedPerformance const& spm);
 }
 

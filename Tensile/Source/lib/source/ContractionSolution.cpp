@@ -771,7 +771,7 @@ namespace Tensile
 
         pp.waveGranularity = std::min(1.00,
                                 static_cast<double>(
-                                pp.tilesPerCu *
+                                floor(pp.tilesPerCu + 1.0) *
                                 sizeMapping.workGroupSize.x*
                                 sizeMapping.workGroupSize.y*
                                 sizeMapping.workGroupSize.z)
@@ -787,4 +787,38 @@ namespace Tensile
         return pp;
     }
 
+    std::ostream & operator<<(std::ostream & stream, ContractionSolution::StaticPerformanceModel const& spm)
+    {
+        return stream
+            << " memReadBytesA=" << spm.memReadBytesA
+            << " memReadBytesB=" << spm.memReadBytesB
+            << " memReadBytesC=" << spm.memReadBytesC
+            << " memWriteBytesD=" << spm.memWriteBytesD
+
+            << " aluUs=" << spm.aluUs
+            << " memReadUs=" << spm.memReadUs
+            << " memWriteUs=" << spm.memWriteUs
+            ;
+    }
+
+    std::ostream & operator<<(std::ostream & stream, ContractionSolution::ProjectedPerformance const& pp)
+    {
+        return stream
+            << " numTiles0=" << pp.numTiles0
+            << " numTiles1=" << pp.numTiles1
+            << " tilesPerCu=" << pp.tilesPerCu
+
+            << " totalGranularity=" << pp.totalGranularity
+            << " tile0Granularity=" << pp.tile0Granularity
+            << " tile1Granularity=" << pp.tile1Granularity
+            << " cuGranularity=" << pp.cuGranularity
+            << " waveGranularity=" << pp.waveGranularity
+
+            << " speedGFlops=" << pp.speedGFlops
+
+            << " staticModel=[ " << pp.staticModel << " ]"
+            ;
+    }
+
 }
+
