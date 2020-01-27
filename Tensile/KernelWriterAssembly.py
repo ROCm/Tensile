@@ -806,11 +806,12 @@ class KernelWriterAssembly(KernelWriter):
     else:
       self.groOffsetInMacroTile = 0
 
-    # use 64-bit buffer limit shadow register
-    self.use64bPbcLimit = 1 and kernel["BufferLoad"]
-
     self.use64bProductOfSums = 0
-    self.use64bPackSumOffset = 0
+    self.use64bPackSumOffset = 0  # use 2 SGPR for extracting packed summation dims.  Not supported.
+
+    # use 64-bit buffer limit shadow register
+    self.use64bShadowLimit = kernel["Use64bShadowLimit"] and kernel["BufferLoad"] and self.use64bPackSumOffset
+
 
     # Check if the address setup code for LWA and GRO causes register growth.
     # This is not an error condition but bears further investigation.
@@ -1587,7 +1588,7 @@ class KernelWriterAssembly(KernelWriter):
         self.defineSgpr("PerpOverhangVccA", 2, 2)
       if kernel["fractionalPerpOverhangB"]:
         self.defineSgpr("PerpOverhangVccB", 2, 2)
-    if self.use64bPbcLimit:
+    if self.use64bShadowLimit:
       # If need more SGPR could overlap this with the Tensor2dSize regs
       self.defineSgpr("ShadowLimitA", 2, 2)
       self.defineSgpr("ShadowLimitB", 2, 2)
@@ -4190,7 +4191,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
       kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
-    if self.use64bPbcLimit:
+    if self.use64bShadowLimit:
       limitTmp0 = "ShadowLimit%s+0"%tc
       limitTmp1 = "ShadowLimit%s+1"%tc
     else:
@@ -4200,7 +4201,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
     kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
 
-    if self.use64bPbcLimit:
+    if self.use64bShadowLimit:
       # Set initial buffer limit
       # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
       # and when we get within 32-bit we start to step down the SRD
@@ -4269,7 +4270,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_addc_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("Address%s+1"%tc), "add start ptr to compute tensor%s bot-right"%tc)
       kStr += inst("s_sub_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Srd%s+0"%tc), "sub SRD base")
       kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("Srd%s+1"%tc), "sub SRD base")
-      if self.use64bPbcLimit:
+      if self.use64bShadowLimit:
         kStr += inst("s_sub_u32", sgpr(stmp+0), sgpr(stmp+0), sgpr("ShadowLimit%s+0"%tc), "sub buffer size")
         kStr += inst("s_subb_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("ShadowLimit%s+1"%tc), "sub buffer size")
       else:
@@ -5867,7 +5868,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # also have to move the boundary since we change the base
     # so less buffers to the edge:
-    if self.use64bPbcLimit:
+    if self.use64bShadowLimit:
       kStr += inst("s_sub_u32", \
           sgpr("ShadowLimit%s+0"%tc), \
           sgpr("ShadowLimit%s+0"%tc), \
@@ -5902,7 +5903,7 @@ class KernelWriterAssembly(KernelWriter):
     # The SuppressNoLoadLoop mode also forces the SRD limit to 0 on the final iteration.
     # The code here undoes the final click step by moving the base backwards and the
     # limit forwards (reading from the ShadowLimit).
-    # It only works if use64bPbcLimit is enabled (since this enables use of the ShadowLimit)
+    # It only works if use64bShadowLimit is enabled (since this enables use of the ShadowLimit)
 
     tc = tP["tensorChar"]
     kStr = ""
@@ -5920,7 +5921,7 @@ class KernelWriterAssembly(KernelWriter):
         "gra SRD -= inc(upper)" )
 
     # using Shadow limit here which only works with 64-bit PBC:
-    assert(self.use64bPbcLimit)
+    assert(self.use64bShadowLimit)
 
     kStr += inst("s_add_u32", \
         sgpr("ShadowLimit%s+0"%tc), \
