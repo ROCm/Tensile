@@ -148,6 +148,14 @@ class ProblemType:
         if 'ZeroPadB' in d:
             rv.zeroPadB = d['ZeroPadB']
 
+        rv.mirrorDimsA = []
+        if 'MirrorDimsA' in d:
+            rv.mirrorDims = d['MirrorDimsA']
+
+        rv.mirrorDimsB = []
+        if 'MirrorDimsB' in d:
+            rv.mirrorDims = d['MirrorDimsB']
+
         rv.useBeta = True
         if 'UseBeta' in d:
             rv.useBeta = d['UseBeta']

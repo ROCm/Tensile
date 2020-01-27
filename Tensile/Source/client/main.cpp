@@ -174,6 +174,10 @@ namespace Tensile
                 ("b-zero-pads",                vector_default_empty<std::string>(), "Comma-separated tuple(s) of anchor dim,"
                                                                                   "summation dim, leading pad, trailing pad."
                                                                                   "Each tuple must be separated with a semi-colon.")
+                
+                ("a-mirror-dims",              vector_default_empty<std::string>(), "Comma-separated list of summation dims")
+
+                ("b-mirror-dims",              vector_default_empty<std::string>(), "Comma-separated list of summation dims")
 
                 ("a-ops",                    vector_default_empty<TensorOp>(), "Operations applied to A.")
                 ("b-ops",                    vector_default_empty<TensorOp>(), "Operations applied to B.")
@@ -329,6 +333,8 @@ namespace Tensile
             parse_arg_ints(args, "d-strides");
             parse_arg_ints(args, "a-zero-pads");
             parse_arg_ints(args, "b-zero-pads");
+            parse_arg_ints(args, "a-mirror-dims");
+            parse_arg_ints(args, "b-mirror-dims");
 
             return args;
         }

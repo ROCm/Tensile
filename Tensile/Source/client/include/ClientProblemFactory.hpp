@@ -81,6 +81,8 @@ namespace Tensile
             std::vector<std::vector<size_t>> m_dStrides;
             std::vector<std::vector<size_t>> m_aZeroPads;
             std::vector<std::vector<size_t>> m_bZeroPads;
+            std::vector<std::vector<size_t>> m_aMirrorDims;
+            std::vector<std::vector<size_t>> m_bMirrorDims;
 
             TensorOps m_aOps;
             TensorOps m_bOps;
