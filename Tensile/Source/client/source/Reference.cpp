@@ -219,15 +219,18 @@ namespace Tensile
 
                         typename Inputs::AType aVal(0);
                         typename Inputs::BType bVal(0);
+
+                        size_t aI = problem.boundIndices()[0].aMirror ? (boundSize[0] - i - 1) : i;
+                        size_t aB = problem.boundIndices()[0].bMirror ? (boundSize[0] - i - 1) : i;
+
                         if (!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
                             aVal = Transform<typename Inputs::AType>::Input(
-                                    inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
+                                    inputs.a[aIndex + (aI * aStride) - zpA.leadingPad], aConjugate);
                         if (!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
                             bVal = Transform<typename Inputs::BType>::Input(
-                                    inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
+                                    inputs.b[bIndex + (aB * bStride) - zpB.leadingPad], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
-
                         if (0) {
                             std::cout
                                     << " bound=" << bound[0] << "," << bound[1]

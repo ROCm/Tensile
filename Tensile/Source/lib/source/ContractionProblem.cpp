@@ -538,6 +538,18 @@ namespace Tensile
         m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad.boundPos = toBPos(zp.boundIndex);
     }
 
+    void ContractionProblem::addAMirrorDim(size_t dim)
+    {
+        m_aMirrorDims.push_back(dim);
+        m_boundIndices[toBoundsPos(dim)].aMirror = true;
+    }
+
+    void ContractionProblem::addBMirrorDim(size_t dim)
+    {
+        m_bMirrorDims.push_back(dim);
+        m_boundIndices[toBoundsPos(dim)].bMirror = true;
+    }
+
     void ContractionProblem::normalize()
     {
         m_maxProblemSize = 0;
@@ -592,6 +604,11 @@ namespace Tensile
             m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
         for (auto zp : m_bZeroPads)
             m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
+
+        for (auto dim : m_aMirrorDims)
+            m_boundIndices[toBoundsPos(dim)].aMirror = true;
+        for (auto dim : m_bMirrorDims)
+            m_boundIndices[toBoundsPos(dim)].bMirror = true;
 
         getIndexNames(m_aNames, m_bNames, m_cNames, m_dNames, m_sumNames);
 
