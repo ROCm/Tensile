@@ -1497,12 +1497,20 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
+
+    self.sumMagicParms = []
     if kernel["PackSummationDims"]:
-      for idx in kernel["ProblemType"]["IndicesSummation"][:-1]:
-        idxChar = self.indexChars[idx]
-        self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      self.magicSumChars = [globalParameters["IndexChars"][c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
+
+      self.sumMagicParms=["%s"%idxChar for idxChar in self.magicSumChars]
+      if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and self.sumMagicParms:
+          self.sumMagicParms.append("%s_GsuRemainder"%self.unrollChar)
+
+      for magicName in self.sumMagicParms:
+        self.defineSgpr("MagicNumberSize%s"%magicName, 1)
+        self.defineSgpr("MagicShiftSize%s"%magicName, 1)
         if kernel["MagicDivAlg"]==2:
-          self.defineSgpr("MagicAbitSize%s"%idxChar, 1)
+          self.defineSgpr("MagicAbitSize%s"%magicName, 1)
 
     # for packed batches without stride restrictions need to do something different here
     assert sorted(kernel["PackedC0IdxChars"]+kernel["PackedC1IdxChars"]) == \
@@ -1524,10 +1532,10 @@ class KernelWriterAssembly(KernelWriter):
     if len(kernel["PackedC1IndicesX"]) > 1:
       self.defineSgpr("PackedSize1", 1)
 
-    # contractions with multiple summations will use multiple LoopCounters
     if kernel["PackSummationDims"]:
         self.defineSgpr(self.loopCounterName(kernel,self.unrollIdx), 1)
     else:
+      # contractions with multiple summations will use multiple LoopCounters, if PSD=0
       for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
         self.defineSgpr(self.loopCounterName(kernel,i), 1)
 
@@ -2530,6 +2538,10 @@ class KernelWriterAssembly(KernelWriter):
       for i in range(0, self.numSgprSizesSum):
         kStr += self.v2Argument(                  "SizesSum%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
+      for magicName in self.sumMagicParms:
+        kStr += self.v2Argument(     "MagicNumberSize%s"%magicName,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
+        kStr += self.v2Argument(      "MagicShiftSize%s"%magicName,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
+
       for idxChar in kernel["PackedC0IdxChars"][:-1]:
         kStr += self.v2Argument(     "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(      "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -2629,6 +2641,10 @@ class KernelWriterAssembly(KernelWriter):
 
       for i in range(0, self.numSgprSizesSum):
         kStr += self.v3Argument(                  "SizesSum%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
+
+      for magicName in self.sumMagicParms:
+        kStr += self.v3Argument(     "MagicNumberSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
+        kStr += self.v3Argument(      "MagicShiftSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
 
       for idxChar in kernel["PackedC0IdxChars"][:-1]:
         kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
@@ -3304,6 +3320,10 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("SizesFree+%u"%i)
       for i in range(0, self.numSgprSizesSum):
         kStr += self.getKernArg("SizesSum+%u"%i)
+      for magicName in self.sumMagicParms:
+        kStr += self.getKernArg("MagicNumberSize%s"%magicName)
+        kStr += self.getKernArg("MagicShiftSize%s"%magicName)
+
       for idxChar in kernel["PackedC0IdxChars"][:-1]:
         kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
@@ -3338,6 +3358,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("EvenIterStart"), 0, "init SerialWorkGroupIter")
 
     if kernel["MagicDivAlg"]==2:
+      for idxChar in self.sumMagicParms:
+          kStr += inst("s_lshr_b32", sgpr("MagicAbitSize%s"%magicName), sgpr("MagicShiftSize%s"%magicName), 31,"extract abit")
+          kStr += inst("s_and_b32",  sgpr("MagicShiftSize%s"%magicName), sgpr("MagicShiftSize%s"%magicName), hex(0x7fffffff), "remove abit")
+
       for idxChar in sorted(set(kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1])):
           kStr += inst("s_lshr_b32", sgpr("MagicAbitSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), 31,"extract abit")
           kStr += inst("s_and_b32",  sgpr("MagicShiftSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), hex(0x7fffffff), "remove abit")
