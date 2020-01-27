@@ -810,6 +810,7 @@ class KernelWriterAssembly(KernelWriter):
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
     self.use64bProductOfSums = 0
+    self.use64bPackSumOffset = 0
 
     # Check if the address setup code for LWA and GRO causes register growth.
     # This is not an error condition but bears further investigation.
@@ -1568,7 +1569,8 @@ class KernelWriterAssembly(KernelWriter):
     self.lastPostLoopSgpr = self.sgprIdx
 
     if self.unrollIncIsDepthU:
-      self.defineSgpr("UnrollLoopLastIter", 1) # product of all summation dimensions
+      # product of all summation dimensions, this also will be divided if GSU is enabled
+      self.defineSgpr("UnrollLoopLastIter", 1)
 
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
@@ -1589,6 +1591,7 @@ class KernelWriterAssembly(KernelWriter):
       # If need more SGPR could overlap this with the Tensor2dSize regs
       self.defineSgpr("ShadowLimitA", 2, 2)
       self.defineSgpr("ShadowLimitB", 2, 2)
+
     if self.staggerU:
       self.defineSgpr("OrigStaggerUIter", 1)  # Original stagger register.  Only needed for Persistent
       self.defineSgpr("StaggerUIter", 1)  # stagger loop iterations, used for various iter counts in the code
@@ -6026,8 +6029,62 @@ class KernelWriterAssembly(KernelWriter):
 
   def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     imod = Code.Module("globalReadIncrementAB%s")
-    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
-    imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
+    problemType = self.kernel["ProblemType"]
+
+    if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
+      incCodeA = imod.addCode(Code.Module("globalReadIncrementA"))
+      incCodeB = imod.addCode(Code.Module("globalReadIncrementB")) # TODO - remove, need to update scheduler
+
+      incSize = 2 if self.use64bPackSumOffset else 1
+      tmpSgpr = self.getTmpSgpr(3 + 2*incSize)
+      incA = tmpSgpr + 3
+      incB = incA + incSize
+
+      psdPackedBits = "DepthU" if prefetchIndex>0 else self.loopCounter(kernel, self.unrollIdx)
+      incCodeA.addComment1("extract indices here from %s"%psdPackedBits)
+      for os in reversed(range(problemType["NumIndicesSummation"])):
+        sumDim  = problemType["IndicesSummation"][os]
+        sumChar = self.indexChars[sumDim]
+        firstIter = (os==problemType["NumIndicesSummation"]-1)
+        lastIter  = (os==0)
+
+        incCodeA.addComment1("extract index %s"%sumChar)
+
+        if not lastIter:
+          # TODO - handle GSU inc here, pass sumChar + "_GSURemainder"
+
+          incCodeA.addText(self.scalarMagicDiv(tmpSgpr, psdPackedBits, sumChar))
+          # TODO-64
+          incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+0), sgpr("UnrollLoopLastIter"), "remainder step 1")
+          incCodeA.addInst("s_sub_u32", sgpr(tmpSgpr+1), psdPackedBits, sgpr(tmpSgpr+1), "remainder step 2")
+          iterX=sgpr(tmpSgpr+1)
+        else:
+          iterX=sgpr(tmpSgpr+0)
+
+        # update psdOffset. Inputs:
+        #   - tmpSgpr+0== packedBits, and must be preserved for next iteration
+        #   - iterX, number of iterations for this dim.  Used in A/B increment loop below
+        for tc in ('A','B'):
+          incCodeA.addComment1("   scale %s and add to address %s"%(sumChar,tc))
+          assert(not self.use64bPackSumOffset)
+          if firstIter:
+            #incCodeA.addText(self.s_mul_u64_u32(incA+0, incA+1, tmpSgpr+1, sgpr["GlobalReadIncsA"]))
+            incCodeA.addInst("s_mul_i32", sgpr(incA), iterX, sgpr("GlobalReadIncsA"), "scale iterX")
+          else:
+            incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+2), iterX, sgpr("GlobalReadIncsA"), "Scale iterX")
+            incCodeA.addInst("s_add_u32", sgpr(incA+0), sgpr(incA+0), sgpr(tmpSgpr+2), "accum scaled iterX")
+            #incCodeA.addText(self.s_mul_u64_u32(tmp+0, incA+1, tmpSgpr+1, sgpr["GlobalReadIncsA"]))
+
+          psdPackedBits = sgpr(tmpSgpr+0)
+          # for next iterations, packed
+
+      assert(kernel["BufferLoad"])
+      # TODO - this skips over the stagger-u wrap codes
+      incCodeA.addText(self.incrementSrd(kernel, self.tPA, incA, incA+1))
+      incCodeA.addText(self.incrementSrd(kernel, self.tPB, incB, incB+1))
+    else:
+      imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+      imod.addCode(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
     return imod
 
 
@@ -10303,6 +10360,18 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(vtmp0)
     return kStr
 
+  # dividend is a symbol (constant or sgpr).  Used directly not inside automatic sgpr(..)
+  # dst is 2 consecutive SGPR
+  #   result returned in dst0. dst1 is used as a temp,
+  # dst[1] cannot be same as divident, dst[0] can be same as dividend and this can be useful
+  def scalarMagicDiv(self, dst, dividend, magicTag):
+    kStr = ""
+    kStr = self.comment("dst1:0 = dividend(%s) / magicTag(%s)" % (dividend, magicTag))
+    kStr += inst("s_mul_hi_i32", sgpr(dst+1), dividend, sgpr("MagicNumberSize%s"%magicTag), "scalar magic div")
+    kStr += inst("s_mul_i32", sgpr(dst+0), dividend, sgpr("MagicAbitSize%s"%magicTag), "scalar magic div")
+    kStr += inst("s_add_u32", sgpr(dst+0), sgpr(dst+0), sgpr(dst+1), "scalar magic div")
+    kStr += inst("s_lshr_b32", sgpr(dst+0), sgpr(dst+0), sgpr("MagicShiftSize%s"%magicTag), "scalar magic div, quotient in %s"%dst)
+    return kStr
 
   # Perform 32-bit scalar mul and save u64 result in two SGPR
   # src0 and src1 are 32-bit unsigned ints in scalar sgpr or small int constants (<64?))

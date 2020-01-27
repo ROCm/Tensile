@@ -2191,6 +2191,7 @@ class KernelWriterSource(KernelWriter):
           # last iteration:
           kStr += self.indent + "unsigned int iter%s = %s;" % (sumChar, psdPackedBits) + self.endLine
 
+        # update psdOffset:
         for (tc) in ('A','B'):
           kStr += self.indent
           if firstIter:
