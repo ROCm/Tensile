@@ -1033,6 +1033,10 @@ defaultProblemType = {
     "ZeroPadA":                 [], # [ [0,1, 2,3]]
     "ZeroPadB":                 [], # Not fully supported/tested yet
 
+    # Summation dimension indices
+    "MirrorDimsA":              [],
+    "MirrorDimsB":              [],
+
     # for LD description
     "NumIndicesLD":            4,
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB

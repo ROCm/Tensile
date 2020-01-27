@@ -424,10 +424,10 @@ def problemSizeParams(solution, problem):
         rv.append(('b-zero-pads', ';'.join([','.join(map(str,zp)) for zp in problem.zeroPadB])))
 
     if len(solution.problemType.mirrorDimsA):
-        rv.append(('a-mirror-dims', '; '.join([','.join(map(str,md)) for md in solution.problemType.mirrorDimsA])))
+        rv.append(('a-mirror-dims', '; '.join([','.join(map(str, solution.problemType.mirrorDimsA))])))
 
     if len(solution.problemType.mirrorDimsB):
-        rv.append(('b-mirror-dims', '; '.join([','.join(map(str,md)) for md in solution.problemType.mirrorDimsB])))
+        rv.append(('b-mirror-dims', '; '.join([','.join(map(str, solution.problemType.mirrorDimsB))])))
 
     return rv
 
