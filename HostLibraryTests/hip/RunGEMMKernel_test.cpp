@@ -463,7 +463,7 @@ TestLibraries(bool debug)
             adapter->loadCodeObjectFile(file.native());
         }
 
-        rv.emplace_back(library, adapter, true);
+        rv.emplace_back(library, adapter, false);
     }
 
 
