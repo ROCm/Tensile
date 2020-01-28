@@ -9,8 +9,8 @@
 WORKING_PATH='release'
 HELP=false
 ROCBLAS=false
-PROVISION_BRANCH='develop'
-TENSILE_HOST='https://github.com/ROCmSoftwarePlatform/Tensile.git'
+PROVISION_BRANCH='call_count'
+TENSILE_HOST='https://github.com/amdkila/Tensile.git'
 ROCBLAS_HOST='https://github.com/ROCmSoftwarePlatform/rocBLAS.git'
 
 GIT_HOST="${TENSILE_HOST}"

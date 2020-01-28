@@ -16,6 +16,7 @@ while true; do
     -r | --reference-path )    REFERENCE_PATH="$2"; shift 2;;
     -b | --benchmark-path  )   BENCHMARK_PATH="$2"; shift 2;;
     -o | --output-path )       OUTPUT_PATH="$2"; shift 2;;
+    -z )                       LOG="$2"; shift 2;;
     -f )                       FREQ="$2"; shift 2;;
     -s )                       SZ="$2"; shift 2;;
     -- ) shift; break ;;
@@ -40,6 +41,11 @@ fi
 
 if [ -z ${OUTPUT_PATH+foo} ]; then
    printf "Need the output path\n"
+   exit 2
+fi
+
+if [ -z ${LOG+foo} ]; then
+   printf "Need to select a log file\n"
    exit 2
 fi
 
@@ -104,7 +110,7 @@ for file in ${aggregated_files}; do
   filename=$(basename "$file")
   namepart="${filename%-aggregated.*}"
 
-  python3.5 ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
+  python ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
 done
 
 aggregated_files=$(ls ${NEW_AGGREGATED}/*aggregated*)
@@ -112,7 +118,7 @@ for file in ${aggregated_files}; do
   filename=$(basename "$file")
   namepart="${filename%-aggregated.*}"
 
-  python3.5 ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
+  python ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
 done
 
 
