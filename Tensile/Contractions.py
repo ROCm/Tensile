@@ -289,9 +289,6 @@ class ProblemPredicate(Properties.Predicate):
 
             return cls(tag, index=index, value=value)
 
-        if key == 'VectorWidth' and value > 1:
-            return cls('LeadingFreeSizesGreaterOrEqual', value=value)
-
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
