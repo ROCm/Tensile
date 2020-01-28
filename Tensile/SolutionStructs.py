@@ -1956,8 +1956,8 @@ class Solution:
            # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
             reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
 
-    if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
-        reject(state, "PackSummationDims does not yet support assembly")
+    #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
+    #    reject(state, "PackSummationDims does not yet support assembly")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:

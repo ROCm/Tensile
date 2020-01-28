@@ -94,8 +94,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
-    globalReadIncACode = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
-    globalReadIncBCode = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
+    assert([item.name for item in self.globalReadIncrements.itemList] == ['globalReadIncrementA', 'globalReadIncrementB'])
+
+    globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
+    globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
@@ -144,7 +146,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         except IndexError:
           break # no code left to schedule
 
-      assert not itemsToSched # should have scheduled everthing already
+      assert not itemsToSched # should have scheduled everything already
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
