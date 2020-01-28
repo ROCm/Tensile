@@ -155,14 +155,29 @@ namespace Tensile
 
                 iot::setContext(io, &lib.solutions);
 
-                iot::mapRequired(io, "library", lib.library);
+                std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> innerLibrary;
 
-                //if(!iot::outputting(io))
-                //{
-                //    auto cache = std::make_shared<CachingLibrary<MyProblem, MySolution>>(lib.library);
+                if(iot::outputting(io))
+                {
+                    auto cache = std::dynamic_pointer_cast<CachingLibrary<MyProblem, MySolution>>(lib.library);
+                    if(cache)
+                    {
+                        innerLibrary = cache->library();
+                    }
+                    else
+                    {
+                        innerLibrary = lib.library;
+                    }
+                }
 
-                //    lib.library = cache;
-                //}
+                iot::mapRequired(io, "library", innerLibrary);
+
+                if(!iot::outputting(io))
+                {
+                    auto cache = std::make_shared<CachingLibrary<MyProblem, MySolution>>(innerLibrary);
+
+                    lib.library = cache;
+                }
             }
 
             const static bool flow = false;

@@ -132,6 +132,11 @@ namespace Tensile
             return "Caching Library";
         }
 
+        std::shared_ptr<Library> library() const
+        {
+            return m_subLibrary;
+        }
+
     private:
         std::shared_ptr<Library> m_subLibrary;
         mutable Cache m_cache;
