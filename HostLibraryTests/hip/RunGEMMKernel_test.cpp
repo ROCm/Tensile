@@ -92,7 +92,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
 	{
         HIP_CHECK_EXC(hipSetDevice(0));
         ContractionProblem problem = std::get<0>(GetParam());
-        std::cout << problem << std::endl;
+        //std::cout << problem << std::endl;
 
         a_h.resize(problem.a().totalAllocatedElements());
         b_h.resize(problem.b().totalAllocatedElements());
@@ -262,7 +262,7 @@ TEST_P(RunGEMMKernelTest, AllSolutions)
     {
         ASSERT_NE(solution, nullptr);
 
-        std::cout << solution->name() << std::endl;
+        //std::cout << solution->name() << std::endl;
 
         std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
 
@@ -463,7 +463,7 @@ TestLibraries(bool debug)
             adapter->loadCodeObjectFile(file.native());
         }
 
-        rv.emplace_back(library, adapter, true);
+        rv.emplace_back(library, adapter, false);
     }
 
 
