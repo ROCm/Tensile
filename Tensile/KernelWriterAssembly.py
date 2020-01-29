@@ -4917,7 +4917,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         kStr += inst ("s_mov_b32", sgpr("UnrollLoopLastIter"), self.loopSizeRef(kernel, self.unrollIdx), "init")
 
-
       if kernel["PackSummationDims"]:
         if kernel["GlobalSplitU"]>1:
           kStr += inst ("s_mov_b32", sgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx)), \
@@ -6067,10 +6066,11 @@ class KernelWriterAssembly(KernelWriter):
 
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       incSize = 2 if self.use64bPackSumOffset else 1
-      tmpSgpr = self.getTmpSgpr(3 + 2*incSize)
+      tmpSgpr = self.getTmpSgpr(3 + 2*incSize + (3 if kernel["GlobalSplitU"]>1 else 0))
       inc ={}
       inc['A'] = tmpSgpr + 3
       inc['B'] = inc['A'] + incSize
+      gsuMagic = inc['B'] + incSize
 
       psdPackedBits = "DepthU" if prefetchIndex>0 else unrollLoopCounter
       incCodeA.addComment1("extract indices here from %s"%psdPackedBits)
@@ -6095,7 +6095,24 @@ class KernelWriterAssembly(KernelWriter):
             psdPackedBits2 = sgpr(tmpSgpr+2)
             incCodeA.addInst("s_mov_b32", psdPackedBits2, psdPackedBits, "copy psdPackedBits")
 
-          incCodeA.addText(self.scalarMagicDiv(tmpSgpr, psdPackedBits, sumChar))
+          if os==self.unrollIdx and kernel["GlobalSplitU"] > 1:
+            # compare GSUA
+            # cmov into temps for Size,Abit,Shift
+            # divide and go.
+            # need more temps for this, need divide routine to take 3 parms
+            incCodeA.addInst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
+                "gsuSumIdx < numIterPerWgRemainder" )
+            incCodeA.addInst("s_cselect_b32", sgpr(gsuMagic+0), sgpr("MagicNumberSize%s_GsuRemainder"%sumChar),
+                              sgpr("MagicNumberSize%s"%sumChar), "Use alternate divisor")
+            incCodeA.addInst("s_cselect_b32", sgpr(gsuMagic+1), sgpr("MagicAbitSize%s_GsuRemainder"%sumChar),
+                              sgpr("MagicAbitSize%s"%sumChar), "Use alternate divisor")
+            incCodeA.addInst("s_cselect_b32", sgpr(gsuMagic+2), sgpr("MagicShiftSize%s_GsuRemainder"%sumChar),
+                              sgpr("MagicShiftSize%s"%sumChar), "Use alternate divisor")
+            incCodeA.addText(self.scalarMagicDivExplicit(tmpSgpr, psdPackedBits,
+                              magicNumber=gsuMagic+0, magicAbit=gsuMagic+1, magicShift=gsuMagic+2))
+          else:
+            incCodeA.addText(self.scalarMagicDiv(tmpSgpr, psdPackedBits, sumChar))
+
           # TODO-64
           incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+0), sgpr(size), "remainder step 1")
           incCodeA.addInst("s_sub_u32", sgpr(tmpSgpr+1), psdPackedBits2, sgpr(tmpSgpr+1), "remainder step 2")
@@ -10424,14 +10441,21 @@ class KernelWriterAssembly(KernelWriter):
   # dst is 2 consecutive SGPR
   #   result returned in dst0. dst1 is used as a temp,
   # dst[1] cannot be same as divident, dst[0] can be same as dividend and this can be useful
-  def scalarMagicDiv(self, dst, dividend, magicTag):
+  def scalarMagicDivExplicit(self, dst, dividend, magicNumber, magicAbit, magicShift):
     kStr = ""
-    kStr = self.comment("dst1:0 = dividend(%s) / magicTag(%s)" % (dividend, magicTag))
-    kStr += inst("s_mul_hi_u32", sgpr(dst+1), dividend, sgpr("MagicNumberSize%s"%magicTag), "scalar magic div")
-    kStr += inst("s_mul_i32", sgpr(dst+0), dividend, sgpr("MagicAbitSize%s"%magicTag), "scalar magic div")
-    kStr += inst("s_add_u32", sgpr(dst+0), sgpr(dst+0), sgpr(dst+1), "scalar magic div")
-    kStr += inst("s_lshr_b32", sgpr(dst+0), sgpr(dst+0), sgpr("MagicShiftSize%s"%magicTag), "scalar magic div, quotient in s%s"%dst)
+    kStr = self.comment("dst1:0 = dividend(%s) / magicTag(%s)" % (dividend, magicNumber))
+    kStr += inst("s_mul_hi_u32", sgpr(dst+1), dividend, sgpr(magicNumber), "scalar magic div (magicnum)")
+    kStr += inst("s_mul_i32", sgpr(dst+0), dividend, sgpr(magicAbit), "scalar magic div (abit)")
+    kStr += inst("s_add_u32", sgpr(dst+0), sgpr(dst+0), sgpr(dst+1), "scalar magic div (combine)")
+    kStr += inst("s_lshr_b32", sgpr(dst+0), sgpr(dst+0), sgpr(magicShift), \
+                "scalar magic div (shift), quotient in s%s"%dst)
     return kStr
+
+  def scalarMagicDiv(self, dst, dividend, magicTag):
+    return self.scalarMagicDivExplicit(dst, dividend,
+                                        magicNumber="MagicNumberSize"+magicTag,
+                                        magicAbit="MagicAbitSize"+magicTag,
+                                        magicShift="MagicShiftSize"+magicTag)
 
   # Perform 32-bit scalar mul and save u64 result in two SGPR
   # src0 and src1 are 32-bit unsigned ints in scalar sgpr or small int constants (<64?))
