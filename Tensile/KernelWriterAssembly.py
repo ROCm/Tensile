@@ -548,13 +548,17 @@ class KernelWriterAssembly(KernelWriter):
     idxChar= globalParameters["IndexChars"][idx]
     return sgpr("Size%s"%idxChar)
 
+  def loopChar(self, kernel, loopIdx):
+    loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    return globalParameters["IndexChars"][loopDim]
+
+
   def loopSizeRef(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
     return self.sizeRef(loopDim)
 
   def loopCounterName(self, kernel, loopIdx):
-    loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
-    return "LoopCounter%s"%(globalParameters["IndexChars"][loopDim])
+    return "LoopCounter%s"%(self.loopChar(kernel, loopIdx))
 
   def loopCounter(self, kernel, loopIdx):
     """
@@ -1572,6 +1576,10 @@ class KernelWriterAssembly(KernelWriter):
     if self.unrollIncIsDepthU:
       # product of all summation dimensions, this also will be divided if GSU is enabled
       self.defineSgpr("UnrollLoopLastIter", 1)
+
+    if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
+      self.defineSgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx), 1)
+
 
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
@@ -4911,7 +4919,9 @@ class KernelWriterAssembly(KernelWriter):
 
 
       if kernel["PackSummationDims"]:
-          # CHECKME - this should use result of calc call above
+        if kernel["GlobalSplitU"]>1:
+          kStr += inst ("s_mov_b32", sgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx)), \
+                        sgpr("UnrollLoopLastIter"), "save innermost iters for later unpacking")
         for idx in range(self.otherSummations):
           assert not self.use64bProductOfSums
           kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), \
@@ -6073,8 +6083,11 @@ class KernelWriterAssembly(KernelWriter):
         incCodeA.addComment1("extract index %s"%sumChar)
 
         if not lastIter:
-          # TODO - handle GSU inc here, pass sumChar + "_GSURemainder"
-          assert(kernel["GlobalSplitU"] == 1)
+          if os==self.unrollIdx and kernel["GlobalSplitU"] > 1:
+            # GSU divides the first loop counter size by some amount
+            size = "GsuNumIter%s"%sumChar
+          else:
+            size = "Size%s"%sumChar
 
           if firstIter:
             psdPackedBits2 = psdPackedBits
@@ -6084,7 +6097,7 @@ class KernelWriterAssembly(KernelWriter):
 
           incCodeA.addText(self.scalarMagicDiv(tmpSgpr, psdPackedBits, sumChar))
           # TODO-64
-          incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+0), sgpr("Size%s"%sumChar), "remainder step 1")
+          incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+0), sgpr(size), "remainder step 1")
           incCodeA.addInst("s_sub_u32", sgpr(tmpSgpr+1), psdPackedBits2, sgpr(tmpSgpr+1), "remainder step 2")
           iterX=sgpr(tmpSgpr+1)
         else:
@@ -6105,7 +6118,6 @@ class KernelWriterAssembly(KernelWriter):
             #incCodeA.addText(self.s_mul_u64_u32(tmp+0, inc{'A'}+1, tmpSgpr+1, sgpr["GlobalReadIncsA"]))
 
           psdPackedBits = sgpr(tmpSgpr+0)
-          # for next iterations, packed
 
         if 0 and lastIter:
           incCodeA.addText(self.assert_ne(sgpr("LoopCounterM"), 8))
