@@ -15,7 +15,7 @@ tensileCI:
     def tensile = new rocProject('Tensile', 'Extended')
     tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D CMAKE_CXX_COMPILER=hcc -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
-    def nodes = new dockerNodes(['gfx900 && ubuntu', 'gfx906 && ubuntu', 'gfx908 && ubuntu'], tensile)
+    def nodes = new dockerNodes(['gfx900 && centos7', 'gfx906 && sles', 'gfx908 && ubuntu'], tensile)
 
     boolean formatCheck = false
 
