@@ -1,7 +1,6 @@
-from subprocess import Popen, PIPE
-
 import os
 import pytest
+import subprocess
 import yaml
 
 from Tensile import Tensile
@@ -119,11 +118,12 @@ def configMarks(filepath, rootDir, availableArchs):
 def findAvailableArchs():
     availableArchs = []
     rocmAgentEnum = "/opt/rocm/bin/rocm_agent_enumerator"
-    process = Popen([rocmAgentEnum, "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline().decode()
-    while line != "":
-        availableArchs.append(line.strip())
-        line = process.stdout.readline().decode()
+    output = subprocess.check_output([rocmAgentEnum, "-t", "GPU"])
+    lines = output.decode().splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line in availableArchs:
+            availableArchs.append(line)
     return availableArchs
 
 def findConfigs(rootDir=None):
