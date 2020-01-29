@@ -55,4 +55,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 16, 16, 2, 8]
+          - Range: [ [16], [16], [2], [20]]

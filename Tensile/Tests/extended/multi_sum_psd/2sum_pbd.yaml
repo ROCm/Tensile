@@ -37,10 +37,10 @@ BenchmarkProblems:
         - PackSummationDims: [0,1]
           #- UnrollIncIsDepthU: [0]
         - PackBatchDims: [0,1]
-        - KernelLanguage: [Source]
+        - KernelLanguage: [Source,Assembly]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
-        - GlobalSplitU: [1,2]
+          #- GlobalSplitU: [1,2]
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:

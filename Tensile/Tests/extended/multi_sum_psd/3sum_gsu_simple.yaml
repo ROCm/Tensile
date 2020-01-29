@@ -39,7 +39,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - PackSummationDims: [1]
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: [Source,Assembly]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - GlobalSplitU: [2]

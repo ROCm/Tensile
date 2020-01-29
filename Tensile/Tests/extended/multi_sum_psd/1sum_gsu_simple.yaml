@@ -38,7 +38,7 @@ BenchmarkProblems:
           #- TailLoop: [False]
       ForkParameters:
         - PackSummationDims: [0,1]
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: [Source,Assembly]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - GlobalSplitU: [2]

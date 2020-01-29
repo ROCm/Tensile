@@ -7,7 +7,7 @@ GlobalParameters:
   SleepPercent: 0
   DataInitTypeA: 0
   DataInitTypeB: 0
-  EnqueuesPerSync: 100
+  EnqueuesPerSync: 1000
   KernelTime: True
   NewClient: 2
   PrintConvolutionUsage: 0
