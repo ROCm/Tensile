@@ -6117,6 +6117,9 @@ class KernelWriterAssembly(KernelWriter):
           incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+0), sgpr(size), "remainder step 1")
           incCodeA.addInst("s_sub_u32", sgpr(tmpSgpr+1), psdPackedBits2, sgpr(tmpSgpr+1), "remainder step 2")
           iterX=sgpr(tmpSgpr+1)
+        elif firstIter and lastIter:
+          # just one iter, use loop counter directly not remainder
+          iterX = psdPackedBits
         else:
           iterX=sgpr(tmpSgpr+0)
 
