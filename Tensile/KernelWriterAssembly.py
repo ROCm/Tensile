@@ -727,6 +727,10 @@ class KernelWriterAssembly(KernelWriter):
   def defineSgpr(self, name, numSgprs, align=1):
     if numSgprs == 0: return
 
+    if self.startSgprTmpPool != None:
+      raise RuntimeError("Expected defineSgpr to be called before setStartTmpPool")
+
+
     # round up to next alignment boundary:
     self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     self.sgprs[name] = self.sgprIdx
@@ -1372,6 +1376,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
+    self.setStartTmpPool(None)
     numSgprAddressD = self.rpga # til end
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
@@ -1470,9 +1475,13 @@ class KernelWriterAssembly(KernelWriter):
     for idxChar in kernel["PackedC0IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      if kernel["MagicDivAlg"]==2:
+        self.defineSgpr("MagicAbitSize%s"%idxChar, 1)
     for idxChar in kernel["PackedC1IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      if kernel["MagicDivAlg"]==2:
+        self.defineSgpr("MagicAbitSize%s"%idxChar, 1)
 
     # product of all packed dims in the 0 or 1 dimensions:
     if len(kernel["PackedC0IndicesX"]) > 1:
@@ -2701,11 +2710,19 @@ class KernelWriterAssembly(KernelWriter):
     #   - First parm is passed as an integer vgpr index ; remaining are vgpr or sgpr symbolic names
     #   - dstIdx+1 cannot be same as dividend.  dividend+0 can be same as dividend and this may be useful for chaining divides.
     kStr += self.comment3("Magic div and mod functions")
-    kStr += ".macro V_MAGIC_DIV dstIdx:req, dividend:req, magicNumber:req, magicShift:req" + self.endLine
-    kStr += r"    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
-    kStr += r"    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
-    kStr += r"    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
-    kStr += ".endm" + self.endLine
+    if kernel["MagicDivAlg"]==1:
+        kStr += ".macro V_MAGIC_DIV dstIdx:req, dividend:req, magicNumber:req, magicShift:req, magicA:req" + self.endLine
+        kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+        kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
+        kStr += "    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
+        kStr += ".endm" + self.endLine
+    elif kernel["MagicDivAlg"]==2:
+        kStr += ".macro V_MAGIC_DIV dstIdx:req, dividend:req, magicNumber:req, magicShift:req, magicA:req" + self.endLine
+        kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+        kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicA" + self.endLine
+        kStr += "    v_add_u32 v[\dstIdx+0], v[\dstIdx+0], v[\dstIdx+1]" + self.endLine
+        kStr += "    v_lshrrev_b32 v[\dstIdx+0], \magicShift, v[\dstIdx+0]" + self.endLine
+        kStr += ".endm" + self.endLine
 
     ########################################
     # VGPR Macros
@@ -3275,6 +3292,10 @@ class KernelWriterAssembly(KernelWriter):
     if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"]:
       kStr += inst("s_mov_b32", sgpr("EvenIterStart"), 0, "init SerialWorkGroupIter")
 
+    if kernel["MagicDivAlg"]==2:
+      for idxChar in sorted(set(kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1])):
+          kStr += inst("s_lshr_b32", sgpr("MagicAbitSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), 31,"extract abit")
+          kStr += inst("s_and_b32",  sgpr("MagicShiftSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), hex(0x7fffffff), "remove abit")
 
     ########################################
     # Debug Buffer
@@ -3706,9 +3727,9 @@ class KernelWriterAssembly(KernelWriter):
               groChar = globalParameters["IndexChars"][tP["PackedIndices"][p+1]]
               groVgpr = vgpr(tP["vgprPackedOffsets"] + l*numExtraPackedOffsetsPerTile + p)
               pChar = globalParameters["IndexChars"][tP["PackedIndices"][p]]
-              kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" \
+              kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" \
                   % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%pChar), \
-                  sgpr("MagicShiftSize%s"%pChar))
+                  sgpr("MagicShiftSize%s"%pChar), sgpr("MagicAbitSize%s"%pChar) if kernel["MagicDivAlg"]==2 else "0")
               kStr += inst("v_mov_b32", groVgpr, vgpr(tmpV), "extract gro%s%s_%u (%s)"%(tc,groChar,l,groVgpr))
               kStr += inst("v_mul_lo_u32", vgpr(tmpV), groVgpr, sgpr("SizesFree+%u"%lastGroIdx), "remainder part 1")
               kStr += inst("v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
@@ -8302,9 +8323,9 @@ class KernelWriterAssembly(KernelWriter):
         idxChar= globalParameters["IndexChars"][idx]
         kStr += kw.comment1("extract %s"%kw.size('A', idx))
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
-        kStr += "V_MAGIC_DIV %s, %s, %s, %s\n" % \
-                 (tmpVgpr+1, vgpr(packedBits), \
-                  sgpr("MagicNumberSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar))
+        kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" % \
+                 (tmpVgpr+1, vgpr(packedBits), sgpr("MagicNumberSize%s"%idxChar), \
+                  sgpr("MagicShiftSize%s"%idxChar), sgpr("MagicAbitSize%s"%idxChar) if kernel["MagicDivAlg"]==2 else "0")
         # tmpVgpr+1 returns the quotient, tmpVgpr+2 is overwritten
 
         # compute remainder, packedBits % sizeIdx - this is the 'extracted' index that must be scaled
