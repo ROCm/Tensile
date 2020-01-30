@@ -550,6 +550,13 @@ class KernelWriterAssembly(KernelWriter):
     else:
       raise ValueError("unexpected tensorChar='%s' in size function"%tc)
 
+  def loopCounterName(self, kernel, loopIdx):
+    loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    return "LoopCounter%s"%(self.indexChars[loopDim])
+
+  def loopCounter(self, kernel, loopIdx):
+    """ Return loopCounter for loopIdx wrapped in "SGPR" syntax """
+    return sgpr(self.loopCounterName(kernel,loopIdx))
 
   def isConstUnitStride(self, stride):
       return stride.startswith("const")
@@ -1489,9 +1496,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("PackedSize1", 1)
 
     # contractions with multiple summations will use multiple LoopCounters
-    # outermost loop is LoopCounter[0] and innermost is the last Counter.
-    # innermost is also the unroll loop
-    self.defineSgpr("LoopCounters", numSgprLoopCounters)
+    for i in range(numSgprLoopCounters):
+      self.defineSgpr(self.loopCounterName(kernel,i), 1)
+
     self.defineSgpr("OrigLoopCounter", 1)
     if self.prefetchAcrossPersistent0:
       if kernel["ExpandPointerSwap"]:
@@ -4331,7 +4338,7 @@ class KernelWriterAssembly(KernelWriter):
         tmpSgpr = self.getTmpSgpr(3)
         # Summations always appear in both A and B, can compute number of iterations just once:
         if loopIdxPrev==self.unrollIdx:
-          unrollLoopCounter = "LoopCounters+%u"%self.unrollIdx
+          unrollLoopCounter= self.loopCounterName(kernel, self.unrollIdx)
           if tP["isA"]:
             quotient = unrollLoopCounter
             dividend = "SizesSum+%u"%self.unrollIdx
@@ -4709,7 +4716,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     assert(self.doShadowInit and kernel["PrefetchGlobalRead"])
 
-    kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+    kStr += inst("s_cmp_eq_u32", self.loopCounter(kernel, self.unrollIdx), \
         hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
     if kernel["SuppressNoLoadLoop"]:
       loopChar = self.indexChars[ \
@@ -4833,7 +4840,7 @@ class KernelWriterAssembly(KernelWriter):
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
       kStr += self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
-                    sgpr("LoopCounters+%u"%self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                    self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "Number of bytes accessed by the unroll loop")
 
       kStr += inst("s_sub_u32", sgpr("WrapU%s+0"%tc),  \
@@ -4914,19 +4921,20 @@ class KernelWriterAssembly(KernelWriter):
   def calculateLoopNumIterGsu(self, kernel, tmpSgpr):
     kStr = ""
 
-    loopCounter = "LoopCounters+%u"%self.unrollIdx
-    quotient = loopCounter
+    loopCounterName = self.loopCounterName(kernel, self.unrollIdx)
+    loopCounter = sgpr(loopCounterName)
+    quotient = loopCounterName
     remainder = "GSUSumIdx+1" # numIterPerWgRemainder
     dividend = tmpSgpr+2 # numIterMyWg
     divisor = kernel["GlobalSplitU"]
-    kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
+    kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide" )
     kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
 
     # if gsuSumIdx < numIterPerWgRemainder
-    kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(1), sgpr(loopCounter), "tmp<-numIterMyWg++" )
+    kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(1), loopCounter, "tmp<-numIterMyWg++" )
     kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
         "gsuSumIdx < numIterPerWgRemainder" )
-    kStr += inst("s_cmov_b32", sgpr(loopCounter), sgpr(tmpSgpr), "numIterMyWg++ if needed" )
+    kStr += inst("s_cmov_b32", loopCounter, sgpr(tmpSgpr), "numIterMyWg++ if needed" )
 
     return kStr
 
@@ -4951,9 +4959,9 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
       if self.prefetchAcrossPersistent0:
-        loopCounter = "TailLoopCounter"
+        loopCounterName = "TailLoopCounter"
       else:
-        loopCounter = "LoopCounters+%u"%loopIdx
+        loopCounterName = self.loopCounterName(kernel, loopIdx)
       kStr += "\n"
       if kernel["SuppressNoLoadLoop"]:
         # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
@@ -4972,30 +4980,30 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       # size % DepthU
-      kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounter, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
+      kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounterName, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
       if kernel["MatrixInstruction"]:
         kStr += "/* calculate number of remaining loops in terms of how many matrix instructions */\n"
         kStr += "//numIter%s = ((numIter%s + MatrixInst%s - 1) / MatrixInst%s)\n"%(self.unrollChar, self.unrollChar, self.unrollChar, self.unrollChar)
         kStr += inst("s_add_u32", sgpr(loopCounter), sgpr(loopCounter), kernel["MatrixInstK"]-1, "")
-        kStr += scalarStaticDivideAndRemainder(loopCounter, None, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 0)
+        kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
 
-
+      loopCounter = sgpr(loopCounterName)
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
-        kStr += inst("s_add_u32", sgpr(loopCounter), hex(kernel["LocalSplitU"]-1), sgpr(loopCounter), "(size % DepthU) + LSU - 1" )
+        kStr += inst("s_add_u32", loopCounter, hex(kernel["LocalSplitU"]-1), loopCounter, "(size % DepthU) + LSU - 1" )
         dividend = tmpSgpr+2
-        kStr += inst("s_mov_b32", sgpr(dividend), sgpr(loopCounter), "copy for divide" )
+        kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide" )
         kStr += scalarStaticDivideAndRemainder( loopCounter, None, dividend, kernel["LocalSplitU"], tmpSgpr, 0)
 
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:
         kStr += inst("s_cmp_lg_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
             "gsuSumIdx == numIterPerWgRemainder" )
-        kStr += inst("s_cmov_b32", sgpr(loopCounter), hex(0), "numIter=0 if gsuSimIdx!=remainder")
+        kStr += inst("s_cmov_b32", loopCounter, hex(0), "numIter=0 if gsuSimIdx!=remainder")
 
       # if tail numIter == 0 skip altogether
       tailLoopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
-      kStr += inst("s_cmp_eq_u32", sgpr(loopCounter), \
+      kStr += inst("s_cmp_eq_u32", loopCounter, \
           hex(0), "numIter%s == 0"%loopChar )
       kStr += inst("s_cbranch_scc1 label_%04u"\
           % tailLoopLabelEnd, \
@@ -5004,21 +5012,30 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Unrolled Loop
     elif loopIdx == self.unrollIdx:
-      loopCounter = "LoopCounters+%u"%loopIdx
+      loopCounterName = self.loopCounterName(kernel, loopIdx)
+      loopCounter = sgpr(loopCounterName)
       if not self.do["PreLoop"]: kStr += ".endif\n"
 
-      tmpSgpr = self.getTmpSgpr(2)
-      loopCounter = "LoopCounters+%u"%self.unrollIdx
-      quotient = loopCounter
-      dividend = "SizesSum+%u"%self.unrollIdx
-      divisor = kernel["DepthU"]
-      kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
-      # if GSU numIter++ if gsuSumIdx < remainder
-      if kernel["GlobalSplitU"] > 1:
-        kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
+      sumSize = "SizesSum+%u"%loopIdx
+      #sumSize = self.sumSize(kernel, loopIdx)
+      if self.unrollIncIsDepthU:
+        kStr += inst("s_mov_b32", loopCounter, \
+                  sgpr(sumSize), \
+                  "init loop counter, unrollIncIsDepthU mode")
+
+      else:
+        # TODO - use named arguments
+        tmpSgpr = self.getTmpSgpr(2)
+        quotient = loopCounterName
+        dividend = sumSize
+        divisor = kernel["DepthU"]
+        kStr += scalarStaticDivideAndRemainder(quotient, None, sumSize, divisor, tmpSgpr, 0)
+        # if GSU numIter++ if gsuSumIdx < remainder
+        if kernel["GlobalSplitU"] > 1:
+          kStr += self.calculateLoopNumIterGsu(kernel, tmpSgpr)
 
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
-                sgpr(loopCounter), \
+                loopCounter, \
                 "copy loop counter")
       if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"] and isPap:
         kStr += inst("s_and_b32", sgpr("EvenIterStart"), sgpr("OrigLoopCounter"), \
@@ -5030,8 +5047,8 @@ class KernelWriterAssembly(KernelWriter):
       #printExit("no assembly support for 2+ dimensional summation")
       kStr += self.comment("%sother summation, numIter%s = size%s" \
           % (self.indent, loopChar, loopChar))
-      loopCounter = "LoopCounters+%u"%loopIdx
-      kStr += inst("s_mov_b32", sgpr(loopCounter), \
+      loopCounter = self.loopCounter(kernel, loopIdx)
+      kStr += inst("s_mov_b32", loopCounter, \
                 sgpr("SizesSum+%u"%loopIdx), \
                 "init loop counter")
 
@@ -5057,7 +5074,7 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr(tmpSgpr), \
                   self.srdShiftLeft[tc], "")
 
-        # Leading adds to the range since we have more elements to left of original array - need to 
+        # Leading adds to the range since we have more elements to left of original array - need to
         # overcome the other adjustments to SRD and GRO
         kStr += inst("s_sub_u32", sgpr(tmpSgpr+1), \
                   sgpr("ZeroPad%s%s_Trailing"%(tc, freeDimChar)), \
@@ -5088,7 +5105,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def openLoop(self, kernel, loopIdx):
     kStr = ""
-    #kStr += "s_endpgm\n"
+    # TODO - rewrite this function to simplify control-flow between tail-loop / unroll loop
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -5103,7 +5120,7 @@ class KernelWriterAssembly(KernelWriter):
     # is numIter at least 1? otherwise skip to end
     # PGL needs a skip-check here if not bufferload
     # If kernel["SuppressNoLoadLoop"] we don't have a special loop for the 'last iter'
-    loopCounter = "LoopCounters+%u"%loopIdx
+    loopCounter = self.loopCounter(kernel, loopIdx)
     if tailLoop:
       if self.prefetchAcrossPersistent0:
         loopCounter = "TailLoopCounter"
@@ -5118,7 +5135,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if tailLoop or loopIdx == self.unrollIdx:
       kStr += inst("s_cmp_le_u32", \
-          sgpr(loopCounter), \
+          loopCounter, \
           hex(endCounter), \
           "LoopCounter%s < EndCounter"%(loopChar) )
       kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
@@ -5197,7 +5214,7 @@ class KernelWriterAssembly(KernelWriter):
       if self.prefetchAcrossPersistent0:
         loopCounter = "TailLoopCounter"
       else:
-        loopCounter = "LoopCounters+%u"%loopIdx
+        loopCounter = self.loopCounter(kernel, loopIdx)
       if kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
         unrollInc = kernel["InnerUnroll"]
       else:
@@ -5205,10 +5222,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
       kStr += inst("s_sub_u32", \
-          sgpr(loopCounter), \
-          sgpr(loopCounter), \
+          loopCounter, \
+          loopCounter, \
           hex(unrollInc), \
-          "dec counter%s (toilLoop)"%(loopChar) )
+          "dec counter%s (tailLoop)"%(loopChar) )
 
       # Track # LDS reads?
       kStr += inst("s_add_u32", \
@@ -5224,14 +5241,13 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelBegin = self.getLabelNum("LoopBegin%s"%(loopChar) )
       loopLabelEnd = self.getLabelNum("LoopEnd%s"%(loopChar) )
       loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
-      loopCounter = "LoopCounters+%u"%loopIdx
-      unrollInc = 1
+      loopCounter = self.loopCounter(kernel, loopIdx)
+      unrollInc = "DepthU" if self.unrollIncIsDepthU and loopIdx==self.unrollIdx else 1
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
       kStr += inst("s_sub_u32", \
-          sgpr("LoopCounters+%u"%loopIdx), \
-          sgpr("LoopCounters+%u"%loopIdx), \
-          hex(unrollInc), \
+          loopCounter, loopCounter, \
+          unrollInc, \
           "dec counter%s"%(loopChar) )
 
       # If PrefetchGlobalRead=1 the loads in the loop prefetch next macro-tile
@@ -5248,7 +5264,7 @@ class KernelWriterAssembly(KernelWriter):
         endCounter = 0
 
     kStr += inst("s_cmp_eq_i32", \
-        sgpr(loopCounter), \
+        loopCounter, \
         hex(endCounter), \
         "counter%s==0"%(loopChar) )
 
@@ -5500,7 +5516,7 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
     kStr = ""
     if prefetch:
-      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+      kStr += inst("s_cmp_eq_u32", self.loopCounter(kernel, self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       if not isPap:
         if self.doShadowInit:
@@ -5568,7 +5584,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "\n"
 
       # Check tail loop required:
-      #loopCounter = "LoopCounters+%u"%self.unrollIdx
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, tmpSgpr+1, "SizesSum+%u"%self.unrollIdx, \
@@ -5800,10 +5815,10 @@ class KernelWriterAssembly(KernelWriter):
         incUpper = incLower + 1
         tmpS =    incLower + 2
         if prefetchIndex:
-          imod.addInst("s_add_u32", sgpr(tmpS), sgpr("LoopCounters+%u"%self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
+          imod.addInst("s_add_u32", sgpr(tmpS), self.loopCounter(kernel, self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
           imod.addInst("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
         else:
-          imod.addInst("s_cmp_eq_u32",  sgpr("LoopCounters+%u"%self.unrollIdx), \
+          imod.addInst("s_cmp_eq_u32",  self.loopCounter(kernel, self.unrollIdx), \
                     sgpr("StaggerUIter"), "Is this the wrapIter?")
         #kStr += self.assert_scc_is_1() # break at the wrap iteration
         imod.addInst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s+0"%tc), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
@@ -5811,11 +5826,6 @@ class KernelWriterAssembly(KernelWriter):
         imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0,
                     "incUpper <- ?")
         imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
-        if 0 and tP["isB"] and prefetchIndex==0:
-          tv = self.vgprPool.checkOut(1, "hack")
-          imod.addInst( "v_mov_b32", vgpr(tv), sgpr("LoopCounters"), "")
-          imod.addText( self.assert_ne(vgpr(tv), sgpr("StaggerUIter"))) # break at the wrap iteration
-          self.vgprPool.checkIn(tv)
       else:
         if loopIdx != self.unrollIdx:
           incUpper = sgpr(self.getTmpSgpr(1))
@@ -6159,7 +6169,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["SuppressNoLoadLoop"]:
       if mode==1 and tP["isA"]:
         imod.header.addInst("s_cmp_eq_i32", \
-              sgpr("LoopCounters+%u"%loopIdx), \
+              self.loopCounter(kernel, loopIdx), \
               "%u"% 1, \
               "%s"%"is this the last iteration")
         imod.header.addInst("s_cmov_b32", \
@@ -6183,9 +6193,9 @@ class KernelWriterAssembly(KernelWriter):
       # TODO - fix for GSU, need LOCAL_DEPTHU*GSUp
       if guardK:
         imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), \
-          sgpr("LoopCounters+%u"%loopIdx), "compute elementCounter%s, step2"%(sumChar))
+          self.loopCounter(kernel,loopIdx), "compute elementCounter%s, step2"%(sumChar))
       else:
-        imod.header.addInst("s_mul_i32", sgpr(zpTmp), sgpr("LoopCounters+%u"%loopIdx), \
+        imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.loopCounter(kernel,loopIdx), \
           "DepthU", "compute elementCounter%s, step1"%(sumChar))
         imod.header.addInst("s_sub_u32", sgpr(zpTmp), self.size(tc,freeDim), \
           sgpr(zpTmp), "compute elementCounter%s, step2"%(sumChar))
@@ -6608,7 +6618,6 @@ class KernelWriterAssembly(KernelWriter):
         localWriteCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
       localWriteCode.addInst("s_barrier", "dump LDS" )
       localWriteCode.addText(self.assert_ne(sgpr("WorkGroup0"),1))
-      #localWriteCode.addText(self.assert_eq(sgpr("LoopCounters+0"), 1))
       #localWriteCode.addText(self.bomb())
 
     return imod
