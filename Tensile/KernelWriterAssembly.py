@@ -5142,7 +5142,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       endCounter =  0
 
-    if tailLoop or loopIdx == self.unrollIdx:
+    if tailLoop:
       kStr += inst("s_cmp_le_u32", \
           loopCounter, \
           hex(endCounter), \
@@ -5150,56 +5150,73 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
           "don't enter Loop%s"%loopChar )
 
-    if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
-      kStr += inst("","compare if odd-iter return")
-      #kStr += inst("s_cbranch_scc1", self.getLabelTarget("LoopCopy2"), "start at oddIter?")
-
-    if tailLoop:
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), 0, \
           "repurpose to count each localRead increment")
 
-    # LSU not all threads will do summation
-    if tailLoop and kernel["LocalSplitU"] > 1:
-      tmpSgpr = self.getTmpSgpr(2)
-      kStr += self.comment("apply exec mask for LSU")
-      tmpVgpr = self.vgprPool.checkOut(2)
-      dummy = self.vgprPool.checkOut(1)
-      sgId = self.vgprPool.checkOut(1)
-      divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
-      kStr += vectorStaticDivide(sgId, "Serial", divisor, tmpVgpr, tmpSgpr)
-      numIter = self.vgprPool.checkOut(1)
-      kStr += inst("v_mov_b32", vgpr(numIter), sgpr("SizesSum+0"), "sizeU to vgpr")
-      divisor = kernel["DepthU"]
-      kStr += vectorStaticDivideAndRemainder(dummy, numIter, numIter, divisor, tmpVgpr, tmpSgpr)
-      self.vgprPool.checkIn(dummy)
-      #kStr += dump(vgpr(sgId))
-      #kStr += dump(vgpr(numIter))
-      kStr += inst("_v_cmpx_lt_u32", "vcc", \
-          vgpr(sgId), vgpr(numIter), "sgId < numIter")
-      self.vgprPool.checkIn(tmpVgpr)
-      #self.tailNumIter = numIter
-      #self.vgprPool.checkIn(numIter)
+      # LSU not all threads will do summation
+      if kernel["LocalSplitU"] > 1:
+        tmpSgpr = self.getTmpSgpr(2)
+        kStr += self.comment("apply exec mask for LSU")
+        tmpVgpr = self.vgprPool.checkOut(2)
+        dummy = self.vgprPool.checkOut(1)
+        sgId = self.vgprPool.checkOut(1)
+        divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
+        kStr += vectorStaticDivide(sgId, "Serial", divisor, tmpVgpr, tmpSgpr)
+        numIter = self.vgprPool.checkOut(1)
+        kStr += inst("v_mov_b32", vgpr(numIter), sgpr("SizesSum+0"), "sizeU to vgpr")
+        divisor = kernel["DepthU"]
+        kStr += vectorStaticDivideAndRemainder(dummy, numIter, numIter, divisor, tmpVgpr, tmpSgpr)
+        self.vgprPool.checkIn(dummy)
+        #kStr += dump(vgpr(sgId))
+        #kStr += dump(vgpr(numIter))
+        kStr += inst("v_cmpx_lt_u32", "vcc", \
+            vgpr(sgId), vgpr(numIter), "sgId < numIter")
+        self.vgprPool.checkIn(tmpVgpr)
+        #self.tailNumIter = numIter
+        #self.vgprPool.checkIn(numIter)
+        # thread is active is sgId < numIter % LocalSplitU
 
-      # thread is active is sgId < numIter % LocalSplitU
-    # begin loop
-    kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
+      # begin loop
+      kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
 
-    # LSU mask for this iteration
-    if tailLoop and kernel["LocalSplitU"] > 1:
-      kStr += inst("_v_cmpx_lt_u32", "vcc", \
-          vgpr(sgId), vgpr(numIter), "sgId < numIter")
-      kStr += inst("_v_add_co_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
-          vgpr(sgId), "sgId+=LSU")
-      self.vgprPool.checkIn(sgId)
-      self.vgprPool.checkIn(numIter)
-      #kStr += dump(vgpr(sgId))
+      # LSU mask for this iteration
+      if kernel["LocalSplitU"] > 1:
+        kStr += inst("v_cmpx_lt_u32", "vcc", \
+            vgpr(sgId), vgpr(numIter), "sgId < numIter")
+        kStr += inst("_v_add_co_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
+            vgpr(sgId), "sgId+=LSU")
+        self.vgprPool.checkIn(sgId)
+        self.vgprPool.checkIn(numIter)
+        #kStr += dump(vgpr(sgId))
 
-    if not tailLoop and loopIdx != self.unrollIdx:
-      # reset LRO since these may have changed due to odd-iter exit ?
-      if kernel["PrefetchGlobalRead"]:
-        kStr += self.comment1("openLoop - reset LRO for possible odd-iter exit")
-        kStr += self.localReadResetOffsets(kernel, self.tPA)
-        kStr += self.localReadResetOffsets(kernel, self.tPB)
+    else: # not tailloop:
+
+      if loopIdx == self.unrollIdx:
+        if self.unrollIncIsDepthU:
+          kStr += inst("s_cmp_ge_u32", \
+              loopCounter, \
+              sgpr("ProductOfSummations"), \
+              "LoopCounter%s > EndCounter"%(loopChar) )
+        else:
+          kStr += inst("s_cmp_le_u32", \
+              loopCounter, \
+              hex(endCounter), \
+              "LoopCounter%s < EndCounter"%(loopChar) )
+        kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
+            "don't enter Loop%s"%loopChar )
+
+      if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
+        kStr += inst("","compare if odd-iter return")
+        #kStr += inst("s_cbranch_scc1", self.getLabelTarget("LoopCopy2"), "start at oddIter?")
+
+      kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
+
+      if loopIdx != self.unrollIdx:
+        # reset LRO since these may have changed due to odd-iter exit ?
+        if kernel["PrefetchGlobalRead"]:
+          kStr += self.comment1("openLoop - reset LRO for possible odd-iter exit")
+          kStr += self.localReadResetOffsets(kernel, self.tPA)
+          kStr += self.localReadResetOffsets(kernel, self.tPB)
 
     return kStr
 
