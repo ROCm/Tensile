@@ -775,12 +775,13 @@ class ProblemType:
       else:
         printExit("invalid index %u (expected summation but not (inA and inB))" % i)
     # print index assignments
-    if 0:
+    if globalParameters["PrintIndexAssignments"]:
       print1("IndicesFree:  %s" % state["IndicesFree"])
       print1("IndicesBatch: %s" % state["IndicesBatch"])
       print1("IndicesSum:   %s" % state["IndicesSummation"])
       print1("IndexAssignmentsA:   %s" % state["IndexAssignmentsA"])
       print1("IndexAssignmentsB:   %s" % state["IndexAssignmentsB"])
+      print1("NumIndicesC:  %s" % state["NumIndicesC"])
 
 
     for k in ('IndexAssignmentsA','IndexAssignmentsB'):
