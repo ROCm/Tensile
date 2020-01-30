@@ -1,6 +1,6 @@
-
 import os
 import pytest
+import subprocess
 import yaml
 
 from Tensile import Tensile
@@ -32,7 +32,7 @@ def markNamed(name):
     """
     return getattr(pytest.mark, name)
 
-def configMarks(filepath, rootDir):
+def configMarks(filepath, rootDir, availableArchs):
     """
     Returns a list of marks to add to a particular YAML config path.  Currently gets a mark for:
 
@@ -65,7 +65,13 @@ def configMarks(filepath, rootDir):
     if "TestParameters" in doc:
         if "marks" in doc["TestParameters"]:
             marks += [markNamed(m) for m in doc["TestParameters"]["marks"]]
-    
+
+    # Architecture specific xfail marks
+    for arch in availableArchs:
+        ArchFail = "xfail-%s" % arch
+        if markNamed(ArchFail) in marks:
+            marks.append(pytest.mark.xfail)
+
     validate = True
     validateAll = False
     try:
@@ -109,6 +115,16 @@ def configMarks(filepath, rootDir):
 
     return marks
 
+def findAvailableArchs():
+    availableArchs = []
+    rocmAgentEnum = "/opt/rocm/bin/rocm_agent_enumerator"
+    output = subprocess.check_output([rocmAgentEnum, "-t", "GPU"])
+    lines = output.decode().splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line in availableArchs:
+            availableArchs.append(line)
+    return availableArchs
 
 def findConfigs(rootDir=None):
     """
@@ -118,12 +134,14 @@ def findConfigs(rootDir=None):
     if rootDir ==  None:
         rootDir = os.path.dirname(os.path.dirname(__file__))
     
+    availableArchs = findAvailableArchs()
+
     params = []
     for (dirpath, dirnames, filenames) in os.walk(rootDir):
         for filename in filenames:
             if filename.endswith('.yaml'):
                 filepath = os.path.join(rootDir, dirpath, filename)
-                marks = configMarks(filepath, rootDir)
+                marks = configMarks(filepath, rootDir, availableArchs)
                 testname = os.path.splitext(filename)[0]
                 params.append(pytest.param(filepath, marks=marks, id=testname))
     return params
