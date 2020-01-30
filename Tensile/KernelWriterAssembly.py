@@ -2619,7 +2619,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["CodeObjectVersion"] == "V3":
         kStr += "%s:%s" % (self.kernelName, self.endLine)
     kStr += self.comment3("Asm syntax workarounds")
-    kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_add_co_u32 dst:req, cc:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
         kStr += r"   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     else:
@@ -2628,7 +2628,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # add w/o carry-out.  On older arch, vcc is still written
     kStr += "\n"
-    kStr += ".macro _v_add_u32 dst, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_add_u32 dst:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitNC"]:
         kStr += r"   v_add_nc_u32 \dst, \src0 \src1 \dpp" + self.endLine
     elif self.AsmBugs["ExplicitCO"]:
@@ -2638,7 +2638,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     kStr += "\n"
-    kStr += ".macro _v_sub_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_sub_co_u32 dst:req, cc:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
         kStr += r"   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     else:
@@ -2647,7 +2647,7 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += "\n"
     # sub w/o carry-out.  On older arch, vcc is still written.
-    kStr += ".macro _v_sub_u32 dst, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_sub_u32 dst:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
         kStr += r"   v_sub_u32 \dst, \src0, \src1 \dpp" + self.endLine
     else:
@@ -2655,7 +2655,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     kStr += "\n"
-    kStr += ".macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=" + self.endLine
+    kStr += ".macro _v_addc_co_u32 dst:req, ccOut:req, src0:req, ccIn:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitNC"]:
         kStr += r"   v_add_co_ci_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     elif self.AsmBugs["ExplicitCO"]:
@@ -2666,7 +2666,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Use combined add+shift, where available:
     kStr += "\n"
-    kStr += ".macro _v_add_lshl_u32 dst, src0, src1, shiftCnt" + self.endLine
+    kStr += ".macro _v_add_lshl_u32 dst:req, src0:req, src1:req, shiftCnt:req" + self.endLine
     if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
       kStr += r"    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
@@ -2680,7 +2680,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Use combined shift+add, where available:
     kStr += "\n"
-    kStr += ".macro _v_lshl_add_u32 dst, src0, src1, shiftCnt" + self.endLine
+    kStr += ".macro _v_lshl_add_u32 dst:req, src0:req, src1:req, shiftCnt:req" + self.endLine
     if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
       kStr += r"    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
@@ -2701,7 +2701,7 @@ class KernelWriterAssembly(KernelWriter):
     #   - First parm is passed as an integer vgpr index ; remaining are vgpr or sgpr symbolic names
     #   - dstIdx+1 cannot be same as dividend.  dividend+0 can be same as dividend and this may be useful for chaining divides.
     kStr += self.comment3("Magic div and mod functions")
-    kStr += ".macro V_MAGIC_DIV dstIdx, dividend, magicNumber, magicShift" + self.endLine
+    kStr += ".macro V_MAGIC_DIV dstIdx:req, dividend:req, magicNumber:req, magicShift:req" + self.endLine
     kStr += r"    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
     kStr += r"    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
     kStr += r"    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
@@ -2874,7 +2874,7 @@ class KernelWriterAssembly(KernelWriter):
       packBatchDims = tP["PackBatchDims"] if tP != None else 0x3
 
       # macro declaration
-      kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tc
+      kStr += ".macro GLOBAL_OFFSET_%s vgprAddr:req"%tc
       calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
       for i in range(0, numDim):
         if tc == 'C':
@@ -2889,7 +2889,7 @@ class KernelWriterAssembly(KernelWriter):
         if     tc in ('A','C') and indices[i] == kernel["ProblemType"]["Index0"] \
             or tc in ('B','C') and indices[i] == kernel["ProblemType"]["Index1"] \
             or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
-          kStr += " vgprOffset%s" % idxChars[i]
+          kStr += " vgprOffset%s:req" % idxChars[i]
           calcDims.append(i)
         elif indices[i] in kernel["ProblemType"]["IndicesSummation"]:
           # other summation index (not unroll)
@@ -2898,11 +2898,11 @@ class KernelWriterAssembly(KernelWriter):
           # other batch or free index
           if isPackedIndex(kernel, indices[i], packBatchDims):
             calcDims.append(i)
-            kStr += " vgprOffset%s" % idxChars[i]
+            kStr += " vgprOffset%s:req" % idxChars[i]
           elif not justOffset32: # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
             calcDims.append(i)
-            kStr += " sgprOffset%s" % idxChars[i]
-      kStr += " vgprTmp%s" % self.endLine
+            kStr += " sgprOffset%s:req" % idxChars[i]
+      kStr += " vgprTmp:req" + self.endLine
 
       # Each index may be skipped, scaled by stride, or unscaled
       # If destLo is unset, no accumulation is necessary.
