@@ -5038,7 +5038,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["MatrixInstruction"]:
         kStr += "/* calculate number of remaining loops in terms of how many matrix instructions */\n"
         kStr += "//numIter%s = ((numIter%s + MatrixInst%s - 1) / MatrixInst%s)\n"%(self.unrollChar, self.unrollChar, self.unrollChar, self.unrollChar)
-        kStr += inst("s_add_u32", sgpr(loopCounter), sgpr(loopCounter), kernel["MatrixInstK"]-1, "")
+        kStr += inst("s_add_u32", sgpr(loopCounterName), sgpr(loopCounterName), kernel["MatrixInstK"]-1, "")
         kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
 
       loopCounter = sgpr(loopCounterName)
@@ -5047,7 +5047,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", loopCounter, hex(kernel["LocalSplitU"]-1), loopCounter, "(size % DepthU) + LSU - 1" )
         dividend = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide LSU" )
-        kStr += scalarStaticDivideAndRemainder( loopCounter, None, dividend, kernel["LocalSplitU"], tmpSgpr, 0)
+        kStr += scalarStaticDivideAndRemainder( loopCounterName, None, dividend, kernel["LocalSplitU"], tmpSgpr, 0)
 
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:

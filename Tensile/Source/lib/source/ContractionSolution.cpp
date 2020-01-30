@@ -490,7 +490,7 @@ namespace Tensile
                                         "_A", problem.aNames(),
                                         "_B", problem.bNames(),
                                         "_",
-                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
+                                        TypeInfo<typename TypedInputs::AType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
