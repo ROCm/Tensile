@@ -1,6 +1,4 @@
-TestParameters:
     marks: [xfail-gfx906, xfail-gfx908]
-
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0

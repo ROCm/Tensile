@@ -26,9 +26,10 @@ BenchmarkProblems:
       ForkParameters:
         - GlobalSplitU: [1]
         - PrefetchLocalRead: [False]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [0,1]
+        - DirectToLds: [0,1]
         - ThreadTile:
-          - [ 16, 8 ]
+          - [ 16, 4 ]
         - WorkGroup:
           - [ 8,  8,  1 ]
         - DepthU: [64]
