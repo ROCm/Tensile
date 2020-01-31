@@ -70,7 +70,16 @@ target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/in
 
 if(TENSILE_USE_LLVM)
     target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
-    target_link_libraries(TensileHost PRIVATE LLVMObjectYAML )
+    find_library(LLVMObjectYAML_LIBRARY 
+        NAMES LLVMObjectYAML
+        PATHS ${LLVM_LIBRARY_DIR})
+    message("LLVMObjectYAML_LIBRARY: ${LLVMObjectYAML_LIBRARY}")
+    #Use LLVM shared libs if LLVMObjectYAML static lib cannot be found
+    if(LLVMObjectYAML_LIBRARY)
+        target_link_libraries(TensileHost PRIVATE LLVMObjectYAML )
+    else()
+        target_link_libraries(TensileHost PRIVATE LLVM )
+    endif()  
     target_include_directories(TensileHost PRIVATE ${LLVM_INCLUDE_DIRS})
 endif()
 
