@@ -487,10 +487,8 @@ namespace Tensile
                                                         Hardware    const& hardware) const
     {
         std::string name = concatenate("C", problem.cNames(),
-                                        "_A", problem.aNames(),
-                                        "_B", problem.bNames(),
                                         "_",
-                                        TypeInfo<typename TypedInputs::AType>::Abbrev());
+                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
