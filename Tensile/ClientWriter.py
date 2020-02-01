@@ -508,7 +508,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
           param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
 
         newSolution = next(iter(newLibrary.solutions.values()))
-        if newSolution.problemType.convolution:
+        if newSolution.problemType.convolution and globalParameters["ConvolutionVsContraction"]:
             param('convolution-identifier', newSolution.problemType.convolution.identifier())
         param('problem-identifier', newSolution.problemType.operationIdentifier)
         param('a-type',     newSolution.problemType.aType.toEnum())

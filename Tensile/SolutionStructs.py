@@ -80,9 +80,8 @@ class ConvolutionConfig:
           for (i,(selfVal, refVal)) in enumerate(zip(selfValues, refValues)):
             if selfVal == -1:
               selfValues[i] = refVal
-            if selfVal != -1:
-              if refVal != selfVal:
-                raise RuntimeError("Mismatch between ConvolutionConfig value (%d) and ExactConv value (%d) for %s[%d]." %
+            if selfVal != -1 and refVal != -1 and refVal != selfVal:
+              raise RuntimeError("Mismatch between ConvolutionConfig value (%d) and ExactConv value (%d) for %s[%d]." %
                         (refVal, selfVal, tag, i))
       return selfValues
     else:
@@ -1233,8 +1232,6 @@ class ExactConv:
                         'c' : ConvField('Channel In', None),
                         'k' : ConvField('Channel Out',  None),
 
-                        'g' : ConvField('Group Count',  1),
-
                         'd' : ConvField('Spatial Depth', -1),
                         'h' : ConvField('Spatial Height',-1),
                         'w' : ConvField('Spatial Width', -1),
@@ -1250,6 +1247,8 @@ class ExactConv:
                         '^' : ConvField('Dilation for filter Depth Z', -1),
                         'l' : ConvField('Dilation for filter Height Y', -1),
                         'j' : ConvField('Dilation for filter Width X', -1),
+
+                        'g' : ConvField('Group Count',  1),
                         }
 
   @staticmethod
@@ -1264,7 +1263,9 @@ class ExactConv:
     print ("ExactConv", e)
 
     if convolution.formatNumSpatialDims==2:
-      skipFields = ('d', 'z', 'r', '#', '^')
+      skipFields = ('d', 'z', '#', '^')
+    else:
+      skipFields = ()
 
     for k in e:
       if k not in ExactConv.AllowedConvFields:
@@ -1279,7 +1280,7 @@ class ExactConv:
 
     self.convConfig = ConvolutionConfig(
                 fil = self.initParm(e, ('x','y','z'), skipFields),
-                stride = self.initParm(e, ('r','u','v'), skipFields),
+                stride = self.initParm(e, ('v','u','#'), skipFields),
                 dilation   = self.initParm(e, ('j','l','^'), skipFields),
                 spatial =    self.initParm(e, ('w','h','d'), skipFields),
                 groupCount = e['g']
@@ -1293,8 +1294,7 @@ class ExactConv:
     self.stridesA = tuple(self.stridesA)
 
     #convolution.printUsage(None)
-    print ("sizes=", self.sizes)
-    print ("stridesA=", self.stridesA)
+    #print ("sizes=", self.sizes, "stridesA=", self.stridesA)
 
 
 class Problem:
