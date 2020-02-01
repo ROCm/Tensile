@@ -21,6 +21,8 @@ def runCompileCommand(platform, project)
             popd
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
+
+            doxygen docs/Doxyfile
             """
 
     platform.runCommand(this, command)
