@@ -271,6 +271,9 @@ class ProblemPredicate(Properties.Predicate):
         if key == 'AssertMinApproxSize':
             return None
 
+        if key == "LdcEqualsLdd" and value == True:
+            return cls("CDStridesEqual")
+
         if key.endswith('Multiple'):
             if value == 1:
                 return None
