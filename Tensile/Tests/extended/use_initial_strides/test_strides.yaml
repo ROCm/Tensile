@@ -17,7 +17,6 @@ GlobalParameters:
   CpuThreads: 0
   PrintSolutionRejectionReason: 1
   NewClient: 2
-  ProblemFromConvolution: 1
   PrintConvolutionUsage: 0
 
 BenchmarkProblems:

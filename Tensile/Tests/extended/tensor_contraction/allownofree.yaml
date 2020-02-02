@@ -52,7 +52,7 @@ BenchmarkProblems:
 GlobalParameters: {CMakeBuildType: Release, EnqueuesPerSync: 1, ForceRedoBenchmarkProblems: true,
   ForceRedoLibraryClient: true, ForceRedoLibraryLogic: true, KernelTime: true, LibraryPrintDebug: false,
   MergeFiles: true, MinimumRequiredVersion: 4.2.0, NewClient: 2, NumElementsToValidate: 1000,
-  ProblemFromConvolution: true, ShortNames: false, SolutionSelectionAlg: 1, SyncsPerBenchmark: 1,
+  ShortNames: false, SolutionSelectionAlg: 1, SyncsPerBenchmark: 1,
   ValidationMaxToPrint: 4, PrintSolutionRejectionReason: 1, ValidationPrintValids: false}
 
   # could be same problem as swizzle10.  Note here 0 is the batch dimension, 2 is the free dim in A, and 1 is free dim in B.

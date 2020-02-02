@@ -1,6 +1,5 @@
 import copy, operator, pytest
 from functools import reduce
-from Tensile.SolutionStructs import ConvolutionConfig
 import yaml
 
 
@@ -181,7 +180,6 @@ class YamlBuilder:
                 "MergeFiles": True,
                 "KernelTime": True,
                 "SolutionSelectionAlg": 1,
-                "ProblemFromConvolution": True,
                 "NewClient": 2,
                 "DataInitTypeAlpha": 1, # use optimized OptNoLoadLoop, if available
                 "DataInitTypeC": 4, # NANs
@@ -339,8 +337,8 @@ class YamlBuilder:
 
     @classmethod
     def ProblemSizes(cls, conv, problemType, problemLevel):
-        if conv.spatial:
-            spatialIn = conv.spatial
+        if conv.cc.spatial:
+            spatialIn = conv.cc.spatial
         else:
             spatialIn = [14]*conv.formatNumSpatialDims
 
@@ -385,7 +383,6 @@ class YamlBuilder:
         """
         obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=1, dataType=dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
-        obj.doc["GlobalParameters"]["ProblemFromConvolution"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
             problem[0]["OperationType"] = conv.convolutionType
             problem[0]["ConvolutionConfig"] = [copy.deepcopy(conv.config)]
@@ -394,21 +391,25 @@ class YamlBuilder:
 
     @classmethod
     def ConvolutionContraction(cls, conv, problemType, solution, dataType, \
-                                problemFunc, problemLevel=1):
+                                problemFunc, generateConvFormat=True, problemLevel=1):
         """
         Generates a YamlBuilder object that will run a convolution, in normal
         contraction mode.
         """
         doc = cls.Header(debug=False)
 
-        tensileProblemType = {
-            "OperationType": conv.convolutionType,
-            "ConvolutionConfig": [{key:val} for (key,val) in conv.config.items()],
-            "DataType": dataType
-        }
-
-        # don't need this, the convolutionConfig is sufficient
-        tensileProblemType.update(problemType)
+        if generateConvFormat:
+            tensileProblemType = {
+                "OperationType": conv.convolutionType,
+                "ConvolutionConfig": [{key:val} for (key,val) in conv.config.items()],
+                "DataType": dataType
+            }
+        else:
+            tensileProblemType = {
+                "OperationType": "TensorContraction",
+                "DataType": dataType
+            }
+            tensileProblemType.update(problemType)
 
         benchmarkParams = solution()
         for (key,value) in conv.solutionParms.items():

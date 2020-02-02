@@ -353,68 +353,40 @@ def checkConstStride(constStrideMap, keyIdx):
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
 
-def normalizeConvolution(conv, problemSize, astrides):
-    (refSize,refAStrides) = conv.makeProblem(True, problemSize[conv.dimIdx('N')],
-                                problemSize[conv.dimIdx('C')], problemSize[conv.dimIdx('K')])
-
-    for i in range(len(refSize)):
-      if refSize[i]!=-1:
-        if problemSize[i] == -1:
-          if globalParameters["ProblemFromConvolution"]:
-            problemSize[i] = refSize[i]
-        elif refSize[i] != problemSize[i]:
-          raise RuntimeError (
-            "for problem='%s', ref='%s'. At position %d, exact dim (%d) does not match expected conv dimension (%d) for convChar='%s.'"%\
-              (problemSize, refSize, i, problemSize[i], refSize[i], conv.convolutionChar(i)))
-
-    if globalParameters["ProblemFromConvolution"]:
-      for i in range(len(refAStrides)):
-        if astrides[i]==-1:
-          astrides[i] = refAStrides[i] # copy reference
-        elif refAStrides[i] != -1 and astrides[i] != refAStrides[i]:
-          raise RuntimeError (
-            "at position %d problem strides (%s) don't match reference conv strides(%s)" \
-                          % (i, astrides, refAStrides))
-    elif refAStrides[0] not in (-1,1) or not all(i==-1 for i in refAStrides[1:]):
-        raise RuntimeError (
-            "specified convolution uses strides that can't be represented in current Exact problem size format. Requires StrideA=", refAStrides)
-
-    return (problemSize, astrides)
-
 def problemSizeParams(solution, problem):
 
     numIndices = len(solution.problemType.indices)
     rv = []
 
-    # FIXME-problem, this is hack to set strides which can be replaced by specifying strides with problem
     if problem.stridesA:
-        astrides = problem.stridesA
+        astrides = list(problem.stridesA)
     else:
         astrides = [-1] * solution.problemType.aDims
-        for sc in solution.problemType.setConstStrideA:
-            index = solution.problemType.indices[sc[0]]
-            if type(index) == FreeIndex:
-                assert(index.isA)
-                astrides[index.i] = sc[1]
-            else:
-                astrides[index.a] = sc[1]
+    for sc in solution.problemType.setConstStrideA:
+        index = solution.problemType.indices[sc[0]]
+        if type(index) == FreeIndex:
+            assert(index.isA)
+            astrides[index.i] = sc[1]
+        else:
+            astrides[index.a] = sc[1]
 
     if problem.stridesB:
-      bstrides = problem.stridesB
+      bstrides = list(problem.stridesB)
     else:
       bstrides = [-1] * solution.problemType.bDims
-      for sc in solution.problemType.setConstStrideB:
-          index = solution.problemType.indices[sc[0]]
-          if type(index) == FreeIndex:
-              assert(not index.isA)
-              bstrides[index.i] = sc[1]
-          else:
-              bstrides[index.b] = sc[1]
+    for sc in solution.problemType.setConstStrideB:
+        index = solution.problemType.indices[sc[0]]
+        if type(index) == FreeIndex:
+            assert(not index.isA)
+            bstrides[index.i] = sc[1]
+        else:
+            bstrides[index.b] = sc[1]
 
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
-        # FIXME-problem, this is new client format with strides tacked onto sizes
+        # FIXME-problem, this is Exact format with strides tacked onto sizes as 4 extra pams
+        # should just set problem.stride* appropriately when reading the Yaml and not deal with extra fields here
         if astrides[1] == -1:
           astrides[1] = problem.sizes[numIndices+2]
         else:
@@ -431,11 +403,9 @@ def problemSizeParams(solution, problem):
         rv.append(('c-strides', "-1," + str(problem.sizes[numIndices+0])))
     else:
         raise RuntimeError(
-            "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problemSize.sizes), numIndices,
+            "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problem.sizes), numIndices,
             ', '.join(map(str, problem.sizes))))
 
-    #if solution.problemType.convolution:
-    #    (problemSize, astrides) = normalizeConvolution(solution.problemType.convolution, list(problemSize), astrides)
     problemSizeArg = ('problem-size', ','.join(map(str, problem.sizes[:numIndices])))
     rv.insert(0, problemSizeArg)
 
