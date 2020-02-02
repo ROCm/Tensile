@@ -96,7 +96,7 @@ class ConvolutionConfig:
     self.dilation = self.copyField("dilation", self.dilation, ref.dilation)
     self.spatial = self.copyField("spatial", self.spatial, ref.spatial)
     self.padStart = self.copyField("padStart", self.padStart, ref.padStart)
-    self.padEnd = self.copyField("padStart", self.padStart, ref.padStart)
+    self.padEnd = self.copyField("padEnd", self.padEnd, ref.padEnd)
 
     if self.groupCount == -1:
       self.groupCount = ref.groupCount
@@ -153,7 +153,7 @@ class Convolution:
         'Filter', 'Stride','Dilation','PadStart','PadEnd','GroupCount',\
         'NumIndicesC', 'IndexAssignmentsA','IndexAssignmentsB',\
         'IndicesFree', 'IndicesBatch', 'IndicesSummation',\
-        'SetConstStrideA', 'SetConstStrideB',\
+        'SetConstStrideA', 'SetConstStrideB', 'ZeroPadA', \
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
@@ -175,7 +175,7 @@ class Convolution:
     # - Indices >= NumCindices are summation indices.  cidx is cin / summation so must be after nidx
     # - Memory order for TensorD is NumCindices...0, with 0 the fastest-moving dim.
 
-    # The index assignment is captured in the RegDim.idx parm
+    # The index assignment is captured in the RegDim.idx parm. This idx is in global space.
 
     # Specific assignments to A and B (and associated impact on memory order of those tensors) is
     # specified by order of parms to registerA and registerB below.
@@ -217,48 +217,51 @@ class Convolution:
       cidx = sumIdx
       sumIdx = sumIdx+1
 
-    filterRegDims = []
+    self.filterRegDims = []
     for filterDim in fdims:
-      filterRegDims.append( RegDim(sumIdx, Fbs.Sum, filterDim) )
+      self.filterRegDims.append( RegDim(sumIdx, Fbs.Sum, filterDim) )
       sumIdx = sumIdx+1
+
 
     if self.unrollOnChannel:
       # place cidx at highest summation, after filters
       cidx = sumIdx
 
-    spatialRegDims = []
+    self.spatialRegDims = []
     # reverse dims  so can pass spatialRegDims to register functions in 'convolution' order
     for si,sdim in enumerate(sdims):
-      spatialRegDims.insert(0, RegDim(sidx+si, Fbs.Free, sdim))
+      self.spatialRegDims.insert(0, RegDim(sidx+si, Fbs.Free, sdim))
 
     chinRegDim = [RegDim(cidx,Fbs.Sum,cdim)]
     choutRegDim= [RegDim(kidx,Fbs.Free,kdim)]
 
     if formatA in ("NCHW", "NCDHW"):
-      self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + chinRegDim + spatialRegDims + filterRegDims )
+      self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + chinRegDim + self.spatialRegDims + self.filterRegDims )
     elif formatA in ("NHWC", "NDHWC"):
-      self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + spatialRegDims + filterRegDims + chinRegDim )
+      self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + self.spatialRegDims + self.filterRegDims + chinRegDim )
     elif formatA in ("CNHW", "CNDHW"):
-      self.registerA( chinRegDim + [RegDim(nidx,Fbs.Batch,ndim)] + spatialRegDims + filterRegDims )
+      self.registerA( chinRegDim + [RegDim(nidx,Fbs.Batch,ndim)] + self.spatialRegDims + self.filterRegDims )
     else:
       raise RuntimeError ("unknown formatA '%s'"%formatA)
 
     ndim.strideB = 0
     if formatB in ("KCYX",'KCZYX') :
-      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + choutRegDim + chinRegDim + filterRegDims )
+      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + choutRegDim + chinRegDim + self.filterRegDims )
     elif formatB in ("CKYX",'CKZYX'):
-      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + chinRegDim + choutRegDim + filterRegDims )
+      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + chinRegDim + choutRegDim + self.filterRegDims )
     elif formatB in ("CYXK",'CZYXK'):
-      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + chinRegDim + filterRegDims + choutRegDim )
+      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + chinRegDim + self.filterRegDims + choutRegDim )
     elif formatB in ("KYXC",'KZYXC'):
-      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + choutRegDim + filterRegDims + chinRegDim )
+      self.registerB( [RegDim(nidx,Fbs.Batch,ndim)] + choutRegDim + self.filterRegDims + chinRegDim )
     else:
       raise RuntimeError ("unknown formatB '%s'"%formatB)
 
-    problemTypeOut["NumIndicesC"] = 2+len(spatialRegDims)
+    problemTypeOut["NumIndicesC"] = 2+len(self.spatialRegDims)
+
+    problemTypeOut["ZeroPadA"] = self.makeZeroPadProblemType(self.cc.padStart, self.cc.padEnd)
 
     # Attach constant strides to A, if possible:
-    nonFilterDims = [dim for dim in self.regDimsA if dim not in filterRegDims]
+    nonFilterDims = [dim for dim in self.regDimsA if dim not in self.filterRegDims]
     setStride=False
     if sdims and nonFilterDims[-1].dim == sdims[0]:
       setStride = True
@@ -267,9 +270,9 @@ class Convolution:
       setStride = True
       cdim.strideA = 1
 
-    if filterRegDims and self.regDimsA[-1].dim == filterRegDims[-1].dim:
-      if filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
-        filterRegDims[-1].dim.strideA = self.cc.dilation[0]
+    if self.filterRegDims and self.regDimsA[-1].dim == self.filterRegDims[-1].dim:
+      if self.filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
+        self.filterRegDims[-1].dim.strideA = self.cc.dilation[0]
     elif not setStride:
       raise RuntimeError ("unexpected lowest dimension in tensorAFormat(%s)"%self.tensorAFormat)
 
@@ -278,9 +281,9 @@ class Convolution:
       cdim.strideB=1
     elif self.regDimsB[-1].dim == kdim:
       kdim.strideB=1
-    elif filterRegDims and self.regDimsB[-1].dim == filterRegDims[-1].dim:
-      if filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
-        filterRegDims[-1].dim.strideB = 1
+    elif self.filterRegDims and self.regDimsB[-1].dim == self.filterRegDims[-1].dim:
+      if self.filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
+        self.filterRegDims[-1].dim.strideB = 1
     else:
       raise RuntimeError ("unexpected lowest dimension in tensorBFormat(%s)"%self.tensorAFormat)
 
@@ -293,6 +296,17 @@ class Convolution:
         continue
       targetStr = targetStr.replace(char1, tmp).replace(char2, char1).replace(tmp, char2)
     return targetStr
+
+  def makeZeroPadProblemType(self, padStart, padEnd):
+    """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
+    rv = []
+    for i in range(self.numSpatialDims):
+        if padStart[i] or padEnd[i]:
+            anchorIdx = self.spatialRegDims[i].idx
+            sumIdx    = self.filterRegDims[i].idx
+            rv.append([anchorIdx, sumIdx, padStart[i], padEnd[i]])
+
+    return rv
 
   def __init__(self, problemTypeOut, convolutionType, config):
     """
@@ -356,8 +370,6 @@ class Convolution:
     if not all(i==1 for i in self.cc.stride[1:]):
       self.packedSpatialDims = 0
 
-    assert all(i==0 for i in self.cc.padStart)  # padding not supported yet
-    assert all(i==0 for i in self.cc.padEnd)    # padding not supported yet
     assert (len(self.cc.fil)==len(self.cc.stride)==len(self.cc.dilation) \
             ==len(self.cc.padStart)==len(self.cc.padEnd))
 
@@ -573,11 +585,11 @@ class Convolution:
     assert all(i!=-1 for i in sizes)
 
     # translate to strides for A tensor in IndexAssignmentsA order:
-    orderedStrides=[]
+    orderedStridesA=[]
     for (idx,fbs,dim) in self.regDimsA:
-      orderedStrides.append(astrides[idx])
+      orderedStridesA.append(astrides[idx])
 
-    return (sizes, orderedStrides)
+    return (sizes, orderedStridesA)
 
   def registerA(self, regDimList):
     """
@@ -1222,38 +1234,47 @@ class ExactConv:
   def __init__(self, e, convolution):
     print ("ExactConv", e)
 
-
     if convolution.formatNumSpatialDims==2:
-      skipFields = ('d', 'z', '#', '^')
+      skipFields = ('d', 'z', '#', '^', '$')
     else:
       skipFields = ()
 
+    if not isinstance(e,dict):
+        raise RuntimeError ("ExactConf must be a dictionary, for example '{n: 64, ...}' not '[n: 64, ...]'")
+
     for k in e:
       if k not in ExactConv.AllowedConfFieldsDict:
+        # TODO  - detect and print message for common error n:32 w/o space
         raise RuntimeError ("unknown ExactConv field '%s'"%k)
 
     for (k,field) in ExactConv.AllowedConfFieldsDict.items():
       if k not in e and k not in skipFields:
         if field.default == None:
           raise RuntimeError ("required ExactConv field '%s' not present in ExactConv:%s"%(k,e))
-        else:
+        elif isinstance(field.default, int):
           e[k] = field.default
 
+    padStart = self.initParm(e, ('q','p','$'), skipFields)
+    padEnd = self.initParm(e, ('q_','p_','$_'), skipFields)
+    padEnd = [ps if pe==-1 else pe for (ps,pe) in zip(padStart,padEnd) ] # use padStart as default
     self.convConfig = ConvolutionConfig(
                 fil = self.initParm(e, ('x','y','z'), skipFields),
                 stride = self.initParm(e, ('v','u','#'), skipFields),
                 dilation   = self.initParm(e, ('j','l','^'), skipFields),
                 spatial =    self.initParm(e, ('w','h','d'), skipFields),
+                padStart = padStart,
+                padEnd = padEnd,
                 groupCount = e['g']
               )
 
     (self.sizes,self.stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
     self.sizes = tuple(self.sizes)
     self.stridesA = tuple(self.stridesA)
+    # TODO - add strideB here
+    self.padA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd)
 
     #convolution.printUsage(None)
-    #print ("sizes=", self.sizes, "stridesA=", self.stridesA)
-
+    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "padA=", self.padA)
 
 class Problem:
   """ Problem sizes, strides, padding and other info"""
@@ -1261,12 +1282,16 @@ class Problem:
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
+
+    self.padA = None
+    self.padB = None
     self.convConfig = None
 
   def fromExactConv(self, exactConv):
     self.convConfig = exactConv.convConfig
     self.sizes    = exactConv.sizes
     self.stridesA = exactConv.stridesA
+    self.padA = exactConv.padA
 
   def __str__(self):
     rv= "sizes:" + str(self.sizes)

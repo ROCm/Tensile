@@ -1009,7 +1009,6 @@ defaultProblemType = {
     #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
     #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.
     # - Caveats:
-    #  - CPU reference model does not yet support zero-padding
     #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
     #  - ZeroPad requires that the ElementEdge <= 2^32:
     #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32
