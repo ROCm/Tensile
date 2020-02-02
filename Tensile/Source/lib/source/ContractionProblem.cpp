@@ -36,8 +36,8 @@ namespace Tensile
 
         rv << "anchorIndex: " << anchorIndex
            << " boundIndex: "  << boundIndex
-           << " leadingPad: "  << leadingPad
-           << " trailingPad: " << trailingPad;
+           << " padStart: "  << padStart
+           << " padEnd: " << padEnd;
 
         return rv.str();
     }

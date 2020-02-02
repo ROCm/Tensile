@@ -55,12 +55,14 @@ namespace Tensile
                        const std::vector<int64_t> &dCoord, int64_t sumOffset)
         {
             if (zp.valid()) {
+                // Check to see if the element coordinate is below or above the zero-pad range
+                // The comparison is done in the element domain.
                 int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + sumOffset;
                 int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
                                          problem.boundSize(problem.toBoundsPos(zp.boundIndex)) -
-                                         zp.trailingPad - 1;
-                //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " leadingPad="<< zp.leadingPad<< " edge="<< elementEdge<< " trailingPad="<< zp.trailingPad << "\n";
-                return (anchorRelCoord < zp.leadingPad || anchorRelCoord >= elementEdge);
+                                         zp.padEnd - 1;
+                //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " padStart="<< zp.padStart<< " edge="<< elementEdge<< " padEnd="<< zp.padEnd << "\n";
+                return (anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge);
             } else {
                 return false;
             }
@@ -149,8 +151,8 @@ namespace Tensile
                     {
                         auto const &zpA = problem.boundIndices()[i].aZeroPad;
                         auto const &zpB = problem.boundIndices()[i].bZeroPad;
-                        aCoord[boundIndices[i].a] = bound[i] - zpA.leadingPad;
-                        bCoord[boundIndices[i].b] = bound[i] - zpB.leadingPad;
+                        aCoord[boundIndices[i].a] = bound[i] - zpA.padStart;
+                        bCoord[boundIndices[i].b] = bound[i] - zpB.padStart;
 
                         if (zpA.valid() && inZeroPad(problem, zpA, dCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
                             aInZeroPad = true;
@@ -173,10 +175,10 @@ namespace Tensile
                         typename Inputs::BType bVal(0);
                         if (!aInZeroPad && !inZeroPad(problem, zpA, dCoord, i))
                             aVal = Transform<typename Inputs::AType>::Input(
-                                    inputs.a[aIndex + (i * aStride) - zpA.leadingPad], aConjugate);
+                                    inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
                         if (!bInZeroPad && !inZeroPad(problem, zpB, dCoord, i))
                             bVal = Transform<typename Inputs::BType>::Input(
-                                    inputs.b[bIndex + (i * bStride) - zpB.leadingPad], bConjugate);
+                                    inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
 
@@ -184,7 +186,7 @@ namespace Tensile
                         if (0) {
                             std::cout << "dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
                                     << " innerZpa=" << innerZpa << " aindex=" << aIndex << " +offset="
-                                    << (i * aStride) - zpA.leadingPad << "\n";
+                                    << (i * aStride) - zpA.padStart << "\n";
                         }
                     }
                 }

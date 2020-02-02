@@ -59,12 +59,12 @@ namespace Tensile
         struct ZeroPad
         {
             ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t lp=0, int64_t tp=0) : 
-                anchorIndex(ai), boundIndex(bi), leadingPad(lp), trailingPad(tp) {};
+                anchorIndex(ai), boundIndex(bi), padStart(lp), padEnd(tp) {};
 
             int32_t  anchorIndex;
             int32_t  boundIndex;
-            int64_t  leadingPad;
-            int64_t  trailingPad;
+            int64_t  padStart;
+            int64_t  padEnd;
 
             bool valid() const { return anchorIndex != -1; };
             std::string description() const;

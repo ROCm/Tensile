@@ -1015,8 +1015,8 @@ class KernelWriterSource(KernelWriter):
         (freeDim, sumDim, leading, trailing) = zp
         freeDimChar = self.indexChars[freeDim]
         kStr += self.endLine
-        kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
-        kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
+        kStr += "  unsigned int padStart%s%s = %u;" % (tc, freeDimChar, leading) + self.endLine
+        kStr += "  unsigned int padEnd%s%s = %u;" % (tc, freeDimChar, trailing) + self.endLine
 
     self.magicSumChars = []
     if kernel["PackSummationDims"]:
@@ -1439,7 +1439,7 @@ class KernelWriterSource(KernelWriter):
               if zp:
                 # subtract pad - this both helps efficiently detect OOB on the summation start and also
                 # corrects the valid offsets for the leading pad.
-                kStr += " - zeroPad%s%s_Leading" % (tc, self.indexChars[i])
+                kStr += " - padStart%s%s" % (tc, self.indexChars[i])
               if i < len(tP["ia"])-1:
                 kStr += ", "
             kStr += " );%s" % self.endLine
@@ -1894,13 +1894,13 @@ class KernelWriterSource(KernelWriter):
       if zpA:
         freeDim = zpA[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (zeroPadA%s_Leading + zeroPadA%s_Trailing + 1);" \
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (padStartA%s + padEndA%s + 1);" \
             % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
             + self.endLine
       if zpB:
         freeDim = zpB[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s) - strideB%s * (zeroPadB%s_Leading + zeroPadB%s_Trailing + 1);" \
+        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s) - strideB%s * (padStartB%s + padEndB%s + 1);" \
             % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
             + self.endLine
 
