@@ -1,5 +1,5 @@
-#TestParameters:
-#  marks: [xfail-gfx906, xfail-gfx908]
+TestParameters:
+  marks: [xfail-gfx906]
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
