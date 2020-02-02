@@ -1484,14 +1484,15 @@ class KernelWriterSource(KernelWriter):
     if loopIdx==self.unrollIdx:
       kStr += declStr
       if not kernel["PackSummationDims"]:
-        # PSD recomputes load address using globalReadIncrementFromBase - so don't subtract increments
-        # from previous iterations here.
+        # PSD recomputes load address using globalReadIncrementFromBase and includes LOCAL_DEPTHU multiple
+        #- don't include it here
         kStr += "*LOCAL_DEPTHU"
       if kernel["GlobalSplitU"] > 1 \
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
       if kernel["PackSummationDims"]:
+        # Skip the subtract of previous iteration since PSD compute load address using globalReadIncrementFromBase
         kStr += declStr
       else:
         # For Source kernel the address moves during the unroll loop
@@ -1514,8 +1515,7 @@ class KernelWriterSource(KernelWriter):
         else:
           # other summation that does not immediately wrap the unroll inc:
           kStr += declStr
-          if not kernel["PackSummationDims"]:
-            kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
+          kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
