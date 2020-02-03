@@ -67,7 +67,7 @@ def GetRocBLASParser():
     lineParser.add_argument("--solution_index",dest="solution_index", type=int,default=0)
     lineParser.add_argument("--flags",dest="flags", type=int,default=0)
     lineParser.add_argument("--call_count",dest="call_count", type=int,default=1)
-
+    
     return lineParser
 
 
@@ -106,6 +106,7 @@ def GetInceptionParser():
     argParser.add_argument("--fil_w","-x",dest="fil_w",help="Filter Width (Default=3,type=str)",type=int,default=3)
     argParser.add_argument("--fil_h","-y",dest="fil_h",help="Filter Height (Default=3,type=str)",type=int,default=3)
     argParser.add_argument("--pad_mode","-z",dest="pad_mode",help="Padding Mode (same, valid, default,type=str) (Default=default,type=str)",type=str,default="default")
+    argParser.add_argument("--call_count","-N",dest="call_count",help="Call count (Default=1,type=int)",type=int,default=1)
 
     return argParser
 
@@ -121,7 +122,6 @@ def GenCommon(parameters):
     parameters["solution_index"] = 0
     parameters["flags"] = 0
     parameters["workspace_size"] = 0
-    parameters["call_count"] = 0
 
 def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
 
@@ -159,7 +159,6 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
     strideC = 0
     alpha = 1.
     beta = 1.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_ex"
@@ -179,7 +178,6 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 
@@ -222,7 +220,6 @@ def GenConvolutionBackwardWeights(input,weights,convolution,output):
     strideC = 0
     alpha = 1.
     beta = 1.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_ex"
@@ -242,7 +239,6 @@ def GenConvolutionBackwardWeights(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 
@@ -303,7 +299,6 @@ def GenConvolutionBackwardDataConv1x1(input,weights,convolution,output):
     strideC = m * n
     alpha = 1.
     beta = 0.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_strided_batched_ex"
@@ -323,7 +318,6 @@ def GenConvolutionBackwardDataConv1x1(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 
@@ -367,7 +361,6 @@ def GenConvolutionBackwardData(input,weights,convolution,output):
     strideC = 0
     alpha = 1.
     beta = 0.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_ex"
@@ -387,7 +380,6 @@ def GenConvolutionBackwardData(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 
@@ -448,7 +440,6 @@ def GenConvolutionForwardCNHWFwd(input,weights,convolution,output):
     strideC = 0
     alpha = 1.
     beta = 0.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_ex"
@@ -468,7 +459,6 @@ def GenConvolutionForwardCNHWFwd(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 
@@ -510,7 +500,6 @@ def GenConvolutionForwardConv1x1(input,weights,convolution,output):
     strideC = m * n
     alpha = 1.
     beta = 0.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_strided_batched_ex"
@@ -530,7 +519,6 @@ def GenConvolutionForwardConv1x1(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 
@@ -574,7 +562,6 @@ def GenConvolutionForward(input,weights,convolution,output):
     strideC = 0
     alpha = 1.
     beta = 0.
-    call_count = 1
 
     problemDefinition = {}
     problemDefinition["f"] = "gemm_ex"
@@ -594,7 +581,6 @@ def GenConvolutionForward(input,weights,convolution,output):
     problemDefinition["stride_d"] = strideC
     problemDefinition["alpha"] = alpha
     problemDefinition["beta"] = beta
-    problemDefinition["call_count"] = call_count
 
     GenCommon(problemDefinition)
 

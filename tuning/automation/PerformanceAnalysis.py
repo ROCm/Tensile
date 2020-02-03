@@ -162,6 +162,7 @@ def RunMain():
                 if key == "call_count":
                     callCounts.append(klist[key])
     
+    print(callCounts)    
     resultsFiles = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)))]
     resultsNameSet = set()
 
