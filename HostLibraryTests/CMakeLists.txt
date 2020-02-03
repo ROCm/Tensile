@@ -138,7 +138,16 @@ endif()
 target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib Boost::filesystem)
 
 if(TENSILE_USE_LLVM)
-    target_link_libraries(TensileTests PUBLIC LLVMObjectYAML)
+    find_library(LLVMObjectYAML_LIBRARY 
+        NAMES LLVMObjectYAML
+        PATHS ${LLVM_LIBRARY_DIR})
+    message("LLVMObjectYAML_LIBRARY: ${LLVMObjectYAML_LIBRARY}")
+    #Use LLVM shared libs if LLVMObjectYAML static lib cannot be found
+    if(LLVMObjectYAML_LIBRARY)
+        target_link_libraries(TensileTests PUBLIC LLVMObjectYAML )
+    else()
+        target_link_libraries(TensileTests PUBLIC LLVM )
+    endif()
     target_include_directories(TensileTests PUBLIC ${LLVM_INCLUDE_DIRS})
 endif()
 
