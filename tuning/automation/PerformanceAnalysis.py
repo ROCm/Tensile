@@ -123,7 +123,7 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count):
     largeAgg = large.groupby(key)
     largeResults = largeAgg[performanceField].mean().to_frame()
     largeResults['eff'] = 1e9*largeResults['rocblas-Gflops'] / (factor * freq)
-    largeResults['wa'] = results['rocblas-Gflops']*call_count
+    largeResults['wa'] = largeResults['rocblas-Gflops']*call_count
 
     resultsFileName = resultsName + "-large.csv"
     resultsFilePath = os.path.join(outputPath, resultsFileName)
@@ -139,19 +139,19 @@ def RunMain():
     userArgs = sys.argv[1:]
 
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("input_file_name", help="configuration file path") 
     argParser.add_argument("input_path", help="path where the results are located")
     argParser.add_argument("output_path", help="path where the processed files are to go")
     argParser.add_argument("frequency", help="frequecy in megahertz used in testing", type=int,default=1301)
     argParser.add_argument("data_size", help="data size",type=int,default=2)
+    argParser.add_argument("input_file_name", help="configuration file path") 
     
     args = argParser.parse_args(userArgs)
 
-    inputFileName = args.input_file_name
     inputPath = args.input_path
     outputPath = args.output_path
     freqM = args.frequency
     sz = args.data_size
+    inputFileName = args.input_file_name
     
     problemMapper = list(ProcessFile(inputFileName).values())
     callCounts = list()
@@ -162,7 +162,6 @@ def RunMain():
                 if key == "call_count":
                     callCounts.append(klist[key])
     
-    print(callCounts)    
     resultsFiles = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)))]
     resultsNameSet = set()
 

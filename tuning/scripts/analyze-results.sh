@@ -91,8 +91,8 @@ PLOT_DIFF=${AUTOMATION_ROOT}/PlotDifference.py
 PLOT_RESULTS=${AUTOMATION_ROOT}/PlotResults.py
 
 
-python ${ANALYSIS} ${LOG} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ}
-python ${ANALYSIS} ${LOG} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ}
+python ${ANALYSIS} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ} ${LOG}
+python ${ANALYSIS} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ} ${LOG}
 
 
 ls ${NEW_AGGREGATED}/*aggregated* | xargs -n1 basename | xargs -I{} python ${COMPARE} ${REFERENCE_AGGREGATED}/{} ${NEW_AGGREGATED}/{} ${CASE_FINAL}/{}
@@ -120,7 +120,3 @@ for file in ${aggregated_files}; do
 
   python ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
 done
-
-
-
-
