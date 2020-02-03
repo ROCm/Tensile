@@ -7156,14 +7156,14 @@ class KernelWriterAssembly(KernelWriter):
 
     numThreadInWave            = 64
     numContinuousOutput        = 4
-    numOutputThreads1          = kernel["MatrixInstruction"][1]
+    numOutputThreads1          = kernel["MatrixInstN"]
     numOutputThreads0          = numThreadInWave // numOutputThreads1
     numSubOutputPerWave0       = numOutputThreads0 * numContinuousOutput
     numSubOutputGroupsPerWave0 = kernel[tP["mt"]] // numSubOutputPerWave0
     numShiftBlock              = numContinuousOutput // glvw
     numOutputElements          = numSubOutputGroupsPerWave0 * numContinuousOutput
 
-    subTile1 = (kernel["MacroTile1"] // ((kernel["SubGroup0"] * kernel["SubGroup1"]) // numThreadInWave)) // kernel["MatrixInstruction"][1]
+    subTile1 = (kernel["MacroTile1"] // ((kernel["SubGroup0"] * kernel["SubGroup1"]) // numThreadInWave)) // kernel["MatrixInstN"]
 
     # labels
     svrLabels = []
@@ -7223,7 +7223,7 @@ class KernelWriterAssembly(KernelWriter):
     tReg = self.vgprPool.checkOut(1)
     divisor = numThreadInWave
     kStr += vectorStaticRemainder(dummy, tReg, "Serial", divisor, tmpVgpr, tmpSgpr)
-    divisor = kernel["MatrixInstruction"][1]
+    divisor = kernel["MatrixInstN"]
     kStr += vectorStaticDivide(tReg, tReg, divisor, tmpVgpr, tmpSgpr)
 
     # for each remainder, jump
