@@ -49,7 +49,7 @@ def RunMain():
     new_data = pd.read_csv(newFileName)
     
     result1 = pd.merge(current_data, new_data, on=keys, how='inner')
-    result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current','counts_x':'counts_current','score_x':'score_current','rocblas-Gflops_y':'rocblas-Gflops_new','counts_y':'counts_new','score_y':'score_new','wa_x':'wa_current','wa_y':'wa_new'})
+    result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current','counts_x':'counts_current','score_x':'score_current','wa_x':'wa_current','rocblas-Gflops_y':'rocblas-Gflops_new','counts_y':'counts_new','score_y':'score_new','wa_y':'wa_new'})
 
     result['percent gain'] = 100.0 * (result['rocblas-Gflops_new'] - result['rocblas-Gflops_current']) /result['rocblas-Gflops_current']
     result['weighted gain'] = 100.0 * (result['wa_new'] - result['wa_current']) /result['wa_current']

@@ -1,9 +1,9 @@
 #!/bin/sh
 
-HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-h|--help]"
+HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-h|--help]"
 HELP=false
 
-OPTS=`getopt -o hf:s:b:o:r: --long help,output-path:,reference-path:,benchmark-path: -n '
+OPTS=`getopt -o hf:s:b:o:r:z: --long help,output-path:,reference-path:,benchmark-path: -n '
 parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi

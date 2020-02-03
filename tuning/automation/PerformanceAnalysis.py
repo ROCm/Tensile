@@ -79,7 +79,7 @@ def ParseResults(inputPath, outputPath, resultsName):
     outfile.flush()
     outfile.close()
 
-def ProcessResults(outputPath, resultsName, freqM, sz):
+def ProcessResults(outputPath, resultsName, freqM, sz, call_count):
     
     global headers
     resultsFilename = resultsName + ".csv"
@@ -102,7 +102,7 @@ def ProcessResults(outputPath, resultsName, freqM, sz):
     freq=freqM * 1000000.0
     factor=sz * 4096 
     results['eff'] = 1e9*results['rocblas-Gflops'] / (factor * freq) 
-    results['wa'] = results['rocblas-Gflops']*int(results['call_count'])
+    results['wa'] = results['rocblas-Gflops']*call_count
 
     aggragateFileName = resultsName + "-aggregated.csv"
     aggragateFilePath = os.path.join(outputPath, aggragateFileName)
@@ -123,7 +123,7 @@ def ProcessResults(outputPath, resultsName, freqM, sz):
     largeAgg = large.groupby(key)
     largeResults = largeAgg[performanceField].mean().to_frame()
     largeResults['eff'] = 1e9*largeResults['rocblas-Gflops'] / (factor * freq)
-    largeResults['wa'] = results['rocblas-Gflops']*int(results['call_count'])
+    largeResults['wa'] = results['rocblas-Gflops']*call_count
 
     resultsFileName = resultsName + "-large.csv"
     resultsFilePath = os.path.join(outputPath, resultsFileName)
@@ -153,23 +153,28 @@ def RunMain():
     freqM = args.frequency
     sz = args.data_size
     
-    problemMapper = ProcessFile(inputFileName)
-    callCounts = problemMapper["call_count"]
+    problemMapper = list(ProcessFile(inputFileName).values())
+    callCounts = list()
 
+    for i in problemMapper:
+        for klist in i:
+            for key in klist:
+                if key == "call_count":
+                    callCounts.append(klist[key])
+    
     resultsFiles = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)))]
-
     resultsNameSet = set()
 
     for resultsFile in resultsFiles:
         resultsName, _ = os.path.splitext(resultsFile)
         resultsNameSet.add(resultsName)
-        resultNameSet.add(callCounts)
     
     resultsNames = list(resultsNameSet)
 
     for resultsName in resultsNames:
         ParseResults(inputPath, outputPath, resultsName)
-        ProcessResults(outputPath, resultsName, freqM, sz)
+        ProcessResults(outputPath, resultsName, freqM, sz, callCounts)
+
 
 if __name__ == "__main__":
     RunMain()
