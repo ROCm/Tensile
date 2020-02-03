@@ -16,6 +16,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
 
@@ -287,4 +288,3 @@ LibraryLogic:
 #   ScheduleName: "hip"
 #   DeviceNames: ["Device 0000"]
 #   ArchitectureName: "fallback"
-LibraryClient:
