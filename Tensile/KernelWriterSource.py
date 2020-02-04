@@ -1906,14 +1906,14 @@ class KernelWriterSource(KernelWriter):
       if zpA:
         freeDim = zpA[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s) - strideA%s * (padStartA%s + padEndA%s + 1);" \
-            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s - padStartA%s - padEndA%s - 1);" \
+            % (self.indent, loopChar, freeDimChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
             + self.endLine
       if zpB:
         freeDim = zpB[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s) - strideB%s * (padStartB%s + padEndB%s + 1);" \
-            % (self.indent, loopChar, loopChar, freeDimChar, loopChar, freeDimChar, freeDimChar, freeDimChar) \
+        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s - padStartB%s - padEndB%s - 1);" \
+            % (self.indent, loopChar, freeDimChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
             + self.endLine
 
       assert(zpB == None) # not supported
