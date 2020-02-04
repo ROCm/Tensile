@@ -367,7 +367,11 @@ class Convolution:
     assert(type(self.unrollOnChannel) == int)
     if not all(i==1 for i in self.cc.dilation[1:]):
       self.packedFilterDims = 0
-    if not all(i==1 for i in self.cc.stride[1:]):
+    if not (\
+       all(i==1 for i in self.cc.stride[1:]) and \
+       all(i==0 for i in self.cc.padStart) and \
+       all(i==0 for i in self.cc.padEnd) \
+       ):
       self.packedSpatialDims = 0
 
     assert (len(self.cc.fil)==len(self.cc.stride)==len(self.cc.dilation) \
@@ -1189,6 +1193,7 @@ class ProblemSizeRange:
     state += " ]"
     return state
 
+#FIXME-problem  : this should be subclass of Problem
 class ExactConv:
   ConvField = namedtuple ("ConvField", ('shortChar', 'descrip', 'default'))
   AllowedConvFields = [ ConvField('n', 'Batch Count', None),
@@ -1278,13 +1283,13 @@ class ExactConv:
 
 class Problem:
   """ Problem sizes, strides, padding and other info"""
-  def __init__(self, sizes=None, stridesA=None, stridesB=None):
+  def __init__(self, sizes=None, stridesA=None, stridesB=None, padA=None, padB=None):
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
 
-    self.padA = None
-    self.padB = None
+    self.padA = padA
+    self.padB = padB
     self.convConfig = None
 
   def fromExactConv(self, exactConv):
@@ -1326,9 +1331,12 @@ class ProblemSizes:
               if problemType["OperationType"] == "GEMM":
                 e += [-1, -1, -1, -1]
                 e = self.convertLeadingDims(tuple(e))
-              self.exacts.append(Problem(sizes=e))
+              p = Problem(sizes=e, padA = problemType["ZeroPadA"]) #FIXME-problem - move to new Exact class
+              p = self.exacts.append(p)
+
             elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
-              self.exacts.append(Problem(sizes=self.convertLeadingDims(tuple(e))))
+              p = Problem(sizes=self.convertLeadingDims(tuple(e)), padA=problemType["ZeroPadA"]) #FIXME-problem - move to new Exact class
+              p = self.exacts.append(p)
             else:
               printExit("ExactSize %s doesn't match indices of ProblemType %s, totalIndices=%d" \
                   % (e, problemType, problemType["TotalIndices"]) )
@@ -1366,7 +1374,7 @@ class ProblemSizes:
 
     self.problems = set()
     for sizeRange in self.ranges:
-      self.problems.update([Problem(rangeSize) for rangeSize in sizeRange.problemSizes])
+      self.problems.update([Problem(rangeSize, padA=problemType["ZeroPadA"]) for rangeSize in sizeRange.problemSizes])
     self.problems.update(self.exacts)
     self.problems =  sorted(list( self.problems), key=operator.attrgetter("sizes"))
     self.totalProblemSizes = len(self.problems)
