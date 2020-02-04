@@ -182,7 +182,7 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     largeAgg = large.groupby(key)
     largeResults = largeAgg[performanceField].mean().to_frame()
     largeResults['eff'] = 100*1e3*largeResults['rocblas-Gflops'] / (factor * freq)
-    largeResults['wa'] = largeResults['rocblas-Gflops']*call_count
+    largeResults['wa'] = largeResults['rocblas-Gflops']
 
     resultsFileName = resultsName + "-large.csv"
     resultsFilePath = os.path.join(outputPath, resultsFileName)

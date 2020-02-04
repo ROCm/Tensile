@@ -67,7 +67,7 @@ if [ -z ${GPU+foo} ]; then
 fi
 
 if [ -z ${MFMA+foo} ]; then
-   MFMA="disabled"
+   MFMA=disabled
 fi
 
 CASE_REFERENCE=${OUTPUT_PATH}/reference
