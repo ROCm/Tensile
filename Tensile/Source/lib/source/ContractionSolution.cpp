@@ -200,13 +200,7 @@ namespace Tensile
         rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
         rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
-        // CD always contain index0.  if this is in the B free indices, then need to
-        // transposing the output tensor.
-        bool transposeC01 = problem.freeIndicesB().end() !=
-                             std::find_if(problem.freeIndicesB().begin(), problem.freeIndicesB().end(),
-                                [](const ContractionProblem::FreeIndex &fi)
-                                {return fi.c == 0/*idx0*/;});
-        if (transposeC01)
+        if (problem.transposeC01())
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;

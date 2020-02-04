@@ -305,6 +305,8 @@ namespace Tensile
         void addAZeroPad(const ZeroPad &zp);
         void addBZeroPad(const ZeroPad &zp);
 
+        bool transposeC01() const { return m_transposeC01; };
+
         double beta() const { return m_beta; }
 
         std::string const& aNames()   const { return m_aNames; }
@@ -358,6 +360,7 @@ namespace Tensile
         std::vector<size_t> m_problemSizes;
         std::vector<size_t> m_problemStrides;
 
+        bool   m_transposeC01;
         double m_beta;
 
         size_t m_maxProblemSize = 1;

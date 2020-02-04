@@ -596,6 +596,14 @@ namespace Tensile
             if (!isBatch)
                 m_allocatedElementsNonBatchB += b().strides()[idx] * (b().sizes()[idx]-1);
         }
+
+
+        // CD always contain index0.  if this is in the B free indices, then need to
+        // transposing the output tensor.
+        m_transposeC01 = freeIndicesB().end() !=
+                             std::find_if(freeIndicesB().begin(), freeIndicesB().end(),
+                                [](const ContractionProblem::FreeIndex &fi)
+                                {return fi.c == 0/*idx0*/;});
     }
 
     void ContractionProblem::consistencyCheck() const
