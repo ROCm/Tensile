@@ -5645,6 +5645,8 @@ class KernelWriterAssembly(KernelWriter):
 
         label = self.getNamedLabel("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
+        del ss # release store state before swapping back saved vgpr pool
+               # so the destructor of ss can refer to the correct vgpr pool
       else:
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
