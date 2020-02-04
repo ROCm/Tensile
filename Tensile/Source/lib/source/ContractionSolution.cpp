@@ -377,6 +377,34 @@ namespace Tensile
             }
         }
 
+#if 1
+        for (auto si : problem.boundIndices())
+        {
+            if (si.aZeroPad.valid())
+            {
+                rv.args.append<int32_t>(concatenate("padStartA_",si.a),
+                            si.aZeroPad.padStart
+                            //* problem.d().sizes()[problem.toDPos(si.aZeroPad.anchorIndex) ]
+                            );
+                rv.args.append<int32_t>(concatenate("padEndA_",si.a),
+                            si.aZeroPad.padEnd 
+                            //* problem.d().sizes()[problem.toDPos(si.aZeroPad.anchorIndex) ]
+                            );
+            }
+            if (si.bZeroPad.valid())
+            {
+                rv.args.append<int32_t>(concatenate("padStartB_",si.b),
+                            si.bZeroPad.padStart
+                            //* problem.d().sizes()[problem.toDPos(si.bZeroPad.anchorIndex) ]
+                            );
+                rv.args.append<int32_t>(concatenate("padEndB_",si.b),
+                            si.bZeroPad.padEnd
+                            //* problem.d().sizes()[problem.toDPos(si.bZeroPad.anchorIndex) ]
+                            );
+            }
+        }
+#endif
+
         rv.args.append< int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);

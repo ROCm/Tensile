@@ -792,6 +792,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def functionSignature(self, kernel ):
     kernelName = self.getKernelName(kernel)
+    problemType = kernel["ProblemType"]
 
     # determine chars for fast access
     self.indexChars = []
@@ -880,6 +881,15 @@ class KernelWriterSource(KernelWriter):
     for idxChar in self.magicNonSumChars:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
+
+    for idx in problemType["IndicesSummation"]:
+      for tc in ('A','B'):
+        for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+          (freeDim, sumDim, start, padEnd) = zp
+          freeDimChar = self.indexChars[freeDim]
+          if sumDim == idx:
+            s += ",%s int padStart%s%s" % (self.endLine, tc, freeDimChar)
+            s += ",%s int padEnd%s%s" % (self.endLine, tc, freeDimChar)
 
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
@@ -1010,13 +1020,15 @@ class KernelWriterSource(KernelWriter):
         % (self.sharedDeclStr, self.endLine )
 
 
-    for tc in ('A', 'B'):
-      for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
-        (freeDim, sumDim, leading, trailing) = zp
-        freeDimChar = self.indexChars[freeDim]
-        kStr += self.endLine
-        kStr += "  unsigned int padStart%s%s = %u;" % (tc, freeDimChar, leading) + self.endLine
-        kStr += "  unsigned int padEnd%s%s = %u;" % (tc, freeDimChar, trailing) + self.endLine
+    if 0:
+      # in some cases we know the pad values at compile time and could hard-code here.  Not enabled.
+      for tc in ('A', 'B'):
+        for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+          (freeDim, sumDim, padStart, padEnd) = zp
+          freeDimChar = self.indexChars[freeDim]
+          kStr += self.endLine
+          kStr += "  unsigned int padStart%s%s = %u;" % (tc, freeDimChar, padStart) + self.endLine
+          kStr += "  unsigned int padEnd%s%s = %u;" % (tc, freeDimChar, padEnd) + self.endLine
 
     self.magicSumChars = []
     if kernel["PackSummationDims"]:
@@ -1438,7 +1450,7 @@ class KernelWriterSource(KernelWriter):
                       % (tP["tensorChar"], self.indexChars[index])
               if zp:
                 # subtract pad - this both helps efficiently detect OOB on the summation start and also
-                # corrects the valid offsets for the leading pad.
+                # corrects the valid offsets for the start pad.
                 kStr += " - padStart%s%s" % (tc, self.indexChars[i])
               if i < len(tP["ia"])-1:
                 kStr += ", "
