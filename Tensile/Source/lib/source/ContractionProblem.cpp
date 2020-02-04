@@ -35,7 +35,9 @@ namespace Tensile
         std::ostringstream rv;
 
         rv << "anchorIndex: " << anchorIndex
+           << " anchorPos: " << anchorPos
            << " boundIndex: "  << boundIndex
+           << " boundPos: " << boundPos
            << " padStart: "  << padStart
            << " padEnd: " << padEnd;
 
@@ -490,16 +492,50 @@ namespace Tensile
         normalize();
     }
 
+    size_t ContractionProblem::toAPos(size_t idx) const
+    {
+        if (idx >= d().dimensions())
+            return boundIndices().at(idx - d().dimensions()).a;
+
+        auto found = std::find_if(freeIndicesA().begin(), freeIndicesA().end(),
+                            [idx](const ContractionProblem::FreeIndex &fi)
+                            {return fi.d == idx;});
+        assert (found != freeIndicesA.end());
+        assert (found->isA);
+
+        return found->i;
+    }
+
+    size_t ContractionProblem::toBPos(size_t idx) const
+    {
+        if (idx >= d().dimensions())
+            return boundIndices().at(idx - d().dimensions()).b;
+
+        auto found = std::find_if(freeIndicesB().begin(), freeIndicesB().end(),
+                            [idx](const ContractionProblem::FreeIndex &fi)
+                            {return fi.d == idx;});
+        assert (found != freeIndicesA.end());
+        assert (!found->isA);
+
+        return found->i;
+    }
+
+
     void ContractionProblem::addAZeroPad(const ZeroPad &zp)
     {
         m_aZeroPads.push_back(zp);
         m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
+
+        m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad.anchorPos = toAPos(zp.anchorIndex);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad.boundPos = toAPos(zp.boundIndex);
     }
 
     void ContractionProblem::addBZeroPad(const ZeroPad &zp)
     {
         m_bZeroPads.push_back(zp);
         m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
+        m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad.anchorPos = toBPos(zp.anchorIndex);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad.boundPos = toBPos(zp.boundIndex);
     }
 
     void ContractionProblem::normalize()

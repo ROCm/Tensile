@@ -51,15 +51,22 @@ namespace Tensile
             }
         };
 
+        // coord is vector with coordinates for dimensions in the anchor tensor
+        // tensor is tensor descriptor for a or b
+        // sumCoord is the coordinate in the sum dimension associated with the zero-pad
         bool inZeroPad(ContractionProblem const &problem, ContractionProblem::ZeroPad const &zp,
-                       const std::vector<int64_t> &dCoord, int64_t sumOffset)
+                       const TensorDescriptor &tensor, const std::vector<int64_t> &anchorCoord,
+                       int64_t sumCoord)
         {
             if (zp.valid()) {
                 // Check to see if the element coordinate is below or above the zero-pad range
                 // The comparison is done in the element domain.
-                int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + sumOffset;
-                int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
-                                         problem.boundSize(problem.toBoundsPos(zp.boundIndex)) -
+                assert(dp.anchorPos != -1); // ensure initialized.
+                const auto sumPos = problem.toBoundsPos(zp.boundIndex);
+                int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos] +
+                                         sumCoord * tensor.strides()[zp.boundPos];
+                int64_t elementEdge    = tensor.sizes().at(zp.anchorPos) +
+                                         tensor.sizes().at(zp.boundPos) -
                                          zp.padEnd - 1;
                 //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " padStart="<< zp.padStart<< " edge="<< elementEdge<< " padEnd="<< zp.padEnd << "\n";
                 return (anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge);
@@ -154,9 +161,9 @@ namespace Tensile
                         aCoord[boundIndices[i].a] = bound[i] - zpA.padStart;
                         bCoord[boundIndices[i].b] = bound[i] - zpB.padStart;
 
-                        if (zpA.valid() && inZeroPad(problem, zpA, dCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
+                        if (zpA.valid() && inZeroPad(problem, zpA, a, aCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
                             aInZeroPad = true;
-                        if (zpB.valid() && inZeroPad(problem, zpB, dCoord, bound.at(problem.toBoundsPos(zpB.boundIndex))))
+                        if (zpB.valid() && inZeroPad(problem, zpB, b, bCoord, bound.at(problem.toBoundsPos(zpB.boundIndex))))
                             bInZeroPad = true;
                     }
 
@@ -166,6 +173,7 @@ namespace Tensile
                     auto aStride = problem.a().strides()[boundIndices[0].a];
                     auto bStride = problem.b().strides()[boundIndices[0].b];
 
+                    // innermost bound calculation:
                     for(size_t i = 0; i < boundSize[0]; i++)
                     {
                         auto const &zpA = problem.boundIndices()[0].aZeroPad;
@@ -173,17 +181,17 @@ namespace Tensile
 
                         typename Inputs::AType aVal(0);
                         typename Inputs::BType bVal(0);
-                        if (!aInZeroPad && !inZeroPad(problem, zpA, dCoord, i))
+                        if (!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
                             aVal = Transform<typename Inputs::AType>::Input(
                                     inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
-                        if (!bInZeroPad && !inZeroPad(problem, zpB, dCoord, i))
+                        if (!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
                             bVal = Transform<typename Inputs::BType>::Input(
                                     inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
 
-                        bool innerZpa = inZeroPad(problem, zpA, dCoord, i);
                         if (0) {
+                            bool innerZpa = inZeroPad(problem, zpA, a, dCoord, i);
                             std::cout << "dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
                                     << " innerZpa=" << innerZpa << " aindex=" << aIndex << " +offset="
                                     << (i * aStride) - zpA.padStart << "\n";
