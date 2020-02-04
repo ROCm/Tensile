@@ -828,7 +828,7 @@ defaultBenchmarkCommonParameters = [
     {"UnrollIncIsDepthU":         [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
-    {"Use64bShadowLimit":         [ 0 ] },
+    {"Use64bShadowLimit":         [ 1 ] },
     {"VectorAtomicWidth":         [ -1 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },

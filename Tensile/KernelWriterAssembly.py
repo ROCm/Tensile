@@ -814,7 +814,7 @@ class KernelWriterAssembly(KernelWriter):
     self.use64bPackSumOffset = 0  # use 2 SGPR for extracting packed summation dims.  Not supported.
 
     # use 64-bit buffer limit shadow register
-    self.use64bShadowLimit = kernel["Use64bShadowLimit"] and kernel["BufferLoad"] and self.use64bPackSumOffset
+    self.use64bShadowLimit = kernel["Use64bShadowLimit"] and kernel["BufferLoad"]
 
 
     # Check if the address setup code for LWA and GRO causes register growth.
