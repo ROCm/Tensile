@@ -84,12 +84,12 @@ namespace Tensile
 
         void BenchmarkTimer::postSolution()
         {
-            double timePerEnqueue_ns = double_nanos(m_timeInSolution).count() / m_numEnqueuesInSolution;
+            double timePerEnqueue_us = double_micros(m_timeInSolution).count() / m_numEnqueuesInSolution;
 
-            double gflops = static_cast<double>(m_problem.flopCount()) / (timePerEnqueue_ns);
+            double gflops = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
             uint64_t gflopsUint = static_cast<uint64_t> (round(gflops));
 
-            m_reporter->report(ResultKey::TimeUS,      timePerEnqueue_ns/1000.0);
+            m_reporter->report(ResultKey::TimeUS,      timePerEnqueue_us);
             if (gflopsUint)
                 m_reporter->report(ResultKey::SpeedGFlops, gflopsUint);
             else
