@@ -271,9 +271,6 @@ class ProblemPredicate(Properties.Predicate):
         if key == 'AssertMinApproxSize':
             return None
 
-        if key == "LdcEqualsLdd" and value == True:
-            return cls("CDStridesEqual")
-
         if key.endswith('Multiple'):
             if value == 1:
                 return None
@@ -302,6 +299,9 @@ class ProblemPredicate(Properties.Predicate):
         if 'VectorWidth' in state and state['VectorWidth'] > 1:
             if not problemType.aType.isInt8x4():
                 rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['VectorWidth'])]
+
+        if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
+            rv += [cls("CDStridesEqual")]
 
         return rv
 
