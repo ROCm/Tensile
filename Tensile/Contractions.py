@@ -369,6 +369,8 @@ class Solution:
     def FromOriginalState(cls, d, deviceInfo=None):
         rv = cls()
 
+        if 'LdcEqualsLdd' not in d:
+            d['LdcEqualsLdd'] = True
 
         if 'SolutionNameMin' in d:
             rv.name = d['SolutionNameMin']
