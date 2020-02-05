@@ -811,10 +811,12 @@ class KernelWriterAssembly(KernelWriter):
       self.groOffsetInMacroTile = 0
 
     self.use64bProductOfSums = 0
-    self.use64bPackSumOffset = 0  # use 2 SGPR for extracting packed summation dims.  Not supported.
+    self.use64bPackSumOffset = 0  # use 2 SGPR for extracting packed summation dims.  Not supported, but this marks eventual required changes
 
     # use 64-bit buffer limit shadow register
-    self.use64bShadowLimit = kernel["Use64bShadowLimit"] and kernel["BufferLoad"]
+    # PackSummationDims does not support shadow limit - the address calc code would need to restore the shadow limit, which is possible
+    # but not implemented or tested
+    self.use64bShadowLimit = kernel["Use64bShadowLimit"] and kernel["BufferLoad"] and not kernel["PackSummationDims"]
 
 
     # Check if the address setup code for LWA and GRO causes register growth.
@@ -6152,7 +6154,7 @@ class KernelWriterAssembly(KernelWriter):
         if self.use64bShadowLimit:
           incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+0"%tc), sgpr("InitialSrd%sLimit+0"%tc), "restore shadow limit")
           incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), sgpr("InitialSrd%sLimit+1"%tc), "restore shadow limit")
-          assert(0) # maybe need to restore base too if limit 0
+          assert(0) # not tested, would maybe need to restore base too if limit 0
         else:
           incCodeA.addInst("s_mov_b32", sgpr("Srd%s+2"%tc), sgpr("InitialSrd%sLimit"%tc), "restore limit")
 
