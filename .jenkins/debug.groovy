@@ -13,15 +13,15 @@ def runCI =
 {
     nodeDetails, jobName->
 
-    def tensile = new rocProject('Tensile', 'Debug')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
+    def prj = new rocProject('Tensile', 'Debug')
+    prj.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
 
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = false
 
-    tensile.timeout.test = 600
+    prj.timeout.test = 600
 
     def commonGroovy
 
@@ -33,7 +33,7 @@ def runCI =
         commonGroovy.runCompileCommand(platform, project)
     }
 
-    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, null, null)
+    buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, null, null)
 
 }
 
