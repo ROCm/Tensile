@@ -49,7 +49,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.15.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.16.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -94,6 +94,7 @@ add_subdirectory(testlib)
 set(test_sources ${test_sources}
     test.cpp
 
+    CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     DataTypes_test.cpp
@@ -137,7 +138,16 @@ endif()
 target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib Boost::filesystem)
 
 if(TENSILE_USE_LLVM)
-    target_link_libraries(TensileTests PUBLIC LLVMObjectYAML)
+    find_library(LLVMObjectYAML_LIBRARY 
+        NAMES LLVMObjectYAML
+        PATHS ${LLVM_LIBRARY_DIR})
+    message("LLVMObjectYAML_LIBRARY: ${LLVMObjectYAML_LIBRARY}")
+    #Use LLVM shared libs if LLVMObjectYAML static lib cannot be found
+    if(LLVMObjectYAML_LIBRARY)
+        target_link_libraries(TensileTests PUBLIC LLVMObjectYAML )
+    else()
+        target_link_libraries(TensileTests PUBLIC LLVM )
+    endif()
     target_include_directories(TensileTests PUBLIC ${LLVM_INCLUDE_DIRS})
 endif()
 

@@ -156,8 +156,7 @@ namespace Tensile
 
         batchIndices.push_back({2,2,2,2});
 
-        if(beta != 0.0)
-            c = d;
+        c = d;
 
         TensorOps nop;
 
@@ -743,11 +742,6 @@ namespace Tensile
             rv *= size;
 
         return rv;
-    }
-
-    ProblemKey<size_t> ContractionProblem::getKey() const {
-        ProblemKey<size_t> pkey((size_t)this->transA(), (size_t)this->transB(), (size_t)this->c().dataType(), this->problemSizes(), this->problemStrides());
-        return pkey;
     }
 
     void ContractionProblem::getIndexNames(std::string & aNames,

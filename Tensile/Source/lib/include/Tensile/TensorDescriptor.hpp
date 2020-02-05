@@ -290,10 +290,12 @@ namespace Tensile
      * \param stream The stream to write to
      * \param data Pointer to the tensor data
      * \param desc Tensor descriptor
+     * \param ptrValue Pointer value to print to describe the location of the data.
      * \param decorated Print brackets [] to indicate start/end of tensor dims
      */
     template <typename T>
-    void WriteTensor(std::ostream & stream, T * data, TensorDescriptor const& desc, bool decorated=true)
+    void WriteTensor(std::ostream & stream, T const* data, TensorDescriptor const& desc,
+                     T const* ptrValue = nullptr, bool decorated=true)
     {
         stream << "Tensor(";
         streamJoin(stream, desc.sizes(), ", ");
@@ -341,6 +343,8 @@ namespace Tensile
                 {
                     stream << " " << localPtr[coord[0] * stride0];
                 }
+
+                stream << std::endl;
             }
 
             if(decorated)
@@ -352,4 +356,3 @@ namespace Tensile
     }
 
 } // namespace
-

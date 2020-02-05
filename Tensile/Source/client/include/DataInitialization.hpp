@@ -42,8 +42,13 @@ namespace Tensile
     {
         enum class InitMode
         {
-            Zero = 0, One, Two, Random, NaN, Inf, BadInput, BadOutput, Count
+            Zero = 0, One, Two, Random, NaN, Inf, BadInput, BadOutput, SerialIdx, SerialDim0, SerialDim1, Identity, Count
         };
+
+        static bool IsProblemDependent(InitMode const& mode)
+        {
+            return mode == InitMode::SerialIdx || mode == InitMode::SerialDim0 || mode == InitMode::SerialDim1 || mode == InitMode::Identity;
+        }
 
         std::string ToString(InitMode mode);
 
@@ -58,6 +63,9 @@ namespace Tensile
         public:
             static double GetRepresentativeBetaValue(po::variables_map const& args);
 
+            /**
+             * Factory function.
+             */
             static std::shared_ptr<DataInitialization> Get(
                     po::variables_map const& args, ClientProblemFactory const& problemFactory);
 
@@ -68,9 +76,20 @@ namespace Tensile
             DataInitialization(po::variables_map const& args, ClientProblemFactory const& problemFactory);
             ~DataInitialization();
 
+
+            /**
+             * Returns a ContractionInputs object with pointers to CPU memory,
+             * suitable for using to calculate reference results.
+             */
             virtual std::shared_ptr<ContractionInputs> prepareCPUInputs(ContractionProblem const& problem) = 0;
-            virtual std::shared_ptr<ContractionInputs> cpuConvInputs() const = 0;
+
+            /**
+             * Returns a ContractionInputs object with pointers to GPU memory,
+             * suitable for using to run the kernel.
+             */
             virtual std::shared_ptr<ContractionInputs> prepareGPUInputs(ContractionProblem const& problem) = 0;
+
+            virtual std::shared_ptr<ContractionInputs> cpuConvInputs() const = 0;
 
             template <typename T>
             static T getValue(InitMode mode)
@@ -85,6 +104,10 @@ namespace Tensile
                     case InitMode::Inf:       return getValue<T, InitMode::Inf>();
                     case InitMode::BadInput:  return getValue<T, InitMode::BadInput>();
                     case InitMode::BadOutput: return getValue<T, InitMode::BadOutput>();
+                    case InitMode::SerialIdx:
+                    case InitMode::SerialDim0:
+                    case InitMode::SerialDim1:
+                    case InitMode::Identity:
                     case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
                 }
             }
@@ -98,6 +121,7 @@ namespace Tensile
             template <typename T>
             static bool isBadOutput(T value);
 
+            // Fills max buffer size
             template <typename T>
             void initArray(InitMode mode, T * array, size_t elements)
             {
@@ -111,6 +135,32 @@ namespace Tensile
                     case InitMode::Inf:       initArray<T, InitMode::Inf   >(array, elements); break;
                     case InitMode::BadInput:  initArray<T, InitMode::BadInput>(array, elements); break;
                     case InitMode::BadOutput: initArray<T, InitMode::BadOutput>(array, elements); break;
+                    case InitMode::SerialIdx:
+                    case InitMode::SerialDim0:
+                    case InitMode::SerialDim1:
+                    case InitMode::Identity:
+                    case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
+                }
+            }
+
+            // For problem dependent data initialization
+            template <typename T>
+            void initArray(InitMode mode, T * array, TensorDescriptor const& tensor)
+            {
+                switch(mode)
+                {
+                    case InitMode::Zero:       initArray<T, InitMode::Zero  >(array, tensor); break;
+                    case InitMode::One:        initArray<T, InitMode::One   >(array, tensor); break;
+                    case InitMode::Two:        initArray<T, InitMode::Two   >(array, tensor); break;
+                    case InitMode::Random:     initArray<T, InitMode::Random>(array, tensor); break;
+                    case InitMode::NaN:        initArray<T, InitMode::NaN   >(array, tensor); break;
+                    case InitMode::Inf:        initArray<T, InitMode::Inf   >(array, tensor); break;
+                    case InitMode::BadInput:   initArray<T, InitMode::BadInput>(array, tensor); break;
+                    case InitMode::BadOutput:  initArray<T, InitMode::BadOutput>(array, tensor); break;
+                    case InitMode::SerialIdx:  initArraySerialIdx<T>(array, tensor); break;
+                    case InitMode::SerialDim0: initArraySerialDim<T>(array, 0, tensor); break;
+                    case InitMode::SerialDim1: initArraySerialDim<T>(array, 1, tensor); break;
+                    case InitMode::Identity:   initArrayIdentity<T>(array, tensor); break;
                     case InitMode::Count:  throw std::runtime_error("Invalid InitMode.");
                 }
             }
@@ -121,6 +171,52 @@ namespace Tensile
                 for(size_t i = 0; i < elements; i++)
                 {
                     array[i] = getValue<T, Mode>();
+                }
+            }
+
+            template <typename T, InitMode Mode>
+            void initArray(T * array, TensorDescriptor const& tensor)
+            {
+                size_t elements = tensor.totalAllocatedElements();
+                initArray<T, Mode>(array, elements);
+            }
+
+            template <typename T>
+            void initArraySerialIdx(T * array, TensorDescriptor const& tensor)
+            {
+                auto const& sizes = tensor.sizes();
+                auto count = CoordCount(sizes.begin(), sizes.end());
+                std::vector<size_t> coord(tensor.dimensions(), 0);
+                for(size_t idx = 0; idx < count; idx++)
+                {
+                    CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
+                    array[tensor.index(coord)] = static_cast<T>(idx);
+                }
+            }
+
+            template <typename T>
+            void initArraySerialDim(T * array, int dim, TensorDescriptor const& tensor)
+            {
+                auto const& sizes = tensor.sizes();
+                auto count = CoordCount(sizes.begin(), sizes.end());
+                std::vector<size_t> coord(tensor.dimensions(), 0);
+                for(size_t idx = 0; idx < count; idx++)
+                {
+                    CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
+                    array[tensor.index(coord)] = static_cast<T>(coord[dim]);
+                }
+            }
+
+            template <typename T>
+            void initArrayIdentity(T * array, TensorDescriptor const& tensor)
+            {
+                auto const& sizes = tensor.sizes();
+                auto count = CoordCount(sizes.begin(), sizes.end());
+                std::vector<size_t> coord(tensor.dimensions(), 0);
+                for(size_t idx = 0; idx < count; idx++)
+                {
+                    CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
+                    array[tensor.index(coord)] = static_cast<T>(coord[0] == coord[1] ? 1 : 0);
                 }
             }
 
@@ -146,6 +242,11 @@ namespace Tensile
             /// all out-of-bounds outputs to a known value. This allows us to
             /// verify that out-of-bounds values are not used or written to.
             bool m_boundsCheck = false;
+
+            /// If true, the data is dependent on the problem size (e.g. serial)
+            /// and must be reinitialized for each problem. Pristine copy on GPU
+            /// cannot be used with problem dependent data.
+            bool m_problemDependentData = false;
         };
 
         template <> inline float  DataInitialization::getValue<float,  InitMode::Zero>() { return 0.0f; }

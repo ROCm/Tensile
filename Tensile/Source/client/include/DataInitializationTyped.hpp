@@ -116,9 +116,9 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> prepareCPUInputsTyped(ContractionProblem const& problem)
             {
                 if(!m_cpuInputsPristine)
-                    m_cpuInputsPristine = createNewCPUInputs();
+                    m_cpuInputsPristine = createNewCPUInputs(problem);
 
-                if(m_cpuInputs && !m_boundsCheck)
+                if(m_cpuInputs && !m_boundsCheck && !m_problemDependentData)
                 {
                     copyD(m_cpuInputs, m_cpuInputsPristine);
                 }
@@ -126,6 +126,9 @@ namespace Tensile
                 {
                     if(!m_cpuInputs)
                         m_cpuInputs = allocNewCPUInputs();
+
+                    if(m_problemDependentData)
+                        initializeCPUInputs(*m_cpuInputsPristine, problem);
 
                     if(m_boundsCheck && !m_cpuBadInputs)
                     {
@@ -160,10 +163,10 @@ namespace Tensile
                 std::shared_ptr<ManagedInputs> pristine;
                 std::shared_ptr<ManagedInputs> bad;
 
-                if(m_keepPristineCopyOnGPU)
+                if(m_keepPristineCopyOnGPU && !m_problemDependentData)
                 {
                     if(!m_gpuInputsPristine)
-                        m_gpuInputsPristine = createNewGPUInputs();
+                        m_gpuInputsPristine = createNewGPUInputs(problem);
 
                     pristine = m_gpuInputsPristine;
 
@@ -178,7 +181,7 @@ namespace Tensile
                 else
                 {
                     if(!m_cpuInputsPristine)
-                        m_cpuInputsPristine = createNewCPUInputs();
+                        m_cpuInputsPristine = createNewCPUInputs(problem);
 
                     pristine = m_cpuInputsPristine;
 
@@ -191,7 +194,7 @@ namespace Tensile
                     }
                 }
 
-                if(m_gpuInputs && !m_boundsCheck)
+                if(m_gpuInputs && !m_boundsCheck && !m_problemDependentData)
                 {
                     copyD(m_gpuInputs, pristine);
                 }
@@ -200,25 +203,28 @@ namespace Tensile
                     if(!m_gpuInputs)
                         m_gpuInputs = allocNewGPUInputs(pristine);
 
+                    if(m_problemDependentData)
+                        initializeCPUInputs(*m_cpuInputsPristine, problem);
+
                     copyInputs(m_gpuInputs, pristine, bad, problem);
                 }
 
                 return m_gpuInputs;
             }
 
-            std::shared_ptr<ManagedInputs> createNewCPUInputs()
+            std::shared_ptr<ManagedInputs> createNewCPUInputs(ContractionProblem const& problem)
             {
                 auto rv = allocNewCPUInputs();
-                initializeCPUInputs(*rv);
+                initializeCPUInputs(*rv, problem);
 
                 return rv;
             }
 
-            std::shared_ptr<ManagedInputs> createNewGPUInputs()
+            std::shared_ptr<ManagedInputs> createNewGPUInputs(ContractionProblem const& problem)
             {
                 auto rv = allocNewGPUInputs();
                 if(!m_cpuInputsPristine)
-                    m_cpuInputsPristine = createNewCPUInputs();
+                    m_cpuInputsPristine = createNewCPUInputs(problem);
                 copyInputBuffers(rv, m_cpuInputsPristine);
 
                 return rv;
@@ -367,16 +373,27 @@ namespace Tensile
                 return rv;
             }
 
-            void initializeCPUInputs(ManagedInputs & inputs)
+            void initializeCPUInputs(ManagedInputs & inputs, ContractionProblem const& problem)
             {
                 if(inputs.gpu)
                     throw std::runtime_error("Initializing GPU inputs as CPU.");
 
-                initArray(m_aInit, inputs.managedA.get(), m_aMaxElements);
-                initArray(m_bInit, inputs.managedB.get(), m_bMaxElements);
-                initArray(m_cInit, inputs.managedC.get(), m_cMaxElements);
-                if(!m_cEqualsD)
-                    initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
+                if (m_problemDependentData)
+                {
+                    initArray(m_aInit, inputs.managedA.get(), problem.a());
+                    initArray(m_bInit, inputs.managedB.get(), problem.b());
+                    initArray(m_cInit, inputs.managedC.get(), problem.c());
+                    if(!m_cEqualsD)
+                        initArray(m_dInit, inputs.managedD.get(), problem.d());
+                }
+                else
+                {
+                    initArray(m_aInit, inputs.managedA.get(), m_aMaxElements);
+                    initArray(m_bInit, inputs.managedB.get(), m_bMaxElements);
+                    initArray(m_cInit, inputs.managedC.get(), m_cMaxElements);
+                    if(!m_cEqualsD)
+                        initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
+                }
 
                 inputs.alpha = getValue<AlphaType>(m_alphaInit);
                 inputs.beta = getValue<BetaType>(m_betaInit);
@@ -399,7 +416,7 @@ namespace Tensile
                 inputs.beta = getValue<BetaType>(m_betaInit);
             }
 
-            hipMemcpyKind copyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
+            hipMemcpyKind getCopyKind(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
                 if(src->gpu)
                 {
@@ -428,7 +445,7 @@ namespace Tensile
             void copyInputBuffers(std::shared_ptr<ManagedInputs> dst,
                                   std::shared_ptr<ManagedInputs> src)
             {
-                hipMemcpyKind kind = copyKind(dst, src);
+                hipMemcpyKind kind = getCopyKind(dst, src);
 
                 if(dst->managedA != src->managedA)
                     HIP_CHECK_EXC(hipMemcpy(dst->managedA.get(), src->managedA.get(), TypeInfo<AType>::ElementSize * m_aMaxElements, kind));
@@ -451,7 +468,7 @@ namespace Tensile
                             std::shared_ptr<ManagedInputs> bad,
                             ContractionProblem const& problem)
             {
-                hipMemcpyKind kind = copyKind(dst, src);
+                hipMemcpyKind kind = getCopyKind(dst, src);
 
                 if(m_boundsCheck)
                 {
@@ -470,13 +487,33 @@ namespace Tensile
 
                     copyInputBuffers(dst, bad);
 
+                    {
+                        ptrdiff_t aPadding = dst->aElements - problem.a().totalAllocatedElements();
+                        dst->a = dst->managedA.get() + aPadding/2;
+                    }
+
+                    {
+                        ptrdiff_t bPadding = dst->bElements - problem.b().totalAllocatedElements();
+                        dst->b = dst->managedB.get() + bPadding/2;
+                    }
+
+                    {
+                        ptrdiff_t cPadding = dst->cElements - problem.c().totalAllocatedElements();
+                        dst->c = dst->managedC.get() + cPadding/2;
+                    }
+
+                    {
+                        ptrdiff_t dPadding = dst->dElements - problem.d().totalAllocatedElements();
+                        dst->d = dst->managedD.get() + dPadding/2;
+                    }
+
                     Tensile::hip::CopyTensor(const_cast<AType *>(dst->a), src->a, problem.a(), kind);
                     Tensile::hip::CopyTensor(const_cast<BType *>(dst->b), src->b, problem.b(), kind);
 
-                    if(!m_cEqualsD)
-                        Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
+                    Tensile::hip::CopyTensor(const_cast<CType *>(dst->c), src->c, problem.c(), kind);
 
-                    Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
+                    if(!m_cEqualsD)
+                        Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
 
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
@@ -490,7 +527,7 @@ namespace Tensile
 
             void copyD(std::shared_ptr<ManagedInputs> dst, std::shared_ptr<ManagedInputs> src)
             {
-                hipMemcpyKind kind = copyKind(dst, src);
+                hipMemcpyKind kind = getCopyKind(dst, src);
 
                 HIP_CHECK_EXC(hipMemcpy(dst->managedD.get(), src->managedD.get(), TypeInfo<DType>::ElementSize * m_dMaxElements, kind));
             }

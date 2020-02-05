@@ -281,7 +281,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
     if globalParameters["NewClient"]:
       newClientExe = ClientExecutable.getClientExecutable()
       configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
-      runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+      runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
       runScriptFile.write("ERR2=$?\n\n")
     else:
       runScriptFile.write("ERR2=0\n")
@@ -448,6 +448,13 @@ def dataInitName(num):
     if num == 2: return 'Two'
     if num == 3: return 'Random'
     if num == 4: return 'NaN'
+    if num == 5: return 'Inf'
+    if num == 6: return 'BadInput'
+    if num == 7: return 'BadOutput'
+    if num == 8: return 'SerialIdx'
+    if num == 9: return 'SerialDim0'
+    if num == 10: return 'SerialDim1'
+    if num == 11: return 'Identity'
 
 def dataInitParams(problemType):
     initA = globalParameters['DataInitTypeA']
@@ -456,6 +463,8 @@ def dataInitParams(problemType):
     initD = globalParameters['DataInitTypeD']
     initAlpha = globalParameters['DataInitTypeAlpha']
     initBeta  = globalParameters['DataInitTypeBeta']
+    # import pdb
+    # pdb.set_trace()
 
     if not problemType.useBeta:
         initBeta = 0
@@ -483,7 +492,10 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         for coFile in codeObjectFiles:
             param("code-object", os.path.join(sourceDir,coFile))
 
-        param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+        if globalParameters["NewClient"] == 1:
+          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+        else:
+          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
 
         newSolution = next(iter(newLibrary.solutions.values()))
         if newSolution.problemType.convolution:
@@ -518,6 +530,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
           param("print-tensor-c",         1)
         if globalParameters["PrintTensorD"]:
           param("print-tensor-d",         1)
+        if globalParameters["PrintTensorRef"]:
+          param("print-tensor-ref",         1)
 
         if globalParameters["BoundsCheck"]:
           param("bounds-check", 1)

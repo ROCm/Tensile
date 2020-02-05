@@ -45,10 +45,11 @@ namespace Tensile
 
         enum class Processor: int
         {
-            gfx803 = 803,
-            gfx900 = 900,
-            gfx906 = 906,
-            gfx908 = 908
+            gfx803  =  803,
+            gfx900  =  900,
+            gfx906  =  906,
+            gfx908  =  908,
+            gfx1010 = 1010
         };
 
         AMDGPU();
@@ -65,6 +66,11 @@ namespace Tensile
             return (size_t) processor;
         }
         virtual std::string description() const;
+
+        bool operator==(AMDGPU const& rhs) const
+        {
+            return processor == rhs.processor && computeUnitCount == rhs.computeUnitCount;
+        }
     };
 
     inline bool operator<(AMDGPU::Processor l, AMDGPU::Processor r)
@@ -88,6 +94,5 @@ namespace Tensile
     }
 
     TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
+    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU g);
 }
-
-
