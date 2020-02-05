@@ -128,7 +128,7 @@ cp ${MERGE_PATH}/${LIBRARY}*{SB,DB,HB}* ${MASSAGE_PATH}
 
 python ${MESSAGE_SCRIPT} ${MASSAGE_PATH} ${VERIFY_LIBRARY_ASM}
 
-BUILD_ROCBLAS="./install.sh -c -agfx908"
+BUILD_ROCBLAS="./install.sh -c -r"
 
 pushd ${REFERENCE_NAME} > /dev/null
 ${BUILD_ROCBLAS} > build-reference.out 2>&1
