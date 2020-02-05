@@ -71,6 +71,9 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [-1,2,4]
         - SuppressNoLoadLoop: [True,False]
         - OptNoLoadLoop: [0,1]
+        - ScheduleLocalWrite: [0]
+        - ScheduleGlobalRead: [0]
+        - ScheduleIterAlg: [0]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -215,6 +218,9 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [-1,2,4]
         - SuppressNoLoadLoop: [True,False]
         - OptNoLoadLoop: [0,1]
+        - ScheduleLocalWrite: [0]
+        - ScheduleGlobalRead: [0]
+        - ScheduleIterAlg: [0]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
