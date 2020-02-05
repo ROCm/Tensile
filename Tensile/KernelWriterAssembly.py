@@ -4561,7 +4561,7 @@ class KernelWriterAssembly(KernelWriter):
         tP["tileChar"], self.commentSuffix, self.endLine)
     divisor = kernel["SubGroup1"]
     if kernel["MatrixInstruction"]:
-      divisor = kernel["MacroTile1"] // 4 # ABlocks
+      divisor = kernel["MatrixInstN"] if ((kernel["MacroTile1"] // 4) < kernel["MatrixInstN"]) else kernel["MacroTile1"] // 4  # ABlocks
       #divisor = kernel["ThreadTile1"] # BBlocks
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
@@ -6706,7 +6706,7 @@ class KernelWriterAssembly(KernelWriter):
       if tc == "A":
         numReadsPerVector = kernel["ThreadTile0"] # TODO controls instruction tile shape, recalc if definition changes
       else:
-        numReadsPerVector = 1 # kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
+        numReadsPerVector = kernel["ThreadTile1"]//kernel["MatrixInstN"]  # kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
       numReadsAlongK = int((kernel["MatrixInstK"] * tP["bpe"]) // (blockWidth*self.bpr)) # TODO:
 
 
@@ -8159,8 +8159,18 @@ class KernelWriterAssembly(KernelWriter):
             # calculate how many row registers need for each block
             # for MFMA 4x4, we would write all blocks ijn single storevectorWidth write 
             mfmaColStoreVw = 1 #TODO check can hardcode or not
-            numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"]) // globalParameters["WavefrontWidth"]
-            sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofDstRgs*mfmaColStoreVw
+            numberColBlocks = kernel["MatrixInstB"]
+            numberRowBlocks = kernel["MIWG0"]//kernel["MatrixInstM"]
+            if (numberRowBlocks == kernel["MatrixInstB"]):
+              numberColBlocks = 1
+            else:
+              numberColBlocks = kernel["MatrixInstB"] // numberRowBlocks
+            numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"]) // globalParameters["WavefrontWidth"]
+            if numberRowBlocks == kernel["MatrixInstB"]:
+              numberofRowDstRgs = numberofDstRgs
+            else: 
+              numberofRowDstRgs = (numberofDstRgs//kernel["MatrixInstB"]) * numberRowBlocks
+            sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofRowDstRgs*mfmaColStoreVw
           else:
             sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
