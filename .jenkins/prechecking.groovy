@@ -9,9 +9,6 @@ import com.amd.project.*
 import com.amd.docker.*
 import java.nio.file.Path
 
-properties(auxiliary.setProperties())
-
-
 def runCI =
 {
     nodeDetails, jobName->
