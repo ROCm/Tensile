@@ -14,10 +14,10 @@ properties(auxiliary.setProperties())
 
 tensileCI:
 {
-    def tensile = new rocProject('Tensile', 'Extended')
-    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D CMAKE_CXX_COMPILER=hcc -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
+    def tensile = new rocProject('Tensile', 'Debug')
+    tensile.paths.build_command = 'cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=hcc -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests'
     // Define test architectures, optional rocm version argument is available
-    def nodes = new dockerNodes(['gfx900 && ubuntu', 'gfx906 && ubuntu', 'gfx908 && ubuntu'], tensile)
+    def nodes = new dockerNodes(['ubuntu'], tensile)
 
     boolean formatCheck = false
 
@@ -29,18 +29,10 @@ tensileCI:
     {
         platform, project->
 
-        commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/Common.groovy"
+        commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
         commonGroovy.runCompileCommand(platform, project)
     }
 
-    def testCommand =
-    {
-        platform, project->
-
-        def test_marks = "unit or pre_checkin or extended"
-        commonGroovy.runTestCommand(platform, project, test_marks)   
-    }
-
-    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
+    buildProject(tensile, formatCheck, nodes.dockerArray, compileCommand, null, null)
 
 }
