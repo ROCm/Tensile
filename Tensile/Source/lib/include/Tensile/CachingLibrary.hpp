@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <shared_mutex>
+
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 
@@ -128,6 +130,11 @@ namespace Tensile
         virtual std::string description() const override
         {
             return "Caching Library";
+        }
+
+        std::shared_ptr<Library> library() const
+        {
+            return m_subLibrary;
         }
 
     private:

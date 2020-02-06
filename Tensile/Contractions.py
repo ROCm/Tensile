@@ -289,9 +289,6 @@ class ProblemPredicate(Properties.Predicate):
 
             return cls(tag, index=index, value=value)
 
-        if key == 'VectorWidth' and value > 1:
-            return cls('LeadingFreeSizesGreaterOrEqual', value=value)
-
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
@@ -302,6 +299,9 @@ class ProblemPredicate(Properties.Predicate):
         if 'VectorWidth' in state and state['VectorWidth'] > 1:
             if not problemType.aType.isInt8x4():
                 rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['VectorWidth'])]
+
+        if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
+            rv += [cls("CDStridesEqual")]
 
         return rv
 

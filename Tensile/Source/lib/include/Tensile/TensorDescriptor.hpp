@@ -290,6 +290,7 @@ namespace Tensile
      * \param stream The stream to write to
      * \param data Pointer to the tensor data
      * \param desc Tensor descriptor
+     * \param ptrValue Pointer value to print to describe the location of the data.
      * \param decorated Print brackets [] to indicate start/end of tensor dims
      */
     template <typename T>

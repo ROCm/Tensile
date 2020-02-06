@@ -5318,8 +5318,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
             (self.startVgprValuA, self.lastVgprForReads))
 
-    if self.savedVgprPool != None:
-      self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
     self.vgprPool.add(self.startVgprValuA, \
         self.lastVgprForReads - self.startVgprValuA, "endSummation")
 
@@ -5651,8 +5649,13 @@ class KernelWriterAssembly(KernelWriter):
         ss.setupStoreElementsForBatch(kernel, fullVw, elements, None)
 
         if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          vgpr_bfmask = self.vgprPool.checkOut(1)
-          kStr += inst("v_mov_b32", vgpr(vgpr_bfmask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
+          vgprBf16Temp = self.vgprPool.checkOut(4)
+          vgprBf16Mask = vgprBf16Temp + 1
+          vgprFp32Nan = vgprBf16Temp + 2
+          vgprBf16Inc = vgprBf16Temp + 3
+          kStr += inst("v_mov_b32", vgpr(vgprBf16Mask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
+          kStr += inst("v_mov_b32", vgpr(vgprFp32Nan), "0x7fff0000", "fp32 Nan" )
+          kStr += inst("v_mov_b32", vgpr(vgprBf16Inc), "0x7fff", "rounding bias for bfloat16" )
 
         for elementIdx in range(0, len(elements)):
           kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
@@ -5662,11 +5665,15 @@ class KernelWriterAssembly(KernelWriter):
             #TODO add fp16 hpa as well
             if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
               assert (fullVw % 2 == 0)
+              kStr += inst("v_cmp_u_f32", sgpr(tmpSgpr,2), vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "check Nan" )
+              kStr += inst("v_bfe_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), "16", "1", "Non-Nan case: store lsb of bf16" )
+              kStr += inst("v_add3_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprBf16Inc), "Non-Nan case: add lsb and the increment for rounding" )
+              kStr += inst("v_cndmask_b32", vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprFp32Nan), sgpr(tmpSgpr,2), "" )
               if vi%2 == 0:
                 kStr += inst("v_lshrrev_b32", vgpr("ValuC+%u"%sumIdxV), "16", vgpr("ValuC+%u"%sumIdxV), "convert C to bf16" )
               elif vi%2 == 1:
                 d = ss.elementSumIdx[elementIdx] + vi//2
-                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgpr_bfmask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
+                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Mask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
 
           addrCalc = ss.elementAddr[elementIdx]
           sumIdx = ss.elementSumIdx[elementIdx]
@@ -5676,7 +5683,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
 
         if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          self.vgprPool.checkIn(vgpr_bfmask, "vgpr_bfmask : %d" % vgpr_bfmask)
+          self.vgprPool.checkIn(vgprBf16Temp, "vgprBf16Temp : %d" % vgprBf16Temp)
 
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
@@ -5684,9 +5691,14 @@ class KernelWriterAssembly(KernelWriter):
 
         label = self.getNamedLabel("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
+        del ss # release store state before swapping back saved vgpr pool
+               # so the destructor of ss can refer to the correct vgpr pool
       else:
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
+    if self.savedVgprPool != None:
+      self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path 
+      self.savedVgprPool = None
     return kStr
 
   ##############################################################################
@@ -9609,8 +9621,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("apply mask, calc new C and issue write")
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        vgpr_bfmask = self.vgprPool.checkOut(1)
-        kStr += inst("v_mov_b32", vgpr(vgpr_bfmask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
+        vgprBf16Temp = self.vgprPool.checkOut(4)
+        vgprBf16Mask = vgprBf16Temp + 1
+        vgprFp32Nan = vgprBf16Temp + 2
+        vgprBf16Inc = vgprBf16Temp + 3
+        kStr += inst("v_mov_b32", vgpr(vgprBf16Mask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
+        kStr += inst("v_mov_b32", vgpr(vgprFp32Nan), "0x7fff0000", "fp32 Nan" )
+        kStr += inst("v_mov_b32", vgpr(vgprBf16Inc), "0x7fff", "rounding bias for bfloat16" )
 
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
@@ -9679,7 +9696,7 @@ class KernelWriterAssembly(KernelWriter):
                 tmpVgpr = self.vgprPool.checkOut(1)
                 dataCExternal = ss.elementData[elementIdx] + vi//2
                 if (sumIdxV%2) == 1:
-                  kStr += inst("v_and_b32", vgpr(tmpVgpr), vgpr(dataCExternal), vgpr(vgpr_bfmask), "convert bf16 to fp32")
+                  kStr += inst("v_and_b32", vgpr(tmpVgpr), vgpr(dataCExternal), vgpr(vgprBf16Mask), "convert bf16 to fp32")
                 else:
                   kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), "16", vgpr(dataCExternal), "convert bf16 to fp32" )
                 kStr += inst("v_mac_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(tmpVgpr), sgpr("Beta"), \
@@ -9738,18 +9755,22 @@ class KernelWriterAssembly(KernelWriter):
           elif kernel["ProblemType"]["DataType"].isBFloat16():
             if kernel["ProblemType"]["HighPrecisionAccumulate"]:
               assert (gwvw % 2 == 0)
+              kStr += inst("v_cmp_u_f32", sgpr(tmpS01,2), vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "check Nan" )
+              kStr += inst("v_bfe_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), "16", "1", "Non-Nan case: store lsb of bf16" )
+              kStr += inst("v_add3_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprBf16Inc), "Non-Nan case: add lsb and the increment for rounding" )
+              kStr += inst("v_cndmask_b32", vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprFp32Nan), sgpr(tmpS01,2), "" )
               if vi%2 == 0:
                 kStr += inst("v_lshrrev_b32", vgpr("ValuC+%u"%sumIdxV), "16", vgpr("ValuC+%u"%sumIdxV), "convert C to bf16" )
               elif vi%2 == 1:
                 d = ss.elementSumIdx[elementIdx] + vi//2
-                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgpr_bfmask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
+                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Mask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
 
         addrCalc = ss.elementAddr[elementIdx]
         kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01, edge)
         storesIssued += 1
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        self.vgprPool.checkIn(vgpr_bfmask, "vgpr_bfmask : %d" % vgpr_bfmask)
+        self.vgprPool.checkIn(vgprBf16Temp, "vgprBf16Temp : %d" % vgprBf16Temp)
 
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
@@ -9991,6 +10012,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
+      elif self.archCaps["Waitcnt0Disabled"]:
+        kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "force waitcnt0" )
 
       kStr += self.indent + self.syncStr + " //" + comment + self.endLine
       return kStr

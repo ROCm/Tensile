@@ -21,7 +21,7 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, CHeader, roundUp
+from .Common import globalParameters, print2, CHeader, roundUp
 from .SolutionStructs import Solution
 
 import abc
@@ -2560,8 +2560,9 @@ for codeObjectFileName in codeObjectFileNames:
     if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
     REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
 
-    print("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
+    print2("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
     if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
+      print2("Found replacement: {}".format(REPLACEMENT_KERNEL_PATH))
       return REPLACEMENT_KERNEL_PATH
 
   def getKernelObjectAssemblyFile(self, kernel):

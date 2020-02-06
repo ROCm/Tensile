@@ -66,3 +66,15 @@ class Predicate(Property):
             return predicates[0]
         return cls('And', value=predicates)
 
+    def __lt__(self, other):
+        # Ensure TruePred appears last.
+        if other.tag == 'TruePred':
+            if self.tag == 'TruePred':
+                return False
+            return True
+        if self.tag == 'TruePred':
+            return False
+
+        # If neither is a TruePred then just use the default comparison. 
+        return (self.tag, self.index, self.value) < (other.tag, other.index, other.value)
+

@@ -14,8 +14,8 @@
 .hsa_code_object_isa 9, 0, 8, "AMD", "AMDGPU" 
 .text
 .p2align 8
-.amdgpu_hsa_kernel Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1
-Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1:
+.amdgpu_hsa_kernel Cijk_Alik_Bljk_BBH_MT64x128x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASEM8_BL1_DTL0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT4_8_USFGRO1_VAW1_VW4_WG16_16_1_WGM8
+Cijk_Alik_Bljk_BBH_MT64x128x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASEM8_BL1_DTL0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT4_8_USFGRO1_VAW1_VW4_WG16_16_1_WGM8:
 .amd_kernel_code_t
   is_ptr64 = 1
   enable_sgpr_kernarg_segment_ptr = 1
@@ -48,8 +48,8 @@ Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1:
 .amd_amdgpu_hsa_metadata
 Version: [ 1, 0 ]
 Kernels:
-  - Name: Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1
-    SymbolName: 'Cijk_Alik_Bljk_BBH_MT64x128x32_SE_K1@kd'
+  - Name: Cijk_Alik_Bljk_BBH_MT64x128x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASEM8_BL1_DTL0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT4_8_USFGRO1_VAW1_VW4_WG16_16_1_WGM8
+    SymbolName: 'Cijk_Alik_Bljk_BBH_MT64x128x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASEM8_BL1_DTL0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT4_8_USFGRO1_VAW1_VW4_WG16_16_1_WGM8@kd'
     Language: OpenCL C
     LanguageVersion: [ 2, 0 ]
     Args:
@@ -542,7 +542,8 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xE0511528, 0x8003495B
 .long 0xE0511630, 0x80034A5C
 .long 0xE0511738, 0x80034B5D
-.long 0xBF8C0070
+.long 0xBF8CC07F
+.long 0xBF8C4F74
 .long 0xBF8A0000
 .long 0xD86C0000, 0x2000005E
 .long 0xD86C0840, 0x2100005E
@@ -619,7 +620,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xE0511630, 0x80034A5C
 .long 0xE0511738, 0x80034B5D
 .long 0xD3EC0010, 0x0442752D
-.long 0xBF8C0070
+.long 0xBF8C4F74
 .long 0xBF8A0000
 .long 0xD3EC0000, 0x0402772E
 .long 0xD86C0000, 0x2000005F
@@ -695,7 +696,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xE0511630, 0x80034A5C
 .long 0xE0511738, 0x80034B5D
 .long 0xD3EC0010, 0x0442852D
-.long 0xBF8C0070
+.long 0xBF8C4F74
 .long 0xBF8A0000
 .long 0xD3EC0000, 0x0402872E
 .long 0xD86C0000, 0x2000005E
@@ -747,7 +748,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xBF8CC07F
 .long 0xD3EC0000, 0x0402752C
 .long 0xD3EC0010, 0x0442752D
-.long 0xBF8C0070
+.long 0xBF8C0F78
 .long 0xBF8A0000
 .long 0xD3EC0000, 0x0402772E
 .long 0xD86C0000, 0x2000005F
