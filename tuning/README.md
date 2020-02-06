@@ -166,7 +166,7 @@ $ popd
 
 
 ```bash
-usage: ./analyze-results.sh [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-h|--help]
+usage: ./analyze-results.sh [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-h|--help]
 
 args:
 -b|--benchmark-path     the benchmark path (rocBLAS with new logic)
@@ -174,6 +174,9 @@ args:
 -o|--output             the output of the analysis
 -f                      frequency which the gpu was set at during validation
 -s                      the size of the datatype
+-z			the log file used, in order to collect the call_count (--call_count)
+-g|--gpu                the gpu used when tuning
+-m|--mfma               whether mfma instructions were used during validation
 -h|--help               the help
 
 ```

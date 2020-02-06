@@ -66,8 +66,8 @@ function provision_tensile() {
 HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
 HELP=false
 SUPPRESS_TENSILE=false
-TENSILE_BRANCH='call_count'
-TENSILE_HOST='https://github.com/amdkila/Tensile.git'
+TENSILE_BRANCH='develop'
+TENSILE_HOST='https://github.com/RocmSoftwarePlatform/Tensile.git'
 
 OPTS=`getopt -o ht:w:b:c:i:l:o:z:y:n --long help,working-path:,size-log,output:,tag:,branch:,commit:,library:,type: -n 'parse-options' -- "$@"`
 
