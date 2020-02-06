@@ -58,8 +58,8 @@ namespace Tensile
          */
         struct ZeroPad
         {
-            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t lp=0, int64_t tp=0) :
-                anchorIndex(ai), anchorPos(-1), boundIndex(bi), padStart(lp), padEnd(tp) {};
+            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t ps=0, int64_t pe=0) :
+                anchorIndex(ai), anchorPos(-1), boundIndex(bi), padStart(ps), padEnd(pe) {};
 
             int32_t  anchorIndex;
             int32_t  anchorPos;  //! position of anchorIndex in A or B tensor

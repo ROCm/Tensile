@@ -500,7 +500,7 @@ namespace Tensile
         auto found = std::find_if(freeIndicesA().begin(), freeIndicesA().end(),
                             [idx](const ContractionProblem::FreeIndex &fi)
                             {return fi.d == idx;});
-        assert (found != freeIndicesA.end());
+        assert (found != freeIndicesA().end());
         assert (found->isA);
 
         return found->i;
@@ -514,7 +514,7 @@ namespace Tensile
         auto found = std::find_if(freeIndicesB().begin(), freeIndicesB().end(),
                             [idx](const ContractionProblem::FreeIndex &fi)
                             {return fi.d == idx;});
-        assert (found != freeIndicesA.end());
+        assert (found != freeIndicesB().end());
         assert (!found->isA);
 
         return found->i;

@@ -61,13 +61,13 @@ namespace Tensile
             if (zp.valid()) {
                 // Check to see if the element coordinate is below or above the zero-pad range
                 // The comparison is done in the element domain.
-                assert(dp.anchorPos != -1); // ensure initialized.
+                assert(zp.anchorPos != -1); // ensure initialized.
                 const auto sumPos = problem.toBoundsPos(zp.boundIndex);
                 int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos] +
                                          sumCoord * tensor.strides()[zp.boundPos];
-                int64_t elementEdge    = tensor.sizes().at(zp.anchorPos) +
-                                         tensor.sizes().at(zp.boundPos) -
-                                         zp.padEnd - 1;
+
+                // size of anchor dim is in the output space, so add filter size-1 to get input spatial dim, then subtract padEnd
+                int64_t elementEdge    = (tensor.sizes().at(zp.anchorPos) + tensor.sizes().at(zp.boundPos) - 1 - zp.padEnd) * tensor.strides()[zp.anchorPos];
                 //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " padStart="<< zp.padStart<< " edge="<< elementEdge<< " padEnd="<< zp.padEnd << "\n";
                 return (anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge);
             } else {
