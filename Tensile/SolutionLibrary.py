@@ -183,6 +183,9 @@ class PredicateLibrary:
             else:
                 self.rows.append(row)
 
+        # Sort to ensure consistent fallback logic.
+        self.rows.sort(key=lambda x: x['predicate'])
+
     def remapSolutionIndices(self,indexMap):
         for row in self.rows:
           row['library'].remapSolutionIndices(indexMap)
