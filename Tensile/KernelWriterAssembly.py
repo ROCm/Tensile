@@ -4638,7 +4638,7 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         "sgid=sgid*(MT%u+PAD)"%tIdx )
 
-    if tc == "B" and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
+    if tc == "B" and "MatrixInstK" in kernel and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
       kDiv = kernel["MatrixInstN"]
       kStr += vectorStaticDivide(rReg, dividendReg, kDiv, tmpVgpr, tmpSgpr)
       kStr += inst("v_and_b32", \
