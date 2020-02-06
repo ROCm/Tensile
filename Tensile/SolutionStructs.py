@@ -1193,8 +1193,25 @@ class ProblemSizeRange:
     state += " ]"
     return state
 
-#FIXME-problem  : this should be subclass of Problem
-class ExactConv:
+class Problem:
+  """ Problem sizes, strides, padding and other info"""
+  def __init__(self, sizes=None, stridesA=None, stridesB=None, padA=None, padB=None):
+    self.sizes = tuple(sizes) if sizes else None
+    self.stridesA = tuple(stridesA) if stridesA else None
+    self.stridesB = tuple(stridesB) if stridesB else None
+
+    self.padA = padA
+    self.padB = padB
+    self.convConfig = None
+
+  def __str__(self):
+    rv= "sizes:" + str(self.sizes)
+    if self.stridesA:
+      rv += "stridesA:" + str(self.stridesA)
+    return rv
+
+
+class ExactConv(Problem):
   ConvField = namedtuple ("ConvField", ('shortChar', 'descrip', 'default'))
   AllowedConvFields = [ ConvField('n', 'Batch Count', None),
                         ConvField('c', 'Channel In', None),
@@ -1272,38 +1289,44 @@ class ExactConv:
                 groupCount = e['g']
               )
 
-    (self.sizes,self.stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
-    self.sizes = tuple(self.sizes)
-    self.stridesA = tuple(self.stridesA)
-    # TODO - add strideB here
-    self.padA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd)
+    (sizes, stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
+    padA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd)
 
-    #convolution.printUsage(None)
+    Problem.__init__(self, sizes, stridesA, padA=padA)
+
     print ("sizes=", self.sizes, "stridesA=", self.stridesA, "padA=", self.padA)
 
-class Problem:
-  """ Problem sizes, strides, padding and other info"""
-  def __init__(self, sizes=None, stridesA=None, stridesB=None, padA=None, padB=None):
-    self.sizes = tuple(sizes) if sizes else None
-    self.stridesA = tuple(stridesA) if stridesA else None
-    self.stridesB = tuple(stridesB) if stridesB else None
 
-    self.padA = padA
-    self.padB = padB
-    self.convConfig = None
+class ExactList(Problem):
+  def __init__(self, e, problemType):
+    if len(e) == problemType["TotalIndices"]:
+      if -1 in e:
+        printExit("ExactSize %s contains -1" % (e))
+      if problemType["OperationType"] == "GEMM":
+        e += [-1, -1, -1, -1]
+        e = ExactList.convertLeadingDims(problemType, tuple(e))
+      sizes=e
 
-  def fromExactConv(self, exactConv):
-    self.convConfig = exactConv.convConfig
-    self.sizes    = exactConv.sizes
-    self.stridesA = exactConv.stridesA
-    self.padA = exactConv.padA
+    elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
+      sizes = ExactList.convertLeadingDims(problemType, tuple(e))
+    else:
+      printExit("ExactSize %s doesn't match indices of ProblemType %s, totalIndices=%d" \
+          % (e, problemType, problemType["TotalIndices"]) )
 
-  def __str__(self):
-    rv= "sizes:" + str(self.sizes)
-    if self.stridesA:
-      rv += "stridesA:" + str(self.stridesA)
-    return rv
+    # TODO- pass strides here, remove calls to convertLeadingDims
+    Problem.__init__(self, sizes=sizes, padA=problemType["ZeroPadA"], padB=problemType["ZeroPadB"])
 
+  @staticmethod
+  def convertLeadingDims(problemType, problemSize):
+    # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked 
+    # onto the end of the sizes list
+    return problemSize[:problemType["NumIndicesC"]+1] + \
+           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]),) + \
+           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][1]]),) + \
+           (max(problemSize[problemType["IndexAssignmentsLD"][2]],
+                problemSize[problemType["IndexAssignmentsA"][0]]),) + \
+           (max(problemSize[problemType["IndexAssignmentsLD"][3]],
+                problemSize[problemType["IndexAssignmentsB"][0]]),)
 
 ################################################################################
 # ProblemSizes
@@ -1324,30 +1347,13 @@ class ProblemSizes:
             psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
             self.ranges.append( psr )
           elif sizeTypeKey == "Exact":
-            e = dictionary[sizeTypeKey]
-            if len(e) == problemType["TotalIndices"]:
-              if -1 in e:
-                printExit("ExactSize %s contains -1" % (e))
-              if problemType["OperationType"] == "GEMM":
-                e += [-1, -1, -1, -1]
-                e = self.convertLeadingDims(tuple(e))
-              p = Problem(sizes=e, padA = problemType["ZeroPadA"]) #FIXME-problem - move to new Exact class
-              p = self.exacts.append(p)
-
-            elif len(e) == (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
-              p = Problem(sizes=self.convertLeadingDims(tuple(e)), padA=problemType["ZeroPadA"]) #FIXME-problem - move to new Exact class
-              p = self.exacts.append(p)
-            else:
-              printExit("ExactSize %s doesn't match indices of ProblemType %s, totalIndices=%d" \
-                  % (e, problemType, problemType["TotalIndices"]) )
+            self.exacts.append(ExactList(dictionary[sizeTypeKey]))
 
           elif sizeTypeKey == "ExactConv":
             if problemType.convolution == None:
               printExit("ExactConv requires OperationType==Convolution*")
             else:
-              p = Problem()
-              p.fromExactConv(ExactConv(dictionary[sizeTypeKey], problemType.convolution))
-              self.exacts.append(p)
+              self.exacts.append(ExactConv(dictionary[sizeTypeKey], problemType.convolution))
 
           elif sizeTypeKey == "MinStride":
             e = dictionary[sizeTypeKey]
@@ -1370,7 +1376,7 @@ class ProblemSizes:
     if problemType["OperationType"] == "GEMM":
       for i in range(0, len(self.ranges)):
         self.ranges[i].problemSizes[:] = \
-          [self.convertLeadingDims(problemSize) for problemSize in self.ranges[i].problemSizes]
+          [ExactList.convertLeadingDims(self.problemType, problemSize) for problemSize in self.ranges[i].problemSizes]
 
     self.problems = set()
     for sizeRange in self.ranges:
@@ -1416,15 +1422,6 @@ class ProblemSizes:
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
 
-
-  def convertLeadingDims(self, problemSize):
-    return problemSize[:self.problemType["NumIndicesC"]+1] + \
-           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentsLD"][0]]),) + \
-           (max(problemSize[0], problemSize[self.problemType["IndexAssignmentsLD"][1]]),) + \
-           (max(problemSize[self.problemType["IndexAssignmentsLD"][2]],
-                problemSize[self.problemType["IndexAssignmentsA"][0]]),) + \
-           (max(problemSize[self.problemType["IndexAssignmentsLD"][3]],
-                problemSize[self.problemType["IndexAssignmentsB"][0]]),)
 
   def __str__(self):
     s = "ProblemSizes\n"
