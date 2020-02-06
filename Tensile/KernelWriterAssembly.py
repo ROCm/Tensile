@@ -9913,14 +9913,21 @@ class KernelWriterAssembly(KernelWriter):
                else tPB["nrp"]*tPB["nrc"]*max(tPB["nwcv"],tPB["nwpv"])//tPB["nwcvpi"]
         lgkmcnt += skipLocalWrite * (numA + numB)
       if skipLocalRead > -1:
-        numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // kernel["VectorWidth"]) \
-            // self.localReadInstructionA.numOffsets
+        lrvw = kernel["VectorWidth"]
         if kernel["MatrixInstruction"]:
-          numB = kernel["InnerUnroll"]*((kernel["ThreadTile1"]//kernel["MatrixInstN"])// kernel["VectorWidth"]) \
+          #FIXME  lrvw = 1 for all precision cases 
+          # check fp16  requries 2 src(S) might use lrvw=2
+          # Also explore using VW>1 for cases ThreadTile0>1 && ThreadTile1
+          lrvw = 1
+          numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // lrvw) \
+              // self.localReadInstructionA.numOffsets
+          numB = kernel["InnerUnroll"]*((kernel["ThreadTile1"]//kernel["MatrixInstN"])// lrvw) \
               // self.localReadInstructionB.numOffsets
         else:
-          numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) \
+          numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // lrvw) \
               // self.localReadInstructionB.numOffsets
+          numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // lrvw) \
+              // self.localReadInstructionA.numOffsets
         lgkmcnt += skipLocalRead * (numA + numB)
 
     vmcnt = 0 if skipGlobalRead > -1 else -1
