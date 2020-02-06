@@ -1328,6 +1328,28 @@ class ExactList(Problem):
            (max(problemSize[problemType["IndexAssignmentsLD"][3]],
                 problemSize[problemType["IndexAssignmentsB"][0]]),)
 
+
+class ExactDict(Problem):
+  AllowedFields = [ 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padA', 'padB']
+
+  def __init__(self, e, problemType):
+    print ("E", e)
+    Problem.__init__(self)
+
+    for f in e:
+      if f in ExactDict.AllowedFields:
+        setattr(self, f, e[f])
+      else:
+        raise RuntimeError ("specified field '%s' is not valid Exact dict field"%f)
+
+    if problemType:
+      if self.padA == None:
+        self.padA = problemType["ZeroPadA"]
+      if self.padB == None:
+        self.padB = problemType["ZeroPadB"]
+
+
+
 ################################################################################
 # ProblemSizes
 ################################################################################
@@ -1347,7 +1369,13 @@ class ProblemSizes:
             psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
             self.ranges.append( psr )
           elif sizeTypeKey == "Exact":
-            self.exacts.append(ExactList(dictionary[sizeTypeKey]))
+            e= dictionary[sizeTypeKey]
+            if isinstance(e,list):
+              self.exacts.append(ExactList(e, problemType))
+            elif isinstance(e,dict):
+              self.exacts.append(ExactDict(e, problemType))
+            else:
+              printExit("Unsupported Exact type==%s"%type(exactConf))
 
           elif sizeTypeKey == "ExactConv":
             if problemType.convolution == None:
