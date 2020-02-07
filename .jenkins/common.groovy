@@ -1,10 +1,15 @@
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
 
-def runCompileCommand(platform, project)
+def runCompileCommand(platform, project, jobName, boolean debug=false)
 {
     project.paths.construct_build_prefix()
-
+    
+    String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
+    String buildType = debug ? 'Debug' : 'RelWithDebInfo'
+    String cov = jobName.contains('hipclang') ? 'V3' : 'V2'
+    project.paths.build_command = "cmake -D CMAKE_BUILD_TYPE=${buildType} -D CMAKE_CXX_COMPILER=${compiler} -D CODE_OBJECT_VERSION=${cov} -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests"
+    
     def command = """#!/usr/bin/env bash
             set -ex
 
@@ -16,7 +21,7 @@ def runCompileCommand(platform, project)
             mkdir build
             pushd build
             ${project.paths.build_command}
-            make -j
+            make -j\$(nproc)
 
             popd
             tox --version
