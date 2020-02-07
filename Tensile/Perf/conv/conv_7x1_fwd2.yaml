@@ -11,9 +11,8 @@ GlobalParameters:
   EnqueuesPerSync: 100
   KernelTime: True
   NewClient: 2
-  PrintConvolutionUsage: 1
+  PrintConvolutionUsage: 0
   PrintSolutionRejectionReason: 1
-  ProblemFromConvolution: 1
 
 BenchmarkProblems:
   -
@@ -59,7 +58,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 289, 768, 64, 192, 7]
+          - ExactConv: {n: 32, c: 192, h: 17, w: 17, k: 192, y: 7, x: 1}
 
 # 4 ./bin/MIOpenDriver conv -n 32 -c 192 -H 17 -W 17 -k 192 -y 7 -x 1 -p 3 -q 0 -u 1 -v 1 -l 1 -j 1 -t 1 $PARMS
 

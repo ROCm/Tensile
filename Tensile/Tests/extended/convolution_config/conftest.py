@@ -33,7 +33,7 @@ def run_generate_yaml(request, file_with_test_name):
             problemFunc = YamlBuilder.ProblemSizes
         if problemLevel==-1:
             problemLevel = request.config.getoption("--problem-level")
-        config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, problemLevel)
+        config = YamlBuilder.ConvolutionContraction(conv, problemType, solution, dataType, problemFunc, True, problemLevel)
         configFile = file_with_test_name(".contraction.yaml")
         print("Generate_YAML output:", configFile)
         config.write(configFile)

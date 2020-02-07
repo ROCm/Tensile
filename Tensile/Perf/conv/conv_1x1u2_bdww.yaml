@@ -13,7 +13,6 @@ GlobalParameters:
   NewClient: 2
   PrintConvolutionUsage: 1
   PrintSolutionRejectionReason: 0
-  ProblemFromConvolution: 1
 
 BenchmarkProblems:
   -

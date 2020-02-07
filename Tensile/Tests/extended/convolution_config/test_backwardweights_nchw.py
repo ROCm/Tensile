@@ -7,7 +7,6 @@ def test_nchw_backwardweights_defaults(tensile_state, run_convolution_level, unr
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionBackwardWeights',
               config={'TensorAFormat': 'NCHW',
-                      'Spatial' : '14x14',
                       'UnrollOnChannel': unrollOnChannel,
                       })
     log.debug(conv.printUsage(z))

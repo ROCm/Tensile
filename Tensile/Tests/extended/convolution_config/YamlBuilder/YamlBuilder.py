@@ -180,7 +180,6 @@ class YamlBuilder:
                 "MergeFiles": True,
                 "KernelTime": True,
                 "SolutionSelectionAlg": 1,
-                "ProblemFromConvolution": True,
                 "NewClient": 2,
                 "DataInitTypeAlpha": 1, # use optimized OptNoLoadLoop, if available
                 "DataInitTypeC": 4, # NANs
@@ -195,6 +194,18 @@ class YamlBuilder:
 
         return rv
 
+    @classmethod
+    def makeValidProblem(cls, conv, problem):
+        if conv.cc.stride[0] == -1:
+            problem['v'] = 2
+        if conv.cc.stride[1] == -1:
+            problem['u'] = 3
+
+        if conv.formatNumSpatialDims==3:
+            if conv.cc.stride[2] == -1:
+                problem['#'] = 4
+
+        return problem
 
     @classmethod
     def genSpatials(cls, conv, spatialRange):
@@ -210,26 +221,28 @@ class YamlBuilder:
                     raise RuntimeError('unknown formatNumSpatialDims=%d'%conv.formatNumSpatialDims)
         return spatials
 
-
     @classmethod
-    def genExacts(cls, conv, nRange, ckRange, spatialRange):
-        exactSizes = []
+    def genProblems(cls, conv, nRange, ckRange, spatialRange):
+        problems = []
         spatials = cls.genSpatials(conv, spatialRange)
         for n in nRange:
             for c in ckRange:
                 for k in ckRange:
                     for s in spatials:
-                        (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, s)
-                        exactSizes.append(problemSizes)
-        return exactSizes
+                        problem = {'n':n, 'c':c, 'h':s[1], 'w':s[0], 'k':k}
+                        problem = cls.makeValidProblem(conv, problem)
+                        if conv.formatNumSpatialDims==3:
+                            problem['d'] = s[2]
+                        problems.append(problem)
+        return problems
 
     @staticmethod
-    def memSize(indexAssignments, exactSizes):
+    def memSize(indexAssignments, problem):
         """
         Return max memory required for specified index assignments in list of exacts
         """
         maxSize=0
-        for exact in exactSizes:
+        for exact in problem.sizes: # should account for strides
             size = reduce(operator.mul,[exact[idx] for idx in indexAssignments], 1)
             if size > maxSize:
                 maxSize = size
@@ -238,7 +251,7 @@ class YamlBuilder:
 
     @classmethod
     def ProblemSizesResNet(cls, conv, problemType, problemLevel):
-        exactSizes = []
+        problems = []
         n=64
         for (c,h,w,k) in (
                 [1024,14,14,2048],
@@ -262,69 +275,70 @@ class YamlBuilder:
                 [64,56,56,64],
                 [64,56,56,64],
              ):
-            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, spatialIn=[h,w])
-            exactSizes.append(problemSizes)
-        return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
+            problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k}
+            problems.append(problem)
+        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
 
 
     @classmethod
     def ProblemSizesInception(cls, conv, problemType, problemLevel):
-        exactSizes = []
+        problems = []
         n=32
-        for (c,h,w,k,r,s) in (
-		(128,17,17,128,1,7),
-		(128,17,17,128,7,1),
-		(128,17,17,192,1,7),
-		(128,17,17,192,7,1),
-		(1280,8,8,192,1,1),
-		(1280,8,8,320,1,1),
-		(1280,8,8,384,1,1),
-		(1280,8,8,448,1,1),
-		(160,17,17,160,1,7),
-		(160,17,17,160,7,1),
-		(160,17,17,192,1,7),
-		(160,17,17,192,7,1),
-		(192,17,17,192,1,7),
-		(192,17,17,192,3,3),
-		(192,17,17,192,7,1),
-		(192,17,17,320,3,3),
-		(192,35,35,32,1,1),
-		(192,35,35,48,1,1),
-		(192,35,35,64,1,1),
-		(2048,8,8,192,1,1),
-		(2048,8,8,320,1,1),
-		(2048,8,8,384,1,1),
-		(2048,8,8,448,1,1),
-		(256,35,35,48,1,1),
-		(256,35,35,64,1,1),
-		(288,35,35,384,3,3),
-		(288,35,35,48,1,1),
-		(288,35,35,64,1,1),
-		(3,299,299,32,3,3),
-		(32,147,147,64,3,3),
-		(32,149,149,32,3,3),
-		(384,8,8,384,1,3),
-		(384,8,8,384,3,1),
-		(448,8,8,384,3,3),
-		(48,35,35,64,5,5),
-		(64,35,35,96,3,3),
-		(64,73,73,80,1,1),
-		(768,17,17,128,1,1),
-		(768,17,17,160,1,1),
-		(768,17,17,192,1,1),
-		(80,73,73,192,3,3),
-		(96,35,35,96,3,3),
-		(96,35,35,96,3,3),
+        for (c,h,w,k,x,y) in (
+                (128,17,17,128,1,7),
+                (128,17,17,128,7,1),
+                (128,17,17,192,1,7),
+                (128,17,17,192,7,1),
+                (1280,8,8,192,1,1),
+                (1280,8,8,320,1,1),
+                (1280,8,8,384,1,1),
+                (1280,8,8,448,1,1),
+                (160,17,17,160,1,7),
+                (160,17,17,160,7,1),
+                (160,17,17,192,1,7),
+                (160,17,17,192,7,1),
+                (192,17,17,192,1,7),
+                (192,17,17,192,3,3),
+                (192,17,17,192,7,1),
+                (192,17,17,320,3,3),
+                (192,35,35,32,1,1),
+                (192,35,35,48,1,1),
+                (192,35,35,64,1,1),
+                (2048,8,8,192,1,1),
+                (2048,8,8,320,1,1),
+                (2048,8,8,384,1,1),
+                (2048,8,8,448,1,1),
+                (256,35,35,48,1,1),
+                (256,35,35,64,1,1),
+                (288,35,35,384,3,3),
+                (288,35,35,48,1,1),
+                (288,35,35,64,1,1),
+                (3,299,299,32,3,3),
+                (32,147,147,64,3,3),
+                (32,149,149,32,3,3),
+                (384,8,8,384,1,3),
+                (384,8,8,384,3,1),
+                (448,8,8,384,3,3),
+                (48,35,35,64,5,5),
+                (64,35,35,96,3,3),
+                (64,73,73,80,1,1),
+                (768,17,17,128,1,1),
+                (768,17,17,160,1,1),
+                (768,17,17,192,1,1),
+                (80,73,73,192,3,3),
+                (96,35,35,96,3,3),
+                (96,35,35,96,3,3),
              ):
-            (problemSizes,problemStrides) = conv.makeProblem(False, n, c, k, spatialIn=[h,w])
-            exactSizes.append(problemSizes)
-        return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
+            #problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k, 'x':x, 'y':y} # need to prune mismatches
+            problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k}
+            problems.append(problem)
+        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
 
 
     @classmethod
     def ProblemSizes(cls, conv, problemType, problemLevel):
-        if conv.spatial:
-            spatialIn = conv.spatial
+        if conv.cc.spatial:
+            spatialIn = conv.cc.spatial
         else:
             spatialIn = [14]*conv.formatNumSpatialDims
 
@@ -333,27 +347,33 @@ class YamlBuilder:
         if -1 in conv.cc.fil:
             raise RuntimeError('Filter must be completely specified, not "%s"'%conv.config['Filter'])
 
-        exactSizes = []
-        (problemSizes,problemStrides) = conv.makeProblem(False, n=8, c=32, k=16, spatialIn=spatialIn)
-        exactSizes.append(problemSizes)
+        problems = []
+        problem = cls.makeValidProblem(conv,
+                            {'n':8, 'c':32, 'h':spatialIn[1], 'w':spatialIn[0], 'k':16})
+        if len(spatialIn)==3:
+            problem['d'] = spatialIn[2]
+        problems.append(problem)
+
 
         if problemLevel==2:
-            exactSizes += cls.genExacts(conv, nRange=(1,2,8), ckRange=[64], spatialRange=(7,14,56))
+            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=[64], spatialRange=(7,14,56))
         elif problemLevel==3:
-            exactSizes += cls.genExacts(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,14,56))
+            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,14,56))
         elif problemLevel==4:
-            exactSizes += cls.genExacts(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
+            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
 
-        try:
-            asize = cls.memSize(problemType["IndexAssignmentsA"], exactSizes)
-            bsize = cls.memSize(problemType["IndexAssignmentsB"], exactSizes)
-            dsize = cls.memSize(range(0,problemType["NumIndicesC"]), exactSizes)
-            print ("generated %d exact sizes.  ElementSizes: A=%d B=%d D=%d Total=%d" % \
-                    (len(exactSizes), asize, bsize, dsize, asize+bsize+dsize))
-        except KeyError:
-            None
+        #try:
+        #    asize = cls.memSize(problemType["IndexAssignmentsA"], problems)
+        #    bsize = cls.memSize(problemType["IndexAssignmentsB"], problems)
+        #    dsize = cls.memSize(range(0,problemType["NumIndicesC"]), problems)
+        #    print ("generated %d exact sizes.  ElementSizes: A=%d B=%d D=%d Total=%d" % \
+        #            (len(problem), asize, bsize, dsize, asize+bsize+dsize))
+        #except KeyError:
+        #    None
 
-        return [{"ProblemSizes": [ {"Exact": e} for e in exactSizes]}]
+        #print ( [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}])
+        #import pdb; pdb.set_trace()
+        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
 
     @classmethod
     def ConvolutionVsContraction(cls, conv, solution, dataType):
@@ -363,7 +383,6 @@ class YamlBuilder:
         """
         obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=1, dataType=dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
-        obj.doc["GlobalParameters"]["ProblemFromConvolution"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
             problem[0]["OperationType"] = conv.convolutionType
             problem[0]["ConvolutionConfig"] = [copy.deepcopy(conv.config)]
@@ -372,19 +391,25 @@ class YamlBuilder:
 
     @classmethod
     def ConvolutionContraction(cls, conv, problemType, solution, dataType, \
-                                problemFunc, problemLevel=1):
+                                problemFunc, generateConvFormat=True, problemLevel=1):
         """
         Generates a YamlBuilder object that will run a convolution, in normal
         contraction mode.
         """
         doc = cls.Header(debug=False)
 
-        tensileProblemType = {
-            "OperationType": "TensorContraction",
-            "DataType": dataType
-        }
-
-        tensileProblemType.update(problemType)
+        if generateConvFormat:
+            tensileProblemType = {
+                "OperationType": conv.convolutionType,
+                "ConvolutionConfig": [{key:val} for (key,val) in conv.config.items()],
+                "DataType": dataType
+            }
+        else:
+            tensileProblemType = {
+                "OperationType": "TensorContraction",
+                "DataType": dataType
+            }
+            tensileProblemType.update(problemType)
 
         benchmarkParams = solution()
         for (key,value) in conv.solutionParms.items():
@@ -392,6 +417,8 @@ class YamlBuilder:
         benchmarkParams["BenchmarkFinalParameters"] = problemFunc(conv, problemType, problemLevel)
 
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
+
+        #print (doc)
 
         return cls(doc)
 

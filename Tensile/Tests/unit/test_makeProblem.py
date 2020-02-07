@@ -1,15 +1,16 @@
-import logging
-from Tensile.SolutionStructs import Convolution
+import pytest,logging
+from Tensile.SolutionStructs import Convolution,ConvolutionConfig
 log =logging.getLogger("testlog")
 
 def test_spatial_in():
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
-              config={'TensorAFormat': 'NCHW'
+              config={'TensorAFormat': 'NCHW',
                      })
 
     log.debug(conv.printUsage(z))
-    p = conv.makeProblem(False, n=64, c=1024, k=256, spatialIn=[14,15])
+    pcc = ConvolutionConfig(spatial=[14,15])
+    p = conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
     assert(p[0] == [210, 256, 64, 1024])
     assert(p[1] == [1, -1, -1])
 
@@ -21,7 +22,8 @@ def test_spatial_parm():
                      })
 
     log.debug(conv.printUsage(z))
-    p = conv.makeProblem(False, n=64, c=1024, k=256)
+    pcc = ConvolutionConfig()
+    p = conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
     assert(p[0] == [182, 256, 64, 1024])
     assert(p[1] == [1, -1, -1])
 
@@ -35,7 +37,7 @@ def test_stride():
                      })
 
     log.debug(conv.printUsage(z))
-    p = conv.makeProblem(False, n=64, c=1024, k=256)
+    p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [4, 6, 256, 64, 1024])
     assert(p[1] == [3, 28, -1, -1])
 
@@ -50,7 +52,7 @@ def test_stride_filter():
                      })
 
     log.debug(conv.printUsage(z))
-    p = conv.makeProblem(False, n=64, c=1024, k=256)
+    p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [3, 5, 256, 64, 3, 4, 1024])
     assert(p[1] == [1, 14, 3, 28, -1, -1])
 
@@ -65,7 +67,7 @@ def test_stride_filter_dilated():
                      })
 
     log.debug(conv.printUsage(z))
-    p = conv.makeProblem(False, n=64, c=1024, k=256)
+    p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [3, 5, 256, 64, 3, 4, 1024])
     assert(p[1] == [3, 28, 3, 28, -1, -1])
 
@@ -76,7 +78,17 @@ def test_spatial_unspecified():
                      })
 
     log.debug(conv.printUsage(z))
-    p = conv.makeProblem(True, n=64, c=1024, k=256)
-    assert(p[0] == [-1, 256, 64, 1024])
-    assert(p[1] == [1, -1, -1])
+    with pytest.raises(RuntimeError, match="ConvolutionConfig field 'spatial' == None"):
+        conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
 
+def test_mismatch():
+    z={} # problemType definition
+    conv = Convolution(z, 'ConvolutionForward',
+              config={'TensorAFormat': 'NCHW',
+                      'Spatial' : '34x99',
+                     })
+
+    log.debug(conv.printUsage(z))
+    pcc = ConvolutionConfig(spatial=[14,15])
+    with pytest.raises(RuntimeError, match="Mismatch between ConvolutionConfig value"):
+        conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
