@@ -92,7 +92,10 @@ globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel ge
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
-globalParameters["ForceGenerateKernel"] = 0  # even if error occurs in kernel generation (ie due to resource overflow), generate the kernel source anyway.  Useful to examine and debug overflow errors)
+# even if error occurs in kernel generation (ie due to resource overflow),
+# generate the kernel source anyway.  Tensile will also attempt to run
+# the kernel.  Useful to examine and debug overflow errors.
+globalParameters["ForceGenerateKernel"] = 0
 
 ########################################
 # optimization knob controls
@@ -134,7 +137,13 @@ globalParameters["PrintTensorB"] = 0          # Print TensorB after initializati
 globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
+globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
+globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
+globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hcc, etc)
+
+# TODO - remove this when NewClient is mainstream
+globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
 # PrintMaxRows applies to dimensions where one row is printed per line
@@ -153,7 +162,7 @@ globalParameters["ShortNames"] = False            # on windows kernel names can 
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -210,11 +219,8 @@ for i in validThreadTileSides:
   for j in validThreadTileSides:
     validThreadTiles.append([i, j])
 
-validTensorAFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
-validTensorBFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW', \
-                        'KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
-validTensorDFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW', \
-                        'KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
+validActivationFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
+validWeightFormats = ('KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -261,13 +267,16 @@ validParameters = {
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
+    # Split the unroll summation into multiple sections and combine the sections
+    # GSU applies only to the unroll summation dimension
+    "GlobalSplitU":               list(range(1, 1024+1)),
+
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
     # GSUWGMRR=False means workgroup 0,1,2,3 will all work on the same tile; =True means workgroup 0, N-1, 2N-1, 3N-1 will all work on the same tile
+    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     # GSUSARR=False means the 4 workgroups do whole chunks of the summation: k=0 -> K/4-1, k=K/4 -> 2K/4-1, k=2K/4 -> 3K/4-1, k=3K/4 -> 4K/4-1
     # GSUSARR=True means the 4 workgroups round robin split up the chunks of the summation: k=0 -> DU-1, 4DU -> 5DU-1, ...; k=1DU -> 2DU-1, 5DU -> 6DU-1...; ...
-    "GlobalSplitU":               list(range(1, 1024+1)),
-    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     # in opencl for some compilers, performance improved by putting a memfence after each subiteration; it prevented the loads of one subiteration from being moved
@@ -385,6 +394,9 @@ validParameters = {
     # 2= use temp vgpr inside unroll loop, may save 1 VPR if both A and B have a fractional edge but costs v_alu
     "FractionalLoad":             [ 0, 1, 2] ,
 
+    # Use a 64-bit shadow limit register to allow buffers larger than 2^32 bytes
+    "Use64bShadowLimit":   [ True, False],
+
     # Attempt to vectorize atomics
     # 1,2,4 : Number of elements to vectorize
     # -1 : Maximum supported value.  Half=2, Single=1, Double=1
@@ -449,17 +461,23 @@ validParameters = {
     "AssertMinApproxSize" : [0,1,2],
 
 
-    # Assertions that require stride to be specified value.
-    # List of pairs of [position, constValue].
+    # Assertions/Predicates that require stride to be specified value.
+    # Dictionary of pairs of {position:constValue}
     # Unlike SetConstStride*, these use a position in the IndexAssignments* field:
-    #   EX: [ [2,0] ] means IndexAssignmentsB[2] must be 0 to run the solution.
-    # Like other assertions, these are used when kernel is generated and checked before running kernel
+    #   EX: "{2:0}"  means IndexAssignmentsB[2] must be 0 to run the solution.
+    # Use this syntax to specify multiple Fork values in a YAML config file.
+
+    #- AssertStrideAEqual:
+    #  - {5: 2, 6: 2} # these are two AssertStrideAEqual predicates for the same solution.
+    #  - {5: 2}       # this is a second solution generated with a single predicate.
+
+    # Like other assertions, these are used when kernel is generated and checked before running kernel.
     "AssertStrideAEqual":  -1,
 
     "AssertStrideBEqual":  -1,
 
     # Assertions that require stride to be specified value.
-    # List of pairs of [index, constValue].#
+    # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
     "AssertSizeEqual":    -1,
 
@@ -513,6 +531,12 @@ validParameters = {
     # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
     #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
+
+
+    # 0=don't use magic div (source only)
+    # 1=magic div alg #1.  Slightly faster but limited range (if magic number is 2^32)
+    # 2=magic div alg#2.  Slightly slower but handles all unsigned ints up to 2^32
+    "MagicDivAlg":       [0,1,2],
 
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
@@ -607,9 +631,12 @@ validParameters = {
     # If 1, summation dims are packed into a single loop and extracted as needed using mod/shift.  The innermost summation
     #  dimension must be an integer multiple of the unroll loop - in other words the load tile is contiguous in memory.
     #  In this mode, tensile can still prefetch data across the load tile dimension.
-    # If 2, summations dims are packed into a single loop as above.  In addition, the load tile does not need to be 
-    #  contiguous in memory and can span summation dimensions.
-    "PackSummationDims":         [0,1,2],
+    # If 2, summations dims are packed into a single loop as above.  In addition, the load tile does not need to be
+    #  contiguous in memory and can span summation dimensions. (not supported yet)
+    "PackSummationDims":         [0,1],
+
+    # debug mode, uses the PackSummationDims method to increment the unroll loop counter
+    "UnrollIncIsDepthU":         [0,1],
 
     # Granularity allowed when packing tensor dims.
     # Lower values are finer granularity which requires more dimension division operations on store path
@@ -773,18 +800,22 @@ defaultBenchmarkCommonParameters = [
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
-    {"DirectToLds":               [ True ] },
+    {"DirectToLds":               [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
     {"AssertMinApproxSize":        [ -1 ] },
+    {"AssertStrideAEqual":        [ {} ] },
+    {"AssertStrideBEqual":        [ {} ] },
+    {"AssertSizeEqual":           [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
     {"StaggerU":                  [ 32 ] },   # recommend [0,32]
     {"StaggerUStride":            [ 256 ] },  # recommend 256 for V10,V20
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
+    {"MagicDivAlg":               [ 2 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
@@ -794,8 +825,10 @@ defaultBenchmarkCommonParameters = [
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackSummationDims":         [ 0 ] },
+    {"UnrollIncIsDepthU":         [ 0 ] },
     {"PackGranularity":           [ 2 ] },
     {"FractionalLoad":            [ 0 ] },
+    {"Use64bShadowLimit":         [ 1 ] },
     {"VectorAtomicWidth":         [ -1 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },
@@ -866,11 +899,27 @@ validConvolutionConfig= [
     # For grouped convolutions:
     "GroupCount",
 
-    # pack spatial dims (d,h,w) into single tensor dim
+    # pack spatial dims (d,h,w) into single tensor dim when possible
     # This is preferred for cases where these dimensions are packed in memory
     # since it reduces addressing overhead and will produce a more efficient kernel
-    # Default is 1, multiple dimensions will be created if needed for strides or otrher cases.
+    # Default is 1, multiple dimensions will be created if needed for strides or other cases.
     "PackedSpatialDims",
+
+    # pack filter dims (z,y,x) into single tensor dim when possible.
+    # This is preferred for cases where these dimensions are packed in memory
+    # since it reduces addressing overhead and will produce a more efficient kernel
+    # Default is 1, multiple dimensions will be created if needed for dilations or other cases.
+    "PackedFilterDims",
+
+    # If 1:
+    #  - Unroll index is the channel index
+    #  - if PackSummationDims=0, this is likely highest perf since it provides a larger
+    #    iteration count for the unroll loop.
+    # If 0:
+    #   - Unroll index is filter index (Forward,BackwardData) or spatial index (BackwardWeights)
+    #   - provides better cache locality for most formats, but tigher looping.
+    #   - Likely a good idea with PackSummationDims=1 since there is only one unroll loop.
+    "UnrollOnChannel",
 
     # Input spatial dimensions (D,H,W)
     # Optional parameter for debug and testing.  This does not impact kernel generation.
@@ -922,6 +971,10 @@ defaultProblemType = {
     "NumIndicesC":              2,
     "UseInitialStridesAB":      False,  # use initial strides for AB.
     "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
+
+    "AllowNoFreeDims":          False,  # allow A or B to specify no free dims
+                                        # (if false, A and B must have at least one free dim)
+                                        # (if true, A and B must have at least one free or batch dim)
 
     # SetConstStride* sets the specified stride in the problem.
     # These no longer generate predicates - see AssertStrideEqualA/B below

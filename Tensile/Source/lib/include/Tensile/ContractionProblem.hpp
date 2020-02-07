@@ -98,7 +98,7 @@ namespace Tensile
         struct BoundIndex
         {
             BoundIndex(size_t xa=0, size_t xb=0) : a(xa), b(xb) {};
-            size_t a, b;
+            size_t a, b; //! positions in a or b tensor
             ZeroPad aZeroPad;
             ZeroPad bZeroPad;
         };
@@ -236,6 +236,9 @@ namespace Tensile
                            BoundIndices const& boundIndices,
                            double beta);
 
+        //! Returns size given original index assignment (in range 0..NumIndicesC+boundSizes)
+        size_t size(size_t idx) const;
+
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
 
@@ -302,6 +305,8 @@ namespace Tensile
         void addAZeroPad(const ZeroPad &zp);
         void addBZeroPad(const ZeroPad &zp);
 
+        bool transposeC01() const { return m_transposeC01; };
+
         double beta() const { return m_beta; }
 
         std::string const& aNames()   const { return m_aNames; }
@@ -355,6 +360,7 @@ namespace Tensile
         std::vector<size_t> m_problemSizes;
         std::vector<size_t> m_problemStrides;
 
+        bool   m_transposeC01;
         double m_beta;
 
         size_t m_maxProblemSize = 1;

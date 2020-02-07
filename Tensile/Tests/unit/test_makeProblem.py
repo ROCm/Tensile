@@ -51,7 +51,7 @@ def test_stride_filter():
 
     log.debug(conv.printUsage(z))
     p = conv.makeProblem(False, n=64, c=1024, k=256)
-    assert(p[0] == [3, 5, 256, 64, 1024, 3, 4])
+    assert(p[0] == [3, 5, 256, 64, 3, 4, 1024])
     assert(p[1] == [1, 14, 3, 28, -1, -1])
 
 def test_stride_filter_dilated():
@@ -66,7 +66,7 @@ def test_stride_filter_dilated():
 
     log.debug(conv.printUsage(z))
     p = conv.makeProblem(False, n=64, c=1024, k=256)
-    assert(p[0] == [3, 5, 256, 64, 1024, 3, 4])
+    assert(p[0] == [3, 5, 256, 64, 3, 4, 1024])
     assert(p[1] == [3, 28, 3, 28, -1, -1])
 
 def test_spatial_unspecified():

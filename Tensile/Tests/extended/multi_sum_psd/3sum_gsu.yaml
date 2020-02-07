@@ -1,12 +1,8 @@
-
-TestParameters:
-  marks: [xfail]
 GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0
-  NumElementsToValidate: 1
+  NumElementsToValidate: -1
   KernelTime: True
-  #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
   DataInitTypeA: 3
@@ -14,12 +10,12 @@ GlobalParameters:
   DataInitTypeC: 4
   DataInitTypeAlpha: 2
   DataInitTypeBeta: 0
-  PrintSolutionRejectionReason: 1
+  PrintSolutionRejectionReason: 0
   PrintWinnersOnly: 0
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
-  CpuThreads: 0
+  NewClient: 2
 
 BenchmarkProblems:
   ########################################
@@ -34,40 +30,26 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 4, 3, 0, 2]
       IndexAssignmentsB: [ 4, 3, 1, 2]
-      # 3 is Cin, 2 is batch index converted to a second summation index
-      #
-      # Standard batched NT is :
-      #  IndicesFree:  [0, 1]  # 0 is H*W, 1 is Cout
-      #  IndicesBatch: [2]  # N, but convert to summation in the config above
-      #  IndicesSum:   [3]
-      #  IndexAssignmentsA:   [3, 0, 2]
-      #  IndexAssignmentsB:   [3, 1, 2]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
-          #- TailLoop: [False]
       ForkParameters:
         - PackSummationDims: [1]
-        - KernelLanguage: ["Source"]
-        - PrefetchLocalRead: [False]
-        - PrefetchGlobalRead: [False]
-          #- GlobalSplitU: [1,2,4]
+        - KernelLanguage: [Source,Assembly]
+        - PrefetchGlobalRead: [False,True]
+        - GlobalSplitU: [2,4]
         - ThreadTile:
-          - [ 4, 4 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
-        - StaggerU: [0]
-        - StaggerUMapping: [0]
-        - DepthU: [ 16]
-        - VectorWidth: [1]
-        - FractionalLoad: [0]
+          - [ 16, 16, 1 ]
+        - StaggerU: [0,32]
+        - DepthU: [ 4,8]
+        - FractionalLoad: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 16, 16, 2, 4, 8]
-          - Range: [ [16], [16], [2], [1,1,32], [8]]
-          - Range: [ [16], [16], [1,1,4], [1,1,32]] ## TESTME - gsu
-          - Range: [ [127,1,129], 0, [2], [1,1,8], [1,1,16]]
+          - Range: [ [127,1,129], 0, [1,2,5], [1,2,5], [16,16,128]]

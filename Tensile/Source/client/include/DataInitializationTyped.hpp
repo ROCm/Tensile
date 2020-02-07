@@ -32,6 +32,7 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/hip/HipUtils.hpp>
+#include <Tensile/Debug.hpp>
 
 namespace Tensile
 {
@@ -318,6 +319,7 @@ namespace Tensile
                 std::shared_ptr<BType> b;
                 std::shared_ptr<CType> c;
                 std::shared_ptr<DType> d;
+                static const int sizew=10;
 
                 if(pristine)
                 {
@@ -329,10 +331,18 @@ namespace Tensile
                     AType * aPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&aPtr, TypeInfo<AType>::ElementSize * m_aMaxElements));
                     a = std::shared_ptr<AType>(aPtr, hipFree);
+                    if (Debug::Instance().printTensorInfo())
+                        std::cout << "info: allocate a " << std::setw(sizew)
+                                  << TypeInfo<AType>::ElementSize * m_aMaxElements
+                                  << " bytes at " << aPtr << "\n";
 
                     BType * bPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&bPtr, TypeInfo<BType>::ElementSize * m_bMaxElements));
                     b = std::shared_ptr<BType>(bPtr, hipFree);
+                    if (Debug::Instance().printTensorInfo())
+                        std::cout << "info: allocate b " << std::setw(sizew)
+                                  << TypeInfo<BType>::ElementSize * m_bMaxElements
+                                  << " bytes at " << bPtr << "\n";
                 }
 
                 if(m_cEqualsD || !pristine)
@@ -340,6 +350,10 @@ namespace Tensile
                     CType * cPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&cPtr, TypeInfo<CType>::ElementSize * m_cMaxElements));
                     c = std::shared_ptr<CType>(cPtr, hipFree);
+                    if (Debug::Instance().printTensorInfo())
+                        std::cout << "info: allocate c " << std::setw(sizew)
+                                  << TypeInfo<CType>::ElementSize * m_cMaxElements
+                                  << " bytes at " << cPtr << "\n";
                 }
                 else
                 {
@@ -359,6 +373,10 @@ namespace Tensile
                     DType * dPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&dPtr, TypeInfo<DType>::ElementSize * m_dMaxElements));
                     d = std::shared_ptr<DType>(dPtr, hipFree);
+                    if (Debug::Instance().printTensorInfo())
+                        std::cout << "info: allocate d " << std::setw(sizew)
+                                  << TypeInfo<DType>::ElementSize * m_dMaxElements
+                                  << " bytes at " << dPtr << "\n";
                 }
 
                 auto alpha = static_cast<AlphaType>(0);

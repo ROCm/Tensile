@@ -56,8 +56,10 @@ namespace Tensile
         return staggerUIter;
     }
 
+
+
     // Return magic number.  If magicShift is 0, compute and return it.
-    uint32_t ContractionSolution::magicNumber(uint32_t x, uint32_t *magicShift) const
+    uint32_t ContractionSolution::magicNumberAlg1(uint32_t x, uint32_t *magicShift) const
     {
         uint64_t magicNum;
         *magicShift = 33;
@@ -68,7 +70,75 @@ namespace Tensile
         }
 
         assert(magicNum >> 32 == 0);  // ensure magic number fits
+
         return static_cast<uint32_t>(magicNum);
+    }
+
+    uint32_t ContractionSolution::magicNumberAlg2(uint32_t d, uint32_t *magicShift) const
+    {
+        struct mu {
+          unsigned M; // Magic number,
+          int a; // "add" indicator,
+          int s;}; // and shift amount.
+
+        struct mu magu;
+        if (d==0) {
+            // Make dividend of 0 return 0
+            magu.M = 0;
+            magu.a = 0;
+            magu.s = 0;
+        } else {
+            // Must have 1 <= d <= 2**32-1.
+            int p;
+            unsigned nc, delta, q1, r1, q2, r2;
+            magu.a = 0; // Initialize "add" indicator.
+            nc = -1 - (-d)%d; // Unsigned arithmetic here.
+            p = 31; // Init. p.
+            q1 = 0x80000000/nc; // Init. q1 = 2**p/nc.
+            r1 = 0x80000000 - q1*nc;// Init. r1 = rem(2**p, nc).
+            q2 = 0x7FFFFFFF/d; // Init. q2 = (2**p - 1)/d.
+            r2 = 0x7FFFFFFF - q2*d; // Init. r2 = rem(2**p - 1, d).
+            do {
+              p = p + 1;
+              if (r1 >= nc - r1) {
+                q1 = 2*q1 + 1; // Update q1.
+                r1 = 2*r1 - nc;} // Update r1.
+              else {
+                q1 = 2*q1;
+                r1 = 2*r1;}
+              if (r2 + 1 >= d - r2) {
+                if (q2 >= 0x7FFFFFFF) magu.a = 1;
+                q2 = 2*q2 + 1; // Update q2.
+                r2 = 2*r2 + 1 - d;} // Update r2.
+              else {
+                if (q2 >= 0x80000000) magu.a = 1;
+                q2 = 2*q2;
+                r2 = 2*r2 + 1;}
+              delta = d - 1 - r2;
+            } while (p < 64 && (q1 < delta || (q1 == delta && r1 == 0)));
+
+            magu.M = q2 + 1; // Magic number
+            magu.s = p - 32; // and shift amount to return
+        }
+
+        *magicShift = magu.s;
+        const uint32_t abit = 0x80000000;
+        if (magu.a)
+          *magicShift |= abit;
+
+        //std::cout << " d=" << d << " M=" << magu.M << " a=" << magu.a << " s=" << magu.s << "\n";
+
+        return magu.M;
+    }
+
+    uint32_t ContractionSolution::magicNumber(int magicDivAlg, uint32_t x, uint32_t *magicShift) const
+    {
+        if (magicDivAlg==1)
+            return magicNumberAlg1(x, magicShift);
+        else if (magicDivAlg==2)
+            return magicNumberAlg2(x, magicShift);
+        else
+            throw std::runtime_error("bad magicDivAlg");
     }
 
     uint32_t ContractionSolution::smallMagicNumber(uint32_t x) const
@@ -129,6 +199,9 @@ namespace Tensile
 
         rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
         rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
+
+        if (problem.transposeC01())
+            std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
@@ -206,6 +279,32 @@ namespace Tensile
             }
         }
 
+        if (sizeMapping.packSummationDims)
+            // boundIndices are ordered with unroll last.
+            // Magic numbers for all but first are needed to unpack other dims.
+            for (auto si=1; si<problem.boundIndices().size(); si++)
+            {
+                auto numIter = problem.boundSize(si);
+                bool isUnroll = si==problem.boundIndices().size()-1;
+                if (isUnroll) {
+                    numIter = numIter / sizeMapping.depthU / sizeMapping.globalSplitU * sizeMapping.depthU;
+                }
+                uint32_t magicShift;
+                rv.args.append<uint32_t>(concatenate("magicNumberNumIter_",si),
+                                          magicNumber(sizeMapping.magicDivAlg, numIter, &magicShift));
+                rv.args.append<uint32_t>(concatenate("magicShiftNumIter_",si), magicShift);
+
+                if (isUnroll and sizeMapping.globalSplitU>1)
+                {
+                    // compute magic number for gsu remainder iterations:
+                    // Kernel will select whether to use above or remainder portion based on work-group assignment
+                    rv.args.append<uint32_t>(concatenate("magicNumberNumIter_GsuRemainder"),
+                                              magicNumber(sizeMapping.magicDivAlg, 
+                                                numIter+sizeMapping.depthU, &magicShift));
+                    rv.args.append<uint32_t>(concatenate("magicShiftNumIter_GsuRemainder"), magicShift);
+                }
+            }
+
         if (problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
         {
             std::vector<size_t> packedIndices;
@@ -237,7 +336,8 @@ namespace Tensile
                 auto idx = *pi;
                 auto size = a.sizes()[idx];
                 uint32_t magicShift;
-                rv.args.append<uint32_t>(concatenate("magicNumberSizeA_",idx), magicNumber(size, &magicShift));
+                rv.args.append<uint32_t>(concatenate("magicNumberSizeA_",idx),
+                                          magicNumber(sizeMapping.magicDivAlg, size, &magicShift));
                 rv.args.append<uint32_t>(concatenate("magicShiftSizeA_",idx), magicShift);
             }
         }
@@ -271,7 +371,8 @@ namespace Tensile
                 auto idx = *pi;
                 auto size = b.sizes()[idx];
                 uint32_t magicShift;
-                rv.args.append<uint32_t>(concatenate("magicNumberSizeB_",idx), magicNumber(size, &magicShift));
+                rv.args.append<uint32_t>(concatenate("magicNumberSizeB_",idx),
+                                          magicNumber(sizeMapping.magicDivAlg, size, &magicShift));
                 rv.args.append<uint32_t>(concatenate("magicShiftSizeB_",idx), magicShift);
             }
         }
@@ -332,9 +433,19 @@ namespace Tensile
         rv.workGroupSize.y = 8;
         rv.workGroupSize.z = 1;
 
-        rv.numWorkGroups.x = CeilDivide(d.sizes()[0], rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(d.sizes()[1], rv.workGroupSize.y);
-        rv.numWorkGroups.z = d.dimensions() > 2 ? d.sizes()[2] : 1;
+        size_t wiX = 1;
+        size_t wiY = 1;
+        size_t wiZ = 1;
+        for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
+          wiX *= problem.freeSizeA(i);
+        for(size_t i = 0; i < problem.freeIndicesB().size(); i++)
+          wiY *= problem.freeSizeB(i);
+        for(size_t i = 0; i < problem.batchIndices().size(); i++)
+          wiZ *= problem.batchSize(i);
+
+        rv.numWorkGroups.x = CeilDivide(wiX, rv.workGroupSize.x);
+        rv.numWorkGroups.y = CeilDivide(wiY, rv.workGroupSize.y);
+        rv.numWorkGroups.z = CeilDivide(wiZ, rv.workGroupSize.z);
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -369,8 +480,9 @@ namespace Tensile
                                                         TypedInputs const& inputs,
                                                         Hardware    const& hardware) const
     {
-        std::string name = concatenate("C", problem.cNames(), "_",
-                                       TypeInfo<typename TypedInputs::AType>::Abbrev());
+        std::string name = concatenate("C", problem.cNames(),
+                                        "_",
+                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
