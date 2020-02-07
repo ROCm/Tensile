@@ -9,16 +9,10 @@
 WORKING_PATH='release'
 HELP=false
 ROCBLAS=false
-PROVISION_BRANCH='develop'
-TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
-ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS.git"
-
-GIT_HOST="${TENSILE_HOST}"
-PROVISION_PATH=Tensile
 
 HELP_STR="usage: $0 [-b|--branch <branch>] [-f|--tensile-fork <username>] [-w|--working-path <path>] [-i <identifier>] [-t|--tag <githup tag>] [-h|--help]"
 
-OPTS=`getopt -o ht:w:b:f:c:i:r --long help,branch:,tag:,working-path:,tensile-fork,rocblas-fork,commit: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hrw:t:b:f:c:i --long help,working-path:,tag:,branch:,tag:,working-path:,tensile-fork,rocblas-fork,commit: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -29,7 +23,7 @@ while true; do
     -h | --help )         HELP=true; shift ;;
     -r )                  GIT_HOST="${ROCBLAS_HOST}";PROVISION_PATH='rocBLAS'; shift;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
-    -t | --tag )          TAG="$2"; shift 3;;
+    -t | --tag )          TAG="$2"; shift 2;;
     -b | --branch  )      PROVISION_BRANCH="$2"; shift 2;;
     -f | --tensile-fork ) TENSILE_FORK="$2"; shift 2;;
     --rocblas-fork )      ROCBLAS_FORK="$2"; shift 2;;
@@ -56,6 +50,16 @@ fi
 if [ -n "${ROCBLAS_FORK+foo}" ]; then
   ROCBLAS_FORK="ROCmSoftwarePlatform"
 fi
+
+if [ -n "${PROVISION_BRANCH+foo}" ]; then
+  PROVISION_BRANCH="develop"
+fi
+
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
+ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS.git"
+
+GIT_HOST="${TENSILE_HOST}"
+PROVISION_PATH=Tensile
 
 if [ -n "${ID+foo}" ]; then
   PROVISION_PATH="${PROVISION_PATH}-${ID}"

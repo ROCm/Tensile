@@ -30,7 +30,7 @@ function build_configs() {
 
 function provision_tensile() {
 
-  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"
+  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK} --rocblas-fork ${ROCBLAS_FORK}"
 
   local TENSILE_PATH=Tensile
   if [ -n "${ID}" ]; then
@@ -57,23 +57,17 @@ function provision_tensile() {
     PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
   fi
 
-  if [-n "${ROCBLAS_FORK}"]; then
-    PROVISION_TENSILE="${PROVISION_TENSILE} --rocblas-fork ${ROCBLAS_FORK}"
-  fi
-
   ${PROVISION_TENSILE}
 
   cp -r ${STAGE_ROOT}/* ${TENSILE_ROOT}/${TENSILE_PATH}
 
 }
 
-HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
+ELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
 HELP=false
 SUPPRESS_TENSILE=false
-TENSILE_BRANCH='develop'
-TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
 
-OPTS=`getopt -o ht:w:f:b:c:i:l:o:z:y:n --long help,working-path:,tensile-fork,size-log,output:,tag:,branch:,commit:,rocblas-fork:,library:,type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:t:f:b:c:o:y:l:ni: --long help,working-path:,size-log:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,library:,type: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -84,7 +78,7 @@ while true; do
     -h | --help )         HELP=true; shift ;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
     -z | --size-log )     SIZE_LOG="$2"; shift 2;;
-    -t | --tag )          TAG="$2"; shift 3;;
+    -t | --tag )          TAG="$2"; shift 2;;
     -f | --tensile-fork)  TENSILE_FORK="$2"; shift 2;;
     --rocblas-fork)       ROCBLAS_FORK="$2"; shift 2;;
     -b | --branch  )      TENSILE_BRANCH="$2"; shift 2;;
@@ -112,6 +106,16 @@ fi
 if [ -z ${TENSILE_FORK+foo} ]; then
    TENSILE_FORK="ROCmSoftwarePlatform"
 fi
+
+if [ -z ${TENSILE_BRANCH+foo} ]; then
+   TENSILE_BRANCH="develop"
+fi
+
+if [ -z ${ROCBLAS_FORK+foo} ]; then
+   ROCBLAS_FORK="ROCmSoftwarePlatform"
+fi
+
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
 
 if [ -z ${SIZE_LOG+foo} ]; then
    printf "A problem specification file is required\n"
