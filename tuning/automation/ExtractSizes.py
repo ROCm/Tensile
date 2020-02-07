@@ -26,13 +26,13 @@ import argparse
 
 import csv
 
-rocblas_parameters = ["f","transposeA","transposeB","m","n","k","alpha","a_type","lda","stride_a","b_type","ldb","stride_b","beta","c_type","ldc","stride_c","d_type","ldd","stride_d","batch","compute_type","algo" ,"solution_index","flags"] #,"workspace_size" ]
+rocblas_parameters = ["f","transposeA","transposeB","m","n","k","alpha","a_type","lda","stride_a","b_type","ldb","stride_b","beta","c_type","ldc","stride_c","d_type","ldd","stride_d","batch","compute_type","algo" ,"solution_index","flags","call_count"] #,"workspace_size" ]
 
-gemm_ex_keys = ["-f", "--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--b_type","--ldb","--beta","--c_type","--ldc","--d_type","--ldd","--compute_type","--algo","--solution_index","--flags"] #,"--workspace_size"]
-gemm_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--ldb","--beta","--ldc"]
+gemm_ex_keys = ["-f", "--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--b_type","--ldb","--beta","--c_type","--ldc","--d_type","--ldd","--compute_type","--algo","--solution_index","--flags","--call_count"] #,"--workspace_size"]
+gemm_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--ldb","--beta","--ldc","--call_count"]
 
-gemm_strided_batched_ex_keys = ["-f","--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--stride_a","--b_type","--ldb","--stride_b","--beta","--c_type","--ldc","--stride_c","--d_type","--ldd","--stride_d","--batch","--compute_type","--algo","--solution_index","--flags"]#,"--workspace_size"]
-gemm_strided_batched_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--stride_a","--ldb","--stride_b","--beta","--ldc","--stride_c","--batch"]
+gemm_strided_batched_ex_keys = ["-f","--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--stride_a","--b_type","--ldb","--stride_b","--beta","--c_type","--ldc","--stride_c","--d_type","--ldd","--stride_d","--batch","--compute_type","--algo","--solution_index","--flags","--call_count"]#,"--workspace_size"]
+gemm_strided_batched_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--stride_a","--ldb","--stride_b","--beta","--ldc","--stride_c","--batch","--call_count"]
 
 rocblas_key_mapping = {"gemm_ex":gemm_ex_keys, "gemm":gemm_keys, "gemm_strided_batched_ex":gemm_strided_batched_ex_keys, "gemm_strided_batched":gemm_strided_batched_keys}
 
@@ -66,7 +66,8 @@ def GetRocBLASParser():
     lineParser.add_argument("--algo",dest="algo", type=int,default=0)
     lineParser.add_argument("--solution_index",dest="solution_index", type=int,default=0)
     lineParser.add_argument("--flags",dest="flags", type=int,default=0)
-
+    lineParser.add_argument("--call_count",dest="call_count", type=int,default=1)
+    
     return lineParser
 
 
@@ -105,6 +106,7 @@ def GetInceptionParser():
     argParser.add_argument("--fil_w","-x",dest="fil_w",help="Filter Width (Default=3,type=str)",type=int,default=3)
     argParser.add_argument("--fil_h","-y",dest="fil_h",help="Filter Height (Default=3,type=str)",type=int,default=3)
     argParser.add_argument("--pad_mode","-z",dest="pad_mode",help="Padding Mode (same, valid, default,type=str) (Default=default,type=str)",type=str,default="default")
+    argParser.add_argument("--call_count","-N",dest="call_count",help="Call count (Default=1,type=int)",type=int,default=1)
 
     return argParser
 

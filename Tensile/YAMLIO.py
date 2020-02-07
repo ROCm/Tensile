@@ -47,7 +47,7 @@ def write(filename, data):
     """ Write data to a given file. """
 
     with open(filename, 'w') as f:
-        yaml.dump(data, f, explicit_start=True, explicit_end=True)
+        yaml.dump(data, f, explicit_start=True, explicit_end=True, default_flow_style=False)
 
 ################################################################################
 # Write List of Solutions to YAML File
@@ -201,7 +201,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   # open & write file
   try:
     stream = open(filename, "w")
-    yaml.dump(data, stream)
+    yaml.dump(data, stream, default_flow_style=False)
     stream.close()
   except IOError:
     printExit("Cannot open file: %s" % filename)

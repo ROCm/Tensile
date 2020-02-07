@@ -219,7 +219,7 @@ class LibraryLogic:
     else:
       try:
         stream = open(filename, "w")
-        yaml.safe_dump(data, stream)
+        yaml.safe_dump(data, stream, default_flow_style=False)
         stream.close()
       except IOError:
         printExit("Cannot open file: %s" % filename)
