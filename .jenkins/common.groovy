@@ -6,8 +6,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     project.paths.construct_build_prefix()
     
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
+    String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
-    String cov = jobName.contains('hipclang') ? 'V3' : 'V2'
     
     def command = """#!/usr/bin/env bash
             set -ex
@@ -20,7 +20,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             mkdir build
             pushd build
  
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=$cov -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
 
             popd
