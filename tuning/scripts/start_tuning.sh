@@ -3,10 +3,8 @@
 HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <path>] [-o|--output <configuration filename>] [-y| --type <cofiguration type>] [-l|--library <library>] [-f] [-s] [-h|--help]"
 HELP=false
 SUPPRESS_TENSILE=false
-TENSILE_BRANCH='develop'
-TENSILE_HOST='https://github.com/ROCmSoftwarePlatform/Tensile.git'
 
-OPTS=`getopt -o hw:l:o:z:y:f:s: --long help,working-path:,size-log,output:,library:,type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:f:b:o:y:l:f:s: --long help,working-path:,size-log:,tensile-fork:,branch:,output:,library:,type: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -17,14 +15,15 @@ while true; do
     -h | --help )         HELP=true; shift ;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
     -z | --size-log )     SIZE_LOG="$2"; shift 2;;
-    -o | --output )       OUTPUT_FILE="$2"; shift 2;;
+    -f | --tensile-fork)  TENSILE_FORK="$2"; shift 2;;
+    -b | --branch  )      TENSILE_BRANCH="$2"; shift 2;;
+    -o | --output )       OUTPUT_FILE="$2"; shift 2;; 
     -y | --type )         CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )      LIBRARY="$2"; shift 2;;
-    -f )                       FREQ="$2"; shift 2;;
-    -s )                       SZ="$2"; shift 2;;
+    -f )                  FREQ="$2"; shift 2;;
+    -s )                  SZ="$2"; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
-
   esac
 done
 
@@ -37,6 +36,20 @@ if [ -z ${WORKING_PATH+foo} ]; then
    printf "A working path is required\n"
    exit 2
 fi
+
+if [ -z ${TENSILE_FORK+foo} ]; then
+   TENSILE_FORK="ROCmSoftwarePlatform"
+fi
+
+if [ -z ${TENSILE_BRANCH+foo} ]; then
+   TENSILE_BRANCH="develop"
+fi
+
+if [ -z ${ROCBLAS_FORK+foo} ]; then
+   ROCBLAS_FORK="ROCmSoftwarePlatform"
+fi
+
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
 
 if [ -z ${SIZE_LOG+foo} ]; then
    printf "A problem specification file is required\n"

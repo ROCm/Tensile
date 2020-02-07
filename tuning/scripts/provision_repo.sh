@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 # #################################################
 # Parameter parsing
 # #################################################
@@ -23,7 +21,7 @@ while true; do
     -h | --help )         HELP=true; shift ;;
     -r )                  GIT_HOST="${ROCBLAS_HOST}";PROVISION_PATH='rocBLAS'; shift;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
-    -t | --tag )          TAG="$2"; shift 2;;
+    -t | --tag )          TAG="$2"; shift 3;;
     -b | --branch  )      PROVISION_BRANCH="$2"; shift 2;;
     -f | --tensile-fork ) TENSILE_FORK="$2"; shift 2;;
     --rocblas-fork )      ROCBLAS_FORK="$2"; shift 2;;

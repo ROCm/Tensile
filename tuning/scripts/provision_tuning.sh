@@ -65,7 +65,6 @@ function provision_tensile() {
 
 ELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
 HELP=false
-SUPPRESS_TENSILE=false
 
 OPTS=`getopt -o hw:z:t:f:b:c:o:y:l:ni: --long help,working-path:,size-log:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,library:,type: -n 'parse-options' -- "$@"`
 
@@ -78,7 +77,7 @@ while true; do
     -h | --help )         HELP=true; shift ;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
     -z | --size-log )     SIZE_LOG="$2"; shift 2;;
-    -t | --tag )          TAG="$2"; shift 2;;
+    -t | --tag )          TAG="$2"; shift 3;;
     -f | --tensile-fork)  TENSILE_FORK="$2"; shift 2;;
     --rocblas-fork)       ROCBLAS_FORK="$2"; shift 2;;
     -b | --branch  )      TENSILE_BRANCH="$2"; shift 2;;
@@ -135,6 +134,8 @@ if [ -z ${CONFIGURATION_TYPE+foo} ]; then
    printf "Need specify a configuration type\n"
    exit 2
 fi
+
+SUPPRESS_TENSILE=false
 
 #determing full path of tools root
 TOOLS_ROOT=`dirname "$0"`
