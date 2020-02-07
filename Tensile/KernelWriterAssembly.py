@@ -5600,8 +5600,9 @@ class KernelWriterAssembly(KernelWriter):
 
   def mfmaIter(self, kernel, m, innerUnroll):
     # TODO: should return Code.Module or string?
+    numVgprsPerMfmaInput = kernel["MatrixInstK"] * kernel["ProblemType"]["DataType"].numBytes() // self.bpr
     kStr = ""
-    if kernel["ProblemType"]["DataType"].isBFloat16():
+    if kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf():
       kStr += "s_nop 2\n" # a must; for VALU packing writes to be consumed by matrix instruction 
                           # this can be removed once the vregs are directly loaded via ds_read 
     for b in range(0, self.numColInsts):
@@ -5610,8 +5611,8 @@ class KernelWriterAssembly(KernelWriter):
           accIdx = b * self.numRowInsts + a
           accStart = accIdx * self.destAgprs
           accEnd = accStart + self.destAgprs - 1
-          aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u" % (m, iui), a)
-          bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u" % (m, iui), b)
+          aStr = vgpr("ValuA_X%u_I%u+%u" % (m, iui, a*numVgprsPerMfmaInput), numVgprsPerMfmaInput)
+          bStr = vgpr("ValuB_X%u_I%u+%u" % (m, iui, b*numVgprsPerMfmaInput), numVgprsPerMfmaInput)
           kStr += "v_mfma_f32_%ux%ux%u%s a[%u:%u], %s, %s, a[%u:%u]%s" \
             % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], kernel["ProblemType"]["DataType"].toNameAbbrev(), accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
           # TODO Broadcast code
@@ -7126,7 +7127,7 @@ class KernelWriterAssembly(KernelWriter):
             paramList = []
             paramList.append(vgpr(tmpVgpr + kIdx%2))
             paramList.append(vgpr("LocalReadAddr%s"%tc))
-            offset = ((rIdx * kernel["MatrixInstN"] + (kIdx%2)*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
+            offset = ((rIdx * kernel["MatrixInstN"] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
               *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
             paramList.append(int(offset))
             oIdx = 0
@@ -7145,11 +7146,9 @@ class KernelWriterAssembly(KernelWriter):
             isHighBits = 0 if kIdx % 2 == 0 else 1
             localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple, 0, isHighBits), comment))
 
-            valuIdx += blockWidth
-
             if kIdx % 2 == 1:
               # pack 2 half-dword into one
-              destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
+              destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx)))
               imod.addInst("s_waitcnt lgkmcnt(0)", "")
               if kernel["MatrixInstruction"] and \
                  kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0 and \
@@ -7168,6 +7167,7 @@ class KernelWriterAssembly(KernelWriter):
 
               imod.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
 
+            valuIdx += blockWidth
       self.vgprPool.checkIn(tmpVgpr)
     else: 
       for vIdx in range(0, numVectorsPerTile):
@@ -7690,6 +7690,7 @@ class KernelWriterAssembly(KernelWriter):
       elementStep = 2*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isInt8x4() or \
          kernel["ProblemType"]["DataType"].isBFloat16() or \
+         kernel["ProblemType"]["DataType"].isHalf() or \
          kernel["ProblemType"]["DataType"].isSingle():
       elementStep = 1*(useDwordX2+1)
     elif kernel["ProblemType"]["DataType"].isDouble() or \
@@ -8713,7 +8714,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if self.cfg.numVgprsPerDataPerVI > 0:
           if self.cfg.halfDataRegPerVI:
-            if kernel["ProblemType"]["DataType"].isBFloat16():
+            if kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf():
               data = kw.vgprPool.checkOut(int(2*self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw), \
                     "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
             else:
