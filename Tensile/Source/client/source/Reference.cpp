@@ -76,7 +76,7 @@ namespace Tensile
 
                 bool rv =  anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
 
-                if (0) 
+                if (0)
                 {
                     std::cout << "  rv=" << rv
                               << " anchorCoord=" << anchorCoord[zp.anchorPos]
@@ -176,8 +176,8 @@ namespace Tensile
                     {
                         auto const &zpA = problem.boundIndices()[i].aZeroPad;
                         auto const &zpB = problem.boundIndices()[i].bZeroPad;
-                        aCoord[boundIndices[i].a] = bound[i] - zpA.padStart;
-                        bCoord[boundIndices[i].b] = bound[i] - zpB.padStart;
+                        aCoord[boundIndices[i].a] = bound[i];
+                        bCoord[boundIndices[i].b] = bound[i];
 
                         if (zpA.valid() && inZeroPad(problem, zpA, a, aCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
                             aInZeroPad = true;
@@ -185,8 +185,16 @@ namespace Tensile
                             bInZeroPad = true;
                     }
 
-                    auto aIndex = a.index(aCoord);
-                    auto bIndex = b.index(bCoord);
+                    size_t aIndex = a.index(aCoord);
+                    size_t bIndex = b.index(bCoord);
+                    for(int i = 1; i < bound.size(); i++)
+                    {
+                        auto const &zpA = problem.boundIndices()[i].aZeroPad;
+                        auto const &zpB = problem.boundIndices()[i].bZeroPad;
+
+                        aIndex -= zpA.padStart;
+                        bIndex -= zpB.padStart;
+                    }
 
                     auto aStride = problem.a().strides()[boundIndices[0].a];
                     auto bStride = problem.b().strides()[boundIndices[0].b];
@@ -228,7 +236,6 @@ namespace Tensile
 
                 inputs.d[dIndex] = static_cast<typename Inputs::DType>(inputs.alpha) * static_cast<typename Inputs::DType>(value)
                                  + ((beta == zero) ?  zero : beta*inputs.c[cIndex]);
-
             }
         }
 
