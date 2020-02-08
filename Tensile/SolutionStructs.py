@@ -1296,6 +1296,22 @@ class ConvProblem(Problem):
     print ("sizes=", self.sizes, "stridesA=", self.stridesA, "zeroPadA=", self.zeroPadA)
 
 
+  def toExactDict(self):
+    """ Return a dict with ExactDict fields, after converting the ConvProblem to tensor sizes and strides"""
+    padStartA = [zp[2] for zp in self.zeroPadA]
+    padEndA = [zp[3] for zp in self.zeroPadA]
+    exactFields = {
+       'sizes' : list(self.sizes),
+       'stridesA': list(self.stridesA),
+    }
+    if padStartA:
+      exactFields['padStartA'] = padStartA
+    if padEndA:
+      exactFields['padEndA'] = padEndA
+
+    return exactFields
+
+
 class ExactList(Problem):
   def __init__(self, e, problemType):
     if len(e) == problemType["TotalIndices"]:
