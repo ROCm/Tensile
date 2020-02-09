@@ -1465,7 +1465,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # is required.
     # if 1, unroll loop starts at 0 and increments by DEPTHU.  No scaling is required.  This mode is required
     # for pack summation dims, but can also be used independently and this is useful for isolation and testing.
-    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"]
+    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"] \
+                             or bool(kernel["ProblemType"]["ZeroPadA"]) or bool(kernel["ProblemType"]["ZeroPadB"])
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
@@ -1802,6 +1803,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
     tensorParametersA["PackedIndices"] = kernel["PackedC0IndicesX"]
     tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
+
+
+  @staticmethod
+  def zpForSumIdx(sumIdx, zeroPad):
+     """ Returns zero-pad for specified sumIdx if it matches or None if not """
+     return next((zpi for zpi in zeroPad if zpi[1] == sumIdx), None)
 
 
   ##############################################################################

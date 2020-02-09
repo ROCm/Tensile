@@ -401,8 +401,8 @@ def problemSizeParams(solution, problem):
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
               (bstrides[1], problem.sizes[numIndices+3]))
 
-        cstrides = "-1," + str(problem.sizes[numIndices+1])
-        dstrides = "-1," + str(problem.sizes[numIndices+0])
+        cstrides = (-1, problem.sizes[numIndices+1])
+        dstrides = (-1, problem.sizes[numIndices+0])
     else:
         raise RuntimeError(
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problem.sizes), numIndices,

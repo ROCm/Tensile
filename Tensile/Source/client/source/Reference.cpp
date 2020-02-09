@@ -80,6 +80,7 @@ namespace Tensile
                 {
                     std::cout << "  rv=" << rv
                               << " anchorCoord=" << anchorCoord[zp.anchorPos]
+                              << " boundIndex=" << zp.boundIndex
                               << " sumCoord=" << sumCoord
                               << " anchorRelCoord="<< anchorRelCoord
                               << " padStart="<< zp.padStart
@@ -217,9 +218,10 @@ namespace Tensile
                         value += static_cast<Accumulator>(aVal * bVal);
 
                         if (0) {
-                            bool innerZpa = inZeroPad(problem, zpA, a, dCoord, i);
-                            std::cout << "dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
-                                    << " innerZpa=" << innerZpa << " aindex=" << aIndex << " +offset="
+                            std::cout
+                                    << " bound=" << bound[0] << "," << bound[1]
+                                    << " dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
+                                    << " aindex=" << aIndex << " +offset="
                                     << (int64_t)(i * aStride) - zpA.padStart
                                     //<< " aVal=" << aVal // disable int8
                                     << "\n";

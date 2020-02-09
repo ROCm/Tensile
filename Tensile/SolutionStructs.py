@@ -1306,7 +1306,7 @@ class ConvProblem(Problem):
 
     Problem.__init__(self, sizes, stridesA, zeroPadA=zeroPadA)
 
-    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "zeroPadA=", self.zeroPadA)
+    #print ("sizes=", self.sizes, "stridesA=", self.stridesA, "zeroPadA=", self.zeroPadA)
 
 
   def toExactDict(self):
@@ -2403,7 +2403,8 @@ class Solution:
 
     assert(state["DepthU"]> 0)
 
-    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1:
+    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1 \
+       or bool(problemType["ZeroPadA"]) or bool(problemType["ZeroPadB"]):
         # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
         # problems that require tail loop.
         if state["DepthU"] %  state["AssertSummationElementMultiple"] != 0:
