@@ -21,7 +21,7 @@
 
 import sys
 import operator
-from collections import namedtuple
+from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
@@ -297,15 +297,23 @@ class Convolution:
       targetStr = targetStr.replace(char1, tmp).replace(char2, char1).replace(tmp, char2)
     return targetStr
 
-  def makeZeroPadProblemType(self, padStart, padEnd):
+  def makeZeroPadProblemType(self, padStart, padEnd, cc):
     """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
     rv = []
     for i in range(self.numSpatialDims):
         if padStart[i] or padEnd[i]:
             anchorIdx = self.spatialRegDims[i].idx
             sumIdx    = self.filterRegDims[i].idx
-            rv.append([anchorIdx, sumIdx, padStart[i], padEnd[i]])
-
+            if cc==None:
+              # This case indicates we are at compile-time and have no spatial info (which comes
+              # with each problem)
+              # So use -1 to indicate Use TBD start, end
+              # these must be later specified at runtime
+              rv.append([anchorIdx, sumIdx, -1, -1])
+            else:
+              rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
+              assert(cc.spatial[i] != -1)
+              ss *= cc.spatial[i]
     return rv
 
   def __init__(self, problemTypeOut, convolutionType, config):
@@ -563,7 +571,6 @@ class Convolution:
     for i in range(self.formatNumSpatialDims):
       spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 - padStart[i] - padEnd[i]) / pcc.stride[i])
 
-    #import pdb; pdb.set_trace()
     for fi,filterValue in enumerate(pcc.fil):
       if filterValue != -1:
         try:
@@ -796,11 +803,12 @@ class ProblemType:
     ProblemType.assignDerivedParameters(self.state)
 
     if self.convolution:
-      if globalParameters["PrintConvolutionUsage"]:
+      if globalParameters["PrintConvolutionUsage"] & 0x3 :
         print()
-        self.convolution.printUsage(self, True)
+        self.convolution.printUsage(self, globalParameters["PrintConvolutionUsage"]&0x2)
         print()
       self.convolution.checkDims(self.state["IndicesFree"], self.state["IndicesBatch"], self.state["IndicesSummation"])
+
 
     for tc in ('A', 'B'):
       freeDims={}
@@ -1255,6 +1263,8 @@ class ConvProblem(Problem):
 
   def __init__(self, e, convolution):
 
+    self.inputConfig = deepcopy(e)
+
     if convolution.formatNumSpatialDims==2:
       skipFields = ('d', 'z', '#', '^', '$')
     else:
@@ -1300,10 +1310,10 @@ class ConvProblem(Problem):
     """ Return a dict with ExactDict fields, after converting the ConvProblem to tensor sizes and strides"""
     padStartA = [zp[2] for zp in self.zeroPadA]
     padEndA = [zp[3] for zp in self.zeroPadA]
-    exactFields = {
-       'sizes' : list(self.sizes),
-       'stridesA': list(self.stridesA),
-    }
+    exactFields = OrderedDict()
+    exactFields['sizes'] = list(self.sizes)
+    exactFields['stridesA'] = list(self.stridesA)
+
     if padStartA:
       exactFields['padStartA'] = padStartA
     if padEndA:
@@ -1490,6 +1500,11 @@ class ProblemSizes:
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
+
+    if globalParameters["PrintConvolutionUsage"] & 0x4:
+      for problem in self.problems:
+        if isinstance(problem, ConvProblem):
+          print (problem.inputConfig, '->\n  ', ", ".join(["%s: %s"%(k,v) for (k,v) in problem.toExactDict().items()]))
 
 
   def __str__(self):

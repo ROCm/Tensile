@@ -418,7 +418,7 @@ class YamlBuilder:
             convs = [ {"Conv": e} for e in problems]
             benchmarkParams["BenchmarkFinalParameters"] = [{"ProblemSizes": convs }]
         else:
-            exacts = [{"Exact": ConvProblem(p, conv).toExactDict()} for p in problems]
+            exacts = [{"Exact": dict(ConvProblem(p, conv).toExactDict())} for p in problems]
             benchmarkParams["BenchmarkFinalParameters"] = [{"ProblemSizes": exacts}]
 
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
