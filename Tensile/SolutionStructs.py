@@ -2591,6 +2591,10 @@ class Solution:
     state["LoopIters"] = state["LoopUnroll"]
     if "MatrixInstK" in state:
       state["LoopIters"] //= state["MatrixInstK"]
+      # LoopIters should greater than PrefetchLocalRead
+      if (state["LoopIters"] - state["PrefetchLocalRead"]) < 1:
+        reject(state, "LoopIters %u should greater than PrefetchLocalRead %u" \
+          % (state["LoopIters"],state["PrefetchLocalRead"]))
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
