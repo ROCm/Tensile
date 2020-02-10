@@ -421,22 +421,36 @@ def RunMain():
     userArgs = sys.argv[1:]
 
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("input_file_name", help="configuration file path")
+
+    if len(sys.argv) <= 5:
+        argParser.add_argument("input_file_name", help="configuration file path")
+    else:
+        argParser.add_argument("input_logs", help="the input path for log files")
+        argParser.add_argument("network_name", help="neural network name")
+
     argParser.add_argument("output_path", help="the output path")
     argParser.add_argument("output_file_name", help="the output file name")
     argParser.add_argument("library", help="the library Logic name")
-
+    
     args = argParser.parse_args(userArgs)
-
-    inputFileName = args.input_file_name
     outputPath = args.output_path
     outputName = args.output_file_name
     library = args.library
 
-    inputFileBaseName = os.path.basename(inputFileName)
-    namePart, _ = os.path.splitext(inputFileBaseName)
+    if len(sys.argv) <= 5:
+        inputFileName = args.input_file_name
+        inputFileBaseName = os.path.basename(inputFileName)
+        namePart, _ = os.path.splitext(inputFileBaseName)
+    else:
+        inputPath = args.input_logs
+        networkName = args.network_name
+        allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    problemMapper = ProcessFile(inputFileName)
+    if len(sys.argv) <= 5:
+        problemMapper = ProcessFile(inputFileName)
+    else:
+        problemMapper = ProcessFiles(allLogs)
+
     configPath = os.path.join(outputPath, "configs")
     if not os.path.exists(configPath):
         os.makedirs(configPath)
@@ -448,8 +462,13 @@ def RunMain():
         os.makedirs(sizePath)
 
     OutputConfigs(problemMapper, configPath, outputName, library)
-    OutputScript(problemMapper, scriptPath, namePart)
-    OutputProblemDefinitions(problemMapper, sizePath, namePart)
+    
+    if len(sys.argv) <= 5:
+        OutputScript(problemMapper, scriptPath, namePart)
+        OutputProblemDefinitions(problemMapper, sizePath, namePart)
+    else:
+        OutputScript(problemMapper, scriptPath, networkName)
+        OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":
     RunMain()

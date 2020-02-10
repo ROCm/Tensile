@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -723,6 +723,38 @@ def ProcessFile(filename):
 
     return problemMapper
 
+def ProcessFiles(filenames):
+
+    parser = GetInceptionParser()
+    rocblasParser = GetRocBLASParser()
+
+    problemMapper = {}
+
+    for filename in filenames:
+        with open(filename) as logFile:
+            for line in logFile:
+
+                if "MIOpenDriver" in line:
+                    args=line.split(' ')
+                    parsedArgs, otherArgs = parser.parse_known_args(args)
+
+                    input,weight,convolution,output = ExtractProblemDefinitions(parsedArgs)
+                    problemDefinitionForward = GenConvolutionForwardDefinition(input,weight,convolution,output)
+                    UpdateOutputMapping(problemMapper, problemDefinitionForward)
+                    problemDefinitionBackwardData = GenConvolutionBackwardDataDefinition(input,weight,convolution,output)
+                    UpdateOutputMapping(problemMapper, problemDefinitionBackwardData)
+                    problemDefinitionBackwardWeights = GenConvolutionBackwardWeightsDefinition(input,weight,convolution,output)
+                    UpdateOutputMapping(problemMapper, problemDefinitionBackwardWeights)
+
+
+                if "rocblas-bench" in line:
+                    args=line.split(' ')
+                    parsedArgs, otherArgs =  rocblasParser.parse_known_args(args)
+                    problemDefinition = vars(parsedArgs)
+                    UpdateOutputMapping(problemMapper, problemDefinition)
+
+    return problemMapper
+
 def GetOutputFileName1(outputPath, namePart, key, ext):
     function, transposeA, transposeB = key
     fileName = namePart
@@ -847,17 +879,32 @@ def RunMain():
     userArgs = sys.argv[1:]
 
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("input_file_name", help="configuration file path")
+
+    if len(sys.argv) <= 3:
+        argParser.add_argument("input_file_name", help="configuration file path")
+    else:
+        argParser.add_argument("input_logs", help="the input path for log files")
+        argParser.add_argument("network_name", help="neural network name")
+
     argParser.add_argument("output_path", help="the output path")
-
+    
     args = argParser.parse_args(userArgs)
-
-    inputFileName = args.input_file_name
     outputPath = args.output_path
-    inputFileBaseName = os.path.basename(inputFileName)
-    namePart, _ = os.path.splitext(inputFileBaseName)
 
-    problemMapper = ProcessFile(inputFileName)
+    if len(sys.argv) <= 3:
+        inputFileName = args.input_file_name
+        inputFileBaseName = os.path.basename(inputFileName)
+        namePart, _ = os.path.splitext(inputFileBaseName)
+    else:
+        inputPath = args.input_logs
+        networkName = args.network_name
+        allLogs = [filename for filename in os.listdir(inputPath) if networkName in filename]
+        namePart, _ = os.path.splitext(allLogs)
+
+    if len(sys.argv) <= 3:
+        problemMapper = ProcessFile(inputFileName)
+    else:
+        problemMapper = ProcessFiles(allLogs)
 
     keys = list(problemMapper.keys())
 
