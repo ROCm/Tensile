@@ -880,7 +880,7 @@ def RunMain():
 
     argParser = argparse.ArgumentParser()
 
-    if len(sys.argv) <= 3:
+    if len(sys.argv) <= 5:
         argParser.add_argument("input_file_name", help="configuration file path")
     else:
         argParser.add_argument("input_logs", help="the input path for log files")
@@ -891,17 +891,16 @@ def RunMain():
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
 
-    if len(sys.argv) <= 3:
+    if len(sys.argv) <= 5:
         inputFileName = args.input_file_name
         inputFileBaseName = os.path.basename(inputFileName)
         namePart, _ = os.path.splitext(inputFileBaseName)
     else:
         inputPath = args.input_logs
         networkName = args.network_name
-        allLogs = [filename for filename in os.listdir(inputPath) if networkName in filename]
-        namePart, _ = os.path.splitext(allLogs)
+        allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    if len(sys.argv) <= 3:
+    if len(sys.argv) <= 5:
         problemMapper = ProcessFile(inputFileName)
     else:
         problemMapper = ProcessFiles(allLogs)
@@ -913,9 +912,12 @@ def RunMain():
         sizePath = os.path.join(outputPath, "sizes")
         OutputSizes(sizePath, namePart, key, lineDefinitions) 
         scriptPath = os.path.join(outputPath, "scripts")
-        OutputScript(scriptPath, namePart, key, lineDefinitions)
-        OutputProblemDefinitions(sizePath, namePart, key, lineDefinitions)
-    
+        if len(sys.argv) <= 5:
+            OutputScript(scriptPath, namePart, key, lineDefinitions)
+            OutputProblemDefinitions(sizePath, namePart, key, lineDefinitions)
+        else: 
+            OutputScript(scriptPath, networkName, key, lineDefinitions)
+            OutputProblemDefinitions(sizePath, networkName, key, lineDefinitions)
 
 if __name__ == "__main__":
     RunMain()
