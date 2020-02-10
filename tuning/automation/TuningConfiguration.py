@@ -87,7 +87,7 @@ defaultHeader["NumElementsToValidate"] = 0
 defaultHeader["ValidationMaxToPrint"] = 4
 defaultHeader["ValidationPrintValids"] = False
 defaultHeader["ShortNames"] = False
-defaultHeader["MergeFiles"] = True
+defaultHeader["MergeFiles"] = False
 defaultHeader["Platform"] = 0
 defaultHeader["Device"] = 0
 defaultHeader["KernelTime"] = True
@@ -97,6 +97,7 @@ defaultHeader["DataInitTypeBeta"] = 0
 defaultHeader["SolutionSelectionAlg"] = 1
 defaultHeader["PrintWinnersOnly"] = 1
 defaultHeader["DataInitTypeAB"] = 0
+defaultHeader["NewClient"] = 2
 
 ################################################################################
 # Tuning Configuration Container

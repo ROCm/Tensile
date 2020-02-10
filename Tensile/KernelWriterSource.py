@@ -91,8 +91,9 @@ class KernelWriterSource(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = "  "
-    # use magic-number calcs for div/mod for packed-batch dims. If 0, use '/' and '%'.
-    self.useMagicNumber = False
+
+    self.psdUuseMagic = 1 # use magic number calc for pack summaton dims
+
     self.db={}
     self.db["PrintStagger"] = 0
 
@@ -503,7 +504,8 @@ class KernelWriterSource(KernelWriter):
 
       kStr += "#endif%s" % self.endLine
 
-    kStr += "#define MAGIC_DIV(dividend, magicNumber, magicShift) ((uint64_t)(dividend) * magicNumber >> magicShift)%s" % self.endLine
+    kStr += "#define MAGIC_DIV1(dividend, magicNumber, magicShift) ((uint64_t)(dividend) * magicNumber >> magicShift)%s" % self.endLine
+
 
     ####################################
     # MACs
@@ -868,12 +870,17 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
 
-    for idxChar in kernel["PackedC0IdxChars"][:-1]:
+    for idxChar in self.magicSumChars:
+      s += ",%s  unsigned magicNumberNumIter%s /*PSD*/" % (self.endLine, idxChar)
+      s += ",%s  unsigned magicShiftNumIter%s /*PSD*/" % (self.endLine, idxChar)
+      if kernel["GlobalSplitU"]>1 and idxChar==self.unrollChar:
+          s += ",%s  unsigned magicNumberNumIter%s_GsuRemainder /*PSD */" % (self.endLine, idxChar)
+          s += ",%s  unsigned magicShiftNumIter%s_GsuRemainder /*PSD */" % (self.endLine, idxChar)
+
+    for idxChar in self.magicNonSumChars:
       s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
       s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
-    for idxChar in kernel["PackedC1IdxChars"][:-1]:
-      s += ",%s  unsigned magicNumberSize%s" % (self.endLine, idxChar)
-      s += ",%s  unsigned magicShiftSize%s" % (self.endLine, idxChar)
+
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
     # kernel["PersistentKernel"]:
@@ -1010,6 +1017,28 @@ class KernelWriterSource(KernelWriter):
         kStr += self.endLine
         kStr += "  unsigned int zeroPad%s%s_Leading = %u;" % (tc, freeDimChar, leading) + self.endLine
         kStr += "  unsigned int zeroPad%s%s_Trailing = %u;" % (tc, freeDimChar, trailing) + self.endLine
+
+    self.magicSumChars = []
+    if kernel["PackSummationDims"]:
+      self.magicSumChars += [globalParameters["IndexChars"][c] for \
+          c in kernel["ProblemType"]["IndicesSummation"][1:]]
+
+    self.magicNonSumChars = kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1]
+
+    if kernel["MagicDivAlg"] == 2:
+      kStr += "typedef struct MagicStruct {unsigned M; int a; int s;} MagicStruct;" + self.endLine
+      kStr += "const unsigned MAGIC_STRUCT_A = 0x80000000; // for extracting a-bit from shift kernarg" + self.endLine
+      kStr += "#define MAGIC_DIV2(dividend, magic) (((((uint64_t)(dividend) * magic.M) >> 32) + dividend*magic.a) >> magic.s)%s" % self.endLine
+
+      sumParms=[(idxChar, "magicStruct%s"%idxChar, "NumIter%s"%idxChar) for idxChar in self.magicSumChars]
+      if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and sumParms:
+          sumParms.append([self.unrollChar, "magicStruct%s_GsuRemainder"%self.unrollChar, "NumIter%s_GsuRemainder" % self.unrollChar])
+      for (idxChar, magicStruct, parmName) in sumParms + [(idxChar, "magicStruct%s"%idxChar, "Size%s"%idxChar) for idxChar in self.magicNonSumChars]:
+        kStr += self.endLine
+        kStr += "  MagicStruct %s;"%(magicStruct) + self.endLine
+        kStr += "  %s.M = magicNumber%s;" % (magicStruct, parmName) + self.endLine
+        kStr += "  %s.a = (magicShift%s & MAGIC_STRUCT_A) ? 1:0;" %(magicStruct, parmName) + self.endLine
+        kStr += "  %s.s = magicShift%s & (~MAGIC_STRUCT_A);" %(magicStruct, parmName) + self.endLine
 
 
     return kStr
@@ -1260,10 +1289,14 @@ class KernelWriterSource(KernelWriter):
               #kStr += "printf(\"gro: serial:%%u wg0:%%u wg1:%%u %s:%%u\\n\", serial, wg0I, wg1J, %s);%s" % (gro, gro, self.endLine)
             else:
               # if another free dim or a packed batch dim
-              if self.useMagicNumber:
+              if kernel["MagicDivAlg"]:
                 c = globalParameters["IndexChars"][lastIdx]
-                kStr += "  unsigned int %s = MAGIC_DIV(%s, magicNumberSize%s, magicShiftSize%s);%s" \
-                        % (gro, lastGro, c, c, self.endLine)
+                if kernel["MagicDivAlg"]==1:
+                  kStr += "  unsigned int %s = MAGIC_DIV1(%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                          % (gro, lastGro, c, c, self.endLine)
+                elif kernel["MagicDivAlg"]==2:
+                  kStr += "  unsigned int %s = MAGIC_DIV2(%s, magicStruct%s);%s" \
+                          % (gro, lastGro, c, self.endLine)
                 kStr += "  %s -= (%s*size%s);%s" \
                     % (lastGro, gro, self.indexChars[lastIdx], self.endLine)
               else:
@@ -1450,32 +1483,39 @@ class KernelWriterSource(KernelWriter):
         self.int64Str, tc, loopChar)
     if loopIdx==self.unrollIdx:
       kStr += declStr
-      kStr += "*LOCAL_DEPTHU"
+      if not kernel["PackSummationDims"]:
+        # PSD recomputes load address using globalReadIncrementFromBase and includes LOCAL_DEPTHU multiple
+        #- don't include it here
+        kStr += "*LOCAL_DEPTHU"
       if kernel["GlobalSplitU"] > 1 \
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
-      # For Source kernel the address moves during the unroll loop
-      # but not during the tail loop - so higher-order summations
-      # need to only subtrace the increments performed in the unroll
-      # loop (truncate the iterations that are handled in tail loop).
-      tmpChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx+1]]
-      if loopIdx+1 == self.unrollIdx:
-        # special case needs to adjust (subtract) address incs made during unroll loop
-        if kernel["GlobalSplitU"] > 1:
-          numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
-          kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
-                  % (numIter, tmpChar) + self.endLine
-          kStr += self.calculateLoopNumIterGsu(kernel, numIter, True)
-          numIter += "*GLOBAL_SPLITU"
-        else:
-          numIter = "size%s/LOCAL_DEPTHU" % tmpChar
+      if kernel["PackSummationDims"]:
+        # Skip the subtract of previous iteration since PSD compute load address using globalReadIncrementFromBase
         kStr += declStr
-        kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
       else:
-        # other summation that does not immediately wrap the unroll inc:
-        kStr += declStr
-        kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
+        # For Source kernel the address moves during the unroll loop
+        # but not during the tail loop - so higher-order summations
+        # need to only subtract the increments performed in the unroll
+        # loop (truncate the iterations that are handled in tail loop).
+        tmpChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx+1]]
+        if loopIdx+1 == self.unrollIdx:
+          # special case needs to adjust (subtract) address incs made during unroll loop
+          if kernel["GlobalSplitU"] > 1:
+            numIter = "incNumIter%s_%s" % (self.unrollChar, tc)
+            kStr += self.indent + "unsigned int %s = size%s/LOCAL_DEPTHU;" \
+                    % (numIter, tmpChar) + self.endLine
+            kStr += self.calculateLoopNumIterGsu(kernel, numIter, numIter, hidden=True)
+            numIter += "*GLOBAL_SPLITU"
+          else:
+            numIter = "size%s/LOCAL_DEPTHU" % tmpChar
+          kStr += declStr
+          kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
+        else:
+          # other summation that does not immediately wrap the unroll inc:
+          kStr += declStr
+          kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
@@ -1775,20 +1815,23 @@ class KernelWriterSource(KernelWriter):
   # needs to know the #loop iters as well, so this code allows the
   # code to be replicated in multiple places.
   ##############################################################################
-  def calculateLoopNumIterGsu(self, kernel, iterVar, hidden):
+  def calculateLoopNumIterGsu(self, kernel, srcIterVar, dstIterVar, hidden):
     kStr = ""
     if hidden:
       kStr += self.indent + "{" + self.endLine
+      indent = self.indent + "  "
+    else:
+      indent = self.indent
     kStr += "%sunsigned int numIterMyWg = %s / GLOBAL_SPLITU;%s" \
-        % (self.indent, iterVar, self.endLine)
+        % (indent, srcIterVar, self.endLine)
     kStr += "%sunsigned int numIterPerWgRemainder = %s %% GLOBAL_SPLITU;%s" \
-        % (self.indent, iterVar, self.endLine)
+        % (indent, srcIterVar, self.endLine)
     kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
-        % (self.indent, self.endLine)
-    kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
-    kStr += "%s}%s" % (self.indent, self.endLine)
+        % (indent, self.endLine)
+    kStr += indent + "  numIterMyWg ++;" + self.endLine
+    kStr += "%s}%s" % (indent, self.endLine)
     kStr += "%s%s = numIterMyWg;%s" \
-        % (self.indent, iterVar, self.endLine)
+        % (indent, dstIterVar, self.endLine)
     if hidden:
       kStr += self.indent + "}" + self.endLine
     return kStr
@@ -1827,18 +1870,20 @@ class KernelWriterSource(KernelWriter):
         #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
-      if kernel["PackSummationDims"]:
-        kStr += self.indent + "numIter%s = 0;" % loopChar + self.endLine
+
+      if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
+        kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \
+                                             "numIter%s"%loopChar, hidden=False)
+        #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
+
+        if self.unrollIncIsDepthU:
+            kStr += self.indent + "numIter%s *= LOCAL_DEPTHU;"%loopChar + self.endLine
       else:
         kStr += self.indent + "numIter%s = size%s" \
             % (loopChar, loopChar)
-        if loopIdx == self.unrollIdx:
-          kStr += " / LOCAL_DEPTHU"
+        if not self.unrollIncIsDepthU and loopIdx == self.unrollIdx:
+            kStr += " / LOCAL_DEPTHU"
         kStr += ";" + self.endLine
-
-      if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
-        kStr += self.calculateLoopNumIterGsu(kernel, "numIter%s"%self.unrollChar, False)
-        #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
 
       zpA = next((zpi for zpi in problemType["ZeroPadA"] if zpi[1] == loopDim), None)
       zpB = next((zpi for zpi in problemType["ZeroPadB"] if zpi[1] == loopDim), None)
@@ -1878,15 +1923,16 @@ class KernelWriterSource(KernelWriter):
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if kernel["LoopDoWhile"]:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
-      assert(not kernel["PackSummationDims"])
+      assert(not self.unrollIncIsDepthU)
     else:
-      if kernel["PackSummationDims"] and loopIdx==self.unrollIdx and not tailLoop:
+      if self.unrollIncIsDepthU and loopIdx==self.unrollIdx and not tailLoop:
         kStr += self.indent + "unsigned int psdIter=%d*LOCAL_DEPTHU; // packed summation dim iterator" % (kernel["PrefetchGlobalRead"]) + self.endLine
-        totalIters = "(size%s" % self.unrollChar
-        for os in range(self.otherSummations):
-          otherSumChar = self.indexChars[problemType["IndicesSummation"][os]]
-          totalIters += "*size%s" % otherSumChar
-        totalIters += ")"
+        if kernel["PackSummationDims"]:
+          totalIters = "("
+          totalIters += "*".join(["numIter%s"%(self.indexChars[os]) for os in problemType["IndicesSummation"]])
+          totalIters += ")"
+        else:
+          totalIters = "numIter%s" % loopChar
         kStr += self.indent \
                 + "while (psdIter < %s) {" % (totalIters) \
                 + self.endLine
@@ -1986,8 +2032,52 @@ class KernelWriterSource(KernelWriter):
 
     return kStr
 
+
+  def globalReadIncCheckStagger(self, iterVar, loopChar, tP, para, sPara, perp, sPerp):
+    kStr = ""
+    tc = tP["tensorChar"]
+
+    # Check to see if GRA wraps around edge:
+    gr = "globalRead%s_%u_%u_%u_%u" \
+            % (tP["tensorChar"], para, sPara, perp, sPerp)
+
+    kStr += "%sif ((%s) == staggerUIter) {%s" \
+            % (self.indent, iterVar, self.endLine)
+
+    if self.db["PrintStagger"]:
+      # note loop counter numIterK/numIterL hard-coded, manually hack if needed
+      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
+              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
+                        %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
+                       % (self.quote, \
+                          tc, \
+                          self.endLineQuote, \
+                          self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                          gr,tc, \
+                          self.endLine)
+
+    kStr += "  %s%s -= (origNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
+            % (self.indent, \
+               gr,  tc, loopChar,
+               self.endLine)
+    kStr += "%s}%s" % (self.indent, self.endLine)
+    if self.db["PrintStagger"]:
+      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
+              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
+                      %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
+                     % (self.quote, \
+                        tc, \
+                        self.endLineQuote, \
+                        self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                        gr,tc, \
+                        self.endLine)
+    return kStr
+
   ##############################################################################
-  # Global Read: Increment A/B
+  # Global Read: Increment either A or B
+  # Called from globalReadIncrementAB below
   ##############################################################################
   def globalReadIncrement(self, kernel, loopIdx, tP, prefetchIndex, incs=1):
     kStr = ""
@@ -1998,50 +2088,16 @@ class KernelWriterSource(KernelWriter):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
-            kStr += "%sglobalRead%s_%u_%u_%u_%u = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)globalRead%s_%u_%u_%u_%u) + %s*globalReadInc%s%s);%s" \
-                % (self.indent, tc, para, sPara, perp, sPerp, \
-                self.globalPtrStr, self.globalPtrStr, tP["tensorChar"], \
-                para, sPara, perp, sPerp, \
+            globalRead = "globalRead%s_%u_%u_%u_%u" % (tc, para, sPara, perp, sPerp)
+            kStr += "%s%s = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)%s) + %s*globalReadInc%s%s);%s" \
+                % (self.indent, globalRead,
+                self.globalPtrStr, self.globalPtrStr,
+                globalRead,
                 incs, tc, loopChar, \
                 self.endLine)
 
             if self.staggerU and loopIdx==self.unrollIdx:
-              # Check to see if GRA wraps around edge:
-              gr = "globalRead%s_%u_%u_%u_%u" \
-                      % (tP["tensorChar"], para, sPara, perp, sPerp)
-
-              kStr += "%sif ((numIter%s) == staggerUIter) {%s" \
-                      % (self.indent, loopChar, self.endLine)
-
-              if self.db["PrintStagger"]:
-                # note loop counter numIterK/numIterL hard-coded, manually hack if needed
-                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
-                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
-                                  %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
-                                 % (self.quote, \
-                                    tc, \
-                                    self.endLineQuote, \
-                                    self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
-                                    gr,tc, \
-                                    self.endLine)
-
-              kStr += "  %s%s -= (origNumIter * globalReadInc%s%s); // wrap staggered offset back to row start%s" \
-                      % (self.indent, \
-                         gr,  tc, loopChar,
-                         self.endLine)
-              kStr += "%s}%s" % (self.indent, self.endLine)
-              if self.db["PrintStagger"]:
-                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
-                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
-                kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
-                                %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
-                               % (self.quote, \
-                                  tc, \
-                                  self.endLineQuote, \
-                                  self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
-                                  gr,tc, \
-                                  self.endLine)
+              kStr += self.globalReadIncCheckStagger("numIter%s"%loopChar, loopChar, tP, para, sPara, perp, sPerp)
 
           #else:
           #  kStr += "%sglobalRead%s_%u_%u%s += globalReadInc%s%s%s;%s" \
@@ -2053,47 +2109,115 @@ class KernelWriterSource(KernelWriter):
           #      self.endLine)
     return kStr
 
+  def globalReadIncrementFromBase(self, kernel, tP, sumOffset, loopChar):
+    """ Recompute the address, starting from base address pointer + initial offset + summation offset """
+    kStr = ""
+    tc = tP["tensorChar"]
+    kStr += self.comment("global read inc %s from base"%(tc))
+    for perp in range(0, tP["nrp"]):
+      for sPerp in range(0, tP["nrpv"]):
+        for para in range(0, tP["nrc"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
+            globalRead = "globalRead%s_%u_%u_%u_%u" % (tc, para, sPara, perp, sPerp)
+            kStr += self.indent + \
+                "%s = %s + globalReadOffset%s_%u_%u_%u_%u + %s;" % (
+                  globalRead,
+                  tc,
+                  tc, para, sPara, perp, sPerp,
+                  sumOffset
+                ) + self.endLine
+            if self.staggerU:
+              kStr += self.globalReadIncCheckStagger("iter%s"%loopChar, loopChar, tP, para, sPara, perp, sPerp)
 
+    return kStr
+
+
+  ##############################################################################
+  # Global Read: Increment A and B
+  # Called from KernelWriter
+  # If PackSummationDims=1, this increments all counters for A and B
+  ##############################################################################
   def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     imod = Code.Module("globalReadIncrementAB%s")
 
-    incA = Code.Module("globalReadIncrementA")
-    incA.addText(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
-    imod.addCode(incA)
-
-    incB = Code.Module("globalReadIncrementB")
-    incB.addText(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
-    imod.addCode(incB)
-
+    problemType = kernel["ProblemType"]
+    unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       kStr = ""
-      problemType = kernel["ProblemType"]
-      unrollChar = self.indexChars[problemType["IndicesSummation"][self.unrollIdx]]
       if prefetchIndex>0:
-        remainder = "(LOCAL_DEPTHU)"
+        psdPackedBits = "(LOCAL_DEPTHU)"
       else:
-        remainder = "(psdIter)"
-      lastChar = unrollChar
-      for os in range(self.otherSummations):
+        psdPackedBits = "(psdIter)"
+      for os in reversed(range(problemType["NumIndicesSummation"])):
         # Only get here if we are packing summation dims
-        otherSumDim  = problemType["IndicesSummation"][os]
-        otherSumChar = self.indexChars[otherSumDim]
-        kStr += self.indent + "unsigned int newNumIter%s = %s/size%s;" % (otherSumChar, remainder, lastChar) + self.endLine
+        sumDim  = problemType["IndicesSummation"][os]
+        sumChar = self.indexChars[sumDim]
+        firstIter = (os==problemType["NumIndicesSummation"]-1)
+        lastIter  = (os==0)
 
-        if os != self.otherSummations-1:
-          kStr += self.indent
-          if os==0:
+        kStr += self.endLine
+        if not lastIter:
+          c = "//" if self.psdUuseMagic else "" # show non-magic code commented out
+          kStr += self.indent + c + "unsigned int iter%s = %s %% numIter%s;" % \
+              (sumChar, psdPackedBits, sumChar) + self.endLine
+
+          kStr += self.indent + c
+          if firstIter:
             kStr += "unsigned int "
-          kStr += "psdRemainder = %s %% size%s;" % (remainder, lastChar) + self.endLine
-          remainder = "psdRemainder"
+          kStr += "psdPackedBits = %s / numIter%s;" % (psdPackedBits, sumChar) + self.endLine
 
-        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPA, prefetchIndex=0, \
-                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
-        kStr += self.indent + self.globalReadIncrement(kernel, os, self.tPB, prefetchIndex=0, \
-                                          incs="(newNumIter%s-numIter%s)"%(otherSumChar,otherSumChar))
-        kStr += self.indent + "numIter%s = newNumIter%s;" % (otherSumChar, otherSumChar) + self.endLine
-        lastChar = otherSumChar
-      incB.addText(kStr)
+          if self.psdUuseMagic:
+            assert kernel["MagicDivAlg"] == 2  # older alg not supported
+            kStr += self.indent
+            if firstIter:
+              kStr += "unsigned int "
+            if os == self.unrollIdx and kernel["GlobalSplitU"]>1:
+              magicStruct = "((gsuSumIdx < numIterPerWgRemainder) ? magicStruct%s_GsuRemainder : magicStruct%s)"\
+                  % (sumChar, sumChar)
+            else:
+              magicStruct = "magicStruct%s" % sumChar
+            kStr += "tmpBits = MAGIC_DIV2(%s, %s);" % (psdPackedBits, magicStruct) + self.endLine
+            kStr += self.indent + "unsigned int iter%s = %s - tmpBits*numIter%s;" % \
+                (sumChar, psdPackedBits, sumChar) + self.endLine
+
+            kStr += self.indent
+            if firstIter:
+              kStr += "unsigned int "
+            kStr += "psdPackedBits = tmpBits;" + self.endLine
+
+          # set up bits for next iteration:
+          psdPackedBits = "psdPackedBits"
+        else:
+          # last iteration:
+          kStr += self.indent + "unsigned int iter%s = %s;" % (sumChar, psdPackedBits) + self.endLine
+
+        # update psdOffset:
+        for (tc) in ('A','B'):
+          kStr += self.indent
+          if firstIter:
+            kStr += self.int64Str + " psdOffset%s = " % tc
+          else:
+            kStr += "psdOffset%s += " % tc
+          kStr += "iter%s*globalReadInc%s%s;" % (sumChar, tc, sumChar)
+          kStr += self.endLine
+
+      # Add the psdOffsets for A and B:
+      for (tc,tP) in (('A',self.tPA),('B',self.tPB)):
+        # makeSchedule is linked to the modules names - update both together
+        incCode = Code.Module("globalReadIncrement%s"%tc)
+        kStr += self.indent + self.globalReadIncrementFromBase(kernel, tP, "psdOffset%s"%tc, unrollChar)
+        incCode.addText(kStr)
+        kStr = ""
+        imod.addCode(incCode)
+    else:
+      # Non pack-summation-dims code path:
+      incA = Code.Module("globalReadIncrementA")
+      incA.addText(self.globalReadIncrement(kernel, loopIdx, self.tPA, prefetchIndex, incs))
+      imod.addCode(incA)
+
+      incB = Code.Module("globalReadIncrementB")
+      incB.addText(self.globalReadIncrement(kernel, loopIdx, self.tPB, prefetchIndex, incs))
+      imod.addCode(incB)
 
     return imod
 
@@ -2496,10 +2620,14 @@ class KernelWriterSource(KernelWriter):
         # later iterations extract dimension from previous using mod, 
         # then div to remove the extracted bits for next iteration
         #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
-        if self.useMagicNumber:
+        if kernel["MagicDivAlg"]:
           c = globalParameters["IndexChars"][lastIndex]
-          kStr += "MAGIC_DIV(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
-                  % (self.indexChars[lastIndex], c, c, self.endLine)
+          if kernel["MagicDivAlg"]==1:
+            kStr += "MAGIC_DIV1(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
+                    % (self.indexChars[lastIndex], c, c, self.endLine)
+          elif kernel["MagicDivAlg"]==2:
+            kStr += "MAGIC_DIV2(globalC%s, magicStruct%s);%s" \
+                    % (self.indexChars[lastIndex], c, self.endLine)
           kStr += "  globalC%s -= (globalC%s*size%s);%s" \
                   % (self.indexChars[lastIndex], self.indexChars[idx], \
                      self.indexChars[lastIndex], self.endLine)
@@ -3021,18 +3149,37 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  ##############################################################################
+  def extractIndices(self, extractFrom, varPrefix, indices):
+    kStr = ""
+    for (i,index) in enumerate(indices):
+      kStr += "  unsigned int " + varPrefix + self.indexChars[index] \
+          + " = ( " + extractFrom
+      for j in reversed(list(range(i+1, len(indices)))):
+        index2 = indices[j]
+        kStr += " / size" + self.indexChars[index2]
+      kStr += ")"
+      #if i!=0:
+      if len(indices) > 1:
+        kStr += " % size" + self.indexChars[index]
+      kStr += ";" + self.endLine
+    return kStr
+
+  ##############################################################################
   # Kernel Body Beta-Only
   ##############################################################################
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
     kStr += "{%s" % self.endLine
+    problemType = kernel["ProblemType"]
 
     ########################################
     # defined initial strides
     firstStride = 0
-    if kernel["ProblemType"]["UseInitialStridesCD"]:
+    if problemType["UseInitialStridesCD"]:
       # no strides #defined
       lastStrideC = 0
+      assert 0  # need to fix beta-clear routine to pass initial stride parms
     else:
       # #define initial stride
       kStr += "/* hard-coded initial strides */%s" \
@@ -3046,21 +3193,21 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # GLOBAL_D()
     kStr += "#define GLOBAL_D(IDX%s" % self.indexChars[0]
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
     kStr += ") (( (IDX%s)*strideD%s" % (indexChar, indexChar)
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     # GLOBAL_C()
     kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
     kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+    for i in range(1, problemType["NumIndicesC"]):
       indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
@@ -3072,77 +3219,64 @@ class KernelWriterSource(KernelWriter):
     #kStr += "  unsigned int wg" + self.tileChar1 + " = " \
     #    + self.getGroupIdStr + "(1);" + self.endLine
     ########################################
-    # wg other
-    nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
-    nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
-    nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
-    for i in range(0, len(nonTileFreeIndices)):
-      index = nonTileFreeIndices[i]
-      kStr += "  unsigned int wg" + self.indexChars[index] \
-          + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed(list(range(i+1, len(nonTileFreeIndices)))):
-        index2 = nonTileFreeIndices[j]
-        kStr += " / size" + self.indexChars[index2]
-      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
+    # wg other : batch dims
+    freeIdxC0 = [idx for idx in range(problemType["NumIndicesC"]) \
+                        if idx in problemType["IndexAssignmentsA"] and idx in problemType["IndicesFree"]]
+    freeIdxC1 = [idx for idx in range(problemType["NumIndicesC"]) \
+                        if idx in problemType["IndexAssignmentsB"] and idx in problemType["IndicesFree"]]
 
-    ######################################## # C indices
-    #kStr += "  unsigned int serial = %s(0);%s" \
-    #    % (self.getLocalIdStr, self.endLine)
-    # wg=8x8
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int globalC%s = " % self.indexChars[i]
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += "%s(%u)" % (self.getGlobalIdStr, \
-            kernel["ProblemType"]["Index0"])
-      elif i == kernel["ProblemType"]["Index1"]:
-        kStr += "%s(%u)" % (self.getGlobalIdStr, \
-            kernel["ProblemType"]["Index1"])
-      else:
-        kStr += "wg%s" % self.indexChars[i]
-      kStr += ";" + self.endLine
+    batchSizes = "*".join(["size%s"%self.indexChars[idx] for idx in problemType["IndicesBatch"]])
+    freeSizesC0 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC0])
+    freeSizesC1 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC1])
+
+    t = []
+    if freeSizesC0:
+      t.append("(%s(0) >=  %s)" % (self.getGlobalIdStr, freeSizesC0))
+    if freeSizesC1:
+      t.append("(%s(1) >=  %s)" % (self.getGlobalIdStr, freeSizesC1))
+    if batchSizes:
+      t.append("(%s(2) >=  %s)" % (self.getGlobalIdStr, batchSizes))
+    kStr += "  if ("
+    kStr += "\n   || ".join(t) + ")\n"
+    kStr += "    return;\n"
+
+    kStr += self.extractIndices(self.getGroupIdStr+"(2)", "wg", problemType["IndicesBatch"])
+    kStr += self.extractIndices(self.getGlobalIdStr+"(0)", "globalC", freeIdxC0)
+    kStr += self.extractIndices(self.getGlobalIdStr+"(1)", "globalC", freeIdxC1)
 
     ########################################
     # D index
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += " globalC%s" % self.indexChars[i]
-      if i < kernel["ProblemType"]["NumIndicesC"]-1:
-        kStr += ", "
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "globalC%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
     # C index
     kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += " globalC%s" % self.indexChars[i]
-      if i < kernel["ProblemType"]["NumIndicesC"]-1:
-        kStr += ", "
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "globalC%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
+
     #kStr += "printf(\\\"%%09llu\\\\n\\\", idx);%s" % (self.endLine)
-    kStr += "  if (globalC%s < size%s && globalC%s < size%s) {%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar1, self.tileChar1, \
-        self.endLine )
 
     ########################################
     # zero
-    kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
+    kStr += "#define SCALAR_ZERO %s%s" % ( problemType[\
         "DataType"].zeroString(self.language, 1), \
         self.endLine )
 
     ########################################
     # zero
-    if kernel["ProblemType"]["UseBeta"]:
-      if kernel["ProblemType"]["DataType"].isComplex():
-        kStr += "    if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
+    if problemType["UseBeta"]:
+      if problemType["DataType"].isComplex():
+        kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
       else:
-        kStr += "    if(beta == SCALAR_ZERO) {%s" % self.endLine
-      kStr += "      D[idxD] = SCALAR_ZERO;%s" % self.endLine
-      kStr += "    } else {%s" % self.endLine
-      kStr += "      D[idxD] = C[idxC]*beta;%s" % self.endLine
-      kStr += "    }%s" % self.endLine
+        kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
+      kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
+      kStr += "  } else {%s" % self.endLine
+      kStr += "    D[idxD] = C[idxC]*beta;%s" % self.endLine
+      kStr += "  }%s" % self.endLine
     else:
-      kStr += "    D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
-    kStr += "  }%s" % self.endLine
-
-
+      kStr += "  D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
 
     ########################################
     # end

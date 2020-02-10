@@ -21,7 +21,7 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, CHeader, roundUp
+from .Common import globalParameters, print2, CHeader, roundUp
 from .SolutionStructs import Solution
 
 import abc
@@ -94,8 +94,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
-    globalReadIncACode = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
-    globalReadIncBCode = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
+    assert([item.name for item in self.globalReadIncrements.itemList] == ['globalReadIncrementA', 'globalReadIncrementB'])
+
+    globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
+    globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
@@ -144,7 +146,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         except IndexError:
           break # no code left to schedule
 
-      assert not itemsToSched # should have scheduled everthing already
+      assert not itemsToSched # should have scheduled everything already
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
@@ -1187,8 +1189,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     ########################################
     # Tail Loop
+    # PackSummationDims=1 requires that the tile slice does not cross DepthU
+    # which means tail loop not needed.
     ########################################
-    if kernel["LoopTail"]:
+    if kernel["LoopTail"] and not kernel["PackSummationDims"]:
       kl.append(self.comment3("Tail Loop"))
 
       # Update local write pointers in case the upcoming global reads are writing directly to LDS:
@@ -1459,6 +1463,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
     self.otherSummationLoops  = self.actualSummationLoops-1
     self.otherSummations      = kernel["ProblemType"]["NumIndicesSummation"]-1 # not loops but summations vars
+
+    # If 0, unroll loop is decremented by 1 each iteration and scaled by DEPTHU when number of summation elements
+    # is required.
+    # if 1, unroll loop starts at 0 and increments by DEPTHU.  No scaling is required.  This mode is required
+    # for pack summation dims, but can also be used independently and this is useful for isolation and testing.
+    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"]
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
@@ -1923,7 +1933,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["ruc"] = self.readUnrollDimComponentsA             # read vector components along unroll dimension
       tP["wtc"] = self.writeTileDimComponentsA              # write vector components along tile dimension
       tP["wuc"] = self.writeUnrollDimComponentsA            # write vector components along unroll dimension
-      tP["idx"] = kernel["ProblemType"]["Index0"]           # index 0 is tile dimension belonging to A
+      tP["idx"] = kernel["ProblemType"]["Index0"]           # index 0 is tile dimension belonging to A. Note 'idx' may not be in tP['ia'].
       tP["rc"] = kernel["ProblemType"]["IndexAssignmentsA"][0] \
           in [kernel["ProblemType"]["Index01A"], \
           kernel["ProblemType"]["IndexUnroll"]]             # can read coalesced
@@ -2051,6 +2061,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
   ##############################################################################
   # Global Read Addresses: Increments A/B
+  # This function declares the increments
   ##############################################################################
   @abc.abstractmethod
   def graIncrements(self, kernel, loopIdx, tP):
@@ -2567,8 +2578,9 @@ for codeObjectFileName in codeObjectFileNames:
     if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
     REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
 
-    print("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
+    print2("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
     if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
+      print2("Found replacement: {}".format(REPLACEMENT_KERNEL_PATH))
       return REPLACEMENT_KERNEL_PATH
 
   def getKernelObjectAssemblyFile(self, kernel):
@@ -2606,6 +2618,8 @@ for codeObjectFileName in codeObjectFileNames:
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
+    if globalParameters["PrintCodeCommands"]:
+      print (' '.join(args), " && ")
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return objectFileName
@@ -2617,6 +2631,8 @@ for codeObjectFileName in codeObjectFileNames:
     coFileName = base + '.co'
 
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
+    if globalParameters["PrintCodeCommands"]:
+      print (' '.join(args))
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return coFileName
@@ -2720,17 +2736,17 @@ for codeObjectFileName in codeObjectFileNames:
   ##############################################################################
   # Get Name
   ##############################################################################
-  def getKernelNameBetaOnly(self, kernel):
+  @staticmethod
+  def getKernelNameBetaOnly(kernel):
     indexChars = globalParameters["IndexChars"]
     # C dimensions
     name = "C"
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       name += indexChars[i].lower()
     name += "_"
-    name += kernel["ProblemType"]["DataType"].toChar()
+    name += kernel["ProblemType"]["DestDataType"].toChar()
     if kernel["ProblemType"]["UseBeta"]: name += "B"
-    if kernel["ProblemType"]["UseInitialStridesAB"]: name += "I"
-    if kernel["ProblemType"]["UseInitialStridesCD"]: name += "Ic"
+
     return name
 
   @abc.abstractmethod

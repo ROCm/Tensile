@@ -109,6 +109,7 @@ namespace Tensile
             clock::time_point m_endTime;
 
             using double_millis = std::chrono::duration<double, std::milli>;
+            using double_micros = std::chrono::duration<double, std::micro>;
             using double_nanos  = std::chrono::duration<double, std::nano>;
 
             double_millis m_timeInSolution;

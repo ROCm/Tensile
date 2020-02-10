@@ -1,5 +1,3 @@
-TestParameters:
-  marks: [xfail]
 GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0
@@ -32,36 +30,26 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 3, 0, 2]
       IndexAssignmentsB: [ 3, 1, 2]
-      # 3 is Cin, 2 is batch index converted to a second summation index
-      #
-      # Standard batched NT is :
-      #  IndicesFree:  [0, 1]  # 0 is H*W, 1 is Cout
-      #  IndicesBatch: [2]  # N, but convert to summation in the config above
-      #  IndicesSum:   [3]
-      #  IndexAssignmentsA:   [3, 0, 2]
-      #  IndexAssignmentsB:   [3, 1, 2]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
-          #- TailLoop: [False]
       ForkParameters:
         - PackSummationDims: [1]
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: [Source,Assembly]
         - PrefetchGlobalRead: [False,True]
-        - GlobalSplitU: [2,3,4,5]
+        - GlobalSplitU: [2,4]
         - ThreadTile:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
           - [ 16, 16, 1 ]
         - StaggerU: [0,32]
-        - DepthU: [ 4,8,16]
+        - DepthU: [ 4,8]
         - FractionalLoad: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 16, 16, 2, 4]
-          - Range: [ [127,1,129], 0, [1,5], [4,4,32]]
+          - Range: [ [127,1,129], 0, [1,2,5], [16,16,128]]

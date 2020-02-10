@@ -131,41 +131,46 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     sourceDir = \
       os.path.join(stepBaseDir, "source" )
     ensurePath(sourceDir)
-    pushWorkingPath("sourceTmp")
-    filesToCopy = [
-        "SolutionMapper.h",
-        "Client.cpp",
-        "Client.h",
-        "CMakeLists.txt",
-        "DeviceStats.h",
-        "TensorUtils.h",
-        "MathTemplates.cpp",
-        "MathTemplates.h",
-        "TensileTypes.h",
-        "tensile_bfloat16.h",
-        "KernelHeader.h",
-        "ReferenceCPU.h",
-        "SolutionHelper.cpp",
-        "SolutionHelper.h",
-        "Tools.cpp",
-        "Tools.h",
-        ]
 
-    for f in filesToCopy:
-      shutil.copy(
-          os.path.join(globalParameters["SourcePath"], f),
-          globalParameters["WorkingPath"] )
-    if globalParameters["RuntimeLanguage"] == "OCL":
-      shutil.copy(
-          os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
-          globalParameters["WorkingPath"] )
+    filesToCopy = []
+    if globalParameters["OldClientSourceTmp"]:
+      pushWorkingPath("sourceTmp")
+      filesToCopy = [
+          "SolutionMapper.h",
+          "Client.cpp",
+          "Client.h",
+          "CMakeLists.txt",
+          "DeviceStats.h",
+          "TensorUtils.h",
+          "MathTemplates.cpp",
+          "MathTemplates.h",
+          "TensileTypes.h",
+          "tensile_bfloat16.h",
+          "KernelHeader.h",
+          "ReferenceCPU.h",
+          "SolutionHelper.cpp",
+          "SolutionHelper.h",
+          "Tools.cpp",
+          "Tools.h",
+          ]
+
+      for f in filesToCopy:
+        shutil.copy(
+            os.path.join(globalParameters["SourcePath"], f),
+            globalParameters["WorkingPath"] )
+      if globalParameters["RuntimeLanguage"] == "OCL":
+        shutil.copy(
+            os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
+            globalParameters["WorkingPath"] )
+      else:
+        shutil.copy(
+            os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
+            globalParameters["WorkingPath"] )
+        shutil.copy(
+            os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
+            globalParameters["WorkingPath"] )
     else:
-      shutil.copy(
-          os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
-          globalParameters["WorkingPath"] )
-      shutil.copy(
-          os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
-          globalParameters["WorkingPath"] )
+      pushWorkingPath("source")
 
     ############################################################################
     # Enumerate Benchmark Permutations
@@ -308,21 +313,22 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       # remove from solution 2D list also
       solutions = list([s for s in solutions if len(s) > 0])
 
-    print1("# Copying files that differ from sourceTmp -> source")
-    sourceTmp = globalParameters["WorkingPath"]
-    files = os.listdir(sourceTmp)
-    for f in files:
-      f0 = os.path.join(sourceTmp, f)
-      f1 = os.path.join(sourceDir, f)
-      if os.path.isdir(f0):
-        #print "cpDir:", f0, f1
-        if os.path.isdir(f1):
-          shutil.rmtree( f1, True )
-        shutil.copytree( f0, f1 )
-      elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
-        #print "cp:", f0, f1
-        shutil.copy( f0, f1 )
-    shutil.rmtree( sourceTmp, True )
+    if globalParameters["OldClientSourceTmp"]:
+      print1("# Copying files that differ from sourceTmp -> source")
+      sourceTmp = globalParameters["WorkingPath"]
+      files = os.listdir(sourceTmp)
+      for f in files:
+        f0 = os.path.join(sourceTmp, f)
+        f1 = os.path.join(sourceDir, f)
+        if os.path.isdir(f0):
+          #print "cpDir:", f0, f1
+          if os.path.isdir(f1):
+            shutil.rmtree( f1, True )
+          shutil.copytree( f0, f1 )
+        elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
+          #print "cp:", f0, f1
+          shutil.copy( f0, f1 )
+      shutil.rmtree( sourceTmp, True )
 
     popWorkingPath() # source
 
