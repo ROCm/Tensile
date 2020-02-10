@@ -80,7 +80,7 @@ class ConvolutionConfig:
             if selfVal == -1:
               selfValues[i] = refVal
             if selfVal != -1 and refVal != -1 and refVal != selfVal:
-              raise RuntimeError("Mismatch between ConvolutionConfig value (%d) and ExactConv value (%d) for %s[%d]." %
+              raise RuntimeError("Mismatch between ConvolutionConfig value (%d) and ConvProblem value (%d) for %s[%d]." %
                         (refVal, selfVal, tag, i))
       return selfValues
     else:
@@ -561,7 +561,7 @@ class Convolution:
     # convert to Output dimensions:
     spatialOut=[0]*len(pcc.spatial)
     for i in range(self.formatNumSpatialDims):
-      spatialOut[i] = int((pcc.spatial[i] - abs(pcc.fil[i]) + 1 - padStart[i] - padEnd[i]) / abs(pcc.stride[i]))
+      spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 - padStart[i] - padEnd[i]) / pcc.stride[i])
 
     #import pdb; pdb.set_trace()
     for fi,filterValue in enumerate(pcc.fil):
@@ -569,7 +569,7 @@ class Convolution:
         try:
           pos = self.convolutionDims[chr(ord('X')+fi)].idx
           sizes[pos] = filterValue
-          astrides[pos] = abs(self.cc.dilation[0]) if fi==0 else pcc.spatial[fi-1]*abs(self.cc.dilation[fi])
+          astrides[pos] = self.cc.dilation[0] if fi==0 else pcc.spatial[fi-1]*self.cc.dilation[fi]
         except KeyError:
           None
 
@@ -577,14 +577,14 @@ class Convolution:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
       pos=self.convolutionDims[spatialName].idx
       sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
-      astrides[pos] = abs(pcc.stride[0])
+      astrides[pos] = pcc.stride[0]
     else:
       for si,sout in enumerate(spatialOut):
         spatialChars=['W','H','D']
         pos = self.convolutionDims[spatialChars[si]].idx
         sizes[pos] = sout
 
-        astrides[pos]=abs(pcc.stride[0]) if si==0 else pcc.spatial[si-1]*abs(pcc.stride[si])
+        astrides[pos]=pcc.stride[0] if si==0 else pcc.spatial[si-1]*pcc.stride[si]
 
     assert all(i!=-1 for i in sizes)
 
@@ -1195,13 +1195,13 @@ class ProblemSizeRange:
 
 class Problem:
   """ Problem sizes, strides, padding and other info"""
-  def __init__(self, sizes=None, stridesA=None, stridesB=None, padA=None, padB=None):
+  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None):
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
 
-    self.padA = padA
-    self.padB = padB
+    self.zeroPadA = zeroPadA
+    self.zeroPadB = zeroPadB
     self.convConfig = None
 
   def __str__(self):
@@ -1211,7 +1211,7 @@ class Problem:
     return rv
 
 
-class ExactConv(Problem):
+class ConvProblem(Problem):
   ConvField = namedtuple ("ConvField", ('shortChar', 'descrip', 'default'))
   AllowedConvFields = [ ConvField('n', 'Batch Count', None),
                         ConvField('c', 'Channel In', None),
@@ -1254,7 +1254,6 @@ class ExactConv(Problem):
     return fields
 
   def __init__(self, e, convolution):
-    print ("ExactConv", e)
 
     if convolution.formatNumSpatialDims==2:
       skipFields = ('d', 'z', '#', '^', '$')
@@ -1262,17 +1261,17 @@ class ExactConv(Problem):
       skipFields = ()
 
     if not isinstance(e,dict):
-        raise RuntimeError ("ExactConf must be a dictionary, for example '{n: 64, ...}' not '[n: 64, ...]'")
+        raise RuntimeError ("ConvProblem must be a dictionary, for example '{n: 64, ...}' not '[n: 64, ...]'")
 
     for k in e:
-      if k not in ExactConv.AllowedConfFieldsDict:
+      if k not in ConvProblem.AllowedConfFieldsDict:
         # TODO  - detect and print message for common error n:32 w/o space
-        raise RuntimeError ("unknown ExactConv field '%s'"%k)
+        raise RuntimeError ("unknown ConvProblem field '%s'"%k)
 
-    for (k,field) in ExactConv.AllowedConfFieldsDict.items():
+    for (k,field) in ConvProblem.AllowedConfFieldsDict.items():
       if k not in e and k not in skipFields:
         if field.default == None:
-          raise RuntimeError ("required ExactConv field '%s' not present in ExactConv:%s"%(k,e))
+          raise RuntimeError ("required ConvProblem field '%s' not present in ConvProblem:%s"%(k,e))
         elif isinstance(field.default, int):
           e[k] = field.default
 
@@ -1292,9 +1291,9 @@ class ExactConv(Problem):
     (sizes, stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
     padA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd)
 
-    Problem.__init__(self, sizes, stridesA, padA=padA)
+    Problem.__init__(self, sizes, stridesA, zeroPadA=zeroPadA)
 
-    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "padA=", self.padA)
+    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "zeroPadA=", self.zeroPadA)
 
 
 class ExactList(Problem):
@@ -1314,7 +1313,7 @@ class ExactList(Problem):
           % (e, problemType, problemType["TotalIndices"]) )
 
     # TODO- pass strides here, remove calls to convertLeadingDims
-    Problem.__init__(self, sizes=sizes, padA=problemType["ZeroPadA"], padB=problemType["ZeroPadB"])
+    Problem.__init__(self, sizes=sizes, zeroPadA=problemType["ZeroPadA"], zeroPadB=problemType["ZeroPadB"])
 
   @staticmethod
   def convertLeadingDims(problemType, problemSize):
@@ -1330,7 +1329,9 @@ class ExactList(Problem):
 
 
 class ExactDict(Problem):
-  AllowedFields = [ 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padA', 'padB']
+  # padStartA is list of pad starts for A dimension in order of ZeroPadA list.
+  # padEndA is list of pad ends for A dimension in order of ZeroPadA list.
+  AllowedFields = [ 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padStartA', 'padEndA', 'padStartB', 'padEndB']
 
   def __init__(self, e, problemType):
     print ("E", e)
@@ -1340,13 +1341,37 @@ class ExactDict(Problem):
       if f in ExactDict.AllowedFields:
         setattr(self, f, e[f])
       else:
-        raise RuntimeError ("specified field '%s' is not valid Exact dict field"%f)
+        raise RuntimeError ("specified field '%s' is not a valid Exact dict field"%f)
 
     if problemType:
-      if self.padA == None:
-        self.padA = problemType["ZeroPadA"]
-      if self.padB == None:
-        self.padB = problemType["ZeroPadB"]
+      zp={}
+      zp['A'] = problemType["ZeroPadA"]
+      zp['B'] = problemType["ZeroPadB"]
+
+      for (tc, padName, zpField) in (
+          ("A", "padStartA",2), ("A", "padEndA", 3),
+          ("B", "padStartB",2), ("B", "padEndB", 3) ):
+          try:
+            problemPad = getattr(self, padName)
+            if len(problemPad) != len (zp[tc]):
+                raise RuntimeError ("problem-specified %s==%s does not match length of problem-type pad==%s." % (padName, problemPad, zp[tc]))
+            for (i,p) in enumerate(problemPad):
+              if not (zp[tc][i][zpField] == -1 or zp[tc][i][zpField] == p):
+                raise RuntimeError ("problem-specified %s==%d does not match problem-type==%d." % (padName, p, zp[tc][i][zpField]))
+              zp[tc][i][zpField] = p
+          except AttributeError:
+            None
+
+      for (tc) in ("A", "B"):
+        for p in zp[tc]:
+          if p[2] == -1 or p[3]==-1:
+            raise RuntimeError ("padStart/padEnd for %s must be specified in problem-type or problem - can't be left -1/TBD" % zp[tc])
+
+      self.zeroPadA = zp['A']
+      self.zeroPadB = zp['B']
+    else:
+      self.zeroPadA = self.zeroPadB = []
+
 
 
 
@@ -1377,11 +1402,11 @@ class ProblemSizes:
             else:
               printExit("Unsupported Exact type==%s"%type(exactConf))
 
-          elif sizeTypeKey == "ExactConv":
+          elif sizeTypeKey == "Conv":
             if problemType.convolution == None:
-              printExit("ExactConv requires OperationType==Convolution*")
+              printExit("ConvProblem requires OperationType==Convolution*")
             else:
-              self.exacts.append(ExactConv(dictionary[sizeTypeKey], problemType.convolution))
+              self.exacts.append(ConvProblem(dictionary[sizeTypeKey], problemType.convolution))
 
           elif sizeTypeKey == "MinStride":
             e = dictionary[sizeTypeKey]
@@ -1408,7 +1433,7 @@ class ProblemSizes:
 
     self.problems = set()
     for sizeRange in self.ranges:
-      self.problems.update([Problem(rangeSize, padA=problemType["ZeroPadA"]) for rangeSize in sizeRange.problemSizes])
+      self.problems.update([Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) for rangeSize in sizeRange.problemSizes])
     self.problems.update(self.exacts)
     self.problems =  sorted(list( self.problems), key=operator.attrgetter("sizes"))
     self.totalProblemSizes = len(self.problems)

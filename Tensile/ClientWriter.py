@@ -412,10 +412,10 @@ def problemSizeParams(solution, problem):
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
 
-    if problem.padA:
-        rv.append(('a-zero-pads', '; '.join([','.join(map(str,zp)) for zp in problem.padA])))
-    if problem.padB:
-        rv.append(('b-zero-pads', '; '.join([','.join(map(str,zp)) for zp in problem.padB])))
+    if problem.zeroPadA:
+        rv.append(('a-zero-pads', '; '.join([','.join(map(str,zp)) for zp in problem.zeroPadA])))
+    if problem.zeroPadB:
+        rv.append(('b-zero-pads', '; '.join([','.join(map(str,zp)) for zp in problem.zeroPadB])))
 
     return rv
 

@@ -277,7 +277,7 @@ class YamlBuilder:
              ):
             problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k}
             problems.append(problem)
-        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
+        return [{"ProblemSizes": [ {"Conv": e} for e in problems]}]
 
 
     @classmethod
@@ -332,7 +332,7 @@ class YamlBuilder:
             #problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k, 'x':x, 'y':y} # need to prune mismatches
             problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k}
             problems.append(problem)
-        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
+        return [{"ProblemSizes": [ {"Conv": e} for e in problems]}]
 
 
     @classmethod
@@ -371,9 +371,9 @@ class YamlBuilder:
         #except KeyError:
         #    None
 
-        #print ( [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}])
+        #print ( [{"ProblemSizes": [ {"Conv": e} for e in problems]}])
         #import pdb; pdb.set_trace()
-        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
+        return [{"ProblemSizes": [ {"Conv": e} for e in problems]}]
 
     @classmethod
     def ConvolutionVsContraction(cls, conv, solution, dataType):
