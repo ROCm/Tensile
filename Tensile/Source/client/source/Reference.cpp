@@ -66,10 +66,28 @@ namespace Tensile
                 int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos] +
                                          sumCoord * tensor.strides()[zp.boundPos];
 
+                // elementEdge calculation:
                 // size of anchor dim is in the output space, so add filter size-1 to get input spatial dim, then subtract padEnd
-                int64_t elementEdge    = (tensor.sizes().at(zp.anchorPos) + tensor.sizes().at(zp.boundPos) - 1 - zp.padEnd) * tensor.strides()[zp.anchorPos];
-                //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " padStart="<< zp.padStart<< " edge="<< elementEdge<< " padEnd="<< zp.padEnd << "\n";
-                return (anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge);
+                // anchorStride is typically spatial stride (W,H) * convolution stride
+                // boundPos stride is typically spatial stride (W,H) * dilation
+                // padStart, padEnd are pre-scaled by spatial stride
+                int64_t elementEdge  = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos] +
+                                       (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos] - zp.padEnd;
+
+                bool rv =  anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
+
+                if (0) 
+                {
+                    std::cout << "  rv=" << rv
+                              << " anchorCoord=" << anchorCoord[zp.anchorPos]
+                              << " sumCoord=" << sumCoord
+                              << " anchorRelCoord="<< anchorRelCoord
+                              << " padStart="<< zp.padStart
+                              << " stride=" << tensor.strides()[zp.anchorPos]
+                              << " edge="<< elementEdge
+                              << " padEnd="<< zp.padEnd << "\n";
+                }
+                return rv;
             } else {
                 return false;
             }
@@ -194,7 +212,9 @@ namespace Tensile
                             bool innerZpa = inZeroPad(problem, zpA, a, dCoord, i);
                             std::cout << "dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
                                     << " innerZpa=" << innerZpa << " aindex=" << aIndex << " +offset="
-                                    << (i * aStride) - zpA.padStart << "\n";
+                                    << (int64_t)(i * aStride) - zpA.padStart
+                                    //<< " aVal=" << aVal // disable int8
+                                    << "\n";
                         }
                     }
                 }

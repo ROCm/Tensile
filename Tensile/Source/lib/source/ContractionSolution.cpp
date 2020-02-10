@@ -377,33 +377,23 @@ namespace Tensile
             }
         }
 
-#if 1
         for (auto si : problem.boundIndices())
         {
             if (si.aZeroPad.valid())
             {
                 rv.args.append<int32_t>(concatenate("padStartA_",si.a),
-                            si.aZeroPad.padStart
-                            //* problem.d().sizes()[problem.toDPos(si.aZeroPad.anchorIndex) ]
-                            );
+                            si.aZeroPad.padStart);
                 rv.args.append<int32_t>(concatenate("padEndA_",si.a),
-                            si.aZeroPad.padEnd 
-                            //* problem.d().sizes()[problem.toDPos(si.aZeroPad.anchorIndex) ]
-                            );
+                            si.aZeroPad.padEnd );
             }
             if (si.bZeroPad.valid())
             {
                 rv.args.append<int32_t>(concatenate("padStartB_",si.b),
-                            si.bZeroPad.padStart
-                            //* problem.d().sizes()[problem.toDPos(si.bZeroPad.anchorIndex) ]
-                            );
+                            si.bZeroPad.padStart);
                 rv.args.append<int32_t>(concatenate("padEndB_",si.b),
-                            si.bZeroPad.padEnd
-                            //* problem.d().sizes()[problem.toDPos(si.bZeroPad.anchorIndex) ]
-                            );
+                            si.bZeroPad.padEnd);
             }
         }
-#endif
 
         rv.args.append< int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 

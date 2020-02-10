@@ -888,8 +888,8 @@ class KernelWriterSource(KernelWriter):
           (freeDim, sumDim, start, padEnd) = zp
           freeDimChar = self.indexChars[freeDim]
           if sumDim == idx:
-            s += ",%s int padStart%s%s" % (self.endLine, tc, freeDimChar)
-            s += ",%s int padEnd%s%s" % (self.endLine, tc, freeDimChar)
+            s += ",%s  int padStart%s%s" % (self.endLine, tc, freeDimChar)
+            s += ",%s  int padEnd%s%s" % (self.endLine, tc, freeDimChar)
 
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
@@ -1415,9 +1415,6 @@ class KernelWriterSource(KernelWriter):
                 % (self.int64Str, gro, tP["tensorChar"])
             for i in range(0, len(tP["ia"])):
               index = tP["ia"][i]
-              zp = next((zpi for zpi in problemType["ZeroPad%s"%tc] if zpi[0] == i), None)
-              if zp:
-                kStr += "static_cast<int64_t>"
               if index < kernel["ProblemType"]["NumIndicesC"]:
                 if index == tP["tileIdx"]:
                   kStr += "(globalReadOffset%s%s_%u_%u)" \
@@ -1448,13 +1445,15 @@ class KernelWriterSource(KernelWriter):
                 else:
                   kStr += "(globalReadOffset%s%s)" \
                       % (tP["tensorChar"], self.indexChars[index])
-              if zp:
-                # subtract pad - this both helps efficiently detect OOB on the summation start and also
-                # corrects the valid offsets for the start pad.
-                kStr += " - padStart%s%s" % (tc, self.indexChars[i])
               if i < len(tP["ia"])-1:
                 kStr += ", "
             kStr += " );%s" % self.endLine
+            for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+              # subtract pad - this both helps efficiently detect OOB on the summation start and also
+              # corrects the valid offsets for the start pad.
+              freeDim = zp[0]
+              freeDimChar = self.indexChars[freeDim]
+              kStr += gro + " -= padStart%s%s;"%(tc,freeDimChar) + self.endLine
             if 0 and tP["isA"]:
               kStr += "printf(%sgid0=%%u %s=%%lu%s, %s(0), %s);" \
                        % (self.quote, gro, self.endLineQuote, \
@@ -1906,14 +1905,14 @@ class KernelWriterSource(KernelWriter):
       if zpA:
         freeDim = zpA[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeA%s = strideA%s * (size%s + size%s - padStartA%s - padEndA%s - 1);" \
-            % (self.indent, loopChar, freeDimChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
+        kStr += "%sunsigned int elementEdgeA%s = strideA%s * size%s + strideA%s*(size%s - 1) - padStartA%s - padEndA%s;" \
+            % (self.indent, loopChar, freeDimChar, freeDimChar, loopChar, loopChar, freeDimChar, freeDimChar) \
             + self.endLine
       if zpB:
         freeDim = zpB[0]
         freeDimChar = self.indexChars[freeDim]
-        kStr += "%sunsigned int elementEdgeB%s = strideB%s * (size%s + size%s - padStartB%s - padEndB%s - 1);" \
-            % (self.indent, loopChar, freeDimChar, freeDimChar, loopChar, freeDimChar, freeDimChar) \
+        kStr += "%sunsigned int elementEdgeB%s = strideB%s * size%s + strideB%s*(size%s - 1) - padStartB%s - padEndB%s;" \
+            % (self.indent, loopChar, freeDimChar, freeDimChar, loopChar, loopChar, freeDimChar, freeDimChar) \
             + self.endLine
 
       assert(zpB == None) # not supported

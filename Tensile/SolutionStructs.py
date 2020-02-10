@@ -547,7 +547,7 @@ class Convolution:
     The function will attempt to initialize TBD values in pcc from the convolution base class,
     and will then check to ensure the problem is fully specified.
 
-    Return [ [sizes],[stridesA] ]
+    Return [ [sizes], [stridesA] ]
     """
     numDims = 1 + max(max([x[0] for x in self.regDimsA]), max([x[0] for x in self.regDimsB]))
     sizes = [-1]*numDims
@@ -597,7 +597,7 @@ class Convolution:
     assert all(i!=-1 for i in sizes)
 
     # translate to strides for A tensor in IndexAssignmentsA order:
-    orderedStridesA=[]
+    orderedStridesA = []
     for (idx,fbs,dim) in self.regDimsA:
       orderedStridesA.append(astrides[idx])
 
@@ -1208,6 +1208,8 @@ class Problem:
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
+    self.stridesC = tuple(stridesC) if stridesC else None
+    self.stridesD = tuple(stridesD) if stridesD else None
 
     self.zeroPadA = zeroPadA
     self.zeroPadB = zeroPadB
@@ -1361,7 +1363,6 @@ class ExactDict(Problem):
   AllowedFields = [ 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padStartA', 'padEndA', 'padStartB', 'padEndB']
 
   def __init__(self, e, problemType):
-    print ("E", e)
     Problem.__init__(self)
 
     for f in e:
