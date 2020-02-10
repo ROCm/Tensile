@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -385,36 +385,6 @@ def OutputProblemDefinitions(problemMapper, sizePath, namePart):
         writer = csv.DictWriter(output, fieldnames=rocblas_parameters, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(lineDefinitions)
-
-
-def RunMain1():
-
-    userArgs = sys.argv[1:]
-
-    argParser = argparse.ArgumentParser()
-
-    argParser.add_argument("-w","--work-path", dest="workPath", help="path where the configuraions are to be constructed")
-    argParser.add_argument("-d","--header-file", dest="headerFile", help="path of the file containing the header constructs")
-    argParser.add_argument("-c","--config-path", dest="configurationPath", help="path of the configuation definitions")
-    argParser.add_argument("-p","--prob-def", dest="problemDefinitions", help="path of the file containing the problem defines")
-    argParser.add_argument("-o","--output-file", dest="outputFile", help="name of the output configuration")
-
-    args = argParser.parse_args(userArgs)
-
-    headerFile = args.headerFile
-    definitionFileName = args.problemDefinitions
-    configurationPath = args.configurationPath
-    workingDirectory = args.workPath
-    outputFIleName = args.outputFile
-    outputPath = workingDirectory + "/configs"
-    if not os.path.exists(outputPath):
-        os.makedirs(outputPath)
-
-    mapper = ProcesDefinitionFile(definitionFileName)
-
-    for key in mapper:
-        configDefinitionList = mapper[key]
-        processFile(headerFile, key, configDefinitionList, configurationPath, workingDirectory, outputFIleName, outputPath)
 
 def RunMain():
 

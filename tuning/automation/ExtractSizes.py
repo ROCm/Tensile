@@ -755,18 +755,6 @@ def ProcessFiles(filenames):
 
     return problemMapper
 
-def GetOutputFileName1(outputPath, namePart, key, ext):
-    function, transposeA, transposeB = key
-    fileName = namePart
-
-    if "strided" in function:
-        fileName += "-strided-%s%s.%s" % (transposeA,transposeB,ext)
-    else:
-        fileName += "-%s%s.%s" % (transposeA,transposeB,ext)
-    
-    outputFileName = outputFileName = os.path.join(outputPath, fileName)
-    return outputFileName
-
 def GetTensileSize(problemDefinition):
 
     m = problemDefinition["m"]
@@ -789,90 +777,6 @@ def BuildRocBLASBenchmarkCall(problemDefinition):
         rocblas_call += " %s %s" % (key,value)
 
     return rocblas_call
-
-def OutputProblemDefinitions1(outputPath, namePart, key, lineDefinitions):
-    outputFileName = GetOutputFileName(outputPath, namePart, key, "csv")
-    output = open(outputFileName,"w+")
-    writer = csv.DictWriter(output, fieldnames=rocblas_parameters, extrasaction='ignore')
-    writer.writeheader()
-    writer.writerows(lineDefinitions)
-
-def OutputSizes1(outputPath, namePart, key, lineDefinitions):
-
-    lineMapper = {}
-   
-    _, transposeA, transposeB = key
-    transpose = "%s%s" % (transposeA.lower(), transposeB.lower())
-
-    for problemDefinition in lineDefinitions:
-        size = GetTensileSize(problemDefinition)
-        m = int(problemDefinition["m"])
-        n = int(problemDefinition["n"])
-        k = int(problemDefinition["k"])
-        b = 1 
-
-        if "batch" in problemDefinition:
-            b = int(problemDefinition["batch"])
-
-        lineKey = "none"
-
-        scale = m * n
-
-        tiny = 32 * 32
-        small = 128 * 128
-        medium = 512 * 512
-
-        if b > 1:
-            lineKey = "batch"
-  
-        elif (scale <= tiny):
-            lineKey = "tiny"
-
-        elif (scale <= small):
-            lineKey = "small"
-
-        elif (scale <= medium):
-            lineKey = "medium"
-
-        else:
-            lineKey = "large"
-
-        if lineKey not in lineMapper:
-            lineMapper[lineKey] = []
-        lineMapper[lineKey].append(size)
-
-    linesSpec = []
-    for lineKey in lineMapper:
-        ontputFileName = "%s-%s" %(namePart, lineKey)
-        outputFilePath = GetOutputFileName(outputPath, ontputFileName, key, "yml")
-
-        outputLines = lineMapper[lineKey]
-        if outputLines:
-            spec = "%s,%s,%s" % (outputFilePath,lineKey,transpose)
-            linesSpec.append(spec)
-            with open(outputFilePath, 'w') as f:
-                for line in outputLines:
-                    f.write("%s\n" % line)
-
-    if linesSpec:
-        outputFileNameSpec =  os.path.join(outputPath, "problem_spec.info") 
-        with open(outputFileNameSpec, 'a') as f:
-            for line in linesSpec:
-                f.write("%s\n" % line)
-
-def OutputScript1(outputPath, namePart, key, lineDefinitions):
-
-    outputFileName = GetOutputFileName(outputPath, namePart, key, "sh")
-    lines = ["#!/bin/bash",""]
-    for problemDefinition in lineDefinitions:
-        rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
-        lines.append(rocblas_call)
-
-
-    with open(outputFileName, 'w') as f:
-        for line in lines:
-            f.write("%s\n" % line)
-
 
 def RunMain():
 
