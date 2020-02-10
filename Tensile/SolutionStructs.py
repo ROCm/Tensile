@@ -258,7 +258,7 @@ class Convolution:
 
     problemTypeOut["NumIndicesC"] = 2+len(self.spatialRegDims)
 
-    problemTypeOut["ZeroPadA"] = self.makeZeroPadProblemType(self.cc.padStart, self.cc.padEnd)
+    problemTypeOut["ZeroPadA"] = self.makeZeroPadProblemType(self.cc.padStart, self.cc.padEnd, None)
 
     # Attach constant strides to A, if possible:
     nonFilterDims = [dim for dim in self.regDimsA if dim not in self.filterRegDims]
@@ -300,6 +300,7 @@ class Convolution:
   def makeZeroPadProblemType(self, padStart, padEnd, cc):
     """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
     rv = []
+    ss = 1
     for i in range(self.numSpatialDims):
         if padStart[i] or padEnd[i]:
             anchorIdx = self.spatialRegDims[i].idx
@@ -1299,7 +1300,7 @@ class ConvProblem(Problem):
               )
 
     (sizes, stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
-    padA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd)
+    zeroPadA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
 
     Problem.__init__(self, sizes, stridesA, zeroPadA=zeroPadA)
 
@@ -1426,7 +1427,7 @@ class ProblemSizes:
             elif isinstance(e,dict):
               self.exacts.append(ExactDict(e, problemType))
             else:
-              printExit("Unsupported Exact type==%s"%type(exactConf))
+              printExit("Unsupported Exact type==%s"%type(e))
 
           elif sizeTypeKey == "Conv":
             if problemType.convolution == None:

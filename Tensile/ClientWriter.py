@@ -409,11 +409,6 @@ def problemSizeParams(solution, problem):
     problemSizeArg = ('problem-size', ','.join(map(str, problem.sizes[:numIndices])))
     rv.insert(0, problemSizeArg)
 
-    if problem.stridesC:
-      cstrides = list(problem.stridesC)
-    if problem.stridesD:
-      dstrides = list(problem.stridesD)
-
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
 

@@ -1,6 +1,6 @@
 import logging,pytest
-from Tensile.SolutionStructs import Convolution,ExactList
-from Tensile.SolutionStructs import Convolution,ExactDict
+from Tensile.SolutionStructs import ExactList
+from Tensile.SolutionStructs import ExactDict
 log =logging.getLogger("testlog")
 
 @pytest.mark.parametrize("test_input, expected", [
@@ -71,7 +71,7 @@ def test_exact_padstart_left_tbd():
     }
     #with pytest.raises(RuntimeError, match="RuntimeError:.*"):
     with pytest.raises(RuntimeError):
-        e = ExactDict({'sizes': [100,200,300], 'stridesA' : [-1,100,1000] }, z)
+        ExactDict({'sizes': [100,200,300], 'stridesA' : [-1,100,1000] }, z)
 
 def test_exact_padstart_mismatch():
     z={
@@ -80,7 +80,7 @@ def test_exact_padstart_mismatch():
     }
 
     with pytest.raises(RuntimeError, match="problem-specified padStartA==6 does not match problem-type==3"):
-        e = ExactDict({'sizes': [100,200,300], 'padStartA':[6]}, z)
+        ExactDict({'sizes': [100,200,300], 'padStartA':[6]}, z)
 
 def test_exact_padend_mismatch():
     z={
@@ -89,7 +89,7 @@ def test_exact_padend_mismatch():
     }
 
     with pytest.raises(RuntimeError, match="problem-specified padEndA==7 does not match problem-type==4"):
-        e = ExactDict({'sizes': [100,200,300], 'padEndA':[7]}, z)
+        ExactDict({'sizes': [100,200,300], 'padEndA':[7]}, z)
 
 def test_exact_dict3():
     z={
