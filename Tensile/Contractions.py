@@ -239,21 +239,17 @@ class ProblemType:
 
 def extractDimPredicate(cls, key, value, predicateName):
     """
-    Extract the predicate for AssertStrideEqual* or AssertSizeEqual*
-    These are comma-separated pos:value pairs, ie
-    AssertStrideBEqual=["2:0,  3:1"]
+    Extract the predicate for AssertStrideEqual*
+    Value is a dictionary
     """
     predicates = []
-    for pair in value.replace(' ','').split(','):
-        (pos,val) = pair.split(':')
-        predicates.append(cls(predicateName, index=pos, value=val))
+    for pos,val in value.items():
+        if val != -1:
+            predicates.append(cls(predicateName, index=pos, value=val))
     if len(predicates) == 1:
         return predicates[0]
     elif len(predicates) > 1:
         return cls.And(predicates)
-    else:
-        raise RuntimeError("Unknown format for %s (%s) "%(key,value))
-
 
 class ProblemPredicate(Properties.Predicate):
     @classmethod
@@ -322,7 +318,9 @@ class SizeMapping:
                  'globalSplitU',
                  'staggerStrideShift',
                  'workGroupMapping',
+                 'packSummationDims',
                  'packBatchDims',
+                 'magicDivAlg',
                  'persistentKernel',
                  'sourceKernel',
                  ]
@@ -337,8 +335,10 @@ class SizeMapping:
                    depthU             = d['DepthU'],
                    globalSplitU       = d['GlobalSplitU'],
                    staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
+                   packSummationDims  = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
                    packBatchDims      = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
                    persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
+                   magicDivAlg        = d.get('MagicDivAlg', 1),
                    sourceKernel       = d['KernelLanguage'] == 'Source',
                    )
 

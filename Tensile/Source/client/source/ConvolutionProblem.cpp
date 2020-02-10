@@ -353,6 +353,9 @@ namespace Tensile
                formatNumSpatialDims, &m_filters);
           m_formatD.activationW().FromIdentifier(parts[3], formatNumSpatialDims, m_numSpatialDims, nullptr);
       }
+      else if (m_operationIdentifier == "ConvolutionBackwardWeights") 
+      {
+      }
       else
       {
           throw std::runtime_error(std::string("Invalid operation identifier:") +

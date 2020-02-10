@@ -104,7 +104,7 @@ namespace Tensile
 
             void report() const
             {
-                if(m_printReport)
+                if(0 && m_printReport)
                     std::cout << "Found " << m_errors << " incorrect values in " << m_values << " total values compared." << std::endl;
             }
 

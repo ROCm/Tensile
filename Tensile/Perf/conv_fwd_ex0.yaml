@@ -11,6 +11,7 @@ GlobalParameters:
   ClientArgs: "--stride_b 0"
   EnqueuesPerSync: 100 # avoid weird timing issues
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
   -

@@ -10,6 +10,7 @@ GlobalParameters:
   DataInitTypeAB: 0
   PrintSolutionRejectionReason: 1
   PrintWinnersOnly: 1
+  NewClient: 2
 
 BenchmarkProblems:
   ########################################

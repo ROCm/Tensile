@@ -1,4 +1,3 @@
-
 import pytest
 import os
 import sys
@@ -11,7 +10,7 @@ sys.path.append(rootdir)
 def pytest_addoption(parser):
     parser.addoption("--tensile-options")
     parser.addoption("--no-common-build", action="store_true")
-    parser.addoption("--builddir", "--client_dir")
+    parser.addoption("--builddir", "--client-dir")
 
 @pytest.fixture(scope="session")
 def builddir(pytestconfig, tmpdir_factory):
