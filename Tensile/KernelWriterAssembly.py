@@ -1545,7 +1545,8 @@ class KernelWriterAssembly(KernelWriter):
       # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop. 
       # It means in the final iteration of each tail loop, the last N elem along summation dimension 
       # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
-      if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1 :
+      if kernel["MatrixInstruction"] and \
+        kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
         self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
         self.defineSgpr("ZeroFillMask%s" % self.loopChar(kernel, i), 1)
 
@@ -5107,12 +5108,14 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = self.getTmpSgpr(4)
       if self.prefetchAcrossPersistent0:
         loopCounterName = "TailLoopCounter"
-        if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1:
+        if kernel["MatrixInstruction"] and \
+           kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
           numRemainderSumElements = "NumRemainderSumElements"
           zeroFillMask = "ZeroFillMask"
       else:
         loopCounterName = self.loopCounterName(kernel, loopIdx)
-        if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1:
+        if kernel["MatrixInstruction"] and \
+           kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
           numRemainderSumElements = "NumRemainderSumElements%s"%loopChar
           zeroFillMask = "ZeroFillMask%s"%loopChar
       kStr += "\n"
@@ -7093,7 +7096,9 @@ class KernelWriterAssembly(KernelWriter):
       tmpVgpr = self.vgprPool.checkOut(2)
       maskVgpr = None
       isLastProductSgpr = self.getTmpSgpr(2)
-      if kernel["AssertSummationElementMultiple"] == 1 and self.inTailLoop:
+      if kernel["MatrixInstruction"] and \
+         kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0 and \
+         self.inTailLoop:
         maskVgpr = self.vgprPool.checkOut(2)
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
