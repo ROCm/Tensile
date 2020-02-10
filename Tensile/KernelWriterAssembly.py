@@ -1539,27 +1539,16 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("PackedSize0", 1)
     if len(kernel["PackedC1IndicesX"]) > 1:
       self.defineSgpr("PackedSize1", 1)
+    # contractions with multiple summations will use multiple LoopCounters, if PSD=0
+    for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
+      self.defineSgpr(self.loopCounterName(kernel,i), 1)
+      # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop. 
+      # It means in the final iteration of each tail loop, the last N elem along summation dimension 
+      # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
+      if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1 :
+        self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
+        self.defineSgpr("ZeroFillMask%s" % self.loopChar(kernel, i), 1)
 
-<<<<<<< HEAD
-    # contractions with multiple summations will use multiple LoopCounters
-    # outermost loop is LoopCounter[0] and innermost is the last Counter.
-    # innermost is also the unroll loop
-    self.defineSgpr("LoopCounters", numSgprLoopCounters)
-    # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop. 
-    # It means in the final iteration of each tail loop, the last N elem along summation dimension 
-    # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
-    if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1 :
-      self.defineSgpr("NumRemainderSumElements", numSgprLoopCounters)
-      self.defineSgpr("ZeroFillMask", numSgprLoopCounters)
-=======
-    if kernel["PackSummationDims"]:
-        self.defineSgpr(self.loopCounterName(kernel,self.unrollIdx), 1)
-    else:
-      # contractions with multiple summations will use multiple LoopCounters, if PSD=0
-      for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
-        self.defineSgpr(self.loopCounterName(kernel,i), 1)
-
->>>>>>> upstream/develop
     self.defineSgpr("OrigLoopCounter", 1)
     if self.prefetchAcrossPersistent0:
       if kernel["ExpandPointerSwap"]:
@@ -5117,21 +5106,15 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
       if self.prefetchAcrossPersistent0:
-<<<<<<< HEAD
-        loopCounter = "TailLoopCounter"
+        loopCounterName = "TailLoopCounter"
         if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1:
           numRemainderSumElements = "NumRemainderSumElements"
           zeroFillMask = "ZeroFillMask"
       else:
-        loopCounter = "LoopCounters+%u"%loopIdx
-        if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1:
-          numRemainderSumElements = "NumRemainderSumElements+%u"%loopIdx
-          zeroFillMask = "ZeroFillMask+%u"%loopIdx
-=======
-        loopCounterName = "TailLoopCounter"
-      else:
         loopCounterName = self.loopCounterName(kernel, loopIdx)
->>>>>>> upstream/develop
+        if kernel["MatrixInstruction"] and kernel["MatrixInstK"] > 1 and kernel["AssertSummationElementMultiple"] == 1:
+          numRemainderSumElements = "NumRemainderSumElements%s"%loopChar
+          zeroFillMask = "ZeroFillMask%s"%loopChar
       kStr += "\n"
       if kernel["SuppressNoLoadLoop"]:
         # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
@@ -5155,20 +5138,15 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["MatrixInstruction"]:
         kStr += "/* calculate number of remaining loops in terms of how many matrix instructions */\n"
         kStr += "//numIter%s = ((numIter%s + MatrixInst%s - 1) / MatrixInst%s)\n"%(self.unrollChar, self.unrollChar, self.unrollChar, self.unrollChar)
-<<<<<<< HEAD
         if numRemainderSumElements: 
           kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
-        kStr += inst("s_add_u32", sgpr(loopCounter), sgpr(loopCounter), kernel["MatrixInstK"]-1, "")
-        kStr += scalarStaticDivideAndRemainder(loopCounter, None, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 0)
+        kStr += inst("s_add_u32", loopCounter, loopCounter, kernel["MatrixInstK"]-1, "")
+        kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
         if numRemainderSumElements:
           kStr += inst("s_lshl_b32", sgpr(zeroFillMask), "0xffffffff", sgpr(numRemainderSumElements), "")
           kStr += inst("s_cmp_eq_u32", sgpr(numRemainderSumElements), "0", "")
           kStr += inst("s_cselect_b32", sgpr(zeroFillMask), "0", sgpr(zeroFillMask), "")
 
-=======
-        kStr += inst("s_add_u32", loopCounter, loopCounter, kernel["MatrixInstK"]-1, "")
-        kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
->>>>>>> upstream/develop
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
@@ -7108,6 +7086,8 @@ class KernelWriterAssembly(KernelWriter):
       numReadsAlongK = int((kernel["MatrixInstK"] * tP["bpe"]) // (blockWidth*self.bpr)) # TODO:
 
     loopIdx = self.unrollIdx
+    loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    loopChar = self.indexChars[loopDim]
     # mfma: for AB tile in NT layout
     if kernel["MatrixInstruction"] and numReadsAlongK > 1:
       tmpVgpr = self.vgprPool.checkOut(2)
@@ -7151,18 +7131,14 @@ class KernelWriterAssembly(KernelWriter):
                 destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
                 imod.addInst("s_waitcnt lgkmcnt(0)", "")
                 if maskVgpr:
-                  # 1. move to tail open loop
-                  # 2. save mask
-                  # 3. use tmp vreg for predicate
-                  # imod.addInst("v_mov_b32", vgpr(maskVgpr), sgpr(numRemainderSumElements), "0xffffffff", "")
-                  imod.addInst("v_cmp_eq_u32", sgpr(isLastProductSgpr, 2), sgpr("LoopCounters+%u"%loopIdx), 1, "")
+                  imod.addInst("v_cmp_eq_u32", sgpr(isLastProductSgpr, 2), sgpr("LoopCounter%s"%loopChar), 1, "")
                   
-                  imod.addInst("v_and_b32", vgpr(maskVgpr+0), sgpr("ZeroFillMask+%u"%loopIdx), hex(pow(2, kIdx-1)), "")
+                  imod.addInst("v_and_b32", vgpr(maskVgpr+0), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-1)), "")
                   imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+0), "")
                   imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
                   imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+0), "0", "vcc", "")
 
-                  imod.addInst("v_and_b32", vgpr(maskVgpr+1), sgpr("ZeroFillMask+%u"%loopIdx), hex(pow(2, kIdx-0)), "")
+                  imod.addInst("v_and_b32", vgpr(maskVgpr+1), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-0)), "")
                   imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+1), "")
                   imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
                   imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+1), vgpr(tmpVgpr+1), "0", "vcc", "")
