@@ -2717,9 +2717,15 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index0
     index0 = kernel["ProblemType"]["Index0"]
-    kStr += "  unsigned int localC%s = (serial %% (MT%s/GLOBAL_WRITE_VECTOR_WIDTH))*GLOBAL_WRITE_VECTOR_WIDTH;%s" \
-        % (self.tileChar0, self.tileChar0, self.endLine)
-    kStr += "  unsigned int globalC%s = (wg%s)" % (self.indexChars[index0], self.indexChars[index0])
+    if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"]:
+      c0Group = "(nwg%s - wg%s - 1)" % (self.indexChars[index0], self.indexChars[index0])
+      c0Serial = "(NUM_THREADS - serial - 1)"
+    else:
+      c0Group = "(wg%s)" % self.indexChars[index0]
+      c0Serial = "serial"
+    kStr += "  unsigned int localC%s = (%s %% (MT%s/GLOBAL_WRITE_VECTOR_WIDTH))*GLOBAL_WRITE_VECTOR_WIDTH;%s" \
+        % (self.tileChar0, c0Serial, self.tileChar0, self.endLine)
+    kStr += "  unsigned int globalC%s = %s" % (self.indexChars[index0], c0Group)
     kStr += "*MT%s + localC%s;%s" % (self.tileChar0, self.tileChar0, self.endLine)
     # Save original flattened C0 before extracting batch components:
     kStr += "  unsigned int flattenedGlobalC0 = globalC%s;%s" \
@@ -2812,6 +2818,8 @@ class KernelWriterSource(KernelWriter):
             if i < kernel["ProblemType"]["NumIndicesC"]-1:
               kStr += ", (%s)" % self.uint64Str
           kStr += ") ]"
+
+        s = kernel["GlobalWriteVectorWidth"] - s - 1 if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"] else s
 
         kStr += ", alpha"
         kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b )
