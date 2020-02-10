@@ -1373,8 +1373,8 @@ class ExactDict(Problem):
 
     if problemType:
       zp={}
-      zp['A'] = problemType["ZeroPadA"]
-      zp['B'] = problemType["ZeroPadB"]
+      zp['A'] = deepcopy(problemType["ZeroPadA"])
+      zp['B'] = deepcopy(problemType["ZeroPadB"])
 
       for (tc, padName, zpField) in (
           ("A", "padStartA",2), ("A", "padEndA", 3),
