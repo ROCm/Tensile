@@ -4,7 +4,7 @@
 ARG base_image
 
 FROM ${base_image}
-LABEL maintainer="saad.rahim@amd"
+LABEL maintainer="tensile-maintainer@amd.com"
 
 USER root
 ARG user_uid
