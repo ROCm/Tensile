@@ -85,8 +85,15 @@ def runTestCommand (platform, project, test_marks)
     }
     finally
     {
-        junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-        junit "${project.paths.project_build_prefix}/*_tests.xml"
+        try
+        {
+            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+        }
+        finally
+        {
+            junit "${project.paths.project_build_prefix}/*_tests.xml"
+        }
+        
     }
 }
 
