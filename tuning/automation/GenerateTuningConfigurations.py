@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -386,57 +386,41 @@ def OutputProblemDefinitions(problemMapper, sizePath, namePart):
         writer.writeheader()
         writer.writerows(lineDefinitions)
 
-
-def RunMain1():
-
-    userArgs = sys.argv[1:]
-
-    argParser = argparse.ArgumentParser()
-
-    argParser.add_argument("-w","--work-path", dest="workPath", help="path where the configuraions are to be constructed")
-    argParser.add_argument("-d","--header-file", dest="headerFile", help="path of the file containing the header constructs")
-    argParser.add_argument("-c","--config-path", dest="configurationPath", help="path of the configuation definitions")
-    argParser.add_argument("-p","--prob-def", dest="problemDefinitions", help="path of the file containing the problem defines")
-    argParser.add_argument("-o","--output-file", dest="outputFile", help="name of the output configuration")
-
-    args = argParser.parse_args(userArgs)
-
-    headerFile = args.headerFile
-    definitionFileName = args.problemDefinitions
-    configurationPath = args.configurationPath
-    workingDirectory = args.workPath
-    outputFIleName = args.outputFile
-    outputPath = workingDirectory + "/configs"
-    if not os.path.exists(outputPath):
-        os.makedirs(outputPath)
-
-    mapper = ProcesDefinitionFile(definitionFileName)
-
-    for key in mapper:
-        configDefinitionList = mapper[key]
-        processFile(headerFile, key, configDefinitionList, configurationPath, workingDirectory, outputFIleName, outputPath)
-
 def RunMain():
 
     userArgs = sys.argv[1:]
 
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("input_file_name", help="configuration file path")
+
+    if len(sys.argv) <= 5:
+        argParser.add_argument("input_file_name", help="configuration file path")
+    else:
+        argParser.add_argument("input_logs", help="the input path for log files")
+        argParser.add_argument("network_name", help="neural network name")
+
     argParser.add_argument("output_path", help="the output path")
     argParser.add_argument("output_file_name", help="the output file name")
     argParser.add_argument("library", help="the library Logic name")
-
+    
     args = argParser.parse_args(userArgs)
-
-    inputFileName = args.input_file_name
     outputPath = args.output_path
     outputName = args.output_file_name
     library = args.library
 
-    inputFileBaseName = os.path.basename(inputFileName)
-    namePart, _ = os.path.splitext(inputFileBaseName)
+    if len(sys.argv) <= 5:
+        inputFileName = args.input_file_name
+        inputFileBaseName = os.path.basename(inputFileName)
+        namePart, _ = os.path.splitext(inputFileBaseName)
+    else:
+        inputPath = args.input_logs
+        networkName = args.network_name
+        allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    problemMapper = ProcessFile(inputFileName)
+    if len(sys.argv) <= 5:
+        problemMapper = ProcessFile(inputFileName)
+    else:
+        problemMapper = ProcessFiles(allLogs)
+
     configPath = os.path.join(outputPath, "configs")
     if not os.path.exists(configPath):
         os.makedirs(configPath)
@@ -448,8 +432,13 @@ def RunMain():
         os.makedirs(sizePath)
 
     OutputConfigs(problemMapper, configPath, outputName, library)
-    OutputScript(problemMapper, scriptPath, namePart)
-    OutputProblemDefinitions(problemMapper, sizePath, namePart)
+    
+    if len(sys.argv) <= 5:
+        OutputScript(problemMapper, scriptPath, namePart)
+        OutputProblemDefinitions(problemMapper, sizePath, namePart)
+    else:
+        OutputScript(problemMapper, scriptPath, networkName)
+        OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":
     RunMain()
