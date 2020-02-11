@@ -258,7 +258,7 @@ class Convolution:
 
     problemTypeOut["NumIndicesC"] = 2+len(self.spatialRegDims)
 
-    problemTypeOut["ZeroPadA"] = self.makeZeroPadProblemType(self.cc.padStart, self.cc.padEnd, None)
+    problemTypeOut["ZeroPadA"] = self.makeZeroPadConvProblemType(self.cc.padStart, self.cc.padEnd)
 
     # Attach constant strides to A, if possible:
     nonFilterDims = [dim for dim in self.regDimsA if dim not in self.filterRegDims]
@@ -297,24 +297,28 @@ class Convolution:
       targetStr = targetStr.replace(char1, tmp).replace(char2, char1).replace(tmp, char2)
     return targetStr
 
-  def makeZeroPadProblemType(self, padStart, padEnd, cc):
+
+  def makeZeroPadConvProblemType(self, padStart, padEnd):
+    """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
+    rv = []
+    spatialChars='WHD'
+    filterChars='XYZ'
+    for i in range(self.numSpatialDims):
+      if padStart[i] or padEnd[i]:
+          anchorIdx = self.convolutionDims[spatialChars[i]].idx
+          sumIdx    = self.convolutionDims[filterChars[i]].idx
+          rv.append([anchorIdx, sumIdx, -1, -1])
+    return rv
+
+  def makeZeroPadProblemType(self, zps, padStart, padEnd, cc):
     """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
     rv = []
     ss = 1
-    for i in range(self.numSpatialDims):
-        if padStart[i] or padEnd[i]:
-            anchorIdx = self.spatialRegDims[i].idx
-            sumIdx    = self.filterRegDims[i].idx
-            if cc==None:
-              # This case indicates we are at compile-time and have no spatial info (which comes
-              # with each problem)
-              # So use -1 to indicate Use TBD start, end
-              # these must be later specified at runtime
-              rv.append([anchorIdx, sumIdx, -1, -1])
-            else:
-              rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
-              assert(cc.spatial[i] != -1)
-              ss *= cc.spatial[i]
+    for (i,zp) in enumerate(zps):
+      (anchorIdx, sumIdx) = zp[:2]
+      rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
+      assert(cc.spatial[i] != -1)
+      ss *= cc.spatial[i]
     return rv
 
   def __init__(self, problemTypeOut, convolutionType, config):
@@ -325,6 +329,7 @@ class Convolution:
     self.convolutionDims={};
     self.convolutionType = convolutionType
     self.config = config # input configuraiton
+    self.problemTypeOut = problemTypeOut
     self.cc = ConvolutionConfig() # parsed configuration
 
     for k in config:
@@ -552,6 +557,7 @@ class Convolution:
     numDims = 1 + max(max([x[0] for x in self.regDimsA]), max([x[0] for x in self.regDimsB]))
     sizes = [-1]*numDims
     astrides = [-1]*numDims
+    bstrides = [-1]*numDims
 
     pcc.copyFromRef(self.cc)
     pcc.checkFullySpecified(self.cc)
@@ -560,26 +566,25 @@ class Convolution:
     sizes[self.convolutionDims['C'].idx]=c
     sizes[self.convolutionDims['K'].idx]=k
 
+    bstrides[self.convolutionDims['N'].idx] = 0 # broadcast b matrix
+
     if len(pcc.spatial) != self.formatNumSpatialDims:
       raise RuntimeError ("len(pcc.spatial=", pcc.spatial, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
-
-    # convert any TBD<0 to default 0
-    padStart = [0 if p<0 else p for p in self.cc.padStart]
-    padEnd   = [0 if p<0 else p for p in self.cc.padEnd]
 
     # convert to Output dimensions:
     spatialOut=[0]*len(pcc.spatial)
     for i in range(self.formatNumSpatialDims):
-      spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 - padStart[i] - padEnd[i]) / pcc.stride[i])
+      spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 + pcc.padStart[i] + pcc.padEnd[i]) / pcc.stride[i])
+
+    print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
     for fi,filterValue in enumerate(pcc.fil):
-      if filterValue != -1:
-        try:
-          pos = self.convolutionDims[chr(ord('X')+fi)].idx
-          sizes[pos] = filterValue
-          astrides[pos] = self.cc.dilation[0] if fi==0 else pcc.spatial[fi-1]*self.cc.dilation[fi]
-        except KeyError:
-          None
+      try:
+        pos = self.convolutionDims[chr(ord('X')+fi)].idx
+        sizes[pos] = filterValue
+        astrides[pos] = pcc.dilation[0] if fi==0 else pcc.spatial[fi-1]*pcc.dilation[fi]
+      except KeyError:
+        None
 
     if self.numSpatialDims==1:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
@@ -598,10 +603,16 @@ class Convolution:
 
     # translate to strides for A tensor in IndexAssignmentsA order:
     orderedStridesA = []
+    orderedStridesB = []
     for (idx,fbs,dim) in self.regDimsA:
       orderedStridesA.append(astrides[idx])
 
-    return (sizes, orderedStridesA)
+    for (idx,fbs,dim) in self.regDimsB:
+      orderedStridesB.append(bstrides[idx])
+
+    #print("ordered=A", orderedStridesA, "b=", orderedStridesB)
+
+    return (sizes, orderedStridesA, orderedStridesB)
 
   def registerA(self, regDimList):
     """
@@ -1301,12 +1312,13 @@ class ConvProblem(Problem):
                 groupCount = e['g']
               )
 
-    (sizes, stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
-    zeroPadA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
+    (sizes, stridesA, stridesB) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
+    zeroPadA = convolution.makeZeroPadProblemType(convolution.problemTypeOut["ZeroPadA"],
+        self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
 
-    Problem.__init__(self, sizes, stridesA, zeroPadA=zeroPadA)
+    Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA)
 
-    #print ("sizes=", self.sizes, "stridesA=", self.stridesA, "zeroPadA=", self.zeroPadA)
+    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
 
 
   def toExactDict(self):
