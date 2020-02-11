@@ -887,11 +887,12 @@ class KernelWriterSource(KernelWriter):
     for idx in problemType["IndicesSummation"]:
       for tc in ('A','B'):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
-          (freeDim, sumDim, start, padEnd) = zp
-          freeDimChar = self.indexChars[freeDim]
+          (freeDim, sumDim) = zp[:2]
+          freeDimChar = globalParameters["IndexChars"][freeDim]
+          sumChar = self.indexChars[sumDim]
           if sumDim == idx:
-            s += ",%s  int padStart%s%s" % (self.endLine, tc, freeDimChar)
-            s += ",%s  int padEnd%s%s" % (self.endLine, tc, freeDimChar)
+            s += ",%s  int padStart%s%s%s" % (self.endLine, tc, freeDimChar, sumChar)
+            s += ",%s  int padEnd%s%s%s" % (self.endLine, tc, freeDimChar, sumChar)
 
     s += "," + self.endLine + "  unsigned int staggerUIterParm"
 
@@ -1027,10 +1028,11 @@ class KernelWriterSource(KernelWriter):
       for tc in ('A', 'B'):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
           (freeDim, sumDim, padStart, padEnd) = zp
-          freeDimChar = self.indexChars[freeDim]
+          freeDimChar = globalParameters["IndexChars"][freeDim]
+          sumChar = self.indexChars[sumDim]
           kStr += self.endLine
-          kStr += "  unsigned int padStart%s%s = %u;" % (tc, freeDimChar, padStart) + self.endLine
-          kStr += "  unsigned int padEnd%s%s = %u;" % (tc, freeDimChar, padEnd) + self.endLine
+          kStr += "  unsigned int padStart%s%s%s = %u;" % (tc, freeDimChar, sumChar, padStart) + self.endLine
+          kStr += "  unsigned int padEnd%s%s%s = %u;" % (tc, freeDimChar, sumChar, padEnd) + self.endLine
 
     self.magicSumChars = []
     if kernel["PackSummationDims"]:
@@ -1454,11 +1456,12 @@ class KernelWriterSource(KernelWriter):
               # subtract pad - this both helps efficiently detect OOB on the summation start and also
               # corrects the valid offsets for the start pad.
               (freeDim,sumDim) = zp[:2]
-              freeDimChar = self.indexChars[freeDim]
+              freeDimChar = globalParameters["IndexChars"][freeDim]
+              freeDimChar2 = self.indexChars[freeDim]
               sumChar = self.indexChars[sumDim]
-              kStr += self.indent + gro + " -= padStart%s%s;"%(tc,freeDimChar) + self.endLine
+              kStr += self.indent + gro + " -= padStart%s%s%s;"%(tc,freeDimChar, sumChar) + self.endLine
               freeOffset = "globalReadOffset%s%s_%u_%u" \
-                      % (tc, freeDimChar, \
+                      % (tc, freeDimChar2, \
                         (para if tP["tlu"] else perp), \
                         (sPara if tP["tlu"] else sPerp) )
               if sumDim == kernel["ProblemType"]["IndexUnroll"]:
@@ -1470,8 +1473,10 @@ class KernelWriterSource(KernelWriter):
                 sumOffset = "globalReadOffset%s%s" % (tc, sumChar)
               kStr += self.indent + \
                       "int64_t " + \
-                      gro + "_ZP =  int64_t(%s*stride%s%s + %s*stride%s%s) - padStart%s%s;" \
-                            % (freeOffset, tc,freeDimChar,  sumOffset, tc, sumChar,   tc, freeDimChar) + \
+                      gro + "_ZP%s%s =  int64_t(%s*stride%s%s + %s*stride%s%s) - padStart%s%s%s;" \
+                            % (freeDimChar, sumChar,
+                               freeOffset, tc,freeDimChar2,  sumOffset, tc, sumChar,   \
+                               tc, freeDimChar, sumChar) + \
                       self.endLine
             if 0 and tP["isA"]:
               kStr += "printf(%sgid0=%%u %s=%%lu%s, %s(0), %s);" \
@@ -1924,10 +1929,11 @@ class KernelWriterSource(KernelWriter):
       for (zp,tc) in ((zpA,'A'), (zpB,'B')):
         if zp:
           (freeDim,sumDim) = zp[:2]
-          freeDimChar = self.indexChars[freeDim]
+          freeDimChar = globalParameters["IndexChars"][freeDim]
+          freeDimChar2 = self.indexChars[freeDim]
           sumChar = self.indexChars[sumDim]
-          kStr += "%sunsigned int elementEdge%s%s = stride%s%s * size%s + stride%s%s*(size%s - 1) - padStart%s%s - padEnd%s%s;" \
-              % (self.indent, tc, loopChar, tc, freeDimChar, freeDimChar, tc, loopChar, loopChar, tc, freeDimChar, tc, freeDimChar) \
+          kStr += "%sunsigned int elementEdge%s%s = stride%s%s * size%s + stride%s%s*(size%s - 1) - padStart%s%s%s - padEnd%s%s%s;" \
+              % (self.indent, tc, loopChar, tc, freeDimChar2, freeDimChar2, tc, loopChar, loopChar, tc, freeDimChar, sumChar, tc, freeDimChar, sumChar) \
               + self.endLine
 
           if sumChar not in self.definedIter:
@@ -2294,6 +2300,7 @@ class KernelWriterSource(KernelWriter):
                 kStr += " || "
               guarded = 1
               (freeDim, sumDim) = zp[:2]
+              freeDimChar = globalParameters["IndexChars"][freeDim]
               sumChar = self.indexChars[sumDim]
               assert self.unrollIncIsDepthU
               if kernel["PackSummationDims"]:
@@ -2303,8 +2310,10 @@ class KernelWriterSource(KernelWriter):
               else:
                 raise RuntimeError("ZP not supported with multiple summations and PSD==0")
 
-              globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP + %u" \
-                  % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0);
+              globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s + %u" \
+                  % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, \
+                     freeDimChar, sumChar,
+                     sPara if tP["rc"] else 0);
               kStr += "( ( (int64_t)(%s * stride%s%s + %s) < 0)" \
                       % (iterVar, tc, sumChar, globalReadOffsetZp)
               #kStr += ")"

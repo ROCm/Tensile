@@ -823,11 +823,11 @@ class ProblemType:
         if sumDim not in self.state["IndicesSummation"]:
           printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
         if freeDim in freeDims:
-          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple"%(tc, zp, freeDim))
-        freeDims[freeDim] = 1
+          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple (prev:%s)"%(tc, zp, freeDim,freeDims[freeDim]))
+        freeDims[freeDim] = zp
         if sumDim in sumDims:
           printExit("ZeroPad%s=%s sumDim=%u occurs in more than one tuple"%(tc, zp, sumDim))
-        sumDims[sumDim] = 1
+        sumDims[sumDim] = zp
 
     for tc in ('A', 'B'):
       for sc in self["SetConstStride%s"%tc] :
@@ -1399,6 +1399,11 @@ class ExactDict(Problem):
       self.zeroPadB = zp['B']
     else:
       self.zeroPadA = self.zeroPadB = []
+
+    if problemType:
+      if len(self.sizes) != problemType["TotalIndices"]:
+        raise RuntimeError ("specified size=%s does not have enough indices for problem (expected %d, got %d)" \
+                % (self.sizes, problemType["TotalIndices"], len(self.sizes)))
 
 
 
