@@ -2488,17 +2488,24 @@ class KernelWriterSource(KernelWriter):
   # Shift Vector Components d0,1
   ##############################################################################
   def shiftVectorComponents(self, kernel, tP):
+    if tP["mirror"]:
+      wg = "(nwg%s - wg%s - 1)" % (tP["tileChar"], tP["tileChar"])
+      serial = "(NUM_THREADS - serial - 1)"
+    else:
+      wg = "(wg%s)" % tP["tileChar"]
+      serial = "serial"
+
     kStr = ""
-    kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
-        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], \
+    kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
+        % (tP["tileChar"], tP["tileChar"], wg, \
         tP["tileChar"], self.endLine)
     kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
         %(tP["tileChar"], tP["tileChar"], tP["tileChar"], \
         tP["tileChar"], self.endLine)
     kStr += "  unsigned int r%s = wgMT%s %% GLOBAL_LOAD_VECTOR_WIDTH_%s;%s" \
         % (tP["tileChar"], tP["tileChar"], tP["tensorChar"], self.endLine)
-    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (serial %s SG%s)%s ) {%s" \
-        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], "%" if tP["isA"] else "/", \
+    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (%s %s SG%s)%s ) {%s" \
+        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], serial, "%" if tP["isA"] else "/", \
         self.tileChar0, (" %% SG%s"%self.tileChar1) if tP["isB"] else "", self.endLine)
 
     # old
@@ -2983,9 +2990,13 @@ class KernelWriterSource(KernelWriter):
             #    % (a, s1, self.tileChar0, b, self.tileChar0, \
             #    ((".%s"%self.vectorComponents[s0]) if kernel["VectorWidth"]>1\
             #    else "") )
-            s0 = kernel["VectorWidth"] - 1 - s0 if kernel["ProblemType"]["MirrorDimsA"] == [2] else s0
+            s0Store = s0
+            if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+              shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
+              if not shiftComponentsA:
+                s0Store = kernel["VectorWidth"] - 1 - s0
             kStr += ", rC[%u*VECTOR_WIDTH+%u + (%u*VECTOR_WIDTH+%u)*TT%s]" \
-                % (a, s0, b, s1, self.tileChar0 )
+                % (a, s0Store, b, s1, self.tileChar0 )
             if kernel["ProblemType"]["UseBeta"]:
               kStr += ", beta"
             kStr += ")"
