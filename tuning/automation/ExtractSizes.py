@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -723,17 +723,37 @@ def ProcessFile(filename):
 
     return problemMapper
 
-def GetOutputFileName1(outputPath, namePart, key, ext):
-    function, transposeA, transposeB = key
-    fileName = namePart
+def ProcessFiles(filenames):
 
-    if "strided" in function:
-        fileName += "-strided-%s%s.%s" % (transposeA,transposeB,ext)
-    else:
-        fileName += "-%s%s.%s" % (transposeA,transposeB,ext)
-    
-    outputFileName = outputFileName = os.path.join(outputPath, fileName)
-    return outputFileName
+    parser = GetInceptionParser()
+    rocblasParser = GetRocBLASParser()
+
+    problemMapper = {}
+
+    for filename in filenames:
+        with open(filename) as logFile:
+            for line in logFile:
+
+                if "MIOpenDriver" in line:
+                    args=line.split(' ')
+                    parsedArgs, otherArgs = parser.parse_known_args(args)
+
+                    input,weight,convolution,output = ExtractProblemDefinitions(parsedArgs)
+                    problemDefinitionForward = GenConvolutionForwardDefinition(input,weight,convolution,output)
+                    UpdateOutputMapping(problemMapper, problemDefinitionForward)
+                    problemDefinitionBackwardData = GenConvolutionBackwardDataDefinition(input,weight,convolution,output)
+                    UpdateOutputMapping(problemMapper, problemDefinitionBackwardData)
+                    problemDefinitionBackwardWeights = GenConvolutionBackwardWeightsDefinition(input,weight,convolution,output)
+                    UpdateOutputMapping(problemMapper, problemDefinitionBackwardWeights)
+
+
+                if "rocblas-bench" in line:
+                    args=line.split(' ')
+                    parsedArgs, otherArgs =  rocblasParser.parse_known_args(args)
+                    problemDefinition = vars(parsedArgs)
+                    UpdateOutputMapping(problemMapper, problemDefinition)
+
+    return problemMapper
 
 def GetTensileSize(problemDefinition):
 
@@ -758,106 +778,36 @@ def BuildRocBLASBenchmarkCall(problemDefinition):
 
     return rocblas_call
 
-def OutputProblemDefinitions1(outputPath, namePart, key, lineDefinitions):
-    outputFileName = GetOutputFileName(outputPath, namePart, key, "csv")
-    output = open(outputFileName,"w+")
-    writer = csv.DictWriter(output, fieldnames=rocblas_parameters, extrasaction='ignore')
-    writer.writeheader()
-    writer.writerows(lineDefinitions)
-
-def OutputSizes1(outputPath, namePart, key, lineDefinitions):
-
-    lineMapper = {}
-   
-    _, transposeA, transposeB = key
-    transpose = "%s%s" % (transposeA.lower(), transposeB.lower())
-
-    for problemDefinition in lineDefinitions:
-        size = GetTensileSize(problemDefinition)
-        m = int(problemDefinition["m"])
-        n = int(problemDefinition["n"])
-        k = int(problemDefinition["k"])
-        b = 1 
-
-        if "batch" in problemDefinition:
-            b = int(problemDefinition["batch"])
-
-        lineKey = "none"
-
-        scale = m * n
-
-        tiny = 32 * 32
-        small = 128 * 128
-        medium = 512 * 512
-
-        if b > 1:
-            lineKey = "batch"
-  
-        elif (scale <= tiny):
-            lineKey = "tiny"
-
-        elif (scale <= small):
-            lineKey = "small"
-
-        elif (scale <= medium):
-            lineKey = "medium"
-
-        else:
-            lineKey = "large"
-
-        if lineKey not in lineMapper:
-            lineMapper[lineKey] = []
-        lineMapper[lineKey].append(size)
-
-    linesSpec = []
-    for lineKey in lineMapper:
-        ontputFileName = "%s-%s" %(namePart, lineKey)
-        outputFilePath = GetOutputFileName(outputPath, ontputFileName, key, "yml")
-
-        outputLines = lineMapper[lineKey]
-        if outputLines:
-            spec = "%s,%s,%s" % (outputFilePath,lineKey,transpose)
-            linesSpec.append(spec)
-            with open(outputFilePath, 'w') as f:
-                for line in outputLines:
-                    f.write("%s\n" % line)
-
-    if linesSpec:
-        outputFileNameSpec =  os.path.join(outputPath, "problem_spec.info") 
-        with open(outputFileNameSpec, 'a') as f:
-            for line in linesSpec:
-                f.write("%s\n" % line)
-
-def OutputScript1(outputPath, namePart, key, lineDefinitions):
-
-    outputFileName = GetOutputFileName(outputPath, namePart, key, "sh")
-    lines = ["#!/bin/bash",""]
-    for problemDefinition in lineDefinitions:
-        rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
-        lines.append(rocblas_call)
-
-
-    with open(outputFileName, 'w') as f:
-        for line in lines:
-            f.write("%s\n" % line)
-
-
 def RunMain():
 
     userArgs = sys.argv[1:]
 
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("input_file_name", help="configuration file path")
+
+    if len(sys.argv) <= 5:
+        argParser.add_argument("input_file_name", help="configuration file path")
+    else:
+        argParser.add_argument("input_logs", help="the input path for log files")
+        argParser.add_argument("network_name", help="neural network name")
+
     argParser.add_argument("output_path", help="the output path")
-
+    
     args = argParser.parse_args(userArgs)
-
-    inputFileName = args.input_file_name
     outputPath = args.output_path
-    inputFileBaseName = os.path.basename(inputFileName)
-    namePart, _ = os.path.splitext(inputFileBaseName)
 
-    problemMapper = ProcessFile(inputFileName)
+    if len(sys.argv) <= 5:
+        inputFileName = args.input_file_name
+        inputFileBaseName = os.path.basename(inputFileName)
+        namePart, _ = os.path.splitext(inputFileBaseName)
+    else:
+        inputPath = args.input_logs
+        networkName = args.network_name
+        allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
+
+    if len(sys.argv) <= 5:
+        problemMapper = ProcessFile(inputFileName)
+    else:
+        problemMapper = ProcessFiles(allLogs)
 
     keys = list(problemMapper.keys())
 
@@ -866,9 +816,12 @@ def RunMain():
         sizePath = os.path.join(outputPath, "sizes")
         OutputSizes(sizePath, namePart, key, lineDefinitions) 
         scriptPath = os.path.join(outputPath, "scripts")
-        OutputScript(scriptPath, namePart, key, lineDefinitions)
-        OutputProblemDefinitions(sizePath, namePart, key, lineDefinitions)
-    
+        if len(sys.argv) <= 5:
+            OutputScript(scriptPath, namePart, key, lineDefinitions)
+            OutputProblemDefinitions(sizePath, namePart, key, lineDefinitions)
+        else: 
+            OutputScript(scriptPath, networkName, key, lineDefinitions)
+            OutputProblemDefinitions(sizePath, networkName, key, lineDefinitions)
 
 if __name__ == "__main__":
     RunMain()
