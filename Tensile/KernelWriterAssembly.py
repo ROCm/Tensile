@@ -4750,10 +4750,10 @@ class KernelWriterAssembly(KernelWriter):
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
     if kernel["MatrixInstruction"]:
       divisor *= kernel["MatrixInstK"]
+      pack = 4 // tP["bpe"]
+      divisor //= pack
       if tc == "B":
         divisor //= 4 # 4 simds
-        pack = 4 // tP["bpe"]
-        divisor //= pack
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
     dividendReg = "Serial"
@@ -7084,7 +7084,7 @@ class KernelWriterAssembly(KernelWriter):
       numReadsAlongK = int((kernel["MatrixInstK"] * tP["bpe"]) // (blockWidth*self.bpr)) # TODO:
 
     # mfma: for AB tile in NT layout
-    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
+    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1:
       tmpVgpr = self.vgprPool.checkOut(2)
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
@@ -7114,13 +7114,13 @@ class KernelWriterAssembly(KernelWriter):
             isHighBits = 0 if kIdx % 2 == 0 else 1
             localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple, 0, isHighBits), comment))
 
+            valuIdx += blockWidth
+
             if kIdx % 2 == 1 and kIdx > 0:
               # pack 2 half-dword into one
               destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
               imod.addInst("s_waitcnt lgkmcnt(0)", "")
               imod.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
-
-          valuIdx += blockWidth
 
       self.vgprPool.checkIn(tmpVgpr)
     else: 
@@ -10434,9 +10434,9 @@ class KernelWriterAssembly(KernelWriter):
     pack = 1
     if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
       pack = 2
-    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"] // kernel["MatrixInstB"] // kernel["MatrixInstK"] * pack
+    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"] // kernel["MatrixInstB"] * pack // kernel["MatrixInstK"]
     numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
-    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"] // kernel["MatrixInstK"] * pack
+    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"] * pack // kernel["MatrixInstK"]
     numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     numRowInstructions = kernel["ThreadTile0"]
     mfmaColStoreVw = 1 #Todo check it can be other case or not
