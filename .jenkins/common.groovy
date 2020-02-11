@@ -25,7 +25,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             popd
             tox --version
-            sudo tox -v --workdir /tmp/.tensile-tox -e lint
+            tox -v --workdir /tmp/.tensile-tox -e lint
 
             doxygen docs/Doxyfile
             """
@@ -61,7 +61,7 @@ def runTestCommand (platform, project, test_marks)
 
                 popd
                 tox --version
-                sudo tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
+                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
                 PY_ERR=\$?
                 date
 
