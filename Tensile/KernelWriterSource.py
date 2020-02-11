@@ -2297,7 +2297,7 @@ class KernelWriterSource(KernelWriter):
             if guardK:
               guarded = 1
               if tP["mirror"]:
-                kStr += "(globalRead%s_%u_%u_%u_%u + %u < %s)" \
+                kStr += "int32_t(globalRead%s_%u_%u_%u_%u + %u - %s) < 0" \
                     % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, tP["tensorChar"])
               else:
                 kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
