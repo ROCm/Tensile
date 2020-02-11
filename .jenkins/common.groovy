@@ -24,8 +24,11 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             make -j\$(nproc)
 
             popd
+            #### temporary fix to remedy incorrect home directory
+            export HOME=/home/jenkins
+            ####
             tox --version
-            sudo tox -v --workdir /tmp/.tensile-tox -e lint
+            tox -v --workdir /tmp/.tensile-tox -e lint
 
             doxygen docs/Doxyfile
             """
@@ -60,8 +63,11 @@ def runTestCommand (platform, project, test_marks)
                 HOST_ERR=\$?
 
                 popd
+                #### temporary fix to remedy incorrect home directory
+                export HOME=/home/jenkins
+                ####
                 tox --version
-                sudo tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
+                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
                 PY_ERR=\$?
                 date
 
