@@ -108,9 +108,9 @@ class ConvolutionConfig:
     for field in ('fil', 'stride', 'dilation', 'spatial', 'groupCount', 'padStart', 'padEnd'):
         val = getattr(self,field)
         if val==None:
-          raise RuntimeError("ConvolutionConfig field '%s' == None'" % field)
+          raise RuntimeError("ConvolutionConfig field '%s' == None and must be specified'" % field)
         elif isinstance(val,int) and val==-1 or type(val) in (tuple,list) and -1 in val:
-          raise RuntimeError("ConvolutionConfig field '%s' == %s contains -1'" % (field,val))
+          raise RuntimeError("ConvolutionConfig field '%s' == %s must be fully specified.'" % (field,val))
 
 
   def __str__ (self):
@@ -297,9 +297,11 @@ class Convolution:
       targetStr = targetStr.replace(char1, tmp).replace(char2, char1).replace(tmp, char2)
     return targetStr
 
-
   def makeZeroPadConvProblemType(self, padStart, padEnd):
-    """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
+    """
+    Convert padStart/padEnd into the format expected by ProblemType ZeroPad*
+    Tensile drops any compile-time padding info here; this must be provided with each problem.
+    """
     rv = []
     spatialChars='WHD'
     filterChars='XYZ'
@@ -1215,7 +1217,7 @@ class ProblemSizeRange:
 
 class Problem:
   """ Problem sizes, strides, padding and other info"""
-  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None):
+  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None, count=None):
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
@@ -1225,6 +1227,7 @@ class Problem:
     self.zeroPadA = zeroPadA
     self.zeroPadB = zeroPadB
     self.convConfig = None
+    self.count = count
 
   def __str__(self):
     rv= "sizes:" + str(self.sizes)
@@ -1264,6 +1267,8 @@ class ConvProblem(Problem):
                         ConvField('q_', 'Pad End for Width (overrides q for end)', -1),
 
                         ConvField('g', 'Group Count',  1),
+
+                        ConvField('count', 'Layer execution Count',  -1),
                         ]
   AllowedConfFieldsDict = {field.shortChar : field for field in AllowedConvFields}
 
@@ -1316,7 +1321,7 @@ class ConvProblem(Problem):
     zeroPadA = convolution.makeZeroPadProblemType(convolution.problemTypeOut["ZeroPadA"],
         self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
 
-    Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA)
+    Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA, count=e['count'])
 
     print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
 
@@ -1326,6 +1331,8 @@ class ConvProblem(Problem):
     padStartA = [zp[2] for zp in self.zeroPadA]
     padEndA = [zp[3] for zp in self.zeroPadA]
     exactFields = OrderedDict()
+
+    exactFields['count'] = list(self.count)
     exactFields['sizes'] = list(self.sizes)
     exactFields['stridesA'] = list(self.stridesA)
 
@@ -1382,6 +1389,7 @@ class ExactDict(Problem):
         setattr(self, f, e[f])
       else:
         raise RuntimeError ("specified field '%s' is not a valid Exact dict field"%f)
+
 
     if problemType:
       zp={}
