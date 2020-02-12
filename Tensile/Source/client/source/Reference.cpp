@@ -65,7 +65,6 @@ namespace Tensile
                 const auto sumPos = problem.toBoundsPos(zp.boundIndex);
                 int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos] +
                                          sumCoord * tensor.strides()[zp.boundPos];
-
                 // elementEdge calculation:
                 // size of anchor dim is in the output space, so add filter size-1 to get input spatial dim, then subtract padEnd
                 // anchorStride is typically spatial stride (W,H) * convolution stride
@@ -75,6 +74,18 @@ namespace Tensile
                                        (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos] - zp.padEnd;
 
                 bool rv =  anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
+
+                bool checkUnsignedRangeOpt = false;
+                if (checkUnsignedRangeOpt)
+                {
+                    unsigned anchorRelCoord2 = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos] +
+                                              sumCoord * tensor.strides()[zp.boundPos] - zp.padStart;
+
+                    unsigned elementEdge2  = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos] +
+                                            (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos] - zp.padEnd - zp.padStart;
+                    bool rv2 =  anchorRelCoord >= elementEdge2;
+                    assert(rv==rv2);
+                }
 
                 if (0)
                 {

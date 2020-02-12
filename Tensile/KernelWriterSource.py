@@ -1472,8 +1472,8 @@ class KernelWriterSource(KernelWriter):
               else:
                 sumOffset = "globalReadOffset%s%s" % (tc, sumChar)
               kStr += self.indent + \
-                      "int64_t " + \
-                      gro + "_ZP%s%s =  int64_t(%s*stride%s%s + %s*stride%s%s) - padStart%s%s%s;" \
+                      "unsigned" + " " +\
+                      gro + "_ZP%s%s =  %s*stride%s%s + %s*stride%s%s - padStart%s%s%s;" \
                             % (freeDimChar, sumChar,
                                freeOffset, tc,freeDimChar2,  sumOffset, tc, sumChar,   \
                                tc, freeDimChar, sumChar) + \
@@ -2314,10 +2314,7 @@ class KernelWriterSource(KernelWriter):
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, \
                      freeDimChar, sumChar,
                      sPara if tP["rc"] else 0);
-              kStr += "( ( (int64_t)(%s * stride%s%s + %s) < 0)" \
-                      % (iterVar, tc, sumChar, globalReadOffsetZp)
-              #kStr += ")"
-              kStr += " || ( (%s * stride%s%s + %s) >= elementEdge%s%s ))" \
+              kStr += " ( (%s * stride%s%s + %s) >= elementEdge%s%s )" \
                       % (iterVar, tc, sumChar, globalReadOffsetZp, tc, sumChar)
 
             # guard around edge
