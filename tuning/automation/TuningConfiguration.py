@@ -185,7 +185,7 @@ class TuningConfiguration(object):
 
             if self.globalParameters:
                 dataGlobal[CONST.GlobalParameters] = self.globalParameters
-                yaml.dump(dataGlobal, stream, default_flow_style=False, width=1024)
+                yaml.dump(dataGlobal, stream, default_flow_style=None, width=1024)
                 stream.flush()
 
             if self.benchmarkProblems:
