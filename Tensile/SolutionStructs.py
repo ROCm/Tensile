@@ -1332,7 +1332,7 @@ class ConvProblem(Problem):
     padEndA = [zp[3] for zp in self.zeroPadA]
     exactFields = OrderedDict()
 
-    exactFields['count'] = list(self.count)
+    exactFields['count'] = self.count
     exactFields['sizes'] = list(self.sizes)
     exactFields['stridesA'] = list(self.stridesA)
 
