@@ -1349,11 +1349,10 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for l in range(0, tP["nru"]):
       for s in range(0, 1 if tP["rc"] else kernel["VectorWidth"]):
-        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u + %d*%s;%s" \
-            % (tP["tensorChar"], self.unrollChar, l, s, \
-            tP["tensorChar"], self.unrollChar, s, l, \
-            (tP["lsp"] if tP["tlu"] else tP["lsc"]), \
-            self.endLine)
+        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = " % (tP["tensorChar"], self.unrollChar, l, s)
+        kStr += "globalReadOffset%s%s + %u %s %d*%s;%s" \
+            % (tP["tensorChar"], self.unrollChar, s, "-" if tP["mirror"] else "+", l, \
+              (tP["lsp"] if tP["tlu"] else tP["lsc"]), self.endLine)
       #else:
       #  kStr += "  unsigned int globalReadOffset%s%s_%u = globalReadOffset%s%s + %d*%s;%s" \
       #      % (tP["tensorChar"], self.unrollChar, l, tP["tensorChar"], self.unrollChar, l, \
