@@ -7276,13 +7276,17 @@ class KernelWriterAssembly(KernelWriter):
           # emit an instruction for each half-dword load along k due to strided access
           # checkout 2 vregs for each half-dword loads
           if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
-            tmpVgpr = self.vgprPool.checkOut(numReadsAlongK)
+            tmpVgpr = self.vgprPool.checkOut(numReadsAlongK//2)
             packCode = pack.addCode (Code.Module("packCode"))
             packCode.addTempVgpr(tmpVgpr)
+            destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
             for kIdx in range(0, numReadsAlongK):
               localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
               paramList = []
-              paramList.append(vgpr(tmpVgpr + kIdx%2))
+              if kIdx%2 == 0:
+                paramList.append(destVgpr)
+              else:
+                paramList.append(vgpr(tmpVgpr))
               paramList.append(vgpr("LocalReadAddr%s"%tc))
               offset = ((rIdx * kernel["MatrixInstN"] + (kIdx%2)*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
                 *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
@@ -7307,8 +7311,7 @@ class KernelWriterAssembly(KernelWriter):
               
               if kIdx % 2 == 1 and kIdx > 0:
                 # pack 2 half-dword into one
-                destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
-                packCode.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
+                packCode.addInst("v_or_b32", destVgpr, destVgpr, vgpr(tmpVgpr), "pack")
 
           else:
             assert 0, "No support fp32 multi-k LDS load yet" # TODO
