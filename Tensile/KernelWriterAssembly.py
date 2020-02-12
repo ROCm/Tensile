@@ -1224,6 +1224,9 @@ class KernelWriterAssembly(KernelWriter):
       # NOTE: ThreadTileA/B in MatrixInstruction context is a bit ambiguous 
       self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"] * kernel["VectorWidth"]//self.bpr
       self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * tPA["bpe"] * kernel["VectorWidth"]) // (kernel["MatrixInstN"] * self.bpr) # ABlocks
+      if kernel["ProblemType"]["DataType"].isHalf(): # MI for fp16 requires 2x vgprs
+        self.numVgprValuAPerBlock *= 2
+        self.numVgprValuBPerBlock *= 2
     else:
       self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
       self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
