@@ -2296,8 +2296,7 @@ class KernelWriterSource(KernelWriter):
             if guardK:
               guarded = 1
               if tP["mirror"]:
-                kStr += "int32_t(globalRead%s_%u_%u_%u_%u + %u - %s) < 0" \
-                    % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, tP["tensorChar"])
+                kStr += "int(globalReadOffset%s%s) < 0" % (tP["tensorChar"], self.unrollChar)
               else:
                 kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                     % (tP["tensorChar"], self.unrollChar, \
@@ -2340,8 +2339,8 @@ class KernelWriterSource(KernelWriter):
                   (tP["tensorChar"], para if tP["tlu"] else perp) )
             if guarded:
               kStr += " ? SCALAR_OOB_DATA : "
-            kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
-                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \
+            kStr += "*(globalRead%s_%u_%u_%u_%u %s %u);%s" \
+                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, "-" if tP["mirror"] else "+", sPara if tP["rc"] else 0, \
                 self.endLine)
 
             #if self.db["PrintStagger"] and tP["isA"]:
