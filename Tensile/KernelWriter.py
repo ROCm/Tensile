@@ -278,7 +278,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   #  localReadCode + otherCode
   ##############################################################################
   def makeSubIterSchedule(self, kernel, localReadCode, globalReadCode, \
-        localWriteCode, pointerCode, waitCode, macIterCode):
+        localWriteCode, pointerCode, waitCode, macIterCode, packCode):
 
     iterCode = Code.Module()
 
@@ -290,6 +290,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(localWriteCode)
       iterCode.addCode(pointerCode)
       iterCode.addCode(waitCode)
+      iterCode.addCode(packCode)
+      for item in list(packCode.items()):
+        for pack in list(item.items()):
+          self.vgprPool.checkIn(pack.tempVgpr)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 1:
       #import pdb
@@ -322,14 +326,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
-    
       iterCode.addCode(globalReadCode)
       iterCode.addCode(localReadCode)
       iterCode.addCode(waitCode)
+      iterCode.addCode(packCode)
+      for item in list(packCode.items()):
+        for pack in list(item.items()):
+          self.vgprPool.checkIn(pack.tempVgpr)
+      iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
       iterCode.addCode(macIterCode)
+      iterCode.addInst("s_setprio ","0","Raise priority while processing macs")
       iterCode.addCode(localWriteCode)
       iterCode.addCode(pointerCode)
-      
       pass
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
@@ -344,6 +352,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["PrefetchLocalRead"]:
           # here the reads are prefetches so can skip them in the waitcnt
           lgkmcnt += localReads
+          # ScheduleIterAlg=2, localwrite is after waitCnt, no need to count it.
+          if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ScheduleIterAlg"] == 2:
+            continue
           # and the writes are targetting another section of LDS and are
           # synchronized through a different waitnct than this one
           # (which is always just before the macs)
@@ -958,10 +969,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
           if kernel["MatrixInstruction"]:
-            macIterCode.addCode(pack[luIdx])
-            for item in list(pack[luIdx].items()):
-              for packCode in list(item.items()):
-                self.vgprPool.checkIn(packCode.tempVgpr)
             macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
           else:
             macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
@@ -983,7 +990,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["PrefetchLocalRead"] or (not globalParameters["UnrollLoopEfficiencyEnable"]):
           subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                           self.perIterGlobalReadCode[u], self.perIterLocalWriteCode[u],
-                          pointerCode, waitCode, macIterCode)
+                          pointerCode, waitCode, macIterCode, pack[luIdx])
           kl.append(subIterCode) # add scheduled "other", local reads, local writes
         else:
           macIterCode = Code.Module()
@@ -1223,10 +1230,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["MAC"]:
         luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
         if kernel["MatrixInstruction"]:
-          macIterCode.addCode(pack[luIdx])
-          for item in list(pack[luIdx].items()):
-            for packCode in list(item.items()):
-              self.vgprPool.checkIn(packCode.tempVgpr)
           macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
         else:
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True))
@@ -1234,7 +1237,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       subIterCode = self.makeSubIterSchedule(kernel, localReads,
                             self.perIterGlobalReadCode[unrollIter],
                             self.perIterLocalWriteCode[unrollIter],
-                            pointerCode, waitCode, macIterCode)
+                            pointerCode, waitCode, macIterCode, pack[luIdx])
       kl.append(subIterCode)
 
       # close unrolled loop
