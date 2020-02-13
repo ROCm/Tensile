@@ -27,7 +27,7 @@ BenchmarkProblems:
       IndexAssignmentsA: [0, 2]
       IndexAssignmentsB: [2, 1]
       MirrorDimsA: [2]
-      MirrorDimsB: []
+      MirrorDimsB: [2]
       SetConstStrideA: []
 
     - # BenchmarkProblemSizeGroup
