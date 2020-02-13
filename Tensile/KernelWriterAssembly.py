@@ -5737,7 +5737,7 @@ class KernelWriterAssembly(KernelWriter):
     # TODO: should return Code.Module or string?
     kStr = ""
     if kernel["ProblemType"]["DataType"].isBFloat16():
-      kStr += "s_nop 2\n" # a must; for VALU packing writes to be consumed by matrix instruction 
+      kStr += "s_nop 1\n" # a must; for VALU packing writes to be consumed by matrix instruction 
                           # this can be removed once the vregs are directly loaded via ds_read 
     for b in range(0, self.numColInsts):
       for a in range(0, self.numRowInsts):
