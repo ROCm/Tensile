@@ -40,17 +40,18 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [False]
         - ThreadTile:
           - [ 2, 2 ]
+          - [ 2, 4 ]
+          # - [ 4, 2 ] # doesn't work with MirrorDimsA
         - WorkGroup:
           - [ 8, 8, 1 ]
-          #- [ 16, 16, 1 ]
+          - [ 16, 16, 1 ]
         - StaggerU: [0]
         - StaggerUMapping: [0]
-        - DepthU: [16] #4, 8, 16]
-        - VectorWidth: [-1]
+        - DepthU: [4, 8, 16]
         - FractionalLoad: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          #- Exact: [ 49, 100, 86 ]
+          - Exact: [ 49, 100, 86 ]
           - Exact: [ 3, 5, 9 ]

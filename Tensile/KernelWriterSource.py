@@ -2991,13 +2991,18 @@ class KernelWriterSource(KernelWriter):
             #    % (a, s1, self.tileChar0, b, self.tileChar0, \
             #    ((".%s"%self.vectorComponents[s0]) if kernel["VectorWidth"]>1\
             #    else "") )
+            aStore = a
             s0Store = s0
             if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+              aStore = kernel["ThreadTile0"]//kernel["VectorWidth"] - a - 1
               shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
               if not shiftComponentsA:
                 s0Store = kernel["VectorWidth"] - 1 - s0
+            bStore = b
+            if kernel["ProblemType"]["MirrorDimsB"] == [2]:
+              bStore = kernel["ThreadTile1"]//kernel["VectorWidth"] - b - 1
             kStr += ", rC[%u*VECTOR_WIDTH+%u + (%u*VECTOR_WIDTH+%u)*TT%s]" \
-                % (a, s0Store, b, s1, self.tileChar0 )
+                % (aStore, s0Store, bStore, s1, self.tileChar0 )
             if kernel["ProblemType"]["UseBeta"]:
               kStr += ", beta"
             kStr += ")"
