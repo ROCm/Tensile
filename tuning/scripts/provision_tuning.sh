@@ -45,13 +45,19 @@ function build_configs() {
 
 function provision_tensile() {
 
-  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK} --rocblas-fork ${ROCBLAS_FORK}"
+  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"
 
   local TENSILE_PATH=Tensile
+  
+  if [ -n "${TENSILE_FORK}" ]; then
+    PROVISION_TENSILE="${PROVISION_TENSILE} -f ${TENSILE_FORK}"
+  fi
+  
   if [ -n "${ID}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${ID}"
     PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
   fi
+  
   if [ -n "${TAG}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${TAG}"
   else
@@ -68,10 +74,6 @@ function provision_tensile() {
     PROVISION_TENSILE="${PROVISION_TENSILE} -c ${COMMIT}"
   fi
 
-  if [ -n "${ID}" ]; then
-    PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
-  fi
-
   ${PROVISION_TENSILE}
 
   cp -r ${STAGE_ROOT}/* ${TENSILE_ROOT}/${TENSILE_PATH}
@@ -80,6 +82,11 @@ function provision_tensile() {
 
 HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
 HELP=false
+SUPPRESS_TENSILE=false
+TENSILE_FORK='ROCmSoftwarePlatform'
+ROCBLAS_FORK='ROCmSoftwarePlatform'
+TENSILE_BRANCH='develop'
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
 
 OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:i: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,library:,type:,no-tensile -n 'parse-options' -- "$@"`
 
@@ -119,18 +126,6 @@ if [ -z ${WORKING_PATH+foo} ]; then
    exit 2
 fi
 
-if [ -z ${TENSILE_FORK+foo} ]; then
-   TENSILE_FORK="ROCmSoftwarePlatform"
-fi
-
-if [ -z ${TENSILE_BRANCH+foo} ]; then
-   TENSILE_BRANCH="develop"
-fi
-
-if [ -z ${ROCBLAS_FORK+foo} ]; then
-   ROCBLAS_FORK="ROCmSoftwarePlatform"
-fi
-
 if [ -z ${SIZE_LOG+foo} ] && [ -z ${SIZE_DIR+foo} ]; then
    printf "A problem specification file or directory is required\n"
    exit 2
@@ -149,10 +144,6 @@ if [ -z ${CONFIGURATION_TYPE+foo} ]; then
    printf "Need specify a configuration type\n"
    exit 2
 fi
-
-
-TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
-SUPPRESS_TENSILE=false
 
 #determining the full path of tools root
 TOOLS_ROOT=`dirname "$0"`

@@ -5,8 +5,12 @@ function provision_rocblas() {
 
   local ROCBLAS_ID=$1 
 
-  local PROVISION_ROCBLAS="${SCRIPT_ROOT}/provision_repo.sh -r -w ${ROCBLAS_ROOT} -b ${ROCBLAS_BRANCH} -i ${ROCBLAS_ID}"
-
+  local PROVISION_ROCBLAS="${SCRIPT_ROOT}/provision_repo.sh -r -w ${ROCBLAS_ROOT} -b ${ROCBLAS_BRANCH} -i ${ROCBLAS_ID} --rocblas-fork ${ROCBLAS_FORK}"
+  
+  if [ -n "${ROCBLAS_FORK}" ]; then
+    PROVISION_ROCBLAS="${PROVISION_ROCBLAS} --rocblas-fork ${ROCBLAS_FORK}"
+  fi
+  
   if [ -n "${ID}" ]; then
     ROCBLAS_PATH="${ROCBLAS_PATH}-${ID}"
     PROVISION_ROCBLAS="${PROVISION_ROCBLAS} -i ${ID}"
@@ -19,23 +23,19 @@ function provision_rocblas() {
   if [ -n "${COMMIT}" ]; then
     PROVISION_ROCBLAS="${PROVISION_ROCBLAS} -c ${COMMIT}"
   fi
-
-  if [ -n "${ID}" ]; then
-    PROVISION_ROCBLAS="${PROVISION_ROCBLAS} -i ${ID}"
-  fi
-
+  
   ${PROVISION_ROCBLAS}
 }
 
 
-HELP_STR="usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <githup tag>] [-l|--library <gpu library>]  [-h|--help]"
+HELP_STR="usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <githup tag>] [-l|--library <gpu library>] [-n|--no-massage]  [--rocblas-fork <username>] [-h|--help]"
 
 HELP=false
 ROCBLAS_BRANCH='develop'
+ROCBLAS_FORK='RocmSoftwarePlatform'
+MASSAGE=true
 
-
-
-OPTS=`getopt -o ht:w:b:c:i:r:l: --long help,working-path:,size-log,output:,tag:,branch:,commit:,library:,type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o ht:w:b:c:i:r:nl: --long help,working-path:,size-log,output:,tag:,branch:,commit:,no-massage,library:,type:,rocblas-fork: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -50,7 +50,9 @@ while true; do
     -c | --commit )       COMMIT="$2"; shift 2;;
     -i )                  ID="$2"; shift 2;;
     -r )                  TENSILE_PATH="$2"; shift 2;;
+    -n | --no-massage )   MASSAGE=false; shift ;;
     -l | --library )      LIBRARY="$2"; shift 2;;
+    --rocblas-fork )      ROCBLAS_FORK="$2"; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -75,7 +77,6 @@ if [ -z ${LIBRARY+foo} ]; then
    printf "GPU Library not specified, assuming Vega 20\n"
    LIBRARY=vega20
 fi
-
 
 #determing full path of tools root
 TOOLS_ROOT=`dirname "$0"`
@@ -126,7 +127,9 @@ cp ${MERGE_PATH}/* ${VERIFY_LIBRARY_ASM}
 cp ${MERGE_PATH}/* ${VERIFY_LIBRARY_ARCHIVE}
 cp ${MERGE_PATH}/${LIBRARY}*{SB,DB,HB}* ${MASSAGE_PATH}
 
-python ${MESSAGE_SCRIPT} ${MASSAGE_PATH} ${VERIFY_LIBRARY_ASM}
+if [[ ${MASSAGE} == true ]]; then
+  python ${MESSAGE_SCRIPT} ${MASSAGE_PATH} ${VERIFY_LIBRARY_ASM}
+fi
 
 BUILD_ROCBLAS="./install.sh -c"
 
