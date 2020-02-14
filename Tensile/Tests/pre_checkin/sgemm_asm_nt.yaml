@@ -9,6 +9,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   NumElementsToValidate: -1
+  BoundsCheck: True
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -16,6 +17,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
 

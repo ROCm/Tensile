@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.7.2
+  MinimumRequiredVersion: 4.9.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -18,7 +18,7 @@ GlobalParameters:
   KernelTime: True
   PinClocks: False
   SleepPercent: 0
-  DataInitTypeBeta : 0
+  DataInitTypeBeta : 2
   CEqualD: True
 # PrintSolutionRejectionReason: True
 # SolutionSelectionAlg: 1
@@ -52,6 +52,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - VectorWidth: [-1]
       ForkParameters:
+        - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
@@ -77,6 +78,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - VectorWidth: [-1]
       ForkParameters:
+        - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
@@ -103,25 +105,25 @@ BenchmarkProblems:
         - FractionalLoad: [True]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True, False]
-        - PersistentKernel: [0,2]
-        - SuppressNoLoadLoop: [0] 
+        - PersistentKernel: [0]
+        - SuppressNoLoadLoop: [True, False] 
         - StaggerU: [0]
         - ThreadTile:
-#         - [ 4, 4 ]
+          - [ 4, 4 ]
           - [ 6, 4 ]
           - [ 4, 6 ]
           - [ 6, 6 ]
           - [ 8, 4 ]
+          - [ 4, 8 ]
         - WorkGroup:
-#         - [ 32, 16,  1 ]
+          - [ 32, 16,  1 ]
+          - [ 16,  8,  1 ]
+          - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
           - [ 16, 32,  1 ]
         - WorkGroupMapping: [1, 8]
         - DepthU: [ 4, 8 ]
         - VectorWidth: [-1]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
-        - AssertFree1ElementMultiple: [2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -131,53 +133,11 @@ BenchmarkProblems:
           - Exact: [ 4608, 4608, 1, 50000 ]
           - Exact: [ 5760, 5760, 1, 5760 ]
           - Exact: [ 7744, 7744, 1, 7744 ]
-          - Range: [ [384, 384, 44928],      0, [1], [384] ]
-          - Range: [ [256, 256, 44800],      0, [1], [256] ]
-#         - Range: [ [384, 384, 44928], [3072], [1], [384] ]
-#         - Range: [ [384, 384, 44928], [2048], [1], [384] ]
-#         - Range: [ [256, 256, 44800], [3072], [1], [256] ]
-#         - Range: [ [256, 256, 44800], [2048], [1], [256] ]
-
-    - # BenchmarkProblemSizeGroup - k=256,384 n=2048,3072
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - BufferLoad: [True]
-        - BufferStore: [True]
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-      ForkParameters:
-        - FractionalLoad: [True]
-        - PrefetchGlobalRead: [True]
-        - PrefetchLocalRead: [True, False]
-        - PersistentKernel: [0,2,3,4]
-        - SuppressNoLoadLoop: [0] 
-##      - StaggerU: [0]
-        - ThreadTile:
-          - [ 4, 4 ]
-          - [ 6, 4 ]
-          - [ 4, 6 ]
-          - [ 6, 6 ]
-          - [ 8, 4 ]
-        - WorkGroup:
-#         - [ 32, 16,  1 ]
-          - [ 16, 16,  1 ]
-          - [ 16, 32,  1 ]
-        - WorkGroupMapping: [1, 8]
-        - DepthU: [ 4, 8 ]
-        - VectorWidth: [-1]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
-        - AssertFree1ElementMultiple: [2]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Range: [ [384, 384, 44928], [3072], [1], [384] ]
-          - Range: [ [384, 384, 44928], [2048], [1], [384] ]
-          - Range: [ [256, 256, 44800], [3072], [1], [256] ]
-          - Range: [ [256, 256, 44800], [2048], [1], [256] ]
+          - Range: [ [384, 384, 44928],      0, [1], [384], [44928], [44928], [0], [0] ]
+          - Range: [ [256, 256, 44800],      0, [1], [256], [44928], [44928], [0], [0] ]
+          - Range: [ [384, 384, 44160], [3072], [1], [384], [44160], [44160], [0], [0] ]
+          - Range: [ [256, 256, 44800], [3072], [1], [256], [44800], [44800], [0], [0] ]
+          - Range: [ [256, 256, 44800], [2048], [1], [256], [44800], [44800], [0], [0] ]
 
     - # BenchmarkProblemSizeGroup - M*128 128*N (small)
       InitialSolutionParameters:
@@ -193,6 +153,7 @@ BenchmarkProblems:
         - ReplacementKernel: [False]
       ForkParameters:
         - PrefetchLocalRead: [True,False]
+        - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
           - [ 6, 4 ]
@@ -218,11 +179,12 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7"]
+    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
     ArchitectureName: "gfx906"
 
 #   ScheduleName: "vega10"
-#   DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
+#   DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]",
+#       Vega, Device 6864, Device 686c]
 #   ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

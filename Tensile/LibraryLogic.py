@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,18 +18,18 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import os
-import os.path
-import array
-import csv
-from sys import stdout
-import time
+
+from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+from .SolutionStructs import Solution
+from . import YAMLIO
+from . import SolutionSelectionLibrary
 
 from copy import deepcopy
-
-from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
-from SolutionStructs import Solution
-import YAMLIO
+from sys import stdout
+import array
+import csv
+import os
+import time
 
 ################################################################################
 # Analyze Problem Type
@@ -38,6 +38,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print2(HR)
   print1("# Analyzing: %s" % problemType)
 
+  enableTileSelection = problemType["TileAwareSelection"]
   solutionsList = []
   problemSizesList = []
   dataFileNameList = []
@@ -92,14 +93,14 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
       numOther *= size
     numCols = logicAnalyzer.numProblemSizes[1]
     if numCols == 0: numCols = 1
-    numOther /= numCols
+    numOther //= numCols
     for row in range(0, numOther):
       for col in range(0, numCols):
         for sol in range(0, logicAnalyzer.numSolutions):
          line += "% 5.0f" % logicAnalyzer.data[sol + logicAnalyzer.numSolutions*(col + row*numCols)]
         line += "; "
       line += "\n"
-    print line
+    print(line)
 
   ######################################
   # Print solutions used
@@ -111,6 +112,45 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     print1("(%2u) %s : %s" % (i, \
         Solution.getNameMin(s, solutionMinNaming), \
         Solution.getNameFull(s)))  # this is the right name
+
+  selectionSolutionsIdsList = None 
+  selectionSolutions = None
+  if enableTileSelection:
+    validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, problemSizeGroups)
+  
+    validSelectionSolutionsIncluded = []
+    validSelectionSolutionsRemainder = []
+    for validSelectionSolution in validSelectionSolutions:
+      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      if validSolution in logicAnalyzer.solutions:
+        validExactSolutionIndex = logicAnalyzer.solutions.index(validSolution)
+        validExactSolution = logicAnalyzer.solutions[validExactSolutionIndex]
+        validSelectionSolutionsIncluded.append((validSolutionName, validExactSolution, validSolutionInfo))
+      else:
+        validSelectionSolutionsRemainder.append(validSelectionSolution)
+
+    selectionSolutions = []
+    selectionSolutionsIds = set([])
+    for i in range(0 ,len(validSelectionSolutionsIncluded)):
+      validSelectionSolution = validSelectionSolutionsIncluded[i]
+      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      validSolution["Ideals"] = validSolutionInfo
+      selectionSolutionsIds.add(validSolution["SolutionIndex"])
+      #selectionSolutions.append(validSolution)
+
+    solutionsStartIndex = len(logicAnalyzer.solutions)
+
+    for i in range(0, len(validSelectionSolutionsRemainder)):
+      validSelectionSolution = validSelectionSolutionsRemainder[i]
+      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      selectionSolutionIndex = solutionsStartIndex + i
+      validSolution["SolutionIndex"] = selectionSolutionIndex
+      selectionSolutionsIds.add(selectionSolutionIndex)
+      validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
+      validSolution["Ideals"] = validSolutionInfo
+      selectionSolutions.append(validSolution)
+
+    selectionSolutionsIdsList = list(selectionSolutionsIds)
 
   ######################################
   # Correct outliers
@@ -158,8 +198,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1("# Exact Logic:\n")
   print1("%s"%exactLogic)
 
+  #selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
-       exactLogic, rangeLogic )
+       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList)
 
 
 
@@ -232,7 +273,7 @@ class LogicAnalyzer:
 
     # merge problem sizes from size groups
     #self.numIndices = len(problemSizesList[0].numProblemSizes)
-    self.numIndices = self.problemType["TotalIndices"]
+    self.numIndices = self.problemType["TotalIndices"] + problemType["NumIndicesLD"]
     unifiedProblemSizes = []
     for i in range(0, self.numIndices):
       unifiedProblemSizes.append(set())
@@ -240,12 +281,13 @@ class LogicAnalyzer:
     self.rangeProblemSizes = set()
     for problemSizes in problemSizesList:
       # add exacts
-      for exactSize in problemSizes.exacts:
-        self.exactProblemSizes.add(tuple(exactSize))
+      for problem in problemSizes.exacts:
+        self.exactProblemSizes.add(tuple(problem.sizes))
 
       # add ranges
       #print "ProblemSizes", problemSizes.sizes
-      self.rangeProblemSizes.update(problemSizes.sizes)
+      #FIXME-problem
+      self.rangeProblemSizes.update([tuple(problem.sizes) for problem in problemSizes.problems])
       for rangeSize in problemSizes.ranges:
 
         if globalParameters["ExpandRanges"]: 
@@ -364,7 +406,7 @@ class LogicAnalyzer:
   def addFromCSV(self, dataFileName, numSolutions, solutionMap):
 
     # open file
-    print "reading datafile", dataFileName
+    print("reading datafile", dataFileName)
     try:
       dataFile = open(dataFileName, "r")
     except IOError:
@@ -433,9 +475,6 @@ class LogicAnalyzer:
         else:
           printExit("Huh? %s has ProblemSize %s which isn't in its yaml" \
               % ( dataFileName, list(problemSize)) )
-    if rowIdx < 2:
-      printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
-          % (dataFileName, rowIdx) )
     #print self.data
 
 
@@ -489,7 +528,7 @@ class LogicAnalyzer:
       else: # no more lis, remainders are exact winner
         break
     stop = time.time()
-    print "removeLeastImportantSolutions elapsed time = %.1f secs" % (stop - start)
+    print("removeLeastImportantSolutions elapsed time = %.1f secs" % (stop - start))
 
 
   ##############################################################################
@@ -505,7 +544,7 @@ class LogicAnalyzer:
     for i in range(0, self.numSolutions):
       solutionImportance.append([i, 0, 0, 0, False])
     problemSizes = [0]*self.numIndices
-    print "problemIndicesForGlobalRange", self.problemIndicesForGlobalRange
+    print("problemIndicesForGlobalRange", self.problemIndicesForGlobalRange)
     for problemIndices in self.problemIndicesForGlobalRange:
       for i in range(0, self.numIndices):
         problemSizes[i] = self.problemIndexToSize[i][problemIndices[i]]
@@ -531,7 +570,7 @@ class LogicAnalyzer:
       #print "keepWinnerSolution adding exact", exactProblem, winnerIdx
       winners.add(winnerIdx)
 
-    print "Winners", winners
+    print("Winners", winners)
     self.pruneSolutions(winners)
 
 
@@ -1088,9 +1127,9 @@ class LogicAnalyzer:
       self.exactWinners[problemSize][0] = \
           solutionMapOldToNew[self.exactWinners[problemSize][0]]
       if self.exactWinners[problemSize][0] == -1:
-        print ("warning: exactWinner[", problemSize, "] == -1")
+        print(("warning: exactWinner[", problemSize, "] == -1"))
       if self.exactWinners[problemSize][0] >= self.numSolutions:
-        print ("warning: exactWinner[", problemSize, "] ")
+        print(("warning: exactWinner[", problemSize, "] "))
 
 
   ##############################################################################
@@ -1254,7 +1293,7 @@ class LogicAnalyzer:
   # TODO, this may depend on transposes
   def recommendedIndexOrder(self):
     order = []
-    for i in range(0, self.numIndices):
+    for i in range(0, self.problemType["TotalIndices"]):
       if i != self.idxU and i != self.idx1 and i != self.idx0:
         order.append(i)
     order.append(self.idxU)
@@ -1371,12 +1410,9 @@ def main(  config ):
   print1(HR)
   print1("")
 
-
-
   ##############################################################################
   # Determine Which Problem Types
   ##############################################################################
-  #problemTypeTuples = []
   problemTypes = {}
   if not os.path.exists(benchmarkDataPath):
     printExit("Path doesn't exist: %s" % benchmarkDataPath)
@@ -1389,6 +1425,7 @@ def main(  config ):
           fileName))[0]
       dataFileName = fileBase + ".csv"
       solutionsFileName = fileBase + ".yaml"
+      selectionFileName = fileBase + ".gsp"
       if not os.path.exists(dataFileName):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
@@ -1400,13 +1437,12 @@ def main(  config ):
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName) )
-      #if problemTypeTuple not in problemTypeTuples:
-      #  problemTypeTuples.append(problemTypeTuple)
+          dataFileName, solutionsFileName, selectionFileName) )
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
-        analysisParameters )
+        analysisParameters)
+
     YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
         analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
         analysisParameters["DeviceNames"], logicTuple)

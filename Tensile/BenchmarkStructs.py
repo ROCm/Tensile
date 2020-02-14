@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,26 +18,23 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+
 from copy import copy, deepcopy
-from Common import print1, print2, printWarning, defaultSolution, \
+from .Common import print1, print2, printWarning, defaultSolution, \
     defaultProblemSizes, defaultBenchmarkFinalProblemSizes, \
     defaultBatchedProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
     defaultBenchmarkCommonParameters, hasParam, \
     defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
     defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
-    validParameters
-from SolutionStructs import Solution, ProblemType, ProblemSizes
+    validParameters, defaultSolutionSummationSizes
+from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
-################################################################################
-# Benchmark Process
-# steps in config need to be expanded and
-# missing elements need to be assigned a default
-################################################################################
 class BenchmarkProcess:
+  """
+  Benchmark Process
+  Steps in config need to be expanded and missing elements need to be assigned a default.
+  """
 
-  ##############################################################################
-  # Init
-  ##############################################################################
   #def __init__(self, config):
   def __init__(self, problemTypeConfig, problemSizeGroupConfig ):
     # read problem type
@@ -80,6 +77,7 @@ class BenchmarkProcess:
     self.benchmarkSteps = []
     self.hardcodedParameters = [{}]
     self.singleValueParameters = {}
+    self.solutionSummationSizes = []
 
     # (I)
     self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
@@ -102,6 +100,7 @@ class BenchmarkProcess:
     print2("####################################################################")
     print2("")
 
+    self.solutionSummationSizes = defaultSolutionSummationSizes
     ############################################################################
     # (I-0) get 6 phases from config
     configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
@@ -128,7 +127,7 @@ class BenchmarkProcess:
 
     ############################################################################
     # Ensure only valid solution parameters were requested
-    validParameterNames = validParameters.keys()
+    validParameterNames = list(validParameters.keys())
     for paramDictList in [configBenchmarkCommonParameters, \
         configForkParameters, configBenchmarkForkParameters, \
         configBenchmarkJoinParameters]:
@@ -143,10 +142,9 @@ class BenchmarkProcess:
                     % (paramName, validParameterNames))
               paramValues = paramDict[paramName]
               for paramValue in paramValues:
-                if paramValue not in validParameters[paramName]:
+                if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:
                   printExit("Invalid parameter value: %s = %s\nValid values for %s are %s." \
                       % (paramName, paramValue, paramName, validParameters[paramName]))
-
 
 
     ############################################################################
@@ -377,7 +375,7 @@ class BenchmarkProcess:
           values = param[name]
           valueIdx = pIdx % len(values)
           forkPermutations[i][name] = values[valueIdx]
-          pIdx /= len(values)
+          pIdx //= len(values)
     if len(forkPermutations) > 0:
       self.forkHardcodedParameters(forkPermutations)
 
@@ -439,7 +437,7 @@ class BenchmarkProcess:
           for i in range(0, macroTilePermutations):
             pIdx = i
             workGroupIdx = pIdx % len(workGroupValues)
-            pIdx /= len(workGroupValues)
+            pIdx //= len(workGroupValues)
             threadTileIdx = pIdx % len(threadTileValues)
 
             workGroup = workGroupValues[workGroupIdx]
@@ -474,11 +472,11 @@ class BenchmarkProcess:
                 paramValues = paramDict[joinName]
                 valueIdx = pIdx % len(paramValues)
                 joinPermutations[i][joinName] = paramValues[valueIdx]
-                pIdx /= len(paramValues)
+                pIdx //= len(paramValues)
                 break
           elif joinName == "MacroTile":
             valueIdx = pIdx % len(macroTiles)
-            pIdx /= len(macroTiles)
+            pIdx //= len(macroTiles)
             joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
             joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
       if len(joinPermutations) > 0:
@@ -498,17 +496,20 @@ class BenchmarkProcess:
     print2("####################################################################")
     print1("# Benchmark Final")
     for problemSizesDict in self.benchmarkFinalParameters:
-      problemSizes = problemSizesDict["ProblemSizes"]
-      self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
-      currentBenchmarkParameters = {}
-      benchmarkStep = BenchmarkStep(
-          self.hardcodedParameters,
-          currentBenchmarkParameters,
-          self.initialSolutionParameters,
-          self.currentProblemSizes,
-          self.benchmarkStepIdx )
-      self.benchmarkSteps.append(benchmarkStep)
-      self.benchmarkStepIdx+=1
+      if "SolutionSummationSizes" in problemSizesDict:
+        self.solutionSummationSizes = problemSizesDict["SolutionSummationSizes"]
+      else:  
+        problemSizes = problemSizesDict["ProblemSizes"]
+        self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
+        currentBenchmarkParameters = {}
+        benchmarkStep = BenchmarkStep(
+            self.hardcodedParameters,
+            currentBenchmarkParameters,
+            self.initialSolutionParameters,
+            self.currentProblemSizes,
+            self.benchmarkStepIdx )
+        self.benchmarkSteps.append(benchmarkStep)
+        self.benchmarkStepIdx+=1
 
 
   ##############################################################################
@@ -561,8 +562,7 @@ class BenchmarkProcess:
   def joinHardcodedParameters( self, update ):
     self.hardcodedParameters = update
     return
-
-
+    
   def __len__(self):
     return len(self.benchmarkSteps)
   def __getitem__(self, key):
@@ -575,7 +575,6 @@ class BenchmarkProcess:
     return string
   def __repr__(self):
     return self.__str__()
-
 
 ################################################################################
 # Benchmark Step

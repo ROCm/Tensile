@@ -21,6 +21,8 @@
 
 #include <vector>
 #include <iostream>
+#include <iomanip>
+#include <cstddef>
 
 extern const char indexChars[];
 
@@ -156,7 +158,7 @@ static const unsigned PrintElementValueHex  = 0x20;  // Print hex value of eleme
 /*******************************************************************************
  * Print Tensor.
  * Elements from index[0] should appear on one row.
- * Index[0] is the fastest moving and elements in the printed row are 
+ * Index[0] is the fastest moving and elements in the printed row are
  * adjacent in memory.
  * Matrix start "[" and stop "]" markers are printed at appropriate points,
  * when the indexing crosses a dimension boundary.  The markers are indented
@@ -272,11 +274,11 @@ void printTensor(
           std::cout << "/";
         }
         if (sizeof(Type) == 2) {
-          std::cout << "0x" << std::hex << *(uint16_t*)(&data[eo]) << std::dec;
+          std::cout << "0x" << std::setfill('0') << std::setw(4) << std::hex << *(uint16_t*)(&data[eo]) << std::dec;
         } else if (sizeof(Type) == 4) {
-          std::cout << "0x" << std::hex << *(uint32_t*)(&data[eo]) << std::dec;
+          std::cout << "0x" << std::setfill('0') << std::setw(8) << std::hex << *(uint32_t*)(&data[eo]) << std::dec;
         } else if (sizeof(Type) == 8) {
-          std::cout << "0x" << std::hex << *(uint64_t*)(&data[eo]) << std::dec;
+          std::cout << "0x" << std::setfill('0') << std::setw(16) << std::hex << *(uint64_t*)(&data[eo]) << std::dec;
         }
       }
 

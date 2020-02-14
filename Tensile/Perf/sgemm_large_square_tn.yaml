@@ -7,7 +7,8 @@ GlobalParameters:
   #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
-  PrintSolutionRejectionReason: 1
+  PrintSolutionRejectionReason: 0
+  PrintWinnersOnly: 1
 
 BenchmarkProblems:
   ########################################

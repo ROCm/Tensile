@@ -23,6 +23,9 @@
 #define TOOLS_H
 
 #include <string>
+#ifdef Tensile_RESUME_BENCHMARK
+#include <fstream>
+#endif
 #ifdef WIN32
 #include "Windows.h"
 #else
@@ -62,6 +65,24 @@ private:
 
 #define tensileMin(a,b) (((a) < (b)) ? (a) : (b))
 #define tensileMax(a,b) (((a) > (b)) ? (a) : (b))
+
+#ifdef Tensile_RESUME_BENCHMARK
+inline unsigned int countFileLines(const std::string& file_path){
+    std::ifstream read_file;
+    
+    read_file.open(file_path, std::ios::in);
+    if(read_file.fail()) return 0;
+
+    unsigned int line_counts = 0;
+    std::string tmp;
+    while(getline(read_file, tmp)){
+      ++line_counts;
+    }
+
+    read_file.close();
+    return line_counts;
+}
+#endif
 
 #endif
 

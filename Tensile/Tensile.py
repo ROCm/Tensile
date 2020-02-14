@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,17 +19,20 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+if __name__ == "__main__":
+    print("This file can no longer be run as a script.  Run 'Tensile/bin/Tensile' instead.")
+    exit(1)
+
 import os
 import sys
 import argparse
-
-from Common import globalParameters, print1, ensurePath, \
+from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, defaultGlobalParameters, HR
-import YAMLIO
-import BenchmarkProblems
-import LibraryLogic
-import ClientWriter
-from __init__ import __version__
+from . import BenchmarkProblems
+from . import ClientWriter
+from . import LibraryLogic
+from . import YAMLIO
+from . import __version__
 
 ###############################################################################
 # Execute Steps in Config
@@ -48,11 +51,12 @@ def executeStepsInConfig( config ):
     BenchmarkProblems.main( config["BenchmarkProblems"] )
     print1("")
 
+
   ##############################################################################
   # Library Logic
   ##############################################################################
   libraryLogicDataPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["LibraryLogicPath"])
+    globalParameters["LibraryLogicPath"])
   if "LibraryLogic" in config:
     if os.path.exists(libraryLogicDataPath):
       libraryLogicFiles = os.listdir(libraryLogicDataPath)
@@ -107,6 +111,8 @@ def Tensile(userArgs):
       help="override which OpenCL platform to benchmark")
   argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
       choices=["HIP", "OCL"], help="override which runtime language to use")
+  argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
+      choices=["V2", "V3"], help="HSA code-object version")
   argParser.add_argument("-v", "--verbose", action="store_true", \
       help="set PrintLevel=2")
   argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -115,6 +121,10 @@ def Tensile(userArgs):
       help="use serial kernel and solution names")
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
+  argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
+      action="store", default="hcc", help="select which compiler to use")
+  argParser.add_argument("--client-build-path", default=None)
+  argParser.add_argument("--client-lock", default=None)
   # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
@@ -142,8 +152,8 @@ def Tensile(userArgs):
   else:
     assignGlobalParameters({})
 
-  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
-  ensurePath(globalParameters["WorkingPath"])
+  globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
+  globalParameters["WorkingPath"] = globalParameters["OutputPath"]
 
   # override config with command-line options
   if args.device:
@@ -155,6 +165,9 @@ def Tensile(userArgs):
   if args.RuntimeLanguage:
     print1("# Command-line override: RuntimeLanguage")
     globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
+  if args.CodeObjectVersion:
+    print1("# Command-line override: CodeObjectVersion")
+    globalParameters["CodeObjectVersion"] = args.CodeObjectVersion
   if args.verbose:
     print1("# Command-line override: PrintLevel")
     globalParameters["PrintLevel"] = 2
@@ -166,7 +179,13 @@ def Tensile(userArgs):
     globalParameters["ShortNames"] = True
   if args.noMergeFiles:
     globalParameters["MergeFiles"] = False
+  if args.CxxCompiler:
+    globalParameters['CxxCompiler'] = args.CxxCompiler
   print1("")
+  if args.client_build_path:
+    globalParameters["ClientBuildPath"] = args.client_build_path
+  if args.client_lock:
+    globalParameters["ClientExecutionLockPath"] = args.client_lock
 
   # Execute Steps in the config script
   executeStepsInConfig( config )
@@ -214,7 +233,3 @@ def TensileSGEMM5760():
 def main():
     Tensile(sys.argv[1:])
 
-
-# script run from commandline
-if __name__ == "__main__":
-  main()

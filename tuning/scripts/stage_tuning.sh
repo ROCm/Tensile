@@ -1,7 +1,30 @@
-#!/bin/sh
+#!/bin/bash
 
 
-SCRIPT=./make_tensile_tuning.sh
+make_tensile_tuning () {
+
+    local FULLFILENAME=$1
+
+    local BUILDNAME="build"
+
+    local FILENAME=$(basename "$FULLFILENAME")
+    local FNAME="${FILENAME%.*}"
+    local FILEPATH=$(ls $SOURCE/$FILENAME)
+
+    local WORKINGPATHNAME=${BUILDNAME}-${FNAME}
+    local WORKINGPATH=${DESTINATION}/${WORKINGPATHNAME}
+
+    mkdir -p $WORKINGPATH
+    cp $FILEPATH $WORKINGPATH
+    pushd ${WORKINGPATH} > /dev/null
+    echo "#!/bin/sh" > doit.sh
+    echo "touch time.begin" >> doit.sh
+    echo "../Tensile/bin/Tensile $FILENAME ./ > make.out 2>&1" >> doit.sh
+    echo "touch time.end" >> doit.sh
+
+    chmod +x doit.sh
+    popd > /dev/null
+}
 
 if [ $# -lt 3 ]; then
 
@@ -42,19 +65,19 @@ echo "#!/bin/sh" > $DOIT
 
 for config in "$@"
 do  
-    $SCRIPT $SOURCE $DESTINATION "$SOURCE/$config" 
+    make_tensile_tuning "${SOURCE}/${config}" 
     DIRNAME="${config%.*}"
-    DIRS="$DIRS $DIRNAME"
+    DIRS="${DIRS} ${DIRNAME}"
 done
 
 echo "for dir in$DIRS" >> $DOIT
+echo "do" >> $DOIT
 echo "  cd build-\${dir}" >> $DOIT
 echo "  ./doit.sh > doit-errs 2>&1" >> $DOIT
 echo "  cd .." >> $DOIT
 echo "done" >> $DOIT
 
 chmod +x $DOIT 
-
 
 
 
