@@ -561,6 +561,8 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xE0511528, 0x8003495B
 .long 0xE0511630, 0x80034A5C
 .long 0xE0511738, 0x80034B5D
+.long 0xBF8CC07F
+.long 0xBF8C4F74
 .long 0xBF8C0070
 .long 0xBF8A0000
 .long 0xD86C0000, 0x2000005E
@@ -575,7 +577,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0x8F2E852D
 .long 0x80AE2E80
 .long 0xBF06802E
-.long 0xBF850231
+.long 0xBF850234
 .long 0xBF8CC27F
 .long 0xD3EC0000, 0x04026920
 .long 0xD86C0010, 0x2400005E
@@ -638,6 +640,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xE0511630, 0x80034A5C
 .long 0xE0511738, 0x80034B5D
 .long 0xD3EC0010, 0x0442752D
+.long 0xBF8C4F74
 .long 0xBF8C0070
 .long 0xBF8A0000
 .long 0xD3EC0000, 0x0402772E
@@ -714,6 +717,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xE0511630, 0x80034A5C
 .long 0xE0511738, 0x80034B5D
 .long 0xD3EC0010, 0x0442852D
+.long 0xBF8C4F74
 .long 0xBF8C0070
 .long 0xBF8A0000
 .long 0xD3EC0000, 0x0402872E
@@ -729,7 +733,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xD86C0018, 0x37000060
 .long 0x802E812E
 .long 0xBF00C22E
-.long 0xBF84FEFE
+.long 0xBF84FEFC
 .long 0xBF8CC27F
 .long 0xD3EC0000, 0x04026920
 .long 0xD86C0010, 0x2400005E
@@ -766,6 +770,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .long 0xBF8CC07F
 .long 0xD3EC0000, 0x0402752C
 .long 0xD3EC0010, 0x0442752D
+.long 0xBF8C0F78
 .long 0xBF8C0070
 .long 0xBF8A0000
 .long 0xD3EC0000, 0x0402772E
