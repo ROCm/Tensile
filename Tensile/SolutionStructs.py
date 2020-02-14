@@ -1557,8 +1557,10 @@ class Solution:
     if 'ISA' not in self._state:
       if 'ISA' in config:
         self._state['ISA'] = config['ISA']
-      else:
+      elif config['KernelLanguage'] == 'Assembly':
         self._state['ISA'] = list(globalParameters["CurrentISA"])
+      else:
+        self._state['ISA'] = [0,0,0]
 
     # assign parameters without defaults
     for key in config:
