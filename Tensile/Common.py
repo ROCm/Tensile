@@ -127,7 +127,7 @@ globalParameters["DebugKernel"] = False           # assembly only, kernel gets b
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
 
 # Tensor printing controls:
-globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info
+globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info. 1=tensor fields,2=boilerplate info,4=print tensor mappings for specified ConvProblems
 globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = 0          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
@@ -1009,7 +1009,6 @@ defaultProblemType = {
     #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
     #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.
     # - Caveats:
-    #  - CPU reference model does not yet support zero-padding
     #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
     #  - ZeroPad requires that the ElementEdge <= 2^32:
     #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32

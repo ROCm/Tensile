@@ -24,6 +24,9 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             make -j\$(nproc)
 
             popd
+            #### temporary fix to remedy incorrect home directory
+            export HOME=/home/jenkins
+            ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
 
@@ -60,6 +63,9 @@ def runTestCommand (platform, project, test_marks)
                 HOST_ERR=\$?
 
                 popd
+                #### temporary fix to remedy incorrect home directory
+                export HOME=/home/jenkins
+                ####
                 tox --version
                 tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
                 PY_ERR=\$?
@@ -79,8 +85,15 @@ def runTestCommand (platform, project, test_marks)
     }
     finally
     {
-        junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-        junit "${project.paths.project_build_prefix}/*_tests.xml"
+        try
+        {
+            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+        }
+        finally
+        {
+            junit "${project.paths.project_build_prefix}/*_tests.xml"
+        }
+        
     }
 }
 

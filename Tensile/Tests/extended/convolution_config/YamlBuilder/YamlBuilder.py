@@ -1,5 +1,6 @@
 import copy, operator, pytest
 from functools import reduce
+from Tensile.SolutionStructs import ConvProblem
 import yaml
 
 
@@ -277,7 +278,7 @@ class YamlBuilder:
              ):
             problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k}
             problems.append(problem)
-        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
+        return problems
 
 
     @classmethod
@@ -332,7 +333,7 @@ class YamlBuilder:
             #problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k, 'x':x, 'y':y} # need to prune mismatches
             problem = {'n':n, 'c':c, 'h':h, 'w':w, 'k':k}
             problems.append(problem)
-        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
+        return problems
 
 
     @classmethod
@@ -371,9 +372,7 @@ class YamlBuilder:
         #except KeyError:
         #    None
 
-        #print ( [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}])
-        #import pdb; pdb.set_trace()
-        return [{"ProblemSizes": [ {"ExactConv": e} for e in problems]}]
+        return problems
 
     @classmethod
     def ConvolutionVsContraction(cls, conv, solution, dataType):
@@ -414,7 +413,13 @@ class YamlBuilder:
         benchmarkParams = solution()
         for (key,value) in conv.solutionParms.items():
             benchmarkParams["ForkParameters"].append({key:[value]})
-        benchmarkParams["BenchmarkFinalParameters"] = problemFunc(conv, problemType, problemLevel)
+        problems = problemFunc(conv, problemType, problemLevel)
+        if generateConvFormat:
+            convs = [ {"Conv": e} for e in problems]
+            benchmarkParams["BenchmarkFinalParameters"] = [{"ProblemSizes": convs }]
+        else:
+            exacts = [{"Exact": dict(ConvProblem(p, conv).toExactDict())} for p in problems]
+            benchmarkParams["BenchmarkFinalParameters"] = [{"ProblemSizes": exacts}]
 
         doc["BenchmarkProblems"] = [[tensileProblemType, benchmarkParams]]
 

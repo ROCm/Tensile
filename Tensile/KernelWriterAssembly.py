@@ -4700,6 +4700,10 @@ class KernelWriterAssembly(KernelWriter):
         self.commentSuffix, self.endLine)
 
     divisor = kernel["SubGroup0"]
+    if kernel["MatrixInstruction"]:
+      divisor *= kernel["MatrixInstK"]
+      pack = 4 // tP["bpe"]
+      divisor //= pack
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
     dividendReg = "Serial" # local serial
@@ -4747,8 +4751,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
-    if kernel["MatrixInstruction"] and tc == "B": # ABlocks only
-      divisor //= 4 # 4 simds
+    if kernel["MatrixInstruction"]:
+      divisor *= kernel["MatrixInstK"]
+      pack = 4 // tP["bpe"]
+      divisor //= pack
+      if tc == "B":
+        divisor //= 4 # 4 simds
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
     dividendReg = "Serial"
@@ -4776,11 +4784,41 @@ class KernelWriterAssembly(KernelWriter):
           sgpr(tmpSgpr), \
           hex(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]), \
           "MT%u+PAD"%tP["tensorIdx"] )
+
+    #if tc == "B" and kernel["MatrixInstK"] > 1:
+    #  kStr += inst("v_and_b32", \
+    #    vgpr(sgid), \
+    #    # 2 = 64 / 32 or number of ks
+    #    hex(4-1), \
+    #    vgpr(sgid), \
+    #    "4 simds")
+
     kStr += inst("v_mul_lo_u32", \
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         vgpr(sgid), \
         "sgid=sgid*(MT%u+PAD)"%tIdx )
+
+    if tc == "B" and "MatrixInstK" in kernel and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
+      kDiv = kernel["MatrixInstN"]
+      kStr += vectorStaticDivide(rReg, dividendReg, kDiv, tmpVgpr, tmpSgpr)
+      kStr += inst("v_and_b32", \
+        vgpr(rReg), \
+        # 2 = 64 / 32 or number of ks
+        hex(2-1), \
+        vgpr(rReg), \
+        "k groups")
+      kStr += inst("s_mov_b32", \
+        sgpr(tmpSgpr), \
+        hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+        "MT%u+PAD"%tIdx )
+      kStr += inst("v_mul_lo_u32", \
+        vgpr(rReg), \
+        sgpr(tmpSgpr), \
+        vgpr(rReg), \
+        "koff")
+      kStr += inst("v_add_u32", vgpr(sgid), vgpr(rReg), vgpr(sgid), "k offset")
+
     if kernel["VectorWidth"] > 1 and not kernel["MatrixInstruction"]:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
@@ -4798,7 +4836,6 @@ class KernelWriterAssembly(KernelWriter):
     #if tP["isA"]:
     #  kStr += dump(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
     #  kStr += dump(vgpr("ElementIndex%s"%tP["tensorChar"])) 
-
 
     self.vgprPool.checkIn(tmpVgpr)
     self.vgprPool.checkIn(qReg)
@@ -7092,7 +7129,7 @@ class KernelWriterAssembly(KernelWriter):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
     loopChar = self.indexChars[loopDim]
     # mfma: for AB tile in NT layout
-    if kernel["MatrixInstruction"] and numReadsAlongK > 1:
+    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1:
       tmpVgpr = self.vgprPool.checkOut(2)
       maskVgpr = None
       isLastProductSgpr = self.getTmpSgpr(2)
@@ -7104,54 +7141,51 @@ class KernelWriterAssembly(KernelWriter):
         for rIdx in range(0, numReadsPerVector):
           # emit an instruction for each half-dword load along k due to strided access
           # checkout 2 vregs for each half-dword loads
-          if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
-            for kIdx in range(0, numReadsAlongK):
-              localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
-              paramList = []
-              paramList.append(vgpr(tmpVgpr + kIdx%2))
-              paramList.append(vgpr("LocalReadAddr%s"%tc))
-              offset = ((rIdx * kernel["MatrixInstN"] + (kIdx%2)*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
-                *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
-              paramList.append(int(offset))
-              oIdx = 0
-              # print("Debug: Matrix{}, rIdx offset {}, vIdx offset {}, local read offset {}, bpe {}, net offset {}".format( \
-              #   tP["tensorChar"], \
-              #   rIdx, \
-              #   kernel["SubGroup%u" % tP["tensorIdx"]] * (vIdx * numOffsets + oIdx) * kernel["VectorWidth"], \
-              #   tP["localReadOffset"], \
-              #   tP["bpe"], \
-              #   offset))
+          for kIdx in range(0, numReadsAlongK):
+            localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
+            paramList = []
+            paramList.append(vgpr(tmpVgpr + kIdx%2))
+            paramList.append(vgpr("LocalReadAddr%s"%tc))
+            offset = ((rIdx * kernel["MatrixInstN"] + (kIdx%2)*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
+              *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
+            paramList.append(int(offset))
+            oIdx = 0
+            # print("Debug: Matrix{}, rIdx offset {}, vIdx offset {}, local read offset {}, bpe {}, net offset {}".format( \
+            #   tP["tensorChar"], \
+            #   rIdx, \
+            #   kernel["SubGroup%u" % tP["tensorIdx"]] * (vIdx * numOffsets + oIdx) * kernel["VectorWidth"], \
+            #   tP["localReadOffset"], \
+            #   tP["bpe"], \
+            #   offset))
 
-              paramTuple = tuple(paramList)
-              comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
-                  % (tP["localReadOffset"], tP["localReadSwapByteOffset"], kernel["SubGroup%u" % tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
-              
-              isHighBits = 0 if kIdx % 2 == 0 else 1
-              localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple, 0, isHighBits), comment))
+            paramTuple = tuple(paramList)
+            comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
+                % (tP["localReadOffset"], tP["localReadSwapByteOffset"], kernel["SubGroup%u" % tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
+            
+            isHighBits = 0 if kIdx % 2 == 0 else 1
+            localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple, 0, isHighBits), comment))
 
-              valuIdx += blockWidth
+            valuIdx += blockWidth
 
-              if kIdx % 2 == 1 and kIdx > 0:
-                # pack 2 half-dword into one
-                destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
-                imod.addInst("s_waitcnt lgkmcnt(0)", "")
-                if maskVgpr:
-                  imod.addInst("v_cmp_eq_u32", sgpr(isLastProductSgpr, 2), sgpr("LoopCounter%s"%loopChar), 1, "")
-                  
-                  imod.addInst("v_and_b32", vgpr(maskVgpr+0), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-1)), "")
-                  imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+0), "")
-                  imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
-                  imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+0), "0", "vcc", "")
+            if kIdx % 2 == 1 and kIdx > 0:
+              # pack 2 half-dword into one
+              destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
+              imod.addInst("s_waitcnt lgkmcnt(0)", "")
+              if maskVgpr:
+                imod.addInst("v_cmp_eq_u32", sgpr(isLastProductSgpr, 2), sgpr("LoopCounter%s"%loopChar), 1, "")
+                
+                imod.addInst("v_and_b32", vgpr(maskVgpr+0), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-1)), "")
+                imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+0), "")
+                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
+                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+0), "0", "vcc", "")
 
-                  imod.addInst("v_and_b32", vgpr(maskVgpr+1), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-0)), "")
-                  imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+1), "")
-                  imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
-                  imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+1), vgpr(tmpVgpr+1), "0", "vcc", "")
+                imod.addInst("v_and_b32", vgpr(maskVgpr+1), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-0)), "")
+                imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+1), "")
+                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
+                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+1), vgpr(tmpVgpr+1), "0", "vcc", "")
 
-                imod.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
+              imod.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
 
-          else:
-            assert 0, "No support fp32 multi-k LDS load yet" # TODO
       self.vgprPool.checkIn(tmpVgpr)
       if maskVgpr: self.vgprPool.checkIn(maskVgpr)
     else: 
@@ -10600,9 +10634,12 @@ class KernelWriterAssembly(KernelWriter):
     #only support option=0
     assert(option==0)
 
-    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"]//kernel["MatrixInstB"]
+    pack = 1
+    if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+      pack = 2
+    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"] // kernel["MatrixInstB"] * pack // kernel["MatrixInstK"]
     numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
-    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
+    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"] * pack // kernel["MatrixInstK"]
     numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     numRowInstructions = kernel["ThreadTile0"]
     mfmaColStoreVw = 1 #Todo check it can be other case or not
