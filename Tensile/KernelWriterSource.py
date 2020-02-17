@@ -2827,7 +2827,10 @@ class KernelWriterSource(KernelWriter):
               kStr += ", (%s)" % self.uint64Str
           kStr += ") ]"
 
-        s = kernel["GlobalWriteVectorWidth"] - s - 1 if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"] else s
+        if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"]:
+          shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
+          if not shiftComponentsA:
+            s = kernel["GlobalWriteVectorWidth"] - s - 1
 
         kStr += ", alpha"
         kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b )
