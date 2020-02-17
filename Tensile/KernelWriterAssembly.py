@@ -95,7 +95,7 @@ class RegisterPool:
   statusInUse = 2
 
   class Register:
-    def __init__(self, status, tag=""):
+    def __init__(self, status, tag):
       self.status = status
       self.tag = tag
 
@@ -198,6 +198,7 @@ class RegisterPool:
       #print "Found: %u" % found
       for i in range(found, found+size):
         self.pool[i].status = self.statusInUse
+        self.pool[i].tag = tag
       self.checkOutSize[found] = size
       if self.printRP:
         print("RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available()))
@@ -211,6 +212,7 @@ class RegisterPool:
       start = len(self.pool)
       for i in range(len(self.pool)-1, 0, -1):
         if self.pool[i].status == self.statusAvailable:
+          self.pool[i].tag = tag
           start = i
           continue
         else:
@@ -227,6 +229,7 @@ class RegisterPool:
       #print "Overflow: ", overflow
       for i in range(start, len(self.pool)):
         self.pool[i].status = self.statusInUse
+        self.pool[i].tag = tag
       for i in range(0, overflow):
         self.pool.append(self.Register(self.statusInUse,tag))
       self.checkOutSize[start] = size
@@ -253,20 +256,20 @@ class RegisterPool:
 
   ########################################
   # Check In
-  def checkIn(self, start, tag=""):
-    if self.printRP:
-      print("RP::checkIn '%s' () @ %u"%(tag, start))
+  def checkIn(self, start):
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
         self.pool[i].status = self.statusAvailable
       self.checkOutSize.pop(start)
       if self.printRP:
-        print("  RP::checkIn() @ %u +%u"%(start,size))
+        print("RP::checkIn('%s') @ %u +%u"%(self.pool[i].tag, start,size))
     else:
       if 0:
         traceback.print_stack(None)
-      printWarning("RegisterPool::checkIn(%s) but it was never checked out"%start)
+        import pdb; pdb.set_trace()
+      printWarning("RegisterPool::checkIn('%s',%s) but it was never checked out"%(self.pool[start].tag, start))
+    #traceback.print_stack(None)
 
   ########################################
   # Size
@@ -6019,7 +6022,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
 
         if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          self.vgprPool.checkIn(vgprBf16Temp, "vgprBf16Temp : %d" % vgprBf16Temp)
+          self.vgprPool.checkIn(vgprBf16Temp)
 
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
@@ -9423,7 +9426,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_mov_b32", vgpr(alphaVgprTmp), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
         kStr += inst("v_cvt_f32_f16", vgpr(alphaVgprTmp), vgpr(alphaVgprTmp), "convert alpha to fp32")
         kStr += inst("v_readfirstlane_b32", sgpr("Alpha"), vgpr(alphaVgprTmp), "restore alpha sgpr")
-        self.vgprPool.checkIn(alphaVgprTmp, "alpha")
+        self.vgprPool.checkIn(alphaVgprTmp)
 
       if beta:
 #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
@@ -9434,7 +9437,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
           if self.betaInSgpr:
             kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
-            self.vgprPool.checkIn(self.betaVgpr, "beta")
+            self.vgprPool.checkIn(self.betaVgpr)
             self.betaVgpr = None
 
     ########################################
@@ -10437,7 +10440,7 @@ class KernelWriterAssembly(KernelWriter):
         storesIssued += 1
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        self.vgprPool.checkIn(vgprBf16Temp, "vgprBf16Temp : %d" % vgprBf16Temp)
+        self.vgprPool.checkIn(vgprBf16Temp)
 
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
@@ -10504,12 +10507,12 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       if not ss.sharedColVgprs:
         addr = ss.elementAddr[elementIdx].addrVgpr
-        self.vgprPool.checkIn(addr,"writeBatch addr ei:%d"%elementIdx)
+        self.vgprPool.checkIn(addr)
 
       data = ss.elementData[elementIdx]
       if data != 0:
         if data != lastData:
-          self.vgprPool.checkIn(data,"writeBatch data ei:%d"%elementIdx)
+          self.vgprPool.checkIn(data)
         lastData = data
 
     self.ss.firstBatch = False
