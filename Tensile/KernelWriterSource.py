@@ -2741,9 +2741,15 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index1
     index1 = kernel["ProblemType"]["Index1"]
-    kStr += "  unsigned int localC%s = serial / (MT%s/GLOBAL_WRITE_VECTOR_WIDTH);%s" \
-        % (self.tileChar1, self.tileChar0, self.endLine)
-    kStr += "  unsigned int globalC%s = (wg%s)" % (self.indexChars[index1], self.indexChars[index1])
+    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+      c1Group = "(nwg%s - wg%s - 1)" % (self.indexChars[index1], self.indexChars[index1])
+      c1Serial = "(NUM_THREADS - serial - 1)"
+    else:
+      c1Group = "(wg%s)" % self.indexChars[index1]
+      c1Serial = "serial"
+    kStr += "  unsigned int localC%s = %s / (MT%s/GLOBAL_WRITE_VECTOR_WIDTH);%s" \
+        % (self.tileChar1, c1Serial, self.tileChar0, self.endLine)
+    kStr += "  unsigned int globalC%s = %s" % (self.indexChars[index1], c1Group)
     kStr += "*MT%s + localC%s;%s" % (self.tileChar1, self.tileChar1, self.endLine)
     kStr += "  unsigned int flattenedGlobalC1 = globalC%s;%s" \
         % (self.indexChars[index1], self.endLine)
@@ -2832,8 +2838,14 @@ class KernelWriterSource(KernelWriter):
           if not shiftComponentsA:
             s = kernel["GlobalWriteVectorWidth"] - s - 1
 
+        b0 = b
+        if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+          shiftComponentsB = not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB
+          if not shiftComponentsB:
+            b0 = kernel["NumGlobalWriteVectorsPerThread"] - b - 1
+        
         kStr += ", alpha"
-        kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b )
+        kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b0)
 
         if kernel["ProblemType"]["UseBeta"]:
           kStr += ", beta"
