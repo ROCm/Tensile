@@ -2725,7 +2725,7 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index0
     index0 = kernel["ProblemType"]["Index0"]
-    if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"]:
+    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
       c0Group = "(nwg%s - wg%s - 1)" % (self.indexChars[index0], self.indexChars[index0])
       c0Serial = "(NUM_THREADS - serial - 1)"
     else:
@@ -2827,7 +2827,7 @@ class KernelWriterSource(KernelWriter):
               kStr += ", (%s)" % self.uint64Str
           kStr += ") ]"
 
-        if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"]:
+        if kernel["ProblemType"]["MirrorDimsA"] == [2]:
           shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
           if not shiftComponentsA:
             s = kernel["GlobalWriteVectorWidth"] - s - 1
@@ -2854,9 +2854,7 @@ class KernelWriterSource(KernelWriter):
     # Add Index0 and Index1:
     index0 = kernel["ProblemType"]["Index0"]
 
-    doMirror = kernel["ProblemType"]["MirrorDimsA"] == kernel["ProblemType"]["MirrorDimsB"] and kernel["ProblemType"]["MirrorDimsA"] == [2]
-
-    if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"] and kernel["ProblemType"]["MirrorDimsA"] == [2] or doMirror:
+    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
       c0I = "(nwg%s - wg%s - 1)" % (self.indexChars[index0], self.indexChars[index0])
       c0Serial = "(NUM_THREADS - serial - 1)"
     else:
@@ -2869,7 +2867,7 @@ class KernelWriterSource(KernelWriter):
 
     index1 = kernel["ProblemType"]["Index1"]
     kStr += "  unsigned int flattenedGlobalC1 = "
-    if kernel["ProblemType"]["MirrorDimsA"] != kernel["ProblemType"]["MirrorDimsB"] and kernel["ProblemType"]["MirrorDimsB"] == [2] or doMirror:
+    if kernel["ProblemType"]["MirrorDimsB"] == [2]:
       kStr += "(nwg%s - wg%s - 1)*MT%s + ((NUM_THREADS - serial - 1) / SG%s)*VECTOR_WIDTH;%s" \
             % (self.indexChars[index1], self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine) 
     else:
