@@ -58,13 +58,15 @@ namespace Tensile
          */
         struct ZeroPad
         {
-            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t lp=0, int64_t tp=0) : 
-                anchorIndex(ai), boundIndex(bi), leadingPad(lp), trailingPad(tp) {};
+            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t ps=0, int64_t pe=0) :
+                anchorIndex(ai), anchorPos(-1), boundIndex(bi), padStart(ps), padEnd(pe) {};
 
             int32_t  anchorIndex;
+            int32_t  anchorPos;  //! position of anchorIndex in A or B tensor
             int32_t  boundIndex;
-            int64_t  leadingPad;
-            int64_t  trailingPad;
+            int32_t  boundPos;   //! position of anchroIndex in A or B tensor
+            int64_t  padStart;
+            int64_t  padEnd;
 
             bool valid() const { return anchorIndex != -1; };
             std::string description() const;
@@ -244,6 +246,9 @@ namespace Tensile
 
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
+
+        size_t toAPos(size_t idx) const;
+        size_t toBPos(size_t idx) const;
 
         // Translate specified index into a position of that index in the d tensor.
         // Since d tensor order is always index order this is 1:1 translation if the 

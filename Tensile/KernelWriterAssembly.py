@@ -570,7 +570,7 @@ class KernelWriterAssembly(KernelWriter):
   def checkLastIter(self, kernel, comment="at last iteration?"):
     """ Return last iteration of unroll loop. """
     if self.unrollIncIsDepthU:
-      return inst("s_cmp_gt_u32", self.loopCounter(kernel, self.unrollIdx), \
+      return inst("s_cmp_gt_u32", "DepthU", \
           sgpr("UnrollLoopLastIter"), comment)
     else:
       return inst("s_cmp_eq_u32", self.loopCounter(kernel, self.unrollIdx), \
@@ -5199,8 +5199,7 @@ class KernelWriterAssembly(KernelWriter):
       sumSize = "SizesSum+%u"%loopIdx
       #sumSize = self.sumSize(kernel, loopIdx)
       if self.unrollIncIsDepthU:
-        kStr += inst("s_mov_b32", loopCounter, \
-                  "%d*DepthU"%(kernel["PrefetchGlobalRead"]), \
+        kStr += inst("s_mov_b32", loopCounter, 0,\
                   "init loop counter, unrollIncIsDepthU mode")
 
       else:
@@ -5526,12 +5525,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     kStr += self.getLabelDef("LoopCopy%u"%(lc+1) )
-
-    if self.unrollIncIsDepthU:
-      loopCounter = self.loopCounter(kernel, self.unrollIdx)
-      kStr += inst("s_add_u32",
-                   loopCounter, loopCounter,
-                   "DepthU",  "increment psdIter")
 
 
     return kStr
@@ -6114,6 +6107,11 @@ class KernelWriterAssembly(KernelWriter):
     incCodeA = imod.addCode(Code.Module("globalReadIncrementA"))
     incCodeB = imod.addCode(Code.Module("globalReadIncrementB"))
 
+    if self.unrollIncIsDepthU and loopIdx==self.unrollIdx:
+      loopCounter = self.loopCounter(kernel, self.unrollIdx)
+      incCodeA.addInst("s_add_u32",
+                   loopCounter, loopCounter,
+                   "DepthU",  "increment psdIter")
 
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       incSize = 2 if self.use64bPackSumOffset else 1
