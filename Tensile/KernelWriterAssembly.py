@@ -8599,7 +8599,7 @@ class KernelWriterAssembly(KernelWriter):
         fullVw = kernel["StoreVectorWidth"]
     else:
       fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
-    fullVw = min(fullVw, self.maxGwvw(kernel))
+    fullVw = min(fullVw, self.maxGwvw(kernel)) if not kernel["ProblemType"]["MirrorDimsA"] else 1
 
     if kernel["MatrixInstruction"]:
       #vg20 C registers holds coalscing C elements (MT0x1) in subgroup0  consecutive lanes 
@@ -9005,7 +9005,10 @@ class KernelWriterAssembly(KernelWriter):
               numberofRowDstRgs = (numberofDstRgs//kernel["MatrixInstB"]) * numberRowBlocks
             sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofRowDstRgs*mfmaColStoreVw
           else:
-            sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+            if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+              sumIdx = kw.startVgprValuC + (kernel["ThreadTile0"] - vc0 - 1) + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+            else:
+              sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
 
@@ -9887,47 +9890,24 @@ class KernelWriterAssembly(KernelWriter):
       useBuffer = kernel["BufferStore"]
       if ss.optSrdIncForRow and addrCalc.rowInc:
         kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
-      if kernel["ProblemType"]["MirrorDimsA"] == [2]:
-        for i in range(rpv):
-          sumIdxMirror = sumIdx + rpv - i - 1
-          bpsValue = kernel["ProblemType"]["DataType"].numBytes()
-          rpvValue = kernel["ProblemType"]["DataType"].numRegisters()
 
-          if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
-            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              kStr += self.chooseGlobalWrite(useBuffer, bpsValue, sumIdx//2, rpvValue, \
-                        addr0, addr1, addrCalc.globalOffset + i*bpsValue, ntStr, hi16=sumIdx%2)
-            else:
-              kStr += self.chooseGlobalWrite(useBuffer, bpsValue, sumIdx, rpvValue, \
-                        addr0, addr1, addrCalc.globalOffset + i*bpsValue, ntStr, hi16=0)
-          elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
-            kStr += self.chooseGlobalWrite(useBuffer, bpsValue, sumIdxMirror, rpvValue, \
-                      addr0, addr1, addrCalc.globalOffset + i*bpsValue, ntStr)
-          elif kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isSingleComplex():
-            kStr += self.chooseGlobalWrite(useBuffer, bpsValue, sumIdxMirror*2, rpvValue, \
-                      addr0, addr1, addrCalc.globalOffset + i*bpsValue, ntStr)
-          elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-            rps = kernel["ProblemType"]["DataType"].numRegisters()
-            kStr += self.chooseGlobalWrite(useBuffer, bpsValue, sumIdxMirror*rps, rpvValue, \
-                      addr0, addr1, addrCalc.globalOffset + i*bpsValue, ntStr)
-      else:
-        if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, \
-                      addr0, addr1, addrCalc.globalOffset, ntStr, hi16=sumIdx%2)
-          else:
-            kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, \
-                      addr0, addr1, addrCalc.globalOffset, ntStr, hi16=0)
-        elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
+      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+        if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, \
+                    addr0, addr1, addrCalc.globalOffset, ntStr, hi16=sumIdx%2)
+        else:
           kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, \
-                    addr0, addr1, addrCalc.globalOffset, ntStr)
-        elif kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isSingleComplex():
-          kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*2, rpv, \
-                    addr0, addr1, addrCalc.globalOffset, ntStr)
-        elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-          rps = kernel["ProblemType"]["DataType"].numRegisters()
-          kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*rps, rpv, \
-                    addr0, addr1, addrCalc.globalOffset, ntStr)
+                    addr0, addr1, addrCalc.globalOffset, ntStr, hi16=0)
+      elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
+        kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, \
+                  addr0, addr1, addrCalc.globalOffset, ntStr)
+      elif kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isSingleComplex():
+        kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*2, rpv, \
+                  addr0, addr1, addrCalc.globalOffset, ntStr)
+      elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+        rps = kernel["ProblemType"]["DataType"].numRegisters()
+        kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*rps, rpv, \
+                  addr0, addr1, addrCalc.globalOffset, ntStr)
 
     return kStr
 

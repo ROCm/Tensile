@@ -1,0 +1,53 @@
+GlobalParameters:
+  CMakeBuildType: Debug
+  EnqueuesPerSync: 1
+  NumElementsToValidate: -1
+  KernelTime: True
+  #PinClocks: True
+  SleepPercent: 0
+  DataInitTypeBeta : 0
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  DataInitTypeAlpha: 1
+  PrintSolutionRejectionReason: 1
+  PrintWinnersOnly: 1
+  PrintTensorA: 0
+  PrintTensorD: 2
+  CpuThreads: 0
+  NewClient: 2
+
+BenchmarkProblems:
+  -
+    - # ProblemType
+      OperationType: TensorContraction
+      DataType: s
+      DestDataType: s
+      UseBeta: False
+      NumIndicesC: 2
+      IndexAssignmentsA: [0, 2]
+      IndexAssignmentsB: [2, 1]
+      MirrorDimsA: [2]
+      MirrorDimsB: []
+      SetConstStrideA: []
+
+    - # BenchmarkProblemSizeGroup
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: [ShiftPtr]
+      ForkParameters:
+        - KernelLanguage: [Assembly]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ThreadTile:
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - StaggerU: [0]
+        - StaggerUMapping: [0]
+        - DepthU: [4]
+        - FractionalLoad: [1]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 37, 63, 31 ]
