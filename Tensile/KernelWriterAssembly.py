@@ -1548,7 +1548,6 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["MatrixInstruction"] and \
         kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
         self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
-        self.defineSgpr("ZeroFillMask%s" % self.loopChar(kernel, i), 1)
 
     self.defineSgpr("OrigLoopCounter", 1)
     if self.prefetchAcrossPersistent0:
@@ -5140,7 +5139,6 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Tail Loop
     numRemainderSumElements = None
-    zeroFillMask = None
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4)
       if self.prefetchAcrossPersistent0:
@@ -5148,13 +5146,11 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["MatrixInstruction"] and \
            kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
           numRemainderSumElements = "NumRemainderSumElements"
-          zeroFillMask = "ZeroFillMask"
       else:
         loopCounterName = self.loopCounterName(kernel, loopIdx)
         if kernel["MatrixInstruction"] and \
            kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
           numRemainderSumElements = "NumRemainderSumElements%s"%loopChar
-          zeroFillMask = "ZeroFillMask%s"%loopChar
       kStr += "\n"
       if kernel["SuppressNoLoadLoop"]:
         # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
@@ -5182,11 +5178,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
         kStr += inst("s_add_u32", loopCounter, loopCounter, kernel["MatrixInstK"]-1, "")
         kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
-        if numRemainderSumElements:
-          kStr += inst("s_lshl_b32", sgpr(zeroFillMask), "0xffffffff", sgpr(numRemainderSumElements), "")
-          kStr += inst("s_cmp_eq_u32", sgpr(numRemainderSumElements), "0", "")
-          kStr += inst("s_cselect_b32", sgpr(zeroFillMask), "0", sgpr(zeroFillMask), "")
-
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
@@ -7130,13 +7121,8 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[loopDim]
     # mfma: for AB tile in NT layout
     if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1:
-      tmpVgpr = self.vgprPool.checkOut(2)
-      maskVgpr = None
-      isLastProductSgpr = self.getTmpSgpr(2)
-      if kernel["MatrixInstruction"] and \
-         kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0 and \
-         self.inTailLoop:
-        maskVgpr = self.vgprPool.checkOut(2)
+      tmpVgpr = self.vgprPool.checkOut(2) # TODO: reduce the use of 1 extra VGPR
+      isTailRemainderLoop = self.getTmpSgpr(2)
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
           # emit an instruction for each half-dword load along k due to strided access
@@ -7171,23 +7157,24 @@ class KernelWriterAssembly(KernelWriter):
               # pack 2 half-dword into one
               destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
               imod.addInst("s_waitcnt lgkmcnt(0)", "")
-              if maskVgpr:
-                imod.addInst("v_cmp_eq_u32", sgpr(isLastProductSgpr, 2), sgpr("LoopCounter%s"%loopChar), 1, "")
+              if kernel["MatrixInstruction"] and \
+                 kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0 and \
+                 self.inTailLoop:
+                imod.addInst("v_cmp_eq_u32", sgpr(isTailRemainderLoop, 2), sgpr("LoopCounter%s"%loopChar), 1, "check if last iter in tail loop")
+                imod.addInst("s_cmp_eq_u32", sgpr("NumRemainderSumElements%s"%loopChar), "0", "check if sum dim is divisible by k")
+                imod.addInst("s_cselect_b64", sgpr(isTailRemainderLoop, 2), "0x0", sgpr(isTailRemainderLoop, 2), "zero-fill only if last iter AND sum dim not divisible by k")
                 
-                imod.addInst("v_and_b32", vgpr(maskVgpr+0), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-1)), "")
-                imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+0), "")
-                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
-                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+0), "0", "vcc", "")
+                imod.addInst("v_cmp_le_u32", "vcc", sgpr("NumRemainderSumElements%s"%loopChar), kIdx-1, "OOB = NumRemainderSumElements <= kIdx")
+                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isTailRemainderLoop, 2), "OOB &= isLastProduct")
+                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+0), "0", "vcc", "vgpr = OOB ? 0 : vgpr")
 
-                imod.addInst("v_and_b32", vgpr(maskVgpr+1), sgpr("ZeroFillMask%s"%loopChar), hex(pow(2, kIdx-0)), "")
-                imod.addInst("v_cmp_ne_u32", "vcc", 0, vgpr(maskVgpr+1), "")
-                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isLastProductSgpr, 2), "")
-                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+1), vgpr(tmpVgpr+1), "0", "vcc", "")
+                imod.addInst("v_cmp_le_u32", "vcc", sgpr("NumRemainderSumElements%s"%loopChar), kIdx-0, "OOB = NumRemainderSumElements <= kIdx")
+                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isTailRemainderLoop, 2), "OOB &= isLastProduct")
+                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+1), vgpr(tmpVgpr+1), "0", "vcc", "vgpr = OOB ? 0 : vgpr")
 
               imod.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
 
       self.vgprPool.checkIn(tmpVgpr)
-      if maskVgpr: self.vgprPool.checkIn(maskVgpr)
     else: 
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
