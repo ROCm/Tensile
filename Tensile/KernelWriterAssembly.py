@@ -7499,12 +7499,37 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   def shiftVectorComponentsForMatrixInst(self, kernel, tP):
+    """ when we enable shift ptr with vectorwidth(2), we shfit global read on edge block when size % vectorwidth != 0.
+        For example if M size == 3 vector width == 2, we want to do global read for [0-1] and [2-3].
+        But 3 is not in memory object, so we shfit to do global read [0-1] and [1-2].
+        So buffer become [0, 1, 1, 2], assume result in register is same as input [0, 1, 1, 2]
+        We need to shfit it back to [0, 1, 2].
+
+        In MFMA outputs, We have numContinuousOutput(4) for each thread.
+        We have numThreadInWave(64) threads.
+        number of thread in N is sames as kernel["MatrixInstN"] (32)
+        number of thread in M is numThreadInWave/numOutputThreads1 = 2
+        stride of continous output for each thread (numSubOutputPerWave0) is numOutputThreads0 * numContinuousOutput, (8).
+        we have numSubOutputGroupsPerWave0 which is 4 (kernel[tP["mt"]](64) // numSubOutputPerWave0(8))
+
+        So we do shfit back by below alorithm.
+        1. check if M_size % vectorwidth != 0, return if == 0
+        2. decide which subgroup we need to shift, M_size(3) means 3/8 = group 0
+        3. decide which thread we need to shfit, we have different groups of thread, (0-31) for first group, (32-63) for second group.
+        4. decide which shfit block (subTile1) we want to shfit. for ex [0-1], [1-2], we want to shift second subtile
+    """
+
+
+
     kStr = ""
 
     # glvw
     glvw = tP["glvw"]
 
+    # how many threads in each wave
     numThreadInWave            = 64
+
+    # mfma continuous output.
     numContinuousOutput        = 4
     numOutputThreads1          = kernel["MatrixInstN"]
     numOutputThreads0          = numThreadInWave // numOutputThreads1
@@ -7515,10 +7540,13 @@ class KernelWriterAssembly(KernelWriter):
 
     subTile1 = (kernel["MacroTile1"] // ((kernel["SubGroup0"] * kernel["SubGroup1"]) // numThreadInWave)) // kernel["MatrixInstN"]
 
-    # labels
+    # labels for reminder of vectorwidth
     svrLabels = []
+    # label for reminder of subgroup
     sviLabels = []
+    # label for reminder of shift block(subtile)
     svoLabels = []
+
     for i in range(0, glvw):
       r = (i+1) % glvw
       label = self.getLabelNum("ShiftVectorComponents%u_R%u" % (tP["idx"], r) )
@@ -7541,6 +7569,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpVgpr = self.vgprPool.checkOut(2)
     wgMT    = self.vgprPool.checkOut(1)
 
+    # get M size of edge block
     kStr += inst("v_mov_b32"    , vgpr(wgMT), sgpr(tP["wg"]), "")
     kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), "wg*MT")
     kStr += inst("_v_add_co_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["idx"]), vgpr(wgMT), "wgMT = Size - wg*MT")
@@ -7549,50 +7578,54 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(tmpVgpr), vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
     dummy = self.vgprPool.checkOut(1)
 
-    # rReg
+
+    # rReg : reminder of M_size % vectorwidth
     rReg = self.vgprPool.checkOut(1)
     divisor = glvw
     kStr += vectorStaticRemainder(dummy, rReg, wgMT, divisor, tmpVgpr, tmpSgpr)
 
-    # gReg
+    # gReg : group id of numSubOutputGroupsPerWave0
     gReg = self.vgprPool.checkOut(1)
     divisor = numSubOutputPerWave0  # glvw
     kStr += vectorStaticDivide(gReg, wgMT, divisor, tmpVgpr, tmpSgpr)
 
-    # eReg
+    # eReg : use to disguish which shift block (sub-tile) we need to deal with
     eReg = self.vgprPool.checkOut(1)
     divisor = numContinuousOutput
     kStr += vectorStaticRemainder(dummy, eReg, wgMT, divisor, tmpVgpr, tmpSgpr)
 
+    # mRge : decide which thread have to deal with this M-size
     mReg = self.vgprPool.checkOut(1)
     divisor = numContinuousOutput
     kStr += vectorStaticDivide(mReg, wgMT, divisor, tmpVgpr, tmpSgpr)
     divisor = numOutputThreads0
     kStr += vectorStaticRemainder(dummy, mReg, mReg, divisor, tmpVgpr, tmpSgpr)
 
+    # mRge : thread group id [0-31] or [32-63] for mfma 32x32x2
     tReg = self.vgprPool.checkOut(1)
     divisor = numThreadInWave
     kStr += vectorStaticRemainder(dummy, tReg, "Serial", divisor, tmpVgpr, tmpSgpr)
     divisor = kernel["MatrixInstN"]
     kStr += vectorStaticDivide(tReg, tReg, divisor, tmpVgpr, tmpSgpr)
 
-    # for each remainder, jump
+    # decide to jump to block which handle this case, M_szie % vector width
     for r in range(1, glvw):
       kStr += inst("v_cmp_eq_u32", "vcc", vgpr(rReg), hex(r), "wgMT%%VW == %u"%r )
       kStr += inst("s_cbranch_vccnz label_%04u" % svrLabels[(r-1)], "shift d%u r=%u"%(tP["idx"], r))
     kStr += inst("s_branch label_%04u"%svrLabels[glvw-1], "no shifting" )
 
-    # code blocks for shifting
+    # blocks for handle M_szie % vector width
     for r in range(1, glvw):
       kStr += self.comment3("shift d%u r=%u"%(tP["idx"], r))
       kStr += "label_%04u:%s" % (svrLabels[r-1], self.endLine)
 
-      # for each vector index, jump
+      # decide to jump to block wich handle sub group id for numSubOutputGroupsPerWave0
+      # we have 8 blocks for MT-M 64 with mfma 32x32x2. 64/2(thread group)/4(continous output)
       for packIdx in range(0, numSubOutputGroupsPerWave0):
         kStr += inst("v_cmp_eq_u32", "vcc", vgpr(gReg), hex(packIdx), "wgMT/8 == %u"%packIdx )
         kStr += inst("s_cbranch_vccnz label_%04u" % sviLabels[(r-1)][packIdx], "shift d%u, r=%u, v=%u"%(tP["idx"], r, packIdx))
 
-      # code blocks for shifting vector
+      # blocks for handle sub group id for numSubOutputGroupsPerWave0
       for packIdx in range(0, numSubOutputGroupsPerWave0):
         kStr += self.comment("shift d%u r=%u v=%u"%(tP["idx"], r, packIdx))
         kStr += "label_%04u:%s" % (sviLabels[r-1][packIdx], self.endLine)
@@ -7600,10 +7633,13 @@ class KernelWriterAssembly(KernelWriter):
         # mask if last thread in thread#-tile column
         kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(tReg), vgpr(mReg), "(serial % 64) / 32 == (wgMT/4)%2" )
 
+        # decide to jump to block wich handle element of shfit block (subtile)
+        # for vector widht 2 with continuous 4, we have 1, 3 case to handle
         for outIdx in range(0, numShiftBlock):
           kStr += inst("v_cmp_eq_u32", "vcc", vgpr(eReg), hex(outIdx*glvw+r), "wgMT %% 4 == %u" % (outIdx*2+1) )
           kStr += inst("s_cbranch_vccnz label_%04u" % svoLabels[(r-1)][packIdx][outIdx], "shift d%u, r=%u, v=%u, o=%u" % (tP["idx"], r, packIdx, outIdx))
 
+        # blocks to handle shfiting
         for outIdx in range(0, numShiftBlock):
           kStr += "label_%04u:%s" % (svoLabels[(r-1)][packIdx][outIdx], self.endLine)
           for subTile1Idx in range(0, subTile1):
