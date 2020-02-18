@@ -329,12 +329,40 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(globalReadCode)
       iterCode.addCode(localReadCode)
       iterCode.addCode(waitCode)
-      iterCode.addCode(packCode)
       for item in list(packCode.items()):
         for pack in list(item.items()):
           self.vgprPool.checkIn(pack.tempVgpr)
+      
+      # interleave pack code
+      packItem = packCode.flatitems()
+      packCount = 0
+      while packItem:
+        if packCount < 4:
+          item = packItem.pop(0)
+          iterCode.addCode(item)
+          packCount = packCount + 1
+        else:
+          break
+
       iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
-      iterCode.addCode(macIterCode)
+      macIterItem = macIterCode.flatitems()
+      # pop the first code which is s_nop 1 for packing
+      if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+        item = macIterItem.pop(0)
+        iterCode.addCode(item)
+
+      while macIterItem:
+        item = macIterItem.pop(0)
+        iterCode.addCode(item)
+        packCount = 0
+        while packItem:
+          if packCount < 8:
+            item = packItem.pop(0)
+            iterCode.addCode(item)
+            packCount = packCount + 1
+          else:
+            break
+
       iterCode.addInst("s_setprio ","0","Raise priority while processing macs")
       iterCode.addCode(localWriteCode)
       iterCode.addCode(pointerCode)
