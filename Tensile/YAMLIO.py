@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,16 +18,18 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import print1, print2, printExit, printWarning, versionIsCompatible
-from SolutionStructs import Solution, ProblemSizes, ProblemType
-from __init__ import __version__
 
+from .Common import print2, printExit, printWarning, versionIsCompatible
+from .SolutionStructs import Solution, ProblemSizes, ProblemType
+from . import __version__
+from . import Common
+from . import SolutionLibrary
 import os
+
 try:
   import yaml
 except ImportError:
   printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
-
 
 ################################################################################
 # Read Benchmark Config from YAML Files
@@ -41,6 +43,11 @@ def readConfig( filename ):
   stream.close()
   return config
 
+def write(filename, data):
+    """ Write data to a given file. """
+
+    with open(filename, 'w') as f:
+        yaml.dump(data, f, explicit_start=True, explicit_end=True, default_flow_style=None)
 
 ################################################################################
 # Write List of Solutions to YAML File
@@ -56,6 +63,8 @@ def writeSolutions( filename, problemSizes, solutions ):
           solutionState["ProblemType"]["DataType"].value
       solutionState["ProblemType"]["DestDataType"] = \
           solutionState["ProblemType"]["DestDataType"].value
+      solutionState["ProblemType"]["ComputeDataType"] = \
+          solutionState["ProblemType"]["ComputeDataType"].value
       solutionStates.append(solutionState)
   # write dictionaries
   try:
@@ -66,9 +75,10 @@ def writeSolutions( filename, problemSizes, solutions ):
   stream.write("- ProblemSizes:\n")
   for sizeRange in problemSizes.ranges:
     stream.write("  - Range: %s\n" % sizeRange)
-  for sizeExact in problemSizes.exacts:
-    stream.write("  - Exact: %s\n" % list(sizeExact))
-  yaml.dump(solutionStates, stream, default_flow_style=False)
+  for problemExact in problemSizes.exacts:
+    #FIXME-problem, this ignores strides:
+    stream.write("  - Exact: %s\n" % list(problemExact.sizes))
+  yaml.dump(solutionStates, stream, default_flow_style=None)
   stream.close()
 
 
@@ -118,6 +128,11 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   indexOrder    = logicTuple[2]
   exactLogic    = logicTuple[3]
   rangeLogic    = logicTuple[4]
+
+  tileSelection = False
+  if len(logicTuple) > 5 and logicTuple[5]:
+    tileSelection = True
+
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
   print2("# writeLogic( %s )" % ( filename ))
@@ -136,6 +151,8 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
       problemTypeState["DataType"].value
   problemTypeState["DestDataType"] = \
       problemTypeState["DestDataType"].value
+  problemTypeState["ComputeDataType"] = \
+      problemTypeState["ComputeDataType"].value
   data.append(problemTypeState)
   # solutions
   solutionList = []
@@ -146,7 +163,23 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
         solutionState["ProblemType"]["DataType"].value
     solutionState["ProblemType"]["DestDataType"] = \
         solutionState["ProblemType"]["DestDataType"].value
+    solutionState["ProblemType"]["ComputeDataType"] = \
+        solutionState["ProblemType"]["ComputeDataType"].value
     solutionList.append(solutionState)
+
+  if tileSelection:
+    tileSolutions = logicTuple[5]
+    for solution in tileSolutions:
+      solutionState = solution.getAttributes()
+      solutionState["ProblemType"] = solutionState["ProblemType"].state
+      solutionState["ProblemType"]["DataType"] = \
+          solutionState["ProblemType"]["DataType"].value
+      solutionState["ProblemType"]["DestDataType"] = \
+          solutionState["ProblemType"]["DestDataType"].value
+      solutionState["ProblemType"]["ComputeDataType"] = \
+          solutionState["ProblemType"]["ComputeDataType"].value
+      solutionList.append(solutionState)
+
   data.append(solutionList)
   # index order
   data.append(indexOrder)
@@ -160,10 +193,16 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   # rangeLogic
   data.append(rangeLogic)
 
+  if tileSelection:
+    tileSelectionLogic = {}
+    tileSelectionIndices = logicTuple[6]
+    tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
+    data.append(tileSelectionLogic)
+
   # open & write file
   try:
     stream = open(filename, "w")
-    yaml.dump(data, stream)
+    yaml.dump(data, stream, default_flow_style=None)
     stream.close()
   except IOError:
     printExit("Cannot open file: %s" % filename)
@@ -172,7 +211,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
 # Read Library Logic from YAML
 ################################################################################
 def readLibraryLogicForSchedule( filename ):
-  print1("# Reading Library Logic: %s" % ( filename ))
+  #print1("# Reading Library Logic: %s" % ( filename ))
   try:
     stream = open(filename, "r")
   except IOError:
@@ -195,6 +234,8 @@ def readLibraryLogicForSchedule( filename ):
   exactLogic        = data[7]
   rangeLogic        = data[8]
 
+  newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data)
+
   # does version match
   if not versionIsCompatible(versionString):
     printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
@@ -207,12 +248,9 @@ def readLibraryLogicForSchedule( filename ):
   for i in range(0, len(solutionStates)):
     solutionState = solutionStates[i]
     if solutionState["KernelLanguage"] == "Assembly":
-      isa0 = int(architectureName[3])
-      isa1 = int(architectureName[4])
-      isa2 = int(architectureName[5])
-      solutionState["ISA"] = (isa0, isa1, isa2)
+      solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
-      solutionState["ISA"] = (0, 0, 0)
+      solutionState["ISA"] = [0, 0, 0]
     solutionObject = Solution(solutionState)
     if solutionObject["ProblemType"] != problemType:
       printExit("ProblemType of file doesn't match solution: %s != %s" \
@@ -220,4 +258,4 @@ def readLibraryLogicForSchedule( filename ):
     solutions.append(solutionObject)
 
   return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-      exactLogic, rangeLogic )
+      exactLogic, rangeLogic, newLibrary, architectureName)
