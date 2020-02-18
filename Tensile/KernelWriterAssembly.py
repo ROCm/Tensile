@@ -1539,15 +1539,19 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("PackedSize0", 1)
     if len(kernel["PackedC1IndicesX"]) > 1:
       self.defineSgpr("PackedSize1", 1)
-    # contractions with multiple summations will use multiple LoopCounters, if PSD=0
-    for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
-      self.defineSgpr(self.loopCounterName(kernel,i), 1)
-      # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop. 
-      # It means in the final iteration of each tail loop, the last N elem along summation dimension 
-      # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
-      if kernel["MatrixInstruction"] and \
-        kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
-        self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
+    
+    if kernel["PackSummationDims"]:
+      self.defineSgpr(self.loopCounterName(kernel,self.unrollIdx), 1)
+    else:
+      # contractions with multiple summations will use multiple LoopCounters, if PSD=0
+      for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
+        self.defineSgpr(self.loopCounterName(kernel,i), 1)
+        # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop. 
+        # It means in the final iteration of each tail loop, the last N elem along summation dimension 
+        # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
+        if kernel["MatrixInstruction"] and \
+          kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
+          self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
 
     self.defineSgpr("OrigLoopCounter", 1)
     if self.prefetchAcrossPersistent0:
@@ -6447,7 +6451,7 @@ class KernelWriterAssembly(KernelWriter):
               if (kernel["ProblemType"]["DataType"].isHalf() or \
                 kernel["ProblemType"]["DataType"].isBFloat16()) and \
                 kernel["AssertSummationElementMultiple"] % 2 != 0:
-                if r % 2 == 1 and r > 0:
+                if r % 2 == 1:
                   kStr += "s_waitcnt vmcnt(0)\n"
                   kStr += "v_or_b32 " + vgpr(destVgpr) + ", " + vgpr(destVgpr) + ", " + vgpr(destVgprHi) + " // pack\n"
               r += 1 # next component (for half)
@@ -7153,7 +7157,7 @@ class KernelWriterAssembly(KernelWriter):
 
             valuIdx += blockWidth
 
-            if kIdx % 2 == 1 and kIdx > 0:
+            if kIdx % 2 == 1:
               # pack 2 half-dword into one
               destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, rIdx))
               imod.addInst("s_waitcnt lgkmcnt(0)", "")
