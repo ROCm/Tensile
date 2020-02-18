@@ -92,7 +92,7 @@ defaultHeader["Platform"] = 0
 defaultHeader["Device"] = 0
 defaultHeader["KernelTime"] = True
 defaultHeader["PinClocks"] = False
-defaultHeader["SleepPercent"] = 50
+defaultHeader["SleepPercent"] = 20
 defaultHeader["DataInitTypeBeta"] = 0
 defaultHeader["SolutionSelectionAlg"] = 1
 defaultHeader["PrintWinnersOnly"] = 1
@@ -216,7 +216,8 @@ def generateProblemType(initialParams):
       "Batched": True,
       "UseBeta": True,
       "TransposeA": False,
-      "TransposeB": True
+      "TransposeB": True,
+      "TileAwareSelection": True
     }
 
     if initialParams:
@@ -228,7 +229,7 @@ def generateProblemType(initialParams):
 
 
 arcturusLibraryLogic={'ArchitectureName': 'gfx908', 'DeviceNames': ['Device 7380', 'Device 7388', 'Device 738c', 'Device 7390', 'Device 731f'], 'ScheduleName': 'arcturus'}
-vega20LibraryLogic={'ArchitectureName': 'gfx906', 'DeviceNames': ['Device 66a0', 'Device 66a1', 'Device 66a7', 'Vega 20'], 'ScheduleName': 'vega20'}
+vega20LibraryLogic={'ArchitectureName': 'gfx906', 'DeviceNames': ['Device 66a0', 'Device 66a1', 'Device 66a7', 'Device 66af', 'Vega 20'], 'ScheduleName': 'vega20'}
 vega10LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6863', 'Device 6862', 'Device 687f', 'Device 6860', 'Device 6861', 'Vega 10 XTX [Radeon Vega Frontier Edition]', 'Vega [Radeon RX Vega]'], 'ScheduleName': 'vega10'}
 mi25LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6860'], 'ScheduleName': 'mi25'}
 r9nanoLibraryLogic={'ArchitectureName': 'gfx803', 'DeviceNames': ['Device 7300'], 'ScheduleName': 'r9nano'}
@@ -252,13 +253,13 @@ def appendSizes(benchmarkGroup, sizes):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
     for size in sizes:
-       problemSizes.append({"Exact": size})
+        problemSizes.append({"Exact": size})
 
     if not benchmarkFinalParams:
         benchmarkFinalParams = []
         benchmarkGroup["BenchmarkFinalParameters"] = benchmarkFinalParams
-
-    benchmarkFinalParams.append({"ProblemSizes":problemSizes})
+    
+    #benchmarkFinalParams.append({"ProblemSizes":None})
 
 def generateEmptyBenchmarkGroup():
     benchmarkGroup={"InitialSolutionParameters":None,"BenchmarkCommonParameters":None,"ForkParameters":None,"BenchmarkForkParameters":None,"JoinParameters":None,
@@ -272,31 +273,11 @@ def generateDefaultScheme():
             "KernelLanguage": ["Assembly"],
             "LoopTail": [True],
             "WorkGroupMapping": [1, 8],
-            "DepthU": [ 8, 16, 32 ],
-            "VectorWidth": [2, 4],
+            "DepthU": [16],
+            "VectorWidth": [-1],
             "GlobalSplitU": [1],
-            "GlobalReadVectorWidth": [1, 2, 4],
-            "FractionalLoad": [0, 1],
-            "PrefetchGlobalRead": [ False, True ],
+            "GlobalReadVectorWidth": [-1],
+            "FractionalLoad": [1],
+            "PrefetchGlobalRead": [ False ],
             "PrefetchLocalRead": [ False, True]}
     return scheme
-
-def generateBenchmarkGroupFromScheme1(scheme):
-    benchmarkGroup = generateEmptyBenchmarkGroup()
-
-    commonParams = []
-    forkParams = []
-
-    for key in scheme:
-        value = scheme[key]
-        if len(value) > 1:
-            forkParams.append({key: value})
-        else:
-            commonParams.append({key: value})
-    benchmarkGroup["ForkParameters"] = forkParams
-    benchmarkGroup["BenchmarkCommonParameters"] = commonParams
-
-    return benchmarkGroup
-
-  
-  

@@ -49,10 +49,6 @@ function provision_tensile() {
 
   local TENSILE_PATH=Tensile
   
-  if [ -n "${TENSILE_FORK}" ]; then
-    PROVISION_TENSILE="${PROVISION_TENSILE} -f ${TENSILE_FORK}"
-  fi
-  
   if [ -n "${ID}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${ID}"
     PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
