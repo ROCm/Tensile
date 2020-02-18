@@ -168,7 +168,7 @@ class RegisterPool:
   # Check Out
   def checkOut(self, size, tag="_untagged_", preventOverflow=False):
     return self.checkOutAligned(size, 1, tag, preventOverflow)
-  
+
   def checkOutAligned(self, size, alignment, tag="_untagged_aligned_", preventOverflow=False):
     assert(size > 0)
     assert(self.type != 's') # use getTmpSgpr instead of checkout
@@ -219,7 +219,7 @@ class RegisterPool:
           break
       #print "Start: ", start
       # move forward for alignment
-      
+
       start = roundUpToNearestMultiple(start,alignment)
       #print "Aligned Start: ", start
       # new checkout can begin at start
@@ -231,7 +231,11 @@ class RegisterPool:
         self.pool[i].status = self.statusInUse
         self.pool[i].tag = tag
       for i in range(0, overflow):
-        self.pool.append(self.Register(self.statusInUse,tag))
+        if len(self.pool) < start:
+          # this is padding to meet alignment requirements
+          self.pool.append(self.Register(self.statusAvailable,tag))
+        else:
+          self.pool.append(self.Register(self.statusInUse,tag))
       self.checkOutSize[start] = size
       if self.printRP:
         print(self.state())
