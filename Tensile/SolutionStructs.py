@@ -578,7 +578,7 @@ class Convolution:
     for i in range(self.formatNumSpatialDims):
       spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 + pcc.padStart[i] + pcc.padEnd[i]) / pcc.stride[i])
 
-    print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
+    #print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
     for fi,filterValue in enumerate(pcc.fil):
       try:
@@ -1323,7 +1323,7 @@ class ConvProblem(Problem):
 
     Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA, count=e['count'])
 
-    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
+    #print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
 
 
   def toExactDict(self):
