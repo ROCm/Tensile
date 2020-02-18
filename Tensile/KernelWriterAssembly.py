@@ -6624,14 +6624,11 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def guardZeroPad(self, kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV, perp, sPerp, para, sPara):
     tc = tP["tensorChar"]
-    problemType = self.kernel["ProblemType"]
-
     zps = [zpr for zpr in self.zeroPadRegs[tc].values() if zpr.isMatch(perp, sPerp, para, sPara)]
     for i, zpr in enumerate(zps):
-      zpTmp = tmpSgpr + i + 1
+      #zpTmp = tmpSgpr + i + 1
       (freeDim,sumDim) = zpr.zp[:2]
       sumChar = self.indexChars[sumDim]
-      freeDimChar = self.indexChars[freeDim]
 
       codeMod.addComment1("guardZeroPad: "+zpr.regName)
       iterX = "Iter"+sumChar if kernel["PackSummationDims"] else "LoopCounter"+sumChar
