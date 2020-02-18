@@ -1,3 +1,9 @@
+if(CMAKE_CXX_COMPILER MATCHES ".*/hcc$")
+    set(COMPILER "hcc")
+else()
+    set(COMPILER "hipcc")
+    set(CODE_OBJECT_VERSION "V3")
+endif()
 
 if(true)
 TensileCreateLibraryFiles(
@@ -6,7 +12,9 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite
     EMBED_KEY     kernels_lite
-    VAR_PREFIX LITE
+    VAR_PREFIX LITE NO_MERGE_FILES
+    COMPILER ${COMPILER}
+    CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 endif()
 
@@ -23,6 +31,8 @@ TensileCreateLibraryFiles(
     EMBED_KEY     kernels_lite_mixed
     VAR_PREFIX LITE_MIXED
     NO_MERGE_FILES
+    COMPILER ${COMPILER}
+    CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
@@ -36,6 +46,9 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite_2
     EMBED_KEY     kernels_lite_2
+    VAR_PREFIX LITE_2
+    COMPILER ${COMPILER}
+    CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 endif()
 
@@ -45,6 +58,8 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_tile_aware_selection
     EMBED_KEY     tile_aware_selection
+    TENSILE_COMPILER ${COMPILER}
+    TENSILE_CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/tile_aware_selection")
