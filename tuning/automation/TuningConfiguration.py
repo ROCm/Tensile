@@ -87,7 +87,7 @@ defaultHeader["NumElementsToValidate"] = 0
 defaultHeader["ValidationMaxToPrint"] = 4
 defaultHeader["ValidationPrintValids"] = False
 defaultHeader["ShortNames"] = False
-defaultHeader["MergeFiles"] = False
+defaultHeader["MergeFiles"] = True
 defaultHeader["Platform"] = 0
 defaultHeader["Device"] = 0
 defaultHeader["KernelTime"] = True
@@ -259,8 +259,6 @@ def appendSizes(benchmarkGroup, sizes):
         benchmarkFinalParams = []
         benchmarkGroup["BenchmarkFinalParameters"] = benchmarkFinalParams
     
-    #benchmarkFinalParams.append({"ProblemSizes":None})
-
 def generateEmptyBenchmarkGroup():
     benchmarkGroup={"InitialSolutionParameters":None,"BenchmarkCommonParameters":None,"ForkParameters":None,"BenchmarkForkParameters":None,"JoinParameters":None,
                     "BenchmarkJoinParameters":None,"BenchmarkFinalParameters":None}
