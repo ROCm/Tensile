@@ -5776,7 +5776,7 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(dummy)
         #kStr += dump(vgpr(sgId))
         #kStr += dump(vgpr(numIter))
-        kStr += inst("v_cmpx_lt_u32", "vcc", \
+        kStr += inst("_v_cmpx_lt_u32", "vcc", \
             vgpr(sgId), vgpr(numIter), "sgId < numIter")
         self.vgprPool.checkIn(tmpVgpr)
         #self.tailNumIter = numIter
@@ -5788,7 +5788,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # LSU mask for this iteration
       if kernel["LocalSplitU"] > 1:
-        kStr += inst("v_cmpx_lt_u32", "vcc", \
+        kStr += inst("_v_cmpx_lt_u32", "vcc", \
             vgpr(sgId), vgpr(numIter), "sgId < numIter")
         kStr += inst("_v_add_co_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
             vgpr(sgId), "sgId+=LSU")
@@ -11915,7 +11915,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
           "assert: saved execmask")
 
-      kStr += inst("v_cmpx_%s"%cond, "vcc", val0, val1, "v_cmp" )
+      kStr += inst("_v_cmpx_%s"%cond, "vcc", val0, val1, "v_cmp" )
 
       kStr += self.assertCommon(cookie)
 

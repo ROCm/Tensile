@@ -40,9 +40,13 @@ namespace Tensile
     namespace Client
     {
         HardwareMonitorListener::HardwareMonitorListener(po::variables_map const& args)
-            : m_useGPUTimer(args["use-gpu-timer"].as<bool>())
-            , m_monitor(std::make_shared<HardwareMonitor>(args["device-idx"].as<int>()))
+            : m_useGPUTimer(args["use-gpu-timer"].as<bool>()),
+              m_active(args["hardware-monitor"].as<bool>())
         {
+            if(!m_active)
+                return;
+
+            m_monitor = std::make_shared<HardwareMonitor>(args["device-idx"].as<int>());
             m_monitor->addTempMonitor(0);
 
             m_monitor->addClockMonitor(RSMI_CLK_TYPE_SYS);
@@ -54,13 +58,16 @@ namespace Tensile
 
         void HardwareMonitorListener::preEnqueues()
         {
-            if(!m_useGPUTimer)
+            if(m_active && !m_useGPUTimer)
                 m_monitor->start();
         }
 
         void HardwareMonitorListener::postEnqueues(TimingEvents const& startEvents,
                                                    TimingEvents const& stopEvents)
         {
+            if(!m_active)
+                return;
+
             if(m_useGPUTimer)
             {
                 m_monitor->runBetweenEvents(startEvents->front().front(),
@@ -76,6 +83,9 @@ namespace Tensile
                                                        TimingEvents const& startEvents,
                                                        TimingEvents const& stopEvents)
         {
+            if(!m_active)
+                return;
+
             m_monitor->wait();
 
             m_reporter->report(ResultKey::DeviceIndex, m_monitor->getDeviceIndex());
