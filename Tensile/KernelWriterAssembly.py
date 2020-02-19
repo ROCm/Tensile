@@ -6319,28 +6319,22 @@ class KernelWriterAssembly(KernelWriter):
             graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
             g2lIdx = i * loadWidth
 
-            numElementsPerLoad = 1
-            # In some cards, loading half types into register will zero out
-            # the other half. Therefore we need to load into a separate register 
-            # then pack 2 registers into one
             destVgprHi = None
-
-            if kernel["ProblemType"]["DataType"].isHalf() or \
-                kernel["ProblemType"]["DataType"].isBFloat16():
-              if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
-                # Pack two FP16 values into a single load dword x2
-                numElementsPerLoad = 2
-              elif kernel["BufferLoad"]:
-                # TODO: determine whether extra regs are needed by some newly defined ArchCap 
-                # TODO: support register packing for flatload code path 
-                destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi') 
 
             r = 0
             # for each component in vector
             while r < loadWidth*self.bpr//tP["bpe"]:
-              # print("  r={}, g2lIdx={}, loadWidth={}, i={}, para={}, sPerp={}, perp={}".format(r, g2lIdx, loadWidth, i, para, sPerp, perp), end='')
+              numElementsPerLoad = 1
               if kernel["ProblemType"]["DataType"].isHalf() or \
                  kernel["ProblemType"]["DataType"].isBFloat16():
+                if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+                # Pack two FP16 values into a single load dword x2
+                  numElementsPerLoad = 2
+                elif self.archCaps["HasEccHalf"]:
+                  # In some cards, loading half types into register will zero out
+                  # the other half. Therefore we need to load into a separate register 
+                  # then pack 2 registers into one
+                  destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi') 
                 regIdx = r // 2
               elif kernel["ProblemType"]["DataType"].isInt8x4() or \
                    kernel["ProblemType"]["DataType"].isSingle():
@@ -6406,7 +6400,7 @@ class KernelWriterAssembly(KernelWriter):
                 bpl = numElementsPerLoad*self.bpeAB # bytesPerLoad
 
                 kStr += self.chooseGlobalRead(True, \
-                          bpl, destVgpr=destVgpr if not hi16 else destVgprHi, \
+                          bpl, destVgpr=destVgprHi if (hi16 and destVgprHi) else destVgpr, \
                           addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                           soffset=soffset, offset=offset, \
                           extraFields=extraFields, \
@@ -6420,14 +6414,15 @@ class KernelWriterAssembly(KernelWriter):
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
                     vgpr(maxAddrVgpr,2), \
                     "addr < maxAddr")
-
+                hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and r%2==1
+                destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
                 # load one element from address
                 kStr += self.chooseGlobalRead(False, \
-                          self.bpeAB, destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx), \
+                          self.bpeAB, destVgpr=destVgprHi if (hi16 and destVgprHi) else destVgpr, \
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
                           extraFields=extraFields, \
-                          hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and r%2==1, \
+                          hi16=hi16, \
                           comment="load one flat value").toStr()
 
                 # restore full exec mask
@@ -6448,15 +6443,12 @@ class KernelWriterAssembly(KernelWriter):
                     "vcc", \
                     "gra += 1 (upper)")
               # pack 2x registers containing 16-bit each into one 32-bit packed half-dword
-              if (kernel["ProblemType"]["DataType"].isHalf() or \
-                kernel["ProblemType"]["DataType"].isBFloat16()) and \
-                kernel["AssertSummationElementMultiple"] % 2 != 0:
-                if r % 2 == 1:
-                  kStr += "s_waitcnt vmcnt(0)\n"
-                  kStr += "v_or_b32 " + vgpr(destVgpr) + ", " + vgpr(destVgpr) + ", " + vgpr(destVgprHi) + " // pack\n"
+              if destVgprHi and r % 2 == 1:
+                kStr += "s_waitcnt vmcnt(0)\n"
+                kStr += "v_or_b32 " + vgpr(destVgpr) + ", " + vgpr(destVgpr) + ", " + vgpr(destVgprHi) + " // HasEccHalf: pack\n"
               r += 1 # next component (for half)
+              if destVgprHi: self.vgprPool.checkIn(destVgprHi)
             # end R loop
-            if destVgprHi: self.vgprPool.checkIn(destVgprHi)
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
