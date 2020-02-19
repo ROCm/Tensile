@@ -624,6 +624,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if globalParameters["ConvolutionVsContraction"]:
             assert(newSolution.problemType.convolution)
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])

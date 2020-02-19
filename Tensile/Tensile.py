@@ -97,6 +97,15 @@ def Tensile(userArgs):
   print1("#")
   print1("#  Tensile v%s" % (__version__) )
 
+  def splitExtraParameters(par):
+    """
+    Allows the --global-parameters option to specify any parameters from the command line.
+    """
+
+    (key, value) = par.split("=")
+    value = eval(value)
+    return (key, value)
+
   # setup argument parser
   argParser = argparse.ArgumentParser()
   argParser.add_argument("config_file", \
@@ -125,7 +134,9 @@ def Tensile(userArgs):
       action="store", default="hcc", help="select which compiler to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
-  # argParser.add_argument("--hip-clang-version", dest="HipClangVersion", \
+
+  argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters)
+  # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
   # parse arguments
@@ -191,6 +202,13 @@ def Tensile(userArgs):
     globalParameters["ClientBuildPath"] = args.client_build_path
   if args.client_lock:
     globalParameters["ClientExecutionLockPath"] = args.client_lock
+
+  for key, value in args.global_parameters:
+    print("Overriding {0}={1}".format(key, value))
+    globalParameters[key] = value
+
+  #globalParameters["NewClient"] = 2
+  #globalParameters["PrintCodeCommands"] = True
 
   # Execute Steps in the config script
   executeStepsInConfig( config )
