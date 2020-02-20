@@ -5603,7 +5603,7 @@ class KernelWriterAssembly(KernelWriter):
 
   def mfmaIter(self, kernel, m, innerUnroll):
     # TODO: should return Code.Module or string?
-    numVgprsPerMfmaInput = kernel["MatrixInstK"] * kernel["ProblemType"]["DataType"].numBytes() // self.bpr
+    numVgprsPerMfmaInput = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
     kStr = ""
     if kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf():
       kStr += "s_nop 2\n" # a must; for VALU packing writes to be consumed by matrix instruction 
