@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx1010] # not supported by arch
+
 GlobalParameters:
   MinimumRequiredVersion: 4.4.0
   PrintLevel: 1
