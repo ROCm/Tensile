@@ -4706,10 +4706,13 @@ class KernelWriterAssembly(KernelWriter):
         self.commentSuffix, self.endLine)
 
     divisor = kernel["SubGroup0"]
-    if kernel["MatrixInstruction"]:
-      divisor *= kernel["MatrixInstK"]
-      pack = 4 // tP["bpe"]
-      divisor //= pack
+    # TODO: generalize over different MIs
+    if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
+      if kernel["MatrixInstruction"]:
+        divisor *= kernel["MatrixInstK"]
+        pack = 4 // tP["bpe"]
+        divisor //= pack
+    # end TODO
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
     dividendReg = "Serial" # local serial
@@ -4758,9 +4761,12 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
     if kernel["MatrixInstruction"]:
-      divisor *= kernel["MatrixInstK"]
-      pack = 4 // tP["bpe"]
-      divisor //= pack
+      # TODO: generalize over different MIs
+      if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
+        divisor *= kernel["MatrixInstK"]
+        pack = 4 // tP["bpe"]
+        divisor //= pack
+      # end TODO
       if tc == "B":
         divisor //= 4 # 4 simds
     qReg = self.vgprPool.checkOut(1) # quotient
@@ -4805,26 +4811,28 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         "sgid=sgid*(MT%u+PAD)"%tIdx )
 
-    if tc == "B" and "MatrixInstK" in kernel and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
-      kDiv = kernel["MatrixInstN"]
-      kStr += vectorStaticDivide(rReg, dividendReg, kDiv, tmpVgpr, tmpSgpr)
-      kStr += inst("v_and_b32", \
-        vgpr(rReg), \
-        # 2 = 64 / 32 or number of ks
-        hex(2-1), \
-        vgpr(rReg), \
-        "k groups")
-      kStr += inst("s_mov_b32", \
-        sgpr(tmpSgpr), \
-        hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
-        "MT%u+PAD"%tIdx )
-      kStr += inst("v_mul_lo_u32", \
-        vgpr(rReg), \
-        sgpr(tmpSgpr), \
-        vgpr(rReg), \
-        "koff")
-      kStr += inst("v_add_u32", vgpr(sgid), vgpr(rReg), vgpr(sgid), "k offset")
-
+    # TODO: generalize over different MIs
+    if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
+      if tc == "B" and "MatrixInstK" in kernel and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
+        kDiv = kernel["MatrixInstN"]
+        kStr += vectorStaticDivide(rReg, dividendReg, kDiv, tmpVgpr, tmpSgpr)
+        kStr += inst("v_and_b32", \
+          vgpr(rReg), \
+          # 2 = 64 / 32 or number of ks
+          hex(2-1), \
+          vgpr(rReg), \
+          "k groups")
+        kStr += inst("s_mov_b32", \
+          sgpr(tmpSgpr), \
+          hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+          "MT%u+PAD"%tIdx )
+        kStr += inst("v_mul_lo_u32", \
+          vgpr(rReg), \
+          sgpr(tmpSgpr), \
+          vgpr(rReg), \
+          "koff")
+        kStr += inst("v_add_u32", vgpr(sgid), vgpr(rReg), vgpr(sgid), "k offset")
+    # end TODO
     if kernel["VectorWidth"] > 1 and not kernel["MatrixInstruction"]:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
@@ -10655,12 +10663,20 @@ class KernelWriterAssembly(KernelWriter):
     #only support option=0
     assert(option==0)
 
-    pack = 1
-    if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
-      pack = 2
-    numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"] // kernel["MatrixInstB"] * pack // kernel["MatrixInstK"]
-    numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
-    numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"] * pack // kernel["MatrixInstK"]
+    # TODO: generalize over different MIs
+    if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
+      pack = 1
+      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+        pack = 2
+      numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"] // kernel["MatrixInstB"] * pack // kernel["MatrixInstK"]
+      numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
+      numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"] * pack // kernel["MatrixInstK"]
+    # end TODO
+    else:  
+      numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"]//kernel["MatrixInstB"]
+      numRowblocks = 1 if kernel["MatrixInstM"] == 4 else  kernel["MIWG0"]//kernel["MatrixInstM"]
+      numColBlocks = 1 if kernel["MatrixInstM"] == 4  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
+  
     numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     numRowInstructions = kernel["ThreadTile0"]
     mfmaColStoreVw = 1 #Todo check it can be other case or not
