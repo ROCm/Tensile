@@ -2352,7 +2352,9 @@ class Solution:
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
           validDepthU = False
 
-      if validDepthU and state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isHalf():
+      if validDepthU and state["KernelLanguage"] == "Assembly" \
+         and (state["ProblemType"]["DataType"].isHalf() \
+              or state["ProblemType"]["DataType"].isBFloat16()):
         if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
             reject(state, "HalfEcc requires GLVWA > 1")
