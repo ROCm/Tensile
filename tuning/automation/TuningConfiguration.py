@@ -208,17 +208,27 @@ class TuningConfiguration(object):
             printExit("Cannot open file: %s" % filename)
 
 
-def generateProblemType(initialParams):
+def generateProblemType(initialParams, tileAware= "true"):
 
-    problemType = {
-      "OperationType": "GEMM",
-      "DataType": "s",
-      "Batched": True,
-      "UseBeta": True,
-      "TransposeA": False,
-      "TransposeB": True,
-      "TileAwareSelection": True
-    }
+    if tileAware == "true":
+        problemType = {
+            "OperationType": "GEMM",
+            "DataType": "s",
+            "Batched": True,
+            "UseBeta": True,
+            "TransposeA": False,
+            "TransposeB": True,
+            "TileAwareSelection": True
+        }
+    else:
+        problemType = {
+            "OperationType": "GEMM",
+            "DataType": "s",
+            "Batched": True,
+            "UseBeta": True,
+            "TransposeA": False,
+            "TransposeB": True,
+        }
 
     if initialParams:
         keys = list(initialParams.keys())
@@ -249,7 +259,7 @@ def appendWorkGroups(benchmarkGroup, workGroups):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"WorkGroup": workGroups})
 
-def appendSizes(benchmarkGroup, sizes):
+def appendSizes(benchmarkGroup, sizes, tileAware="true"):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
     for size in sizes:
@@ -258,6 +268,9 @@ def appendSizes(benchmarkGroup, sizes):
     if not benchmarkFinalParams:
         benchmarkFinalParams = []
         benchmarkGroup["BenchmarkFinalParameters"] = benchmarkFinalParams
+
+    if tileAware == "false":
+        benchmarkFinalParams.append({"ProblemSizes":problemSizes})
     
 def generateEmptyBenchmarkGroup():
     benchmarkGroup={"InitialSolutionParameters":None,"BenchmarkCommonParameters":None,"ForkParameters":None,"BenchmarkForkParameters":None,"JoinParameters":None,

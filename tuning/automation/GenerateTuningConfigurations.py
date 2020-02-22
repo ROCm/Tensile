@@ -135,7 +135,7 @@ def ClassifySize(size):
 
     return sizeKey
 
-def GetProblemType(key):
+def GetProblemType(key,tileAware):
     _ , transposeA, transposeB, dType = key
 
     initialParams = {}
@@ -151,18 +151,20 @@ def GetProblemType(key):
         initialParams["TransposeB"] = True
     initialParams["DataType"] = dType
 
-    problemType = generateProblemType(initialParams)
+    problemType = generateProblemType(initialParams,tileAware)
 
     return problemType
 
-def generateBenchmarkGroupFromScheme(scheme):
+def generateBenchmarkGroupFromScheme(scheme, tileAware="false"):
     benchmarkGroup = generateEmptyBenchmarkGroup()
 
     commonParams = []
     forkParams = []
     finalParams = []
-    finalParams.append({"ProblemSizes":None}) 
-    finalParams.append({"SolutionSummationSizes":[30,60,90,120,180,360,720,1440,2880,5000,10000,15000,20000,25000,30000]})
+
+    if tileAware == "true":
+        finalParams.append({"ProblemSizes":None}) 
+        finalParams.append({"SolutionSummationSizes":[30,60,90,120,180,360,720,1440,2880,5000,10000,15000,20000,25000,30000]})
 
     for key in scheme:
         value = scheme[key]
@@ -201,7 +203,7 @@ def generateDefaultScheme():
 
     return scheme
 
-def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList):
+def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAware="false"):
 
     _ , transposeA, transposeB, dType = problemKey
     
@@ -218,57 +220,57 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList):
         scheme["GlobalSplitU"] = [1]
         scheme["LdsPadA"] = [0, -1]
         scheme["LdsPadB"] = [0, -1]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
         appendThreadTiles(benchmarkGroup, [[4,4],[4,2],[2,4],[4,8],[8,4],[8,8]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1]])
-        appendSizes(benchmarkGroup,sizeList)
+        appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "tiny":
         scheme["GlobalSplitU"] = [1,2,3,4]
         scheme["LdsPadA"] = [0, -1]
         scheme["LdsPadB"] = [0, -1]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
         appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[32,8,4],[8,32,4]])
         #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[8,16,4],[16,8,2],[16,8,4],[8,8,1],
         #    [8,8,2],[8,8,4],[4,16,4],[16,4,4],[4,8,8],[8,4,8],[4,4,4],[4,4,8]])
-        appendSizes(benchmarkGroup,sizeList)
+        appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "small":
         scheme["GlobalSplitU"] = [1,2,4,6,8]
         scheme["LdsPadA"] = [0, -1]
         scheme["LdsPadB"] = [0, -1]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme)
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4]])
         #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,8,4],[8,16,2],[8,16,4],[16,8,2],
         #    [16,8,4],[32,4,2],[4,32,2],[4,16,4],[16,4,4]])
-        appendSizes(benchmarkGroup,sizeList)
+        appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "medium":
         if transposeType == "tn":
             scheme["GlobalSplitU"] = [1,2,4,6,8]
             scheme["DepthU"] = [8, 16]
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
             appendThreadTiles(benchmarkGroup, [[8,8],[4,6],[8,4],[6,4]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4]])
-            appendSizes(benchmarkGroup,sizeList)
+            appendSizes(benchmarkGroup,sizeList,tileAware)
         else:
             scheme["GlobalSplitU"] = [1,2,4,6,8]
             scheme["LdsPadA"] = [0, -1]
             scheme["LdsPadB"] = [0, -1]
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
             appendThreadTiles(benchmarkGroup, [[8,8],[4,4],[6,4],[4,6]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4]])
             #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4],[8,8,8],[4,16,4],[16,4,4],[32,8,2],[8,32,2]])
-            appendSizes(benchmarkGroup,sizeList)
+            appendSizes(benchmarkGroup,sizeList,tileAware)
     else: #sizeKey == "large"
         scheme["GlobalSplitU"] = [1,2,4,6,8,12]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
         appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8],[12,12]])
         appendWorkGroups(benchmarkGroup, [[16,16,1]])
-        appendSizes(benchmarkGroup,sizeList)
+        appendSizes(benchmarkGroup,sizeList,tileAware)
 
     problemGroup.append(benchmarkGroup)
 
-def OutputConfigs(problemMapper, configPath, outputName, library):
+def OutputConfigs(problemMapper, configPath, outputName, library, tileAware):
 
     keys = list(problemMapper.keys())
 
@@ -285,7 +287,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library):
                 sizeMapper[sizeKey] = []
             sizeMapper[sizeKey].append(size)
 
-        problemType = GetProblemType(key)
+        problemType = GetProblemType(key,tileAware)
         dataType = problemType["DataType"].lower()
         operationType = problemType["OperationType"].lower()
 
@@ -315,7 +317,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library):
 
         for sizeKey in sizeMapper:
             sizeList = sizeMapper[sizeKey]
-            updateProblemGroupFromKey(key,sizeKey,problemGroup,sizeList)
+            updateProblemGroupFromKey(key,sizeKey,problemGroup,sizeList,tileAware)
         
     for key in configDefs:
         newConfig = configDefs[key]
@@ -334,7 +336,7 @@ def GetOutputFileName(outputPath, namePart, key, ext):
     return outputFileName
 
 
-def generateRunScript(fileNames, outputPath):
+def generateRunScript(fileNames, outputPath,count='1'):
     
     scriptNames = ""
 
@@ -345,15 +347,15 @@ def generateRunScript(fileNames, outputPath):
 
     runallTemplate = """#!/bin/bash
 
-mkdir results
+mkdir results%s
 
 for NAME in%s
 do
-  ./${NAME}.sh > results/${NAME}.1 2>&1
+./${NAME}.sh > results%s/${NAME}.1 2>&1
 done
 """ 
-    runallContent = runallTemplate % scriptNames
-    doitFileName = os.path.join(outputPath, "doit_all.sh")
+    runallContent = runallTemplate % (count, scriptNames, count)
+    doitFileName = os.path.join(outputPath, "doit_all"+count+".sh")
     doitFile = open(doitFileName,"w")
     doitFile.write(runallContent)
     doitFile.close() 
@@ -363,6 +365,7 @@ def OutputScript(problemMapper, scriptPath, namePart):
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
+
     for key in keys:
         outputFileName = GetOutputFileName(scriptPath, namePart, key, "sh")
         scriptFileNames.append(outputFileName)
@@ -371,12 +374,34 @@ def OutputScript(problemMapper, scriptPath, namePart):
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
             lines.append(rocblas_call)
-
         with open(outputFileName, 'w') as f:
             for line in lines:
                 f.write("%s\n" % line)
 
     generateRunScript(scriptFileNames, scriptPath)
+    
+def OutputScript2(problemMapper, scriptPath, namePart):
+
+    keys = list(problemMapper.keys())
+
+    scriptFileNames = []
+    
+    for key in keys:
+        outputFileName = GetOutputFileName(scriptPath, namePart, key, "sh")
+        scriptFileNames.append(outputFileName)
+        lineDefinitions = problemMapper[key]
+        lines = ["#!/bin/bash",""]
+        for problemDefinition in lineDefinitions:
+            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
+            lines.append(rocblas_call)
+        with open(outputFileName, 'w') as f:
+            for line in lines:
+                if "rocblas-bench" in line:
+                    f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
+                else:
+                    f.write("%s\n" % line)
+                    
+    generateRunScript(scriptFileNames, scriptPath,'2')
 
 def OutputProblemDefinitions(problemMapper, sizePath, namePart):
 
@@ -396,7 +421,7 @@ def RunMain():
 
     argParser = argparse.ArgumentParser()
 
-    if len(sys.argv) <= 5:
+    if len(sys.argv) <= 6:
         argParser.add_argument("input_file_name", help="configuration file path")
     else:
         argParser.add_argument("input_logs", help="the input path for log files")
@@ -405,13 +430,15 @@ def RunMain():
     argParser.add_argument("output_path", help="the output path")
     argParser.add_argument("output_file_name", help="the output file name")
     argParser.add_argument("library", help="the library Logic name")
-    
+    argParser.add_argument("tile_aware", help="true/false tile_aware_selection", default="false")    
+ 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
     outputName = args.output_file_name
     library = args.library
+    tileAware = args.tile_aware
 
-    if len(sys.argv) <= 5:
+    if len(sys.argv) <= 6:
         inputFileName = args.input_file_name
         inputFileBaseName = os.path.basename(inputFileName)
         namePart, _ = os.path.splitext(inputFileBaseName)
@@ -420,7 +447,7 @@ def RunMain():
         networkName = args.network_name
         allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    if len(sys.argv) <= 5:
+    if len(sys.argv) <= 6:
         problemMapper = ProcessFile(inputFileName)
     else:
         problemMapper = ProcessFiles(allLogs)
@@ -435,13 +462,15 @@ def RunMain():
     if not os.path.exists(sizePath):
         os.makedirs(sizePath)
 
-    OutputConfigs(problemMapper, configPath, outputName, library)
+    OutputConfigs(problemMapper, configPath, outputName, library,tileAware)
     
-    if len(sys.argv) <= 5:
+    if len(sys.argv) <= 6:
         OutputScript(problemMapper, scriptPath, namePart)
+        OutputScript2(problemMapper, scriptPath, namePart+'2')
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
         OutputScript(problemMapper, scriptPath, networkName)
+        OutputScript2(problemMapper, scriptPath, networkName+'2')
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":
