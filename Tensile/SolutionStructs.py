@@ -1484,11 +1484,16 @@ class ProblemSizes:
         self.ranges[i].problemSizes[:] = \
           [ExactList.convertLeadingDims(self.problemType, problemSize) for problemSize in self.ranges[i].problemSizes]
 
-    self.problems = set()
+    self.problems = OrderedDict()
     for sizeRange in self.ranges:
-      self.problems.update([Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) for rangeSize in sizeRange.problemSizes])
-    self.problems.update(self.exacts)
-    self.problems =  sorted(list( self.problems), key=operator.attrgetter("sizes"))
+        for rangeSize in sizeRange.problemSizes:
+            self.problems.update({Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) : 1 })
+    for e in self.exacts:
+        self.problems.update({e : 1})
+    if globalParameters["SortProblems"]:
+      self.problems =  sorted(list( self.problems.keys()), key=operator.attrgetter("sizes"))
+    else:
+      self.problems =  list(self.problems.keys())
     self.totalProblemSizes = len(self.problems)
 
     # max sizes

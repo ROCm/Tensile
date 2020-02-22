@@ -413,8 +413,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
-  print1("# Writing Solutions")
   if globalParameters["LegacyComponents"]:
+    print1("# Writing Solutions")
     ##############################################################################
     # Write Solutions
     ##############################################################################
