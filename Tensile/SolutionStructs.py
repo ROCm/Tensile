@@ -1921,7 +1921,8 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minGrvw = 2 if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
+    minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
+                globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -1967,8 +1968,9 @@ class Solution:
       # end-- while loop
 
     if bestVw == -1:
-      #print "reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
-      # state["GlobalReadVectorWidth"]
+      if dbFract:
+        print ("reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
+         state["GlobalReadVectorWidth"])
       return False  # could not find a solution, perhaps only possible for half ?
 
     state["GlobalLoadVectorWidth%s"%tc] = bestVw
@@ -1995,7 +1997,7 @@ class Solution:
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
-      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used %s" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
              nlc, nlp, \
              nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
@@ -2374,6 +2376,8 @@ class Solution:
               " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA)
         print("info: totalElementsCoalescedB=", totalElementsCoalescedB, \
               " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
+        print ("info", pvar(state, "VectorWidth"))
+                #, pvar(state, "GlobalLoadVectorWidthA"), pvar(state, "GlobalLoadVectorWidthB"))
 
       #if state["ProblemType"]["DataType"].isHalf() \
       #    and (state["GlobalLoadVectorWidthA"] == 1 \
