@@ -1603,7 +1603,7 @@ class Solution:
     self._name = None
 
   # these keys are copied from ProblemType to internal that may be overridden
-  InternalKeys = ["UseSgprForGRO"]
+  InternalKeys = ["UseSgprForGRO","VectorStore"]
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -2034,6 +2034,9 @@ class Solution:
     for s in Solution.InternalKeys:
         state['_'+s] = state[s]
         #del state[s]
+
+    if state["VectorStore"] == -1:
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
@@ -2756,14 +2759,15 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["VectorStore"] and state["PackGranularity"]==2 \
+    if packedC0 and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
-          reject(state, "packedC0 requires AF0EM>VectorWidth (for stores)")
-    if packedC1 and state["VectorStore"] and state["PackGranularity"]==2 \
-        and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
-          # Not sure if this is actually required??
-          reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
-
+          if state["KernelLanguage"] == "Source":
+              reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
+          else:
+            if state["VectorStore"] <= 0:
+              state["_VectorStore"] = 0
+            else:
+              reject(state, "packedC0 Assembly requires AF0EM>VectorWidth or not VectorStore (for stores)")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:
