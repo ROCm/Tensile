@@ -120,8 +120,7 @@ cp ${REFERENCE_LIBRARY_ARCHIVE}/* ${ARCHIVE_PATH}
 cp ${ARCHIVE_PATH}/*yaml ${ASM_PATH}
 
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge_rocblas_yaml_files.py
-#MESSAGE_SCRIPT=../archive/massage.py
-MESSAGE_SCRIPT=${VERIFY_LIBRARY_ARCHIVE}/massage.py
+MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
 
 if [[ ${MERGE} == true ]]; then
   mkdir -p ${MERGE_PATH}
@@ -133,7 +132,7 @@ else
 fi
 
 if [[ ${MASSAGE} == true ]]; then
-  python ${MESSAGE_SCRIPT} ${MASSAGE_PATH} ${VERIFY_LIBRARY_ASM}
+  python ${MASSAGE_SCRIPT} ${MASSAGE_PATH} ${REFERENCE_LIBRARY_ASM}
 fi
 
 BUILD_ROCBLAS="./install.sh -c"
