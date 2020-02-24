@@ -51,16 +51,44 @@ namespace Tensile
             }
         };
 
+        // coord is vector with coordinates for dimensions in the anchor tensor
+        // tensor is tensor descriptor for a or b
+        // sumCoord is the coordinate in the sum dimension associated with the zero-pad
         bool inZeroPad(ContractionProblem const &problem, ContractionProblem::ZeroPad const &zp,
-                       const std::vector<int64_t> &dCoord, int64_t sumOffset)
+                       const TensorDescriptor &tensor, const std::vector<int64_t> &anchorCoord,
+                       int64_t sumCoord)
         {
             if (zp.valid()) {
-                int64_t anchorRelCoord = dCoord[problem.toDPos(zp.anchorIndex)] + sumOffset;
-                int64_t elementEdge    = problem.d().sizes().at(problem.toDPos(zp.anchorIndex)) +
-                                         problem.boundSize(problem.toBoundsPos(zp.boundIndex)) -
-                                         zp.trailingPad - 1;
-                //std::cout << "i=" << i << " anchorRelCoord="<< anchorRelCoord<< " leadingPad="<< zp.leadingPad<< " edge="<< elementEdge<< " trailingPad="<< zp.trailingPad << "\n";
-                return (anchorRelCoord < zp.leadingPad || anchorRelCoord >= elementEdge);
+                // Check to see if the element coordinate is below or above the zero-pad range
+                // The comparison is done in the element domain.
+                assert(zp.anchorPos != -1); // ensure initialized.
+                const auto sumPos = problem.toBoundsPos(zp.boundIndex);
+                int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos] +
+                                         sumCoord * tensor.strides()[zp.boundPos];
+
+                // elementEdge calculation:
+                // size of anchor dim is in the output space, so add filter size-1 to get input spatial dim, then subtract padEnd
+                // anchorStride is typically spatial stride (W,H) * convolution stride
+                // boundPos stride is typically spatial stride (W,H) * dilation
+                // padStart, padEnd are pre-scaled by spatial stride
+                int64_t elementEdge  = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos] +
+                                       (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos] - zp.padEnd;
+
+                bool rv =  anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
+
+                if (0)
+                {
+                    std::cout << "  rv=" << rv
+                              << " anchorCoord=" << anchorCoord[zp.anchorPos]
+                              << " boundIndex=" << zp.boundIndex
+                              << " sumCoord=" << sumCoord
+                              << " anchorRelCoord="<< anchorRelCoord
+                              << " padStart="<< zp.padStart
+                              << " stride=" << tensor.strides()[zp.anchorPos]
+                              << " edge="<< elementEdge
+                              << " padEnd="<< zp.padEnd << "\n";
+                }
+                return rv;
             } else {
                 return false;
             }
@@ -149,21 +177,30 @@ namespace Tensile
                     {
                         auto const &zpA = problem.boundIndices()[i].aZeroPad;
                         auto const &zpB = problem.boundIndices()[i].bZeroPad;
-                        aCoord[boundIndices[i].a] = bound[i] - zpA.leadingPad;
-                        bCoord[boundIndices[i].b] = bound[i] - zpB.leadingPad;
+                        aCoord[boundIndices[i].a] = bound[i];
+                        bCoord[boundIndices[i].b] = bound[i];
 
-                        if (zpA.valid() && inZeroPad(problem, zpA, dCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
+                        if (zpA.valid() && inZeroPad(problem, zpA, a, aCoord, bound.at(problem.toBoundsPos(zpA.boundIndex))))
                             aInZeroPad = true;
-                        if (zpB.valid() && inZeroPad(problem, zpB, dCoord, bound.at(problem.toBoundsPos(zpB.boundIndex))))
+                        if (zpB.valid() && inZeroPad(problem, zpB, b, bCoord, bound.at(problem.toBoundsPos(zpB.boundIndex))))
                             bInZeroPad = true;
                     }
 
-                    auto aIndex = a.index(aCoord);
-                    auto bIndex = b.index(bCoord);
+                    size_t aIndex = a.index(aCoord);
+                    size_t bIndex = b.index(bCoord);
+                    for(int i = 1; i < bound.size(); i++)
+                    {
+                        auto const &zpA = problem.boundIndices()[i].aZeroPad;
+                        auto const &zpB = problem.boundIndices()[i].bZeroPad;
+
+                        aIndex -= zpA.padStart;
+                        bIndex -= zpB.padStart;
+                    }
 
                     auto aStride = problem.a().strides()[boundIndices[0].a];
                     auto bStride = problem.b().strides()[boundIndices[0].b];
 
+                    // innermost bound calculation:
                     for(size_t i = 0; i < boundSize[0]; i++)
                     {
                         auto const &zpA = problem.boundIndices()[0].aZeroPad;
@@ -171,20 +208,23 @@ namespace Tensile
 
                         typename Inputs::AType aVal(0);
                         typename Inputs::BType bVal(0);
-                        if (!aInZeroPad && !inZeroPad(problem, zpA, dCoord, i))
+                        if (!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
                             aVal = Transform<typename Inputs::AType>::Input(
-                                    inputs.a[aIndex + (i * aStride) - zpA.leadingPad], aConjugate);
-                        if (!bInZeroPad && !inZeroPad(problem, zpB, dCoord, i))
+                                    inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
+                        if (!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
                             bVal = Transform<typename Inputs::BType>::Input(
-                                    inputs.b[bIndex + (i * bStride) - zpB.leadingPad], bConjugate);
+                                    inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
 
-                        bool innerZpa = inZeroPad(problem, zpA, dCoord, i);
                         if (0) {
-                            std::cout << "dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
-                                    << " innerZpa=" << innerZpa << " aindex=" << aIndex << " +offset="
-                                    << (i * aStride) - zpA.leadingPad << "\n";
+                            std::cout
+                                    << " bound=" << bound[0] << "," << bound[1]
+                                    << " dNum=" << dNum << " value=" << value << " aInZeroPad=" << aInZeroPad
+                                    << " aindex=" << aIndex << " +offset="
+                                    << (int64_t)(i * aStride) - zpA.padStart
+                                    //<< " aVal=" << aVal // disable int8
+                                    << "\n";
                         }
                     }
                 }
@@ -198,7 +238,6 @@ namespace Tensile
 
                 inputs.d[dIndex] = static_cast<typename Inputs::DType>(inputs.alpha) * static_cast<typename Inputs::DType>(value)
                                  + ((beta == zero) ?  zero : beta*inputs.c[cIndex]);
-
             }
         }
 

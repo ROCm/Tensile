@@ -1294,7 +1294,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # shift vector components d0
         if not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA:
           kl.append(self.comment("shift vector components d0"))
-          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+          if kernel["MatrixInstruction"]:
+            kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
+          else:
+            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
@@ -1466,7 +1469,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # is required.
     # if 1, unroll loop starts at 0 and increments by DEPTHU.  No scaling is required.  This mode is required
     # for pack summation dims, but can also be used independently and this is useful for isolation and testing.
-    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"]
+    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"] \
+                             or bool(kernel["ProblemType"]["ZeroPadA"]) or bool(kernel["ProblemType"]["ZeroPadB"])
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
@@ -1805,6 +1809,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
     tensorParametersA["PackedIndices"] = kernel["PackedC0IndicesX"]
     tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
+
+
+  @staticmethod
+  def zpForSumIdx(sumIdx, zeroPad):
+     """ Returns zero-pad for specified sumIdx if it matches or None if not """
+     return next((zpi for zpi in zeroPad if zpi[1] == sumIdx), None)
 
 
   ##############################################################################
@@ -2321,6 +2331,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def shiftVectorComponents(self, kernel, tP):
+    return ""
+
+  @abc.abstractmethod
+  def shiftVectorComponentsForMatrixInst(self, kernel, tP):
     return ""
 
   ##############################################################################
