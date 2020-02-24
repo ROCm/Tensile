@@ -51,7 +51,7 @@ BenchmarkProblems:
           - [32, 32, 2, 1]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 2, 32 ]
+          - [ 1, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
