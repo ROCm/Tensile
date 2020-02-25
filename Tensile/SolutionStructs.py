@@ -1842,10 +1842,6 @@ class Solution:
           // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
-      #if state["TransposeLDS"] == 1:
-      #  state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-      #  state["LSP%s"%tc] = min(state["MacroTile%s"%tc], ((state["NumThreads"]*state["GlobalReadVectorWidth"])//state["DepthU"]))
-      #else:
         state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
         state["LSP%s"%tc] = state["MacroTile%s"%tc] \
             // state["NumLoadsPerpendicular%s"%tc]
