@@ -10,8 +10,6 @@ ROCBLAS=false
 PROVISION_BRANCH='develop'
 TENSILE_FORK='RocmSoftwarePlatform'
 ROCBLAS_FORK='RocmSoftwarePlatform'
-TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
-ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS.git"
 
 GIT_HOST="${TENSILE_HOST}"
 PROVISION_PATH='Tensile'
@@ -48,6 +46,9 @@ fi
 mkdir -p ${WORKING_PATH}
 
 pushd ${WORKING_PATH} > /dev/null
+
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
+ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS.git"
 
 if [[ $PROVISION_PATH == "rocBLAS" ]]; then
   GIT_HOST="${ROCBLAS_HOST}"
