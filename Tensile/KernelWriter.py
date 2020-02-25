@@ -112,8 +112,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       readCnt = self.globalReadACode.middle.countType(Code.GlobalReadInst) + \
                 self.globalReadBCode.middle.countType(Code.GlobalReadInst)
-      # reads and incs are scheduled in iters range(0...endIter)
-      endIter = readCnt + 2 # 2 for incA and incB
+      # reads and incs are scheduled in iters range(0..endIter)
+      endIter = readCnt + 2;
 
 
       if endIter > kernel["LoopIters"]-1:
@@ -122,7 +122,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         firstStep = endIter-(kernel["LoopIters"]-1) + 1
         endIter = kernel["LoopIters"]-1
       else:
+	# schedule b2b for readCnt > 2 (True for bigger TT)
         firstStep = 1
+        
 
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
@@ -130,9 +132,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsToSched.append(globalReadIncACode)
       itemsToSched.append(globalReadIncBCode)
 
+
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
+      # append 'n' global load at a time 
+      # append global load(S) first 'number of global load(s) determined by  firstStep
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
       itemsToSched = itemsToSched[firstStep:]
@@ -150,7 +155,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
-
 
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
@@ -350,7 +354,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               lgkmcnt = localWrites  # this only survives if writes are at the end
 
       lgkmcnt = min(lgkmcnt, 15)
-      waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
+      waitCode.comment += " old=%u new=%u (Local write no wait)" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
     return iterCode
@@ -831,6 +835,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
+            #container for holding local read A & B elements for later re-ordering
             localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
 
@@ -889,7 +894,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Wait"]:
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               waitGlobalRead, waitLocalWrite, waitLocalRead, \
-              "wait for prior local read")
+              "wait for prior local read local write")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
@@ -1293,7 +1298,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # shift vector components d0
         if not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA:
           kl.append(self.comment("shift vector components d0"))
-          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+          if kernel["MatrixInstruction"]:
+            kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
+          else:
+            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
@@ -1465,7 +1473,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # is required.
     # if 1, unroll loop starts at 0 and increments by DEPTHU.  No scaling is required.  This mode is required
     # for pack summation dims, but can also be used independently and this is useful for isolation and testing.
-    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"]
+    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"] \
+                             or bool(kernel["ProblemType"]["ZeroPadA"]) or bool(kernel["ProblemType"]["ZeroPadB"])
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
@@ -1802,6 +1811,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
     tensorParametersA["PackedIndices"] = kernel["PackedC0IndicesX"]
     tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
+
+
+  @staticmethod
+  def zpForSumIdx(sumIdx, zeroPad):
+     """ Returns zero-pad for specified sumIdx if it matches or None if not """
+     return next((zpi for zpi in zeroPad if zpi[1] == sumIdx), None)
 
 
   ##############################################################################
@@ -2318,6 +2333,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def shiftVectorComponents(self, kernel, tP):
+    return ""
+
+  @abc.abstractmethod
+  def shiftVectorComponentsForMatrixInst(self, kernel, tP):
     return ""
 
   ##############################################################################

@@ -26,13 +26,13 @@ import argparse
 
 import csv
 
-rocblas_parameters = ["f","transposeA","transposeB","m","n","k","alpha","a_type","lda","stride_a","b_type","ldb","stride_b","beta","c_type","ldc","stride_c","d_type","ldd","stride_d","batch","compute_type","algo" ,"solution_index","flags","call_count"] #,"workspace_size" ]
+rocblas_parameters = ["f","transposeA","transposeB","m","n","k","alpha","a_type","lda","stride_a","b_type","ldb","stride_b","beta","c_type","ldc","stride_c","d_type","ldd","stride_d","batch","compute_type","algo" ,"solution_index","flags","i"] #,"workspace_size" ]
 
-gemm_ex_keys = ["-f", "--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--b_type","--ldb","--beta","--c_type","--ldc","--d_type","--ldd","--compute_type","--algo","--solution_index","--flags","--call_count"] #,"--workspace_size"]
-gemm_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--ldb","--beta","--ldc","--call_count"]
+gemm_ex_keys = ["-f", "--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--b_type","--ldb","--beta","--c_type","--ldc","--d_type","--ldd","--compute_type","--algo","--solution_index","--flags","-i"] #,"--workspace_size"]
+gemm_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--ldb","--beta","--ldc","-i"]
 
-gemm_strided_batched_ex_keys = ["-f","--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--stride_a","--b_type","--ldb","--stride_b","--beta","--c_type","--ldc","--stride_c","--d_type","--ldd","--stride_d","--batch","--compute_type","--algo","--solution_index","--flags","--call_count"]#,"--workspace_size"]
-gemm_strided_batched_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--stride_a","--ldb","--stride_b","--beta","--ldc","--stride_c","--batch","--call_count"]
+gemm_strided_batched_ex_keys = ["-f","--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--stride_a","--b_type","--ldb","--stride_b","--beta","--c_type","--ldc","--stride_c","--d_type","--ldd","--stride_d","--batch","--compute_type","--algo","--solution_index","--flags","-i"]#,"--workspace_size"]
+gemm_strided_batched_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--stride_a","--ldb","--stride_b","--beta","--ldc","--stride_c","--batch","-i"]
 
 rocblas_key_mapping = {"gemm_ex":gemm_ex_keys, "gemm":gemm_keys, "gemm_strided_batched_ex":gemm_strided_batched_ex_keys, "gemm_strided_batched":gemm_strided_batched_keys}
 
@@ -66,7 +66,7 @@ def GetRocBLASParser():
     lineParser.add_argument("--algo",dest="algo", type=int,default=0)
     lineParser.add_argument("--solution_index",dest="solution_index", type=int,default=0)
     lineParser.add_argument("--flags",dest="flags", type=int,default=0)
-    lineParser.add_argument("--call_count",dest="call_count", type=int,default=1)
+    lineParser.add_argument("-i",dest="i", type=int,default=1)
     
     return lineParser
 
@@ -77,36 +77,35 @@ def GetInceptionParser():
 
     argParser.add_argument("--verification_cache","-C",dest="verification_cache",help="Use specified directory to cache verification data. Off by default.",type=int,default=0)
     argParser.add_argument("--dout_data","-D",dest="dout_data",help="dy data filename for backward weight computation (Default=,type=str)",type=str)
-    argParser.add_argument("--forw","-F",dest="forw",help="Run only Forward Convolution (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--in_h","-H",dest="in_h",help="Input Height (Default=32,type=str)",type=int,default=32)
-    argParser.add_argument("--printconv","-P",dest="printconv",help="Print Convolution Dimensions (Default=1,type=str)",type=int,default=1)
-    argParser.add_argument("--verify","-V",dest="verify",help="Verify Each Layer (Default=1,type=str)",type=int,default=1)
-    argParser.add_argument("--in_w","-W",dest="in_w",help="Input Width (Default=32,type=str)",type=int,default=32)
+    argParser.add_argument("--forw","-F",dest="forw",help="Run only Forward Convolution (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--in_h","-H",dest="in_h",help="Input Height (Default=32,type=int)",type=int,default=32)
+    argParser.add_argument("--printconv","-P",dest="printconv",help="Print Convolution Dimensions (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--verify","-V",dest="verify",help="Verify Each Layer (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--in_w","-W",dest="in_w",help="Input Width (Default=32,type=int)",type=int,default=32)
     argParser.add_argument("--in_bias","-a",dest="in_bias",help="Input bias filename (Default=,type=str)",type=str)
-    argParser.add_argument("--bias","-b",dest="bias",help="Use Bias (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--in_channels","-c",dest="in_channels",help="Number of Input Channels (Default=3,type=str)",type=int,default=3)
+    argParser.add_argument("--bias","-b",dest="bias",help="Use Bias (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--in_channels","-c",dest="in_channels",help="Number of Input Channels (Default=3,type=int)",type=int,default=3)
     argParser.add_argument("--in_data","-d",dest="in_data",help="Input data filename (Default=,type=str)",type=str)
     argParser.add_argument("--weights","-e",dest="weights",help="Input weights filename (Default=,type=str)",type=str)
-    argParser.add_argument("--group_count","-g",dest="group_count",help="Number of Groups (Default=1,type=str)",type=int,default=1)
-    argParser.add_argument("--iter","-i",dest="iter",help="Number of Iterations (Default=10,type=str)",type=int,default=10)
-    argParser.add_argument("--dilation_w","-j",dest="dilation_w",help="Dilation of Filter Width (Default=1,type=str)",type=int,default=1)
-    argParser.add_argument("--out_channels","-k",dest="out_channels",help="Number of Output Channels (Default=32,type=str)",type=int,default=32)
-    argParser.add_argument("--dilation_h","-l",dest="dilation_h",help="Dilation of Filter Height (Default=1,type=str)",type=int,default=1)
+    argParser.add_argument("--group_count","-g",dest="group_count",help="Number of Groups (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--iter","-i",dest="iter",help="Number of Iterations (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--dilation_w","-j",dest="dilation_w",help="Dilation of Filter Width (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--out_channels","-k",dest="out_channels",help="Number of Output Channels (Default=32,type=int)",type=int,default=32)
+    argParser.add_argument("--dilation_h","-l",dest="dilation_h",help="Dilation of Filter Height (Default=1,type=int)",type=int,default=1)
     argParser.add_argument("--mode","-m",dest="mode",help="Convolution Mode (conv, trans, group, dw,type=str) (Default=conv,type=str)",type=str,default="conv")
-    argParser.add_argument("--batchsize","-n",dest="batchsize",help="Mini-batch size (Default=100,type=str)",type=int,default=100)
-    argParser.add_argument("--dump_output","-o",dest="dump_output",help="Dumps the output buffers (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--pad_h","-p",dest="pad_h",help="Zero Padding Height (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--pad_w","-q",dest="pad_w",help="Zero Padding Width (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--pad_val","-r",dest="pad_val",help="Padding Value (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--search","-s",dest="search",help="Search Kernel Config (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--time","-t",dest="time",help="Time Each Layer (Default=0,type=str)",type=int,default=1)
-    argParser.add_argument("--conv_stride_0","-u",dest="conv_stride_0",help="Convolution Stride Vertical (Default=1,type=str)",type=int,default=1)
-    argParser.add_argument("--conv_stride_1","-v",dest="conv_stride_1",help="Convolution Stride Horizontal (Default=1,type=str)",type=int,default=1)
-    argParser.add_argument("--wall","-w",dest="wall",help="Wall-clock Time Each Layer, Requires time == 1 (Default=0,type=str)",type=int,default=0)
-    argParser.add_argument("--fil_w","-x",dest="fil_w",help="Filter Width (Default=3,type=str)",type=int,default=3)
-    argParser.add_argument("--fil_h","-y",dest="fil_h",help="Filter Height (Default=3,type=str)",type=int,default=3)
+    argParser.add_argument("--batchsize","-n",dest="batchsize",help="Mini-batch size (Default=100,type=int)",type=int,default=100)
+    argParser.add_argument("--dump_output","-o",dest="dump_output",help="Dumps the output buffers (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--pad_h","-p",dest="pad_h",help="Zero Padding Height (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--pad_w","-q",dest="pad_w",help="Zero Padding Width (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--pad_val","-r",dest="pad_val",help="Padding Value (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--search","-s",dest="search",help="Search Kernel Config (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--time","-t",dest="time",help="Time Each Layer (Default=0,type=int)",type=int,default=1)
+    argParser.add_argument("--conv_stride_0","-u",dest="conv_stride_0",help="Convolution Stride Vertical (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--conv_stride_1","-v",dest="conv_stride_1",help="Convolution Stride Horizontal (Default=1,type=int)",type=int,default=1)
+    argParser.add_argument("--wall","-w",dest="wall",help="Wall-clock Time Each Layer, Requires time == 1 (Default=0,type=int)",type=int,default=0)
+    argParser.add_argument("--fil_w","-x",dest="fil_w",help="Filter Width (Default=3,type=int)",type=int,default=3)
+    argParser.add_argument("--fil_h","-y",dest="fil_h",help="Filter Height (Default=3,type=int)",type=int,default=3)
     argParser.add_argument("--pad_mode","-z",dest="pad_mode",help="Padding Mode (same, valid, default,type=str) (Default=default,type=str)",type=str,default="default")
-    argParser.add_argument("--call_count","-N",dest="call_count",help="Call count (Default=1,type=int)",type=int,default=1)
 
     return argParser
 

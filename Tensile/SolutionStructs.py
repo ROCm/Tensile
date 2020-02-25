@@ -108,9 +108,9 @@ class ConvolutionConfig:
     for field in ('fil', 'stride', 'dilation', 'spatial', 'groupCount', 'padStart', 'padEnd'):
         val = getattr(self,field)
         if val==None:
-          raise RuntimeError("ConvolutionConfig field '%s' == None'" % field)
+          raise RuntimeError("ConvolutionConfig field '%s' == None and must be specified'" % field)
         elif isinstance(val,int) and val==-1 or type(val) in (tuple,list) and -1 in val:
-          raise RuntimeError("ConvolutionConfig field '%s' == %s contains -1'" % (field,val))
+          raise RuntimeError("ConvolutionConfig field '%s' == %s must be fully specified.'" % (field,val))
 
 
   def __str__ (self):
@@ -258,7 +258,7 @@ class Convolution:
 
     problemTypeOut["NumIndicesC"] = 2+len(self.spatialRegDims)
 
-    problemTypeOut["ZeroPadA"] = self.makeZeroPadProblemType(self.cc.padStart, self.cc.padEnd, None)
+    problemTypeOut["ZeroPadA"] = self.makeZeroPadConvProblemType(self.cc.padStart, self.cc.padEnd)
 
     # Attach constant strides to A, if possible:
     nonFilterDims = [dim for dim in self.regDimsA if dim not in self.filterRegDims]
@@ -297,24 +297,30 @@ class Convolution:
       targetStr = targetStr.replace(char1, tmp).replace(char2, char1).replace(tmp, char2)
     return targetStr
 
-  def makeZeroPadProblemType(self, padStart, padEnd, cc):
+  def makeZeroPadConvProblemType(self, padStart, padEnd):
+    """
+    Convert padStart/padEnd into the format expected by ProblemType ZeroPad*
+    Tensile drops any compile-time padding info here; this must be provided with each problem.
+    """
+    rv = []
+    spatialChars='WHD'
+    filterChars='XYZ'
+    for i in range(self.numSpatialDims):
+      if padStart[i] or padEnd[i]:
+          anchorIdx = self.convolutionDims[spatialChars[i]].idx
+          sumIdx    = self.convolutionDims[filterChars[i]].idx
+          rv.append([anchorIdx, sumIdx, -1, -1])
+    return rv
+
+  def makeZeroPadProblemType(self, zps, padStart, padEnd, cc):
     """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
     rv = []
     ss = 1
-    for i in range(self.numSpatialDims):
-        if padStart[i] or padEnd[i]:
-            anchorIdx = self.spatialRegDims[i].idx
-            sumIdx    = self.filterRegDims[i].idx
-            if cc==None:
-              # This case indicates we are at compile-time and have no spatial info (which comes
-              # with each problem)
-              # So use -1 to indicate Use TBD start, end
-              # these must be later specified at runtime
-              rv.append([anchorIdx, sumIdx, -1, -1])
-            else:
-              rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
-              assert(cc.spatial[i] != -1)
-              ss *= cc.spatial[i]
+    for (i,zp) in enumerate(zps):
+      (anchorIdx, sumIdx) = zp[:2]
+      rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
+      assert(cc.spatial[i] != -1)
+      ss *= cc.spatial[i]
     return rv
 
   def __init__(self, problemTypeOut, convolutionType, config):
@@ -325,6 +331,7 @@ class Convolution:
     self.convolutionDims={};
     self.convolutionType = convolutionType
     self.config = config # input configuraiton
+    self.problemTypeOut = problemTypeOut
     self.cc = ConvolutionConfig() # parsed configuration
 
     for k in config:
@@ -547,11 +554,12 @@ class Convolution:
     The function will attempt to initialize TBD values in pcc from the convolution base class,
     and will then check to ensure the problem is fully specified.
 
-    Return [ [sizes],[stridesA] ]
+    Return [ [sizes], [stridesA] ]
     """
     numDims = 1 + max(max([x[0] for x in self.regDimsA]), max([x[0] for x in self.regDimsB]))
     sizes = [-1]*numDims
     astrides = [-1]*numDims
+    bstrides = [-1]*numDims
 
     pcc.copyFromRef(self.cc)
     pcc.checkFullySpecified(self.cc)
@@ -560,26 +568,25 @@ class Convolution:
     sizes[self.convolutionDims['C'].idx]=c
     sizes[self.convolutionDims['K'].idx]=k
 
+    bstrides[self.convolutionDims['N'].idx] = 0 # broadcast b matrix
+
     if len(pcc.spatial) != self.formatNumSpatialDims:
       raise RuntimeError ("len(pcc.spatial=", pcc.spatial, ") must match formatNumSpatialDims(%d)"%self.formatNumSpatialDims)
-
-    # convert any TBD<0 to default 0
-    padStart = [0 if p<0 else p for p in self.cc.padStart]
-    padEnd   = [0 if p<0 else p for p in self.cc.padEnd]
 
     # convert to Output dimensions:
     spatialOut=[0]*len(pcc.spatial)
     for i in range(self.formatNumSpatialDims):
-      spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 - padStart[i] - padEnd[i]) / pcc.stride[i])
+      spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 + pcc.padStart[i] + pcc.padEnd[i]) / pcc.stride[i])
+
+    print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
     for fi,filterValue in enumerate(pcc.fil):
-      if filterValue != -1:
-        try:
-          pos = self.convolutionDims[chr(ord('X')+fi)].idx
-          sizes[pos] = filterValue
-          astrides[pos] = self.cc.dilation[0] if fi==0 else pcc.spatial[fi-1]*self.cc.dilation[fi]
-        except KeyError:
-          None
+      try:
+        pos = self.convolutionDims[chr(ord('X')+fi)].idx
+        sizes[pos] = filterValue
+        astrides[pos] = pcc.dilation[0] if fi==0 else pcc.spatial[fi-1]*pcc.dilation[fi]
+      except KeyError:
+        None
 
     if self.numSpatialDims==1:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
@@ -597,11 +604,17 @@ class Convolution:
     assert all(i!=-1 for i in sizes)
 
     # translate to strides for A tensor in IndexAssignmentsA order:
-    orderedStridesA=[]
+    orderedStridesA = []
+    orderedStridesB = []
     for (idx,fbs,dim) in self.regDimsA:
       orderedStridesA.append(astrides[idx])
 
-    return (sizes, orderedStridesA)
+    for (idx,fbs,dim) in self.regDimsB:
+      orderedStridesB.append(bstrides[idx])
+
+    #print("ordered=A", orderedStridesA, "b=", orderedStridesB)
+
+    return (sizes, orderedStridesA, orderedStridesB)
 
   def registerA(self, regDimList):
     """
@@ -823,11 +836,11 @@ class ProblemType:
         if sumDim not in self.state["IndicesSummation"]:
           printExit("ZeroPad%s=%s dim=%u is not a summation index"%(tc, zp, sumDim))
         if freeDim in freeDims:
-          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple"%(tc, zp, freeDim))
-        freeDims[freeDim] = 1
+          printExit("ZeroPad%s=%s freeDim=%u occurs in more than one tuple (prev:%s)"%(tc, zp, freeDim,freeDims[freeDim]))
+        freeDims[freeDim] = zp
         if sumDim in sumDims:
           printExit("ZeroPad%s=%s sumDim=%u occurs in more than one tuple"%(tc, zp, sumDim))
-        sumDims[sumDim] = 1
+        sumDims[sumDim] = zp
 
     for tc in ('A', 'B'):
       for sc in self["SetConstStride%s"%tc] :
@@ -1204,14 +1217,17 @@ class ProblemSizeRange:
 
 class Problem:
   """ Problem sizes, strides, padding and other info"""
-  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None):
+  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None, count=None):
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
+    self.stridesC = tuple(stridesC) if stridesC else None
+    self.stridesD = tuple(stridesD) if stridesD else None
 
     self.zeroPadA = zeroPadA
     self.zeroPadB = zeroPadB
     self.convConfig = None
+    self.count = count
 
   def __str__(self):
     rv= "sizes:" + str(self.sizes)
@@ -1251,6 +1267,8 @@ class ConvProblem(Problem):
                         ConvField('q_', 'Pad End for Width (overrides q for end)', -1),
 
                         ConvField('g', 'Group Count',  1),
+
+                        ConvField('count', 'Layer execution Count',  -1),
                         ]
   AllowedConfFieldsDict = {field.shortChar : field for field in AllowedConvFields}
 
@@ -1299,12 +1317,13 @@ class ConvProblem(Problem):
                 groupCount = e['g']
               )
 
-    (sizes, stridesA) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
-    zeroPadA = convolution.makeZeroPadProblemType(self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
+    (sizes, stridesA, stridesB) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
+    zeroPadA = convolution.makeZeroPadProblemType(convolution.problemTypeOut["ZeroPadA"],
+        self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
 
-    Problem.__init__(self, sizes, stridesA, zeroPadA=zeroPadA)
+    Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA, count=e['count'])
 
-    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "zeroPadA=", self.zeroPadA)
+    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
 
 
   def toExactDict(self):
@@ -1312,6 +1331,8 @@ class ConvProblem(Problem):
     padStartA = [zp[2] for zp in self.zeroPadA]
     padEndA = [zp[3] for zp in self.zeroPadA]
     exactFields = OrderedDict()
+
+    exactFields['count'] = self.count
     exactFields['sizes'] = list(self.sizes)
     exactFields['stridesA'] = list(self.stridesA)
 
@@ -1361,7 +1382,6 @@ class ExactDict(Problem):
   AllowedFields = [ 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padStartA', 'padEndA', 'padStartB', 'padEndB']
 
   def __init__(self, e, problemType):
-    print ("E", e)
     Problem.__init__(self)
 
     for f in e:
@@ -1370,10 +1390,11 @@ class ExactDict(Problem):
       else:
         raise RuntimeError ("specified field '%s' is not a valid Exact dict field"%f)
 
+
     if problemType:
       zp={}
-      zp['A'] = problemType["ZeroPadA"]
-      zp['B'] = problemType["ZeroPadB"]
+      zp['A'] = deepcopy(problemType["ZeroPadA"])
+      zp['B'] = deepcopy(problemType["ZeroPadB"])
 
       for (tc, padName, zpField) in (
           ("A", "padStartA",2), ("A", "padEndA", 3),
@@ -1398,6 +1419,11 @@ class ExactDict(Problem):
       self.zeroPadB = zp['B']
     else:
       self.zeroPadA = self.zeroPadB = []
+
+    if problemType:
+      if len(self.sizes) != problemType["TotalIndices"]:
+        raise RuntimeError ("specified size=%s does not have enough indices for problem (expected %d, got %d)" \
+                % (self.sizes, problemType["TotalIndices"], len(self.sizes)))
 
 
 
@@ -1557,8 +1583,10 @@ class Solution:
     if 'ISA' not in self._state:
       if 'ISA' in config:
         self._state['ISA'] = config['ISA']
-      else:
+      elif config['KernelLanguage'] == 'Assembly':
         self._state['ISA'] = list(globalParameters["CurrentISA"])
+      else:
+        self._state['ISA'] = [0,0,0]
 
     # assign parameters without defaults
     for key in config:
@@ -2324,7 +2352,9 @@ class Solution:
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
           validDepthU = False
 
-      if validDepthU and state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isHalf():
+      if validDepthU and state["KernelLanguage"] == "Assembly" \
+         and (state["ProblemType"]["DataType"].isHalf() \
+              or state["ProblemType"]["DataType"].isBFloat16()):
         if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
             reject(state, "HalfEcc requires GLVWA > 1")
@@ -2402,7 +2432,8 @@ class Solution:
 
     assert(state["DepthU"]> 0)
 
-    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1:
+    if state["UnrollIncIsDepthU"] or state["PackSummationDims"] == 1 \
+       or bool(problemType["ZeroPadA"]) or bool(problemType["ZeroPadB"]):
         # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
         # problems that require tail loop.
         if state["DepthU"] %  state["AssertSummationElementMultiple"] != 0:

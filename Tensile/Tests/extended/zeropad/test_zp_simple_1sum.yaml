@@ -2,19 +2,20 @@ GlobalParameters:
   EnqueuesPerSync: 1
   NumElementsToValidate: -1
   KernelTime: True
-  #PinClocks: True
   SleepPercent: 0
   DataInitTypeBeta : 0
   DataInitTypeA: 3
   DataInitTypeB: 3
   DataInitTypeAlpha: 1
   PrintSolutionRejectionReason: 1
-  PrintWinnersOnly: 1
+  PrintWinnersOnly: 0
   PrintTensorA: 0
-  PrintTensorD: 2
+  PrintTensorD: 0
+  PrintTensorRef: 0
   CpuThreads: 0
   NewClient: 2
 
+# 1sum, single zero-pad
 BenchmarkProblems:
   -
     - # ProblemType
@@ -25,30 +26,31 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 0, 2 ]
       IndexAssignmentsB: [ 2, 1 ]
-      ZeroPadA: [ [0, 2,   4, 3] ]  # zero-pad dimension and 2 values, format will change
-      SetConstStrideA: [ [2, 1] ]
+      ZeroPadA: [[0, 2,   2, 2]]
+      UseInitialStridesAB: True
 
-    - # BenchmarkProblemSizeGroup
+    - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - PrefetchLocalRead: [False]
-        - PrefetchGlobalRead: [False]
+        - PackSummationDims: [1]
+        - KernelLanguage: [Source]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [False,True]
         - ThreadTile:
-          - [ 2, 2 ]
-            #- [ 8, 8 ]
+          - [ 4, 4 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
-          #- WorkGroupMapping: [1,8,64]
         - StaggerU: [0]
         - StaggerUMapping: [0]
         - DepthU: [ 4]
-        - VectorWidth: [-1]
-        - FractionalLoad: [1]
+        - VectorWidth: [1]
+        - GlobalReadVectorWidth: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [16], [8], [5] ] # tail loop test:
-
+          - Exact: {sizes: [16,16,4], stridesA: [1,1,16] }
+          - Exact: {sizes: [16,16,16], stridesA: [1,1,16] }
+          - Exact: {sizes: [16,16,16], stridesA: [1,1,16] }

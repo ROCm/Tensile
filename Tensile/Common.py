@@ -985,11 +985,11 @@ defaultProblemType = {
     # Zero-pad will add leading and trailing "pad" elements to the specified 'anchor'
     # dimension when accessed by specified summation dimension.
     #
-    # Format is list of tuples of [freeDim, sumDim, padLeading, padTrailing].
+    # Format is list of tuples of [freeDim, sumDim, padStart, padEnd].
     #  - freeDim is the anchor where the zero-pad starts.
     #  - sumDim is the summation dim to which the padding checking is added.
-    #  - padLeading is the number of elements to pad before the Start element
-    #  - padTrailing is the number of elements to pad before the last element.
+    #  - padStart is the number of elements to pad before the Start element
+    #  - padEnd is the number of elements to pad before the last element.
 
     # - Terms:
     #   - Start is the first summation element
@@ -998,24 +998,36 @@ defaultProblemType = {
     # - Pad Ranges:
     #   - Ranges show below are inclusive on the start element and exclusive on the last element.
     #     For example, [0,3) is 0,1,2.
-    #    - Elements in the region [Start-padLeading, Start) are in the leading pad region and will return 0.
-    #    - Elements in the memory region [Start + freeSize + sumSize - padTrailing,  Start + freeSize + sumSize)
+    #    - Elements in the region [Start-padStart, Start) are in the leading pad region and will return 0.
+    #    - Elements in the memory region [Start + freeSize + sumSize - padEnd,  Start + freeSize + sumSize)
     #     are in the trailing pad region and will return 0.
+    #    - Code actually checks for elementMem < padStart or elementMem>=elementEdge
+    #      - elementMem is the memory offset of the element from the tensor base
+    #      - elementEdge is FreeSize*FreeStride + (SumSize-1)*SumStride - padEnd
+    #        - FreeStride is typically spatial*convolutionStride
+    #        - SumStride is typically spatial*dilation
+    #        - PadStart and PadStop should be scaled by spatial on the host before calling the kernel.
+    #          (spatial is not available inside the kernel)
+    #      - The GPU implementations shift the load tile by -padStart, then return 0s for any address <=0.
+    #        The elementEdge is also shifted by -padStart.  This allows the global read offset to be used for the
+    #        edge comparison.  Edge comparisons are performed with vector instructions so each work-item computes
+    #        a different in/out value.
+    #      - Multiple summations OR together their edge checks, so any OOB edge returns 0 for the load.
+    #
     # - Strides:
-    #   - SummationStride is applied to compute the element address before checking the regions.
-    #   - FreeStride is applied to the computation of the Start element, padLeading, and padTrailing.
+    #   - padStart and padStop are passed as kernel arguments. These are scaled by the spatial dim on the host;
     #   - No memory access is performed for elements in the Pad regions.
     #   - The Pad regions are handled by manipulating the tensor addressing and are not visible in actual memory.
-    #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
-    #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.
+    #     For example, a tensor with 2 rows, 16 elements/row, padStart=padEnd=2 occupies 32 elements in memory (not 40)
+    #   - Typical use case is to set summationStride < freeSize, with padStart+padEnd+1 == summationStride.
     # - Caveats:
-    #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
     #  - ZeroPad requires that the ElementEdge <= 2^32:
     #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32
     #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
 
     #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
     # Note nesting of brackets ; the parm can contain multiple padding tuples.
+    #  EX: ZeroPadA: [ [0,1, -1,-1]]# Pads are dynamic and passed as part of the problem.
 
     "ZeroPadA":                 [], # [ [0,1, 2,3]]
     "ZeroPadB":                 [], # Not fully supported/tested yet
@@ -1287,7 +1299,7 @@ def assignGlobalParameters( config ):
     asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
     archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
 
-    print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+    #print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
 
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))

@@ -8,7 +8,7 @@ function extract_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE}"
 
   ${EXTRACT_EXE}
 
@@ -23,7 +23,7 @@ function extract_network_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE}"
 
   ${EXTRACT_EXE}
 
@@ -45,13 +45,15 @@ function build_configs() {
 
 function provision_tensile() {
 
-  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK} --rocblas-fork ${ROCBLAS_FORK}"
+  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"
 
   local TENSILE_PATH=Tensile
+  
   if [ -n "${ID}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${ID}"
     PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
   fi
+  
   if [ -n "${TAG}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${TAG}"
   else
@@ -68,10 +70,6 @@ function provision_tensile() {
     PROVISION_TENSILE="${PROVISION_TENSILE} -c ${COMMIT}"
   fi
 
-  if [ -n "${ID}" ]; then
-    PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
-  fi
-
   ${PROVISION_TENSILE}
 
   cp -r ${STAGE_ROOT}/* ${TENSILE_ROOT}/${TENSILE_PATH}
@@ -80,8 +78,14 @@ function provision_tensile() {
 
 HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
 HELP=false
+SUPPRESS_TENSILE=false
+TENSILE_FORK='ROCmSoftwarePlatform'
+ROCBLAS_FORK='ROCmSoftwarePlatform'
+TENSILE_BRANCH='develop'
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
+TILE_AWARE=false
 
-OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:i: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,library:,type:,no-tensile -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:ai: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,no-tensile -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -102,6 +106,7 @@ while true; do
     -o | --output )       OUTPUT_FILE="$2"; shift 2;; 
     -y | --type )         CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )      LIBRARY="$2"; shift 2;;
+    -a | --tile-aware )   TILE_AWARE=true; shift;;
     --no-tensile )        SUPPRESS_TENSILE=true; shift;;
     -i )                  ID="$2"; shift 2;;
     -- ) shift; break ;;
@@ -117,18 +122,6 @@ fi
 if [ -z ${WORKING_PATH+foo} ]; then
    printf "A working path is required\n"
    exit 2
-fi
-
-if [ -z ${TENSILE_FORK+foo} ]; then
-   TENSILE_FORK="ROCmSoftwarePlatform"
-fi
-
-if [ -z ${TENSILE_BRANCH+foo} ]; then
-   TENSILE_BRANCH="develop"
-fi
-
-if [ -z ${ROCBLAS_FORK+foo} ]; then
-   ROCBLAS_FORK="ROCmSoftwarePlatform"
 fi
 
 if [ -z ${SIZE_LOG+foo} ] && [ -z ${SIZE_DIR+foo} ]; then
@@ -149,10 +142,6 @@ if [ -z ${CONFIGURATION_TYPE+foo} ]; then
    printf "Need specify a configuration type\n"
    exit 2
 fi
-
-
-TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
-SUPPRESS_TENSILE=false
 
 #determining the full path of tools root
 TOOLS_ROOT=`dirname "$0"`

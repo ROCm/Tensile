@@ -48,6 +48,7 @@ def test_exact_list_zp(test_input, expected):
 
 def test_exact_dict():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [[1,2,  3,4]],
         "ZeroPadB" : []
     }
@@ -66,6 +67,7 @@ def test_exact_dict2():
 
 def test_exact_padstart_left_tbd():
     z={
+        "TotalIndices" : 3,
        "ZeroPadA" : [[1,2,  -1,-1]], # TBD pads should be specified at end:
        "ZeroPadB" : []
     }
@@ -75,6 +77,7 @@ def test_exact_padstart_left_tbd():
 
 def test_exact_padstart_mismatch():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [[1,2, 3,4]],
         "ZeroPadB" : []
     }
@@ -84,6 +87,7 @@ def test_exact_padstart_mismatch():
 
 def test_exact_padend_mismatch():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [[1,2, 3,4]],
         "ZeroPadB" : []
     }
@@ -93,6 +97,7 @@ def test_exact_padend_mismatch():
 
 def test_exact_dict3():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [[1,2, 6,4]],
         "ZeroPadB" : []
     }
@@ -104,6 +109,7 @@ def test_exact_dict3():
 
 def test_exact_override_pad_tbd():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [[1,2, -1,-1]],
         "ZeroPadB" : []
     }
@@ -115,6 +121,7 @@ def test_exact_override_pad_tbd():
 
 def test_exact_override_pad_tbd_multi_pad():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [[1,2, -1,-1], [4,5, -1, -1]],
         "ZeroPadB" : []
     }
@@ -126,6 +133,7 @@ def test_exact_override_pad_tbd_multi_pad():
 
 def test_exact_override_pad_tbd_multi_pad_b():
     z={
+        "TotalIndices" : 3,
         "ZeroPadA" : [],
         "ZeroPadB" : [[1,2, -1,-1], [4,5, -1, -1]],
     }
