@@ -8749,12 +8749,12 @@ class KernelWriterAssembly(KernelWriter):
             # calculate how many row registers need for each block
             # for MFMA 4x4, we would write all blocks ijn single storevectorWidth write 
             mfmaColStoreVw = 1 #TODO check can hardcode or not
-            numberColBlocks = kernel["MatrixInstB"]
+            #numberColBlocks = kernel["MatrixInstB"]
             numberRowBlocks = kernel["MIWG0"]//kernel["MatrixInstM"]
-            if (numberRowBlocks == kernel["MatrixInstB"]):
-              numberColBlocks = 1
-            else:
-              numberColBlocks = kernel["MatrixInstB"] // numberRowBlocks
+            #if (numberRowBlocks == kernel["MatrixInstB"]):
+            #  numberColBlocks = 1
+            #else:
+            #  numberColBlocks = kernel["MatrixInstB"] // numberRowBlocks
             numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"]) // globalParameters["WavefrontWidth"]
             if numberRowBlocks == kernel["MatrixInstB"]:
               numberofRowDstRgs = numberofDstRgs
