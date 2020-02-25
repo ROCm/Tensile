@@ -299,16 +299,7 @@ class  MFMAInst (Inst):
 
   """
   def  __init__(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
-       self.endLine = ""
-       self.version = globalParameters["CurrentISA"]
-       self.kernel  = kernel
-       self.aIdx    = aIdx
-       self.bIdx    = bIdx
-       self.PLR     = PLRval
-       self.innerUnroll = innerUnroll
-
-  #def toCodeInst(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
-
+       Inst.__init__(self,*args)
 
   def __str__(self):
       # single precision

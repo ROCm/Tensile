@@ -2461,6 +2461,7 @@ class KernelWriterSource(KernelWriter):
 
   ##############################################################################
   # Local Read: Do It A/B
+  # uIdx - Unroll Idx
   ##############################################################################
   def localReadDo(self, kernel, black, iui, epsi, uIdx, tP):
     kStr = ""
