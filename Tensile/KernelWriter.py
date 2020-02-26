@@ -1302,7 +1302,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if kernel["MatrixInstruction"]:
             kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
           else:
-          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
