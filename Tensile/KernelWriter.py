@@ -113,8 +113,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       readCnt = self.globalReadACode.middle.countType(Code.GlobalReadInst) + \
                 self.globalReadBCode.middle.countType(Code.GlobalReadInst)
-      # reads and incs are scheduled in iters range(0...endIter)
-      endIter = readCnt + 2 # 2 for incA and incB
+      # reads and incs are scheduled in iters range(0..endIter)
+      endIter = readCnt + 2;
 
 
       if endIter > kernel["LoopIters"]-1:
@@ -123,7 +123,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         firstStep = endIter-(kernel["LoopIters"]-1) + 1
         endIter = kernel["LoopIters"]-1
       else:
+	# schedule b2b for readCnt > 2 (True for bigger TT)
         firstStep = 1
+        
 
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
@@ -131,9 +133,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsToSched.append(globalReadIncACode)
       itemsToSched.append(globalReadIncBCode)
 
+
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
+      # append 'n' global load at a time 
+      # append global load(S) first 'number of global load(s) determined by  firstStep
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
       itemsToSched = itemsToSched[firstStep:]
@@ -151,7 +156,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
-
 
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
@@ -351,7 +355,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               lgkmcnt = localWrites  # this only survives if writes are at the end
 
       lgkmcnt = min(lgkmcnt, 15)
-      waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
+      waitCode.comment += " old=%u new=%u (Local write no wait)" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
     return iterCode
@@ -832,6 +836,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
+            #container for holding local read A & B elements for later re-ordering
             localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
 
@@ -890,7 +895,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Wait"]:
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               waitGlobalRead, waitLocalWrite, waitLocalRead, \
-              "wait for prior local read")
+              "wait for prior local read local write")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
