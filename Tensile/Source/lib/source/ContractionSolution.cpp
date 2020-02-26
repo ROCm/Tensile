@@ -26,6 +26,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 
 namespace Tensile
 {
@@ -633,6 +634,24 @@ namespace Tensile
         }
     }
 
+    std::string getOutputCmd(std::string cmd)
+    {
+        std::string output;
+        FILE * ostream;
+        char outputBuffer[256];
+        cmd.append(" 2>&1 ");
+
+        ostream = popen(cmd.c_str(), "r");
+        if(ostream)
+        {
+            while(!feof(ostream))
+            if (fgets(outputBuffer, 256, ostream) != NULL) output.append(outputBuffer);
+            pclose(ostream);
+        }
+        
+        return output;
+    }
+
     ContractionSolution::StaticPerformanceModel ContractionSolution::staticPerformanceModel
         (double M, double N, double K, double NumBatches, double MT0, double MT1,
          double NumCUs, double TotalGranularity, int GlobalSplitU) const
@@ -680,12 +699,17 @@ namespace Tensile
         }
         spm.memReadBytes = spm.memReadBytesA + spm.memReadBytesB + spm.memReadBytesC;
 
+        hipDeviceProp_t props;
+        hipGetDeviceProperties(&props, 0);
         double readEfficiency = .85; // TODO-model: read from arch with yaml override
         double l2ReadHit = 0.0; // TODO-model: read from arch with yaml override
         double l2WriteHit = .50; // TODO-model: read from arch with yaml override
-        double memBandwidthMBps = 1000*1000; // TODO-model: read width from hipDeviceProp and clock from smi
+        int frequency = std::stoi(getOutputCmd("/opt/rocm/bin/rocm-smi --showclocks -d 0 | grep sclk | awk {\'print $7\'} | tr -d \'(Mhz)\'"));
+        int memFrequency = std::stoi(getOutputCmd("/opt/rocm/bin/rocm-smi --showclocks -d 0 | grep mclk | awk {\'print $7\'} | tr -d \'(Mhz)\'"));
+        double memBandwidthMBps = props.memoryBusWidth*memFrequency;
+
         double l2BandwidthMBps = 2*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
-        double peakMFlops = 1300*NumCUs*128;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
+        double peakMFlops = frequency*NumCUs*128;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
 
         spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
         spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
@@ -749,7 +773,7 @@ namespace Tensile
 
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
-        double NumCUs = 64;
+        double NumCUs = std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
 
         AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
         if (pAMDGPU != nullptr)
