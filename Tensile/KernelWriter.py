@@ -22,6 +22,7 @@
 from . import Code
 from . import Common
 from .Common import globalParameters, print2, CHeader, roundUp
+from .ReplacementKernels import ReplacementKernels
 from .SolutionStructs import Solution
 
 import abc
@@ -1296,7 +1297,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if kernel["MatrixInstruction"]:
             kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
           else:
-            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
@@ -2468,6 +2469,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # get kernel name
   ##############################################################################
+  def getKernelFileBase(self, kernel):
+    rv = self.getKernelName(kernel)
+    return self.shortenFileBase(rv)
+
   def getKernelName(self, kernel):
     if globalParameters["ShortNames"]:
       kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -2578,22 +2583,36 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    kernelName = self.getKernelName(kernel)
-    kernelFileName_txt = "%s.s.txt" % kernelName
-    SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
-    REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
-    if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
-    REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
+    if not kernel["ReplacementKernel"]:
+      return None
 
-    print2("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-    if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
-      print2("Found replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-      return REPLACEMENT_KERNEL_PATH
+    kernelName = self.getKernelName(kernel)
+    return ReplacementKernels.Get(kernelName)
+
+  def shortenFileBase(self, base):
+    if len(base) <= globalParameters["MaxFileName"]:
+      return base
+
+    import hashlib
+    import base64
+
+    pivot = globalParameters["MaxFileName"] * 3 // 4
+    firstPart = base[:pivot]
+    secondPart = base[pivot:]
+
+    secondHash = hashlib.sha256(secondPart.encode()).digest()
+    #hash(secondPart)
+    #n = secondHash.bit_length()+1
+    #n = (n + 7) // 8
+    #secondBytes = secondHash.to_bytes(n, 'big', signed=True)
+    secondPart = base64.b64encode(secondHash, b'_-').decode()
+
+    return firstPart + secondPart
 
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
-    kernelName = self.getKernelName(kernel)
+    kernelName = self.shortenFileBase(self.getKernelName(kernel))
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
@@ -2627,6 +2646,7 @@ for codeObjectFileName in codeObjectFileNames:
     args = self.getCompileArgs(assemblyFileName, objectFileName)
     if globalParameters["PrintCodeCommands"]:
       print (' '.join(args), " && ")
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return objectFileName
@@ -2640,6 +2660,7 @@ for codeObjectFileName in codeObjectFileNames:
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
     if globalParameters["PrintCodeCommands"]:
       print (' '.join(args))
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return coFileName
@@ -2686,7 +2707,7 @@ for codeObjectFileName in codeObjectFileNames:
         coFile = self.getSingleCodeObjectFile(kernel)
         kernelName = self.getKernelName(kernel)
 
-        if globalParameters["CodeFromFiles"]:
+        if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
           # I guess in this case we are making sure that the code object file exists by executing the code 
           # above but we aren't placing it into the source.
           return (0, "")
