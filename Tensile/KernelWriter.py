@@ -21,7 +21,7 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, print2, CHeader, roundUp
+from .Common import globalParameters, CHeader, roundUp
 from .ReplacementKernels import ReplacementKernels
 from .SolutionStructs import Solution
 
