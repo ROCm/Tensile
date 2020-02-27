@@ -32,6 +32,7 @@ class Reader:
     def printRow(self, row, fieldsToPrint, end='\n'):
         for field in fieldsToPrint:
             print (self.formatCol(row,field), end=" ")
+        print (self.solutions[row["solution"]].maxPerf["gflops"], end="") # max perf from any solution
         print (end=end)
 
 
@@ -58,10 +59,10 @@ class Reader:
             self.maxLen[k] = len(k) # length of name
 
         self.dataOut=[]
-        solutions = {} # map from solution to Solution class
+        self.solutions = {} # map from solution to Solution class
         problemSizes = OrderedDict()
         for row in dictReader:
-            solutions.setdefault(row["solution"],Solution()).addRow(row)
+            self.solutions.setdefault(row["solution"],Solution()).addRow(row)
             problemSizes.setdefault(row["problem-sizes"],ProblemSize()).addRow(row)
 
             keep = {}
@@ -84,17 +85,14 @@ class Reader:
         if args.print_winners:
             for key,ps in problemSizes.items():
                 if args.problem_progress==None or int(ps.rows[0]["problem-progress"].split('/')[0]) in args.problem_progress:
-                    sortedRows = sorted(ps.rows, key = lambda row: int(row["gflops"]), reverse=True)
+                    rows = [row for row in ps.rows if args.filter in row["solution"]]
+                    sortedRows = sorted(rows, key = lambda row: int(row["gflops"]), reverse=True)
                     for i in range(min(len(sortedRows),args.print_winners) if args.print_winners>=0 else len(sortedRows)):
-                        self.printRow(sortedRows[i], fieldsToPrint,end='')
-                        print (solutions[sortedRows[i]["solution"]].maxPerf["gflops"], end="") # max perf from any solution
-                        print()
+                        self.printRow(sortedRows[i], fieldsToPrint)
 
         if args.print_summary:
             for row in self.dataOut:
-                self.printRow(row, fieldsToPrint, end='')
-                print (solutions[row["solution"]].maxPerf["gflops"], end="") # max perf from any solution
-                print()
+                self.printRow(row, fieldsToPrint)
 
             #print (self.formatCol(row,'problem-sizes'), self.formatCol(row, 'solution'), " %6.1f %6d" %(float(row['time-us']), int(row['gflops'])))
 
@@ -108,6 +106,8 @@ my_parser.add_argument('--problem_progress', '-p', type=int, action='append',
                        help='show only specified problem.  Can specify multiple times.')
 my_parser.add_argument('--print_summary', '-s', action='store_true',
                        help='print all results')
+my_parser.add_argument('--filter', '-k', type=str, default="",
+                       help='filter solutions, ie "GSU1".')
 
 my_parser.add_argument('input_file', help='file with tensile output to parse')
 
