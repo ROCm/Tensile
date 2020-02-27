@@ -1897,7 +1897,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Get Params For Tensor A/B
   ##############################################################################
   def getTensorParameters(self, tP, kernel, tA):
-    tP["mirror"] = kernel["ProblemType"]["MirrorDims%s" % ("A" if tA else "B")] == [2]
+    tP["mirror"] = bool(kernel["ProblemType"]["MirrorDims%s" % ("A" if tA else "B")])
     if tA: # A
       tP["isA"] = True                                      # is this tensor A
       tP["isB"] = False                                     # is this tensor B

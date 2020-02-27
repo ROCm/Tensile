@@ -1219,10 +1219,10 @@ class KernelWriterSource(KernelWriter):
   # Global Read Addresses: Unroll Assignment A/B
   ##############################################################################
   def graUnrollAssignment(self, kernel, tP):
-    kStr = ""
-    bwOffset = "sizeK - 1 -" if tP["mirror"] else ""
-    kStr += "  unsigned int globalReadOffset%s%s = %s (serial%s" \
-        % (tP["tensorChar"], self.unrollChar, bwOffset, ("/" if tP["grcg"] == tP["tlu"] else "%") )
+    kStr = "  unsigned int globalReadOffset%s%s = " % (tP["tensorChar"], self.unrollChar)
+    if tP["mirror"]:
+      kStr += "size%s - 1 - " % self.unrollChar
+    kStr += "(serial" + ("/" if tP["grcg"] == tP["tlu"] else "%")
     if tP["grcg"]:
       kStr += (tP["lvc"] if tP["grcv"] else tP["lsc"])
     else:
@@ -1531,6 +1531,8 @@ class KernelWriterSource(KernelWriter):
       if kernel["GlobalSplitU"] > 1 \
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
+      if tP["mirror"]:
+        kStr += "*-1"
     else:
       if kernel["PackSummationDims"]:
         # Skip the subtract of previous iteration since PSD compute load address using globalReadIncrementFromBase
@@ -1552,14 +1554,13 @@ class KernelWriterSource(KernelWriter):
           else:
             numIter = "size%s/LOCAL_DEPTHU" % tmpChar
           kStr += declStr
-          kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
+          kStr += " + " if tP["mirror"] else " - "
+          kStr += "stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
         else:
           # other summation that does not immediately wrap the unroll inc:
           kStr += declStr
           if not kernel["PackSummationDims"]:
             kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
-    if tP["mirror"]:
-      kStr += "*-1"
     kStr += ";" + self.endLine
     return kStr
 
@@ -2296,8 +2297,9 @@ class KernelWriterSource(KernelWriter):
             if guardK:
               guarded = 1
               if tP["mirror"]:
-                kStr += "int(globalReadOffset%s%s_%u_%u) < 0" % (tP["tensorChar"], self.unrollChar, \
-                  (perp if tP["tlu"] else para), (sPerp if tP["tlu"] else 0))
+                kStr += "((int64_t)globalRead%s_%u_%u_%u_%u - (int64_t)%s) < 0" % (tP["tensorChar"], \
+                  para, 0 if tP["rc"] else sPara, (tP["nrp"] - perp - 1) if tP["mirror"] and not tP["tlu"] else perp, \
+                  sPerp, tP["tensorChar"])
               else:
                 kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                     % (tP["tensorChar"], self.unrollChar, \
@@ -2866,7 +2868,7 @@ class KernelWriterSource(KernelWriter):
     # Add Index0 and Index1:
     index0 = kernel["ProblemType"]["Index0"]
 
-    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+    if kernel["ProblemType"]["MirrorDimsA"]:
       c0I = "(nwg%s - wg%s - 1)" % (self.indexChars[index0], self.indexChars[index0])
       c0Serial = "(NUM_THREADS - serial - 1)"
     else:
@@ -3006,7 +3008,7 @@ class KernelWriterSource(KernelWriter):
             #    else "") )
             aStore = a
             s0Store = s0
-            if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+            if kernel["ProblemType"]["MirrorDimsA"]:
               aStore = kernel["ThreadTile0"]//kernel["VectorWidth"] - a - 1
               shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
               if not shiftComponentsA:
