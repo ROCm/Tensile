@@ -25,9 +25,6 @@ def test_nchw_filter2x2(tensile_state, run_convolution_level, problemSizes):
         assert(conv.solutionParms["AssertStrideBEqual"] == {3:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2})
 
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
 @pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes, inceptionSizes])
@@ -51,9 +48,6 @@ def test_nchw_filter7x1(tensile_state, run_convolution_level, problemSizes):
         assert(conv.solutionParms["AssertStrideAEqual"] == {1:1})
         assert(conv.solutionParms["AssertStrideBEqual"] == {3:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:7})
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution, problemSizes[0], problemSizes[1])
 
 def test_nchw_filter2x1_dilation(tensile_state, run_convolution_level):
@@ -77,9 +71,6 @@ def test_nchw_filter2x1_dilation(tensile_state, run_convolution_level):
         assert(conv.solutionParms["AssertStrideAEqual"] == {1:1})
         assert(conv.solutionParms["AssertStrideBEqual"] == {3:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2})
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_filter1x2(tensile_state, run_convolution_level):
@@ -102,9 +93,6 @@ def test_nchw_filter1x2(tensile_state, run_convolution_level):
         assert(conv.solutionParms["AssertStrideAEqual"] == {0:1,1:1})
         assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,3:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2})
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_filter1x2_dilation(tensile_state, run_convolution_level):
@@ -128,9 +116,6 @@ def test_nchw_filter1x2_dilation(tensile_state, run_convolution_level):
         assert(conv.solutionParms["AssertStrideAEqual"] == {0:2,1:1})
         assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,3:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2})
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_dilation_filter4x4_pad(tensile_state, run_convolution_level):
@@ -151,9 +136,6 @@ def test_nchw_dilation_filter4x4_pad(tensile_state, run_convolution_level):
         assert(conv.solutionParms["AssertStrideAEqual"] == {0:2,2:1})
         assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,filterDims[0]:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:1, filterDims[1]:1})
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 def test_nchw_stride_filter(tensile_state, run_convolution_level):
@@ -177,7 +159,4 @@ def test_nchw_stride_filter(tensile_state, run_convolution_level):
         assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,4:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2, filterDims[1]:2})
 
-    solutionName = run_convolution_level.solution.__name__
-    if solutionName.startswith("asm") or solutionName == 'src1':
-        pytest.skip("skip configs w/o PBD")
     run_convolution_level.func(conv, z, run_convolution_level.solution)
