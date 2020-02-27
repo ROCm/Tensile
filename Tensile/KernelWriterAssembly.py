@@ -4017,16 +4017,16 @@ class KernelWriterAssembly(KernelWriter):
         # add wave starting offset to Offset0I(A), Offset1J(B) registers
         if tP["grcg"]:
           if tP["grcv"]:
-            divisorName = tP["lvc"]
+            PerpName = tP["lvp"]
           else:
             # Fractional load use the more accurate lsc, multiply by VW later
-            divisorName = tP["lsc"]
+            PerpName = tP["lsp"]
         else:
           if tP["grcv"]:
-            divisorName = tP["lsp"]
+            PerpName = tP["lvc"]
           else:
-            divisorName = tP["lvp"]
-        numPerpElementsPerLoad = kernel[divisorName]
+            PerpName = tP["lsc"]
+        numPerpElementsPerLoad = kernel[PerpName]
         numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
         assert(numPerpElementsPerWave>0)
         #calculate numberofLoads
@@ -4993,16 +4993,16 @@ class KernelWriterAssembly(KernelWriter):
           #add perWave LDS base offset
           if tP["grcg"]:
             if tP["grcv"]:
-              divisorName = tP["lvc"]
+              PerpName = tP["lvp"]
             else:
               # Fractional load use the more accurate lsc, multiply by VW later
-              divisorName = tP["lsc"]
+              PerpName = tP["lsp"]
           else:
             if tP["grcv"]:
-              divisorName = tP["lsp"]
+              PerpName = tP["lvc"]
             else:
-              divisorName = tP["lvp"]
-          numPerpElementsPerLoad = kernel[divisorName]
+              PerpName = tP["lsc"]
+          numPerpElementsPerLoad = kernel[PerpName]
           numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
           assert(numPerpElementsPerWave>0)
           #calculate numberofLoads
