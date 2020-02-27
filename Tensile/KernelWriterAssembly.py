@@ -4858,7 +4858,7 @@ class KernelWriterAssembly(KernelWriter):
     divisor = kernel["SubGroup1"]
     if kernel["MatrixInstruction"]:
       divisor = kernel["MatrixInstN"] if ((kernel["MacroTile1"] // 4) < kernel["MatrixInstN"]) else kernel["MacroTile1"] // 4  # ABlocks
-      #divisor = kernel["ThreadTile1"] # BBlocks
+      divisor //= kernel["ThreadTile1"] // kernel["MatrixInstN"]
     qReg = self.vgprPool.checkOut(1,"qReg") # quotient
     rReg = self.vgprPool.checkOut(1,"rReg") # remainder
     if kernel["MatrixInstruction"]:
@@ -7262,7 +7262,7 @@ class KernelWriterAssembly(KernelWriter):
       if tc == "A":
         numReadsPerVector = kernel["ThreadTile0"] # TODO controls instruction tile shape, recalc if definition changes
       else:
-        numReadsPerVector = kernel["ThreadTile1"]//kernel["MatrixInstN"]  # kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
+        numReadsPerVector = kernel["ThreadTile1"] // kernel["MatrixInstN"]
       numReadsAlongK = int((kernel["MatrixInstK"] * tP["bpe"]) // (blockWidth*self.bpr)) # TODO:
 
     loopIdx = self.unrollIdx
@@ -7334,7 +7334,11 @@ class KernelWriterAssembly(KernelWriter):
           paramList.append(vgpr("LocalReadAddr%s"%tc))
           for oIdx in range(0, numOffsets):
             if kernel["MatrixInstruction"]:
-              paramList.append(((rIdx*blockWidth * kernel["MatrixInstN"] + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+              tIdx = tP["tensorIdx"]
+              readOffsetWidth = kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx]
+              if tP["isB"]:
+                readOffsetWidth *= (kernel["ThreadTile1"] // kernel["MatrixInstN"]) * 4 # 4 simds
+              paramList.append(((rIdx * blockWidth * readOffsetWidth + kernel["SubGroup%u" % tIdx]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
                 + tP["localReadOffset"])*tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier)
             else:
               paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
@@ -8227,6 +8231,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", globalParameters["WavefrontWidth"], \
           tmpV0, tmpS0)
         numColBlocks = 1 if kernel["MatrixInstN"] == 4  else globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+        numColBlocks *= kernel["ThreadTile1"] // kernel["MatrixInstN"]
         if numColBlocks > 1:
           kStr += inst("v_mul_lo_u32", vgpr(tid1),hex(numColBlocks),vgpr(tid1), \
                       "Col-id = tid1*MatrixInstN")
