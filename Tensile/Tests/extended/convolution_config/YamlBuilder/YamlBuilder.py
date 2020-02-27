@@ -36,6 +36,7 @@ class Solutions:
                         ]},
                     {"DepthU": [8]},
                     {"PackBatchDims": [1]}, # required to handle some Backward-Weights cases
+                    {"PackSummationDims": [1]}, # required to handle padding cases
                     {"GlobalReadVectorWidth": [1]},
                     {"VectorWidth": [1]},
                 ]
@@ -82,6 +83,8 @@ class Solutions:
                         [  8, 8, 1 ]
                         ]},
                     {"DepthU": [8]},
+                    {"PackBatchDims": [1]}, # required to handle some Backward-Weights cases
+                    {"PackSummationDims": [1]}, # required to handle padding cases
                     {"GlobalReadVectorWidth": [-1]},
                     {"VectorWidth": [1]},
                     {"FractionalLoad": [0]}

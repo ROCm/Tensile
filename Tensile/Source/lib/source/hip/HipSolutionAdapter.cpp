@@ -78,8 +78,10 @@ namespace Tensile
             auto error = hipModuleLoad(&module, path.c_str());
 
             if(error == hipErrorFileNotFound)
+            {
                 throw std::runtime_error(concatenate("Code object file '", path, "' not found."));
-            else if(error == hipErrorUnknown)
+            }
+            else if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
             {
                 return;
             }
@@ -103,8 +105,16 @@ namespace Tensile
         void SolutionAdapter::loadCodeObject(const void * image)
         {
             hipModule_t module;
+            auto error = hipModuleLoadData(&module, image);
 
-            HIP_CHECK_EXC(hipModuleLoadData(&module, image));
+            if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+            {
+                return;
+            }
+            else
+            {
+                HIP_CHECK_EXC(error);
+            }
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
