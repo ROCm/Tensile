@@ -2881,7 +2881,7 @@ class KernelWriterSource(KernelWriter):
 
     index1 = kernel["ProblemType"]["Index1"]
     kStr += "  unsigned int flattenedGlobalC1 = "
-    if kernel["ProblemType"]["MirrorDimsB"] == [2]:
+    if kernel["ProblemType"]["MirrorDimsB"]:
       kStr += "(nwg%s - wg%s - 1)*MT%s + ((NUM_THREADS - serial - 1) / SG%s)*VECTOR_WIDTH;%s" \
             % (self.indexChars[index1], self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine) 
     else:
@@ -2924,7 +2924,7 @@ class KernelWriterSource(KernelWriter):
             offsetS1 = ""
           else:
             offsetS1 = ((" + %u"%s1) if kernel["VectorWidth"]>1 else "")  
-          s1 = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] == [2] else s1
+          s1 = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] else s1
           for s0 in range(0, kernel["VectorWidth"]):
             # set default offsets, may be overridden in packed mode:
             offsetS0 = ((" + %u"%s0) if kernel["VectorWidth"]>1 else "")
@@ -2971,7 +2971,7 @@ class KernelWriterSource(KernelWriter):
               globalC1ForCheck = "flattenedGlobalC1"
               size1ForCheck = " * ".join(self.tPB["packedSizeList"])
 
-              s1Tmp = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] == [2] else s1
+              s1Tmp = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] else s1
               kStr += "  if (%s%s + %u*SG%s*VECTOR_WIDTH < %s) {" \
                   % (globalC1ForCheck,
                   ((" + %u"%s1Tmp) if kernel["VectorWidth"]>1 else ""), \
@@ -3014,7 +3014,7 @@ class KernelWriterSource(KernelWriter):
               if not shiftComponentsA:
                 s0Store = kernel["VectorWidth"] - 1 - s0
             bStore = b
-            if kernel["ProblemType"]["MirrorDimsB"] == [2]:
+            if kernel["ProblemType"]["MirrorDimsB"]:
               bStore = kernel["ThreadTile1"]//kernel["VectorWidth"] - b - 1
             kStr += ", rC[%u*VECTOR_WIDTH+%u + (%u*VECTOR_WIDTH+%u)*TT%s]" \
                 % (aStore, s0Store, bStore, s1, self.tileChar0 )
