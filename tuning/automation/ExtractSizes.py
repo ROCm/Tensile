@@ -66,7 +66,7 @@ def GetRocBLASParser():
     lineParser.add_argument("--algo",dest="algo", type=int,default=0)
     lineParser.add_argument("--solution_index",dest="solution_index", type=int,default=0)
     lineParser.add_argument("--flags",dest="flags", type=int,default=0)
-    lineParser.add_argument("-i",dest="i", type=int,default=1)
+    lineParser.add_argument("-i",dest="i", type=int,default=10)
     
     return lineParser
 

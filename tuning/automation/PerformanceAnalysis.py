@@ -102,6 +102,8 @@ def fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, c
             midList = list()
             for key in klist:
                 if key == "transposeA" or key == "transposeB" or key == "f" or key == "i":
+                    if klist[key] == 10:
+                        klist[key] = 1
                     midList.append(klist[key])
                 if len(midList) == 4:
                     callCounts.append(midList)

@@ -376,10 +376,7 @@ def OutputScript(problemMapper, scriptPath, namePart):
             lines.append(rocblas_call)
         with open(outputFileName, 'w') as f:
             for line in lines:
-                if "rocblas-bench" in line:
-                    f.write("%s0\n" % line)
-                else:
-                    f.write("%s\n" % line)
+                f.write("%s\n" % line)
 
     generateRunScript(scriptFileNames, scriptPath)
     
@@ -400,7 +397,7 @@ def OutputScript2(problemMapper, scriptPath, namePart):
         with open(outputFileName, 'w') as f:
             for line in lines:
                 if "rocblas-bench" in line:
-                    f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s0" % line)
+                    f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
                 else:
                     f.write("%s\n" % line)
                     
