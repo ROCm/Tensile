@@ -2516,8 +2516,10 @@ class Solution:
       state["LdsPadB"] = 0 if state["ProblemType"]["TLUB"] else state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
 
-    if "MatrixInstM" in state:
-    #if "MatrixInstruction" in state:
+    if state["TransposeLDS"] == 1:
+      if not state["MatrixInstruction"]:
+        reject(state, "TransposeLds Supports only in MatrixInstruction=1")
+    if "MatrixInstruction" in state:
       if state["TransposeLDS"] == 1:
         if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
           reject(state, "TransposeLds requires TLU=0")

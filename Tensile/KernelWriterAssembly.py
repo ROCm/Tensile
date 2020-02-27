@@ -4125,7 +4125,7 @@ class KernelWriterAssembly(KernelWriter):
                              "compute offset diff (tileDim)")
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
-                #FIXME remove wave_offset start for global fetching  TransposeLDS
+                #TODO remove wave_offset start for global fetching  TransposeLDS
                 if kernel["TransposeLDS"]:
                   tileStride = tileStride//4
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
@@ -4596,88 +4596,73 @@ class KernelWriterAssembly(KernelWriter):
     dotInterleave = kernel["LocalDotLayout"]
 
     if dotInterleave == 1:
-      if "MatrixInstM" in kernel:
-         # check Transpose case  TLUA=0 TLUB=0
-         # FIXME clean-up comment section of assembly code
-        if kernel["TransposeLDS"]:
-          # use different write address pattern
-          sgprLocalWriteoffSet = self.getTmpSgpr(1)
-          tmpVgpr = self.vgprPool.checkOut(1, self.preventVgprOverflowDuringNewTile)
-          tmpVgpr1 = self.vgprPool.checkOut(1, self.preventVgprOverflowDuringNewTile)
-          wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
-          # use  parameter LdsBlockSizePerPAd parameter for adding pad size for lds  fetch efficiency
-          # calculate number of block chunks  and add ldsPAd
-          LdsPadCnt = (((kernel["MacroTile%s"%tP["tensorChar"]] * kernel["DepthU"])*tP["bpe"])//wavefronts)//kernel["LdsBlockSizePerPad"]
-          LdsPad_val = LdsPadCnt * (kernel["LdsPad%s"%tc]* tP["bpe"])
-          kStr += inst("s_mov_b32", \
-              sgpr(sgprLocalWriteoffSet), \
-              hex((((kernel["MacroTile%s"%tP["tensorChar"]] * kernel["DepthU"])*tP["bpe"])//wavefronts) + LdsPad_val), \
-              "WaveOffset%s = (lw%s%s + lw%s%s*(MT%s*DepthU)*bpe)//wavefronts)+PAD))*bpe" \
-              %(tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
-          kStr += inst("s_mul_i32", \
-              sgpr(sgprLocalWriteoffSet), \
-              sgpr("WaveId"), \
-              sgpr(sgprLocalWriteoffSet), \
-              "lwO%s = WaveOffset%s * waveId  (mulitply by Wave Id to get base address of lwo for each wave) " \
-              % (tc,tc))
+      if kernel["TransposeLDS"]:
+        # check Transpose case  TLUA=0 TLUB=0
+        # TODO clean-up comment section of assembly code
+        # use different write address pattern
+        sgprLocalWriteoffSet = self.getTmpSgpr(1)
+        tmpVgpr = self.vgprPool.checkOut(1, self.preventVgprOverflowDuringNewTile)
+        tmpVgpr1 = self.vgprPool.checkOut(1, self.preventVgprOverflowDuringNewTile)
+        wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
+        # use  parameter LdsBlockSizePerPAd parameter for adding pad size for lds  fetch efficiency
+        # calculate number of block chunks  and add ldsPAd
+        LdsPadCnt = (((kernel["MacroTile%s"%tP["tensorChar"]] * kernel["DepthU"])*tP["bpe"])//wavefronts)//kernel["LdsBlockSizePerPad"]
+        LdsPad_val = LdsPadCnt * (kernel["LdsPad%s"%tc]* tP["bpe"])
+        kStr += inst("s_mov_b32", \
+            sgpr(sgprLocalWriteoffSet), \
+            hex((((kernel["MacroTile%s"%tP["tensorChar"]] * kernel["DepthU"])*tP["bpe"])//wavefronts) + LdsPad_val), \
+             "WaveOffset%s = (lw%s%s + lw%s%s*(MT%s*DepthU)*bpe)//wavefronts)+PAD))*bpe" \
+             %(tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
+        kStr += inst("s_mul_i32", \
+            sgpr(sgprLocalWriteoffSet), \
+            sgpr("WaveId"), \
+            sgpr(sgprLocalWriteoffSet), \
+            "lwO%s = WaveOffset%s * waveId  (mulitply by Wave Id to get base address of lwo for each wave) " \
+            % (tc,tc))
           ## Lws offset calculation for GLVW
-          kStr += inst("v_and_b32", \
+        kStr += inst("v_and_b32", \
+            vgpr(tmpVgpr), \
+            hex(globalParameters["WavefrontWidth"]-1), \
+            vgpr("Serial"), \
+            "")
+        kStr += inst("v_lshlrev_b32", \
+            vgpr(destVgpr), \
+            (log2(tP["glvw"]*(tP["bpe"]))), \
+            vgpr(tmpVgpr), \
+            "lwFO%s = VgprSerialId * glvw * bpe" \
+            % (tc))
+        ## add Wave start offset to lwo register
+        kStr += inst("v_add_u32",\
+            vgpr(destVgpr), \
+            sgpr(sgprLocalWriteoffSet), \
+            vgpr(destVgpr), \
+            "lwFO%s = (lwFO%s + WaveOffset%s)" \
+            % (tc,tc,tc))
+
+        ## add pad to offset
+        ## calculate number lanes for insrting LDSPad
+        if not kernel["LdsBlockSizePerPad"] == -1:
+          divisorVal = log2(kernel["LdsBlockSizePerPad"]//(tP["glvw"]*tP["bpe"]))
+          kStr += inst("v_lshrrev_b32",\
+              vgpr(tmpVgpr1), \
+              divisorVal, \
               vgpr(tmpVgpr), \
-              hex(globalParameters["WavefrontWidth"]-1), \
-              vgpr("Serial"), \
               "")
-          kStr += inst("v_lshlrev_b32", \
+          #add PadBytes to write Offset
+          kStr += inst("v_mul_lo_u32", \
+              vgpr(tmpVgpr1),
+              (kernel["LdsPad%s"%tc]*tP["bpe"]), \
+              vgpr(tmpVgpr1), \
+              "")
+          #calcualte finale LwFo by adding DepthU dimenstion with LDSPad offset
+          kStr += inst("v_add_u32", \
               vgpr(destVgpr), \
-              (log2(tP["glvw"]*(tP["bpe"]))), \
-              vgpr(tmpVgpr), \
-              "lwFO%s = VgprSerialId * glvw * bpe" \
-              % (tc))
-          ## add Wave start offset to lwo register
-          kStr += inst("v_add_u32",\
+              vgpr(tmpVgpr1), \
               vgpr(destVgpr), \
-              sgpr(sgprLocalWriteoffSet), \
-              vgpr(destVgpr), \
-              "lwFO%s = (lwFO%s + WaveOffset%s)" \
-              % (tc,tc,tc))
-
-          ## add pad to offset
-          ## calculate number lanes for insrting LDSPad
-          if not kernel["LdsBlockSizePerPad"] == -1:
-            divisorVal = log2(kernel["LdsBlockSizePerPad"]//(tP["glvw"]*tP["bpe"]))
-            kStr += inst("v_lshrrev_b32",\
-                vgpr(tmpVgpr1), \
-                divisorVal, \
-                vgpr(tmpVgpr), \
-                "")
-            #add PadBytes to write Offset
-            kStr += inst("v_mul_lo_u32", \
-                vgpr(tmpVgpr1),
-                (kernel["LdsPad%s"%tc]*tP["bpe"]), \
-                vgpr(tmpVgpr1), \
-                "")
-            #calcualte finale LwFo by adding DepthU dimenstion with LDSPad offset
-            kStr += inst("v_add_u32", \
-                vgpr(destVgpr), \
-                vgpr(tmpVgpr1), \
-                vgpr(destVgpr), \
-               "lwFO%s = (lwFO%s + LDSPAD)" \
-               % (tc,tc))
-          self.vgprPool.checkIn(tmpVgpr)
-          self.vgprPool.checkIn(tmpVgpr1)
-        else:
-          kStr += inst("v_mul_u32_u24", \
-              vgpr(destVgpr), \
-              hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
-              vgpr(uReg), \
-              "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-          kStr += inst("_v_add_lshl_u32", \
-              vgpr(destVgpr), \
-              vgpr(tP["gpr"]["lwoT"]), \
-              vgpr(destVgpr), \
-              hex(log2(tP["bpe"])), \
-              "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
-              % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
-
+             "lwFO%s = (lwFO%s + LDSPAD)" \
+             % (tc,tc))
+        self.vgprPool.checkIn(tmpVgpr)
+        self.vgprPool.checkIn(tmpVgpr1)
       else:
         kStr += inst("v_mul_u32_u24", \
             vgpr(destVgpr), \
@@ -7059,7 +7044,6 @@ class KernelWriterAssembly(KernelWriter):
       # for transposeLDS case,  Consecutive LDS  location contains elements from coalescing dimension
       # lspa / num_wavefronts * (unrollDepth * BPE) + (unrollDepth*BPE/(LdsBlockSizePerPad/bpe) * LDsPAD)
       # perInstWriteSize for each grvw = lspa//4 * unrollD
-      #FIXME
       numWavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
       # determine number of Lds padding in each Write Instruction
       ldsPadCount = ((kernel[tP["lsp"]]//numWavefronts) * (kernel["DepthU"]) * tP["bpe"])//kernel["LdsBlockSizePerPad"]
@@ -7109,7 +7093,7 @@ class KernelWriterAssembly(KernelWriter):
         lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
         lscaOffset += rem
       else:
- 	#FIXME re-verify lscaOffset=0
+ 	#TODO re-verify lscaOffset=0
         lscaOffset = 0
         lspaOffset = lspaOffset*kernel["DepthU"] + ldsPadOffset
     # print("1lspaOffset", lspaOffset)
