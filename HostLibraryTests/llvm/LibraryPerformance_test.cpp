@@ -26,7 +26,6 @@
 
 #include <gtest/gtest.h>
 
-#include <Tensile/Serialization.hpp>
 #include <Tensile/llvm/YAML.hpp>
 #include <Tensile/ContractionLibrary.hpp>
 #include <TestUtils.hpp>
@@ -70,6 +69,7 @@ TEST_P(LibraryPerformanceTest, FindSolution)
         }
     }
 
+    if(hasNavi)
     {
         AMDGPU hardware(AMDGPU::Processor::gfx1010, 64, "Navi");
         for(int i = 0; i < 10000; i++)
@@ -77,8 +77,57 @@ TEST_P(LibraryPerformanceTest, FindSolution)
             auto problem = RandomGEMM();
             auto solution = library->findBestSolution(problem, hardware);
 
-            if(hasNavi)
-                ASSERT_NE(solution, nullptr) << i << problem;
+            ASSERT_NE(solution, nullptr) << i << problem;
+        }
+    }
+}
+
+TEST_P(LibraryPerformanceTest, Solve)
+{
+    std::string filename;
+    bool hasNavi;
+    std::tie(filename, hasNavi) = GetParam();
+
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
+
+    AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
+
+    auto problem = RandomGEMM();
+
+    float a, b, c, d;
+    TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
+
+    auto solution = library->findBestSolution(problem, hardware);
+
+    for(int i = 0; i < 10000; i++)
+    {
+        solution->solve(problem, inputs, hardware);
+    }
+}
+
+TEST_P(LibraryPerformanceTest, FindAndSolve)
+{
+    std::string filename;
+    bool hasNavi;
+    std::tie(filename, hasNavi) = GetParam();
+
+    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
+
+    {
+        AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
+        for(int i = 0; i < 10000; i++)
+        {
+            auto problem = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
+            float a, b, c, d;
+            TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
+
+            ASSERT_NE(solution, nullptr) << i << problem;
+            
+            for(int j = 0; j < 1000; j++)
+            {
+                solution->solve(problem, inputs, hardware);
+            }
         }
     }
 }
@@ -87,6 +136,7 @@ INSTANTIATE_TEST_SUITE_P(LLVM, LibraryPerformanceTest,
         ::testing::Values(
             std::make_tuple("KernelsLite.yaml",      false),
             std::make_tuple("KernelsLiteMixed.yaml", false),
-            std::make_tuple("KernelsLiteNavi.yaml",  true)
+            std::make_tuple("KernelsLiteNavi.yaml",  true),
+            std::make_tuple("KernelsTileLite.yaml",  false)
             ));
 
