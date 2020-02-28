@@ -4092,8 +4092,6 @@ class KernelWriterAssembly(KernelWriter):
       uVW = tP["glvw"]
       uVS = 1
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
-    tileOffsets = tP["vgprTileOffsets"]
-    unrollOffsets = tP["gpr"]["unrollOffsets"]
     waveStartSgpr = self.getTmpSgpr(1)
     if not tP["tlu"]:
       if kernel["TransposeLDS"]:
@@ -5135,8 +5133,6 @@ class KernelWriterAssembly(KernelWriter):
           numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
           assert(numPerpElementsPerWave>0)
           #calculate numberofLoads
-          wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
-          #LdsPadCnt = (((kernel["MacroTile%s"%tc] * kernel["DepthU"])*tP["bpe"])//wavefronts)//kernel["LdsBlockSizePerPad"]
           LdsPadCnt = (numPerpElementsPerWave * kernel["DepthU"] * tP["bpe"])//kernel["LdsBlockSizePerPad"]
           LdsPad_val = LdsPadCnt * (kernel["LdsPad%s"%tc]* tP["bpe"])
           kStr += inst("s_mul_i32", \

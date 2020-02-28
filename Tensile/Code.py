@@ -299,24 +299,30 @@ class  MFMAInst (Inst):
 
   """
   def  __init__(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
-       Inst.__init__(self,*args)
+       self.endLine = ""
+       self.version = globalParameters["CurrentISA"]
+       self.kernel  = kernel
+       self.aIdx    = aIdx
+       self.bIdx    = bIdx
+       self.PLR     = PLRval
+       self.innerUnroll = innerUnroll
 
   def __str__(self):
       # single precision
       kStr = ""
       numOfRowsperMfma = 1
-      numOfColsperMfma = kernel["MatrixInstN"]
-      numOfRowInsts = kernel["ThreadTile0"]/numberOfRowsperMfma
-      numOfColInsts = kernel["ThreadTile1"]/numberOfColsperMfma
-      numOfDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
+      numOfColsperMfma = self.kernel["MatrixInstN"]
+      numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
+      numOfColInsts = self.kernel["ThreadTile1"]/numOfColsperMfma
+      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
-        for iui in range(0, innerUnroll):
-           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numberofRowInsts,numberofDstRgs,self.aIdx,numberofDstRgs,self.bIdx,numberofRowInsts,numberofDstRgs,numberofDstRgs)
+        for iui in range(0, self.innerUnroll):
+           cStr = "a[((%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs)
            aStr = "v[%s+%u]" \
                % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
            bStr = "v[%s+%u]" \
                % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
-           kStr += "v_mfma_f32_%ux%ux%uf32 %s, %s, %s, %s%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], cStr, aStr, bStr, cStr, self.endLine)
+           kStr += "v_mfma_f32_%ux%ux%uf32 %s, %s, %s, %s%s" % (self.kernel["MatrixInstM"], self.kernel["MatrixInstN"], self.kernel["MatrixInstK"], cStr, aStr, bStr, cStr, self.endLine)
       else:
         printExit("Assembly doesn't support %s" % self.kernel["ProblemType"]["DataType"])
 
@@ -324,7 +330,7 @@ class  MFMAInst (Inst):
 
   def getLatency(self):
       # return latency in cycles
-      return  (kernel["MatrixInstM"] // 4 ) * 8
+      return  (self.kernel["MatrixInstM"] // 4 ) * 8
 
 
 ################################################################################
