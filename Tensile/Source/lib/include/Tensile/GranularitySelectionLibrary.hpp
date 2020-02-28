@@ -39,7 +39,7 @@ namespace Tensile
 {
     /**
      * \ingroup SolutionLibrary
-     */ 
+     */
     struct ExactSelectionTableEntry
     {
         std::vector<size_t> key;
@@ -48,7 +48,7 @@ namespace Tensile
 
     /**
      * \ingroup SolutionLibrary
-     * 
+     *
      * Compares the tile sizes of each kernel, the dimensions of the problem,
      * and the number of compute units on the target GPU to select a kernel
      * that fits the best on the GPU with the lowest amount of waste
@@ -68,14 +68,14 @@ namespace Tensile
 
             return rv;
         }
-        
+
         virtual std::shared_ptr<MySolution>
             findBestSolution(MyProblem const& problem,
                              Hardware  const& hardware) const override
         {
             const bool debug = Debug::Instance().printPropertyEvaluation();
 
-            std::vector<size_t> key; 
+            std::vector<size_t> key;
             size_t M = problem.freeSizeA(0);
             key.push_back(M);
             size_t N = problem.freeSizeB(0);
@@ -84,56 +84,73 @@ namespace Tensile
             key.push_back(NumBatches);
             size_t K = problem.boundSize(0);
             key.push_back(K);
-            
-            if (this->exactMap.find(key) != this->exactMap.end())
+
+            auto exactMatch = exactMap.find(key);
+            if(exactMatch != this->exactMap.end())
             {
-                int index = this->exactMap.at(key);
-                return solutions.at(index);
-            }
+                int index = exactMatch->second;
 
-            this->description();
+                auto rv = solutions.at(index);
 
-            double bestPerformance = 0.0;  
-            auto iter = solutions.begin();
-            if(iter == solutions.end())
-                return std::shared_ptr<MySolution>();
-
-            std::shared_ptr<MySolution> bestSolution = iter->second;
-            if (bestSolution)
-                bestPerformance = bestSolution->projectedPerformance(problem, hardware);
-
-            iter++;
-            
-            if(debug)
-            {
-                std::cout << "best performance: " << bestPerformance << std::endl;
-            }
-
-            while(iter != solutions.end())
-            {
-                auto mySolution = iter->second;
-                double myPerformance = mySolution->projectedPerformance(problem, hardware);
-
-                if(mySolution)
+                if(debug)
                 {
-                    auto myPerformance = mySolution->projectedPerformance(problem, hardware);
-                    if(myPerformance > bestPerformance)
+                    std::cout << "Exact match: " << rv->description();
+                    rv->problemPredicate->debugEval(problem, std::cout);
+                    std::cout << std::endl;
+                    rv->hardwarePredicate->debugEval(hardware, std::cout);
+                    std::cout << std::endl;
+                }
+
+                if((*rv->problemPredicate)(problem) && (*rv->hardwarePredicate)(hardware))
+                {
+                    return rv;
+                }
+                else if(debug)
+                {
+                    std::cout << "Predicate failure" << std::endl;
+                }
+            }
+
+
+            double bestPerformance = 0.0;
+            std::shared_ptr<MySolution> bestSolution;
+
+            for(auto const& row: solutions)
+            {
+                auto myPerformance = row.second->projectedPerformance(problem, hardware);
+
+                if(debug)
+                {
+                    std::cout << row.second->description() << ": " << myPerformance;
+                }
+
+                if(myPerformance > bestPerformance)
+                {
+                    if((*row.second->problemPredicate)(problem) && (*row.second->hardwarePredicate)(hardware))
                     {
                         bestPerformance = myPerformance;
-                        bestSolution = mySolution;
+                        bestSolution = row.second;
+
+                        if(debug)
+                            std::cout << " <-- Best so far";
+
+                    }
+                    else if(debug)
+                    {
+                        std::cout << " <-- Best, but predicate failure";
                     }
 
                     if(debug)
                     {
-                        std::cout << ": " << myPerformance;
-                        if(myPerformance < bestPerformance)
-                        {
-                            std::cout << " <-- Best so far";
-                        } 
+                        row.second->problemPredicate->debugEval(problem, std::cout);
+                        std::cout << std::endl;
+                        row.second->hardwarePredicate->debugEval(hardware, std::cout);
+                        std::cout << std::endl;
                     }
+
                 }
-                iter++;
             }
+
             return bestSolution;
         }
 
@@ -145,17 +162,36 @@ namespace Tensile
 
             SolutionSet<MySolution> rv;
 
-            auto iter = solutions.begin();
-           
-            while(iter != solutions.end())
+            for(auto const& row: solutions)
             {
-                rv.insert(iter->second);
                 if(debug)
-                    std::cout << iter->second->description() << std::endl;
-                iter++;
+                {
+                    std::cout << row.second->description() << ": ";
+                }
+
+                if((*row.second->problemPredicate)(problem) && (*row.second->hardwarePredicate)(hardware))
+                {
+                    rv.insert(row.second);
+
+                    if(debug)
+                        std::cout << " Works";
+
+                }
+                else if(debug)
+                {
+                    if(debug)
+                        std::cout << " Predicate failed";
+                }
+
+                if(debug)
+                {
+                    row.second->problemPredicate->debugEval(problem, std::cout);
+                    std::cout << std::endl;
+                    row.second->hardwarePredicate->debugEval(hardware, std::cout);
+                    std::cout << std::endl;
+                }
+
             }
-            if(debug)
-                std::cout << std::endl;
 
             return rv;
         }
