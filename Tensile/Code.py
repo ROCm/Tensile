@@ -313,7 +313,7 @@ class  MFMAInst (Inst):
       numOfRowsperMfma = 1
       numOfColsperMfma = self.kernel["MatrixInstN"]
       numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
-      numOfColInsts = self.kernel["ThreadTile1"]/numOfColsperMfma
+      #numOfColInsts = self.kernel["ThreadTile1"]/numOfColsperMfma
       numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, self.innerUnroll):
