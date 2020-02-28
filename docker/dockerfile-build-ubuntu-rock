@@ -35,8 +35,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 
 RUN pip3 install setuptools --upgrade && \
     pip3 install wheel && \
-    pip3 install tox pyyaml && \
-    pip3 install lint
+    pip3 install tox pyyaml
 
 # Patch hcc-config.cmake in /opt/rocm
 #ADD docker/scripts/fix_hcc_config /tmp
