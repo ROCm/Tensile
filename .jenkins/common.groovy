@@ -14,6 +14,12 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             hostname
 
+            #### temporary fix to remedy incorrect home directory
+            export HOME=/home/jenkins
+            ####
+            tox --version
+            tox -v --workdir /tmp/.tensile-tox -e lint
+
             export PATH=/opt/rocm/bin:$PATH
             cd ${project.paths.project_build_prefix}
 
@@ -24,11 +30,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             make -j\$(nproc)
 
             popd
-            #### temporary fix to remedy incorrect home directory
-            export HOME=/home/jenkins
-            ####
-            tox --version
-            tox -v --workdir /tmp/.tensile-tox -e lint
 
             doxygen docs/Doxyfile
             """
