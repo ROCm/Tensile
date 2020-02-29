@@ -282,52 +282,6 @@ class LocalReadInst (Inst):
     Inst.__init__(self,*args)
 
 ################################################################################
-# MFMA Instruction
-################################################################################
-class  MFMAInst (Inst):
-
-  """
-  Construct a MFMA instruction from specified precision Type, aIndex, bIndex, PLR, innerUnroll:
-
-  dataType:
-  aIndex:  index value from range (0, kernel["ThreadTile0"])
-  bIndex:  index value from range (0, kernel["ThreadTile1"])
-
-  PLR:     valida values 0,1
-
-  usage Module.addCode(Code.MFMAInst())
-
-  """
-  def  __init__(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
-       Inst.__init__(self,*args)
-
-  def __str__(self):
-      # single precision
-      kStr = ""
-      numOfRowsperMfma = 1
-      numOfColsperMfma = kernel["MatrixInstN"]
-      numOfRowInsts = kernel["ThreadTile0"]/numberOfRowsperMfma
-      numOfColInsts = kernel["ThreadTile1"]/numberOfColsperMfma
-      numOfDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
-      if self.kernel["ProblemType"]["DataType"].isSingle():
-        for iui in range(0, innerUnroll):
-           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numberofRowInsts,numberofDstRgs,self.aIdx,numberofDstRgs,self.bIdx,numberofRowInsts,numberofDstRgs,numberofDstRgs)
-           aStr = "v[%s+%u]" \
-               % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
-           bStr = "v[%s+%u]" \
-               % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
-           kStr += "v_mfma_f32_%ux%ux%uf32 %s, %s, %s, %s%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], cStr, aStr, bStr, cStr, self.endLine)
-      else:
-        printExit("Assembly doesn't support %s" % self.kernel["ProblemType"]["DataType"])
-
-      return self.formatWithComment(kStr, "")
-
-  def getLatency(self):
-      # return latency in cycles
-      return  (kernel["MatrixInstM"] // 4 ) * 8
-
-
-################################################################################
 # Mac Instruction
 # can be generic as VALU instruction
 # implement later generic
