@@ -3073,7 +3073,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def kernelBodyPrefix(self, kernel, tPA, tPB ):
     kStr = ""
-    kernelName = self.getKernelName(kernel)
+    kernelName = self.getKernelFileBase(kernel)
     if not globalParameters["MergeFiles"]:
       kStr += "\n"
       kStr += "#include \"%s.h\"\n" % kernelName
