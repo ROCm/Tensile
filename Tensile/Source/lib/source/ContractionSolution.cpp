@@ -773,7 +773,10 @@ namespace Tensile
 
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
-        double NumCUs = std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
+
+        hipDeviceProp_t props;
+        hipGetDeviceProperties(&props, 0);
+        double NumCUs = props.multiProcessorCount;//std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
 
         AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
         if (pAMDGPU != nullptr)

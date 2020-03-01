@@ -98,6 +98,12 @@ namespace Tensile
             const std::string AluUs      = "alu-us";
             const std::string Empty          = "empty";
 
+            const std::string Efficiency = "efficiency";
+            const std::string L2ReadHits = "l2-read-hits";
+            const std::string L2WriteHits = "l2-write-hits";
+            const std::string ReadMultiplier = "read-multiplier";
+            const std::string Mfma = "mfma"; 
+
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
             const std::string ClockRateSys        = "clock-sys";
@@ -134,6 +140,113 @@ namespace Tensile
             }
 
             void report(std::string const& key, double value)
+            {
+                reportValue_double(key, value);
+            }
+
+            void report(std::string const& key, std::vector<size_t> const& value)
+            {
+                reportValue_sizes(key, value);
+            }
+
+            virtual void reportValue_string(std::string const& key, std::string const& value) = 0;
+            virtual void reportValue_uint(  std::string const& key, uint64_t value) = 0;
+            virtual void reportValue_int(   std::string const& key, int64_t value) = 0;
+            virtual void reportValue_double(std::string const& key, double value) = 0;
+            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) = 0;
+
+            virtual bool logAtLevel(LogLevel level) { return false; };
+
+            /**
+             * Records an informative message.  This may or may not actually get printed anywhere depending on settings.
+             */
+            template <typename T>
+            void log(LogLevel level, T const& object)
+            {
+                if(logAtLevel(level))
+                {
+                    std::ostringstream msg;
+                    msg << object;
+                    logMessage(level, msg.str());
+                }
+            }
+
+            virtual void logMessage(LogLevel level, std::string const& message) {}
+            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor, void const* ptrVal) {}
+
+            /// RunListener interface functions
+
+            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override {}
+
+            virtual bool needMoreBenchmarkRuns() const override { return false; }
+            virtual void preBenchmarkRun() override {}
+            virtual void postBenchmarkRun() override {}
+
+            virtual void preProblem(ContractionProblem const& problem) override {}
+            virtual void postProblem() override {}
+
+            virtual void preSolution(ContractionSolution const& solution) override {}
+            virtual void postSolution() override {}
+
+            virtual bool needMoreRunsInSolution() const override { return false; }
+
+            virtual size_t numWarmupRuns() override { return 0; }
+            virtual void   setNumWarmupRuns(size_t count) override {}
+            virtual void   preWarmup() override {}
+            virtual void   postWarmup() override {}
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) override {}
+
+            virtual size_t numSyncs() override { return 0; }
+            virtual void   setNumSyncs(size_t count) override {}
+            virtual void   preSyncs() override {}
+            virtual void   postSyncs() override {}
+
+            virtual size_t numEnqueuesPerSync() override { return 0; }
+            virtual void   setNumEnqueuesPerSync(size_t count) override {}
+            virtual void   preEnqueues() override {}
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) override {}
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) override {}
+
+            // finalizeReport() deliberately left out of here to force it to be implemented in subclasses.
+
+            virtual int error() const override
+            {
+                return 0;
+            }
+        };
+
+        class PerformanceReporter: public ResultReporter
+        {
+        public:
+            /**
+             * Reports the value for a key, related to the current state of the run.
+             */
+            void report(std::string const& key, std::string const& value)
+            {
+                reportValue_string(key, value);
+            }
+
+            void report(std::string const& key, uint64_t value)
+            {
+                reportValue_uint(key, value);
+            }
+
+            void report(std::string const& key, int value)
+            {
+                reportValue_int(key, value);
+            }
+
+            void report(std::string const& key, int64_t value)
+            {
+                reportValue_int(key, value);
+            }
+
+            void report(std::string const& key, double value) override
             {
                 reportValue_double(key, value);
             }
