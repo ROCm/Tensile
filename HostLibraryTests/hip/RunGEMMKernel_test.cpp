@@ -66,8 +66,9 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
                           std::tuple<ContractionProblem,
                                      std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
                                                 std::shared_ptr<hip::SolutionAdapter>,
-                                                bool // is a solution required?
-                                               >
+                                                bool  // is a solution required?
+                                               >,
+                                     bool  // align allocations to start or end of pages?
                                     >
                           >
 {
@@ -84,6 +85,12 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     float *d_d = nullptr;
     float *d_ref_d = nullptr;
 
+    float *a_d_alloc = nullptr;
+    float *b_d_alloc = nullptr;
+    float *c_d_alloc = nullptr;
+    float *d_d_alloc = nullptr;
+    float *d_ref_d_alloc = nullptr;
+
     TypedContractionInputs<float> inputs;
 
     std::shared_ptr<Hardware> hardware;
@@ -92,6 +99,7 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
 	{
         HIP_CHECK_EXC(hipSetDevice(0));
         ContractionProblem problem = std::get<0>(GetParam());
+        bool startOfPage = std::get<2>(GetParam());
         //std::cout << problem << std::endl;
 
         a_h.resize(problem.a().totalAllocatedElements());
@@ -116,11 +124,35 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
 
         CopyTensor(d_ref_h.data(), c_h.data(), problem.d(), problem.c());
 
-        HIP_CHECK_EXC(hipMalloc(&a_d,     problem.a().totalAllocatedBytes()));
-        HIP_CHECK_EXC(hipMalloc(&b_d,     problem.b().totalAllocatedBytes()));
-        HIP_CHECK_EXC(hipMalloc(&c_d,     problem.c().totalAllocatedBytes()));
-        HIP_CHECK_EXC(hipMalloc(&d_d,     problem.d().totalAllocatedBytes()));
-        HIP_CHECK_EXC(hipMalloc(&d_ref_d, problem.d().totalAllocatedBytes()));
+        constexpr size_t pageSize = 4 * 1024 * 1024;
+
+        size_t aSize = RoundUpToMultiple(problem.a().totalAllocatedBytes(), pageSize);
+        size_t bSize = RoundUpToMultiple(problem.b().totalAllocatedBytes(), pageSize);
+        size_t cSize = RoundUpToMultiple(problem.c().totalAllocatedBytes(), pageSize);
+        size_t dSize = RoundUpToMultiple(problem.d().totalAllocatedBytes(), pageSize);
+
+        HIP_CHECK_EXC(hipMalloc(&a_d_alloc,     aSize));
+        HIP_CHECK_EXC(hipMalloc(&b_d_alloc,     bSize));
+        HIP_CHECK_EXC(hipMalloc(&c_d_alloc,     cSize));
+        HIP_CHECK_EXC(hipMalloc(&d_d_alloc,     dSize));
+        HIP_CHECK_EXC(hipMalloc(&d_ref_d_alloc, dSize));
+
+        if(startOfPage)
+        {
+            a_d = a_d_alloc;
+            b_d = b_d_alloc;
+            c_d = c_d_alloc;
+            d_d = d_d_alloc;
+            d_ref_d = d_ref_d_alloc;
+        }
+        else
+        {
+            a_d     = a_d_alloc     + ((aSize - problem.a().totalAllocatedBytes()) / sizeof(float));
+            b_d     = b_d_alloc     + ((bSize - problem.b().totalAllocatedBytes()) / sizeof(float));
+            c_d     = c_d_alloc     + ((cSize - problem.c().totalAllocatedBytes()) / sizeof(float));
+            d_d     = d_d_alloc     + ((dSize - problem.d().totalAllocatedBytes()) / sizeof(float));
+            d_ref_d = d_ref_d_alloc + ((dSize - problem.d().totalAllocatedBytes()) / sizeof(float));
+        }
 
         HIP_CHECK_EXC(hipMemcpy(a_d,     a_h.data(),     problem.a().totalAllocatedBytes(), hipMemcpyHostToDevice));
         HIP_CHECK_EXC(hipMemcpy(b_d,     b_h.data(),     problem.b().totalAllocatedBytes(), hipMemcpyHostToDevice));
@@ -158,11 +190,11 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
 	
     void TearDown() override
     {
-        hipFree(a_d);
-        hipFree(b_d);
-        hipFree(c_d);
-        hipFree(d_d);
-        hipFree(d_ref_d);
+        hipFree(a_d_alloc);
+        hipFree(b_d_alloc);
+        hipFree(c_d_alloc);
+        hipFree(d_d_alloc);
+        hipFree(d_ref_d_alloc);
 
         hipDeviceReset();
     }
@@ -170,9 +202,14 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
 
 TEST_P(RunGEMMKernelTest, BestSolution)
 {
+    bool debug = Debug::Instance().printPredicateEvaluation();
+
     auto params = GetParam();
 
     ContractionProblem problem = std::get<0>(params);
+
+    if(debug)
+        std::cout << problem << std::endl;
 
     std::shared_ptr<SolutionLibrary<ContractionProblem>> library;
     std::shared_ptr<hip::SolutionAdapter> adapter;
@@ -193,6 +230,30 @@ TEST_P(RunGEMMKernelTest, BestSolution)
     {
         if(!solution)
             return;
+    }
+
+    {
+        ASSERT_NE(solution->problemPredicate, nullptr);
+        EXPECT_EQ((*solution->problemPredicate)(problem), true);
+
+        std::ostringstream msg;
+        ASSERT_EQ(solution->problemPredicate->debugEval(problem, msg), true) << msg.str();
+    }
+
+    {
+        ASSERT_NE(solution->hardwarePredicate, nullptr);
+        EXPECT_EQ((*solution->hardwarePredicate)(*hardware), true);
+
+        std::ostringstream msg;
+        ASSERT_EQ(solution->hardwarePredicate->debugEval(*hardware, msg), true) << msg.str();
+    }
+
+    if(debug)
+    {
+        std::cout << "a: " << std::hex << inputs.a << ".." << inputs.a + problem.a().totalAllocatedElements() << std::endl;
+        std::cout << "b: " << std::hex << inputs.b << ".." << inputs.b + problem.b().totalAllocatedElements() << std::endl;
+        std::cout << "c: " << std::hex << inputs.c << ".." << inputs.c + problem.c().totalAllocatedElements() << std::endl;
+        std::cout << "d: " << std::hex << inputs.d << ".." << inputs.d + problem.d().totalAllocatedElements() << std::endl;
     }
 
     std::vector<KernelInvocation> result = solution->solve(problem, inputs, *hardware);
@@ -237,6 +298,8 @@ TEST_P(RunGEMMKernelTest, BestSolution)
 
 TEST_P(RunGEMMKernelTest, AllSolutions)
 {
+    bool debug = Debug::Instance().printPredicateEvaluation();
+
     auto params = GetParam();
 
     ContractionProblem problem = std::get<0>(params);
@@ -255,12 +318,31 @@ TEST_P(RunGEMMKernelTest, AllSolutions)
     if(requiredMatch)
     {
         ASSERT_GT(solutions.size(), 0);
-
     }
 
     for(auto const& solution : solutions)
     {
         ASSERT_NE(solution, nullptr);
+
+        {
+            ASSERT_NE(solution->problemPredicate, nullptr);
+            EXPECT_EQ((*solution->problemPredicate)(problem), true);
+
+            std::ostringstream msg;
+            ASSERT_EQ(solution->problemPredicate->debugEval(problem, msg), true) << msg.str();
+            if(debug)
+                std::cout << msg.str() << std::endl;
+        }
+
+        {
+            ASSERT_NE(solution->hardwarePredicate, nullptr);
+            EXPECT_EQ((*solution->hardwarePredicate)(*hardware), true);
+
+            std::ostringstream msg;
+            ASSERT_EQ(solution->hardwarePredicate->debugEval(*hardware, msg), true) << msg.str();
+                if(debug)
+                    std::cout << msg.str() << std::endl;
+        }
 
         //std::cout << solution->name() << std::endl;
 
@@ -395,8 +477,10 @@ std::vector<ContractionProblem> TestProblems()
 std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
                        std::shared_ptr<hip::SolutionAdapter>,
                        bool>>
-TestLibraries(bool debug)
+TestLibraries()
 {
+    bool debug = Debug::Instance().printKernelArguments();
+
     std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
                            std::shared_ptr<hip::SolutionAdapter>,
                            bool>
@@ -444,7 +528,7 @@ TestLibraries(bool debug)
         for(auto file: TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
             adapter->loadCodeObjectFile(file.native());
 
-        rv.emplace_back(library, adapter, true);
+        rv.emplace_back(library, adapter, false);
     }
 
     auto envDir = TestData::Env("TENSILE_TEST_LIBRARY");
@@ -472,6 +556,7 @@ TestLibraries(bool debug)
 
 INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter, RunGEMMKernelTest,
         ::testing::Combine(::testing::ValuesIn(TestProblems()),
-                           ::testing::ValuesIn(TestLibraries(false))));
+                           ::testing::ValuesIn(TestLibraries()),
+                           ::testing::Values(false, true)));
 
 

@@ -40,6 +40,12 @@ namespace Tensile
         {
             Half absA = (a > 0) ? a : -a;
             Half absB = (b > 0) ? b : -b;
+            // this avoids NaN when inf is compared against inf in the alternative code path
+            if (static_cast<float>(absA) == std::numeric_limits<float>::infinity() || // numeric_limits is yet to support _Float16 type properly;
+                static_cast<float>(absB) == std::numeric_limits<float>::infinity())   // however promoting it to float works just as fine
+            {
+                return a == b; 
+            }
             Half absDiff = (a-b > 0) ? a-b : b-a;
             return absDiff/(absA+absB+1) < 0.01;
         }

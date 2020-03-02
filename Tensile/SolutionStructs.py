@@ -578,7 +578,7 @@ class Convolution:
     for i in range(self.formatNumSpatialDims):
       spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 + pcc.padStart[i] + pcc.padEnd[i]) / pcc.stride[i])
 
-    print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
+    #print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
     for fi,filterValue in enumerate(pcc.fil):
       try:
@@ -1323,7 +1323,7 @@ class ConvProblem(Problem):
 
     Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA, count=e['count'])
 
-    print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
+    #print ("sizes=", self.sizes, "stridesA=", self.stridesA, "stridesB=", self.stridesB, "zeroPadA=", self.zeroPadA)
 
 
   def toExactDict(self):
@@ -2192,16 +2192,15 @@ class Solution:
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
-       and state["ProblemType"]["DataType"].isHalf():
+      and state["ProblemType"]["DataType"].isHalf():
 
-       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
-       if state["VectorWidth"] < 2:
-         reject(state, "VectorWidth must be >= 2 for half")
-       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
-         if (state["AssertSummationElementMultiple"] % 2 != 0 or \
-             state["AssertFree0ElementMultiple"] % 2 != 0):
-           # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
-            reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+      # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
+      if state["VectorWidth"] < 2:
+        reject(state, "VectorWidth must be >= 2 for half")
+      if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+        if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
+          # beta-on-edge has AF0EM requirement except for HPA kernels
+          reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
 
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
     #    reject(state, "PackSummationDims does not yet support assembly")
@@ -2352,7 +2351,9 @@ class Solution:
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
           validDepthU = False
 
-      if validDepthU and state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isHalf():
+      if validDepthU and state["KernelLanguage"] == "Assembly" \
+         and (state["ProblemType"]["DataType"].isHalf() \
+              or state["ProblemType"]["DataType"].isBFloat16()):
         if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
             reject(state, "HalfEcc requires GLVWA > 1")
@@ -2733,7 +2734,6 @@ class Solution:
       reject(state, "packedC1 requires GuaranteeNoPartialB")
 
     if packedC0 or packedC1:
-
       state["_UseSgprForGRO"] = 0
 
       if state["EdgeType"] != "ShiftPtr":
@@ -2754,6 +2754,14 @@ class Solution:
         and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
           # Not sure if this is actually required??
           reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
+
+
+    # Not currently suppored.  Support would require some changes in the
+    # zeroPadRegs management:
+    #   - don't allocate VGPRs for multiple perp/pad cases
+    #   - guardZeroPad needs to add soffset to scalar calc
+    if problemType["ZeroPadA"] or problemType["ZeroPadB"]:
+      state["_UseSgprForGRO"] = 0
 
     # current requirement to avoid buffer loads that span multiple entries
     # if the summation dim participating in the ZeroPad is not fast-moving then

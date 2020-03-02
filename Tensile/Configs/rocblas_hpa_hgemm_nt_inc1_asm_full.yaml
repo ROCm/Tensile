@@ -37,9 +37,9 @@ BenchmarkProblems:
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: B
-      DestDataType: B
-      ComputeDataType: s
+      DataType: h
+      # DestDataType: B
+      # ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: True
@@ -51,13 +51,13 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        #- LoopTail: [True]
+        - LoopTail: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
         - AssertSummationElementMultiple: [1, 2]
         - AssertFree0ElementMultiple: [1, 2]
         - MatrixInstruction:
-          - [32, 32, 2, 2]
+          - [32, 32, 4, 2]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
           - [ 1, 32 ]
@@ -196,13 +196,13 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        #- LoopTail: [True]
+        - LoopTail: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
         - AssertSummationElementMultiple: [1, 2]
         - AssertFree0ElementMultiple: [1, 2]
         - MatrixInstruction:
-          - [32, 32, 2, 2]
+          - [32, 32, 4, 2]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
           - [ 2, 32 ]

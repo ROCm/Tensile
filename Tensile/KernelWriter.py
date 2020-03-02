@@ -21,7 +21,8 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, print2, CHeader, roundUp
+from .Common import globalParameters, CHeader, roundUp
+from .ReplacementKernels import ReplacementKernels
 from .SolutionStructs import Solution
 
 import abc
@@ -112,8 +113,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       readCnt = self.globalReadACode.middle.countType(Code.GlobalReadInst) + \
                 self.globalReadBCode.middle.countType(Code.GlobalReadInst)
-      # reads and incs are scheduled in iters range(0...endIter)
-      endIter = readCnt + 2 # 2 for incA and incB
+      # reads and incs are scheduled in iters range(0..endIter)
+      endIter = readCnt + 2;
 
 
       if endIter > kernel["LoopIters"]-1:
@@ -122,7 +123,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         firstStep = endIter-(kernel["LoopIters"]-1) + 1
         endIter = kernel["LoopIters"]-1
       else:
+	# schedule b2b for readCnt > 2 (True for bigger TT)
         firstStep = 1
+        
 
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
@@ -130,9 +133,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsToSched.append(globalReadIncACode)
       itemsToSched.append(globalReadIncBCode)
 
+
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
+      # append 'n' global load at a time 
+      # append global load(S) first 'number of global load(s) determined by  firstStep
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
       itemsToSched = itemsToSched[firstStep:]
@@ -150,7 +156,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
-
 
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
@@ -350,7 +355,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               lgkmcnt = localWrites  # this only survives if writes are at the end
 
       lgkmcnt = min(lgkmcnt, 15)
-      waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
+      waitCode.comment += " old=%u new=%u (Local write no wait)" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
     return iterCode
@@ -831,6 +836,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
+            #container for holding local read A & B elements for later re-ordering
             localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
 
@@ -889,7 +895,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Wait"]:
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               waitGlobalRead, waitLocalWrite, waitLocalRead, \
-              "wait for prior local read")
+              "wait for prior local read local write")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
@@ -1293,7 +1299,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # shift vector components d0
         if not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA:
           kl.append(self.comment("shift vector components d0"))
-          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+          if kernel["MatrixInstruction"]:
+            kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
+          else:
+            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
@@ -2327,6 +2336,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def shiftVectorComponents(self, kernel, tP):
     return ""
 
+  @abc.abstractmethod
+  def shiftVectorComponentsForMatrixInst(self, kernel, tP):
+    return ""
+
   ##############################################################################
   # Complex Declare Tmp Registers
   ##############################################################################
@@ -2461,6 +2474,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # get kernel name
   ##############################################################################
+  def getKernelFileBase(self, kernel):
+    rv = self.getKernelName(kernel)
+    return self.shortenFileBase(rv)
+
   def getKernelName(self, kernel):
     if globalParameters["ShortNames"]:
       kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -2571,22 +2588,36 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    kernelName = self.getKernelName(kernel)
-    kernelFileName_txt = "%s.s.txt" % kernelName
-    SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
-    REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
-    if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
-    REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
+    if not kernel["ReplacementKernel"]:
+      return None
 
-    print2("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-    if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
-      print2("Found replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-      return REPLACEMENT_KERNEL_PATH
+    kernelName = self.getKernelName(kernel)
+    return ReplacementKernels.Get(kernelName)
+
+  def shortenFileBase(self, base):
+    if len(base) <= globalParameters["MaxFileName"]:
+      return base
+
+    import hashlib
+    import base64
+
+    pivot = globalParameters["MaxFileName"] * 3 // 4
+    firstPart = base[:pivot]
+    secondPart = base[pivot:]
+
+    secondHash = hashlib.sha256(secondPart.encode()).digest()
+    #hash(secondPart)
+    #n = secondHash.bit_length()+1
+    #n = (n + 7) // 8
+    #secondBytes = secondHash.to_bytes(n, 'big', signed=True)
+    secondPart = base64.b64encode(secondHash, b'_-').decode()
+
+    return firstPart + secondPart
 
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
-    kernelName = self.getKernelName(kernel)
+    kernelName = self.shortenFileBase(self.getKernelName(kernel))
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
@@ -2620,6 +2651,7 @@ for codeObjectFileName in codeObjectFileNames:
     args = self.getCompileArgs(assemblyFileName, objectFileName)
     if globalParameters["PrintCodeCommands"]:
       print (' '.join(args), " && ")
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return objectFileName
@@ -2633,6 +2665,7 @@ for codeObjectFileName in codeObjectFileNames:
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
     if globalParameters["PrintCodeCommands"]:
       print (' '.join(args))
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return coFileName
@@ -2679,7 +2712,7 @@ for codeObjectFileName in codeObjectFileNames:
         coFile = self.getSingleCodeObjectFile(kernel)
         kernelName = self.getKernelName(kernel)
 
-        if globalParameters["CodeFromFiles"]:
+        if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
           # I guess in this case we are making sure that the code object file exists by executing the code 
           # above but we aren't placing it into the source.
           return (0, "")
