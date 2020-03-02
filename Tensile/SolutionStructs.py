@@ -2192,16 +2192,15 @@ class Solution:
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
-       and state["ProblemType"]["DataType"].isHalf():
+      and state["ProblemType"]["DataType"].isHalf():
 
-       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
-       if state["VectorWidth"] < 2:
-         reject(state, "VectorWidth must be >= 2 for half")
-       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
-         if (state["AssertSummationElementMultiple"] % 2 != 0 or \
-             state["AssertFree0ElementMultiple"] % 2 != 0):
-           # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
-            reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+      # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
+      if state["VectorWidth"] < 2:
+        reject(state, "VectorWidth must be >= 2 for half")
+      if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+        if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
+          # beta-on-edge has AF0EM requirement except for HPA kernels
+          reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
 
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
     #    reject(state, "PackSummationDims does not yet support assembly")
