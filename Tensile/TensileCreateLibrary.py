@@ -266,7 +266,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       #print "*** warning: invalid kernel#%s"%kernelName
 
     # Don't create a file for empty kernels.
-    if len(src.strip()) == 0:
+    if len(src.strip()) == 0 and globalParameters["NewClient"] > 1:
       continue
 
     #if kernelSourceFile:
