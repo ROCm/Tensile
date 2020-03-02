@@ -90,7 +90,6 @@ namespace Tensile
           StaticPerformanceModel staticModel;
         };
 
-
         StaticPerformanceModel staticPerformanceModel
           (double M, double N, double K, double NumBatches,  double MT0, double MT1, 
            double NumCUs, double totalGranularity, int globalSplitU) const;

@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "HardwareMonitor.hpp"
 #include "RunListener.hpp"
 
 #include <cstddef>
@@ -103,6 +104,7 @@ namespace Tensile
             const std::string L2WriteHits = "l2-write-hits";
             const std::string ReadMultiplier = "read-multiplier";
             const std::string Mfma = "mfma"; 
+            const std::String MemoryBandwidth = "memory-bandwidth";
 
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
@@ -220,111 +222,50 @@ namespace Tensile
             }
         };
 
-        class PerformanceReporter: public ResultReporter
+        class PerformanceReporter: public ResultReporter,HardwareMonitor
         {
-        public:
-            /**
-             * Reports the value for a key, related to the current state of the run.
-             */
-            void report(std::string const& key, std::string const& value)
-            {
-                reportValue_string(key, value);
-            }
-
-            void report(std::string const& key, uint64_t value)
-            {
-                reportValue_uint(key, value);
-            }
-
-            void report(std::string const& key, int value)
-            {
-                reportValue_int(key, value);
-            }
-
-            void report(std::string const& key, int64_t value)
-            {
-                reportValue_int(key, value);
-            }
-
-            void report(std::string const& key, double value) override
-            {
-                reportValue_double(key, value);
-            }
-
-            void report(std::string const& key, std::vector<size_t> const& value)
-            {
-                reportValue_sizes(key, value);
-            }
-
-            virtual void reportValue_string(std::string const& key, std::string const& value) = 0;
-            virtual void reportValue_uint(  std::string const& key, uint64_t value) = 0;
-            virtual void reportValue_int(   std::string const& key, int64_t value) = 0;
-            virtual void reportValue_double(std::string const& key, double value) = 0;
-            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) = 0;
-
-            virtual bool logAtLevel(LogLevel level) { return false; };
-
-            /**
-             * Records an informative message.  This may or may not actually get printed anywhere depending on settings.
-             */
-            template <typename T>
-            void log(LogLevel level, T const& object)
-            {
-                if(logAtLevel(level))
+            public:
+                double efficiency(double performance)
                 {
-                    std::ostringstream msg;
-                    msg << object;
-                    logMessage(level, msg.str());
+                    int magicNum = 64;
+                    if(mfma == false) magicNum = 128;
+                    double sclk = getSclk();
+                    double eff = 100*1000*performance/(numCUs*magicNum*readMultiplier*sclk);
+                    
+                    report("frequency", sclk);
+                    report("efficiency", eff);
+                    return eff;
                 }
-            }
 
-            virtual void logMessage(LogLevel level, std::string const& message) {}
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor, void const* ptrVal) {}
+                double memBandwidth()
+                { 
+                    double bandwidth = getMclk()*width; 
+                    report("memory-bandwidth", bandwidth);
+                    return bandwidth;
+                }
+                
+                void setNumCUs(double cus){ numCUs = cus; }
+                void setReadMultiplier(double multiplier){ readMultiplier = multiplier; }
+                void setMfma(bool isMfma){ mfma = isMfma; }
+                void setL2ReadHits(double reads){ L2ReadHits = reads; }
+                void setL2WriteHits(double writes){ L2WriteHits = writes; }
+                void setReadEfficiency(double readEff){ readEfficiency = readEff; }
+                void setWidth(int w){ width = w; }
+                double getSclk(){ return getAverageClock(RSMI_CLK_TYPE_SYS); }
+                double getMclk(){ return getAverageClock(RSMI_CLK_TYPE_MEM); }
+                double getNumCUs(){ return numCUs; }
+                double getReadMultiplier(){ return multiplier; }
+                bool getMfma(){ return mfma; }
+                double getL2ReadHits(){ return L2ReadHits }
+                double getL2WriteHits(){ return L2WriteHits; }
+                double getReadEfficiency(){ return readEfficiency; }
 
-            /// RunListener interface functions
+            private:
+                double readMultiplier = 2, L2ReadHits = 0, L2WriteHits = 0.5, readEfficiency = 0.85;
+                double numCUs = 64;
+                int  width = 1000;
+                bool mfma = false;
 
-            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override {}
-
-            virtual bool needMoreBenchmarkRuns() const override { return false; }
-            virtual void preBenchmarkRun() override {}
-            virtual void postBenchmarkRun() override {}
-
-            virtual void preProblem(ContractionProblem const& problem) override {}
-            virtual void postProblem() override {}
-
-            virtual void preSolution(ContractionSolution const& solution) override {}
-            virtual void postSolution() override {}
-
-            virtual bool needMoreRunsInSolution() const override { return false; }
-
-            virtual size_t numWarmupRuns() override { return 0; }
-            virtual void   setNumWarmupRuns(size_t count) override {}
-            virtual void   preWarmup() override {}
-            virtual void   postWarmup() override {}
-            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                           TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents) override {}
-
-            virtual size_t numSyncs() override { return 0; }
-            virtual void   setNumSyncs(size_t count) override {}
-            virtual void   preSyncs() override {}
-            virtual void   postSyncs() override {}
-
-            virtual size_t numEnqueuesPerSync() override { return 0; }
-            virtual void   setNumEnqueuesPerSync(size_t count) override {}
-            virtual void   preEnqueues() override {}
-            virtual void   postEnqueues(TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents) override {}
-            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                            TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) override {}
-
-            // finalizeReport() deliberately left out of here to force it to be implemented in subclasses.
-
-            virtual int error() const override
-            {
-                return 0;
-            }
         };
     }
 }
