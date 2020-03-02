@@ -324,6 +324,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(packCode)
       iterCode.addCode(macIterCode)
     elif self.scheduleIterAlg == 2:
+    # SIA2 use only 1 iteration and separate compute and fetch by raising compute priority
+    # 2 workgroup interleave, while WG0/WG1 doing compute, WG1/WG0 doing fetch
+    # EPS need to be 1, or valu instruction will break interleave
       iterCode.addCode(globalReadCode)
       iterCode.addCode(localReadCode)
       iterCode.addCode(waitCode)
@@ -338,6 +341,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           packCount = packCount + 1
         else:
           break
+      
+      if packCount == 0:
+        tmpVgpr = self.vgprPool.checkOut(1)
+        iterCode.addInst("v_mov_b32 ","v%u"%(tmpVgpr),"0x0","valu operation to have different priority")
+        self.vgprPool.checkIn(tmpVgpr)
 
       iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
       macIterItem = macIterCode.flatitems()
