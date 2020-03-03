@@ -21,7 +21,8 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, print2, CHeader, roundUp
+from .Common import globalParameters, CHeader, roundUp
+from .ReplacementKernels import ReplacementKernels
 from .SolutionStructs import Solution
 
 import abc
@@ -580,9 +581,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["LocalRead"]:
           if u < kernel["LoopIters"]-1 or not kernel["PrefetchLocalRead"]:
             kl.append(self.comment("local read a"))
-            kl.append(self.localReadDo(kernel, plrIdx, iui, 0, (u+pflr), tensorParametersA))
+            kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             kl.append(self.comment("local read b"))
-            kl.append(self.localReadDo(kernel, plrIdx, iui, 0, (u+pflr), tensorParametersB))
+            kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
             kl.append(self.comment("local read inc a"))
             kl.append(self.localReadInc(kernel, iui, tensorParametersA))
             kl.append(self.comment("local read inc b"))
@@ -717,9 +718,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             if self.enable["LocalRead"]:
               for plrIdx in range(0, kernel["PrefetchLocalRead"]):
                 kl.append(self.comment("local read prefetch a"))
-                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, 0, tensorParametersA))
+                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersA))
                 kl.append(self.comment("local read prefetch b"))
-                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, 0, tensorParametersB))
+                kl.append(self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersB))
                 kl.append(self.comment("local read inc a"))
                 kl.append(self.localReadInc(kernel, iui, tensorParametersA))
                 kl.append(self.comment("local read inc b"))
@@ -814,9 +815,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if self.enable["LocalRead"]:
             for plrIdx in range(0, kernel["PrefetchLocalRead"]):
               kl.append(self.comment("prefetch local a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, 0, tensorParametersA))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
               kl.append(self.comment("prefetch local b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, 0, tensorParametersB))
+              kl.append(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
               kl.append(self.comment1("local read increment a"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersA))
               kl.append(self.comment1("local read increment b"))
@@ -848,12 +849,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             localReads.addText(self.comment("local read a"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (u+pflr), tensorParametersA))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (u+pflr), tensorParametersB))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
             #container for holding local read A & B elements for later re-ordering
-            localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (u+pflr), tensorParametersA))
-            localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (u+pflr), tensorParametersB))
+            localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
+            localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
+
             # Don't increment the LRO if we are going to reset them below:
             if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
               localReads.addText(self.comment("local read increment a"))
@@ -1102,9 +1104,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # local read
             plrIdx = (unrollIter+pflr) % (kernel["PrefetchLocalRead"] + 1)
             localReads.addText(self.comment("local read a"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (unrollIter+pflr)%kernel["LoopIters"], tensorParametersA))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
-            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (unrollIter+pflr)%kernel["LoopIters"], tensorParametersB))
+            localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
             if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
               localReads.addText(self.comment("unroll increments:"))
               localReads.addText(self.comment("local read inc a"))
@@ -1278,9 +1280,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
           kl.append(self.comment("local read a"))
-          kl.append(self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersA))
+          kl.append(self.localReadDo(kernel, 0, iui, 0, tensorParametersA))
           kl.append(self.comment("local read b"))
-          kl.append(self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersB))
+          kl.append(self.localReadDo(kernel, 0, iui, 0, tensorParametersB))
           kl.append(self.comment("local read inc a"))
           kl.append(self.localReadInc(kernel, iui, tensorParametersA))
           kl.append(self.comment("local read inc b"))
@@ -1629,7 +1631,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else: # TN yes transpose
       self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
       self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"] if not kernel["TransposeLDS"] else kernel["NumLoadsCoalescedA"]
+      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
@@ -1644,9 +1646,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # LDS writes with LDL>1 will never be coalesced
           writeCoal = False
         else:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 if not kernel["TransposeLDS"] else False# Components
-          self.writeUnrollDimComponentsA = False  if not kernel["TransposeLDS"] else kernel["GlobalReadVectorWidth"] > 1 # Scalar
-          writeCoal = False if not kernel["TransposeLDS"] else True
+          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
       else: # read components, write vectors
         self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
         self.readTileDimVectorA = False # Components
@@ -1745,9 +1746,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # LDS writes with LDL>1 will never be coalesced
           writeCoal = False
         else:
-          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 if not kernel["TransposeLDS"] else False # Components
-          self.writeUnrollDimComponentsB = False if not kernel["TransposeLDS"] else kernel["GlobalReadVectorWidth"] > 1
-          writeCoal = False if not kernel["TransposeLDS"] else True
+          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
       else:
         self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
         self.readTileDimVectorB = False # Components
@@ -2354,7 +2354,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, epsi, uIdx, tP):
+  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, epsi, tP):
     return ""
 
   ##############################################################################
@@ -2502,6 +2502,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # get kernel name
   ##############################################################################
+  def getKernelFileBase(self, kernel):
+    rv = self.getKernelName(kernel)
+    return self.shortenFileBase(rv)
+
   def getKernelName(self, kernel):
     if globalParameters["ShortNames"]:
       kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -2612,22 +2616,36 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    kernelName = self.getKernelName(kernel)
-    kernelFileName_txt = "%s.s.txt" % kernelName
-    SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
-    REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
-    if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
-    REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
+    if not kernel["ReplacementKernel"]:
+      return None
 
-    print2("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-    if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
-      print2("Found replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-      return REPLACEMENT_KERNEL_PATH
+    kernelName = self.getKernelName(kernel)
+    return ReplacementKernels.Get(kernelName)
+
+  def shortenFileBase(self, base):
+    if len(base) <= globalParameters["MaxFileName"]:
+      return base
+
+    import hashlib
+    import base64
+
+    pivot = globalParameters["MaxFileName"] * 3 // 4
+    firstPart = base[:pivot]
+    secondPart = base[pivot:]
+
+    secondHash = hashlib.sha256(secondPart.encode()).digest()
+    #hash(secondPart)
+    #n = secondHash.bit_length()+1
+    #n = (n + 7) // 8
+    #secondBytes = secondHash.to_bytes(n, 'big', signed=True)
+    secondPart = base64.b64encode(secondHash, b'_-').decode()
+
+    return firstPart + secondPart
 
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
-    kernelName = self.getKernelName(kernel)
+    kernelName = self.shortenFileBase(self.getKernelName(kernel))
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
@@ -2661,6 +2679,7 @@ for codeObjectFileName in codeObjectFileNames:
     args = self.getCompileArgs(assemblyFileName, objectFileName)
     if globalParameters["PrintCodeCommands"]:
       print (' '.join(args), " && ")
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return objectFileName
@@ -2674,6 +2693,7 @@ for codeObjectFileName in codeObjectFileNames:
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
     if globalParameters["PrintCodeCommands"]:
       print (' '.join(args))
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return coFileName
@@ -2720,7 +2740,7 @@ for codeObjectFileName in codeObjectFileNames:
         coFile = self.getSingleCodeObjectFile(kernel)
         kernelName = self.getKernelName(kernel)
 
-        if globalParameters["CodeFromFiles"]:
+        if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
           # I guess in this case we are making sure that the code object file exists by executing the code 
           # above but we aren't placing it into the source.
           return (0, "")

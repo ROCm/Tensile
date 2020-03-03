@@ -2468,9 +2468,8 @@ class KernelWriterSource(KernelWriter):
 
   ##############################################################################
   # Local Read: Do It A/B
-  # uIdx - Unroll Idx
   ##############################################################################
-  def localReadDo(self, kernel, black, iui, epsi, uIdx, tP):
+  def localReadDo(self, kernel, black, iui, epsi, tP):
     kStr = ""
     for r in range(0, kernel[tP["tt"]]//kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):
@@ -3084,7 +3083,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def kernelBodyPrefix(self, kernel, tPA, tPB ):
     kStr = ""
-    kernelName = self.getKernelName(kernel)
+    kernelName = self.getKernelFileBase(kernel)
     if not globalParameters["MergeFiles"]:
       kStr += "\n"
       kStr += "#include \"%s.h\"\n" % kernelName

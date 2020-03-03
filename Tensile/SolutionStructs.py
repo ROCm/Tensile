@@ -2199,16 +2199,15 @@ class Solution:
 
     # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
-       and state["ProblemType"]["DataType"].isHalf():
+      and state["ProblemType"]["DataType"].isHalf():
 
-       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
-       if state["VectorWidth"] < 2:
-         reject(state, "VectorWidth must be >= 2 for half")
-       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
-         if (state["AssertSummationElementMultiple"] % 2 != 0 or \
-             state["AssertFree0ElementMultiple"] % 2 != 0):
-           # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
-            reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
+      # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
+      if state["VectorWidth"] < 2:
+        reject(state, "VectorWidth must be >= 2 for half")
+      if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+        if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
+          # beta-on-edge has AF0EM requirement except for HPA kernels
+          reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
 
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
     #    reject(state, "PackSummationDims does not yet support assembly")
@@ -2536,20 +2535,12 @@ class Solution:
     # only support
     if state["DirectToLds"] == 1:
         state["LdsBlockSizePerPad"] = 256
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
-    if not state["LdsBlockSizePerPad"] == -1:
-        #calculate number of boundaries from MT*depthU
-      LdsPadCntA = (state["DepthU"]*state["MacroTile0"])//(state["LdsBlockSizePerPad"] // state["ProblemType"]["DataType"].numBytes())
-      LdsPadCntB = (state["DepthU"]*state["MacroTile1"])//(state["LdsBlockSizePerPad"] // state["ProblemType"]["DataType"].numBytes())
-      ldsNumElementsA = state["DepthU"]*state["MacroTile0"]+LdsPadCntA*state["LdsPadA"]
-      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
-      ldsNumElementsB = state["DepthU"]*state["MacroTile1"]+LdsPadCntB*state["LdsPadB"]
-      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
-    else:
-      ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
-      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
-      ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
-      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
+    ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
+    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
+    ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:

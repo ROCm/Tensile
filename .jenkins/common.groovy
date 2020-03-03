@@ -14,21 +14,22 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             hostname
 
-            export PATH=/opt/rocm/bin:$PATH
             cd ${project.paths.project_build_prefix}
 
-            mkdir build
-            pushd build
- 
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
-            make -j\$(nproc)
-
-            popd
             #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
+
+            mkdir build
+            pushd build
+ 
+            export PATH=/opt/rocm/bin:$PATH
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+            make -j\$(nproc)
+
+            popd
 
             doxygen docs/Doxyfile
             """

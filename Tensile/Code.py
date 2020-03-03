@@ -305,10 +305,10 @@ class  MFMAInst (Inst):
       # single precision
       kStr = ""
       numOfRowsperMfma = 1
-      numOfRowInsts = kernel["ThreadTile0"]/numOfRowsperMfma
+      numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
       #numOfColsperMfma = kernel["MatrixInstN"]
       #numOfColInsts = kernel["ThreadTile1"]/numOfColsperMfma
-      numOfDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
+      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, innerUnroll):
            cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs,numOfDstRgs)
@@ -316,7 +316,7 @@ class  MFMAInst (Inst):
                % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
            bStr = "v[%s+%u]" \
                % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
-           kStr += "v_mfma_f32_%ux%ux%uf32 %s, %s, %s, %s%s" % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], cStr, aStr, bStr, cStr, self.endLine)
+           kStr += "v_mfma_f32_%ux%ux%uf32 %s, %s, %s, %s%s" % (self.kernel["MatrixInstM"], self.kernel["MatrixInstN"], self.kernel["MatrixInstK"], cStr, aStr, bStr, cStr, self.endLine)
       else:
         printExit("Assembly doesn't support %s" % self.kernel["ProblemType"]["DataType"])
 
@@ -324,7 +324,7 @@ class  MFMAInst (Inst):
 
   def getLatency(self):
       # return latency in cycles
-      return  (kernel["MatrixInstM"] // 4 ) * 8
+      return  (self.kernel["MatrixInstM"] // 4 ) * 8
 
 
 ################################################################################
