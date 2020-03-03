@@ -3413,8 +3413,6 @@ class KernelWriterAssembly(KernelWriter):
            kernel["ProblemType"]["DataType"].isBFloat16() or \
            kernel["ProblemType"]["DataType"].isSingle() or \
            kernel["ProblemType"]["DataType"].isInt8x4():
-          kStr += inst("s_load_dword", sgpr("Beta"), \
-              sgpr("KernArgAddress",2), hex(self.kernArgOffset), "load beta" )
           kStr += self.getKernArg("Beta+0")
         elif kernel["ProblemType"]["DataType"].isDouble() or \
              kernel["ProblemType"]["DataType"].isSingleComplex():
@@ -3464,9 +3462,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getKernArg("NumWorkGroups1")
       kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
       kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
-      kStr += self.getKernArg("NumFullBlocks")
-      kStr += self.getKernArg("WgmRemainder1")
-      kStr += self.getKernArg("MagicNumberWgmRemainder1")
+      kStr += self.getKernArg("NumFullBlocks", 1 if abs(kernel["WorkGroupMapping"]) > 1 else 0)
+      kStr += self.getKernArg("WgmRemainder1", 1 if abs(kernel["WorkGroupMapping"]) > 1 else 0)
+      kStr += self.getKernArg("MagicNumberWgmRemainder1", 1 if abs(kernel["WorkGroupMapping"]) > 1 else 0)
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % self.kernArgOffset )
