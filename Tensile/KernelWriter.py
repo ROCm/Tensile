@@ -743,6 +743,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("local read addresses: declare addresses b"))
       kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
 
+    kl.append(self.waitResources(kernel))
+
     # doShadowInit perfoms initialization in the 'shadow' of the global mem prefetch
     self.doShadowInit = 0
     if kernel["PrefetchGlobalRead"]:

@@ -3466,8 +3466,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getKernArg("WgmRemainder1", 1 if abs(kernel["WorkGroupMapping"]) > 1 else 0)
       kStr += self.getKernArg("MagicNumberWgmRemainder1", 1 if abs(kernel["WorkGroupMapping"]) > 1 else 0)
 
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", \
-          "wait for %u bytes of kern args" % self.kernArgOffset )
     else:
       kStr += ".if 0\n"
 
@@ -3554,6 +3552,14 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+  ##############################################################################
+  # Wait Resources
+  ##############################################################################
+  def waitResources(self,kernel):
+    kStr = ""
+    kStr += inst("s_waitcnt", "lgkmcnt(0)", \
+        "wait for %u bytes of kern args" % self.kernArgOffset )
+    return kStr
 
   ##############################################################################
   # Perform a magic division (mul by magic number and shift)
