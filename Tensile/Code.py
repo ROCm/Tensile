@@ -299,7 +299,13 @@ class  MFMAInst (Inst):
 
   """
   def  __init__(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
-       Inst.__init__(self,*args)
+       self.endLine = ""
+       self.version = globalParameters["CurrentISA"]
+       self.kernel  = kernel
+       self.aIdx    = aIdx
+       self.bIdx    = bIdx
+       self.PLR     = PLRval
+       self.innerUnroll = innerUnroll
 
   def __str__(self):
       # single precision
@@ -310,7 +316,7 @@ class  MFMAInst (Inst):
       #numOfColInsts = kernel["ThreadTile1"]/numOfColsperMfma
       numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
-        for iui in range(0, innerUnroll):
+        for iui in range(0, self.innerUnroll):
            cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs,numOfDstRgs)
            aStr = "v[%s+%u]" \
                % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
