@@ -622,7 +622,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for iui in range(0,kernel["InnerUnroll"]):
         if self.enable["LocalRead"]:
           if u < kernel["LoopIters"]-1 or not kernel["PrefetchLocalRead"]:
-            if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+            if kernel["MatrixInstruction"] and \
+              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+              # Reading 16-bit data from LDS requires packing when ECC enabled
               kl.append(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA)
               kl.append(localReadCodeA)
@@ -776,7 +778,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             pack[plrIdx] = Code.Module()
             for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
               for iui in range(0,kernel["InnerUnroll"]):
-                if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+                if kernel["MatrixInstruction"] and \
+                  (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+                  # Reading 16-bit data from LDS requires packing when ECC enabled
                   kl.append(self.comment("local read prefetch a"))
                   localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, espi, tensorParametersA)
                   kl.append(localReadCodeA)
@@ -879,7 +883,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           for plrIdx in range(0, kernel["PrefetchLocalRead"]):
             pack[plrIdx] = Code.Module()
             for iui in range(0,kernel["InnerUnroll"]):
-              if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+              if kernel["MatrixInstruction"] and \
+                (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+                # Reading 16-bit data from LDS requires packing when ECC enabled
                 kl.append(self.comment("prefetch local a"))
                 localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA)
                 kl.append(localReadCodeA)
@@ -923,7 +929,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         localReadsB = Code.Module()
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
-            if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+            if kernel["MatrixInstruction"] and \
+              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+              # Reading 16-bit data from LDS requires packing when ECC enabled
               localReads.addText(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA)
               localReads.addCode(localReadCodeA)
@@ -1191,7 +1199,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             # local read
-            if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+            if kernel["MatrixInstruction"] and \
+              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+              # Reading 16-bit data from LDS requires packing when ECC enabled
               localReads.addText(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA)
               localReads.addCode(localReadCodeA)
@@ -1370,7 +1380,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # tail loop reload data and store in lds[0]
         # if we have prefetchLocalRead, lds[0] will have prefetch data during main loop without release tempVgpr before tail loop localRead
         # will have Tensile::WARNING: RegisterPool::checkIn(XXX) but it was never checked out
-        if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16() and kernel["PrefetchLocalRead"]:
+        if kernel["MatrixInstruction"] and kernel["PrefetchLocalRead"] and \
+          (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
           for item in list(pack[0].items()):
             for packCode in list(item.items()):
               self.vgprPool.checkIn(packCode.tempVgpr)
@@ -1385,7 +1396,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       pack[0] = Code.Module()
       for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
-          if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+          if kernel["MatrixInstruction"] and \
+            (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+            # Reading 16-bit data from LDS requires packing when ECC enabled
             kl.append(self.comment("local read a"))
             localReadCodeA, packCodeA = self.localReadDo(kernel, 0, iui, 0, tensorParametersA)
             kl.append(localReadCodeA)
