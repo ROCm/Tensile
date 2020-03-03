@@ -7815,7 +7815,7 @@ class KernelWriterAssembly(KernelWriter):
           for subTile1Idx in range(0, subTile1):
             for shiftIdx in range(0, r):
               dstVgpr = subTile1Idx*numOutputElements + packIdx*numContinuousOutput + outIdx*glvw + shiftIdx
-              srcVgpr = subTile1Idx*numOutputElements + packIdx*numContinuousOutput + outIdx*glvw + shiftIdx + 1
+              srcVgpr = subTile1Idx*numOutputElements + packIdx*numContinuousOutput + outIdx*glvw + shiftIdx + (glvw - r)
               kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
 
         # end shift reset mask and jump out
