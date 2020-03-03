@@ -346,6 +346,9 @@ validParameters = {
     # G2L registers used to stage data.  Also replaces the
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
+    #    - Requirements for DirectToLds=1: 
+    #      GlobalLoadVectorWidth? = 1
+    #      TransposeLDS = 1 for TLU=0 case
     "DirectToLds":                [ False, True ],
 
     # Load options:
@@ -377,6 +380,16 @@ validParameters = {
     #  = KernelWriterAssembly also supports 64-bit 2D buffer size (see use64bPbcLimit)
     #    - Requires 4 instructions to move scalar limit and a couple SGPR
     #    - Enabled by default.  If the overhead matters we can add asserts/YAML parm to specialize
+    #  = UseInstOffsetForGRO=1:
+    #    + Attempt to use Instruction offset for Global Read Offsets.
+    #    + This feature avoid updating m0 for subsequent GRO(s) for directToLds feature
+    #    - Requirements for UseInstOffsetForGRO=1:
+    #      - BufferLoad=1
+    #      - DirectToLds=1
+
+    #  converting m0 update from LocalWriteAddrSGpr using  is usually win
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
+    "UseInstOffsetForGRO":              [ -1, 0, 1],
 
 
     # Converting VGPR GRO into SGPR GRO is usually a win
@@ -808,6 +821,7 @@ defaultBenchmarkCommonParameters = [
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
+    {"UseInstOffsetForGRO":       [ 0 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },

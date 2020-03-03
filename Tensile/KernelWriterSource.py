@@ -2262,6 +2262,16 @@ class KernelWriterSource(KernelWriter):
     return imod
 
   ##############################################################################
+  # DirectToLds M0 update: Do It A/B
+  ##############################################################################
+  def directToLdsM0Update(self, kernel, mode, tP):
+    tc = tP["tensorChar"]
+    imod = Code.Module("directToLdsM0Update%s_%u"%(tc,mode))
+    DtldsModule = imod.addCode(Code.Module("dtls_offset%s"%tP["tensorChar"]))
+    return imod
+
+
+  ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):

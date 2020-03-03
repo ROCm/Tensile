@@ -305,13 +305,13 @@ class  MFMAInst (Inst):
       # single precision
       kStr = ""
       numOfRowsperMfma = 1
-      numOfColsperMfma = kernel["MatrixInstN"]
-      numOfRowInsts = kernel["ThreadTile0"]/numberOfRowsperMfma
-      numOfColInsts = kernel["ThreadTile1"]/numberOfColsperMfma
+      numOfRowInsts = kernel["ThreadTile0"]/numOfRowsperMfma
+      #numOfColsperMfma = kernel["MatrixInstN"]
+      #numOfColInsts = kernel["ThreadTile1"]/numOfColsperMfma
       numOfDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, innerUnroll):
-           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numberofRowInsts,numberofDstRgs,self.aIdx,numberofDstRgs,self.bIdx,numberofRowInsts,numberofDstRgs,numberofDstRgs)
+           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs,numOfDstRgs)
            aStr = "v[%s+%u]" \
                % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
            bStr = "v[%s+%u]" \

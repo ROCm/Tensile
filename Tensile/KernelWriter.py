@@ -86,6 +86,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def makeSchedule(self, kernel, tensorParametersA, tensorParametersB, localWriteEndIter):
     # 0x2=print GR and LW code blocks, 0x1= print info messages
     schedDb = 0
+    schedDtls = 0
 
     currentIsa = globalParameters["CurrentISA"]
     maxVmcnt = globalParameters["AsmCaps"][currentIsa]["MaxVmcnt"]
@@ -102,7 +103,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
       # put everything in the header:
+      self.unrollLoopHeaderCode.addCode(self.dtlsM0UpdateACode)
       self.unrollLoopHeaderCode.addCode(self.globalReadACode)
+      self.unrollLoopHeaderCode.addCode(self.dtlsM0UpdateBCode)
       self.unrollLoopHeaderCode.addCode(self.globalReadBCode)
       self.unrollLoopHeaderCode.addCode(globalReadIncACode)
       self.unrollLoopHeaderCode.addCode(globalReadIncBCode)
@@ -136,6 +139,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
+      #front load dtlsM0UpdateACode code for A loads
+      self.perIterGlobalReadCode[0].addCode(self.dtlsM0UpdateACode)
       # append 'n' global load at a time 
       # append global load(S) first 'number of global load(s) determined by  firstStep
       for item in itemsToSched[:firstStep]:
@@ -144,6 +149,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for u in range(1, endIter):
         itemPerIter = 1
         try:
+          #insert dtlsM0UpdateBCode code for B loads
+          if ((u+firstStep > self.globalReadACode.middle.countType(Code.GlobalReadInst)) and not schedDtls):
+            self.perIterGlobalReadCode[u].addCode(self.dtlsM0UpdateBCode) 
+            schedDtls = 1
           for item in itemsToSched[:itemPerIter]:
             self.perIterGlobalReadCode[u].addCode(item)
             lastLoadIter = u
@@ -530,7 +539,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("prefetch: global -> local"))
       kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=False))
       if self.enable["GlobalRead"]:
+        kl.append(str(self.directToLdsM0Update(kernel, 0, tensorParametersA)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
+        kl.append(str(self.directToLdsM0Update(kernel, 0, tensorParametersB)))
         kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
       if self.enable["GlobalReadInc"]:
         kl.append(self.globalReadIncrementAB(kernel, self.unrollIdx, pfi))
@@ -731,10 +742,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["GlobalRead"]:
         # unrolled loop: global read A, B
+        # M0 update for directToLds 
+        self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 1, tensorParametersA)
         self.globalReadACode = self.globalReadDo(kernel, 1, tensorParametersA)
+        self.dtlsM0UpdateBCode = self.directToLdsM0Update(kernel, 1, tensorParametersB)
         self.globalReadBCode = self.globalReadDo(kernel, 1, tensorParametersB)
       else:
+        self.dtlsM0UpdateACode = Code.StructuredModule() 
         self.globalReadACode = Code.StructuredModule() # empty
+        self.dtlsM0UpdateBCode = Code.StructuredModule() 
         self.globalReadBCode = Code.StructuredModule() # empty
 
       if self.enable["GlobalReadInc"]:
@@ -1215,8 +1231,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.removeStagger(kernel, tensorParametersA))
           kl.append(self.removeStagger(kernel, tensorParametersB))
 
+        kl.append(self.comment("Update M0 for DTLDS"))
+        kl.append(str(self.directToLdsM0Update(kernel, 1, tensorParametersA)))
         kl.append(self.comment("global read a"))
         kl.append(str(self.globalReadDo(kernel, 2, tensorParametersA)))
+        kl.append(self.comment("Update M0 for DTLDS"))
+        kl.append(str(self.directToLdsM0Update(kernel, 1, tensorParametersB)))
         kl.append(self.comment("global read b"))
         kl.append(str(self.globalReadDo(kernel, 2, tensorParametersB)))
       if self.enable["Wait"]:
@@ -2264,6 +2284,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def globalReadDo(self, kernel, mode, tP):
+    return ""
+
+  ##############################################################################
+  # directToLds m0 update: Do It A/B
+  # mode: 0=prefetch, 1=unroll loop, 2=guardK
+  ##############################################################################
+  @abc.abstractmethod
+  def directToLdsM0Update(self, kernel, mode, tP):
     return ""
 
   ##############################################################################
