@@ -2267,7 +2267,6 @@ class KernelWriterSource(KernelWriter):
   def directToLdsM0Update(self, kernel, mode, tP):
     tc = tP["tensorChar"]
     imod = Code.Module("directToLdsM0Update%s_%u"%(tc,mode))
-    DtldsModule = imod.addCode(Code.Module("dtls_offset%s"%tP["tensorChar"]))
     return imod
 
 

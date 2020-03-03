@@ -5177,7 +5177,7 @@ class KernelWriterAssembly(KernelWriter):
           numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
           assert(numPerpElementsPerWave>0)
           #calculate numberofLoads
-          wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
+          #wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
           #LdsPadCnt = (((kernel["MacroTile%s"%tc] * kernel["DepthU"])*tP["bpe"])//wavefronts)//kernel["LdsBlockSizePerPad"]
           LdsPadCnt = (numPerpElementsPerWave * kernel["DepthU"] * tP["bpe"])//kernel["LdsBlockSizePerPad"]
           LdsPad_val = LdsPadCnt * (kernel["LdsPad%s"%tc]* tP["bpe"])
