@@ -4689,6 +4689,10 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
+
+      if tP["glvw"] > 1:
+        kStr += self.comment1("gro-tile *= glvw")
+        kStr += staticMultiply(vgpr(rReg), vgpr(rReg), tP["glvw"], sgpr(tmpSgpr))
       self.vgprPool.checkIn(tmpVgpr)
       
       kStr += self.comment1("lwaTileAssignment%s = %s" % (tP["tensorChar"], \
@@ -8599,7 +8603,7 @@ class KernelWriterAssembly(KernelWriter):
         fullVw = kernel["StoreVectorWidth"]
     else:
       fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
-    fullVw = min(fullVw, self.maxGwvw(kernel)) if not kernel["ProblemType"]["MirrorDimsA"] else 1
+    fullVw = min(fullVw, self.maxGwvw(kernel))
 
     if kernel["MatrixInstruction"]:
       #vg20 C registers holds coalscing C elements (MT0x1) in subgroup0  consecutive lanes 
@@ -9005,10 +9009,7 @@ class KernelWriterAssembly(KernelWriter):
               numberofRowDstRgs = (numberofDstRgs//kernel["MatrixInstB"]) * numberRowBlocks
             sumIdx = kw.startVgprValuC + vc0 + d0*bestVw + vc1*kernel["ThreadTile0"]*numberofDstRgs + d1*kernel["ThreadTile0"]*numberofRowDstRgs*mfmaColStoreVw
           else:
-            if kernel["ProblemType"]["MirrorDimsA"] == [2]:
-              sumIdx = kw.startVgprValuC + (kernel["ThreadTile0"] - vc0 - 1) + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
-            else:
-              sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+            sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
 
@@ -9513,6 +9514,20 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
 
+
+    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
+      kStr += self.comment("reverse values in the thread tile")
+      swapTmp = self.vgprPool.checkOut(1)
+      for tt1 in range(kernel["ThreadTile1"]):
+        for j in range(kernel["ThreadTile0"] // 2):
+          sumIdxFirst = self.startVgprValuC + tt1 * kernel["ThreadTile0"] + j
+          sumIdxSencond = self.startVgprValuC + tt1 * kernel["ThreadTile0"] + (kernel["ThreadTile0"] - j - 1)
+
+          kStr += inst("v_mov_b32", vgpr(swapTmp), vgpr(sumIdxFirst), "tmp = firstElem")
+          kStr += inst("v_mov_b32", vgpr(sumIdxFirst), vgpr(sumIdxSencond), "firstElem = secondElem")
+          kStr += inst("v_mov_b32", vgpr(sumIdxSencond), vgpr(swapTmp), "secondElem = tmp")
+      kStr += ""
+      self.vgprPool.checkIn(swapTmp)
 
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
