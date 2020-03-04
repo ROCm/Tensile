@@ -177,7 +177,7 @@ class RegisterPool:
       elif self.pool[i].status == self.statusUnAvailable:
         printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i))
       elif  self.pool[i].status == self.statusInUse:
-        printWarning("RegisterPool::remove(%u,%u) pool[%u] still in use" % (start, size, i))
+        printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) still in use" % (start, size, i, self.pool[i].tag))
       else:
         printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
 
@@ -5297,12 +5297,18 @@ class KernelWriterAssembly(KernelWriter):
   # Initialize C
   ##############################################################################
   def initC(self, kernel):
-    # remove the C regs from the pool since we are about to write them here:
-    self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
+    kStr = ""
+    if kernel["MatrixInstruction"]:
+      pass # we can delay initializing them until before the writeback, where
+           # alpha/beta operations and packing are about to be performed
+    else:
+      # remove the C regs from the pool since we are about to write them here:
+      kStr += self.comment("initC: remove C-tile %u-%u from pool"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC))
+      self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
+
     self.vgprPool.remove(self.startVgprValuA, \
         self.lastValuAB - self.startVgprValuA, "ValuAB")
 
-    kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
 
@@ -6942,11 +6948,11 @@ class KernelWriterAssembly(KernelWriter):
                     "vcc", \
                     "gra += 1 (upper)")
               # pack 2x registers containing 16-bit each into one 32-bit packed half-dword
-              if destVgprHi and r % 2 == 1:
+              if destVgprHi != None and r % 2 == 1:
                 kStr += "s_waitcnt vmcnt(0)\n"
                 kStr += "v_or_b32 " + vgpr(destVgpr) + ", " + vgpr(destVgpr) + ", " + vgpr(destVgprHi) + " // HasEccHalf: pack\n"
               r += 1 # next component (for half)
-              if destVgprHi: self.vgprPool.checkIn(destVgprHi)
+              if destVgprHi != None: self.vgprPool.checkIn(destVgprHi)
             # end R loop
 
     if self.db["ConservativeWaitCnt"] & 0x1:
@@ -8643,8 +8649,8 @@ class KernelWriterAssembly(KernelWriter):
     # tid0, tid1: element offsets from the start of macroTile in 0 and 1 direction
     # These will live for entire GlobalWrite loop - allocate before tmps
     # to avoid fragmentation
-    tid0 = self.vgprPool.checkOut(1)
-    tid1 = self.vgprPool.checkOut(1)
+    tid0 = self.vgprPool.checkOut(1, "tid0")
+    tid1 = self.vgprPool.checkOut(1, "tid1")
 
     if kernel["BufferStore"]:
       self.cinRowPtr  = self.vgprPool.checkOut(1, "cinRowPtr")
@@ -8652,13 +8658,13 @@ class KernelWriterAssembly(KernelWriter):
         self.coutRowPtr = self.vgprPool.checkOut(1, "coutRowPtr")
 
     if kernel["MatrixInstruction"]:
-      tmpV0 = self.vgprPool.checkOut(5) #v2 v5 v75
+      tmpV0 = self.vgprPool.checkOut(5, "tmpV0") #v2 v5 v75
       tmpV1 = tmpV0+1                   #v4
       tmpV2 = tmpV0+2                   #v3
       tmpV3 = tmpV0+3                   #v6 v74
       tmpV4 = tmpV0+4
-      mfma_addr0 = self.vgprPool.checkOut(1) #To store output address offset for non-edge case
-      mfma_addr1 = self.vgprPool.checkOut(1) #but should not use address offset here
+      mfma_addr0 = self.vgprPool.checkOut(1, "mfma_addr0") #To store output address offset for non-edge case
+      mfma_addr1 = self.vgprPool.checkOut(1, "mfma_addr1") #but should not use address offset here
       if 0:
         kStr += vectorStaticDivide(tmpV0, "Serial", globalParameters["WavefrontWidth"], tmpV1, tmpS0)
         #kStr += staticMultiply(vgpr(tmpV1), vgpr(tmpV0), globalParameters["WavefrontWidth"], tmpS0) # BBlocks
@@ -8752,7 +8758,7 @@ class KernelWriterAssembly(KernelWriter):
         self.mfma_addr1 = mfma_addr1
       self.vgprPool.checkIn(tmpV0)
     else:
-      tmpV0 = self.vgprPool.checkOut(2)
+      tmpV0 = self.vgprPool.checkOut(2, "tmpV0")
       kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
           tmpV0, tmpS0)
       kStr += staticMultiply(vgpr(tid0), vgpr(tid0), tid0Scale, sgpr(tmpS1))
@@ -8903,7 +8909,7 @@ class KernelWriterAssembly(KernelWriter):
       self.addrD = -1
       self.addrC = -1
     else:
-      self.addrD = self.vgprPool.checkOut(2)
+      self.addrD = self.vgprPool.checkOut(2, 'addrD')
       kStr += inst("v_mov_b32", \
           vgpr(self.addrD+0), \
           sgpr("AddressD+0"), \
@@ -8912,7 +8918,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(self.addrD+1), \
           sgpr("AddressD+1"), \
           "sgpr -> vgpr")
-      self.addrC = self.vgprPool.checkOut(2)
+      self.addrC = self.vgprPool.checkOut(2, 'addrC')
       kStr += inst("v_mov_b32", \
           vgpr(self.addrC+0), \
           sgpr("AddressC+0"), \
@@ -11322,6 +11328,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("Mapping of Acc register -> C Vgpr register")
 
+    # remove the C regs from the pool since we are about to write them here:
+    kStr += self.comment("remove C-tile %u-%u from pool"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC))
+    self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
 
     #numRegsPerInstructions = self.destAgprs
     AccRegIdx =0
