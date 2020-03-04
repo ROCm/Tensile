@@ -2592,8 +2592,9 @@ class Solution:
         % (state["LoopIters"],state["PrefetchLocalRead"]))
 
     # reject conditions with lower performance
-    if state["ScheduleIterAlg"] == 2 and state["ExpandPointerSwap"] != 1:
-      reject(state, "ScheduleIterAlg 2 only work with EPS1")
+    if state["ScheduleIterAlg"] == 2 and \
+    (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
+      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGW1, LoopIter=1")
     
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
