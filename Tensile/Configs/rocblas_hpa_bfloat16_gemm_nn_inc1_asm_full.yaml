@@ -53,9 +53,9 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         #- LoopTail: [True]
         - PrefetchLocalRead: [True]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
       ForkParameters:
+        - AssertSummationElementMultiple: [1, 2]
+        - AssertFree0ElementMultiple: [1, 2]
         - MatrixInstruction:
           - [32, 32, 2, 2]
         - PrefetchGlobalRead: [True]
@@ -210,9 +210,9 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         #- LoopTail: [True]
         - PrefetchLocalRead: [True]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
       ForkParameters:
+        - AssertSummationElementMultiple: [1, 2]
+        - AssertFree0ElementMultiple: [1, 2]
         - MatrixInstruction:
           - [32, 32, 2, 2]
         - PrefetchGlobalRead: [True]

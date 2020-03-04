@@ -59,15 +59,15 @@ This step is driven by the scripts/provision_tuning.sh script. This script will 
 
 The log file can be generated using ROCBLAS_LAYER=2 in rocblas bench. e.g.
 
-`$ ROCBLAS_LAYER=2 ./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1.0 --lda 1600 --ldb 1024 --beta 1.0 --ldc 1600`
+`$ ROCBLAS_LAYER=2 ./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1.0 --lda 1600 --ldb 1024 --beta 1.0 --ldc 1600 -i 10`
 
 This will produce the calls to rocblas. Example output.
 
 ```
-./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
-./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
-./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
-./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600 -i 10
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600 -i 10
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600 -i 10
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB N -m 1600 -n 512 -k 1024 --alpha -1 --lda 1600 --ldb 1024 --beta 1 --ldc 1600 -i 10
 transA,transB,M,N,K,alpha,lda,ldb,beta,ldc,rocblas-Gflops,us
 N,N,1600,512,1024,-1,1600,1024,1,1600,6641.81,252.6
 ```
@@ -166,7 +166,7 @@ $ popd
 
 
 ```bash
-usage: ./analyze-results.sh [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-h|--help]
+usage: ./analyze-results.sh [-b|--benchmark-path <benchmark results path>] [-r| --reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-h|--help]
 
 args:
 -b|--benchmark-path     the benchmark path (rocBLAS with new logic)
@@ -174,6 +174,9 @@ args:
 -o|--output             the output of the analysis
 -f                      frequency which the gpu was set at during validation
 -s                      the size of the datatype
+-z			            the log file used, in order to collect the call_count (-i)
+-g|--gpu                the gpu used when tuning
+-m|--mfma               whether mfma instructions were used during validation
 -h|--help               the help
 
 ```
@@ -188,5 +191,5 @@ reference       results for the version of rocBLAS without the new logic
 
 Example:
 ```
-$ ./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results
+$ ./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results -z sizes.log -g mi50 -m disabled
 ```

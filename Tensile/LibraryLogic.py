@@ -281,12 +281,13 @@ class LogicAnalyzer:
     self.rangeProblemSizes = set()
     for problemSizes in problemSizesList:
       # add exacts
-      for exactSize in problemSizes.exacts:
-        self.exactProblemSizes.add(tuple(exactSize))
+      for problem in problemSizes.exacts:
+        self.exactProblemSizes.add(tuple(problem.sizes))
 
       # add ranges
       #print "ProblemSizes", problemSizes.sizes
-      self.rangeProblemSizes.update(problemSizes.sizes)
+      #FIXME-problem
+      self.rangeProblemSizes.update([tuple(problem.sizes) for problem in problemSizes.problems])
       for rangeSize in problemSizes.ranges:
 
         if globalParameters["ExpandRanges"]: 

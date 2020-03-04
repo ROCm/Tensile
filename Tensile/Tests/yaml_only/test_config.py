@@ -17,7 +17,7 @@ def walkDict(root, path=""):
         for key, value in root.items():
             keypath = key
             if path != "":
-                keypath = path + "." + keypath
+                keypath = path + "." + str(keypath)
             yield from walkDict(value, keypath)
     elif isinstance(root, list):
         for i,obj in enumerate(root):
@@ -99,7 +99,9 @@ def configMarks(filepath, rootDir, availableArchs):
     operationTypes = set([problem[0]["OperationType"] for problem in doc["BenchmarkProblems"]])
     
     languages = set()
+    #print ("***doc=", doc)
     for obj, path in walkDict(doc):
+        #print ("  obj=", obj, "path=", path)
         if "KernelLanguage" in path and isinstance(obj, str):
             languages.add(obj)
     

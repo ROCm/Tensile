@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 # #################################################
 # Parameter parsing
 # #################################################
@@ -10,15 +8,15 @@ WORKING_PATH='release'
 HELP=false
 ROCBLAS=false
 PROVISION_BRANCH='develop'
-TENSILE_HOST='https://github.com/ROCmSoftwarePlatform/Tensile.git'
-ROCBLAS_HOST='https://github.com/ROCmSoftwarePlatform/rocBLAS.git'
+TENSILE_FORK='RocmSoftwarePlatform'
+ROCBLAS_FORK='RocmSoftwarePlatform'
 
 GIT_HOST="${TENSILE_HOST}"
-PROVISION_PATH=Tensile
+PROVISION_PATH='Tensile'
 
-HELP_STR="usage: $0 [-b|--branch <branch>] [-w|--working-path <path>] [-i <identifier>] [-t|--tag <githup tag>] [-h|--help]"
+HELP_STR="usage: $0 [-b|--branch <branch>] [-f|--tensile-fork <username>] [-w|--working-path <path>] [-i <identifier>] [-t|--tag <githup tag>] [-h|--help]"
 
-OPTS=`getopt -o ht:w:b:c:i:r --long help,branch:,tag:,working-path:,commit: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hf:rw:t:b:c:i: --long help,tensile-fork:,rocblas-fork:,working-path:,tag:,branch:,commit: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -27,7 +25,9 @@ eval set -- "$OPTS"
 while true; do
   case "$1" in
     -h | --help )         HELP=true; shift ;;
-    -r )                  GIT_HOST="${ROCBLAS_HOST}";PROVISION_PATH='rocBLAS'; shift;;
+    -f | --tensile-fork ) TENSILE_FORK="$2"; shift 2;;
+    --rocblas-fork )      ROCBLAS_FORK="$2"; shift 2;;
+    -r )                  PROVISION_PATH='rocBLAS'; shift;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
     -t | --tag )          TAG="$2"; shift 3;;
     -b | --branch  )      PROVISION_BRANCH="$2"; shift 2;;
@@ -46,6 +46,15 @@ fi
 mkdir -p ${WORKING_PATH}
 
 pushd ${WORKING_PATH} > /dev/null
+
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
+ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS.git"
+
+if [[ $PROVISION_PATH == "rocBLAS" ]]; then
+  GIT_HOST="${ROCBLAS_HOST}"
+else
+  GIT_HOST="${TENSILE_HOST}"
+fi
 
 if [ -n "${ID+foo}" ]; then
   PROVISION_PATH="${PROVISION_PATH}-${ID}"

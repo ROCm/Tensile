@@ -47,7 +47,7 @@ def write(filename, data):
     """ Write data to a given file. """
 
     with open(filename, 'w') as f:
-        yaml.dump(data, f, explicit_start=True, explicit_end=True)
+        yaml.dump(data, f, explicit_start=True, explicit_end=True, default_flow_style=None)
 
 ################################################################################
 # Write List of Solutions to YAML File
@@ -75,9 +75,10 @@ def writeSolutions( filename, problemSizes, solutions ):
   stream.write("- ProblemSizes:\n")
   for sizeRange in problemSizes.ranges:
     stream.write("  - Range: %s\n" % sizeRange)
-  for sizeExact in problemSizes.exacts:
-    stream.write("  - Exact: %s\n" % list(sizeExact))
-  yaml.dump(solutionStates, stream, default_flow_style=False)
+  for problemExact in problemSizes.exacts:
+    #FIXME-problem, this ignores strides:
+    stream.write("  - Exact: %s\n" % list(problemExact.sizes))
+  yaml.dump(solutionStates, stream, default_flow_style=None)
   stream.close()
 
 
@@ -201,7 +202,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, de
   # open & write file
   try:
     stream = open(filename, "w")
-    yaml.dump(data, stream)
+    yaml.dump(data, stream, default_flow_style=None)
     stream.close()
   except IOError:
     printExit("Cannot open file: %s" % filename)

@@ -22,7 +22,6 @@ GlobalParameters:
   CpuThreads: 0
   PrintSolutionRejectionReason: 1
   NewClient: 2
-  ProblemFromConvolution: 1
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorC: 0
@@ -64,4 +63,4 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           #   - Exact: [ -1, -1, 32, 16, 8]
-             - Exact: [ -1, 32, 16, 8]
+             - Exact: [ 64, 32, 16, 8]

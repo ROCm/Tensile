@@ -1,10 +1,9 @@
-import logging
-import pytest
+import logging,pytest
 from Tensile.SolutionStructs import Convolution
 log =logging.getLogger("testlog")
 
 """
-These tests run the convolution-vs-contraction mode always, 
+These tests run the convolution-vs-contraction mode always
 """
 
 def test_simple(run_convolution_vs_contraction):
@@ -20,7 +19,6 @@ def test_simple(run_convolution_vs_contraction):
     run_convolution_vs_contraction(conv)
 
 
-@pytest.mark.skip(reason="asm path fails")
 def test_stride1x2(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -33,6 +31,7 @@ def test_stride1x2(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_stride2x1(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -45,6 +44,7 @@ def test_stride2x1(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_stride2x3(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -71,7 +71,6 @@ def test_filter1x2(run_convolution_vs_contraction):
     run_convolution_vs_contraction(conv)
 
 
-@pytest.mark.xfail
 def test_filter2x1(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -108,6 +107,7 @@ def test_dilation1x2(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_dilation2x1(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -120,6 +120,7 @@ def test_dilation2x1(run_convolution_vs_contraction):
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)
 
+@pytest.mark.skip(reason="dilationY breaks conv reference model")
 def test_dilation2x3(run_convolution_vs_contraction):
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
@@ -138,6 +139,7 @@ def test_filter_stride_dilation_0(run_convolution_vs_contraction):
               config={'TensorAFormat': 'NCHW',
                       'TensorBFormat': 'KCYX',
                       'TensorDFormat': 'NCHW',
+                      'UnrollOnChannel': 0,
                       'Filter': '2x3',
                       'Stride': '2x3',
                       'Dilation': '2x3',
@@ -146,8 +148,6 @@ def test_filter_stride_dilation_0(run_convolution_vs_contraction):
     assert(z['NumIndicesC']==4)
     assert(z['IndexAssignmentsA']==[6,5, 0,1, 4,3])
     assert(z['IndexAssignmentsB']==[6,5, 4, 2, 3])
-    assert(z['SetConstStrideA']==[[0,3], [6,3]])
-    assert(z['SetConstStrideB']==[[3, 0]])
     assert(z['UseInitialStridesAB'])
     log.debug(conv.printUsage(z))
     run_convolution_vs_contraction(conv)

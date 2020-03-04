@@ -102,7 +102,7 @@ namespace Tensile
         EmbeddedData() = default;
 
         Map items;
-        const Items empty;
+        const Items empty = Items{};
     };
 
     /**

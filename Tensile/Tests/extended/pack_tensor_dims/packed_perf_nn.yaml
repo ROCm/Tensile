@@ -19,8 +19,6 @@ GlobalParameters:
   DataInitTypeBeta: 0
   KernelTime: True
   LibraryPrintDebug: 0
-  #RuntimeLanguage: ["OCL"]
-  #PrintTensorC : 2
   NewClient: 2
 
 BenchmarkProblems:

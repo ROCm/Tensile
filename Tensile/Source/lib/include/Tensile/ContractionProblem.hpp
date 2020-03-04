@@ -58,13 +58,15 @@ namespace Tensile
          */
         struct ZeroPad
         {
-            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t lp=0, int64_t tp=0) : 
-                anchorIndex(ai), boundIndex(bi), leadingPad(lp), trailingPad(tp) {};
+            ZeroPad(int32_t ai=-1, int32_t bi=-1, int64_t ps=0, int64_t pe=0) :
+                anchorIndex(ai), anchorPos(-1), boundIndex(bi), padStart(ps), padEnd(pe) {};
 
             int32_t  anchorIndex;
+            int32_t  anchorPos;  //! position of anchorIndex in A or B tensor
             int32_t  boundIndex;
-            int64_t  leadingPad;
-            int64_t  trailingPad;
+            int32_t  boundPos;   //! position of anchroIndex in A or B tensor
+            int64_t  padStart;
+            int64_t  padEnd;
 
             bool valid() const { return anchorIndex != -1; };
             std::string description() const;
@@ -98,7 +100,7 @@ namespace Tensile
         struct BoundIndex
         {
             BoundIndex(size_t xa=0, size_t xb=0) : a(xa), b(xb) {};
-            size_t a, b;
+            size_t a, b; //! positions in a or b tensor
             ZeroPad aZeroPad;
             ZeroPad bZeroPad;
         };
@@ -236,11 +238,17 @@ namespace Tensile
                            BoundIndices const& boundIndices,
                            double beta);
 
+        //! Returns size given original index assignment (in range 0..NumIndicesC+boundSizes)
+        size_t size(size_t idx) const;
+
         size_t freeSizeA(size_t idx) const;
         size_t freeSizeB(size_t idx) const;
 
         size_t batchSize(size_t idx) const;
         size_t boundSize(size_t idx) const;
+
+        size_t toAPos(size_t idx) const;
+        size_t toBPos(size_t idx) const;
 
         // Translate specified index into a position of that index in the d tensor.
         // Since d tensor order is always index order this is 1:1 translation if the 
@@ -302,6 +310,8 @@ namespace Tensile
         void addAZeroPad(const ZeroPad &zp);
         void addBZeroPad(const ZeroPad &zp);
 
+        bool transposeC01() const { return m_transposeC01; };
+
         double beta() const { return m_beta; }
 
         std::string const& aNames()   const { return m_aNames; }
@@ -355,6 +365,7 @@ namespace Tensile
         std::vector<size_t> m_problemSizes;
         std::vector<size_t> m_problemStrides;
 
+        bool   m_transposeC01;
         double m_beta;
 
         size_t m_maxProblemSize = 1;

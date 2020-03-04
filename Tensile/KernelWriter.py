@@ -21,7 +21,8 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, print2, CHeader, roundUp
+from .Common import globalParameters, CHeader, roundUp
+from .ReplacementKernels import ReplacementKernels
 from .SolutionStructs import Solution
 
 import abc
@@ -94,8 +95,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
-    globalReadIncACode = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
-    globalReadIncBCode = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
+    assert([item.name for item in self.globalReadIncrements.itemList] == ['globalReadIncrementA', 'globalReadIncrementB'])
+
+    globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
+    globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
     lastLoadIter = 0
     if not self.scheduleGlobalRead:
@@ -110,8 +113,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       readCnt = self.globalReadACode.middle.countType(Code.GlobalReadInst) + \
                 self.globalReadBCode.middle.countType(Code.GlobalReadInst)
-      # reads and incs are scheduled in iters range(0...endIter)
-      endIter = readCnt + 2 # 2 for incA and incB
+      # reads and incs are scheduled in iters range(0..endIter)
+      endIter = readCnt + 2;
 
 
       if endIter > kernel["LoopIters"]-1:
@@ -120,7 +123,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         firstStep = endIter-(kernel["LoopIters"]-1) + 1
         endIter = kernel["LoopIters"]-1
       else:
+	# schedule b2b for readCnt > 2 (True for bigger TT)
         firstStep = 1
+        
 
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
@@ -128,9 +133,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsToSched.append(globalReadIncACode)
       itemsToSched.append(globalReadIncBCode)
 
+
       if schedDb & 0x1:
         print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
 
+      # append 'n' global load at a time 
+      # append global load(S) first 'number of global load(s) determined by  firstStep
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
       itemsToSched = itemsToSched[firstStep:]
@@ -144,11 +152,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         except IndexError:
           break # no code left to schedule
 
-      assert not itemsToSched # should have scheduled everthing already
+      assert not itemsToSched # should have scheduled everything already
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
-
 
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
@@ -348,7 +355,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               lgkmcnt = localWrites  # this only survives if writes are at the end
 
       lgkmcnt = min(lgkmcnt, 15)
-      waitCode.comment += " old=%u new=%u" % (waitCode.lgkmcnt, lgkmcnt)
+      waitCode.comment += " old=%u new=%u (Local write no wait)" % (waitCode.lgkmcnt, lgkmcnt)
       waitCode.lgkmcnt = lgkmcnt
 
     return iterCode
@@ -829,6 +836,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReads.addText(self.comment("local read b"))
             localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
+            #container for holding local read A & B elements for later re-ordering
             localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersA))
             localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0, tensorParametersB))
 
@@ -887,7 +895,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Wait"]:
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               waitGlobalRead, waitLocalWrite, waitLocalRead, \
-              "wait for prior local read")
+              "wait for prior local read local write")
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
@@ -1187,8 +1195,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     ########################################
     # Tail Loop
+    # PackSummationDims=1 requires that the tile slice does not cross DepthU
+    # which means tail loop not needed.
     ########################################
-    if kernel["LoopTail"]:
+    if kernel["LoopTail"] and not kernel["PackSummationDims"]:
       kl.append(self.comment3("Tail Loop"))
 
       # Update local write pointers in case the upcoming global reads are writing directly to LDS:
@@ -1289,7 +1299,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # shift vector components d0
         if not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA:
           kl.append(self.comment("shift vector components d0"))
-          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+          if kernel["MatrixInstruction"]:
+            kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
+          else:
+            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
         # shift vector components d1
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
@@ -1456,6 +1469,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
     self.otherSummationLoops  = self.actualSummationLoops-1
     self.otherSummations      = kernel["ProblemType"]["NumIndicesSummation"]-1 # not loops but summations vars
+
+    # If 0, unroll loop is decremented by 1 each iteration and scaled by DEPTHU when number of summation elements
+    # is required.
+    # if 1, unroll loop starts at 0 and increments by DEPTHU.  No scaling is required.  This mode is required
+    # for pack summation dims, but can also be used independently and this is useful for isolation and testing.
+    self.unrollIncIsDepthU = kernel["UnrollIncIsDepthU"] or kernel["PackSummationDims"] \
+                             or bool(kernel["ProblemType"]["ZeroPadA"]) or bool(kernel["ProblemType"]["ZeroPadB"])
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
@@ -1794,6 +1814,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
 
 
+  @staticmethod
+  def zpForSumIdx(sumIdx, zeroPad):
+     """ Returns zero-pad for specified sumIdx if it matches or None if not """
+     return next((zpi for zpi in zeroPad if zpi[1] == sumIdx), None)
+
+
   ##############################################################################
   # Open String
   ##############################################################################
@@ -1920,7 +1946,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["ruc"] = self.readUnrollDimComponentsA             # read vector components along unroll dimension
       tP["wtc"] = self.writeTileDimComponentsA              # write vector components along tile dimension
       tP["wuc"] = self.writeUnrollDimComponentsA            # write vector components along unroll dimension
-      tP["idx"] = kernel["ProblemType"]["Index0"]           # index 0 is tile dimension belonging to A
+      tP["idx"] = kernel["ProblemType"]["Index0"]           # index 0 is tile dimension belonging to A. Note 'idx' may not be in tP['ia'].
       tP["rc"] = kernel["ProblemType"]["IndexAssignmentsA"][0] \
           in [kernel["ProblemType"]["Index01A"], \
           kernel["ProblemType"]["IndexUnroll"]]             # can read coalesced
@@ -2048,6 +2074,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
   ##############################################################################
   # Global Read Addresses: Increments A/B
+  # This function declares the increments
   ##############################################################################
   @abc.abstractmethod
   def graIncrements(self, kernel, loopIdx, tP):
@@ -2309,6 +2336,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def shiftVectorComponents(self, kernel, tP):
     return ""
 
+  @abc.abstractmethod
+  def shiftVectorComponentsForMatrixInst(self, kernel, tP):
+    return ""
+
   ##############################################################################
   # Complex Declare Tmp Registers
   ##############################################################################
@@ -2443,6 +2474,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # get kernel name
   ##############################################################################
+  def getKernelFileBase(self, kernel):
+    rv = self.getKernelName(kernel)
+    return self.shortenFileBase(rv)
+
   def getKernelName(self, kernel):
     if globalParameters["ShortNames"]:
       kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -2553,22 +2588,36 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    kernelName = self.getKernelName(kernel)
-    kernelFileName_txt = "%s.s.txt" % kernelName
-    SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
-    REPLACEMENT_KERNEL_ROOT = SCRIPT_ROOT + "/ReplacementKernels"
-    if globalParameters["CodeObjectVersion"] == "V3": REPLACEMENT_KERNEL_ROOT += "-cov3"
-    REPLACEMENT_KERNEL_PATH = os.path.join(REPLACEMENT_KERNEL_ROOT, kernelFileName_txt)
+    if not kernel["ReplacementKernel"]:
+      return None
 
-    print2("Looking for replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-    if os.path.isfile(REPLACEMENT_KERNEL_PATH) and kernel["ReplacementKernel"]:
-      print2("Found replacement: {}".format(REPLACEMENT_KERNEL_PATH))
-      return REPLACEMENT_KERNEL_PATH
+    kernelName = self.getKernelName(kernel)
+    return ReplacementKernels.Get(kernelName)
+
+  def shortenFileBase(self, base):
+    if len(base) <= globalParameters["MaxFileName"]:
+      return base
+
+    import hashlib
+    import base64
+
+    pivot = globalParameters["MaxFileName"] * 3 // 4
+    firstPart = base[:pivot]
+    secondPart = base[pivot:]
+
+    secondHash = hashlib.sha256(secondPart.encode()).digest()
+    #hash(secondPart)
+    #n = secondHash.bit_length()+1
+    #n = (n + 7) // 8
+    #secondBytes = secondHash.to_bytes(n, 'big', signed=True)
+    secondPart = base64.b64encode(secondHash, b'_-').decode()
+
+    return firstPart + secondPart
 
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
-    kernelName = self.getKernelName(kernel)
+    kernelName = self.shortenFileBase(self.getKernelName(kernel))
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
@@ -2600,6 +2649,9 @@ for codeObjectFileName in codeObjectFileNames:
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
+    if globalParameters["PrintCodeCommands"]:
+      print (' '.join(args), " && ")
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return objectFileName
@@ -2611,6 +2663,9 @@ for codeObjectFileName in codeObjectFileNames:
     coFileName = base + '.co'
 
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
+    if globalParameters["PrintCodeCommands"]:
+      print (' '.join(args))
+
     subprocess.check_call(args, cwd=self.getAssemblyDirectory())
 
     return coFileName
@@ -2657,7 +2712,7 @@ for codeObjectFileName in codeObjectFileNames:
         coFile = self.getSingleCodeObjectFile(kernel)
         kernelName = self.getKernelName(kernel)
 
-        if globalParameters["CodeFromFiles"]:
+        if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
           # I guess in this case we are making sure that the code object file exists by executing the code 
           # above but we aren't placing it into the source.
           return (0, "")
@@ -2714,17 +2769,17 @@ for codeObjectFileName in codeObjectFileNames:
   ##############################################################################
   # Get Name
   ##############################################################################
-  def getKernelNameBetaOnly(self, kernel):
+  @staticmethod
+  def getKernelNameBetaOnly(kernel):
     indexChars = globalParameters["IndexChars"]
     # C dimensions
     name = "C"
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       name += indexChars[i].lower()
     name += "_"
-    name += kernel["ProblemType"]["DataType"].toChar()
+    name += kernel["ProblemType"]["DestDataType"].toChar()
     if kernel["ProblemType"]["UseBeta"]: name += "B"
-    if kernel["ProblemType"]["UseInitialStridesAB"]: name += "I"
-    if kernel["ProblemType"]["UseInitialStridesCD"]: name += "Ic"
+
     return name
 
   @abc.abstractmethod

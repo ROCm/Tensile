@@ -92,11 +92,12 @@ defaultHeader["Platform"] = 0
 defaultHeader["Device"] = 0
 defaultHeader["KernelTime"] = True
 defaultHeader["PinClocks"] = False
-defaultHeader["SleepPercent"] = 50
+defaultHeader["SleepPercent"] = 20
 defaultHeader["DataInitTypeBeta"] = 0
 defaultHeader["SolutionSelectionAlg"] = 1
 defaultHeader["PrintWinnersOnly"] = 1
 defaultHeader["DataInitTypeAB"] = 0
+defaultHeader["NewClient"] = 2
 
 ################################################################################
 # Tuning Configuration Container
@@ -184,7 +185,7 @@ class TuningConfiguration(object):
 
             if self.globalParameters:
                 dataGlobal[CONST.GlobalParameters] = self.globalParameters
-                yaml.dump(dataGlobal, stream, default_flow_style=False, width=1024)
+                yaml.dump(dataGlobal, stream, default_flow_style=None, width=1024)
                 stream.flush()
 
             if self.benchmarkProblems:
@@ -207,16 +208,27 @@ class TuningConfiguration(object):
             printExit("Cannot open file: %s" % filename)
 
 
-def generateProblemType(initialParams):
+def generateProblemType(initialParams, tileAware= "true"):
 
-    problemType = {
-      "OperationType": "GEMM",
-      "DataType": "s",
-      "Batched": True,
-      "UseBeta": True,
-      "TransposeA": False,
-      "TransposeB": True
-    }
+    if tileAware == "true":
+        problemType = {
+            "OperationType": "GEMM",
+            "DataType": "s",
+            "Batched": True,
+            "UseBeta": True,
+            "TransposeA": False,
+            "TransposeB": True,
+            "TileAwareSelection": True
+        }
+    else:
+        problemType = {
+            "OperationType": "GEMM",
+            "DataType": "s",
+            "Batched": True,
+            "UseBeta": True,
+            "TransposeA": False,
+            "TransposeB": True,
+        }
 
     if initialParams:
         keys = list(initialParams.keys())
@@ -227,7 +239,7 @@ def generateProblemType(initialParams):
 
 
 arcturusLibraryLogic={'ArchitectureName': 'gfx908', 'DeviceNames': ['Device 7380', 'Device 7388', 'Device 738c', 'Device 7390', 'Device 731f'], 'ScheduleName': 'arcturus'}
-vega20LibraryLogic={'ArchitectureName': 'gfx906', 'DeviceNames': ['Device 66a0', 'Device 66a1', 'Device 66a7', 'Vega 20'], 'ScheduleName': 'vega20'}
+vega20LibraryLogic={'ArchitectureName': 'gfx906', 'DeviceNames': ['Device 66a0', 'Device 66a1', 'Device 66a7', 'Device 66af', 'Vega 20'], 'ScheduleName': 'vega20'}
 vega10LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6863', 'Device 6862', 'Device 687f', 'Device 6860', 'Device 6861', 'Vega 10 XTX [Radeon Vega Frontier Edition]', 'Vega [Radeon RX Vega]'], 'ScheduleName': 'vega10'}
 mi25LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6860'], 'ScheduleName': 'mi25'}
 r9nanoLibraryLogic={'ArchitectureName': 'gfx803', 'DeviceNames': ['Device 7300'], 'ScheduleName': 'r9nano'}
@@ -247,18 +259,19 @@ def appendWorkGroups(benchmarkGroup, workGroups):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"WorkGroup": workGroups})
 
-def appendSizes(benchmarkGroup, sizes):
+def appendSizes(benchmarkGroup, sizes, tileAware="true"):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
     for size in sizes:
-       problemSizes.append({"Exact": size})
+        problemSizes.append({"Exact": size})
 
     if not benchmarkFinalParams:
         benchmarkFinalParams = []
         benchmarkGroup["BenchmarkFinalParameters"] = benchmarkFinalParams
 
-    benchmarkFinalParams.append({"ProblemSizes":problemSizes})
-
+    if tileAware == "false":
+        benchmarkFinalParams.append({"ProblemSizes":problemSizes})
+    
 def generateEmptyBenchmarkGroup():
     benchmarkGroup={"InitialSolutionParameters":None,"BenchmarkCommonParameters":None,"ForkParameters":None,"BenchmarkForkParameters":None,"JoinParameters":None,
                     "BenchmarkJoinParameters":None,"BenchmarkFinalParameters":None}
@@ -271,31 +284,11 @@ def generateDefaultScheme():
             "KernelLanguage": ["Assembly"],
             "LoopTail": [True],
             "WorkGroupMapping": [1, 8],
-            "DepthU": [ 8, 16, 32 ],
-            "VectorWidth": [2, 4],
+            "DepthU": [16],
+            "VectorWidth": [-1],
             "GlobalSplitU": [1],
-            "GlobalReadVectorWidth": [1, 2, 4],
-            "FractionalLoad": [0, 1],
-            "PrefetchGlobalRead": [ False, True ],
+            "GlobalReadVectorWidth": [-1],
+            "FractionalLoad": [1],
+            "PrefetchGlobalRead": [ False ],
             "PrefetchLocalRead": [ False, True]}
     return scheme
-
-def generateBenchmarkGroupFromScheme1(scheme):
-    benchmarkGroup = generateEmptyBenchmarkGroup()
-
-    commonParams = []
-    forkParams = []
-
-    for key in scheme:
-        value = scheme[key]
-        if len(value) > 1:
-            forkParams.append({key: value})
-        else:
-            commonParams.append({key: value})
-    benchmarkGroup["ForkParameters"] = forkParams
-    benchmarkGroup["BenchmarkCommonParameters"] = commonParams
-
-    return benchmarkGroup
-
-  
-  

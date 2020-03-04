@@ -33,6 +33,7 @@ from .Common import globalParameters, HR, print1, print2, printExit, ensurePath,
                    listToInitializer
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
+from .KernelWriter import KernelWriter
 from .SolutionStructs import Solution
 from .SolutionWriter import SolutionWriter
 
@@ -55,7 +56,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     try:
         kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
         # get kernel name
-        kernelName = kernelWriter.getKernelName(kernel)
+        kernelName = kernelWriter.getKernelFileBase(kernel)
         #sys.stderr.write("kernel:%s\n"% kernelName)
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
@@ -77,7 +78,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     coFiles = []
     for arch, archKernels in archs.items():
       archName = 'gfx'+''.join(map(str,arch))
-      objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
+      objectFiles = list([kernelWriterAssembly.getKernelFileBase(k) + '.o' \
                           for k in archKernels \
                           if k['KernelLanguage'] == 'Assembly'])
       if len(objectFiles) == 0:
@@ -92,7 +93,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         subprocess.check_call(args, cwd=asmDir)
         coFiles.append(coFile)
       else:
-        assemblyKernelNames = [kernelWriterAssembly.getKernelName(k) for k in archKernels]
+        assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
         newCOFiles  = []
         if globalParameters["PackageLibrary"]:
@@ -150,12 +151,18 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       compileArgs = [which('hcc')] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
 
       linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
-      extractArgs = [globalParameters['ExtractKernelPath'], '-i', soFilename]
+      extractArgs = [globalParameters['ExtractKernelPath'], '-i', os.path.join(buildPath,soFilename)]
 
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(linkArgs))
       subprocess.check_call(linkArgs)
 
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(extractArgs))
       subprocess.check_call(extractArgs, cwd=buildPath)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
@@ -167,6 +174,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
 
+      if globalParameters["PrintCodeCommands"]:
+        print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
       coFilenames = [soFilename]
@@ -181,6 +190,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         extractedCOs = [os.path.join(buildPath, name) for name in archCoFilenames]
         destCOs = [os.path.join(destDir, arch, name) for name in archCoFilenames]
         destCosList += destCOs
+        if globalParameters["PrintCodeCommands"]:
+          print ("# copy source code objects    : ", extractedCOs)
+          print ("# to dest source code objects : ", destCOs)
         for (src, dst) in zip(extractedCOs, destCOs):
           shutil.copyfile(src, dst)
     else:
@@ -252,6 +264,10 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
     if err:
       kernelsWithBuildErrs[kernelName] = err
       #print "*** warning: invalid kernel#%s"%kernelName
+
+    # Don't create a file for empty kernels.
+    if len(src.strip()) == 0:
+      continue
 
     #if kernelSourceFile:
       # write kernel.cpp
@@ -938,7 +954,7 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernel in kernels:
-      kernelName = kernelWriterSource.getKernelName(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelName(kernel) 
+      kernelName = kernelWriterSource.getKernelFileBase(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelFileBase(kernel) 
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")
@@ -993,6 +1009,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--no-legacy-components",   dest="LegacyComponents",  action="store_false", default=True)
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
+  argParser.add_argument("--new-client-only",        action="store_true")
 
   argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
                          help="Access key for embedding library files.")
@@ -1018,6 +1035,8 @@ def TensileCreateLibrary():
     arguments["ROCmAgentEnumeratorPath"] = False
   arguments["PackageLibrary"] = args.PackageLibrary
   arguments["LegacyComponents"] = args.LegacyComponents
+  if args.new_client_only:
+    arguments["NewClient"] = 2
 
   assignGlobalParameters(arguments)
 
@@ -1098,7 +1117,8 @@ def TensileCreateLibrary():
         kernels.append(kernel)
     solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
     for kernel in solutionKernelsBetaOnly:
-      if kernel not in kernelsBetaOnly:
+      if KernelWriter.getKernelNameBetaOnly(kernel) not in \
+          [KernelWriter.getKernelNameBetaOnly(k) for k in kernelsBetaOnly]:
         kernelsBetaOnly.append(kernel)
 
   # if any kernels are assembly, append every ISA supported

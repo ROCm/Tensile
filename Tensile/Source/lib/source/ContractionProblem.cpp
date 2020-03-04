@@ -35,9 +35,11 @@ namespace Tensile
         std::ostringstream rv;
 
         rv << "anchorIndex: " << anchorIndex
+           << " anchorPos: " << anchorPos
            << " boundIndex: "  << boundIndex
-           << " leadingPad: "  << leadingPad
-           << " trailingPad: " << trailingPad;
+           << " boundPos: " << boundPos
+           << " padStart: "  << padStart
+           << " padEnd: " << padEnd;
 
         return rv.str();
     }
@@ -490,16 +492,50 @@ namespace Tensile
         normalize();
     }
 
+    size_t ContractionProblem::toAPos(size_t idx) const
+    {
+        if (idx >= d().dimensions())
+            return boundIndices().at(idx - d().dimensions()).a;
+
+        auto found = std::find_if(freeIndicesA().begin(), freeIndicesA().end(),
+                            [idx](const ContractionProblem::FreeIndex &fi)
+                            {return fi.d == idx;});
+        assert (found != freeIndicesA().end());
+        assert (found->isA);
+
+        return found->i;
+    }
+
+    size_t ContractionProblem::toBPos(size_t idx) const
+    {
+        if (idx >= d().dimensions())
+            return boundIndices().at(idx - d().dimensions()).b;
+
+        auto found = std::find_if(freeIndicesB().begin(), freeIndicesB().end(),
+                            [idx](const ContractionProblem::FreeIndex &fi)
+                            {return fi.d == idx;});
+        assert (found != freeIndicesB().end());
+        assert (!found->isA);
+
+        return found->i;
+    }
+
+
     void ContractionProblem::addAZeroPad(const ZeroPad &zp)
     {
         m_aZeroPads.push_back(zp);
         m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad = zp;
+
+        m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad.anchorPos = toAPos(zp.anchorIndex);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].aZeroPad.boundPos = toAPos(zp.boundIndex);
     }
 
     void ContractionProblem::addBZeroPad(const ZeroPad &zp)
     {
         m_bZeroPads.push_back(zp);
         m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad = zp;
+        m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad.anchorPos = toBPos(zp.anchorIndex);
+        m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad.boundPos = toBPos(zp.boundIndex);
     }
 
     void ContractionProblem::normalize()
@@ -596,6 +632,14 @@ namespace Tensile
             if (!isBatch)
                 m_allocatedElementsNonBatchB += b().strides()[idx] * (b().sizes()[idx]-1);
         }
+
+
+        // CD always contain index0.  if this is in the B free indices, then need to
+        // transposing the output tensor.
+        m_transposeC01 = freeIndicesB().end() !=
+                             std::find_if(freeIndicesB().begin(), freeIndicesB().end(),
+                                [](const ContractionProblem::FreeIndex &fi)
+                                {return fi.c == 0/*idx0*/;});
     }
 
     void ContractionProblem::consistencyCheck() const
@@ -719,6 +763,15 @@ namespace Tensile
     {
         return m_boundSizes[idx];
     }
+
+    size_t ContractionProblem::size(size_t idx) const
+    {
+        if (idx < c().sizes().size())
+            return c().sizes()[idx];
+        else
+            return m_boundSizes.at(idx - c().sizes().size());
+    }
+
 
     size_t ContractionProblem::flopsPerMac() const
     {

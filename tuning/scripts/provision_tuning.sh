@@ -8,7 +8,22 @@ function extract_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE}"
+
+  ${EXTRACT_EXE}
+
+  pushd ${PEFORMANCE_PATH} > /dev/null
+  chmod +x * 
+  popd > /dev/null
+}
+
+function extract_network_sizes() {
+
+  pushd "${WORKING_PATH}" > /dev/null
+  local EXTRACT_SIZE_PATH=`pwd`
+  popd > /dev/null
+
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE}"
 
   ${EXTRACT_EXE}
 
@@ -30,13 +45,15 @@ function build_configs() {
 
 function provision_tensile() {
 
-  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH}"
+  local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"
 
   local TENSILE_PATH=Tensile
+  
   if [ -n "${ID}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${ID}"
     PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
   fi
+  
   if [ -n "${TAG}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${TAG}"
   else
@@ -53,23 +70,22 @@ function provision_tensile() {
     PROVISION_TENSILE="${PROVISION_TENSILE} -c ${COMMIT}"
   fi
 
-  if [ -n "${ID}" ]; then
-    PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
-  fi
-
   ${PROVISION_TENSILE}
 
   cp -r ${STAGE_ROOT}/* ${TENSILE_ROOT}/${TENSILE_PATH}
 
 }
 
-HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
+HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]"
 HELP=false
 SUPPRESS_TENSILE=false
+TENSILE_FORK='ROCmSoftwarePlatform'
+ROCBLAS_FORK='ROCmSoftwarePlatform'
 TENSILE_BRANCH='develop'
-TENSILE_HOST='https://github.com/ROCmSoftwarePlatform/Tensile.git'
+TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
+TILE_AWARE=false
 
-OPTS=`getopt -o ht:w:b:c:i:l:o:z:y:n --long help,working-path:,size-log,output:,tag:,branch:,commit:,library:,type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:ai: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,no-tensile -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -80,13 +96,18 @@ while true; do
     -h | --help )         HELP=true; shift ;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
     -z | --size-log )     SIZE_LOG="$2"; shift 2;;
+    -d | --log-dir )      SIZE_DIR="$2"; shift 2;;
+    -n | --network )      NETWORK="$2"; shift 2;;
     -t | --tag )          TAG="$2"; shift 3;;
+    -f | --tensile-fork)  TENSILE_FORK="$2"; shift 2;;
+    --rocblas-fork)       ROCBLAS_FORK="$2"; shift 2;;
     -b | --branch  )      TENSILE_BRANCH="$2"; shift 2;;
     -c | --commit )       COMMIT="$2"; shift 2;;
     -o | --output )       OUTPUT_FILE="$2"; shift 2;; 
     -y | --type )         CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )      LIBRARY="$2"; shift 2;;
-    -n )                  SUPPRESS_TENSILE=true; shift;;
+    -a | --tile-aware )   TILE_AWARE=true; shift;;
+    --no-tensile )        SUPPRESS_TENSILE=true; shift;;
     -i )                  ID="$2"; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
@@ -103,8 +124,8 @@ if [ -z ${WORKING_PATH+foo} ]; then
    exit 2
 fi
 
-if [ -z ${SIZE_LOG+foo} ]; then
-   printf "A problem specification file is required\n"
+if [ -z ${SIZE_LOG+foo} ] && [ -z ${SIZE_DIR+foo} ]; then
+   printf "A problem specification file or directory is required\n"
    exit 2
 fi
 
@@ -122,7 +143,7 @@ if [ -z ${CONFIGURATION_TYPE+foo} ]; then
    exit 2
 fi
 
-#determing full path of tools root
+#determining the full path of tools root
 TOOLS_ROOT=`dirname "$0"`
 TOOLS_ROOT=`( cd "${TOOLS_ROOT}" && cd .. && pwd )`
 
@@ -144,12 +165,16 @@ mkdir -p ${SIZE_PATH}
 mkdir -p ${PEFORMANCE_PATH}
 
 
-# extracts the sizes from the logs and generats the tuning configurations
-extract_sizes
+# extracts the sizes from the logs and generates the tuning configurations
+if [ -z ${NETWORK+foo} ]; then
+  extract_sizes
+else
+  extract_network_sizes
+fi
 
 ls ${BUILD_ROOT}/*.yaml | xargs -n1 basename | xargs ${SCRIPT_ROOT}/stage_tuning.sh ${BUILD_ROOT} ${STAGE_ROOT}
 
-# if enabled, this will provision tensile and set it up for tuing
+# if enabled, this will provision tensile and set it up for tuning
 if ${SUPPRESS_TENSILE} ; then
   echo "Suppressing Tensile provisioning"
 else
