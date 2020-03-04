@@ -25,7 +25,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <shared_mutex>
+#include <unordered_map>
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/SolutionLibrary.hpp>
@@ -41,14 +43,31 @@ namespace Tensile
     {
     public:
         CacheMap(Value const& nullValue)
-            : m_nullValue(nullValue)
+            : m_nullValue(nullValue),
+              m_lookupEfficiency(Debug::Instance().printLookupEfficiency()),
+              m_lookups(0),
+              m_hits(0)
+
         {}
+
+        ~CacheMap()
+        {
+            if(m_lookupEfficiency)
+                std::cout << "CacheMap: " << m_hits << "/" << m_lookups << " cache hits" << std::endl;
+        }
 
         Value find(Key const& key)
         {
             std::shared_lock<std::shared_timed_mutex> lock(m_mutex);
 
             auto iter = m_map.find(key);
+
+            if(m_lookupEfficiency)
+            {
+                m_lookups++;
+                if(iter != m_map.end())
+                    m_hits++;
+            }
 
             if(iter != m_map.end())
                 return iter->second;
@@ -67,6 +86,10 @@ namespace Tensile
         std::unordered_map<Key, Value> m_map;
         std::shared_timed_mutex m_mutex;
         Value m_nullValue;
+
+        bool m_lookupEfficiency;
+        std::atomic_int64_t m_lookups;
+        std::atomic_int64_t m_hits;
     };
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>

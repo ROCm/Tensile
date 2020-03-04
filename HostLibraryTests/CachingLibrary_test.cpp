@@ -201,13 +201,14 @@ TEST(CachingLibrary, Simple)
     auto Problem2 = ContractionProblem::GEMM( true, false, 14,4,4, 4,4,4, 1.2, false, 1);
     auto Problem3 = ContractionProblem::GEMM( true,  true, 24,4,4, 4,4,4, 1.2, false, 1);
 
-    using Key = std::array<size_t, 4>;
+    using Key = std::array<int64_t, 4>;
     using Table =
         Matching::DistanceMatchingTable<
             Key,
             ContractionProblem,
             std::shared_ptr<SolutionLibrary<ContractionProblem>>,
-            std::shared_ptr<ContractionSolution>>;
+            std::shared_ptr<ContractionSolution>,
+            Matching::EuclideanDistance<Key>>;
     using Properties = std::vector<std::shared_ptr<Property<ContractionProblem>>>;
 
     Properties properties;
@@ -233,12 +234,6 @@ TEST(CachingLibrary, Simple)
     }
 
     matchingTable->table = table;
-
-    using Distance = Matching::EuclideanDistance<std::array<size_t, 4>>;
-    std::shared_ptr<Matching::EuclideanDistance<std::array<size_t, 4>>>
-        pdistance = std::make_shared<Distance>();
-
-    matchingTable->distance = pdistance;
 
     auto subLib = std::make_shared<
         ProblemMatchingLibrary<ContractionProblem>>();

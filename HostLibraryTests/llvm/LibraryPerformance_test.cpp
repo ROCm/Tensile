@@ -34,9 +34,70 @@
 
 using namespace Tensile;
 
-struct LibraryPerformanceTest: public ::testing::TestWithParam<std::tuple<std::string, bool>>
+/**
+ * LibraryPerformanceTest:
+ * 
+ * This suite contains micro-benchmarks for pieces of the runtime library.  It does not
+ * exercise any of the Hip-specific code.
+ * 
+ * There are no performance-based assertions or checks.  The timing results are provided by
+ * googletest.
+ * 
+ * Most of these tests depend on a library being loaded from a YAML file.  The library objects
+ * are cached so that the deserialization time is not a part of the actual test (outside of the
+ * LoadLibrary test). PopulateCache is an empty test whose purpose is to ensure the cache is
+ * populated for the actual tests.
+ */
+struct LibraryPerformanceTest: public ::testing::TestWithParam<std::tuple<AMDGPU, std::string, bool, bool>>
 {
+    AMDGPU hardware;
+    std::string filename;
+    bool hasNavi, solutionRequired;
+    std::shared_ptr<SolutionLibrary<ContractionProblem>> library;
+
+    static std::map<std::string, std::shared_ptr<SolutionLibrary<ContractionProblem>>> libraryCache;
+
+	void SetUp() override
+    {
+        std::tie(hardware, filename, hasNavi, solutionRequired) = GetParam();
+
+        if(hardware.processor == AMDGPU::Processor::gfx1010 && !hasNavi)
+            GTEST_SKIP();
+
+        library = loadLibrary();
+        ASSERT_NE(library, nullptr) << filename;
+    }
+
+    std::string libraryPath()
+    {
+        return TestData::Instance().file(filename).native();
+    }
+
+    std::shared_ptr<SolutionLibrary<ContractionProblem>> loadLibrary(bool cache = true)
+    {
+        if(!cache)
+            return LoadLibraryFile<ContractionProblem>(libraryPath());
+
+        auto path = libraryPath();
+
+        auto iter = libraryCache.find(path);
+        if(iter != libraryCache.end())
+            return iter->second;
+
+        return libraryCache[path] = LoadLibraryFile<ContractionProblem>(libraryPath());
+    }
 };
+
+std::map<std::string, std::shared_ptr<SolutionLibrary<ContractionProblem>>> LibraryPerformanceTest::libraryCache;
+
+TEST_P(LibraryPerformanceTest, PopulateCache)
+{
+}
+
+TEST_P(LibraryPerformanceTest, LoadLibrary)
+{
+    auto library = loadLibrary(false);
+}
 
 TEST_P(LibraryPerformanceTest, CreateProblem)
 {
@@ -44,99 +105,85 @@ TEST_P(LibraryPerformanceTest, CreateProblem)
         RandomGEMM();
 }
 
-TEST_P(LibraryPerformanceTest, LoadLibrary)
-{
-    auto filename = std::get<0>(GetParam());
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
-}
-
 TEST_P(LibraryPerformanceTest, FindSolution)
 {
-    std::string filename;
-    bool hasNavi;
-    std::tie(filename, hasNavi) = GetParam();
-
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
-
+    for(int i = 0; i < 100000; i++)
     {
-        AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
-        for(int i = 0; i < 10000; i++)
-        {
-            auto problem = RandomGEMM();
-            auto solution = library->findBestSolution(problem, hardware);
+        auto problem = RandomGEMM();
+        auto solution = library->findBestSolution(problem, hardware);
 
+        if(solutionRequired)
             ASSERT_NE(solution, nullptr) << i << problem;
-        }
-    }
-
-    if(hasNavi)
-    {
-        AMDGPU hardware(AMDGPU::Processor::gfx1010, 64, "Navi");
-        for(int i = 0; i < 10000; i++)
-        {
-            auto problem = RandomGEMM();
-            auto solution = library->findBestSolution(problem, hardware);
-
-            ASSERT_NE(solution, nullptr) << i << problem;
-        }
     }
 }
 
 TEST_P(LibraryPerformanceTest, Solve)
 {
-    std::string filename;
-    bool hasNavi;
-    std::tie(filename, hasNavi) = GetParam();
-
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
-
-    AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
-
-    auto problem = RandomGEMM();
-
     float a, b, c, d;
     TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
 
-    auto solution = library->findBestSolution(problem, hardware);
+    ContractionProblem problem;
+    std::shared_ptr<ContractionSolution> solution;
 
-    for(int i = 0; i < 10000; i++)
+    for(int i = 0; i < 10 && solution == nullptr; i++)
     {
-        solution->solve(problem, inputs, hardware);
+        problem = RandomGEMM();
+        solution = library->findBestSolution(problem, hardware);
+
+        if(solutionRequired)
+            EXPECT_NE(solution, nullptr) << problem;
+    }
+
+    if(solution)
+    {
+        for(int i = 0; i < 100000; i++)
+        {
+            solution->solve(problem, inputs, hardware);
+        }
     }
 }
 
 TEST_P(LibraryPerformanceTest, FindAndSolve)
 {
-    std::string filename;
-    bool hasNavi;
-    std::tie(filename, hasNavi) = GetParam();
-
-    auto library = LoadLibraryFile<ContractionProblem>(TestData::Instance().file(filename).native());
-
+    for(int i = 0; i < 100000; i++)
     {
-        AMDGPU hardware(AMDGPU::Processor::gfx900, 64, "Vega 10");
-        for(int i = 0; i < 10000; i++)
-        {
-            auto problem = RandomGEMM();
-            auto solution = library->findBestSolution(problem, hardware);
-            float a, b, c, d;
-            TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
+        auto problem = RandomGEMM();
+        auto solution = library->findBestSolution(problem, hardware);
+        float a, b, c, d;
+        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
 
+        if(solutionRequired)
             ASSERT_NE(solution, nullptr) << i << problem;
-            
-            for(int j = 0; j < 1000; j++)
-            {
-                solution->solve(problem, inputs, hardware);
-            }
-        }
+
+        if(solution != nullptr)
+            solution->solve(problem, inputs, hardware);
     }
 }
 
+std::vector<LibraryPerformanceTest::ParamType> GetParams()
+{
+    std::vector<LibraryPerformanceTest::ParamType> rv;
+
+    std::vector<AMDGPU> gpus{
+            AMDGPU(AMDGPU::Processor::gfx900,  64, "Vega 10"),
+            AMDGPU(AMDGPU::Processor::gfx906,  64, "Vega 20")
+        };
+
+    for(auto const& gpu: gpus)
+    {
+        rv.push_back(std::make_tuple(gpu, "KernelsLite.yaml",      false, false));
+        rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed.yaml", false, true ));
+        rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi.yaml",  true,  false));
+        rv.push_back(std::make_tuple(gpu, "KernelsTileLite.yaml",  false, false));
+        rv.push_back(std::make_tuple(gpu, "rocBLAS_Full.yaml",     false, true ));
+    }
+
+    rv.push_back(std::make_tuple(AMDGPU(AMDGPU::Processor::gfx908,  64, "Arcturus"), "rocBLAS_Full.yaml",    false, true));
+    rv.push_back(std::make_tuple(AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"),     "KernelsLiteNavi.yaml", true,  true));
+
+    return rv;
+}
+
 INSTANTIATE_TEST_SUITE_P(LLVM, LibraryPerformanceTest,
-        ::testing::Values(
-            std::make_tuple("KernelsLite.yaml",      false),
-            std::make_tuple("KernelsLiteMixed.yaml", false),
-            std::make_tuple("KernelsLiteNavi.yaml",  true),
-            std::make_tuple("KernelsTileLite.yaml",  false)
-            ));
+    ::testing::ValuesIn(GetParams()));
 
