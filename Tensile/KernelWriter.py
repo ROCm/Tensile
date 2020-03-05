@@ -347,7 +347,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         iterCode.addInst("v_mov_b32 ","v%u"%(tmpVgpr),"0x0","valu operation to have different priority")
         self.vgprPool.checkIn(tmpVgpr)
 
-      iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
+      iterCode.addInst("s_setprio ","3","Raise priority while processing macs")
       macIterItem = macIterCode.flatitems()
       # pop the first code which is s_nop 1 for packing
       if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
@@ -366,9 +366,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
           else:
             break
 
-      iterCode.addInst("s_setprio ","0","Raise priority while processing macs")
+      iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
       iterCode.addCode(localWriteCode)
       iterCode.addCode(pointerCode)
+      iterCode.addInst("s_setprio ","2","Raise priority while processing macs")
       pass
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
