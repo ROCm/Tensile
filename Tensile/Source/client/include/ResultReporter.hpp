@@ -26,11 +26,16 @@
 
 #pragma once
 
-#include "HardwareMonitor.hpp"
 #include "RunListener.hpp"
 
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <string>
+#include <unordered_map>
+
+#include <boost/program_options.hpp>
+#include <hip/hip_runtime.h>
 
 namespace Tensile
 {
@@ -104,7 +109,7 @@ namespace Tensile
             const std::string L2WriteHits = "l2-write-hits";
             const std::string ReadMultiplier = "read-multiplier";
             const std::string Mfma = "mfma"; 
-            const std::String MemoryBandwidth = "memory-bandwidth";
+            const std::string MemoryBandwidth = "memory-bandwidth";
 
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
@@ -116,7 +121,7 @@ namespace Tensile
         };
 
         class ResultReporter: public RunListener
-        {
+        { 
         public:
             /**
              * Reports the value for a key, related to the current state of the run.
@@ -222,50 +227,73 @@ namespace Tensile
             }
         };
 
-        class PerformanceReporter: public ResultReporter,HardwareMonitor
+        class PerformanceReporter: public ResultReporter
         {
-            public:
-                double efficiency(double performance)
+        public:
+            static std::shared_ptr<PerformanceReporter> Default()
+            {
+                return Default();
+            }
+
+            void reportValue_double(std::string key, double value) 
+            {
+                if(key == ResultKey::ClockRateSys)
                 {
-                    int magicNum = 64;
-                    if(mfma == false) magicNum = 128;
-                    double sclk = getSclk();
-                    double eff = 100*1000*performance/(numCUs*magicNum*readMultiplier*sclk);
-                    
-                    report("frequency", sclk);
-                    report("efficiency", eff);
-                    return eff;
+                    m_clock = value;
+                }
+                if(key == ResultKey::SpeedGFlops) 
+                {
+                    m_gFlops = value;
                 }
 
-                double memBandwidth()
-                { 
-                    double bandwidth = getMclk()*width; 
-                    report("memory-bandwidth", bandwidth);
-                    return bandwidth;
+                if(!std::isnan(m_clock) && !std::isnan(m_gFlops))
+                {
+                    setNumCUs();
+                    setMagicNum(numCUs);
+                    setReadMultiplier();
+                    m_eff = 100*1000*m_gFlops/(numCUs*magicNum*readMultiplier*m_clock);
                 }
-                
-                void setNumCUs(double cus){ numCUs = cus; }
-                void setReadMultiplier(double multiplier){ readMultiplier = multiplier; }
-                void setMfma(bool isMfma){ mfma = isMfma; }
-                void setL2ReadHits(double reads){ L2ReadHits = reads; }
-                void setL2WriteHits(double writes){ L2WriteHits = writes; }
-                void setReadEfficiency(double readEff){ readEfficiency = readEff; }
-                void setWidth(int w){ width = w; }
-                double getSclk(){ return getAverageClock(RSMI_CLK_TYPE_SYS); }
-                double getMclk(){ return getAverageClock(RSMI_CLK_TYPE_MEM); }
-                double getNumCUs(){ return numCUs; }
-                double getReadMultiplier(){ return multiplier; }
-                bool getMfma(){ return mfma; }
-                double getL2ReadHits(){ return L2ReadHits }
-                double getL2WriteHits(){ return L2WriteHits; }
-                double getReadEfficiency(){ return readEfficiency; }
+            }
 
-            private:
-                double readMultiplier = 2, L2ReadHits = 0, L2WriteHits = 0.5, readEfficiency = 0.85;
-                double numCUs = 64;
-                int  width = 1000;
-                bool mfma = false;
+            void preSolution(ContractionSolution const& solution)
+            {
+                m_reporter->report(ResultKey::Efficiency, m_eff); 
+                m_clock = std::numeric_limits<double>::quiet_NaN();
+                m_gFlops = std::numeric_limits<double>::quiet_NaN();
+                m_eff = std::numeric_limits<double>::quiet_NaN();
+            }
 
+            void setNumCUs()
+            {
+                hipDeviceProp_t props;
+                hipGetDeviceProperties(&props, 0);  //want to use device idx
+                numCUs = props.multiProcessorCount;       
+            }
+
+            void setMagicNum(double numCU)
+            {
+                if(numCU == 120) magicNum = 128;
+                else magicNum = 64;
+            }
+
+            void setReadMultiplier()
+            {
+                readMultiplier = 2;
+               /* std::unordered_map<int,double> readMul = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
+
+                for(std::unordered_map<int,double>::iterator it=readMul.begin(); it != readMul.end(); it++)
+                {
+                    if(it->first == args["type"]) readMultiplier = it->second;
+                }*/
+            }
+           
+        private: 
+            double m_clock = std::numeric_limits<double>::quiet_NaN();
+            double m_gFlops = std::numeric_limits<double>::quiet_NaN();
+            int magicNum;
+            int numCUs = 64;
+            double readMultiplier; 
+            double m_eff = std::numeric_limits<double>::quiet_NaN();
         };
     }
 }

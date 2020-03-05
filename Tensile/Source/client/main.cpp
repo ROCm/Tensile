@@ -382,6 +382,7 @@ int main(int argc, const char * argv[])
     auto reporters = std::make_shared<MetaResultReporter>();
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
+    reporters->addReporter(PerformanceReporter::Default());
 
     if(args.count("log-file"))
     {
