@@ -2297,9 +2297,11 @@ class KernelWriterSource(KernelWriter):
             if guardK:
               guarded = 1
               if tP["mirror"]:
-                kStr += "((int64_t)globalRead%s_%u_%u_%u_%u - (int64_t)%s) < 0" % (tP["tensorChar"], \
-                  para, 0 if tP["rc"] else sPara, (tP["nrp"] - perp - 1) if tP["mirror"] and not tP["tlu"] else perp, \
-                  sPerp, tP["tensorChar"])
+                index = self.indexChars[kernel["ProblemType"]["IndexAssignments" + tP["tensorChar"]][-1]]
+                tEnd = "size%s*stride%s%s" % (index, tP["tensorChar"], index)
+                currReadPtr = "globalRead%s_%u_%u_%u_%u"% (tP["tensorChar"], \
+                  para, 0 if tP["rc"] else sPara, (tP["nrp"] - perp - 1) if tP["mirror"] and not tP["tlu"] else perp, sPerp)
+                kStr += "int64_t(%s - %s) < 0 || int64_t(%s - %s - %s) > 0" % (currReadPtr, tP["tensorChar"], currReadPtr, tP["tensorChar"], tEnd)
               else:
                 kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                     % (tP["tensorChar"], self.unrollChar, \

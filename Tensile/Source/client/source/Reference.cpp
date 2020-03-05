@@ -230,12 +230,13 @@ namespace Tensile
 
                         if (!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
                             aVal = Transform<typename Inputs::AType>::Input(
-                                    inputs.a[aIndex + (aI * aStride) - zpA.leadingPad], aConjugate);
+                                    inputs.a[aIndex + (aI * aStride) - zpA.padStart], aConjugate);
                         if (!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
                             bVal = Transform<typename Inputs::BType>::Input(
-                                    inputs.b[bIndex + (aB * bStride) - zpB.leadingPad], bConjugate);
+                                    inputs.b[bIndex + (aB * bStride) - zpB.padStart], bConjugate);
 
                         value += static_cast<Accumulator>(aVal * bVal);
+
                         if (0) {
                             std::cout
                                     << " bound=" << bound[0] << "," << bound[1]
