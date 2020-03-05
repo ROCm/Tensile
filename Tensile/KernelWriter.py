@@ -1391,8 +1391,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("tail loop: macs"))
       kl.append(self.openLoop(kernel, -1))
       # Try to use InnerUnroll in the tail loop if allowed:
+      k = kernel["MatrixInstK"] if kernel["MatrixInstruction"] else 1
       tailLoopInnerUnroll = \
-        kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % kernel["InnerUnroll"]==0) else 1
+        kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % (kernel["InnerUnroll"]*k)==0) else 1
       
       pack[0] = Code.Module()
       for iui in range(0,tailLoopInnerUnroll):

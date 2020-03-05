@@ -5314,13 +5314,8 @@ class KernelWriterAssembly(KernelWriter):
       # size % DepthU
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounterName, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
       loopCounter = sgpr(loopCounterName)
-      if kernel["MatrixInstruction"]:
-        kStr += "/* calculate number of remaining loops in terms of how many matrix instructions */\n"
-        kStr += "//numIter%s = ((numIter%s + MatrixInst%s - 1) / MatrixInst%s)\n"%(self.unrollChar, self.unrollChar, self.unrollChar, self.unrollChar)
-        if numRemainderSumElements: 
-          kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
-        kStr += inst("s_add_u32", loopCounter, loopCounter, kernel["MatrixInstK"]-1, "")
-        kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
+      if numRemainderSumElements:
+        kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
@@ -5571,13 +5566,14 @@ class KernelWriterAssembly(KernelWriter):
         loopCounter = "TailLoopCounter"
       else:
         loopCounter = self.loopCounter(kernel, loopIdx)
-      if kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
-        unrollInc = kernel["InnerUnroll"]
+      k = kernel["MatrixInstK"] if kernel["MatrixInstruction"] else 1
+      if kernel["AssertSummationElementMultiple"]%(kernel["InnerUnroll"]*k)==0:
+        unrollInc = kernel["InnerUnroll"]*k
       else:
-        unrollInc = 1
+        unrollInc = k
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
-      kStr += inst("s_sub_u32", \
+      kStr += inst("s_sub_i32", \
           loopCounter, \
           loopCounter, \
           hex(unrollInc), \
@@ -5591,7 +5587,7 @@ class KernelWriterAssembly(KernelWriter):
         "inc counter%s"%(loopChar) )
 
       endCounter = 0
-      kStr += inst("s_cmp_eq_i32", \
+      kStr += inst("s_cmp_le_i32", \
           loopCounter, \
           hex(endCounter), \
         "counter%s==%d"%(loopChar,endCounter) )
@@ -7326,7 +7322,7 @@ class KernelWriterAssembly(KernelWriter):
               if kernel["MatrixInstruction"] and \
                  kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0 and \
                  self.inTailLoop:
-                packCode.addInst("v_cmp_eq_u32", sgpr(isTailRemainderLoop, 2), sgpr("LoopCounter%s"%loopChar), 1, "check if last iter in tail loop")
+                packCode.addInst("v_cmp_lt_u32", sgpr(isTailRemainderLoop, 2), sgpr("LoopCounter%s"%loopChar), kernel["MatrixInstK"], "check if last iter in tail loop")
                 packCode.addInst("s_cmp_eq_u32", sgpr("NumRemainderSumElements%s"%loopChar), "0", "check if sum dim is divisible by k")
                 packCode.addInst("s_cselect_b64", sgpr(isTailRemainderLoop, 2), "0x0", sgpr(isTailRemainderLoop, 2), "zero-fill only if last iter AND sum dim not divisible by k")
                 
