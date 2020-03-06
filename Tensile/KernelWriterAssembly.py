@@ -7293,13 +7293,14 @@ class KernelWriterAssembly(KernelWriter):
             paramList = []
             destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx))) # inc by 1 every 2 kIdx
             tmpVgpr = vgpr(tmpVgprIdx+int(valuIdx)) # inc by 1 every 2 kIdx
+            tIdx = tP["tensorIdx"]
             if kIdx%2 == 0:
               paramList.append(destVgpr)
             else:
               paramList.append(tmpVgpr)
             paramList.append(vgpr("LocalReadAddr%s"%tc))
-            offset = ((rIdx * kernel["MatrixInstN"] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
-              *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
+            offset = ((rIdx * kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
+                 *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
             paramList.append(int(offset))
             oIdx = 0
             # print("Debug: Matrix{}, rIdx offset {}, vIdx offset {}, local read offset {}, bpe {}, net offset {}".format( \
