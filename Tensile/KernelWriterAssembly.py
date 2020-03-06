@@ -5197,8 +5197,7 @@ class KernelWriterAssembly(KernelWriter):
         else: # For BBlocks, don't use else case
           kStr += inst("s_mov_b32", \
               sgpr(tmpSgpr), \
-              #hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
-              hex((kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]) // 4), \
+              hex((kernel["MacroTile%u"%tIdx] ) // 4), \
               "MT%u+PAD"%tIdx )
     else:
       kStr += inst("s_mov_b32", \
