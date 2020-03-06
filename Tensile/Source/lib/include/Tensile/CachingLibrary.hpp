@@ -88,8 +88,8 @@ namespace Tensile
         Value m_nullValue;
 
         bool m_lookupEfficiency;
-        std::atomic_int64_t m_lookups;
-        std::atomic_int64_t m_hits;
+        std::atomic<int64_t> m_lookups;
+        std::atomic<int64_t> m_hits;
     };
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
