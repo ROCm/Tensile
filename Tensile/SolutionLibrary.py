@@ -216,13 +216,13 @@ class MasterSolutionLibrary:
             else:
                 solutionsSoFar.add(solution.index)
     @classmethod
-    def FromOriginalState(cls, d, solutionClass=Contractions.Solution, libraryOrder = None):
+    def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
-        origSolutions = d[5]
+        #origSolutions = d[5]
         origLibrary = d[6:8]
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
@@ -232,7 +232,7 @@ class MasterSolutionLibrary:
             assert libraryOrder[-1] == "Matching"
             libraryOrder[-1] = "Granularity"
         
-        allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
+        allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
         solutions = {s.index: s for s in allSolutions}
