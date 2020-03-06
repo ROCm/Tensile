@@ -1752,9 +1752,9 @@ class KernelWriterAssembly(KernelWriter):
       numColsPerMfma = kernel["MatrixInstN"]
       self.numRowInsts = kernel["ThreadTile0"] // numRowsPerMfma
       self.numColInsts = kernel["ThreadTile1"] // numColsPerMfma
-      numMfmas = self.numRowInsts * self.numColInsts
+      self.numMfmas = self.numRowInsts * self.numColInsts
       self.destAgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]  # Agprs for 1 mfma
-      self.totalAgprs = numMfmas * self.destAgprs                                                   # Agprs for all
+      self.totalAgprs = self.numMfmas * self.destAgprs                                                   # Agprs for all
 
     ########################################
     # Register Pools
@@ -6076,8 +6076,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # matrix instructions
     for iui in range(0, innerUnroll):
-      for a in range(0, self.numRowInsts):
-        for b in range(0, self.numColInsts):
+      for b in range(0, self.numColInsts):
+        for a in range(0, self.numRowInsts):
           accIdx = b * self.numRowInsts + a
           accStart = accIdx * self.destAgprs
           accEnd = accStart + self.destAgprs - 1
@@ -7663,7 +7663,7 @@ class KernelWriterAssembly(KernelWriter):
   def localReadDo(self, kernel, bufferIdx, iui, epsi, uIdx, tP):
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
-    imod = Code.Module("LocalReadDo%s"%tc)
+    imod = Code.Module("LocalReadDo%s_I%s"%(tc,iui))
     self.localReadDoCnt += 1
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
@@ -7699,14 +7699,14 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1 and not kernel["TransposeLDS"]:
       pack = Code.Module("pack%s_I%s"%(tc,iui))
       tmpVgprIdx = self.vgprPool.checkOut(self.numVgprValuAPerBlock if tc == 'A' else self.numVgprValuBPerBlock)
-      packCode = pack.addCode (Code.Module("packCode"))
-      packCode.addTempVgpr(tmpVgprIdx)
+      pack.addTempVgpr(tmpVgprIdx)
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
+          localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
+          packCode = pack.addCode (Code.Module("packCode"))
           # emit an instruction for each half-dword load along k due to strided access
           # checkout 2 vregs for each half-dword loads
           for kIdx in range(0, numReadsAlongK):
-            localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
             paramList = []
             destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx))) # inc by 1 every 2 kIdx
             tmpVgpr = vgpr(tmpVgprIdx+int(valuIdx)) # inc by 1 every 2 kIdx

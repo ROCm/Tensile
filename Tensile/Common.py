@@ -322,7 +322,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1, 2],
+    "ScheduleIterAlg":             [0, 1, 2, 3],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M

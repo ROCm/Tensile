@@ -201,6 +201,7 @@ class TextBlock(Item):
   def __init__(self,text):
     assert(isinstance(text, str))
     self.text = text
+    self.name = text
 
   def __str__(self):
     return self.text
