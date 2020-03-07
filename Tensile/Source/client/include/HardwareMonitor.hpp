@@ -71,6 +71,7 @@ namespace Tensile
             double getAverageTemp(rsmi_temperature_type_t sensorIndex = 0, rsmi_temperature_metric_t metric = RSMI_TEMP_CURRENT);
             double getAverageClock(rsmi_clk_type_t clockType);
             double getAverageFanSpeed(uint32_t sensorIndex = 0);
+            int    getDeviceIndex() { return m_hipDeviceIndex; }
             size_t getSamples() { return m_dataPoints; }
 
             /// Begins monitoring until stop() is called.
