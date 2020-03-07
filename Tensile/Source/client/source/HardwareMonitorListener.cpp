@@ -85,6 +85,7 @@ namespace Tensile
 
             m_reporter->report(ResultKey::FanSpeedRPMs,        m_monitor->getAverageFanSpeed());
             m_reporter->report(ResultKey::HardwareSampleCount, m_monitor->getSamples());
+            m_reporter->report(ResultKey::DeviceIndex,         m_monitor->getDeviceIndex());
         }
     }
 }

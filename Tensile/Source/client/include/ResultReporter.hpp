@@ -104,18 +104,19 @@ namespace Tensile
             const std::string AluUs      = "alu-us";
             const std::string Empty          = "empty";
 
-            const std::string Efficiency = "efficiency";
-            const std::string L2ReadHits = "l2-read-hits";
-            const std::string L2WriteHits = "l2-write-hits";
-            const std::string ReadMultiplier = "read-multiplier";
-            const std::string Mfma = "mfma"; 
-            const std::string MemoryBandwidth = "memory-bandwidth";
+            const std::string Efficiency        = "efficiency";
+            const std::string L2ReadHits        = "l2-read-hits";
+            const std::string L2WriteHits       = "l2-write-hits";
+            const std::string NumCUs            = "num-cus";
+            const std::string ReadMultiplier    = "read-multiplier";
+            const std::string MemoryBandwidth   = "memory-bandwidth";
 
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
             const std::string ClockRateSys        = "clock-sys";
             const std::string ClockRateSOC        = "clock-soc";
             const std::string ClockRateMem        = "clock-mem";
+            const std::string DeviceIndex         = "device-index";
             const std::string FanSpeedRPMs        = "fan-rpm";
             const std::string HardwareSampleCount = "hardware-samples";
         };
@@ -232,10 +233,10 @@ namespace Tensile
         public:
             static std::shared_ptr<PerformanceReporter> Default()
             {
-                return Default();
+                return std::make_shared<PerformanceReporter>();
             }
 
-            void reportValue_double(std::string key, double value) 
+            virtual void reportValue_double(std::string key, double value) override
             {
                 if(key == ResultKey::ClockRateSys)
                 {
@@ -249,13 +250,33 @@ namespace Tensile
                 if(!std::isnan(m_clock) && !std::isnan(m_gFlops))
                 {
                     setNumCUs();
-                    setMagicNum(numCUs);
-                    setReadMultiplier();
-                    m_eff = 100*1000*m_gFlops/(numCUs*magicNum*readMultiplier*m_clock);
+                    setMagicNum();
+                    m_eff = 100*1000*m_gFlops/(m_numCUs*magicNum*m_readMultiplier*m_clock);
                 }
             }
 
-            void preSolution(ContractionSolution const& solution)
+            virtual void reportValue_int(std::string const& key, int64_t value) override
+            {
+                if(key == ResultKey::DeviceIndex) 
+                {
+                    m_deviceIndex = value;
+                }
+            }
+
+
+            virtual void preProblem(ContractionProblem const& problem) override
+            {
+               int dataEnum = (int)problem.a().dataType();
+               std::unordered_map<int,double> readMul = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
+
+                for(std::unordered_map<int,double>::iterator it=readMul.begin(); it != readMul.end(); it++)
+                {
+                    if(it->first == dataEnum) m_readMultiplier = it->second;
+                }
+                m_reporter->report(ResultKey::ReadMultiplier, m_readMultiplier);
+            }
+
+            virtual void preSolution(ContractionSolution const& solution) override
             {
                 m_reporter->report(ResultKey::Efficiency, m_eff); 
                 m_clock = std::numeric_limits<double>::quiet_NaN();
@@ -266,33 +287,30 @@ namespace Tensile
             void setNumCUs()
             {
                 hipDeviceProp_t props;
-                hipGetDeviceProperties(&props, 0);  //want to use device idx
-                numCUs = props.multiProcessorCount;       
+                hipGetDeviceProperties(&props, m_deviceIndex);
+                m_numCUs = props.multiProcessorCount;       
+                m_reporter->report(ResultKey::NumCUs, m_numCUs);
             }
 
-            void setMagicNum(double numCU)
+            void setMagicNum()
             {
-                if(numCU == 120) magicNum = 128;
+                if(m_numCUs == 120) magicNum = 128;
                 else magicNum = 64;
             }
 
-            void setReadMultiplier()
-            {
-                readMultiplier = 2;
-               /* std::unordered_map<int,double> readMul = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
-
-                for(std::unordered_map<int,double>::iterator it=readMul.begin(); it != readMul.end(); it++)
-                {
-                    if(it->first == args["type"]) readMultiplier = it->second;
-                }*/
-            }
-           
+            virtual void reportValue_string(std::string const& key, std::string const& value) override{}
+            virtual void reportValue_uint(std::string const& key, uint64_t value) override {}
+            virtual void reportValue_double(std::string const& key, double value) override {}
+            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override{}
+            virtual void finalizeReport() override{}
+        
         private: 
             double m_clock = std::numeric_limits<double>::quiet_NaN();
             double m_gFlops = std::numeric_limits<double>::quiet_NaN();
-            int magicNum;
-            int numCUs = 64;
-            double readMultiplier; 
+            int64_t magicNum;
+            int64_t m_numCUs;
+            int64_t m_deviceIndex;
+            double m_readMultiplier; 
             double m_eff = std::numeric_limits<double>::quiet_NaN();
         };
     }
