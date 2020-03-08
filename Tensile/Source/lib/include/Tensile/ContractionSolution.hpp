@@ -54,8 +54,19 @@ namespace Tensile
         virtual std::string KernelName() const { return kernelName; }
         virtual std::string name() const { return kernelName; }
         virtual std::string description() const { return kernelName; }
-
+        
         bool isSourceKernel() const;
+
+        double m_ReadMultiplier;
+        double m_ReadEff;
+        double m_L2ReadHit;
+        double m_L2WriteHit;
+        double m_Clock;
+        double m_MemClock;
+        double m_MemBandwidthMBps;
+        double m_L2BandwidthMBps;
+        double m_PeakMFlops;
+        int m_NumCUs;
 
         //! Estimates based on problem size, solution tile, and  machine hardware charz:
         struct StaticPerformanceModel
@@ -65,12 +76,15 @@ namespace Tensile
           size_t memReadBytesC=0.0; //! Estimated memory reads C
           size_t memWriteBytesD=0.0; //! Estimated memory writes D
           size_t memReadBytes=0.0;
+          size_t memGlobalReads=0;
+          size_t memGlobalWrites=0;
 
           //! Times in US
           double aluUs=0.0; //! Estimated alu cycles
           double memReadUs=0.0; //! Estimated memory read cycles
           double memWriteUs=0.0; //! Estimated memory write cycles
-        };
+        
+         };
 
         struct ProjectedPerformance
         {

@@ -634,7 +634,7 @@ namespace Tensile
         }
     }
 
-    std::string getOutputCmd(std::string cmd)
+/*    std::string getOutputCmd(std::string cmd)
     {
         std::string output;
         FILE * ostream;
@@ -650,7 +650,7 @@ namespace Tensile
         }
         
         return output;
-    }
+    }*/
 
     ContractionSolution::StaticPerformanceModel ContractionSolution::staticPerformanceModel
         (double M, double N, double K, double NumBatches, double MT0, double MT1,
@@ -677,9 +677,10 @@ namespace Tensile
             }
         }
 
-        spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * (problemType.aType == DataType::Float ? 4 : 2); // hack
-        spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * (problemType.bType == DataType::Float ? 4 : 2); // hack
-        spm.memReadBytesC = (NumBatches*M*N) * betaReads * (problemType.cType == DataType::Float ? 4 : 2); // hack
+        double readMultiplier = m_ReadMultiplier;
+        spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * readMultiplier;//(problemType.aType == DataType::Float ? 4 : 2); // hack
+        spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * readMultiplier;//(problemType.bType == DataType::Float ? 4 : 2); // hack
+        spm.memReadBytesC = (NumBatches*M*N) * betaReads * readMultiplier; //(problemType.cType == DataType::Float ? 4 : 2); // hack
 #if 0
         spm.memReadBytesB = (M*N*K)/MT0 * TypeInfo<typename TypedInputs::BType>::ElementSize();
         //if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
@@ -687,7 +688,7 @@ namespace Tensile
         spm.memWriteBytesD   = (M*N) *TypeInfo<typename TypedInputs::DType>::ElementSize();
 #endif
 
-        auto  dSize = (problemType.dType == DataType::Float ? 4 : 2); // hack
+        auto  dSize = readMultiplier; //(problemType.dType == DataType::Float ? 4 : 2); // hack
         if (GlobalSplitU == 1)
             spm.memWriteBytesD   = (NumBatches*M*N)*(1+betaWrites);
         else
@@ -698,23 +699,23 @@ namespace Tensile
             spm.memWriteBytesD   = (NumBatches*M*N) * (betaWrites + atomicOperations * atomicCollisions);
         }
         spm.memReadBytes = spm.memReadBytesA + spm.memReadBytesB + spm.memReadBytesC;
+        spm.memGlobalReads = spm.memReadBytes / readMultiplier;
+        spm.memGlobalWrites = NumBatches*M*N;
 
-        hipDeviceProp_t props;
-        hipGetDeviceProperties(&props, 0);
-        double readEfficiency = .85; // TODO-model: read from arch with yaml override
-        double l2ReadHit = 0.0; // TODO-model: read from arch with yaml override
-        double l2WriteHit = .50; // TODO-model: read from arch with yaml override
-        int frequency = std::stoi(getOutputCmd("/opt/rocm/bin/rocm-smi --showclocks -d 0 | grep sclk | awk {\'print $7\'} | tr -d \'(Mhz)\'"));
-        int memFrequency = std::stoi(getOutputCmd("/opt/rocm/bin/rocm-smi --showclocks -d 0 | grep mclk | awk {\'print $7\'} | tr -d \'(Mhz)\'"));
-        double memBandwidthMBps = props.memoryBusWidth*memFrequency;
+        double readEfficiency = m_ReadEff; // TODO-model: read from arch with yaml override
+        double l2ReadHit = m_L2ReadHit; // TODO-model: read from arch with yaml override
+        double l2WriteHit = m_L2WriteHit; // TODO-model: read from arch with yaml override
+        double frequency = m_Clock;
+        double memFrequency = m_MemClock;
+        double memBandwidthMBps = m_MemBandwidthMBps; //getMemoryBusWidth()*memFrequency;
 
-        double l2BandwidthMBps = 2*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
-        double peakMFlops = frequency*NumCUs*128;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
+        double l2BandwidthMBps = m_L2BandwidthMBps; //readMultiplier*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
+        double peakMFlops = m_PeakMFlops; //frequency*NumCUs*getMagicNum()*readMultiplier;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
 
         spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
         spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
 
-        double flops = 2.0*NumBatches*M*N*K;
+        double flops = readMultiplier*NumBatches*M*N*K;
         spm.aluUs = flops/(peakMFlops*TotalGranularity);
 
         return spm;
@@ -774,9 +775,7 @@ namespace Tensile
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
 
-        hipDeviceProp_t props;
-        hipGetDeviceProperties(&props, 0);
-        double NumCUs = props.multiProcessorCount;//std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
+        double NumCUs = (double)m_NumCUs; //std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
 
         AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
         if (pAMDGPU != nullptr)

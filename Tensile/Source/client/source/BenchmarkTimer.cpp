@@ -103,6 +103,9 @@ namespace Tensile
             m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
 
             // TODO-perfcounter - add memory global reads and writes from performance counter
+            m_reporter->report(ResultKey::MemGlobalReads, pp.staticModel.memGlobalReads);
+            m_reporter->report(ResultKey::MemGlobalWrites, pp.staticModel.memGlobalWrites);
+
         }
 
         void BenchmarkTimer::postSolution()
