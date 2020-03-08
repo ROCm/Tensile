@@ -101,15 +101,17 @@ namespace Tensile
             const std::string MemWriteBytes  = "mem-write-bytes";
             const std::string MemReadUs  = "mem-read-us";
             const std::string MemWriteUs = "mem-write-us";
+            const std::string MemGlobalReads  = "mem-global-reads";
+            const std::string MemGlobalWrites  = "mem-global-writes";
             const std::string AluUs      = "alu-us";
             const std::string Empty          = "empty";
 
             const std::string Efficiency        = "efficiency";
             const std::string L2ReadHits        = "l2-read-hits";
             const std::string L2WriteHits       = "l2-write-hits";
-            const std::string NumCUs            = "num-cus";
             const std::string ReadMultiplier    = "read-multiplier";
-            const std::string MemoryBandwidth   = "memory-bandwidth";
+            const std::string L2BandwidthMBps   = "l2-bandwidth-mbps";
+            const std::string PeakMFlops        = "peak-mflops";
 
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
@@ -242,6 +244,10 @@ namespace Tensile
                 {
                     m_clock = value;
                 }
+                if(key == ResultKey::ClockRateMem)
+                {
+                    m_memClock = value;
+                }
                 if(key == ResultKey::SpeedGFlops) 
                 {
                     m_gFlops = value;
@@ -249,9 +255,13 @@ namespace Tensile
 
                 if(!std::isnan(m_clock) && !std::isnan(m_gFlops))
                 {
-                    setNumCUs();
-                    setMagicNum();
-                    m_eff = 100*1000*m_gFlops/(m_numCUs*magicNum*m_readMultiplier*m_clock);
+                    m_peakMFlops = getNumCUs()*getMagicNum()*getReadMultiplier()*m_clock;
+                    m_eff = 100*1000*m_gFlops/m_peakMFlops;
+                }
+
+                if(!std::isnan(m_memClock))
+                {
+                    m_memBandwidthMBps = m_memoryBusWidth*m_memClock;
                 }
             }
 
@@ -260,6 +270,10 @@ namespace Tensile
                 if(key == ResultKey::DeviceIndex) 
                 {
                     m_deviceIndex = value;
+                    hipGetDeviceProperties(&props, m_deviceIndex);
+                    setNumCUs();
+                    setMagicNum();
+                    setMemoryBusWidth();
                 }
             }
 
@@ -267,36 +281,65 @@ namespace Tensile
             virtual void preProblem(ContractionProblem const& problem) override
             {
                int dataEnum = (int)problem.a().dataType();
-               std::unordered_map<int,double> readMul = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
+               std::unordered_map<int,double> readMulMap = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
 
-                for(std::unordered_map<int,double>::iterator it=readMul.begin(); it != readMul.end(); it++)
+                for(std::unordered_map<int,double>::iterator it=readMulMap.begin(); it != readMulMap.end(); it++)
                 {
-                    if(it->first == dataEnum) m_readMultiplier = it->second;
+                    if(it->first == dataEnum) m_readMul = it->second;
                 }
-                m_reporter->report(ResultKey::ReadMultiplier, m_readMultiplier);
+                m_reporter->report(ResultKey::ReadMultiplier, m_readMul);
             }
 
-            virtual void preSolution(ContractionSolution const& solution) override
+            virtual void preSolution(ContractionSolution & solution) override
             {
+                solution.m_ReadMultiplier = getReadMultiplier();
+                solution.m_ReadEff = getReadEff();           
+                solution.m_L2ReadHit = getL2ReadHits();
+                solution.m_L2WriteHit = getL2WriteHits();
+                solution.m_Clock = getClock();
+                solution.m_MemClock = getMemClock();
+                solution.m_MemBandwidthMBps = getMemBandwidthMBps();
+                solution.m_L2BandwidthMBps = getMemBandwidthMBps()*getReadMultiplier();
+                solution.m_PeakMFlops = getPeakMFlops();
+                solution.m_NumCUs = getNumCUs();
+
+                m_reporter->report(ResultKey::PeakMFlops, m_peakMFlops);
                 m_reporter->report(ResultKey::Efficiency, m_eff); 
+                m_reporter->report(ResultKey::L2BandwidthMBps, m_memBandwidthMBps*m_readMul);
                 m_clock = std::numeric_limits<double>::quiet_NaN();
+                m_memClock = std::numeric_limits<double>::quiet_NaN();
                 m_gFlops = std::numeric_limits<double>::quiet_NaN();
                 m_eff = std::numeric_limits<double>::quiet_NaN();
+                m_peakMFlops = std::numeric_limits<double>::quiet_NaN();
+                m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
             }
 
             void setNumCUs()
             {
-                hipDeviceProp_t props;
-                hipGetDeviceProperties(&props, m_deviceIndex);
                 m_numCUs = props.multiProcessorCount;       
-                m_reporter->report(ResultKey::NumCUs, m_numCUs);
+            }
+
+            void setMemoryBusWidth()
+            {
+                m_memoryBusWidth = props.memoryBusWidth;
             }
 
             void setMagicNum()
             {
-                if(m_numCUs == 120) magicNum = 128;
-                else magicNum = 64;
+                if(getNumCUs() == 120) m_magicNum = 128;
+                else m_magicNum = 64;
             }
+
+            int     getNumCUs(){return m_numCUs;}
+            int     getMagicNum(){return m_magicNum;}
+            double  getMemClock(){return m_memClock;}
+            double  getClock(){return m_clock;}
+            double  getReadMultiplier(){return m_readMul;}
+            double  getL2ReadHits(){return m_l2ReadHits;}
+            double  getL2WriteHits(){return m_l2WriteHits;}
+            double  getReadEff(){return m_readEff;}
+            double  getMemBandwidthMBps(){return m_memoryBusWidth*m_memClock;}
+            double  getPeakMFlops(){return m_peakMFlops;}
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override{}
             virtual void reportValue_uint(std::string const& key, uint64_t value) override {}
@@ -304,14 +347,22 @@ namespace Tensile
             virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override{}
             virtual void finalizeReport() override{}
         
-        private: 
-            double m_clock = std::numeric_limits<double>::quiet_NaN();
-            double m_gFlops = std::numeric_limits<double>::quiet_NaN();
-            int64_t magicNum;
-            int64_t m_numCUs;
+        protected: 
+            hipDeviceProp_t props;
+            double  m_clock = std::numeric_limits<double>::quiet_NaN();
+            double  m_memClock = std::numeric_limits<double>::quiet_NaN();
+            double  m_gFlops = std::numeric_limits<double>::quiet_NaN();
+            int     m_magicNum;
+            int     m_numCUs;
+            int     m_memoryBusWidth;
             int64_t m_deviceIndex;
-            double m_readMultiplier; 
-            double m_eff = std::numeric_limits<double>::quiet_NaN();
+            double  m_readMul; 
+            double  m_eff = std::numeric_limits<double>::quiet_NaN();
+            double  m_l2ReadHits = 0.0; //figure out how to get from client...maybe use NaN
+            double  m_l2WriteHits = 0.5; //figure how to get from client...maybe use std::numeric_limits<double>::quiet_NaN();
+            double  m_readEff = 0.85; //figure how to get from client..maybe use NaN
+            double  m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
+            double  m_peakMFlops = std::numeric_limits<double>::quiet_NaN();;
         };
     }
 }
