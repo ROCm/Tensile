@@ -334,8 +334,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # interleave pack code
       packItem = packCode.flatitems()
       packCount = 0
+      packInstPerIter = (1 + self.numRowInsts * self.numColInsts)*(kernel["MatrixInstK"]//2)
       while packItem:
-        if packCount < 4:
+        if packCount < packInstPerIter:
           item = packItem.pop(0)
           iterCode.addCode(item)
           packCount = packCount + 1
@@ -350,7 +351,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addInst("s_setprio ","3","Raise priority while processing macs")
       macIterItem = macIterCode.flatitems()
       # pop the first code which is s_nop 1 for packing
-      if kernel["MatrixInstruction"] and kernel["ProblemType"]["DataType"].isBFloat16():
+      if kernel["MatrixInstruction"] and \
+      (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
         item = macIterItem.pop(0)
         iterCode.addCode(item)
 
@@ -365,6 +367,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             packCount = packCount + 1
           else:
             break
+        if packCount > 0:
+          iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")  
 
       iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
       iterCode.addCode(localWriteCode)
