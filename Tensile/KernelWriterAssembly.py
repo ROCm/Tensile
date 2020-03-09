@@ -6076,6 +6076,13 @@ class KernelWriterAssembly(KernelWriter):
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
     if self.savedVgprPool != None:
+      # in case pool size in current path is larger than pool size in main path
+      # and it will miss allocate vgpr since allocating vgpr is based on pool size in main path
+      oldSize = self.savedVgprPool.size()
+      newSize = self.vgprPool.size()
+      if newSize > self.savedVgprPool.size():
+        for i in range(oldSize-1,newSize):
+          self.savedVgprPool.pool.append(self.savedVgprPool.Register(self.savedVgprPool.statusAvailable,"restore vgprPool"))
       self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path 
       self.savedVgprPool = None
     return kStr
