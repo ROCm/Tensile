@@ -18,7 +18,7 @@ GlobalParameters:
   KernelTime: True
   PinClocks: False
   SleepPercent: 200
-  PrintSolutionRejectionReason: True
+  #PrintSolutionRejectionReason: True
   DataInitTypeA: 3
   DataInitTypeB: 3
   #DataInitTypeC: 0
@@ -59,24 +59,25 @@ BenchmarkProblems:
           - [32, 32, 2, 2]
         - ThreadTile:
           - [ 1, 32 ]
+          - [ 2, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
           - [ 64, 4, 1 ]
         - WorkGroupMapping: [4]
         - PrefetchGlobalRead: [1]
-        - PrefetchLocalRead: [0,1]
+        - PrefetchLocalRead: [1]
         - GlobalSplitU: [1]
         - DepthU: [8,16,32,64]
-        - VectorWidth: [2,4]
-        - GlobalReadVectorWidth: [2,4]
+        - VectorWidth: [2]
+        - GlobalReadVectorWidth: [2]
         - SuppressNoLoadLoop: [0]
         - OptNoLoadLoop: [1]
-        - ScheduleLocalWrite: [0,1]
+        - ScheduleLocalWrite: [1]
         - ScheduleGlobalRead: [1]
-        - ScheduleIterAlg: [1,2]
-        - InnerUnroll: [1,2,4,8,16]
+        - ScheduleIterAlg: [1]
+        - InnerUnroll: [1]
         - ExpandPointerSwap: [1]
-        - StaggerU: [0,32]
+        - StaggerU: [32]
         - GlobalReadCoalesceGroupA: [1]
         - GlobalReadCoalesceGroupB: [1]
         - NumLoadsCoalescedA: [1]
@@ -200,7 +201,6 @@ BenchmarkProblems:
           - Exact: [ 3, 64, 512, 3, 3, 3, 3, 64 ]
           - Exact: [ 5, 64, 512, 5, 5, 5, 5, 64 ]
           - Exact: [ 9, 64, 512, 9, 9, 9, 9, 64 ]
-
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -213,24 +213,26 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [32, 32, 2, 2]
         - ThreadTile:
+          - [ 1, 32 ]
           - [ 2, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
+          - [ 64, 4, 1 ]
         - WorkGroupMapping: [4]
         - PrefetchGlobalRead: [1]
-        - PrefetchLocalRead: [0,1]
+        - PrefetchLocalRead: [0]
         - GlobalSplitU: [1]
-        - DepthU: [8,16,32,64]
-        - VectorWidth: [2,4]
-        - GlobalReadVectorWidth: [2,4]
+        - DepthU: [8,16,32]
+        - VectorWidth: [2]
+        - GlobalReadVectorWidth: [2]
         - SuppressNoLoadLoop: [0]
         - OptNoLoadLoop: [1]
-        - ScheduleLocalWrite: [0,1]
+        - ScheduleLocalWrite: [0]
         - ScheduleGlobalRead: [1]
-        - ScheduleIterAlg: [1,2]
-        - InnerUnroll: [1,2,4,8,16]
+        - ScheduleIterAlg: [2]
+        - InnerUnroll: [4,8,16]
         - ExpandPointerSwap: [1]
-        - StaggerU: [0,32]
+        - StaggerU: [32]
         - GlobalReadCoalesceGroupA: [1]
         - GlobalReadCoalesceGroupB: [1]
         - NumLoadsCoalescedA: [1]
@@ -354,7 +356,6 @@ BenchmarkProblems:
           - Exact: [ 3, 64, 512, 3, 3, 3, 3, 64 ]
           - Exact: [ 5, 64, 512, 5, 5, 5, 5, 64 ]
           - Exact: [ 9, 64, 512, 9, 9, 9, 9, 64 ]
-
 ########################################
 LibraryLogic:
     ScheduleName: "arcturus"
