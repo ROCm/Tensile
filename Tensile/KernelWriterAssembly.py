@@ -4895,7 +4895,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(ldlOffsetVgpr)
 
     if tP["isB"]:
-      if kernel["DirectToLdsB"] and kernel["MatrixInstM"]:
+      if kernel["DirectToLdsB"] and kernel["MatrixInstruction"] :
         kStr += inst("s_add_u32", \
             sgpr("LocalWriteAddrB"), \
             hex(kernel["LdsOffsetB"]*tP["bpe"]), \

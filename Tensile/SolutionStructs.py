@@ -2576,11 +2576,11 @@ class Solution:
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
     ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
 
-    print("ldsNumElementsA", ldsNumElementsA)
-    print("ldsNumElementsB", ldsNumElementsB)
-    print("ldsNumElementsAlignedA", ldsNumElementsAlignedA)
-    print("ldsNumElementsAlignedB", ldsNumElementsAlignedB)
-    print("ldsNumElementsAB", ldsNumElementsAB)
+    #print("ldsNumElementsA", ldsNumElementsA)
+    #print("ldsNumElementsB", ldsNumElementsB)
+    #print("ldsNumElementsAlignedA", ldsNumElementsAlignedA)
+    #print("ldsNumElementsAlignedB", ldsNumElementsAlignedB)
+    #print("ldsNumElementsAB", ldsNumElementsAB)
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
