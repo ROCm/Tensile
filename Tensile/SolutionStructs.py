@@ -2532,10 +2532,6 @@ class Solution:
     if state["TransposeLDS"] == 1:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
-    # only support "LdsBlockSizePerPad = 256
-    if state["DirectToLds"] == 1:
-      if "MatrixInstruction" in state:
-        state["LdsBlockSizePerPad"] = 256
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     if not state["LdsBlockSizePerPad"] == -1:
