@@ -13,7 +13,7 @@ def runCI =
 {
     nodeDetails, jobName ->
 
-    def prj = new rocProject('Tensile', 'PreCheckin')
+    def prj = new rocProject('tensile', 'PreCheckin')
 
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(nodeDetails, jobName, prj)
