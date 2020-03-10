@@ -2534,6 +2534,7 @@ class Solution:
         state["LdsBlockSizePerPad"] = 256
     # only support "LdsBlockSizePerPad = 256
     if state["DirectToLds"] == 1:
+      if "MatrixInstruction" in state:
         state["LdsBlockSizePerPad"] = 256
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
