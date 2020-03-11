@@ -8278,7 +8278,8 @@ class KernelWriterAssembly(KernelWriter):
                       "vectorStaticDiv vgprTmp = tid0 / matrixInstM")
           # determine row-id of each block(MFMA 'B') 2 rows for mfma32x32 4 rows for mfma16x16
           # for MFMA_4x4 16 blks are mapped along rows and cols determied by miwg0  (miwg0/4 = numRows in 16 blocks and remaining in col dimension)
-          rowIdPerColblock = globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]
+          # rowIdPerColblock = globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]
+          rowIdPerColBlock = 2 # Multiply by 4 for both 32x32 and 16x16, 4 simds
           kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(rowIdPerColblock), vgpr(tmpV3), "tmpV3 = tmpV3 << 2 (4xMatrixInstN per block")   # mulitple by 4 for row-starting id for each matrixN columns (static for mfma32/mfma16)
         else:
            assert(0) 	#TODO fix me for MFMA 4x4 instruction 
