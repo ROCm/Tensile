@@ -230,7 +230,7 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
         scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
         appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[32,8,4],[8,32,4],[8,8,4]])
+        appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "small":
         scheme["GlobalSplitU"] = [1,4]
@@ -248,7 +248,7 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
             scheme["DepthU"] = [8, 16]
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
             appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[8,4],[4,8],[8,8]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4],[4,16,4],[16,4,4]])
+            appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
         else:
             scheme["GlobalSplitU"] = [1,8]
