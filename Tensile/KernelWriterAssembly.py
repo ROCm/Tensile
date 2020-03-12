@@ -8273,17 +8273,21 @@ class KernelWriterAssembly(KernelWriter):
                       hex(kernel["MatrixInstN"]), vgpr(tid1), "col element offset for each block")
         startStride = 1 if kernel["ProblemType"]["UseInitialStridesCD"] else 0
         # determine col VGPR statt address
+        packedC1 = kernel["PackedC1IndicesX"]
+        assert (len(packedC1) == 1) # would need to extract/scale indices from coord1
+        strideC1 = "StrideC%s" % (self.indexChars[packedC1[0]])
         kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr),
-                      vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
+                      vgpr(tid1), sgpr(strideC1), \
                       "Col-block-offset = Col-id*Stride")
         if not kernel["LdcEqualsLdd"]:
+          strideD1 = "StrideD%s" % (self.indexChars[packedC1[0]])
           kStr += inst("v_mul_lo_u32", vgpr(self.coutRowPtr),
-                        vgpr(tmpV1), sgpr("StridesD+%u"%(startStride)), \
+                        vgpr(tmpV1), sgpr(strideD1), \
                         "Col-block-offset = Col-id*Stride")
 
         kStr += inst("v_and_b32", vgpr(tmpV1), hex(kernel["MatrixInstN"]-1), vgpr("Serial"), "colId-perBlock= vgprSerial%MatrixInstN")
         #TODO fix-me for ldc!=ldd
-        kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr("StridesC"), "")
+        kStr += inst("v_mul_lo_u32", vgpr(tmpV2), vgpr(tmpV1), sgpr(strideC1), "")
         kStr += inst("v_add_u32", vgpr(self.cinRowPtr), vgpr(tmpV2),vgpr(self.cinRowPtr),"rowStart VGPR")
         kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpV1),vgpr(tid1),"coord1 offset in MacroTile")
 
