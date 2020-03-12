@@ -72,6 +72,8 @@ namespace Tensile
                                std::vector<hipEvent_t> const& startEvents,
                                std::vector<hipEvent_t> const& stopEvents);
 
+            void initKernel(std::string const& name);
+
         private:
 
             hipFunction_t getKernel(std::string const& name);
