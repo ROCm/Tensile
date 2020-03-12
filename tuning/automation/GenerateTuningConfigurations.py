@@ -457,6 +457,9 @@ def RunMain():
     scriptPath = os.path.join(outputPath, "scripts")
     if not os.path.exists(scriptPath):
         os.makedirs(scriptPath)
+    scriptPath2 = os.path.join(outputPath, "scripts2")
+    if not os.path.exists(scriptPath2):
+        os.makedirs(scriptPath2)
     sizePath = os.path.join(outputPath, "sizes")
     if not os.path.exists(sizePath):
         os.makedirs(sizePath)
@@ -465,11 +468,11 @@ def RunMain():
     
     if len(sys.argv) <= 6:
         OutputScript(problemMapper, scriptPath, namePart)
-        OutputScript2(problemMapper, scriptPath, namePart+'2')
+        OutputScript2(problemMapper, scriptPath2, namePart)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
         OutputScript(problemMapper, scriptPath, networkName)
-        OutputScript2(problemMapper, scriptPath, networkName+'2')
+        OutputScript2(problemMapper, scriptPath2, networkName)
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":

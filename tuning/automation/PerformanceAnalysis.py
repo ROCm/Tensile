@@ -70,7 +70,6 @@ def ParseResults(inputPath, outputPath, resultsName):
     outfilename = resultsName + ".csv"
 
     outputFilePath = os.path.join(outputPath, outfilename)
-    print(outfile)
     outfile = open(outputFilePath,'w')
 
     for fl in filteredFiles:

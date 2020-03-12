@@ -2,8 +2,9 @@
 
 HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r|--reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-h|--help]"
 HELP=false
+PLOT=true
 
-OPTS=`getopt -o hf:s:b:o:r:z:g:m: --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma: -n '
+OPTS=`getopt -o hf:s:b:o:r:z:g:m:n --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma:,n -n '
 parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
@@ -21,6 +22,7 @@ while true; do
     -s )                       SZ="$2"; shift 2;;
     -g | --gpu ) 	       GPU="$2"; shift 2;;
     -m | --mfma )	       MFMA="$2"; shift 2;;
+    -n | --no-plot )           PLOT=false; shift;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -105,27 +107,30 @@ PLOT_RESULTS=${AUTOMATION_ROOT}/PlotResults.py
 python ${ANALYSIS} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA}
 python ${ANALYSIS} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA}
 
-
 ls ${NEW_AGGREGATED}/*aggregated* | xargs -n1 basename | xargs -I{} python ${COMPARE} ${REFERENCE_AGGREGATED}/{} ${NEW_AGGREGATED}/{} ${CASE_FINAL}/{}
 
-REFERENCE_PLOT=${CASE_REFERENCE}/plot
-NEW_PLOT=${CASE_NEW}/plot
+if $PLOT; then
 
-mkdir -p ${REFERENCE_PLOT}
-mkdir -p ${NEW_PLOT}
+  REFERENCE_PLOT=${CASE_REFERENCE}/plot
+  NEW_PLOT=${CASE_NEW}/plot
 
-aggregated_files=$(ls ${REFERENCE_AGGREGATED}/*aggregated*)
-for file in ${aggregated_files}; do
-  filename=$(basename "$file")
-  namepart="${filename%-aggregated.*}"
+  mkdir -p ${REFERENCE_PLOT}
+  mkdir -p ${NEW_PLOT}
 
-  python ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
-done
+  aggregated_files=$(ls ${REFERENCE_AGGREGATED}/*aggregated*)
+  for file in ${aggregated_files}; do
+    filename=$(basename "$file")
+    namepart="${filename%-aggregated.*}"
 
-aggregated_files=$(ls ${NEW_AGGREGATED}/*aggregated*)
-for file in ${aggregated_files}; do
-  filename=$(basename "$file")
-  namepart="${filename%-aggregated.*}"
+    python ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
+  done
 
-  python ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
-done
+  aggregated_files=$(ls ${NEW_AGGREGATED}/*aggregated*)
+  for file in ${aggregated_files}; do
+    filename=$(basename "$file")
+    namepart="${filename%-aggregated.*}"
+
+    python ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
+  done
+
+fi
