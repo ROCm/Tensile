@@ -2,30 +2,9 @@ TestParameters:
   marks: [skip-gfx900, skip-gfx906, skip-gfx1010] # not supported by arch
 
 GlobalParameters:
-  MinimumRequiredVersion: 4.4.0
-  PrintLevel: 1
-  ForceRedoBenchmarkProblems: True
-  ForceRedoLibraryLogic: True
-  ForceRedoLibraryClient: True
-  CMakeBuildType: Release
-  EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
-  LibraryPrintDebug: False
   NumElementsToValidate: -1
-  ValidationMaxToPrint: 4
-  ValidationPrintValids: False
-  ShortNames: False
-  MergeFiles: True
-  Platform: 0
-  Device: 0
+  BoundsCheck: True
   KernelTime: True
-  PinClocks: True
-  SleepPercent: 200
-  PrintSolutionRejectionReason: True
-  DataInitTypeA: 3
-  DataInitTypeB: 3
-  DataInitTypeBeta: 1
-  DataInitTypeAlpha: 1
 
 BenchmarkProblems:
   ########################################
