@@ -9235,6 +9235,8 @@ class KernelWriterAssembly(KernelWriter):
       if not kernel["GuaranteeNoPartialB"] and kw.readTileDimVectorB and kernel["MatrixInstruction"] and edge:
         (d1,d0,vc1,vc0) = self.element
         if (d1 == vc1 == d0 == vc0 == 0) or self.newCoord1:
+          packedC1 = kernel["PackedC1IndicesX"]
+          strideC1 = "StrideC%s" % (kw.indexChars[packedC1[0]])
           kStr += kw.comment("shift vector components d1")
           vw = kernel["GlobalLoadVectorWidthB"]
           vTmp1 = tmpVgpr01
@@ -9254,8 +9256,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp2), \
                         sgpr(sTmp2,2), "coord1 shift right if (coord1 of threadx is edge and odd)" )
 
-          kStr += inst("v_sub_u32", vgpr(vTmp1), vgpr(kw.cinRowPtr), sgpr("StridesC"), "tmp = rowStart - StridesC")
-          kStr += inst("v_add_u32", vgpr(vTmp2), vgpr(kw.cinRowPtr), sgpr("StridesC"), "tmp = rowStart + StridesC")
+          kStr += inst("v_sub_u32", vgpr(vTmp1), vgpr(kw.cinRowPtr), sgpr(strideC1), "tmp = rowStart - StridesC")
+          kStr += inst("v_add_u32", vgpr(vTmp2), vgpr(kw.cinRowPtr), sgpr(strideC1), "tmp = rowStart + StridesC")
           kStr += inst("v_cndmask_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowPtr), vgpr(vTmp1), \
                         sgpr(sTmp1,2), "rawStart shift left if (coord1 of threadx-1 is edge and odd)" )
           kStr += inst("v_cndmask_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowPtr), vgpr(vTmp2), \
