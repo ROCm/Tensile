@@ -238,7 +238,7 @@ namespace Tensile
                 return std::make_shared<PerformanceReporter>();
             }
 
-            virtual void reportValue_double(std::string key, double value) override
+            virtual void reportValue_double(std::string const& key, double value) override
             {
                 if(key == ResultKey::ClockRateSys)
                 {
@@ -287,6 +287,7 @@ namespace Tensile
                 {
                     if(it->first == dataEnum) m_readMul = it->second;
                 }
+                std::cout << "M_reporter" << m_reporter << std::endl;
                 m_reporter->report(ResultKey::ReadMultiplier, m_readMul);
             }
 
@@ -343,8 +344,8 @@ namespace Tensile
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override{}
             virtual void reportValue_uint(std::string const& key, uint64_t value) override {}
-            virtual void reportValue_double(std::string const& key, double value) override {}
             virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override{}
+            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override {}
             virtual void finalizeReport() override{}
         
         protected: 
