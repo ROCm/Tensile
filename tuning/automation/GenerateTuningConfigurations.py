@@ -194,11 +194,7 @@ def generateDefaultScheme():
             "VectorWidth": [-1],
             "GlobalSplitU": [1],
             "GlobalReadVectorWidth": [-1],
-            "LdsPadA": [0, -1],
-            "LdsPadB": [0, -1],
-            "UseSgprForGRO": [0, 1],
             "FractionalLoad": [0,1],
-            "PrefetchGlobalRead": [False],
             "PrefetchLocalRead": [False,True]}
 
     return scheme
@@ -218,24 +214,18 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
     
     if sizeKey == "batch":
         scheme["GlobalSplitU"] = [1]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
         appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "tiny":
         scheme["GlobalSplitU"] = [1,4]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
         appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "small":
         scheme["GlobalSplitU"] = [1,4]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[8,8,4]])
@@ -243,8 +233,6 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
     elif sizeKey == "medium":
         if transposeType == "tn":
             scheme["GlobalSplitU"] = [1,8]
-            scheme["LdsPadA"] = [0, -1]
-            scheme["LdsPadB"] = [0, -1]
             scheme["DepthU"] = [8, 16]
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
             appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[8,4],[4,8],[8,8]])
@@ -252,16 +240,12 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
             appendSizes(benchmarkGroup,sizeList,tileAware)
         else:
             scheme["GlobalSplitU"] = [1,8]
-            scheme["LdsPadA"] = [0, -1]
-            scheme["LdsPadB"] = [0, -1]
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
             appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
     else: #sizeKey == "large"
         scheme["GlobalSplitU"] = [1]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme, tileAware) 
         appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
