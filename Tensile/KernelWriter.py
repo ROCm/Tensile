@@ -1631,7 +1631,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else: # TN yes transpose
       self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
       self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"] if not kernel["TransposeLDS"] else kernel["NumLoadsCoalescedA"]
+      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"] if not kernel["TransposeLDS"]  else kernel["NumLoadsCoalescedA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
@@ -1744,7 +1744,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.writeUnrollDimComponentsB = False
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
-          # LDS writes with LDL>1 will never be coalesced
+          # LDS writes with LDL>1 will never be coalesced%
           writeCoal = False
         else:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 if not kernel["TransposeLDS"] else False # Components

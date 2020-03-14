@@ -3776,9 +3776,12 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += self.comment1("%s = gro%s-unroll = serial%s%s" \
         % (vgpr(uReg), tP["tensorChar"], uOpStr, divisorName) )
-    if not kernel["TransposeLDS"] or kernel["DirectToLds%s"%tP["tensorChar"]]:
+    if not kernel["TransposeLDS"] or \
+       kernel["DirectToLds%s"%tP["tensorChar"]] or \
+       (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] ==1)):
       dividendReg = "Serial" # local serial
     else:
+      # only for kernel["ProblemType"]["TLU%"] tP["tensorChar"] 
       dividendReg = self.vgprPool.checkOut(1, "dividendReg", self.preventVgprOverflowDuringNewTile)
       kStr += inst("v_and_b32", \
           vgpr(dividendReg), \
@@ -3813,7 +3816,8 @@ class KernelWriterAssembly(KernelWriter):
     tP["gpr"]["tReg"] = tReg2
     tP["gpr"]["uReg"] = uReg
     self.vgprPool.checkIn(tmpVgpr)
-    if kernel["TransposeLDS"] and not kernel["DirectToLds%s"%tP["tensorChar"]]:
+    if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]) and \
+       not kernel["DirectToLds%s"%tP["tensorChar"]]:
       self.vgprPool.checkIn(dividendReg)
     #kStr += dump(vgpr(tReg2))
     #kStr += dump(vgpr(uReg))
@@ -3887,6 +3891,31 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     tP["vgprPackedOffsets"] = None
+    waveStartSgpr = self.getTmpSgpr(1)
+    if not tP["tlu"]:
+      if kernel["TransposeLDS"]:
+        # add wave starting offset to Offset0I(A), Offset1J(B) registers
+        if tP["grcg"]:
+          if tP["grcv"]:
+            PerpName = tP["lvp"]
+          else:
+            # Fractional load use the more accurate lsc, multiply by VW later
+            PerpName = tP["lsp"]
+        else:
+          if tP["grcv"]:
+            PerpName = tP["lvc"]
+          else:
+            PerpName = tP["lsc"]
+        numPerpElementsPerLoad = kernel[PerpName]
+        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad if not kernel["DirectToLds%s"%tP["tensorChar"]] else numPerpElementsPerLoad
+        assert(numPerpElementsPerWave>0)
+        #calculate numberofLoads
+        if not kernel["DirectToLds%s"%tP["tensorChar"]]:
+          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"")
+        if kernel["BufferLoad"]:
+          if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]) and \
+             not kernel["DirectToLds%s"%tP["tensorChar"]]:
+            kStr += inst("v_add_u32", vgpr(tP["gpr"]["lwoT"]), sgpr(waveStartSgpr), vgpr(tP["gpr"]["lwoT"]), "wave_start_offset = MT/4*(waveId)")
     if kernel["_UseSgprForGRO"]:
       # Let the vgprTileOffsets checkin handle tReg later since these are same vgpr
       tP["vgprTileOffsets"] = tP["gpr"]["tReg"]
@@ -3901,6 +3930,10 @@ class KernelWriterAssembly(KernelWriter):
         tP["vgprPackedOffsets"] = self.vgprPool.checkOut(numExtraPackedOffsetsPerTile * numTileOffsets, "vgprPackedOffsets", self.preventVgprOverflowDuringNewTile)
       strideIdx = tP["lsc"] if tP["tlu"] else tP["lsp"]
       stride = kernel[strideIdx]
+      if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]) and \
+        not kernel["DirectToLds%s"%tP["tensorChar"]]:
+        # each Wave loads its perp compoenents that its working in TransposeLDS=1 case
+        stride = stride//4
       if tP["rtc"]:
         assert(numExtraPackedOffsetsPerTile == 0) # not supported here
         # l=0, s=0
@@ -4096,29 +4129,6 @@ class KernelWriterAssembly(KernelWriter):
       uVS = 1
     instructionOffset = 0
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
-    waveStartSgpr = self.getTmpSgpr(1)
-    if not tP["tlu"]:
-      if kernel["TransposeLDS"]:
-        # add wave starting offset to Offset0I(A), Offset1J(B) registers
-        if tP["grcg"]:
-          if tP["grcv"]:
-            PerpName = tP["lvp"]
-          else:
-            # Fractional load use the more accurate lsc, multiply by VW later
-            PerpName = tP["lsp"]
-        else:
-          if tP["grcv"]:
-            PerpName = tP["lvc"]
-          else:
-            PerpName = tP["lsc"]
-        numPerpElementsPerLoad = kernel[PerpName]
-        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad if not kernel["DirectToLds%s"%tP["tensorChar"]] else numPerpElementsPerLoad
-        assert(numPerpElementsPerWave>0)
-        #calculate numberofLoads
-        if not kernel["DirectToLds%s"%tP["tensorChar"]]:
-          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"")
-        #strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
-        #kStr += inst("s_mul_i32", sgpr(waveStartSgpr), sgpr(tmpSgpr), sgpr(strideF), "wave_start_offset = MT//4*(waveId)")
     graIdx = 0
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
@@ -4136,8 +4146,6 @@ class KernelWriterAssembly(KernelWriter):
               # emit global offset macro
               # TODO -refactor this and macro def to pass all indices, use the ones we need
               if kernel["BufferLoad"]:
-                if (kernel["TransposeLDS"]) and not kernel["DirectToLds%s"%tP["tensorChar"]]:
-                  kStr += inst("v_add_u32", vgpr(tP["gpr"]["lwoT"]), sgpr(waveStartSgpr), vgpr(tP["gpr"]["lwoT"]), "wave_start_offset = MT/4*(waveId)")
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
               else:
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
@@ -4250,7 +4258,8 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 #TODO remove wave_offset start for global fetching  TransposeLDS
-                if kernel["TransposeLDS"] and not kernel["DirectToLds%s"%tP["tensorChar"]]:
+                if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]) and \
+                   not kernel["DirectToLds%s"%tP["tensorChar"]]:
                   tileStride = tileStride//4
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
                 strideF = "Stride%s%s"%(tc,self.indexChars[tP['tileIdx']])
@@ -4739,7 +4748,7 @@ class KernelWriterAssembly(KernelWriter):
     WaveOffset = 0
 
     if dotInterleave == 1:
-      if kernel["TransposeLDS"]:
+      if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]):
         # check Transpose case  TLUA=0 TLUB=0
         # TODO clean-up comment section of assembly code
         # use different write address pattern
@@ -4749,7 +4758,7 @@ class KernelWriterAssembly(KernelWriter):
         wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
         # use  parameter LdsBlockSizePerPAd parameter for adding pad size for lds  fetch efficiency
         # calculate number of block chunks  and add ldsPAd
-        if not kernel["DirectToLds%s"%tP["tensorChar"]] :
+        if not kernel["DirectToLds%s"%tP["tensorChar"]]:
           LdsPadCnt = (((kernel["MacroTile%s"%tP["tensorChar"]] * kernel["DepthU"])*tP["bpe"])//wavefronts)//kernel["LdsBlockSizePerPad"]
           WaveOffset = (((kernel["MacroTile%s"%tP["tensorChar"]] * kernel["DepthU"])*tP["bpe"])//wavefronts)
         else:
@@ -5075,14 +5084,14 @@ class KernelWriterAssembly(KernelWriter):
     tmpVgpraddr = self.vgprPool.checkOut(1,"tmpVgpraddr")
     tmpVgprPadoffset = self.vgprPool.checkOut(1,"tmpVgprPadoffset")
     tmpSgpr = self.getTmpSgpr(1)
-    if not kernel["TransposeLDS"] == 1:
+    if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and kernel["TransposeLDS"] == 1):
       kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
           tmpVgpr, tmpSgpr)
     sgid = qReg
 
     tIdx = tP["tensorIdx"]
     if kernel["MatrixInstruction"]:
-      if kernel["TransposeLDS"]:
+      if kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]:
         #TransposeLDS feature supports LDS memory format is same as global memory format when TLU=0
         if tc == "A": # For BBlocks, A and B use this case
           #re-calculate tileA assignment  remove this once tileAssignmentB bug is fixed
@@ -5224,7 +5233,7 @@ class KernelWriterAssembly(KernelWriter):
     #    vgpr(sgid), \
     #    "4 simds")
  
-    if not kernel["TransposeLDS"]:
+    if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
       kStr += inst("v_mul_lo_u32", \
           vgpr(sgid), \
           sgpr(tmpSgpr), \
@@ -7266,7 +7275,7 @@ class KernelWriterAssembly(KernelWriter):
         # Other cases will be handled by low bits of uReg in lwaFirstOffset().
         perp_masked = perp & ~mask
         perp_rem = perp & mask
-    if not kernel["TransposeLDS"]:
+    if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
       lspaOffset = perp_masked * kernel[tP["lsp"]]
       rem = 0
     else:
@@ -7301,7 +7310,7 @@ class KernelWriterAssembly(KernelWriter):
       lscaOffset += (sPara // ldl) * ldl
       lspaOffset += sPerp
       rem = sPara % ldl
-      if not kernel["TransposeLDS"]:
+      if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
         i = sPara + (tP["nrcv"]//tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
       else:
         i = sPara + (tP["nrcv"]//tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp_masked ))
@@ -7317,7 +7326,7 @@ class KernelWriterAssembly(KernelWriter):
       lspaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
       lspaOffset += rem * ldl + perp_rem
     else:
-      if not kernel["TransposeLDS"]:
+      if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
         lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
         lscaOffset += rem
       else:
@@ -7432,7 +7441,7 @@ class KernelWriterAssembly(KernelWriter):
                 sPara = s
             else:
               #TransposeLDS support
-              if not kernel["TransposeLDS"]:
+              if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
                 if tP["wtc"] == tP["grcv"]:
                   sPara = s
                 elif tP["wuc"] == tP["grcv"]:
@@ -7637,7 +7646,7 @@ class KernelWriterAssembly(KernelWriter):
             paramList = []
             paramList.append(vgpr(tmpVgpr + kIdx%2))
             paramList.append(vgpr("LocalReadAddr%s"%tc))
-            if not kernel["TransposeLDS"]:
+            if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
               offset = ((rIdx * kernel["MatrixInstN"] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
                 *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
             else:
@@ -7706,7 +7715,7 @@ class KernelWriterAssembly(KernelWriter):
           paramList.append(vgpr("LocalReadAddr%s"%tc))
           for oIdx in range(0, numOffsets):
             if kernel["MatrixInstruction"]:
-              if not kernel["TransposeLDS"]:
+              if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
                 tIdx = tP["tensorIdx"]
                 readOffsetWidth = kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx]
                 if tP["isB"]:
