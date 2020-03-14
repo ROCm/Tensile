@@ -101,13 +101,11 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-library-print-debug")
   endif()
   
-  if(Tensile_EMBED_LIBRARY STREQUAL "")
-  else()
+  if(Tensile_EMBED_LIBRARY)
     set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
   endif()
 
-  if(Tensile_EMBED_KEY STREQUAL "")
-  else()
+  if(Tensile_EMBED_KEY)
     set(Options ${Options} "--embed-library-key=${Tensile_EMBED_KEY}")
   endif()
 
@@ -135,7 +133,7 @@ function(TensileCreateLibraryFiles
       endif()
   endif()
 
-  if(Tensile_VAR_PREFIX STREQUAL "")
+  if(NOT Tensile_VAR_PREFIX)
       set(Tensile_VAR_PREFIX TENSILE)
   endif()
 
@@ -148,8 +146,7 @@ function(TensileCreateLibraryFiles
 
   set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${HSACodeObjects} ${LibraryFile} PARENT_SCOPE)
 
-  if(Tensile_EMBED_LIBRARY STREQUAL "")
-  else()
+  if(Tensile_EMBED_LIBRARY)
 
     add_library(${Tensile_EMBED_LIBRARY} "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
     target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC TensileHost)

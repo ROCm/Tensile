@@ -501,7 +501,8 @@ class KernelWriterAssembly(KernelWriter):
     self.localWriteDoCnt  = 0
 
     self.maxVgprs = 256
-    self.maxSgprs = 99
+    # max allowed is 112 out of 112 , 6 is used by hardware 4 SGPRs are wasted
+    self.maxSgprs = 102
 
     self.endLine = "\n"
     self.syncStr = "s_barrier"
@@ -753,7 +754,7 @@ class KernelWriterAssembly(KernelWriter):
         width, strides, False, instructions)
 
   def setStartTmpPool(self, newStartTmpPool):
-    #print "set tmpSgprPool to ", newStartTmpPool
+    #print("set tmpSgprPool to ", newStartTmpPool)
     self.startSgprTmpPool = newStartTmpPool
 
   def getTmpSgpr(self, num):
@@ -762,6 +763,7 @@ class KernelWriterAssembly(KernelWriter):
       self.totalSgprs = self.startSgprTmpPool + num + pad
       if 0:
         print("startSgprTmpPool=", self.startSgprTmpPool,
+              " ask count =",num,
               "warning: growing SGPR pool to ", self.totalSgprs)
         import pdb ; pdb.set_trace()
 
@@ -10049,8 +10051,15 @@ class KernelWriterAssembly(KernelWriter):
         numSgprs = self.ss.cfg.fixedSgprsPerBatch + self.ss.cfg.numSgprsPerElement*numElementsPerBatch
         kStr += self.comment("allocate %u sgpr. perBatch=%u perElement=%u elements=%u"%\
             (numSgprs, self.ss.cfg.fixedSgprsPerBatch, self.ss.cfg.numSgprsPerElement, numElementsPerBatch))
-        tmpSgpr = self.getTmpSgpr(numSgprs)
-        elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
+        # so if we don't have *GPR resources to handle a larger batch then need
+        # to mark overflowedResources rather than generate a kernel that won't work.
+        if numSgprs+self.startSgprTmpPool >=  self.maxSgprs:
+          self.overflowedResources = 2 
+        else:
+          tmpSgpr = self.getTmpSgpr(numSgprs)
+          elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
+
+        assert numSgprs+self.startSgprTmpPool < self.maxSgprs, "overflowed SGPR Resources for %s"%self.kernelName
 
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
