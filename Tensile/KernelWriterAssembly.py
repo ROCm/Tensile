@@ -6329,10 +6329,6 @@ class KernelWriterAssembly(KernelWriter):
             self.startVgprGlobalReadAddressesB, "startOptNLL"))
       kStr += self.comment("reclaim VGPRS: " + ", ".join(added))
 
-      # perhaps could work with LSU>1 by adding other indices here, but not tested
-      assert (kernel["LocalSplitU"] == 1)
-      kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
-
     return kStr
 
   ##############################################################################
@@ -6350,7 +6346,13 @@ class KernelWriterAssembly(KernelWriter):
           kStr += "s_nop %u\n" % instCycles
           ##for i in range(0, self.totalAgprs):
           ##  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
-          kStr += self.MapAcctoArchRegs(kernel,option=0)
+          kStr += self.MapAcctoArchRegs(kernel,option=0) # begin locking c-tile vregs from register pool
+
+        # perhaps could work with LSU>1 by adding other indices here, but not tested
+        # had to move it below MapAcctoArchRegs(), else computeStoreVgprs() will check out c-tile vregs as  
+        # temp vregs which soon gets utilized by c-tile and guarantees aliasing troubles
+        assert (kernel["LocalSplitU"] == 1)
+        kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel)
@@ -7637,7 +7639,7 @@ class KernelWriterAssembly(KernelWriter):
           "vcc", \
           sgpr(tmpSgpr), \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          "lr%s += %u (LSU*(MT+PAD)*bpe)"%(tP["tensorChar"], inc) )
+          "lr%s += %u (LSU*(MT+PAD)*bpe%s)"%(tP["tensorChar"], inc, "*MI_K" if kernel["MatrixInstruction"] else "") )
     else:
       if tP["localReadInstruction"].numOffsets == 1:
         if kernel["MatrixInstruction"]:
@@ -7657,7 +7659,7 @@ class KernelWriterAssembly(KernelWriter):
             "vcc", \
             hex(inc), \
             vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-            "lr%s += %u (LSU+(MT+Pad)*bpe"%(tP["tensorChar"], inc) )
+            "lr%s += %u (LSU+(MT+Pad)*bpe%s"%(tP["tensorChar"], inc, "*MI_K" if kernel["MatrixInstruction"] else "") )
     return kStr
 
   ##############################################################################
