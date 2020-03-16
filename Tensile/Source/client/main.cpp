@@ -380,9 +380,9 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
+    reporters->addReporter(PerformanceReporter::Default());
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
-    reporters->addReporter(PerformanceReporter::Default());
 
     if(args.count("log-file"))
     {

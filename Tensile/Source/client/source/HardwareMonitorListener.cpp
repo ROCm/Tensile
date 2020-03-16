@@ -77,6 +77,7 @@ namespace Tensile
         {
             m_monitor->wait();
 
+            m_reporter->report(ResultKey::DeviceIndex,         m_monitor->getDeviceIndex());
             m_reporter->report(ResultKey::TempEdge,            m_monitor->getAverageTemp(0));
 
             m_reporter->report(ResultKey::ClockRateSys,        m_monitor->getAverageClock(RSMI_CLK_TYPE_SYS));
@@ -85,7 +86,6 @@ namespace Tensile
 
             m_reporter->report(ResultKey::FanSpeedRPMs,        m_monitor->getAverageFanSpeed());
             m_reporter->report(ResultKey::HardwareSampleCount, m_monitor->getSamples());
-            m_reporter->report(ResultKey::DeviceIndex,         m_monitor->getDeviceIndex());
         }
     }
 }

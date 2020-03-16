@@ -57,17 +57,6 @@ namespace Tensile
         
         bool isSourceKernel() const;
 
-        double m_ReadMultiplier;
-        double m_ReadEff;
-        double m_L2ReadHit;
-        double m_L2WriteHit;
-        double m_Clock;
-        double m_MemClock;
-        double m_MemBandwidthMBps;
-        double m_L2BandwidthMBps;
-        double m_PeakMFlops;
-        int m_NumCUs;
-
         //! Estimates based on problem size, solution tile, and  machine hardware charz:
         struct StaticPerformanceModel
         {
