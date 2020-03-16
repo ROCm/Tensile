@@ -86,7 +86,7 @@ namespace Tensile
                                         {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
                                          OperationIdentifier, ProblemSizes, SolutionName,
                                          Validation, TimeUS, SpeedGFlops, PeakMFlops, Efficiency,
-                                         Empty, AluUs, MemReadUs, MemWriteUs,
+                                         L2BandwidthMBps, AluUs, MemReadUs, MemWriteUs,
                                          TotalGranularity, TilesPerCu,
                                          Tile0Granularity, Tile1Granularity, CuGranularity,
                                          WaveGranularity, 

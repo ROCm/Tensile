@@ -677,7 +677,7 @@ namespace Tensile
             }
         }
 
-        double readMultiplier = m_ReadMultiplier;
+        double readMultiplier = 2;//m_ReadMultiplier;
         spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * readMultiplier;//(problemType.aType == DataType::Float ? 4 : 2); // hack
         spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * readMultiplier;//(problemType.bType == DataType::Float ? 4 : 2); // hack
         spm.memReadBytesC = (NumBatches*M*N) * betaReads * readMultiplier; //(problemType.cType == DataType::Float ? 4 : 2); // hack
@@ -702,21 +702,25 @@ namespace Tensile
         spm.memGlobalReads = spm.memReadBytes / readMultiplier;
         spm.memGlobalWrites = NumBatches*M*N;
 
-        double readEfficiency = m_ReadEff; // TODO-model: read from arch with yaml override
-        double l2ReadHit = m_L2ReadHit; // TODO-model: read from arch with yaml override
-        double l2WriteHit = m_L2WriteHit; // TODO-model: read from arch with yaml override
-        double frequency = m_Clock;
-        double memFrequency = m_MemClock;
-        double memBandwidthMBps = m_MemBandwidthMBps; //getMemoryBusWidth()*memFrequency;
+        double readEfficiency = 0; //m_ReadEff; // TODO-model: read from arch with yaml override
+        double l2ReadHit = 0; //m_L2ReadHit; // TODO-model: read from arch with yaml override
+        double l2WriteHit = 0; //m_L2WriteHit; // TODO-model: read from arch with yaml override
+        double frequency = 0; //m_Clock;
+        double memFrequency = 0; //m_MemClock;
+        double memBandwidthMBps = 0; //m_MemBandwidthMBps; //getMemoryBusWidth()*memFrequency;
 
-        double l2BandwidthMBps = m_L2BandwidthMBps; //readMultiplier*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
-        double peakMFlops = m_PeakMFlops; //frequency*NumCUs*getMagicNum()*readMultiplier;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
+        double l2BandwidthMBps = 0; //m_L2BandwidthMBps; //readMultiplier*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
+        double peakMFlops = 0; //m_PeakMFlops; //frequency*NumCUs*getMagicNum()*readMultiplier;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
+
+        std::cout<<"readEfficiency: "<<readEfficiency<<" l2ReadHit: "<<l2ReadHit<<" l2WriteHit: "<<l2WriteHit<<" frequency: "<<frequency<<" memFrequency "<<memFrequency<<" memoryBandwidthMBps "<<memBandwidthMBps<<" l2BandwidthMBps "<<l2BandwidthMBps<<" peakMlops: "<<peakMFlops<<std::endl;
 
         spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
         spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
 
         double flops = readMultiplier*NumBatches*M*N*K;
         spm.aluUs = flops/(peakMFlops*TotalGranularity);
+
+        std::cout<<"memReadUs: "<<spm.memReadUs<<" memWriteUs: "<<spm.memWriteUs<<" aluUs: "<<spm.aluUs<<std::endl;
 
         return spm;
     }
@@ -775,7 +779,7 @@ namespace Tensile
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
 
-        double NumCUs = (double)m_NumCUs; //std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
+        double NumCUs = 60; //sizeMapping.m_NumCUs; //std::stod(getOutputCmd("/opt/rocm/bin/rocminfo | grep Compute | awk \'FNR == 2 {print $3}\'")); 
 
         AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
         if (pAMDGPU != nullptr)
