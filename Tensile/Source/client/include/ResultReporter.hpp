@@ -251,15 +251,27 @@ namespace Tensile
                 }
             }
             
+            virtual void reportValue_uint(std::string const& key, uint64_t value) override
+            {
+                if(key == ResultKey::SpeedGFlops && deviceProps) 
+                {
+                    m_gFlops = value;
+                    std::cout<<"m_gflops: " << m_gFlops << std::endl;
+                }
+                
+            }
+
             virtual void reportValue_double(std::string const& key, double value) override
             {
                 if(key == ResultKey::ClockRateSys && deviceProps)
                 {
                     m_clock = value;
                     std::cout<<"m_clock: " << m_clock << std::endl;
+                }
+                if(!std::isnan(m_clock) && deviceProps)
+                {
                     m_peakMFlops = getNumCUs()*getMagicNum()*getReadMultiplier()*m_clock;
                     std::cout<<"m_peakMFlops: " << m_peakMFlops << std::endl;
-                    report(ResultKey::PeakMFlops, m_peakMFlops);
                 }
                 if(key == ResultKey::ClockRateMem && deviceProps)
                 {
@@ -267,26 +279,24 @@ namespace Tensile
                     std::cout<<"m_memClock: " << m_memClock << std::endl;
                     m_memBandwidthMBps = m_memoryBusWidth*m_memClock;
                     std::cout<<"m_memBandwidthMBps: " << m_memClock << std::endl;
-                    report(ResultKey::L2BandwidthMBps, m_memBandwidthMBps*m_readMul);
                 }
                 if(key == ResultKey::SpeedGFlops && deviceProps) 
                 {
                     m_gFlops = value;
-                    std::cout<<"m_gflops: " << m_gFlops << std::endl;
-                    report(ResultKey::SpeedGFlops, m_gFlops);
+                    std::cout<<"m_gflops: " << m_dgFlops << std::endl;
                 }
-                if(!std::isnan(m_gFlops) && !std::isnan(m_peakMFlops) && deviceProps)
+                if((!std::isnan(m_dgFlops) || !std::isnan(m_gFlops)) && !std::isnan(m_peakMFlops) && deviceProps)
                 {
-                    m_eff = 100*1000*m_gFlops/m_peakMFlops;
+                    gFlops = !std::isnan(m_gFlops) ? (double)m_gFlops : m_dgFlops;
+                    m_eff = 100*1000*gFlops/m_peakMFlops;
                     std::cout<<"m_eff: " << m_eff << std::endl;
-                    report(ResultKey::Efficiency, m_eff);
                 }
             }
 
             virtual void preProblem(ContractionProblem const& problem) override
             {
-               int dataEnum = (int)problem.a().dataType();
-               std::unordered_map<int,double> readMulMap = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
+                int dataEnum = (int)problem.a().dataType();
+                std::unordered_map<int,double> readMulMap = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
 
                 for(std::unordered_map<int,double>::iterator it=readMulMap.begin(); it != readMulMap.end(); it++)
                 {
@@ -294,7 +304,6 @@ namespace Tensile
                 }
     
                 std::cout<<"m_readMul " << m_readMul << std::endl;
-                report(ResultKey::ReadMultiplier, m_readMul);
             }
 
             virtual void preSolution(ContractionSolution const& solution) override
@@ -304,7 +313,8 @@ namespace Tensile
                 m_peakMFlops = std::numeric_limits<double>::quiet_NaN();
                 m_clock = std::numeric_limits<double>::quiet_NaN();
                 m_memClock = std::numeric_limits<double>::quiet_NaN();
-                m_gFlops = std::numeric_limits<double>::quiet_NaN();
+                m_gFlops = std::numeric_limits<int64_t>::quiet_NaN();
+                m_dgFlops = std::numeric_limits<double>::quiet_NaN();
             }
 
             void setNumCUs()
@@ -332,10 +342,11 @@ namespace Tensile
             double  getL2WriteHits(){return m_l2WriteHits;}
             double  getReadEff(){return m_readEff;}
             double  getMemBandwidthMBps(){return m_memoryBusWidth*m_memClock;}
+            double  getL2BandwidthMBps(){return m_memBandwidthMBps*m_readMul;}
             double  getPeakMFlops(){return m_peakMFlops;}
+            double  getEfficiency(){return m_eff;}
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override{}
-            virtual void reportValue_uint(std::string const& key, uint64_t value) override {}
             virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override{}
             virtual void finalizeReport() override{}
         
@@ -343,7 +354,9 @@ namespace Tensile
             hipDeviceProp_t props;
             double  m_clock = std::numeric_limits<double>::quiet_NaN();
             double  m_memClock = std::numeric_limits<double>::quiet_NaN();
-            double  m_gFlops = std::numeric_limits<double>::quiet_NaN();
+            double  m_dgFlops = std::numeric_limits<double>::quiet_NaN();
+            int64_t m_gFlops = std::numeric_limits<int64_t>::quiet_NaN();
+            double  gFlops = std::numeric_limits<double>::quiet_NaN();
             int     m_magicNum;
             int     m_numCUs;
             int     m_memoryBusWidth;
