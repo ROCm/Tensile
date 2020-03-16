@@ -88,6 +88,7 @@ public:
         args.insert({"c-equal-d",       val(cEqualD, false)});
         args.insert({"pristine-on-gpu", val(pristineGPU, false)});
         args.insert({"bounds-check",    val(boundsCheck, false)});
+        args.insert({"num-elements-to-validate",    val(1, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});
