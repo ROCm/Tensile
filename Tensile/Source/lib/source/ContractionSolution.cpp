@@ -634,24 +634,6 @@ namespace Tensile
         }
     }
 
-/*    std::string getOutputCmd(std::string cmd)
-    {
-        std::string output;
-        FILE * ostream;
-        char outputBuffer[256];
-        cmd.append(" 2>&1 ");
-
-        ostream = popen(cmd.c_str(), "r");
-        if(ostream)
-        {
-            while(!feof(ostream))
-            if (fgets(outputBuffer, 256, ostream) != NULL) output.append(outputBuffer);
-            pclose(ostream);
-        }
-        
-        return output;
-    }*/
-
     ContractionSolution::StaticPerformanceModel ContractionSolution::staticPerformanceModel
         (double M, double N, double K, double NumBatches, double MT0, double MT1,
          double NumCUs, double TotalGranularity, int GlobalSplitU) const
@@ -677,7 +659,7 @@ namespace Tensile
             }
         }
 
-        double readMultiplier = 2;//m_ReadMultiplier;
+        double readMultiplier = 2;//m_ReadMultiplier, PerformanceReporter;
         spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * readMultiplier;//(problemType.aType == DataType::Float ? 4 : 2); // hack
         spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * readMultiplier;//(problemType.bType == DataType::Float ? 4 : 2); // hack
         spm.memReadBytesC = (NumBatches*M*N) * betaReads * readMultiplier; //(problemType.cType == DataType::Float ? 4 : 2); // hack
@@ -688,7 +670,7 @@ namespace Tensile
         spm.memWriteBytesD   = (M*N) *TypeInfo<typename TypedInputs::DType>::ElementSize();
 #endif
 
-        auto  dSize = readMultiplier; //(problemType.dType == DataType::Float ? 4 : 2); // hack
+        auto  dSize = (problemType.dType == DataType::Float ? 4 : 2); // hack
         if (GlobalSplitU == 1)
             spm.memWriteBytesD   = (NumBatches*M*N)*(1+betaWrites);
         else
@@ -702,6 +684,7 @@ namespace Tensile
         spm.memGlobalReads = spm.memReadBytes / readMultiplier;
         spm.memGlobalWrites = NumBatches*M*N;
 
+        //TODO: need to get all of this from PerformanceReporter
         double readEfficiency = 0; //m_ReadEff; // TODO-model: read from arch with yaml override
         double l2ReadHit = 0; //m_L2ReadHit; // TODO-model: read from arch with yaml override
         double l2WriteHit = 0; //m_L2WriteHit; // TODO-model: read from arch with yaml override
