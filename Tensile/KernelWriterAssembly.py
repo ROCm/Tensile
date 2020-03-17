@@ -9243,25 +9243,23 @@ class KernelWriterAssembly(KernelWriter):
           vTmp2 = tmpVgpr01+1
           sTmp1 = tmpS01
           sTmp2 = tmpS01+2
-          kStr += inst("v_cmp_eq_u32", sgpr(sTmp1,2), vgpr(self.coord1Vgpr), \
-                        sgpr("SizesFree+1"), "if coord1 is edge+1")
-          kStr += inst("v_and_b32", vgpr(vTmp1), vgpr(self.coord1Vgpr), vw-1, "mod VW")
-          kStr += inst("v_cmp_eq_u32", sgpr(sTmp2,2), vgpr(vTmp1), vw-1, "if coord1-1 is odd edge")
-          kStr += inst("s_and_b64", sgpr(sTmp1,2), sgpr(sTmp1,2), sgpr(sTmp2,2), "if meet both conditions")
-          kStr += inst("s_lshr_b64", sgpr(sTmp2,2), sgpr(sTmp1,2), vw-1, "if threadx meet conditions, set threadx-1 bit in another sgprs")
-          kStr += inst("v_sub_u32", vgpr(vTmp1), vgpr(self.coord1Vgpr), 1, "tmp = coord1 - 1")
-          kStr += inst("v_add_u32", vgpr(vTmp2), vgpr(self.coord1Vgpr), 1, "tmp = coord1 + 1")
+          # calculat condition
+          kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, 0, vgpr(self.coord1Vgpr), "coord1 & ~(vw-1)")
+          kStr += inst("v_bfi_b32", vgpr(vTmp2), vw-1, 0, sgpr("SizesFree+1"), "sizeFree1 & ~(vw-1)")
+          kStr += inst("v_cmp_eq_u32", sgpr(sTmp1,2), vgpr(vTmp1), vgpr(vTmp2), "if coord1 is in edge glvw")
+          kStr += inst("v_and_b32", vgpr(vTmp2), sgpr("SizesFree+1"), vw-1, "sizeFree1 mod VW")
+          kStr += inst("v_cmp_gt_u32", sgpr(sTmp2,2), vgpr(vTmp2), 0, "this problem is not multiple size of glvw")
+          kStr += inst("s_and_b64", sgpr(sTmp1,2), sgpr(sTmp1,2), sgpr(sTmp2,2), "AND both conditions")
+          # calculat new coord
+          kStr += inst("v_add_u32", vgpr(vTmp1), vgpr(self.coord1Vgpr), vgpr(vTmp2), "shift coord1")
+          kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, vgpr(vTmp1), sgpr("SizesFree+1"), "new coord1 = (shift coord1 & (vw-1)) |  (sizeFree1 & ~(vw-1))")
+          kStr += inst("v_sub_i32", vgpr(vTmp2), vgpr(vTmp1), vgpr(self.coord1Vgpr), "shift how many column")
           kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp1), \
-                        sgpr(sTmp1,2), "coord1 shift left if (coord1 of threadx-1 is edge and odd)" )
-          kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp2), \
-                        sgpr(sTmp2,2), "coord1 shift right if (coord1 of threadx is edge and odd)" )
-
-          kStr += inst("v_sub_u32", vgpr(vTmp1), vgpr(kw.cinRowPtr), sgpr(strideC1), "tmp = rowStart - StridesC")
-          kStr += inst("v_add_u32", vgpr(vTmp2), vgpr(kw.cinRowPtr), sgpr(strideC1), "tmp = rowStart + StridesC")
+                        sgpr(sTmp1,2), "set new coord1 if meet conditions" )
+          kStr += inst("v_mul_i32_i24", vgpr(vTmp2), vgpr(vTmp2), sgpr(strideC1), "shift column *  StridesC")
+          kStr += inst("v_add_i32", vgpr(vTmp1), vgpr(kw.cinRowPtr), vgpr(vTmp2), "new rowStart address")
           kStr += inst("v_cndmask_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowPtr), vgpr(vTmp1), \
-                        sgpr(sTmp1,2), "rawStart shift left if (coord1 of threadx-1 is edge and odd)" )
-          kStr += inst("v_cndmask_b32", vgpr(kw.cinRowPtr), vgpr(kw.cinRowPtr), vgpr(vTmp2), \
-                        sgpr(sTmp2,2), "rawStart shift right if (coord1 of threadx is edge and odd)" )
+                        sgpr(sTmp1,2), "set new rowStart if meet conditions" )
           kStr += "\n"
 
 
