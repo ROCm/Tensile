@@ -483,22 +483,24 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
   # Min Naming
   ##############################################################################
-  allkernels = itertools.chain.from_iterable([s.getKernels() for s in Utils.tqdm(solutions)])
-  frozenKernels = set([FrozenDictionary(k) for k in allkernels])
-  kernels = list([dict(k.items()) for k in Utils.tqdm(frozenKernels)])
 
-
-  #kernels = []
+  kernels = []
   kernelsBetaOnly = []
+  kernelNames = set()
+  kernelNamesBetaOnly = set()
   for solution in Utils.tqdm(solutions, "Finding unique solutions"):
-  #  solutionKernels = solution.getKernels()
-  #  for kernel in solutionKernels:
-  #    if kernel not in kernels:
-  #      kernels.append(kernel)
+    solutionKernels = solution.getKernels()
+    for kernel in solutionKernels:
+      kName = Solution.getNameFull(kernel)
+      if kName not in kernelNames:
+        kernels.append(kernel)
+        kernelNames.add(kName)
     solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
     for kernel in solutionKernelsBetaOnly:
-      if kernel not in kernelsBetaOnly:
+      kName = Solution.getNameFull(kernel)
+      if kName not in kernelNamesBetaOnly:
         kernelsBetaOnly.append(kernel)
+        kernelNamesBetaOnly.add(kName)
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
