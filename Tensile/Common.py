@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1242,7 +1242,7 @@ def assignGlobalParameters( config ):
 
   print1("# Restoring default globalParameters")
   for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
+    globalParameters[key] = deepcopy(defaultGlobalParameters[key])
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -1337,9 +1337,9 @@ def assignGlobalParameters( config ):
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
-    destinationDictionary[key] = defaultDictionary[key]
+    destinationDictionary[key] = deepcopy(defaultDictionary[key])
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
