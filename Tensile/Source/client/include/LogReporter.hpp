@@ -85,7 +85,7 @@ namespace Tensile
                         new LogReporter(LogLevel::Debug,
                                         {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
                                          OperationIdentifier, ProblemSizes, SolutionName,
-                                         Validation, TimeUS, SpeedGFlops, PeakMFlops, Efficiency,
+                                         Validation, TimeUS, SpeedGFlops, PeakGFlops, Efficiency,
                                          L2BandwidthMBps, AluUs, MemReadUs, MemWriteUs,
                                          TotalGranularity, TilesPerCu,
                                          Tile0Granularity, Tile1Granularity, CuGranularity,

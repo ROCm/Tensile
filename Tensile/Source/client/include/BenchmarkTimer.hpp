@@ -46,7 +46,7 @@ namespace Tensile
         {
         public:
             using clock = std::chrono::steady_clock;
-
+            
             BenchmarkTimer(po::variables_map const& args, Hardware const& hardware);
 
             virtual bool needMoreBenchmarkRuns() const override;
