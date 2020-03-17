@@ -265,7 +265,6 @@ namespace Tensile
                 if(key == ResultKey::SpeedGFlops && deviceProps) 
                 {
                     m_gFlops = value;
-                    std::cout<<"m_gflops: " << m_gFlops << std::endl;
                 }
                 
             }
@@ -275,33 +274,25 @@ namespace Tensile
                 if(key == ResultKey::ClockRateSys && deviceProps)
                 {
                     m_clock = value;
-                    std::cout<<"m_clock: " << m_clock << std::endl;
                 }
                 if(!std::isnan(m_clock) && deviceProps)
                 {
                     pm.m_peakGFlops = getNumCUs()*getMagicNum()*getReadMultiplier()*m_clock/1000;
-                    std::cout<<"m_peakGFlops: " << pm.m_peakGFlops << std::endl;
                 }
                 if(key == ResultKey::ClockRateMem && deviceProps)
                 {
                     m_memClock = value;
-                    std::cout<<"m_memClock: " << m_memClock << std::endl;
                     pm.m_memBandwidthMBps = m_memoryBusWidth*m_memClock;
-                    std::cout<<"m_memoryBusWidth: " << m_memoryBusWidth << std::endl;
-                    std::cout<<"m_L2memBandwidthMBps: " << pm.m_memBandwidthMBps*pm.m_readMul << std::endl;
                     report(ResultKey::L2BandwidthMBps, pm.m_memBandwidthMBps*pm.m_readMul); 
                 }
                 if(key == ResultKey::SpeedGFlops && deviceProps) 
                 {
                     m_dgFlops = value;
-                    std::cout<<"m_dgflops: " << m_dgFlops << std::endl;
                 }
                 if((!std::isnan(m_dgFlops) || !std::isnan(m_gFlops)) && !std::isnan(pm.m_peakGFlops) && deviceProps)
                 {
-                    std::cout<<"m_gFlops: "<<m_gFlops<<" m_dgFlops: "<<m_dgFlops<<std::endl;
                     pm.gFlops = !std::isnan(m_gFlops) ? (double)m_gFlops : m_dgFlops;
                     pm.m_eff = 100*pm.gFlops/pm.m_peakGFlops;
-                    std::cout<<"m_eff: " << pm.m_eff << std::endl;
                 }
             }
 
@@ -322,8 +313,6 @@ namespace Tensile
                 {
                     if(it->first == dataEnum) pm.m_readMul = it->second;
                 }
-    
-                std::cout<<"m_readMul " << pm.m_readMul << std::endl;
             }
 
             virtual void postSolution() override 
@@ -358,12 +347,7 @@ namespace Tensile
             double  getL2ReadHits(){return m_l2ReadHits;}
             double  getL2WriteHits(){return m_l2WriteHits;}
             double  getReadEff(){return m_readEff;}
-            
-            /*double  getMemBandwidthMBps(){return m_memoryBusWidth*m_memClock;}
-            double  getL2BandwidthMBps(){return m_memBandwidthMBps*m_readMul;}
-            double  getPeakGFlops(){return m_peakGFlops;}
             double  getEfficiency(){return m_eff;}
-            */
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override{}
             virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override{}
