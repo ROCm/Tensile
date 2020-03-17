@@ -2582,15 +2582,20 @@ class Solution:
           pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
           pvar(state, "LSCB"), pvar(state, "LSPB"))
 
-    # LoopUnroll too small
-    if state["LoopUnroll"] < 2:
-      reject(state, "LoopUnroll %u is less than 2" \
-          % (state["LoopUnroll"]))
-
     state["LoopIters"] = state["LoopUnroll"]
     if "MatrixInstK" in state:
       state["LoopIters"] //= state["MatrixInstK"]
 
+    # LoopIters should greater than PrefetchLocalRead
+    if (state["LoopIters"] - state["PrefetchLocalRead"]) < 1:
+      reject(state, "LoopIters %u should greater than PrefetchLocalRead %u" \
+        % (state["LoopIters"],state["PrefetchLocalRead"]))
+
+    # reject conditions with lower performance
+    if state["ScheduleIterAlg"] == 2 and \
+    (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
+      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGW1, LoopIter=1")
+    
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations

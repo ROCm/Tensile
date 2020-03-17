@@ -5316,13 +5316,8 @@ class KernelWriterAssembly(KernelWriter):
       # size % DepthU
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounterName, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
       loopCounter = sgpr(loopCounterName)
-      if kernel["MatrixInstruction"]:
-        kStr += "/* calculate number of remaining loops in terms of how many matrix instructions */\n"
-        kStr += "//numIter%s = ((numIter%s + MatrixInst%s - 1) / MatrixInst%s)\n"%(self.unrollChar, self.unrollChar, self.unrollChar, self.unrollChar)
-        if numRemainderSumElements: 
-          kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
-        kStr += inst("s_add_u32", loopCounter, loopCounter, kernel["MatrixInstK"]-1, "")
-        kStr += scalarStaticDivideAndRemainder(loopCounterName, None, loopCounterName, kernel["MatrixInstK"], tmpSgpr+2, 0)
+      if numRemainderSumElements:
+        kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
@@ -5573,13 +5568,14 @@ class KernelWriterAssembly(KernelWriter):
         loopCounter = "TailLoopCounter"
       else:
         loopCounter = self.loopCounter(kernel, loopIdx)
-      if kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
-        unrollInc = kernel["InnerUnroll"]
+      k = kernel["MatrixInstK"] if kernel["MatrixInstruction"] else 1
+      if kernel["AssertSummationElementMultiple"]%(kernel["InnerUnroll"]*k)==0:
+        unrollInc = kernel["InnerUnroll"]*k
       else:
-        unrollInc = 1
+        unrollInc = k
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
-      kStr += inst("s_sub_u32", \
+      kStr += inst("s_sub_i32", \
           loopCounter, \
           loopCounter, \
           hex(unrollInc), \
@@ -5593,7 +5589,7 @@ class KernelWriterAssembly(KernelWriter):
         "inc counter%s"%(loopChar) )
 
       endCounter = 0
-      kStr += inst("s_cmp_eq_i32", \
+      kStr += inst("s_cmp_le_i32", \
           loopCounter, \
           hex(endCounter), \
         "counter%s==%d"%(loopChar,endCounter) )
@@ -5747,26 +5743,27 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
 
   def mfmaIter(self, kernel, m, innerUnroll):
-    # TODO: should return Code.Module or string?
     numVgprsPerMfmaInput = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
-    kStr = ""
+    imod = Code.Module("mfmaCode")
     if kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf():
-      kStr += "s_nop 2\n" # a must; for VALU packing writes to be consumed by matrix instruction 
-                          # this can be removed once the vregs are directly loaded via ds_read 
-    for b in range(0, self.numColInsts):
+      # a must; for VALU packing writes to be consumed by matrix instruction
+      # this can be removed once the vregs are directly loaded via ds_read 
+      imod.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")  
+
+    for iui in range(0, innerUnroll):
       for a in range(0, self.numRowInsts):
-        for iui in range(0, innerUnroll):
+        for b in range(0, self.numColInsts):
           accIdx = b * self.numRowInsts + a
           accStart = accIdx * self.destAgprs
           accEnd = accStart + self.destAgprs - 1
           aStr = vgpr("ValuA_X%u_I%u+%u" % (m, iui, a*numVgprsPerMfmaInput), numVgprsPerMfmaInput)
           bStr = vgpr("ValuB_X%u_I%u+%u" % (m, iui, b*numVgprsPerMfmaInput), numVgprsPerMfmaInput)
-          kStr += "v_mfma_f32_%ux%ux%u%s a[%u:%u], %s, %s, a[%u:%u]%s" \
-            % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], kernel["ProblemType"]["DataType"].toNameAbbrev(), accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine)
+          imod.addText("v_mfma_f32_%ux%ux%u%s a[%u:%u], %s, %s, a[%u:%u]%s" \
+            % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], kernel["ProblemType"]["DataType"].toNameAbbrev(), accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine))
           # TODO Broadcast code
           #kStr += "v_mfma_f32_%ux%ux%uf32 a[%u:%u], %s, %s, a[%u:%u] blgp:%u%s" \
           #  % (kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], accStart, accEnd, bStr, aStr, accStart, accEnd, a, self.endLine)
-    return kStr
+    return imod
 
   ##############################################################################
   # MAC Iteration
@@ -6081,6 +6078,13 @@ class KernelWriterAssembly(KernelWriter):
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
     if self.savedVgprPool != None:
+      # in case pool size in current path is larger than pool size in main path
+      # and it will miss allocate vgpr since allocating vgpr is based on pool size in main path
+      oldSize = self.savedVgprPool.size()
+      newSize = self.vgprPool.size()
+      if newSize > self.savedVgprPool.size():
+        for i in range(oldSize-1,newSize):
+          self.savedVgprPool.pool.append(self.savedVgprPool.Register(self.savedVgprPool.statusAvailable,"restore vgprPool"))
       self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path 
       self.savedVgprPool = None
     return kStr
@@ -7284,8 +7288,11 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[loopDim]
     # mfma: for AB tile in NT layout
     if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1:
-      tmpVgpr = self.vgprPool.checkOut(2) # TODO: reduce the use of 1 extra VGPR
+      pack = Code.Module("pack%s"%tc)
       isTailRemainderLoop = self.getTmpSgpr(2)
+      tmpVgprIdx = self.vgprPool.checkOut(self.numVgprValuAPerBlock if tc == 'A' else self.numVgprValuBPerBlock)
+      packCode = pack.addCode (Code.Module("packCode"))
+      packCode.addTempVgpr(tmpVgprIdx)
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
           # emit an instruction for each half-dword load along k due to strided access
@@ -7293,10 +7300,16 @@ class KernelWriterAssembly(KernelWriter):
           for kIdx in range(0, numReadsAlongK):
             localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
             paramList = []
-            paramList.append(vgpr(tmpVgpr + kIdx%2))
+            destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx))) # inc by 1 every 2 kIdx
+            tmpVgpr = vgpr(tmpVgprIdx+int(valuIdx)) # inc by 1 every 2 kIdx
+            tIdx = tP["tensorIdx"]
+            if kIdx%2 == 0:
+              paramList.append(destVgpr)
+            else:
+              paramList.append(tmpVgpr)
             paramList.append(vgpr("LocalReadAddr%s"%tc))
-            offset = ((rIdx * kernel["MatrixInstN"] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
-              *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
+            offset = ((rIdx * kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
+                 *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
             paramList.append(int(offset))
             oIdx = 0
             # print("Debug: Matrix{}, rIdx offset {}, vIdx offset {}, local read offset {}, bpe {}, net offset {}".format( \
@@ -7316,27 +7329,24 @@ class KernelWriterAssembly(KernelWriter):
 
             if kIdx % 2 == 1:
               # pack 2 half-dword into one
-              destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx)))
-              imod.addInst("s_waitcnt lgkmcnt(0)", "")
               if kernel["MatrixInstruction"] and \
                  kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0 and \
                  self.inTailLoop:
-                imod.addInst("v_cmp_eq_u32", sgpr(isTailRemainderLoop, 2), sgpr("LoopCounter%s"%loopChar), 1, "check if last iter in tail loop")
-                imod.addInst("s_cmp_eq_u32", sgpr("NumRemainderSumElements%s"%loopChar), "0", "check if sum dim is divisible by k")
-                imod.addInst("s_cselect_b64", sgpr(isTailRemainderLoop, 2), "0x0", sgpr(isTailRemainderLoop, 2), "zero-fill only if last iter AND sum dim not divisible by k")
+                packCode.addInst("v_cmp_lt_u32", sgpr(isTailRemainderLoop, 2), sgpr("LoopCounter%s"%loopChar), kernel["MatrixInstK"], "check if last iter in tail loop")
+                packCode.addInst("s_cmp_eq_u32", sgpr("NumRemainderSumElements%s"%loopChar), "0", "check if sum dim is divisible by k")
+                packCode.addInst("s_cselect_b64", sgpr(isTailRemainderLoop, 2), "0x0", sgpr(isTailRemainderLoop, 2), "zero-fill only if last iter AND sum dim not divisible by k")
                 
-                imod.addInst("v_cmp_le_u32", "vcc", sgpr("NumRemainderSumElements%s"%loopChar), kIdx-1, "OOB = NumRemainderSumElements <= kIdx")
-                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isTailRemainderLoop, 2), "OOB &= isLastProduct")
-                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+0), vgpr(tmpVgpr+0), "0", "vcc", "vgpr = OOB ? 0 : vgpr")
+                packCode.addInst("v_cmp_le_u32", "vcc", sgpr("NumRemainderSumElements%s"%loopChar), kIdx-1, "OOB = NumRemainderSumElements <= kIdx")
+                packCode.addInst("s_and_b64", "vcc", "vcc", sgpr(isTailRemainderLoop, 2), "OOB &= isLastProduct")
+                packCode.addInst("v_cndmask_b32", destVgpr, destVgpr, "0", "vcc", "vgpr = OOB ? 0 : vgpr")
 
-                imod.addInst("v_cmp_le_u32", "vcc", sgpr("NumRemainderSumElements%s"%loopChar), kIdx-0, "OOB = NumRemainderSumElements <= kIdx")
-                imod.addInst("s_and_b64", "vcc", "vcc", sgpr(isTailRemainderLoop, 2), "OOB &= isLastProduct")
-                imod.addInst("v_cndmask_b32", vgpr(tmpVgpr+1), vgpr(tmpVgpr+1), "0", "vcc", "vgpr = OOB ? 0 : vgpr")
+                packCode.addInst("v_cmp_le_u32", "vcc", sgpr("NumRemainderSumElements%s"%loopChar), kIdx-0, "OOB = NumRemainderSumElements <= kIdx")
+                packCode.addInst("s_and_b64", "vcc", "vcc", sgpr(isTailRemainderLoop, 2), "OOB &= isLastProduct")
+                packCode.addInst("v_cndmask_b32", tmpVgpr, tmpVgpr, "0", "vcc", "vgpr = OOB ? 0 : vgpr")
 
-              imod.addInst("v_or_b32", destVgpr, vgpr(tmpVgpr), vgpr(tmpVgpr+1), "pack")
+              packCode.addInst("v_or_b32", destVgpr, destVgpr, tmpVgpr, "pack")
 
             valuIdx += blockWidth
-      self.vgprPool.checkIn(tmpVgpr)
     else: 
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
@@ -7396,7 +7406,11 @@ class KernelWriterAssembly(KernelWriter):
       tmpVgpr = self.vgprPool.checkOut(3,"tmpVgpr")
       localReadCode.append(self.bomb(self.localReadDoCnt + 10, tmpVgpr+1))
       self.vgprPool.checkIn(tmpVgpr)
-    return imod
+    
+    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+      return imod, pack
+    else:
+      return imod
 
   ##############################################################################
   # Save the local read pointers, for example when creating a duplicated
@@ -7807,7 +7821,7 @@ class KernelWriterAssembly(KernelWriter):
           for subTile1Idx in range(0, subTile1):
             for shiftIdx in range(0, r):
               dstVgpr = subTile1Idx*numOutputElements + packIdx*numContinuousOutput + outIdx*glvw + shiftIdx
-              srcVgpr = subTile1Idx*numOutputElements + packIdx*numContinuousOutput + outIdx*glvw + shiftIdx + 1
+              srcVgpr = subTile1Idx*numOutputElements + packIdx*numContinuousOutput + outIdx*glvw + shiftIdx + (glvw - r)
               kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
 
         # end shift reset mask and jump out

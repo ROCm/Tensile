@@ -313,7 +313,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1],
+    "ScheduleIterAlg":             [0, 1, 2],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -726,7 +726,7 @@ validParameters = {
 
     # Group together unroll iterations inside the unroll loop.
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
-    "InnerUnroll":                [1,2,4],
+    "InnerUnroll":                [1,2,4,8,16,32,64],
 
     # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
     # 1 is default and results in no interleaving.
