@@ -84,8 +84,6 @@ namespace Tensile
 
             ContractionSolution::ProjectedPerformance pp =
               solution.projectedPerformance(m_problem, m_hardware);
-            
-            PerformanceReporter pr;
 
             m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
             m_reporter->report(ResultKey::Tile1Granularity, pp.tile1Granularity);
@@ -107,9 +105,6 @@ namespace Tensile
             // TODO-perfcounter - add memory global reads and writes from performance counter
             m_reporter->report(ResultKey::MemGlobalReads, pp.staticModel.memGlobalReads);
             m_reporter->report(ResultKey::MemGlobalWrites, pp.staticModel.memGlobalWrites);
-            m_reporter->report(ResultKey::PeakMFlops, pr.Default()->getPeakMFlops());
-            m_reporter->report(ResultKey::Efficiency, pr.Default()->getEfficiency());
-            m_reporter->report(ResultKey::L2BandwidthMBps, pr.Default()->getL2BandwidthMBps());
         }
 
         void BenchmarkTimer::postSolution()
@@ -124,10 +119,18 @@ namespace Tensile
                 m_reporter->report(ResultKey::SpeedGFlops, gflopsUint);
             else
                 m_reporter->report(ResultKey::SpeedGFlops, gflops);
-        
+
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
-
+            
+            std::cout<<"getPeakGFlops: "<<pm.m_peakGFlops<<" getEfficiency: "<<pm.m_eff<<" L2BandwidthMBps: "<<pm.m_readMul*pm.m_memBandwidthMBps<<std::endl;
+            m_reporter->report(ResultKey::PeakGFlops, pm.m_peakGFlops);
+            m_reporter->report(ResultKey::Efficiency, pm.m_eff);
+            m_reporter->report(ResultKey::L2BandwidthMBps, pm.m_readMul*pm.m_memBandwidthMBps);
+            pm.m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
+            pm.m_eff = std::numeric_limits<double>::quiet_NaN();
+            pm.m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
+            pm.gFlops = std::numeric_limits<double>::quiet_NaN();
         }
 
         bool BenchmarkTimer::needMoreRunsInSolution() const
