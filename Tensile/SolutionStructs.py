@@ -1683,7 +1683,9 @@ class Solution:
         reject(state, "WorkGroup0 must be mulitple of MatrixInstM")
       #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
       #  reject(state, "Error calculating MIWG1")
-
+      widthPerMfmaInput = 8 if state["ProblemType"]["DataType"].isHalf() else 4 # in bytes; hardware specific constant
+      bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
+      state["_NumElemPerMfmaInput"] = int(widthPerMfmaInput/bpeAB)
       state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MIWG0"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
       state["SubGroup0"] = state["MIWG0"] # TODO calc
       state["SubGroup1"] = state["MIWG1"]
@@ -2535,6 +2537,12 @@ class Solution:
     if state["TransposeLDS"] == 1:
       if not state["MatrixInstruction"]:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
+      if state["MatrixInstruction"]:
+        # For TransposeLDS=1 there are talks about utilizing even wider loads (>numElemPerMfmaInput) to read once and feed 
+        # to at least 2 MFMA instructions. Until that is realized, its safer to reject this invalid combo
+        if state["VectorWidth"] > state["_NumElemPerMfmaInput"]:
+          reject(state, "VectorWidth cannot be greater than max allowed inputs per MFMA instruction")
+
     if "MatrixInstruction" in state:
       if state["TransposeLDS"] == 1:
         if state["ProblemType"]["TLUA"] and  state["ProblemType"]["TLUB"]:

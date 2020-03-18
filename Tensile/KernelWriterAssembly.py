@@ -1204,17 +1204,11 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
-    #bf16mfma todo
-    if kernel["MatrixInstruction"]:
-      if not kernel["TransposeLDS"]:
-        localReadWidth = tPA["bpe"]/self.bpr # since only NT form in LDS is supported, 
-                                             # the only sensible way of loading along k-dimension is one element at a time
-      else:
-        localReadWidth = 1 if kernel["LocalReadVectorWidth"] == -1 else kernel["LocalReadVectorWidth"]
-        if kernel["ProblemType"]["DataType"].isHalf() and kernel["LocalReadVectorWidth"] == -1:
-           localReadWidth = 2
-                                             # transposeLDS stores elements in LDS same format as memory. 
-                                             # so fetching more than 1 elements along k-dimension is possible 
+    if kernel["MatrixInstruction"] and not kernel["TransposeLDS"]:
+        localReadWidth = tPA["bpe"]/self.bpr # when TransposeLDS=False, LDS lays out in NT form. 
+                                             # The only sensible way of loading along k-dimension 
+                                             # is one element at a time
+
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
     self.localReadStrideCoalescedA = \
@@ -1234,18 +1228,10 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
-    #bf16mfma todo
-    if kernel["MatrixInstruction"]:
-      if not kernel["TransposeLDS"]:
-        localReadWidth = tPB["bpe"]/self.bpr # since only NT form in LDS is supported, the
-                                             # only sensible way of loading along k-dimension 
+    if kernel["MatrixInstruction"] and not kernel["TransposeLDS"]:
+        localReadWidth = tPB["bpe"]/self.bpr # when TransposeLDS=False, LDS lays out in NT form. 
+                                             # The only sensible way of loading along k-dimension 
                                              # is one element at a time
-      else: 
-        localReadWidth = 1 if kernel["LocalReadVectorWidth"] == -1 else kernel["LocalReadVectorWidth"]
-        if kernel["ProblemType"]["DataType"].isHalf() and kernel["LocalReadVectorWidth"] == -1:
-           localReadWidth = 2
-                                             # transposeLDS stores elements in LDS same format as memory. 
-                                             # so fetching more than 1 elements along k-dimension is possible 
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1287,13 +1273,13 @@ class KernelWriterAssembly(KernelWriter):
 
     valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
     if kernel["MatrixInstruction"]:
-      perLaneK = kernel["MatrixInstK"]
-      numSrcRegsPerInstruction = (((perLaneK * kernel["MatrixInstM"] * kernel["MatrixInstB"]) // globalParameters["WavefrontWidth"]) * tPA["bpe"]) // self.bpr
-      self.numVgprValuAPerBlock = kernel["ThreadTileA"] * numSrcRegsPerInstruction
-      self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * numSrcRegsPerInstruction) // kernel["MatrixInstN"] # ABlocks
-      #if kernel["ProblemType"]["DataType"].isHalf(): # MI for fp16 requires 2x vgprs
-      #  self.numVgprValuAPerBlock *= 2
-      #  self.numVgprValuBPerBlock *= 2
+      numElementsPerMfmaInput = 1
+      if kernel["ProblemType"]["DataType"].isBFloat16():
+        numElementsPerMfmaInput*=2
+      if kernel["ProblemType"]["DataType"].isHalf():
+        numElementsPerMfmaInput*=4
+      self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]*numElementsPerMfmaInput//self.bpr
+      self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * tPA["bpe"]*numElementsPerMfmaInput) // (kernel["MatrixInstN"] * self.bpr) # ABlocks
     else:
       self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
       self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
@@ -7614,8 +7600,11 @@ class KernelWriterAssembly(KernelWriter):
     #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
-    if (kernel["MatrixInstruction"]):
-      numVectorsPerTile = 1 # TODO Fix for > tile
+    if kernel["MatrixInstruction"]:
+      if kernel["TransposeLDS"]:
+        numVectorsPerTile = kernel["_NumElemPerMfmaInput"]//kernel["VectorWidth"]
+      else: 
+        numVectorsPerTile = 1 # TODO Fix for > tile
     #print "numVectorsPerTile", numVectorsPerTile
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
     if kernel["MatrixInstruction"]:
@@ -7638,8 +7627,8 @@ class KernelWriterAssembly(KernelWriter):
     # mfma: for AB tile in NT layout
     # TODO need to break this if into multi if -else if - else 
     # for code readability
-    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1:
-      pack = Code.Module("pack%s"%tc)
+    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1 and not kernel["TransposeLDS"]:
+      pack = Code.Module("pack%s_I%s"%(tc,iui))
       isTailRemainderLoop = self.getTmpSgpr(2)
       tmpVgprIdx = self.vgprPool.checkOut(self.numVgprValuAPerBlock if tc == 'A' else self.numVgprValuBPerBlock)
       packCode = pack.addCode (Code.Module("packCode"))
@@ -7659,7 +7648,11 @@ class KernelWriterAssembly(KernelWriter):
             else:
               paramList.append(tmpVgpr)
             paramList.append(vgpr("LocalReadAddr%s"%tc))
-            offset = ((rIdx * kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx] + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
+            if not kernel["TransposeLDS"]:
+              readOffsetWidth = kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx] # WG0
+              if tP["isB"]:
+                readOffsetWidth *= (kernel["ThreadTile1"] // kernel["MatrixInstN"]) * 4 # 4 simds
+              offset = ((rIdx * readOffsetWidth + kIdx*(kernel["MacroTile%s"%tc]+kernel["LdsPad%s"%tc]) + tP["localReadOffset"]) \
                  *tP["bpe"]+tP["localReadSwapByteOffset"])//offsetMultiplier
             paramList.append(int(offset))
             oIdx = 0
@@ -7698,9 +7691,16 @@ class KernelWriterAssembly(KernelWriter):
               packCode.addInst("v_or_b32", destVgpr, destVgpr, tmpVgpr, "pack")
 
             valuIdx += blockWidth
-    else: 
-      for vIdx in range(0, numVectorsPerTile):
-        for rIdx in range(0, numReadsPerVector):
+    else:
+      # The order of the loop over numReadsPerVector & numVectorsPerTile is exchanged
+      # so as to allow multi-instruction reads along summation dim.
+      # This potentially breaks legacy Non-MI codes; but so far it works as long as 
+      # numReadsPerVector is kept as 1
+      if not kernel["MatrixInstruction"]: 
+        assert(numReadsPerVector==1) # should be guaranteed via in SolutionStruct, i.e.,
+                                     # "VW * DataType.numBytes() > 16" gets rejected
+      for rIdx in range(0, numReadsPerVector):
+        for vIdx in range(0, numVectorsPerTile):
           localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
           paramList = []
           destVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
@@ -7731,7 +7731,7 @@ class KernelWriterAssembly(KernelWriter):
                   InstructionTileOuput = (globalParameters["WavefrontWidth"] // kernel["MIWG0"] ) * (kernel["MatrixInstN"] // kernel["InstSplit"])
                 blockOffset = (InstructionTileOuput) * kernel["DepthU"] * tP["bpe"]
                 ldsPadOffset = (blockOffset//kernel["LdsBlockSizePerPad"])*kernel["LdsPad%s"%tc]*tP["bpe"]
-                offset = (blockOffset + ldsPadOffset)*rIdx + (uIdx)*kernel["MatrixInstK"]*tP["bpe"] + tP["localReadSwapByteOffset"]
+                offset = (blockOffset + ldsPadOffset)*rIdx + (uIdx)*kernel["MatrixInstK"]*tP["bpe"] + blockWidth*self.bpr*vIdx + tP["localReadSwapByteOffset"]
                 paramList.append(offset)
             else:
               paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
