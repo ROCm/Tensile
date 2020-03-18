@@ -2525,6 +2525,9 @@ class Solution:
     if state["TransposeLDS"] == 1:
       if not state["MatrixInstruction"]:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
+      if state["MatrixInstruction"]:
+        if state["VectorWidth"] > state["MatrixInstK"]:
+          reject(state, "VectorWidth cannot be greater than MatrixInstK when TransposeLDS=1")
     if "MatrixInstruction" in state:
       if state["TransposeLDS"] == 1:
         if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
