@@ -1275,12 +1275,13 @@ class KernelWriterAssembly(KernelWriter):
 
     valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
     if kernel["MatrixInstruction"]:
-      # NOTE: ThreadTileA/B in MatrixInstruction context is a bit ambiguous 
-      self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"] * kernel["VectorWidth"]//self.bpr
-      self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * tPA["bpe"] * kernel["VectorWidth"]) // (kernel["MatrixInstN"] * self.bpr) # ABlocks
-      if kernel["ProblemType"]["DataType"].isHalf(): # MI for fp16 requires 2x vgprs
-        self.numVgprValuAPerBlock *= 2
-        self.numVgprValuBPerBlock *= 2
+      numElementsPerMfmaInput = 1
+      if kernel["ProblemType"]["DataType"].isBFloat16():
+        numElementsPerMfmaInput*=2
+      if kernel["ProblemType"]["DataType"].isHalf():
+        numElementsPerMfmaInput*=4
+      self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]*numElementsPerMfmaInput//self.bpr
+      self.numVgprValuBPerBlock = (kernel["ThreadTileB"] * tPA["bpe"]*numElementsPerMfmaInput) // (kernel["MatrixInstN"] * self.bpr) # ABlocks
     else:
       self.numVgprValuAPerBlock = kernel["ThreadTileA"]*tPA["bpe"]//self.bpr
       self.numVgprValuBPerBlock = kernel["ThreadTileB"]*tPB["bpe"]//self.bpr
