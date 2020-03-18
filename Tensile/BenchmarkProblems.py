@@ -111,7 +111,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       print1(printStr)
 
     if False:
-    # print1(hardcoded parameters and their winners
       print1("# HardcodedParameters | WinningParameters:")
       paramDictIdx = 0
       hardcodedMinNaming = \
@@ -585,7 +584,7 @@ class FrozenDictionary:
   def __str__(self):
     return Solution.getNameFull(self.parameters)
   def __repr__(self):
-    return self.__str__();
+    return self.__str__()
 
 
 ################################################################################

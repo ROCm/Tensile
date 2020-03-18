@@ -180,53 +180,53 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   runScriptFile = io.StringIO()
   q = "" if os.name == "nt" else "\""
   echoLine = "@echo." if os.name == "nt" else "echo"
-  if globalParameters["NewClient"] <= 2:
-    runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
-        % (echoLine, q, HR, q, q, q, q, HR, q))
-    runScriptFile.write("cmake")
-    # runtime and kernel language
-    runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
-    runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
-    runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
-    runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
-    if globalParameters["EnableHalf"]:
-      runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
-    if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
-      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
-    else:
-      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
-    if forBenchmark:
-      # for benchmark client
-      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-    else:
-      # for library client
-      runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
-      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
-      runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-      runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
-          % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
-      runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-          % ("ON" if globalParameters["ShortNames"] else "OFF"))
-    if globalParameters["CMakeCXXFlags"]:
-      runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
-    if globalParameters["CMakeCFlags"]:
-      runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
-    if globalParameters["NewClient"] == 2:
-      runScriptFile.write(" -DTENSILE_NEW_CLIENT=ON")
-    else:
-      runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
-    runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
-    # for both
-    if os.name == "nt":
-      runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-    runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-        % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-    runScriptFile.write(" ../source\n")
-    runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
-        % (echoLine, q, HR, q, q, q, q, HR, q))
-    runScriptFile.write("cmake --build . --config %s%s\n" \
-        % (globalParameters["CMakeBuildType"], " -- -j 8" \
-        if os.name != "nt" else "") )
+  #if globalParameters["NewClient"] <= 2:
+  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
+      % (echoLine, q, HR, q, q, q, q, HR, q))
+  runScriptFile.write("cmake")
+  # runtime and kernel language
+  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
+  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+  runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
+  if globalParameters["EnableHalf"]:
+    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+  else:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
+  if forBenchmark:
+    # for benchmark client
+    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
+  else:
+    # for library client
+    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
+    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
+    runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
+    runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
+        % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
+    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
+        % ("ON" if globalParameters["ShortNames"] else "OFF"))
+  if globalParameters["CMakeCXXFlags"]:
+    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
+  if globalParameters["CMakeCFlags"]:
+    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+  if globalParameters["NewClient"] == 2:
+    runScriptFile.write(" -DTENSILE_NEW_CLIENT=ON")
+  else:
+    runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
+  # for both
+  if os.name == "nt":
+    runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
+  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
+      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
+  runScriptFile.write(" ../source\n")
+  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
+      % (echoLine, q, HR, q, q, q, q, HR, q))
+  runScriptFile.write("cmake --build . --config %s%s\n" \
+      % (globalParameters["CMakeBuildType"], " -- -j 8" \
+      if os.name != "nt" else "") )
 
   return runScriptFile.getvalue()
 

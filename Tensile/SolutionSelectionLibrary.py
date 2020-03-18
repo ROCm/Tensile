@@ -78,32 +78,15 @@ def updateValidSolutions(validSolutions, analyzerSolutions, solutionMinNaming):
   for i in range(0 ,len(validSelectionSolutionsIncluded)):
     validSelectionSolution = validSelectionSolutionsIncluded[i]
     (validSolution, validSolutionInfo) = validSelectionSolution
-    #selectionSolutionIndex = solutionsStartIndex + i
-    #selectionSolutionIndex = validSolution["SolutionIndex"]
-    #selectionSolutionsIds.add(selectionSolutionIndex)
     validSolution["Ideals"] = validSolutionInfo
-    #selectionSolutions.append(validSolution)
     analyzerSolutions.append(validSolution)
 
   solutionsStartIndex = len(analyzerSolutions)
-
-
-  ######################################
-  # Print solutions used
-  #print1("# Solutions Used:")
-  #for i in range(0, len(analyzerSolutions)):
-    #s = analyzerSolutions[i]
-    #s["SolutionIndex"] = i
-    #s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
-    #print1("(%2u) %s : %s" % (i, \
-    #  Solution.getNameMin(s, solutionMinNaming), \
-    #  Solution.getNameFull(s)))  # this is the right name
 
   for i in range(0, len(validSelectionSolutionsRemainder)):
     validSelectionSolution = validSelectionSolutionsRemainder[i]
     (validSolution, validSolutionInfo) = validSelectionSolution
     selectionSolutionIndex = solutionsStartIndex + i
-    #validSolution["SolutionIndex"] = selectionSolutionIndex
     selectionSolutionsIds.add(selectionSolutionIndex)
     validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
     validSolution["Ideals"] = validSolutionInfo
@@ -119,8 +102,6 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
   dataFileNameList = []
   performanceMap = {}
   solutionsHash = {}
-  #solutionData = {}
-  #allSolutions = []
 
   for problemSizeGroup in problemSizeGroups:
     dataFileName = problemSizeGroup[3]
@@ -130,13 +111,6 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     (_, solutions) = YAMLIO.readSolutions(solutionsFileName)
     if len(solutions) == 0:
       printExit("%s doesn't contains any solutions." % (solutionsFileName) )
-
-    #solutionMinNaming = Solution.getMinNaming(solutions)
-
-    #for solution in solutions:
-    #  solutionName = Solution.getNameMin(solution, solutionMinNaming)
-    #  solution["SolutionNameMin"] = solutionName
-    #  allSolutions.append(solution)
       
     dataFile = open(dataFileName, "r") 
     csvFile = csv.reader(dataFile)
@@ -145,21 +119,15 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     summationKeys = None
 
     for row in csvFile:
-      #print (row)
       if rowIdx == 0:
         print(rowIdx)
         summationKeys = getSummationKeys(row)
-        #rowIdx = rowIdx + 1
       else:
-        #print (len(row))
-        #solution = solutions[rowIdx - 1]
-        #rowIdx = rowIdx + 1
-
         if len(row) > 1:
           solution = solutions[rowIdx - 1]
           keyBase = makeKey(row)
           idx=7
-          name = row[0]
+          #name = row[0]
           perfData = {}
           for summationKey in summationKeys:
             key = "%s_%s" % (keyBase,summationKey)
@@ -179,27 +147,9 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
               _,valueOld = performanceMap[key]
               if value > valueOld:
                 performanceMap[key] = (solution, value)
-            #if key not in performanceMap:
-            #  performanceMap[key] = (name,value)
-            #else:
-            #  (name1,value1) = performanceMap[key]
-            #  if value > value1:
-            #    performanceMap[key] = (name,value)
-          #solutionData[name]=perfData
       rowIdx+=1
 
     dataFile.close()
-
-  #validSolutionsNames = set([])
-  #for key in performanceMap:
-  #  (name,_) = performanceMap[key]      
-  #  validSolutionsNames.add(name)
-  #validSolutions = []
-  #for solution in allSolutions:
-  #  sname = solution["SolutionNameMin"]
-  #  if sname in validSolutionsNames:
-  #    solutionInfo = solutionData[sname]
-  #    validSolutions.append((solution, solutionInfo))
 
   validSolutions = []
   validSolutionSet = set([])
@@ -218,7 +168,6 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
   performanceMap = {}
   solutionsHash = {}
 
-  #numIndices = self.problemType["TotalIndices"] + problemType["NumIndicesLD"]
   totalIndices = problemType["TotalIndices"]
   summationIndex = totalIndices
   numIndices = totalIndices + problemType["NumIndicesLD"]
@@ -232,30 +181,6 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
     numSolutions = numSolutionsPerGroup[fileIdx]
     rowLength = solutionStartIdx + numSolutions
     solutionBaseKeys = []
-
-#    solutionIdx = 0
-#    winnerIdx = -1
-#    winnerGFlops = -1
-#    for i in range(solutionStartIdx, rowLength):
-#      gflops = float(row[i])
-#      if gflops > winnerGFlops:
-#        winnerIdx = solutionIdx
-#        winnerGFlops = gflops
-#      solutionIdx += 1
-#    if winnerIdx != -1:
-#      if problemSize in self.exactWinners:
-#        if winnerGFlops > self.exactWinners[problemSize][1]:
-#          #print "update exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
-#          self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-#      else:
-#        self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-#        #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
-
-    #for solutionIdx in solutionsMap:
-    #  sIdx = solutionsMap[solutionIdx]
-    #  solution = solutions[sIdx]
-    #  baseKey = getSolutionBaseKey(solution)
-    #  solutionBaseKeys.append(baseKey)
 
     for solution in solutions:
       baseKey = getSolutionBaseKey(solution)
@@ -275,8 +200,6 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
         for i in range(solutionStartIdx, rowLength):
           baseKey = solutionBaseKeys[solutionIndex]
           key = "%s_%s" % (baseKey, sumationId)
-          #sIdx = solutionsMap[solutionIndex]
-          #solution = solutions[sIdx]
           solution = solutions[solutionIndex]
           solutionIndex += 1
           value = float(row[i])
