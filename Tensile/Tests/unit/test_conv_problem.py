@@ -26,6 +26,35 @@ def test_stride2x3_defaults():
     assert (ec.sizes == (4, 10, e['k'], e['n'], e['c']))
     assert (ec.stridesA == (3, 28, -1, -1))
 
+@pytest.mark.skip(reason="no X filter, ZeroPadA has one entry and it is for Y filter")
+def test_pad_4x1():
+    z={} # problemType definition
+    conv = Convolution(z, 'ConvolutionForward',
+                          config={'TensorAFormat': 'NCHW',
+                                  'Filter': '4x1',
+                                  'PadStart': 'Nx0',
+                                  'PadEnd'  : 'Nx0',
+                           })
+    log.debug(conv.printUsage(z))
+    e= {'n': 1, 'c': 4, 'h': 12, 'w': 8, 'k': 1, 'p': 2 , 'p_': 3}
+    ec = ConvProblem(e, conv)
+    assert (ec.zeroPadA == [[1,4, 2, 3]])
+
+def test_pad_4x3():
+    z={} # problemType definition
+    conv = Convolution(z, 'ConvolutionForward',
+                          config={'TensorAFormat': 'NCHW',
+                                  'Filter': '4x3',
+                                  'PadStart': 'NxN',
+                                  'PadEnd'  : 'NxN',
+                           })
+    log.debug(conv.printUsage(z))
+    e= {'n': 1, 'c': 4, 'h': 12, 'w': 8, 'k': 1, 'p': 1 , 'p_': 2, 'q': 3, 'q_': 4 }
+    ec = ConvProblem(e, conv)
+    assert (ec.zeroPadA[0] == [0,5, 3, 4])
+    assert (ec.zeroPadA[1] == [1,4, 8, 16])
+    assert (len(ec.zeroPadA) == 2)
+
 def test_bad_filter():
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',

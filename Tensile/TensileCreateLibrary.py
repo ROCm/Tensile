@@ -56,7 +56,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     try:
         kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
         # get kernel name
-        kernelName = kernelWriter.getKernelName(kernel)
+        kernelName = kernelWriter.getKernelFileBase(kernel)
         #sys.stderr.write("kernel:%s\n"% kernelName)
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
@@ -78,7 +78,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     coFiles = []
     for arch, archKernels in archs.items():
       archName = 'gfx'+''.join(map(str,arch))
-      objectFiles = list([kernelWriterAssembly.getKernelName(k) + '.o' \
+      objectFiles = list([kernelWriterAssembly.getKernelFileBase(k) + '.o' \
                           for k in archKernels \
                           if k['KernelLanguage'] == 'Assembly'])
       if len(objectFiles) == 0:
@@ -93,7 +93,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         subprocess.check_call(args, cwd=asmDir)
         coFiles.append(coFile)
       else:
-        assemblyKernelNames = [kernelWriterAssembly.getKernelName(k) for k in archKernels]
+        assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
         newCOFiles  = []
         if globalParameters["PackageLibrary"]:
@@ -264,6 +264,10 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
     if err:
       kernelsWithBuildErrs[kernelName] = err
       #print "*** warning: invalid kernel#%s"%kernelName
+
+    # Don't create a file for empty kernels.
+    if len(src.strip()) == 0:
+      continue
 
     #if kernelSourceFile:
       # write kernel.cpp
@@ -950,7 +954,7 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernel in kernels:
-      kernelName = kernelWriterSource.getKernelName(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelName(kernel) 
+      kernelName = kernelWriterSource.getKernelFileBase(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelFileBase(kernel) 
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")
@@ -1005,6 +1009,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--no-legacy-components",   dest="LegacyComponents",  action="store_false", default=True)
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
+  argParser.add_argument("--new-client-only",        action="store_true")
 
   argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
                          help="Access key for embedding library files.")
@@ -1030,6 +1035,8 @@ def TensileCreateLibrary():
     arguments["ROCmAgentEnumeratorPath"] = False
   arguments["PackageLibrary"] = args.PackageLibrary
   arguments["LegacyComponents"] = args.LegacyComponents
+  if args.new_client_only:
+    arguments["NewClient"] = 2
 
   assignGlobalParameters(arguments)
 

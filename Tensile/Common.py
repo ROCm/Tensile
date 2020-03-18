@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -156,9 +156,10 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
+globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -312,7 +313,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1],
+    "ScheduleIterAlg":             [0, 1, 2],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -725,7 +726,7 @@ validParameters = {
 
     # Group together unroll iterations inside the unroll loop.
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
-    "InnerUnroll":                [1,2,4],
+    "InnerUnroll":                [1,2,4,8,16,32,64],
 
     # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
     # 1 is default and results in no interleaving.
@@ -985,11 +986,11 @@ defaultProblemType = {
     # Zero-pad will add leading and trailing "pad" elements to the specified 'anchor'
     # dimension when accessed by specified summation dimension.
     #
-    # Format is list of tuples of [freeDim, sumDim, padLeading, padTrailing].
+    # Format is list of tuples of [freeDim, sumDim, padStart, padEnd].
     #  - freeDim is the anchor where the zero-pad starts.
     #  - sumDim is the summation dim to which the padding checking is added.
-    #  - padLeading is the number of elements to pad before the Start element
-    #  - padTrailing is the number of elements to pad before the last element.
+    #  - padStart is the number of elements to pad before the Start element
+    #  - padEnd is the number of elements to pad before the last element.
 
     # - Terms:
     #   - Start is the first summation element
@@ -998,24 +999,36 @@ defaultProblemType = {
     # - Pad Ranges:
     #   - Ranges show below are inclusive on the start element and exclusive on the last element.
     #     For example, [0,3) is 0,1,2.
-    #    - Elements in the region [Start-padLeading, Start) are in the leading pad region and will return 0.
-    #    - Elements in the memory region [Start + freeSize + sumSize - padTrailing,  Start + freeSize + sumSize)
+    #    - Elements in the region [Start-padStart, Start) are in the leading pad region and will return 0.
+    #    - Elements in the memory region [Start + freeSize + sumSize - padEnd,  Start + freeSize + sumSize)
     #     are in the trailing pad region and will return 0.
+    #    - Code actually checks for elementMem < padStart or elementMem>=elementEdge
+    #      - elementMem is the memory offset of the element from the tensor base
+    #      - elementEdge is FreeSize*FreeStride + (SumSize-1)*SumStride - padEnd
+    #        - FreeStride is typically spatial*convolutionStride
+    #        - SumStride is typically spatial*dilation
+    #        - PadStart and PadStop should be scaled by spatial on the host before calling the kernel.
+    #          (spatial is not available inside the kernel)
+    #      - The GPU implementations shift the load tile by -padStart, then return 0s for any address <=0.
+    #        The elementEdge is also shifted by -padStart.  This allows the global read offset to be used for the
+    #        edge comparison.  Edge comparisons are performed with vector instructions so each work-item computes
+    #        a different in/out value.
+    #      - Multiple summations OR together their edge checks, so any OOB edge returns 0 for the load.
+    #
     # - Strides:
-    #   - SummationStride is applied to compute the element address before checking the regions.
-    #   - FreeStride is applied to the computation of the Start element, padLeading, and padTrailing.
+    #   - padStart and padStop are passed as kernel arguments. These are scaled by the spatial dim on the host;
     #   - No memory access is performed for elements in the Pad regions.
     #   - The Pad regions are handled by manipulating the tensor addressing and are not visible in actual memory.
-    #     For example, a tensor with 2 rows, 16 elements/row, padLeading=padTrailing=2 occupies 32 elements in memory (not 40)
-    #   - Typical use case is to set summationStride < freeSize, with padLeading+padTrailing+1 == summationStride.
+    #     For example, a tensor with 2 rows, 16 elements/row, padStart=padEnd=2 occupies 32 elements in memory (not 40)
+    #   - Typical use case is to set summationStride < freeSize, with padStart+padEnd+1 == summationStride.
     # - Caveats:
-    #  - Eventually leading and trailing YAML parm will be removed and instead be specified as runtime kernel parms
     #  - ZeroPad requires that the ElementEdge <= 2^32:
     #    This is SizeFree+SizeSum + Pad_Leading + PadTrailingPad + padding=GRWW for shift-pointer) bytes < 2^32
     #    Likely this is less than the standard buffer load limits (bottom-right corner of macro-tile)
 
     #  EX: ZeroPadA: [ [0,1,  2,3]] # TensorA free index 0 with sum index 1 has leading pad=2 and trailing pad=3
     # Note nesting of brackets ; the parm can contain multiple padding tuples.
+    #  EX: ZeroPadA: [ [0,1, -1,-1]]# Pads are dynamic and passed as part of the problem.
 
     "ZeroPadA":                 [], # [ [0,1, 2,3]]
     "ZeroPadB":                 [], # Not fully supported/tested yet
@@ -1229,7 +1242,7 @@ def assignGlobalParameters( config ):
 
   print1("# Restoring default globalParameters")
   for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
+    globalParameters[key] = deepcopy(defaultGlobalParameters[key])
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -1287,7 +1300,7 @@ def assignGlobalParameters( config ):
     asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
     archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
 
-    print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+    #print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
 
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
@@ -1324,9 +1337,9 @@ def assignGlobalParameters( config ):
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
-    destinationDictionary[key] = defaultDictionary[key]
+    destinationDictionary[key] = deepcopy(defaultDictionary[key])
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):

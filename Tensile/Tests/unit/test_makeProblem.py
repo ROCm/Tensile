@@ -13,6 +13,7 @@ def test_spatial_in():
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
     assert(p[0] == [210, 256, 64, 1024])
     assert(p[1] == [1, -1, -1])
+    assert(p[2] == [-1, -1, 0])
 
 def test_spatial_parm():
     z={} # problemType definition
@@ -26,6 +27,7 @@ def test_spatial_parm():
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
     assert(p[0] == [182, 256, 64, 1024])
     assert(p[1] == [1, -1, -1])
+    assert(p[2] == [-1, -1, 0])
 
 
 def test_stride():
@@ -40,6 +42,7 @@ def test_stride():
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [4, 6, 256, 64, 1024])
     assert(p[1] == [3, 28, -1, -1])
+    assert(p[2] == [-1, -1, 0])
 
 
 def test_stride_filter():
@@ -55,6 +58,7 @@ def test_stride_filter():
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [3, 5, 256, 64, 3, 4, 1024])
     assert(p[1] == [1, 14, 3, 28, -1, -1])
+    assert(p[2] == [-1, -1, -1, -1, 0])
 
 def test_stride_filter_dilated():
     z={} # problemType definition
@@ -70,6 +74,7 @@ def test_stride_filter_dilated():
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [3, 5, 256, 64, 3, 4, 1024])
     assert(p[1] == [3, 28, 3, 28, -1, -1])
+    assert(p[2] == [-1, -1, -1, -1, 0])
 
 def test_spatial_unspecified():
     z={} # problemType definition

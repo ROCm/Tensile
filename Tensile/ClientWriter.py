@@ -382,6 +382,8 @@ def problemSizeParams(solution, problem):
         else:
             bstrides[index.b] = sc[1]
 
+
+    cstrides = dstrides = None
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
@@ -399,8 +401,8 @@ def problemSizeParams(solution, problem):
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
               (bstrides[1], problem.sizes[numIndices+3]))
 
-        rv.append(('d-strides', "-1," + str(problem.sizes[numIndices+1])))
-        rv.append(('c-strides', "-1," + str(problem.sizes[numIndices+0])))
+        cstrides = (-1, problem.sizes[numIndices+1])
+        dstrides = (-1, problem.sizes[numIndices+0])
     else:
         raise RuntimeError(
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problem.sizes), numIndices,
@@ -411,11 +413,15 @@ def problemSizeParams(solution, problem):
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
+    if cstrides:
+      rv.append(('c-strides', ",".join(map(str, cstrides))))
+    if dstrides:
+      rv.append(('d-strides', ",".join(map(str, dstrides))))
 
     if problem.zeroPadA:
-        rv.append(('a-zero-pads', '; '.join([','.join(map(str,zp)) for zp in problem.zeroPadA])))
+        rv.append(('a-zero-pads', ';'.join([','.join(map(str,zp)) for zp in problem.zeroPadA])))
     if problem.zeroPadB:
-        rv.append(('b-zero-pads', '; '.join([','.join(map(str,zp)) for zp in problem.zeroPadB])))
+        rv.append(('b-zero-pads', ';'.join([','.join(map(str,zp)) for zp in problem.zeroPadB])))
 
     return rv
 
@@ -541,6 +547,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   # Min Naming
   ##############################################################################
+  """
   if forBenchmark:
     kernels = []
     for solution in solutions:
@@ -549,7 +556,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         if kernel not in kernels:
           kernels.append(kernel)
 
-    """
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -557,7 +563,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     solutionWriter = SolutionWriter( \
         solutionMinNaming, solutionSerialNaming, \
         kernelMinNaming, kernelSerialNaming)
-    """
+  """
 
   if forBenchmark:
     if globalParameters["MergeFiles"]:
