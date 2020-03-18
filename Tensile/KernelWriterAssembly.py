@@ -1205,9 +1205,9 @@ class KernelWriterAssembly(KernelWriter):
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])//self.bpr
     #bf16mfma todo
-    if kernel["MatrixInstruction"]:
-        localReadWidth = tPA["bpe"]/self.bpr # since only NT form in LDS is supported, the
-                                             # only sensible way of loading along k-dimension 
+    if kernel["MatrixInstruction"] and not kernel["TransposeLDS"]:
+        localReadWidth = tPA["bpe"]/self.bpr # when TransposeLDS=False, LDS lays out in NT form. 
+                                             # The only sensible way of loading along k-dimension 
                                              # is one element at a time
 
     #localReadStridePerpendicular = 0
@@ -1230,9 +1230,9 @@ class KernelWriterAssembly(KernelWriter):
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])//self.bpr
     #bf16mfma todo
-    if kernel["MatrixInstruction"]:
-        localReadWidth = tPB["bpe"]/self.bpr # since only NT form in LDS is supported, the
-                                             # only sensible way of loading along k-dimension 
+    if kernel["MatrixInstruction"] and not kernel["TransposeLDS"]:
+        localReadWidth = tPB["bpe"]/self.bpr # when TransposeLDS=False, LDS lays out in NT form. 
+                                             # The only sensible way of loading along k-dimension 
                                              # is one element at a time
 
     #localReadStridePerpendicular = 0
@@ -7617,8 +7617,11 @@ class KernelWriterAssembly(KernelWriter):
     #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
-    if (kernel["MatrixInstruction"]):
-      numVectorsPerTile = 1 # TODO Fix for > tile
+    if kernel["MatrixInstruction"]:
+      if kernel["TransposeLDS"]:
+        numVectorsPerTile = kernel["MatrixInstK"]//kernel["VectorWidth"]
+      else: 
+        numVectorsPerTile = 1 # TODO Fix for > tile
     #print "numVectorsPerTile", numVectorsPerTile
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
     if kernel["MatrixInstruction"]:
@@ -7632,7 +7635,7 @@ class KernelWriterAssembly(KernelWriter):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
     loopChar = self.indexChars[loopDim]
     # mfma: for AB tile in NT layout
-    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1:
+    if kernel["MatrixInstruction"] and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and numReadsAlongK > 1 and not kernel["TransposeLDS"]:
       pack = Code.Module("pack%s"%tc)
       isTailRemainderLoop = self.getTmpSgpr(2)
       tmpVgprIdx = self.vgprPool.checkOut(self.numVgprValuAPerBlock if tc == 'A' else self.numVgprValuBPerBlock)
@@ -7712,9 +7715,16 @@ class KernelWriterAssembly(KernelWriter):
               packCode.addInst("v_or_b32", destVgpr, destVgpr, tmpVgpr, "pack")
 
             valuIdx += blockWidth
-    else: 
-      for vIdx in range(0, numVectorsPerTile):
-        for rIdx in range(0, numReadsPerVector):
+    else:
+      # The order of the loop over numReadsPerVector & numVectorsPerTile is exchanged
+      # so as to allow multi-instruction reads along summation dim.
+      # This potentially breaks legacy Non-MI codes; but so far it works as long as 
+      # numReadsPerVector is kept as 1
+      if not kernel["MatrixInstruction"]: 
+        assert(numReadsPerVector==1) # should be guaranteed via in SolutionStruct,
+                                     # i.e., VW * DataType.numBytes() > 16
+      for rIdx in range(0, numReadsPerVector):
+        for vIdx in range(0, numVectorsPerTile):
           localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
           paramList = []
           destVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
