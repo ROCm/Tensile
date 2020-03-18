@@ -38,7 +38,7 @@ from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
-from .SolutionStructs import Solution, ProblemType
+from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 
@@ -360,10 +360,11 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
-    print2("CSV Results: %s" % results)
-    winners.addResults(benchmarkStep.hardcodedParameters, \
-        benchmarkPermutations, solutions, results)
+    if not enableTileSelection:
+        results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
+        print2("CSV Results: %s" % results)
+        winners.addResults(benchmarkStep.hardcodedParameters, \
+            benchmarkPermutations, solutions, results)
 
     ############################################################################
     # Write Solutions YAML
@@ -491,7 +492,15 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
   kernels = []
   kernelsBetaOnly = []
+  maxMacroTile0 = 0
+  maxMacroTile1 = 0
   for solution in solutions:
+    macroTile0 = solution["MacroTile0"]
+    macroTile1 = solution["MacroTile1"]
+    if macroTile0 > maxMacroTile0:
+      maxMacroTile0 = macroTile0
+    if macroTile1 > maxMacroTile1:
+      maxMacroTile1 = macroTile1
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
       if kernel not in kernels:
@@ -500,6 +509,13 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
     for kernel in solutionKernelsBetaOnly:
       if kernel not in kernelsBetaOnly:
         kernelsBetaOnly.append(kernel)
+
+  idealM = 36 * maxMacroTile0
+  idealN = 36 * maxMacroTile1
+  idealSizes = []
+  for idealK in solutionSummationSizes:
+    idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+    idealSizes.append(idealSize)
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -527,7 +543,9 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 
-  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles)
+  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, False)
+  idealProblemSizes = ProblemSizes(problemType, idealSizes)
+  writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:
     printExit("write solutions and kernels results 0 valid soultion.")
