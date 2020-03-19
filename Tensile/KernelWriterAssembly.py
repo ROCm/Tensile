@@ -8762,7 +8762,6 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(tid1), \
           "coord1 = tid1*VW + wg1*MT1")
 
-    
     self.coord0 = tid0
     self.coord1 = tid1
 
@@ -9121,15 +9120,20 @@ class KernelWriterAssembly(KernelWriter):
       self.kernel = kernel
 
       #--
-      # optStoreAddrVgpr works in cases where the data is written row by row to memory.A
+      # Optimizations for coord0/column address calculations:
+      #
+      # optSingleColVgpr:
+      #  - works in cases where the data is written row by row to memory.
       # In this case we can use a single vgpr for addressing:
+      #  - Use the load/store instruction offset (fixed at compile-time)
       #  - the horizontal addresses are fixed offsets from the base
       #  - as we move to a new row, increment the appropriate SRDs
 
-      # optSingleColVgpr: optimize coord0/column address calculations:
-      #  - Use the load/store instruction offset
       # optSharedColVgpr:
-      #  - Each col gets it's own address, but rows in the same col share VGPR.
+      #  - Each col gets it's own address, but elements in later rows with the same col will share VGPR.
+      #  - allows cols to be non-adjacent
+      #  - this is mutually exclusive with optSingleColVgpr - not as optimal but provides
+      #    more flexibility.
 
       # optSrdIncForRow: optimize coord1/row address calculations:
       #  - Move the SRD bewtween memory operations to get to new row
@@ -9397,7 +9401,6 @@ class KernelWriterAssembly(KernelWriter):
 
     """
     def emitAddressCoordIncrement(self, kernel, ss, tmpVgpr, tmpS01, edge):
-      
       kStr = ""
       kw = self.kernelWriter
       (d1,d0,vc1,vc0) = self.element
@@ -9440,6 +9443,7 @@ class KernelWriterAssembly(KernelWriter):
       return kStr
 
     # storeChar is 'C' or 'D'
+    # elementVgpr is coord0Vgpr*strideCD0, or optimized to just coord0Vgpr if strideCD0 is unit const
     def emitExtractAndScalePackedDims(self, kernel, ss, beta, atomic, tmpVgpr, storeChar):
       kStr = ""
       kw = self.kernelWriter
