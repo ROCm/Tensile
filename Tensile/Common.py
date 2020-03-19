@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -159,7 +159,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -313,7 +313,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1],
+    "ScheduleIterAlg":             [0, 1, 2],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -747,7 +747,7 @@ validParameters = {
 
     # Group together unroll iterations inside the unroll loop.
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
-    "InnerUnroll":                [1,2,4],
+    "InnerUnroll":                [1,2,4,8,16,32,64],
 
     # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
     # 1 is default and results in no interleaving.
@@ -1266,7 +1266,7 @@ def assignGlobalParameters( config ):
 
   print1("# Restoring default globalParameters")
   for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
+    globalParameters[key] = deepcopy(defaultGlobalParameters[key])
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -1361,9 +1361,9 @@ def assignGlobalParameters( config ):
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
-    destinationDictionary[key] = defaultDictionary[key]
+    destinationDictionary[key] = deepcopy(defaultDictionary[key])
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
