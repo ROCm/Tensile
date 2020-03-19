@@ -104,7 +104,8 @@ def main( config ):
   problemSizes = None
   stepName = None
   solutionSummationSizes = None
-  if logicFiles:
+  if globalParameters["NewClient"] != 2:
+    if logicFiles:
       writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
@@ -383,7 +384,8 @@ def problemSizeParams(solution, problem):
             bstrides[index.b] = sc[1]
 
 
-    cstrides = dstrides = None
+    cstrides = problem.stridesC
+    dstrides = problem.stridesD
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
@@ -1190,7 +1192,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # strides
     indexChars = globalParameters["IndexChars"]
     firstStride = 1
-    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    #assert(not problemType["UseInitialStridesCD"]) # not supported in old client
     if problemType["UseInitialStridesAB"]:
       firstStride = 0
     lastStrideD = problemType["NumIndicesC"]
