@@ -1196,9 +1196,8 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graTileAssignment(self, kernel, tP):
     kStr = ""
-    insideGrp = "(NUM_THREADS-serial-1)" if tP["mirror"] else "serial"
-    kStr += "  unsigned int globalReadOffset%s%s = (%s%s" \
-        % (tP["tensorChar"], tP["tileChar"], insideGrp, ("%" if tP["grcg"] == tP["tlu"] else "/") )
+    kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
+        % (tP["tensorChar"], tP["tileChar"], ("%" if tP["grcg"] == tP["tlu"] else "/") )
     if tP["grcg"]:
       kStr += (tP["lvc"] if tP["grcv"] else tP["lsc"])
     else:
@@ -1207,10 +1206,7 @@ class KernelWriterSource(KernelWriter):
     if tP["grcv"] == tP["tlu"]:
       kStr += "*GLOBAL_LOAD_VECTOR_WIDTH_%s" % tP["tensorChar"]
     kStr += " + ("
-    if tP["mirror"]:
-      kStr += "nwg%s - wg%s - 1" % (tP["tileChar"], tP["tileChar"])
-    else:
-      kStr += "wg%s" % (tP["tileChar"])
+    kStr += "wg%s" % (tP["tileChar"])
     kStr += ")*MT%s;%s" % (tP["tileChar"], self.endLine)
     return kStr
 
@@ -2493,24 +2489,17 @@ class KernelWriterSource(KernelWriter):
   # Shift Vector Components d0,1
   ##############################################################################
   def shiftVectorComponents(self, kernel, tP):
-    if tP["mirror"]:
-      wg = "(nwg%s - wg%s - 1)" % (tP["tileChar"], tP["tileChar"])
-      serial = "(NUM_THREADS - serial - 1)"
-    else:
-      wg = "(wg%s)" % tP["tileChar"]
-      serial = "serial"
-
     kStr = ""
-    kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
-        % (tP["tileChar"], tP["tileChar"], wg, \
+    kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], \
         tP["tileChar"], self.endLine)
     kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
         %(tP["tileChar"], tP["tileChar"], tP["tileChar"], \
         tP["tileChar"], self.endLine)
     kStr += "  unsigned int r%s = wgMT%s %% GLOBAL_LOAD_VECTOR_WIDTH_%s;%s" \
         % (tP["tileChar"], tP["tileChar"], tP["tensorChar"], self.endLine)
-    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (%s %s SG%s)%s ) {%s" \
-        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], serial, "%" if tP["isA"] else "/", \
+    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (serial %s SG%s)%s ) {%s" \
+        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], "%" if tP["isA"] else "/", \
         self.tileChar0, (" %% SG%s"%self.tileChar1) if tP["isB"] else "", self.endLine)
 
     # old
@@ -2729,15 +2718,9 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index0
     index0 = kernel["ProblemType"]["Index0"]
-    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
-      c0Group = "(nwg%s - wg%s - 1)" % (self.indexChars[index0], self.indexChars[index0])
-      c0Serial = "(NUM_THREADS - serial - 1)"
-    else:
-      c0Group = "(wg%s)" % self.indexChars[index0]
-      c0Serial = "serial"
-    kStr += "  unsigned int localC%s = (%s %% (MT%s/GLOBAL_WRITE_VECTOR_WIDTH))*GLOBAL_WRITE_VECTOR_WIDTH;%s" \
-        % (self.tileChar0, c0Serial, self.tileChar0, self.endLine)
-    kStr += "  unsigned int globalC%s = %s" % (self.indexChars[index0], c0Group)
+    kStr += "  unsigned int localC%s = (serial %% (MT%s/GLOBAL_WRITE_VECTOR_WIDTH))*GLOBAL_WRITE_VECTOR_WIDTH;%s" \
+        % (self.tileChar0, self.tileChar0, self.endLine)
+    kStr += "  unsigned int globalC%s = (wg%s)" % (self.indexChars[index0], self.indexChars[index0])
     kStr += "*MT%s + localC%s;%s" % (self.tileChar0, self.tileChar0, self.endLine)
     # Save original flattened C0 before extracting batch components:
     kStr += "  unsigned int flattenedGlobalC0 = globalC%s;%s" \
@@ -2745,15 +2728,9 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index1
     index1 = kernel["ProblemType"]["Index1"]
-    if kernel["ProblemType"]["MirrorDimsA"] == [2]:
-      c1Group = "(nwg%s - wg%s - 1)" % (self.indexChars[index1], self.indexChars[index1])
-      c1Serial = "(NUM_THREADS - serial - 1)"
-    else:
-      c1Group = "(wg%s)" % self.indexChars[index1]
-      c1Serial = "serial"
-    kStr += "  unsigned int localC%s = %s / (MT%s/GLOBAL_WRITE_VECTOR_WIDTH);%s" \
-        % (self.tileChar1, c1Serial, self.tileChar0, self.endLine)
-    kStr += "  unsigned int globalC%s = %s" % (self.indexChars[index1], c1Group)
+    kStr += "  unsigned int localC%s = serial / (MT%s/GLOBAL_WRITE_VECTOR_WIDTH);%s" \
+        % (self.tileChar1, self.tileChar0, self.endLine)
+    kStr += "  unsigned int globalC%s = (wg%s)" % (self.indexChars[index1], self.indexChars[index1])
     kStr += "*MT%s + localC%s;%s" % (self.tileChar1, self.tileChar1, self.endLine)
     kStr += "  unsigned int flattenedGlobalC1 = globalC%s;%s" \
         % (self.indexChars[index1], self.endLine)
@@ -2837,19 +2814,8 @@ class KernelWriterSource(KernelWriter):
               kStr += ", (%s)" % self.uint64Str
           kStr += ") ]"
 
-        if kernel["ProblemType"]["MirrorDimsA"] == [2]:
-          shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
-          if not shiftComponentsA:
-            s = kernel["GlobalWriteVectorWidth"] - s - 1
-
-        b0 = b
-        if kernel["ProblemType"]["MirrorDimsA"] == [2]:
-          shiftComponentsB = not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB
-          if not shiftComponentsB:
-            b0 = kernel["NumGlobalWriteVectorsPerThread"] - b - 1
-        
         kStr += ", alpha"
-        kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b0)
+        kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b)
 
         if kernel["ProblemType"]["UseBeta"]:
           kStr += ", beta"
@@ -2869,23 +2835,15 @@ class KernelWriterSource(KernelWriter):
 
     # Add Index0 and Index1:
     index0 = kernel["ProblemType"]["Index0"]
-
-    if kernel["ProblemType"]["MirrorDimsA"]:
-      c0I = "(nwg%s - wg%s - 1)" % (self.indexChars[index0], self.indexChars[index0])
-      c0Serial = "(NUM_THREADS - serial - 1)"
-    else:
-      c0I = "(wg%s)" % self.indexChars[index0]
-      c0Serial = "serial"
-
     kStr += "  unsigned int flattenedGlobalC0 = "
-    kStr += "%s*MT%s + (%s %% SG%s)*VECTOR_WIDTH;%s" \
-            % (c0I, self.tileChar0, c0Serial, self.tileChar0, self.endLine)
+    kStr += "(wg%s)*MT%s + (serial %% SG%s)*VECTOR_WIDTH;%s" \
+            % (self.indexChars[index0], self.tileChar0, self.tileChar0, self.endLine)
 
     index1 = kernel["ProblemType"]["Index1"]
     kStr += "  unsigned int flattenedGlobalC1 = "
     if kernel["ProblemType"]["MirrorDimsB"]:
       kStr += "(nwg%s - wg%s - 1)*MT%s + ((NUM_THREADS - serial - 1) / SG%s)*VECTOR_WIDTH;%s" \
-            % (self.indexChars[index1], self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine) 
+            % (self.indexChars[index1], self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
     else:
       kStr += "(wg%s)*MT%s + (serial / SG%s)*VECTOR_WIDTH;%s" \
             % (self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
@@ -2918,14 +2876,13 @@ class KernelWriterSource(KernelWriter):
         if packGranularity==2:
           addTensorDimCheck0 = 1
           base0 = " %u*SG%s*VECTOR_WIDTH" % (a,self.tileChar0)
-
         for s1 in range(0, kernel["VectorWidth"]):
           if packGranularity==2:
             addTensorDimCheck1 = 1
             base1 = "%u + %u*SG%s*VECTOR_WIDTH" % (s1, b,self.tileChar1)
             offsetS1 = ""
           else:
-            offsetS1 = ((" + %u"%s1) if kernel["VectorWidth"]>1 else "")  
+            offsetS1 = ((" + %u"%s1) if kernel["VectorWidth"]>1 else "")
           s1 = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] else s1
           for s0 in range(0, kernel["VectorWidth"]):
             # set default offsets, may be overridden in packed mode:
@@ -3008,18 +2965,11 @@ class KernelWriterSource(KernelWriter):
             #    % (a, s1, self.tileChar0, b, self.tileChar0, \
             #    ((".%s"%self.vectorComponents[s0]) if kernel["VectorWidth"]>1\
             #    else "") )
-            aStore = a
-            s0Store = s0
-            if kernel["ProblemType"]["MirrorDimsA"]:
-              aStore = kernel["ThreadTile0"]//kernel["VectorWidth"] - a - 1
-              shiftComponentsA = not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA
-              if not shiftComponentsA:
-                s0Store = kernel["VectorWidth"] - 1 - s0
             bStore = b
             if kernel["ProblemType"]["MirrorDimsB"]:
               bStore = kernel["ThreadTile1"]//kernel["VectorWidth"] - b - 1
             kStr += ", rC[%u*VECTOR_WIDTH+%u + (%u*VECTOR_WIDTH+%u)*TT%s]" \
-                % (aStore, s0Store, bStore, s1, self.tileChar0 )
+                % (a, s0, bStore, s1, self.tileChar0 )
             if kernel["ProblemType"]["UseBeta"]:
               kStr += ", beta"
             kStr += ")"

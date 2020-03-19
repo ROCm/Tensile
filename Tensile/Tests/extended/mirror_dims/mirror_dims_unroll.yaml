@@ -41,7 +41,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 2 ]
           - [ 2, 4 ]
-          # - [ 4, 2 ] # doesn't work with MirrorDimsA
+          - [ 4, 2 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
           - [ 16, 16, 1 ]
