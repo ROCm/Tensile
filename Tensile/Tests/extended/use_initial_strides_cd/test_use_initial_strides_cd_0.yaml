@@ -34,7 +34,7 @@ BenchmarkProblems:
       ForkParameters:
         - LdcEqualsLdd: [0]
         - PackSummationDims: [1]
-        - KernelLanguage: [Source]
+        - KernelLanguage: [Assembly]
         - UseSgprForGRO: [0]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
