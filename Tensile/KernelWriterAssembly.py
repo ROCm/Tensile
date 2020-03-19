@@ -9163,6 +9163,10 @@ class KernelWriterAssembly(KernelWriter):
         if not atomic and len(kernel["PackedC1IndicesX"]) == 1:
           self.optSrdIncForRow = 1
 
+      if kernel["ProblemType"]["UseInitialStridesCD"]:
+        self.optSingleColVgpr = 0 # BOZO, hack to disable this
+        self.optSharedColVgpr = 0# BOZO, hack to disable this
+
       self.optSharedMask  = kernel["BufferStore"] and not edge and not atomic
 
 
@@ -9411,7 +9415,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.kernelWriter.comment1("(d1,vc1,d0,vc0)=(%u,%u,%u,%u)"\
           % (d1,vc1,d0,vc0))
       if ss.optSingleColVgpr:
-        self.coord0Vgpr = self.addrVgpr
+        self.coord0Vgpr = kw.coord0
       elif not ss.optSharedColVgpr or (d1 == vc1 == 0):
         # not share mode or first row always does the address calc math:
         if self.coordOffset0 == 0:
@@ -9514,20 +9518,33 @@ class KernelWriterAssembly(KernelWriter):
 
       # scale and set final address:
       if kernel["LdcEqualsLdd"] or beta or atomic:
+        strideC0 = kw.strideRef('C', 0)
+        if kw.isConstUnitStride(strideC0):
+          elementVgpr = self.coord0Vgpr
+        else:
+          kStr += inst("v_mul_lo_u32", \
+              vgpr(self.addrVgpr), \
+              vgpr(self.coord0Vgpr), \
+              strideC0, \
+              "scale element by non-unit stride")
+          elementVgpr = self.addrVgpr
+
         if ss.optSingleColVgpr:
           # This is first element in the first batch, create a byte address that will
           # be re-used by subsequent elements:
           # if this element is firstInBatch - may need to set up a bpe-scaled row pointer for the batch:
           #  - for not LdcEqualsLdd - need row-ptr start of each batch
           #  - or always init rowptr at the start of the first batch (so can be re-used in each batch)
+          assert (kw.coord0 == self.coord0Vgpr) # elementAddr assignment above assumes these are the same
+
           if (not kernel["LdcEqualsLdd"] or ss.firstBatch) and firstInBatch:
             updatedAddr = True
             kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
               vgpr(kw.cinRowPtr), \
-              vgpr(kw.coord0), \
+              vgpr(elementVgpr), \
               hex(log2(kw.bpeCexternal)), \
-              "optSingleColVgpr scaleToBpe: sharedAddrVgpr <- cinRowPtr + coord0, scaled by BPE")
+              "optSingleColVgpr scaleToBpe: sharedAddrVgpr <- cinRowPtr + coord0, scaled by BPE. BSHERE:coord0=%d, coord0Vgpr=%d"%(kw.coord0, self.coord0Vgpr))
         elif ss.optSharedColVgpr:
           # Need an address calculation for the first address in each row:
           if d1==0 and vc1==0:
@@ -9540,11 +9557,10 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
                 vgpr(kw.cinRowPtr), \
-                vgpr(self.coord0Vgpr), \
+                vgpr(elementVgpr), \
                 hex(log2(kw.bpeCexternal)), \
                 "optSharedColVgpr scaleToBpe for first row: col addr <- cinRowPtr + coord0, scaled by BPE")
         else:
-
           # Generate final address calculation (to bytes) for each element
           # The unpacking takes 8-10 instructions so could be worth optimizing someday :
           # each col has same offset so could create a class to hold column-specific state including
@@ -9558,7 +9574,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
                 vgpr(kw.cinRowPtr), \
-                vgpr(self.coord0Vgpr), \
+                vgpr(elementVgpr), \
                 hex(log2(kw.bpeCexternal)), \
                 "scaleToBpe: accumulate d0 lower and *= bpe into Cin addr")
 
@@ -9596,7 +9612,8 @@ class KernelWriterAssembly(KernelWriter):
       if not ss.optSrdIncForRow and kernel["BufferStore"]:
         if self.rowInc > 0:
           self.rowIncDirtyRowPtr = 1
-          assert (not kernel["ProblemType"]["UseInitialStridesCD"])
+          #assert (not kernel["ProblemType"]["UseInitialStridesCD"])
+          kStr += kw.comment("Fix for UseInitialStridesCD, emitAddressSetupCode")
           assert (len(kernel["PackedC1IndicesX"])==1)
 
           strideChar = self.kernelWriter.indexChars[kernel["PackedC1IndicesX"][0]]
@@ -9677,25 +9694,38 @@ class KernelWriterAssembly(KernelWriter):
 
       # Set write address for D - this overwrites self.addrVgpr
       if kernel["BufferStore"]:
+        strideD0 = kw.strideRef('D', 0)
+        if kw.isConstUnitStride(strideD0):
+          elementVgpr = self.coord0Vgpr
+        else:
+          kStr += inst("v_mul_lo_u32", \
+              vgpr(self.addrVgpr), \
+              vgpr(self.coord0Vgpr), \
+              strideD0, \
+              "scale element by non-unit stride")
+          elementVgpr = self.addrVgpr
+
         if ss.optSingleColVgpr:
+          assert (kw.coord0 == self.coord0Vgpr)
           if isLastElement:
             kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
               vgpr(kw.coutRowPtr), \
-              vgpr(kw.coord0), \
+              vgpr(elementVgpr), \
               hex(log2(kw.bpeCexternal)), \
-              "LddChange: init cb addr <-  coutRowPtr + coord0, scaled by BPE")
+              "emitLddChange: init cb addr <-  coutRowPtr + coord0, scaled by BPE")
         elif ss.optSharedColVgpr:
           (d1,d0,vc1,vc0) = self.element
           assert(0) # need a new VGPR for LDD != LDC here.
           # since we are re-using the column VGPRs in the next batch
         else: # not ss.optSingleColVgpr or optSharedColVgpr
+
           kStr += inst("_v_add_lshl_u32", \
               vgpr(self.addrVgpr), \
               vgpr(kw.coutRowPtr), \
-              vgpr(self.coord0Vgpr), \
+              vgpr(elementVgpr), \
               hex(log2(kw.bpeCexternal)), \
-              "LddChange: accumulate d0 lower and *= bpe into addr")
+              "emitLddChange: accumulate d0 lower and *= bpe into addr")
 
         if edge:
           kStr += inst("v_cndmask_b32", vgpr(self.addrVgpr), -1, \
