@@ -8271,7 +8271,6 @@ class KernelWriterAssembly(KernelWriter):
         # determine column start address for each block
         kStr += inst("v_mul_lo_u32", vgpr(tid1),
                       hex(kernel["MatrixInstN"]), vgpr(tid1), "col element offset for each block")
-        startStride = 1 if kernel["ProblemType"]["UseInitialStridesCD"] else 0
         # determine col VGPR statt address
         packedC1 = kernel["PackedC1IndicesX"]
         assert (len(packedC1) == 1) # would need to extract/scale indices from coord1
