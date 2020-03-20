@@ -8921,14 +8921,14 @@ class KernelWriterAssembly(KernelWriter):
     elements = []
     if kernel["MatrixInstruction"]:
       ##TODO remove and use VectorWidth once VW mapping of TT is done
-      fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+      fullVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
       mfmaColStoreVw = 1 #TODO check can hardcode or not
       elementsLoadedPerfullVw = kernel["NumThreads"]*fullVw
       elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
       if elementsLoadedPervw > elementsLoadedPerfullVw:
         fullVw = kernel["StoreVectorWidth"]
     else:
-      fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+      fullVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
 
     if kernel["MatrixInstruction"]:
@@ -8984,7 +8984,7 @@ class KernelWriterAssembly(KernelWriter):
     # Edge tile loop - note if we know AF0EM we can can use a larger vector
     # and reduce the boundary checks accordingly.  But if no AF0EM guarantee
     # then use a conservative 1
-    edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    edgeVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
     #if kernel["MatrixInstruction"]:
@@ -9030,7 +9030,7 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
 
-    fullVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    fullVw = kernel["GlobalWriteVectorWidth"] if kernel["_VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
     elements = [[] for y in range(2)] # 2D array for Full, Edge
     # Full tile loop:
@@ -9044,7 +9044,7 @@ class KernelWriterAssembly(KernelWriter):
     # Edge tile loop - note if we know AF0EM we can can use a larger vector
     # and reduce the boundary checks accordingly.  But if no AF0EM guarantee
     # then use a conservative 1
-    edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["_VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["GlobalWriteVectorWidth"]%edgeVw == 0)
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):

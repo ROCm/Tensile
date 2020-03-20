@@ -675,9 +675,10 @@ validParameters = {
     # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-    # If False, store 1 element per instruction.
-    # If True, store vector-width elements per instruction.
-    "VectorStore":                    [False, True],
+    # If 0, store 1 element per instruction.
+    # If 1, store vector-width elements per instruction.
+    # if -1, store vector-wide elements per instruction unless PBD would not generate a valid kernel
+    "VectorStore":                    [-1, 0, 1],
 
     # Controls desired width (#elements) for stores from reg to global memory.
     # When MatrixInstruciton == None, derived parameter gwvw takes precedence.
@@ -790,7 +791,7 @@ defaultBenchmarkCommonParameters = [
     {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"VectorStore":               [ True ] },
+    {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
