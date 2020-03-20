@@ -1351,20 +1351,27 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # doShadowInit is required since this pushes up the store SRD initialization before the NLL
     # OptNLL only allowed for single summation index  - for multiple summation we (currently)
     # execute the NLL inside each unroll iteration not just once at the end.
-    if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"]:
-      if kernel["KernelLanguage"] == "Assembly" and kernel["OptNoLoadLoop"] and \
-         kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
-         kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
-         self.actualSummationLoops==1:
-        self.saveLocalPointers(kernel)
-        
-        # deepCopy packCode for OptNLL noLoadLoop
-        import copy
-        deepCopyPack = copy.deepcopy(pack)
-        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, pack=deepCopyPack)
-        self.restoreLocalPointers(kernel)
+    if kernel["PrefetchGlobalRead"]:
+      if not kernel["SuppressNoLoadLoop"]:
+        if kernel["KernelLanguage"] == "Assembly" and kernel["OptNoLoadLoop"] and \
+           kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
+           kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
+           self.actualSummationLoops==1:
+          self.saveLocalPointers(kernel)
 
-      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, pack=pack)
+          # deepCopy packCode for OptNLL noLoadLoop
+          import copy
+          deepCopyPack = copy.deepcopy(pack)
+          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, pack=deepCopyPack)
+          self.restoreLocalPointers(kernel)
+
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, pack=pack)
+      # if PGR, last few iterations will have PLR,
+      # and those PLR will not be used(register not checkIn) if without NoLoadLoop
+      else:
+        for i in range(kernel["PrefetchLocalRead"]):
+          for item in list(pack[i].items()):
+            self.vgprPool.checkIn(item.tempVgpr)
 
     if self.staggerU and self.actualSummationLoops>1:
       kl.append(self.comment("remove stagger offsets"))
@@ -1432,16 +1439,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.localReadInitPointers(kernel, tensorParametersA))
         kl.append(self.comment("local read init pointers b"))
         kl.append(self.localReadInitPointers(kernel, tensorParametersB))
-        
-        # tail loop reload data and store in lds[0]
-        # if we have prefetchLocalRead, lds[0] will have prefetch data during main loop without release tempVgpr before tail loop localRead
-        # will have Tensile::WARNING: RegisterPool::checkIn(XXX) but it was never checked out
-        if kernel["MatrixInstruction"] and kernel["PrefetchLocalRead"] and \
-          (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
-          for item in list(pack[0].items()):
-            for packCode in list(item.items()):
-              self.vgprPool.checkIn(packCode.tempVgpr)
-        
+
+
       # tail: macs
       kl.append(self.comment("tail loop: macs"))
       kl.append(self.openLoop(kernel, -1))
