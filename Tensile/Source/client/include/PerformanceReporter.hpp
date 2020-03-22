@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <Tensile/ContractionSolution.hpp>
+
 #include "ResultReporter.hpp"
 
 #include <cmath>
@@ -54,10 +56,13 @@ namespace Tensile
         class PerformanceReporter: public ResultReporter
         {
         public:
+    
             static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
         
             PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
 
+            ContractionSolution solution;
+            
             virtual void reportValue_int(std::string const& key, int64_t value) override;
             
             virtual void reportValue_uint(std::string const& key, uint64_t value) override;
@@ -70,10 +75,10 @@ namespace Tensile
 
             virtual void postSolution() override;
             
-            void setPerfModel(double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
-            void setNumCUs();
-            void setMemoryBusWidth();
-            void setMagicNum();
+            void    setPerfModel(double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
+            void    setNumCUs();
+            void    setMemoryBusWidth();
+            void    setMagicNum();
 
             int     getNumCUs();
             int     getMagicNum();
@@ -85,6 +90,8 @@ namespace Tensile
             double  getL2WriteHits();
             double  getReadEff();
             double  getEfficiency();
+            double  getPeakGFlops();
+            double  getMemBandwidthMBps();
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override;
             virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override;

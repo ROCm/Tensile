@@ -55,38 +55,41 @@ namespace Tensile
             setPerfModel(l2ReadHits, l2WriteHits, readEff, mfma);
             setMagicNum();
             deviceProps = true;
+            
+            solution.pm.l2ReadHitRate = getL2ReadHits();
+            solution.pm.l2WriteHitRate = getL2WriteHits();
+            solution.pm.readEff = getReadEff();
         }
         
         void PerformanceReporter::reportValue_uint(std::string const& key, uint64_t value) 
         {
-            if(key == ResultKey::SpeedGFlops && deviceProps) 
+            if(key == ResultKey::SpeedGFlops) 
             {
                 m_gFlops = value;
             }
-            
         }
 
         void PerformanceReporter::reportValue_double(std::string const& key, double value) 
         {
-            if(key == ResultKey::ClockRateSys && deviceProps)
+            if(key == ResultKey::ClockRateSys)
             {
                 m_clock = value;
             }
-            if(!std::isnan(m_clock) && deviceProps)
+            if(!std::isnan(m_clock))
             {
                 pm.m_peakGFlops = PerformanceReporter::getNumCUs()*getMagicNum()*getReadMultiplier()*m_clock/1000;
             }
-            if(key == ResultKey::ClockRateMem && deviceProps)
+            if(key == ResultKey::ClockRateMem)
             {
                 m_memClock = value;
                 pm.m_memBandwidthMBps = m_memoryBusWidth*m_memClock;
                 report(ResultKey::L2BandwidthMBps, pm.m_memBandwidthMBps*pm.m_readMul); 
             }
-            if(key == ResultKey::SpeedGFlops && deviceProps) 
+            if(key == ResultKey::SpeedGFlops) 
             {
                 m_dgFlops = value;
             }
-            if((!std::isnan(m_dgFlops) || !std::isnan(m_gFlops)) && !std::isnan(pm.m_peakGFlops) && deviceProps)
+            if((!std::isnan(m_dgFlops) || !std::isnan(m_gFlops)) && !std::isnan(pm.m_peakGFlops))
             {
                 pm.gFlops = !std::isnan(m_gFlops) ? (double)m_gFlops : m_dgFlops;
                 pm.m_eff = 100*pm.gFlops/pm.m_peakGFlops;
@@ -110,10 +113,17 @@ namespace Tensile
             {
                 if(it->first == dataEnum) pm.m_readMul = it->second;
             }
+            
+            solution.pm.readMul = getReadMultiplier();
         }
 
         void PerformanceReporter::postSolution()  
         {
+            solution.pm.clock = getClock();
+            solution.pm.memClock = getMemClock();
+            solution.pm.peakGFlops = getPeakGFlops();
+            solution.pm.memBandwidthMBps = getMemBandwidthMBps();
+
             m_clock = std::numeric_limits<double>::quiet_NaN();
             m_memClock = std::numeric_limits<double>::quiet_NaN();
             m_gFlops = std::numeric_limits<int64_t>::quiet_NaN();
@@ -126,8 +136,6 @@ namespace Tensile
             m_l2WriteHits = l2WriteHits;
             m_readEff = readEff;
             m_mfma = mfma;
-
-            std::cout<<"m_l2ReadHits: "<<m_l2ReadHits<<" m_l2WriteHits: "<<m_l2WriteHits<<" m_readEff: "<<m_readEff<<" m_mfma: "<<mfma<<std::endl;
         }
         
         void PerformanceReporter::setNumCUs()
@@ -144,7 +152,6 @@ namespace Tensile
         {
             if(getMfma()) m_magicNum = 128;
             else m_magicNum = 64;
-            std::cout<<"magicNum: "<<m_magicNum<<std::endl;
         }
 
         int     PerformanceReporter::getNumCUs(){return m_numCUs;}
@@ -153,15 +160,17 @@ namespace Tensile
         double  PerformanceReporter::getClock(){return m_clock;}
         bool    PerformanceReporter::getMfma(){return m_mfma;}
         double  PerformanceReporter::getReadMultiplier(){return pm.m_readMul;}
+        double  PerformanceReporter::getPeakGFlops(){return pm.m_peakGFlops;}
         double  PerformanceReporter::getL2ReadHits(){return m_l2ReadHits;}
         double  PerformanceReporter::getL2WriteHits(){return m_l2WriteHits;}
         double  PerformanceReporter::getReadEff(){return m_readEff;}
         double  PerformanceReporter::getEfficiency(){return pm.m_eff;}
+        double  PerformanceReporter::getMemBandwidthMBps(){return pm.m_memBandwidthMBps;}
 
-        void PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
-        void PerformanceReporter::reportValue_string(std::string const& key, std::string const& value) {}
-        void PerformanceReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) {}
-        void PerformanceReporter::finalizeReport() {}
+        void    PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
+        void    PerformanceReporter::reportValue_string(std::string const& key, std::string const& value) {}
+        void    PerformanceReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) {}
+        void    PerformanceReporter::finalizeReport() {}
 
     }
 }
