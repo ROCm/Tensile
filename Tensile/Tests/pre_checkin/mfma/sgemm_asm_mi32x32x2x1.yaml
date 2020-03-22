@@ -1,5 +1,6 @@
 TestParameters:
   marks: [skip-gfx900, skip-gfx906, skip-gfx1010] # not supported by arch
+  marks: [xfail] # see PR #871
 
 GlobalParameters:
   NumElementsToValidate: 65536
