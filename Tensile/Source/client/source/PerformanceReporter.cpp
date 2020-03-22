@@ -38,16 +38,22 @@ namespace Tensile
     {
         std::shared_ptr<PerformanceReporter> PerformanceReporter::Default(po::variables_map const& args)
         {
-            int deviceIndex = args["device-idx"].as<int>();
-            return std::make_shared<PerformanceReporter>(args["device-idx"].as<int>());
+            int     deviceIndex = args["device-idx"].as<int>();
+            double  l2ReadHits = args["perf-l2-read-hits"].as<double>();
+            double  l2WriteHits = args["perf-l2-write-hits"].as<double>();
+            double  readEff = args["perf-read-efficiency"].as<double>();
+            bool    mfma = args["perf-mfma"].as<bool>();
+ 
+            return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, readEff, mfma);
         }
         
-        PerformanceReporter::PerformanceReporter(int deviceIndex)
+        PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma)
         {
             hipGetDeviceProperties(&props, deviceIndex);
             setNumCUs();
-            setMagicNum();
             setMemoryBusWidth();
+            setPerfModel(l2ReadHits, l2WriteHits, readEff, mfma);
+            setMagicNum();
             deviceProps = true;
         }
         
@@ -114,6 +120,16 @@ namespace Tensile
             m_dgFlops = std::numeric_limits<double>::quiet_NaN();
         }
         
+        void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double readEff, bool mfma)
+        {
+            m_l2ReadHits = l2ReadHits;
+            m_l2WriteHits = l2WriteHits;
+            m_readEff = readEff;
+            m_mfma = mfma;
+
+            std::cout<<"m_l2ReadHits: "<<m_l2ReadHits<<" m_l2WriteHits: "<<m_l2WriteHits<<" m_readEff: "<<m_readEff<<" m_mfma: "<<mfma<<std::endl;
+        }
+        
         void PerformanceReporter::setNumCUs()
         {
             m_numCUs = props.multiProcessorCount;
@@ -126,13 +142,16 @@ namespace Tensile
 
         void PerformanceReporter::setMagicNum()
         {
-            m_magicNum = 64;
+            if(getMfma()) m_magicNum = 128;
+            else m_magicNum = 64;
+            std::cout<<"magicNum: "<<m_magicNum<<std::endl;
         }
 
         int     PerformanceReporter::getNumCUs(){return m_numCUs;}
         int     PerformanceReporter::getMagicNum(){return m_magicNum;}
         double  PerformanceReporter::getMemClock(){return m_memClock;}
         double  PerformanceReporter::getClock(){return m_clock;}
+        bool    PerformanceReporter::getMfma(){return m_mfma;}
         double  PerformanceReporter::getReadMultiplier(){return pm.m_readMul;}
         double  PerformanceReporter::getL2ReadHits(){return m_l2ReadHits;}
         double  PerformanceReporter::getL2WriteHits(){return m_l2WriteHits;}

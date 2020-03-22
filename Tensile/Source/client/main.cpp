@@ -145,6 +145,11 @@ namespace Tensile
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
 
+                ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 Read Hits")
+                ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 Write Hits")
+                ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
+                ("perf-mfma",                po::value<bool>()->default_value(false), "Use MFMA instructions")
+                
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
 

@@ -56,7 +56,7 @@ namespace Tensile
         public:
             static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
         
-            PerformanceReporter(int deviceIndex);
+            PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
 
             virtual void reportValue_int(std::string const& key, int64_t value) override;
             
@@ -70,16 +70,16 @@ namespace Tensile
 
             virtual void postSolution() override;
             
+            void setPerfModel(double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
             void setNumCUs();
-
             void setMemoryBusWidth();
-
             void setMagicNum();
 
             int     getNumCUs();
             int     getMagicNum();
             double  getMemClock();
             double  getClock();
+            bool    getMfma();
             double  getReadMultiplier();
             double  getL2ReadHits();
             double  getL2WriteHits();
@@ -101,9 +101,10 @@ namespace Tensile
             int     m_numCUs;
             int     m_memoryBusWidth;
             bool    deviceProps = false;
-            double  m_l2ReadHits = 0.0; //figure out how to PerformanceReporter::get from client...maybe use NaN
-            double  m_l2WriteHits = 0.5; //figure how to PerformanceReporter::get from client...maybe use std::numeric_limits<double>::quiet_NaN();
-            double  m_readEff = 0.85; //figure how to PerformanceReporter::get from client..maybe use NaN
+            double  m_l2ReadHits;
+            double  m_l2WriteHits;
+            double  m_readEff;
+            bool    m_mfma;
         };
     }
 }
