@@ -21,8 +21,9 @@
 
 #pragma once
 
-#include <memory>
 #include <cstddef>
+#include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -34,7 +35,20 @@
 
 namespace Tensile
 {
-
+    struct PerfModel
+    {
+        double clock = std::numeric_limits<double>::quiet_NaN(); 
+        double memClock = std::numeric_limits<double>::quiet_NaN(); 
+        double peakGFlops = std::numeric_limits<double>::quiet_NaN(); 
+        double efficiency = std::numeric_limits<double>::quiet_NaN(); 
+        double memBandwidthMBps= std::numeric_limits<double>::quiet_NaN(); 
+        double readMul= std::numeric_limits<double>::quiet_NaN();
+        double readEff=0.0;
+        double l2ReadHitRate=0.0;
+        double l2WriteHitRate=0.0;
+        double CUs=0.0;
+    } perf;
+    
     /**
      * Represents a single kernel or set of kernels that can perform a single
      * tensor contraction.
@@ -57,18 +71,6 @@ namespace Tensile
         
         bool isSourceKernel() const;
 
-        struct PerformanceModel
-        {
-          double clock=0.0;
-          double memClock=0.0;
-          double peakGFlops=0.0;
-          double readMul=0.0;
-          double readEff=0.0;
-          double l2ReadHitRate=0.0;
-          double l2WriteHitRate=0.0;
-          double memBandwidthMBps=0.0;
-        } pm;
-        
         //! Estimates based on problem size, solution tile, and  machine hardware charz:
         struct StaticPerformanceModel
         {

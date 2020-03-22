@@ -43,7 +43,7 @@ namespace Tensile
     namespace Client
     {
         namespace po = boost::program_options;
-        
+
         struct PerformanceModel
         {
             double  gFlops = std::numeric_limits<double>::quiet_NaN();
@@ -61,8 +61,6 @@ namespace Tensile
         
             PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
 
-            ContractionSolution solution;
-            
             virtual void reportValue_int(std::string const& key, int64_t value) override;
             
             virtual void reportValue_uint(std::string const& key, uint64_t value) override;

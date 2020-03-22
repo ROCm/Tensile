@@ -91,19 +91,14 @@ namespace Tensile
             m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
             m_reporter->report(ResultKey::WaveGranularity, pp.waveGranularity);
             m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
-
             m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
-
-            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
-
+            
             m_reporter->report(ResultKey::AluUs, pp.staticModel.aluUs);
             m_reporter->report(ResultKey::MemReadUs, pp.staticModel.memReadUs);
             m_reporter->report(ResultKey::MemWriteUs, pp.staticModel.memWriteUs);
 
             m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
             m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
-
-            // TODO-perfcounter - add memory global reads and writes from performance counter
             m_reporter->report(ResultKey::MemGlobalReads, pp.staticModel.memGlobalReads);
             m_reporter->report(ResultKey::MemGlobalWrites, pp.staticModel.memGlobalWrites);
         }
@@ -127,6 +122,7 @@ namespace Tensile
             m_reporter->report(ResultKey::PeakGFlops, pm.m_peakGFlops);
             m_reporter->report(ResultKey::Efficiency, pm.m_eff);
             m_reporter->report(ResultKey::L2BandwidthMBps, pm.m_readMul*pm.m_memBandwidthMBps);
+         
             pm.m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
             pm.m_eff = std::numeric_limits<double>::quiet_NaN();
             pm.m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
