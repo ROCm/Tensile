@@ -2508,7 +2508,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, epsi, uIdx, tP):
+  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, epsi, tP):
     return ""
 
   ##############################################################################
