@@ -57,6 +57,18 @@ namespace Tensile
         
         bool isSourceKernel() const;
 
+        struct PerformanceModel
+        {
+          double clock=0.0;
+          double memClock=0.0;
+          double peakGFlops=0.0;
+          double readMul=0.0;
+          double readEff=0.0;
+          double l2ReadHitRate=0.0;
+          double l2WriteHitRate=0.0;
+          double memBandwidthMBps=0.0;
+        } pm;
+        
         //! Estimates based on problem size, solution tile, and  machine hardware charz:
         struct StaticPerformanceModel
         {
@@ -89,10 +101,12 @@ namespace Tensile
           double totalGranularity=0.0;
 
           double speedGFlops=0.0; //! final gflops projection
-
+          double efficiency=0.0;
+          double CUs=0.0;
+          
           StaticPerformanceModel staticModel;
         };
-
+        
         StaticPerformanceModel staticPerformanceModel
           (double M, double N, double K, double NumBatches,  double MT0, double MT1, 
            double NumCUs, double totalGranularity, int globalSplitU) const;
