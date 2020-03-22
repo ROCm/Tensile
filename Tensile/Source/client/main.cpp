@@ -43,6 +43,7 @@
 
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 #include "ResultFileReporter.hpp"
 
@@ -380,7 +381,7 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
-    reporters->addReporter(PerformanceReporter::Default());
+    reporters->addReporter(PerformanceReporter::Default(args));
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
 

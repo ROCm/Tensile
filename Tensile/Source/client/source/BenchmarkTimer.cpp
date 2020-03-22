@@ -25,6 +25,7 @@
  *******************************************************************************/
 
 #include "BenchmarkTimer.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 
 #include "Reference.hpp"
@@ -123,7 +124,6 @@ namespace Tensile
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
             
-            std::cout<<"getPeakGFlops: "<<pm.m_peakGFlops<<" getEfficiency: "<<pm.m_eff<<" L2BandwidthMBps: "<<pm.m_readMul*pm.m_memBandwidthMBps<<std::endl;
             m_reporter->report(ResultKey::PeakGFlops, pm.m_peakGFlops);
             m_reporter->report(ResultKey::Efficiency, pm.m_eff);
             m_reporter->report(ResultKey::L2BandwidthMBps, pm.m_readMul*pm.m_memBandwidthMBps);

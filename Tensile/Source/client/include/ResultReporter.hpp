@@ -28,14 +28,8 @@
 
 #include "RunListener.hpp"
 
-#include <cmath>
 #include <cstddef>
-#include <limits>
 #include <string>
-#include <unordered_map>
-
-#include <boost/program_options.hpp>
-#include <hip/hip_runtime.h>
 
 namespace Tensile
 {
@@ -118,20 +112,11 @@ namespace Tensile
             const std::string ClockRateSys        = "clock-sys";
             const std::string ClockRateSOC        = "clock-soc";
             const std::string ClockRateMem        = "clock-mem";
-            const std::string DeviceIndex         = "device-index";
+            const std::string DeviceIndex         = "device-idx";
             const std::string FanSpeedRPMs        = "fan-rpm";
             const std::string HardwareSampleCount = "hardware-samples";
         };
         
-        struct PerformanceModel
-        {
-            double  gFlops = std::numeric_limits<double>::quiet_NaN();
-            double  m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
-            double  m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
-            double  m_eff = std::numeric_limits<double>::quiet_NaN();
-            double  m_readMul = std::numeric_limits<double>::quiet_NaN();
-        } pm;
-
         class ResultReporter: public RunListener
         { 
         public:
@@ -239,134 +224,5 @@ namespace Tensile
             }
         };
 
-        class PerformanceReporter: public ResultReporter
-        {
-        public:
-            static std::shared_ptr<PerformanceReporter> Default()
-            {
-                return std::make_shared<PerformanceReporter>();
-            }
-
-            virtual void reportValue_int(std::string const& key, int64_t value) override 
-            {
-                if(key == ResultKey::DeviceIndex && deviceProps == false) 
-                {
-                    m_deviceIndex = value;
-                    hipGetDeviceProperties(&props, m_deviceIndex);
-                    setNumCUs();
-                    setMagicNum();
-                    setMemoryBusWidth();
-                    deviceProps = true;
-                }
-            }
-            
-            virtual void reportValue_uint(std::string const& key, uint64_t value) override
-            {
-                if(key == ResultKey::SpeedGFlops && deviceProps) 
-                {
-                    m_gFlops = value;
-                }
-                
-            }
-
-            virtual void reportValue_double(std::string const& key, double value) override
-            {
-                if(key == ResultKey::ClockRateSys && deviceProps)
-                {
-                    m_clock = value;
-                }
-                if(!std::isnan(m_clock) && deviceProps)
-                {
-                    pm.m_peakGFlops = getNumCUs()*getMagicNum()*getReadMultiplier()*m_clock/1000;
-                }
-                if(key == ResultKey::ClockRateMem && deviceProps)
-                {
-                    m_memClock = value;
-                    pm.m_memBandwidthMBps = m_memoryBusWidth*m_memClock;
-                    report(ResultKey::L2BandwidthMBps, pm.m_memBandwidthMBps*pm.m_readMul); 
-                }
-                if(key == ResultKey::SpeedGFlops && deviceProps) 
-                {
-                    m_dgFlops = value;
-                }
-                if((!std::isnan(m_dgFlops) || !std::isnan(m_gFlops)) && !std::isnan(pm.m_peakGFlops) && deviceProps)
-                {
-                    pm.gFlops = !std::isnan(m_gFlops) ? (double)m_gFlops : m_dgFlops;
-                    pm.m_eff = 100*pm.gFlops/pm.m_peakGFlops;
-                }
-            }
-
-            virtual void preSolution(ContractionSolution const& solution) override
-            {
-                report(ResultKey::PeakGFlops, pm.m_peakGFlops); 
-                report(ResultKey::Efficiency, pm.m_eff); 
-                report(ResultKey::SpeedGFlops, pm.gFlops); 
-                report(ResultKey::L2BandwidthMBps, pm.m_memBandwidthMBps*pm.m_readMul); 
-            }
-
-            virtual void preProblem(ContractionProblem const& problem) override
-            {
-                int dataEnum = (int)problem.a().dataType();
-                std::unordered_map<int,double> readMulMap = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
-
-                for(std::unordered_map<int,double>::iterator it=readMulMap.begin(); it != readMulMap.end(); it++)
-                {
-                    if(it->first == dataEnum) pm.m_readMul = it->second;
-                }
-            }
-
-            virtual void postSolution() override 
-            {
-                m_clock = std::numeric_limits<double>::quiet_NaN();
-                m_memClock = std::numeric_limits<double>::quiet_NaN();
-                m_gFlops = std::numeric_limits<int64_t>::quiet_NaN();
-                m_dgFlops = std::numeric_limits<double>::quiet_NaN();
-            }
-            
-            void setNumCUs()
-            {
-                m_numCUs = props.multiProcessorCount;       
-            }
-
-            void setMemoryBusWidth()
-            {
-                m_memoryBusWidth = props.memoryBusWidth/1024;
-            }
-
-            void setMagicNum()
-            {
-                if(getNumCUs() == 120) m_magicNum = 128;
-                else m_magicNum = 64;
-            }
-
-            int     getNumCUs(){return m_numCUs;}
-            int     getMagicNum(){return m_magicNum;}
-            double  getMemClock(){return m_memClock;}
-            double  getClock(){return m_clock;}
-            double  getReadMultiplier(){return pm.m_readMul;}
-            double  getL2ReadHits(){return m_l2ReadHits;}
-            double  getL2WriteHits(){return m_l2WriteHits;}
-            double  getReadEff(){return m_readEff;}
-            double  getEfficiency(){return m_eff;}
-
-            virtual void reportValue_string(std::string const& key, std::string const& value) override{}
-            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override{}
-            virtual void finalizeReport() override{}
-        
-        protected: 
-            hipDeviceProp_t props;
-            double  m_clock = std::numeric_limits<double>::quiet_NaN();
-            double  m_memClock = std::numeric_limits<double>::quiet_NaN();
-            double  m_dgFlops = std::numeric_limits<double>::quiet_NaN();
-            int64_t m_gFlops = std::numeric_limits<int64_t>::quiet_NaN();
-            int     m_magicNum;
-            int     m_numCUs;
-            int     m_memoryBusWidth;
-            int64_t m_deviceIndex = -1;
-            bool    deviceProps = false;
-            double  m_l2ReadHits = 0.0; //figure out how to get from client...maybe use NaN
-            double  m_l2WriteHits = 0.5; //figure how to get from client...maybe use std::numeric_limits<double>::quiet_NaN();
-            double  m_readEff = 0.85; //figure how to get from client..maybe use NaN
-        };
     }
 }
