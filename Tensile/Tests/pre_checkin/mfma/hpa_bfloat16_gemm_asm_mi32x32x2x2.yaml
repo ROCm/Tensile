@@ -2,11 +2,55 @@ TestParameters:
   marks: [skip-gfx900, skip-gfx906, skip-gfx1010] # not supported by arch
 
 GlobalParameters:
-  NumElementsToValidate: -1
+  NumElementsToValidate: 65536
   BoundsCheck: True
   KernelTime: True
 
 BenchmarkProblems:
+  ########################################
+  # TN - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: B
+      DestDataType: B
+      ComputeDataType: s
+      HighPrecisionAccumulate: True
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 2, 2]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [8]
+        - TransposeLDS: [0, 1]
+        - LdsPadA: [0, 2]
+        - LdsPadB: [0, 2]
+        - GlobalSplitU: [1]
+        - DepthU: [8]
+        - VectorWidth: [-1]
+        - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 64, 256, 1, 8 ]
+
   ########################################
   # NT - standard
   ########################################
@@ -38,6 +82,8 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
         - GlobalSplitU: [1]
+        - LdsPadA: [0, 2]
+        - LdsPadB: [0, 2]
         - DepthU: [8]
         - VectorWidth: [-1]
         - AssertSummationElementMultiple: [2]

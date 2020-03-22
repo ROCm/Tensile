@@ -2,13 +2,13 @@ TestParameters:
   marks: [skip-gfx900, skip-gfx906, skip-gfx1010] # not supported by arch
 
 GlobalParameters:
-  NumElementsToValidate: -1
+  NumElementsToValidate: 65536
   BoundsCheck: True
   KernelTime: True
 
 BenchmarkProblems:
   ########################################
-  # NT - standard
+  # TN - standard
   ########################################
   -
     - # ProblemType
@@ -34,13 +34,53 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
+        - TransposeLDS: [0, 1]
+        - LdsPadA: [0, 1]
+        - LdsPadB: [0, 1]
         - GlobalSplitU: [1]
         - DepthU: [ 8 ]
         - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64], [256], [1], [64] ]
+
+  ########################################
+  # NT - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [8]
+        - LdsPadA: [0, 1]
+        - LdsPadB: [0, 1]
+        - GlobalSplitU: [1]
+        - DepthU: [ 8 ]
+        - VectorWidth: [1]
+      BenchmarkForkParameters:
+      JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
