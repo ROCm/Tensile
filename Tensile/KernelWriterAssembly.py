@@ -5159,18 +5159,20 @@ class KernelWriterAssembly(KernelWriter):
 
         if tc == "B": # For BBlocks, A and B use this case
           #add perWave LDS base offset
-          if tP["grcg"]:
-            if tP["grcv"]:
-              PerpName = tP["lvp"]
-            else:
-              # Fractional load use the more accurate lsc, multiply by VW later
-              PerpName = tP["lsp"]
-          else:
-            if tP["grcv"]:
-              PerpName = tP["lvc"]
-            else:
-              PerpName = tP["lsc"]
-          numPerpElementsPerLoad = kernel[PerpName] if not kernel["DirectToLds%s"%tP["tensorChar"]] else  (globalParameters["WavefrontWidth"] * 4 // (kernel["DepthU"] * tP["bpe"])) 
+          ## FIXME: commented out until intent is clarified
+          # if tP["grcg"]:
+          #   if tP["grcv"]:
+          #     PerpName = tP["lvp"]
+          #   else:
+          #     # Fractional load use the more accurate lsc, multiply by VW later
+          #     PerpName = tP["lsp"]
+          # else:
+          #   if tP["grcv"]:
+          #     PerpName = tP["lvc"]
+          #   else:
+          #     PerpName = tP["lsc"]
+          # numPerpElementsPerLoad = kernel[PerpName] if not kernel["DirectToLds%s"%tP["tensorChar"]] else  (globalParameters["WavefrontWidth"] * 4 // (kernel["DepthU"] * tP["bpe"])) 
+          ## end FIXME
           wavefronts = kernel["NumThreads"] // globalParameters["WavefrontWidth"]
           numPerpElementsPerWave = kernel["MacroTile%s"%tc]//wavefronts
           assert(numPerpElementsPerWave>0)
