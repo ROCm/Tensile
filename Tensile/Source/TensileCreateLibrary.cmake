@@ -50,7 +50,10 @@ function(TensileCreateLibraryCmake
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
   message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
 
-  set(Tensile_CREATE_COMMAND "python3" "${Tensile_ROOT}/bin/TensileCreateLibrary")
+  execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/TensileCreateLibrary)
+  execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/Tensile)
+  
+  set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
   message(STATUS "Tensile_SOURCE_PATH=${Tensile_SOURCE_PATH}")
