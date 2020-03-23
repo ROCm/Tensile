@@ -177,7 +177,6 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
   for fileIdx in range(0, len(selectionFileNameList)):
     solutions = solutionsList[fileIdx]
     selectionFileName = selectionFileNameList[fileIdx]
-    solutionsMap = solutionGroupMap[fileIdx]
     numSolutions = numSolutionsPerGroup[fileIdx]
     rowLength = solutionStartIdx + numSolutions
     solutionBaseKeys = []
