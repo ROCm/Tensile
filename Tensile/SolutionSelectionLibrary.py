@@ -50,13 +50,13 @@ def getSolutionBaseKey (solution):
 
   return key
 
-def updateIfGT(theDicrionary, theKey, theValue):
-  if not theKey in theDicrionary:
-    theDicrionary[theKey] = theValue
+def updateIfGT(theDictionary, theKey, theValue):
+  if not theKey in theDictionary:
+    theDictionary[theKey] = theValue
   else:
-    theOldValue = theDicrionary[theKey]
+    theOldValue = theDictionary[theKey]
     if theValue > theOldValue:
-      theDicrionary[theKey] = theValue
+      theDictionary[theKey] = theValue
 
 
 def updateValidSolutions(validSolutions, analyzerSolutions, solutionMinNaming):
