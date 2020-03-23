@@ -1603,7 +1603,7 @@ class Solution:
     self._name = None
 
   # these keys are copied from ProblemType to internal that may be overridden
-  InternalKeys = ["UseSgprForGRO"]
+  InternalKeys = ["UseSgprForGRO","VectorStore"]
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -1842,9 +1842,16 @@ class Solution:
           // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
-      state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-      state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-          // state["NumLoadsPerpendicular%s"%tc]
+      if not state["TransposeLDS"]:
+        state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
+        state["LSP%s"%tc] = state["MacroTile%s"%tc] \
+             // state["NumLoadsPerpendicular%s"%tc]
+      else:
+       # above LSP is broken  LSP is calculated from total vectors and hence LVP calculation from LSP is wrong
+        state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
+       # Per instruction across the entire group:
+        elementsLoadedPerInst = state["NumThreads"]*state["GlobalReadVectorWidth"]
+        state["LSP%s"%tc] = min(state["MacroTile%s"%tc], elementsLoadedPerInst // state["DepthU"])  if not state["DepthU"] >= elementsLoadedPerInst else 1
     
     return True
 
@@ -1921,7 +1928,8 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minGrvw = 2 if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
+    minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
+                globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -1967,8 +1975,9 @@ class Solution:
       # end-- while loop
 
     if bestVw == -1:
-      #print "reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
-      # state["GlobalReadVectorWidth"]
+      if dbFract:
+        print ("reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
+         state["GlobalReadVectorWidth"])
       return False  # could not find a solution, perhaps only possible for half ?
 
     state["GlobalLoadVectorWidth%s"%tc] = bestVw
@@ -1995,7 +2004,7 @@ class Solution:
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
-      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used %s" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
              nlc, nlp, \
              nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
@@ -2032,6 +2041,9 @@ class Solution:
     for s in Solution.InternalKeys:
         state['_'+s] = state[s]
         #del state[s]
+
+    if state["VectorStore"] == -1:
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
@@ -2374,6 +2386,8 @@ class Solution:
               " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA)
         print("info: totalElementsCoalescedB=", totalElementsCoalescedB, \
               " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
+        print ("info", pvar(state, "VectorWidth"))
+                #, pvar(state, "GlobalLoadVectorWidthA"), pvar(state, "GlobalLoadVectorWidthB"))
 
       #if state["ProblemType"]["DataType"].isHalf() \
       #    and (state["GlobalLoadVectorWidthA"] == 1 \
@@ -2515,11 +2529,31 @@ class Solution:
       state["LdsPadB"] = 0 if state["ProblemType"]["TLUB"] else state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
 
+    if state["TransposeLDS"] == 1:
+      if not state["MatrixInstruction"]:
+        reject(state, "TransposeLds Supports only in MatrixInstruction=1")
+    if "MatrixInstruction" in state:
+      if state["TransposeLDS"] == 1:
+        if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
+          reject(state, "TransposeLds requires TLU=0")
+    if state["TransposeLDS"] == 1:
+      if state["LdsBlockSizePerPad"] == -1:
+        state["LdsBlockSizePerPad"] = 256
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
-    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
-    ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
-    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
-    ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+    if not state["LdsBlockSizePerPad"] == -1:
+        #calculate number of boundaries from MT*depthU
+      LdsPadCntA = (state["DepthU"]*state["MacroTile0"])//(state["LdsBlockSizePerPad"] // state["ProblemType"]["DataType"].numBytes())
+      LdsPadCntB = (state["DepthU"]*state["MacroTile1"])//(state["LdsBlockSizePerPad"] // state["ProblemType"]["DataType"].numBytes())
+      ldsNumElementsA = state["DepthU"]*state["MacroTile0"]+LdsPadCntA*state["LdsPadA"]
+      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
+      ldsNumElementsB = state["DepthU"]*state["MacroTile1"]+LdsPadCntB*state["LdsPadB"]
+      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+    else:
+      ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
+      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
+      ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
+      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:
@@ -2545,6 +2579,12 @@ class Solution:
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
     ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
+
+    #print("ldsNumElementsA", ldsNumElementsA)
+    #print("ldsNumElementsB", ldsNumElementsB)
+    #print("ldsNumElementsAlignedA", ldsNumElementsAlignedA)
+    #print("ldsNumElementsAlignedB", ldsNumElementsAlignedB)
+    #print("ldsNumElementsAB", ldsNumElementsAB)
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
@@ -2582,15 +2622,20 @@ class Solution:
           pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
           pvar(state, "LSCB"), pvar(state, "LSPB"))
 
-    # LoopUnroll too small
-    if state["LoopUnroll"] < 2:
-      reject(state, "LoopUnroll %u is less than 2" \
-          % (state["LoopUnroll"]))
-
     state["LoopIters"] = state["LoopUnroll"]
     if "MatrixInstK" in state:
       state["LoopIters"] //= state["MatrixInstK"]
 
+    # LoopIters should greater than PrefetchLocalRead
+    if (state["LoopIters"] - state["PrefetchLocalRead"]) < 1:
+      reject(state, "LoopIters %u should greater than PrefetchLocalRead %u" \
+        % (state["LoopIters"],state["PrefetchLocalRead"]))
+
+    # reject conditions with lower performance
+    if state["ScheduleIterAlg"] == 2 and \
+    (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
+      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGW1, LoopIter=1")
+    
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
@@ -2598,6 +2643,9 @@ class Solution:
     # The matrix must not require transposing since that is done by reading to VGPR and writing in different order
     # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
     # Note for these matrices LSC is same as MacroTile dim
+    # MatrixInstruction rules:
+    # DirectToLDS is supported for TLU=0  (make sure transposeLDS=1)
+    # LDS (load size coalesced) * LSPA must load some multiple of 256 bytes. each DirecToLds instruction provides 256 bytes
     if state["DirectToLds"]:
       # The tail loop requires half summation elements be a multiple of two to use DirectToLds feature
       elementMultipleOk = not state["ProblemType"]["DataType"].isHalf() \
@@ -2612,20 +2660,42 @@ class Solution:
       if elementMultipleOk \
         and state["NumThreads"] % globalParameters["WavefrontWidth"] == 0:
 
-        if (state["GlobalLoadVectorWidthA"] * numBytes == 4) \
-          and not state["ProblemType"]["TransposeA"] \
-          and state["LSCA"] * numBytes == 256 * wavefronts \
-          and state["LSCA"] * numBytes == state["NumThreads"] * 4 :
-          state["DirectToLdsA"] = True
-          state["LocalWriteUseSgprA"] = True
+        if state["MatrixInstruction"]:
+          # use with transposeLDS
+          if (state["GlobalLoadVectorWidthA"] * numBytes == 4) \
+            and (( not state["ProblemType"]["TransposeA"]  \
+                   and state["LSCA"] * numBytes == 256 * wavefronts \
+                   and state["LSCA"] * numBytes == state["NumThreads"] * 4 ) or \
+                 ( state["ProblemType"]["TransposeA"] and state["TransposeLDS"]  \
+                   and state["LSCA"] * state["LSPA"] * numBytes == 256 * wavefronts \
+                   and state["LSCA"] * state["LSPA"] * numBytes == state["NumThreads"] * 4)) :
+            state["DirectToLdsA"] = True
+            state["LocalWriteUseSgprA"] = True
 
-        if (state["GlobalLoadVectorWidthB"] * state["ProblemType"]["DataType"].numBytes() == 4) \
-          and state["ProblemType"]["TransposeB"] \
-          and elementMultipleOk \
-          and state["LSCB"] * numBytes == 256 * wavefronts \
-          and state["LSCB"] * numBytes == state["NumThreads"] * 4 :
-          state["DirectToLdsB"] = True
-          state["LocalWriteUseSgprB"] = True
+          if (state["GlobalLoadVectorWidthB"] * state["ProblemType"]["DataType"].numBytes() == 4) \
+            and (( state["ProblemType"]["TransposeB"]  \
+                   and state["LSCB"] * numBytes == 256 * wavefronts \
+                   and state["LSCB"] * numBytes == state["NumThreads"] * 4 ) or \
+                 ( not state["ProblemType"]["TransposeB"] and state["TransposeLDS"]  \
+                   and state["LSCB"] * state["LSPB"] * numBytes == 256 * wavefronts \
+                   and state["LSCB"] * state["LSPB"] * numBytes == state["NumThreads"] * 4)) :
+            state["DirectToLdsB"] = True
+            state["LocalWriteUseSgprB"] = True
+        else:
+          if (state["GlobalLoadVectorWidthA"] * numBytes == 4) \
+            and not state["ProblemType"]["TransposeA"] \
+            and state["LSCA"] * numBytes == 256 * wavefronts \
+            and state["LSCA"] * numBytes == state["NumThreads"] * 4 :
+            state["DirectToLdsA"] = True
+            state["LocalWriteUseSgprA"] = True
+
+          if (state["GlobalLoadVectorWidthB"] * state["ProblemType"]["DataType"].numBytes() == 4) \
+            and state["ProblemType"]["TransposeB"] \
+            and elementMultipleOk \
+            and state["LSCB"] * numBytes == 256 * wavefronts \
+            and state["LSCB"] * numBytes == state["NumThreads"] * 4 :
+            state["DirectToLdsB"] = True
+            state["LocalWriteUseSgprB"] = True
 
       if 0:
         print("DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
@@ -2747,14 +2817,15 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["VectorStore"] and state["PackGranularity"]==2 \
+    if packedC0 and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
-          reject(state, "packedC0 requires AF0EM>VectorWidth (for stores)")
-    if packedC1 and state["VectorStore"] and state["PackGranularity"]==2 \
-        and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
-          # Not sure if this is actually required??
-          reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
-
+          if state["KernelLanguage"] == "Source":
+              reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
+          else:
+            if state["VectorStore"] <= 0:
+              state["_VectorStore"] = 0
+            else:
+              reject(state, "packedC0 Assembly requires AF0EM>VectorWidth or not VectorStore (for stores)")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:
