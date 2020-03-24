@@ -162,7 +162,9 @@ class Module(Item):
       else:
         flatitems.append(i)
     return flatitems
-
+   
+  def addTempVgpr(self, vgpr):
+    self.tempVgpr = vgpr
 
 class StructuredModule(Module):
   def __init__(self, name=None):
@@ -280,6 +282,57 @@ class LocalWriteInst (Inst):
 class LocalReadInst (Inst):
   def __init__(self,*args):
     Inst.__init__(self,*args)
+
+################################################################################
+# MFMA Instruction
+################################################################################
+class  MFMAInst (Inst):
+
+  """
+  Construct a MFMA instruction from specified precision Type, aIndex, bIndex, PLR, innerUnroll:
+
+  dataType:
+  aIndex:  index value from range (0, kernel["ThreadTile0"])
+  bIndex:  index value from range (0, kernel["ThreadTile1"])
+
+  PLR:     valida values 0,1
+
+  usage Module.addCode(Code.MFMAInst())
+
+  """
+  def  __init__(self,kernel,aIdx,bIdx,PLRval,innerUnroll):
+       self.endLine = ""
+       self.version = globalParameters["CurrentISA"]
+       self.kernel  = kernel
+       self.aIdx    = aIdx
+       self.bIdx    = bIdx
+       self.PLR     = PLRval
+       self.innerUnroll = innerUnroll
+
+  def __str__(self):
+      # single precision
+      kStr = ""
+      numOfRowsperMfma = 1
+      numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
+      #numOfColInsts = kernel["ThreadTile1"]/kernel["MatrixInstN"]
+      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
+      if self.kernel["ProblemType"]["DataType"].isSingle():
+        for iui in range(0, self.innerUnroll):
+           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs,numOfDstRgs)
+           aStr = "v[%s+%u]" \
+               % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
+           bStr = "v[%s+%u]" \
+               % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
+           kStr += "v_mfma_f32_%ux%ux%uf32 %s, %s, %s, %s%s" % (self.kernel["MatrixInstM"], self.kernel["MatrixInstN"], self.kernel["MatrixInstK"], cStr, aStr, bStr, cStr, self.endLine)
+      else:
+        printExit("Assembly doesn't support %s" % self.kernel["ProblemType"]["DataType"])
+
+      return self.formatWithComment(kStr, "")
+
+  def getLatency(self):
+      # return latency in cycles
+      return  (self.kernel["MatrixInstM"] // 4 ) * 8
+
 
 ################################################################################
 # Mac Instruction

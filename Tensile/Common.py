@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -313,7 +313,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1],
+    "ScheduleIterAlg":             [0, 1, 2],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -347,6 +347,9 @@ validParameters = {
     # G2L registers used to stage data.  Also replaces the
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
+    #    - Requirements for DirectToLds=1: 
+    #      GlobalLoadVectorWidth? = 1
+    #      TransposeLDS = 1 for TLU=0 case
     "DirectToLds":                [ False, True ],
 
     # Load options:
@@ -378,6 +381,16 @@ validParameters = {
     #  = KernelWriterAssembly also supports 64-bit 2D buffer size (see use64bPbcLimit)
     #    - Requires 4 instructions to move scalar limit and a couple SGPR
     #    - Enabled by default.  If the overhead matters we can add asserts/YAML parm to specialize
+    #  = UseInstOffsetForGRO=1:
+    #    + Attempt to use Instruction offset for Global Read Offsets.
+    #    + This feature avoid updating m0 for subsequent GRO(s) for directToLds feature
+    #    - Requirements for UseInstOffsetForGRO=1:
+    #      - BufferLoad=1
+    #      - DirectToLds=1
+
+    #  converting m0 update from LocalWriteAddrSGpr using  is usually win
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
+    "UseInstOffsetForGRO":              [ -1, 0, 1],
 
 
     # Converting VGPR GRO into SGPR GRO is usually a win
@@ -662,9 +675,10 @@ validParameters = {
     # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-    # If False, store 1 element per instruction.
-    # If True, store vector-width elements per instruction.
-    "VectorStore":                    [False, True],
+    # If 0, store 1 element per instruction.
+    # If 1, store vector-width elements per instruction.
+    # if -1, store vector-wide elements per instruction unless PBD would not generate a valid kernel
+    "VectorStore":                    [-1, 0, 1],
 
     # Controls desired width (#elements) for stores from reg to global memory.
     # When MatrixInstruciton == None, derived parameter gwvw takes precedence.
@@ -704,6 +718,14 @@ validParameters = {
     "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
+    # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
+    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
+    # optimized value is 128
+    "LdsBlockSizePerPad":          [-1, 64, 128, 256],
+
+    #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+    "TransposeLDS":                [-1, 1, 0],
+
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    list(range(-1, 16*16+1)),
     "PerformanceWaitLocation":    list(range(-1, 16*16+1)),
@@ -726,7 +748,7 @@ validParameters = {
 
     # Group together unroll iterations inside the unroll loop.
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
-    "InnerUnroll":                [1,2,4],
+    "InnerUnroll":                [1,2,4,8,16,32,64],
 
     # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
     # 1 is default and results in no interleaving.
@@ -765,9 +787,11 @@ defaultBenchmarkCommonParameters = [
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
+    {"LdsBlockSizePerPad":        [ -1 ] },
+    {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"VectorStore":               [ True ] },
+    {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
@@ -799,6 +823,7 @@ defaultBenchmarkCommonParameters = [
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
+    {"UseInstOffsetForGRO":       [ 0 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
@@ -1242,7 +1267,7 @@ def assignGlobalParameters( config ):
 
   print1("# Restoring default globalParameters")
   for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
+    globalParameters[key] = deepcopy(defaultGlobalParameters[key])
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -1337,9 +1362,9 @@ def assignGlobalParameters( config ):
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
-    destinationDictionary[key] = defaultDictionary[key]
+    destinationDictionary[key] = deepcopy(defaultDictionary[key])
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
