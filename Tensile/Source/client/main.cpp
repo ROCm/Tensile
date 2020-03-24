@@ -148,7 +148,7 @@ namespace Tensile
                 ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 Read Hits")
                 ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 Write Hits")
                 ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
-                ("perf-mfma",                po::value<bool>()->default_value(false), "Use MFMA instructions")
+                ("perf-mfma",                po::value<bool>()->default_value(false), "Calculate efficiency w/ or w/o MFMA instructions enabled")
                 
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
