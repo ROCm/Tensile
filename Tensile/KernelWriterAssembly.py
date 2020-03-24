@@ -3063,6 +3063,9 @@ class KernelWriterAssembly(KernelWriter):
           calcDims.append(i)
         elif indices[i] in kernel["ProblemType"]["IndicesSummation"]:
           # other summation index (not unroll)
+          if     tc == 'A' and kernel["ProblemType"]["MirrorDimsA"] == [indices[i]] \
+              or tc == 'B' and kernel["ProblemType"]["MirrorDimsB"] == [indices[i]]:
+            calcDims.append(i)
           continue
         else:
           # other batch or free index
@@ -3091,7 +3094,8 @@ class KernelWriterAssembly(KernelWriter):
       for i in calcDims:
         # should have eliminated these above
         idx = indices[i]
-        assert not (idx in kernel["ProblemType"]["IndicesSummation"] and idx != kernel["ProblemType"]["IndexUnroll"])
+        isMirrorIdx = False
+        assert not (idx in kernel["ProblemType"]["IndicesSummation"] and idx != kernel["ProblemType"]["IndexUnroll"] and idx not in kernel["ProblemType"]["MirrorDims%s" % tc])
 
         if indices[i] == kernel["ProblemType"]["Index0"] \
             or indices[i] == kernel["ProblemType"]["Index1"] \
@@ -3103,8 +3107,14 @@ class KernelWriterAssembly(KernelWriter):
             offsetIsVgpr = True
           else:
             offsetIsVgpr = False
+        elif indices[i] in kernel["ProblemType"]["MirrorDims%s" % tc]:
+          offsetVgpr = True
         else:
           assert(0) # no other type allowed
+
+        # mirrored dim also may be unrolled index
+        if indices[i] in kernel["ProblemType"]["MirrorDims%s" % tc]:
+          isMirrorIdx = True
 
         # offset is VGPR or SGPR string to use for the offset
         if offsetIsVgpr:
@@ -3134,13 +3144,38 @@ class KernelWriterAssembly(KernelWriter):
               destHi = "v[\\vgprTmp+1]"
               needAdd = 1
 
-            # offset * stride
-            kStr += inst("v_mul_lo_u32", \
-                destLo,
-                self.strideRef(tc, indices[i]), \
-                offset, \
-                "mul d%u lower"%i)
-            if not justOffset32:
+            if not isMirrorIdx:
+              # offset * stride
+              kStr += inst("v_mul_lo_u32", \
+                  destLo,
+                  self.strideRef(tc, indices[i]), \
+                  offset, \
+                  "mul d%u lower"%i)
+            else:
+              mirrorComment = "mirror: go to the end of %s dimension"  % idxChars[i]
+              if indices[i] == kernel["ProblemType"]["IndexUnroll"]:
+                kStr += inst("v_sub_u32", \
+                    destLo,
+                    sgpr("Size%s" % idxChars[i]), \
+                    offset, 
+                    "mirror: ")
+                kStr += inst("v_sub_u32", \
+                    destLo,
+                    destLo, \
+                    "1", \
+                    mirrorComment)
+              else:
+                kStr += inst("v_sub_u32", \
+                    destLo,
+                    sgpr("Size%s" % idxChars[i]), \
+                    "1", \
+                    mirrorComment)
+              kStr += inst("v_mul_lo_u32", \
+                  destLo,
+                  self.strideRef(tc, indices[i]), \
+                  destLo, \
+                  "mul d%u lower"%i)
+            if not justOffset32 and not isMirrorIdx:
               kStr += inst("v_mul_hi_u32", \
                   destHi,
                   self.strideRef(tc, indices[i]), \
@@ -4080,11 +4115,6 @@ class KernelWriterAssembly(KernelWriter):
             if graIdx==0 or not kernel["_UseSgprForGRO"]:
               # emit global offset macro
               # TODO -refactor this and macro def to pass all indices, use the ones we need
-              if tP["mirror"]:
-                sgprSizeSum = "SizesSum+%u"%self.unrollIdx
-                kStr += inst("v_mov_b32", vgpr(tmpMirror), vgpr(vgprUnroll), "save to the tmp reg" )
-                kStr += inst("v_sub_u32", vgpr(vgprUnroll), sgpr(sgprSizeSum), vgpr(tmpMirror), "sizeK - offset")
-                kStr += inst("v_sub_u32", vgpr(vgprUnroll), vgpr(vgprUnroll), "1", "sizeK - 1 - offset")
 
               if kernel["BufferLoad"]:
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
@@ -4116,9 +4146,6 @@ class KernelWriterAssembly(KernelWriter):
 
               kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                   para, sPara, perp, sPerp, self.endLine)
-
-              if tP["mirror"]:
-                kStr += inst("v_mov_b32", vgpr(vgprUnroll), vgpr(tmpMirror), "restore offset" )
 
               for zpr in [zpr for zpr in self.zeroPadRegs[tc].values() if zpr.isMatch(perp, sPerp, para, sPara)]:
                 assert(zpr.state == ZeroPadReg.State.Allocated) # only calc address once
