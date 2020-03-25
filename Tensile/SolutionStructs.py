@@ -1792,6 +1792,8 @@ class Solution:
             and totalElementsPerp % nlp == 0:
           state["NumLoadsCoalesced%s"%tc] = nlc
           state["NumLoadsPerpendicular%s"%tc] = nlp
+          #print("NumLoadsCoalesced",state["NumLoadsCoalesced%s"%tc])
+          #print("NumLoadsPerpendicular",state["NumLoadsPerpendicular%s"%tc])
           foundValid = True
           break
       if not foundValid:
@@ -1842,16 +1844,9 @@ class Solution:
           // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
-      if not state["TransposeLDS"]:
-        state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-        state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-             // state["NumLoadsPerpendicular%s"%tc]
-      else:
-       # above LSP is broken  LSP is calculated from total vectors and hence LVP calculation from LSP is wrong
-        state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-       # Per instruction across the entire group:
-        elementsLoadedPerInst = state["NumThreads"]*state["GlobalReadVectorWidth"]
-        state["LSP%s"%tc] = min(state["MacroTile%s"%tc], elementsLoadedPerInst // state["DepthU"])  if not state["DepthU"] >= elementsLoadedPerInst else 1
+      state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
+      state["LSP%s"%tc] = state["MacroTile%s"%tc] \
+         // state["NumLoadsPerpendicular%s"%tc]
     
     return True
 
