@@ -8921,12 +8921,8 @@ class KernelWriterAssembly(KernelWriter):
     elements = []
     if kernel["MatrixInstruction"]:
       ##TODO remove and use VectorWidth once VW mapping of TT is done
-      fullVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
+      fullVw = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
       mfmaColStoreVw = 1 #TODO check can hardcode or not
-      elementsLoadedPerfullVw = kernel["NumThreads"]*fullVw
-      elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
-      if elementsLoadedPervw > elementsLoadedPerfullVw:
-        fullVw = kernel["StoreVectorWidth"]
     else:
       fullVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
@@ -8950,7 +8946,7 @@ class KernelWriterAssembly(KernelWriter):
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//mfmaColStoreVw)*numcolBlocksperInstruction)) :
         for vc1 in range(0, mfmaColStoreVw):
-          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//fullVw):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//kernel["StoreVectorWidth"]):
             for vc0 in range(0, kernel["StoreVectorWidth"], fullVw):
               element = (tt1, tt0, vc1, vc0)
               elements.append(element)
@@ -9268,7 +9264,10 @@ class KernelWriterAssembly(KernelWriter):
           # use same address vgpr for all
           addr = self.sharedColVgprs
         elif self.optSharedColVgpr:
-          elementCol = (d0*gwvw + vc0) / gwvw
+          if kernel["MatrixInstruction"]:
+            elementCol = (d0*kernel["StoreVectorWidth"] + vc0) / gwvw
+          else:
+            elementCol = (d0*gwvw + vc0) / gwvw
           assert (modf(elementCol)[0] < 0.001)
           elementCol = trunc(elementCol)
           addr = self.sharedColVgprs+elementCol
