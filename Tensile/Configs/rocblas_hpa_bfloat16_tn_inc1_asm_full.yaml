@@ -30,7 +30,7 @@ GlobalParameters:
   PrintTensorC: 0
   PrintTensorD: 0
   CEqualD: True
-  NewClient: 2
+  NewClient: 0
 
 BenchmarkProblems:
   ########################################
@@ -156,40 +156,6 @@ BenchmarkProblems:
       ForkParameters:
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 4, 8 ]
-        - WorkGroup:
-          - [ 16, 16, 1 ]
-        - WorkGroupMapping: [8]
-        - GlobalSplitU: [1]
-        - DepthU: [32]
-        - VectorWidth: [-1]
-        - AssertSummationElementMultiple: [8]
-        - AssertFree0ElementMultiple: [8]
-        - ReplacementKernel: [True]
-      BenchmarkForkParameters:
-      JoinParameters:
-        - MacroTile
-        - GlobalSplitU
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [ 512,512,1,512,576,576,576,576 ]
-          - Exact: [ 1024,1024,1,1024,1088,1088,1088,1088 ]
-          - Exact: [ 2048,2048,1,2048,2112,2112,2112,2112 ]
-          - Exact: [ 3072,3072,1,3072,3136,3136,3136,3136 ]
-          - Exact: [ 4096,4096,1,4096,4160,4160,4160,4160 ]
-          - Exact: [ 8192,8192,1,8192,8256,8256,8256,8256 ]
-
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - PrefetchLocalRead: [True]
-      ForkParameters:
-        - PrefetchGlobalRead: [True]
-        - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 32, 1 ]
@@ -202,8 +168,6 @@ BenchmarkProblems:
         - ReplacementKernel: [True]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -222,6 +186,12 @@ BenchmarkProblems:
           - Exact: [ 3072,512,1,3072,3136,3136,3136,3136 ]
           - Exact: [ 4096,512,1,4096,4160,4160,4160,4160 ]
           - Exact: [ 8192,512,1,8192,8256,8256,8256,8256 ]
+          - Exact: [ 512,512,1,512,576,576,576,576 ]
+          - Exact: [ 1024,1024,1,1024,1088,1088,1088,1088 ]
+          - Exact: [ 2048,2048,1,2048,2112,2112,2112,2112 ]
+          - Exact: [ 3072,3072,1,3072,3136,3136,3136,3136 ]
+          - Exact: [ 4096,4096,1,4096,4160,4160,4160,4160 ]
+          - Exact: [ 8192,8192,1,8192,8256,8256,8256,8256 ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -245,8 +215,6 @@ BenchmarkProblems:
         - ReplacementKernel: [True]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
