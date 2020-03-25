@@ -92,6 +92,7 @@ std::map<std::string, std::shared_ptr<SolutionLibrary<ContractionProblem>>> Libr
 
 TEST_P(LibraryPerformanceTest, PopulateCache)
 {
+    // Empty test.  See comment at top of this file.
 }
 
 TEST_P(LibraryPerformanceTest, LoadLibrary)
