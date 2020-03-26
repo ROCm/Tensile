@@ -663,6 +663,15 @@ validParameters = {
     #  1 cannot be used for half type.
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
+    # Controls desired width (#elements) for loads from LDS -> VGPR.
+    # -1 : Set LocalReadVectorWidth =  VectorWidth
+    #  1 cannot be used for half type.
+    # used in combination with TransposeLDS=True
+    # in TransposeLDS=1 case, use wider load to fetch elements from LDS 
+    # helps optimizing instruction scheduling between MFMA and nonMFMA instructions
+
+    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
+
     # threads should read/write/operate on this many contiguous elements from the C matrix.
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
@@ -793,6 +802,7 @@ defaultBenchmarkCommonParameters = [
     {"VectorStore":               [ True ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
+    {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },

@@ -2528,6 +2528,10 @@ class Solution:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
 
+    if state["LocalReadVectorWidth"] != -1:
+      if not state["TransposeLDS"] == 1:
+        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     if not state["LdsBlockSizePerPad"] == -1:
         #calculate number of boundaries from MT*depthU

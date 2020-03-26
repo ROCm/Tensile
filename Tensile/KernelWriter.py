@@ -639,7 +639,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["LocalRead"]:
           if u < kernel["LoopIters"]-1 or not kernel["PrefetchLocalRead"]:
             if kernel["MatrixInstruction"] and \
-              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
+              not kernel["TransposeLDS"] :
               # Reading 16-bit data from LDS requires packing when ECC enabled
               kl.append(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersA)
@@ -795,7 +796,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
               for iui in range(0,kernel["InnerUnroll"]):
                 if kernel["MatrixInstruction"] and \
-                  (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+                  (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
+                  not kernel["TransposeLDS"]:
                   # Reading 16-bit data from LDS requires packing when ECC enabled
                   kl.append(self.comment("local read prefetch a"))
                   localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, espi, (0+iui), tensorParametersA)
@@ -905,7 +907,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             pack[plrIdx] = Code.Module()
             for iui in range(0,kernel["InnerUnroll"]):
               if kernel["MatrixInstruction"] and \
-                (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+                (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
+                not kernel["TransposeLDS"] :
                 # Reading 16-bit data from LDS requires packing when ECC enabled
                 kl.append(self.comment("prefetch local a"))
                 localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, (0+iui), tensorParametersA)
@@ -951,7 +954,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             if kernel["MatrixInstruction"] and \
-              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
+              not kernel["TransposeLDS"] :
               # Reading 16-bit data from LDS requires packing when ECC enabled
               localReads.addText(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"]+iui), tensorParametersA)
@@ -1220,7 +1224,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             if kernel["MatrixInstruction"] and \
-              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
+              not kernel["TransposeLDS"] :
               # Reading 16-bit data from LDS requires packing when ECC enabled
               localReads.addText(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, (((unrollIter+pflr)*kernel["InnerUnroll"])+iui)%kernel["LoopIters"], tensorParametersA)
@@ -1422,7 +1427,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
           if kernel["MatrixInstruction"] and \
-            (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
+            (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
+            not kernel["TransposeLDS"] :
             # Reading 16-bit data from LDS requires packing when ECC enabled
             kl.append(self.comment("local read a"))
             localReadCodeA, packCodeA = self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersA)
