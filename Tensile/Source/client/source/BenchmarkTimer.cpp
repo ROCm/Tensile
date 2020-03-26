@@ -82,10 +82,11 @@ namespace Tensile
         {
             m_numEnqueuesInSolution = 0;
             m_timeInSolution = double_millis::zero();
-
+            
             ContractionSolution::ProjectedPerformance pp =
               solution.projectedPerformance(m_problem, m_hardware);
-
+            m_solution = solution;        
+    
             m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
             m_reporter->report(ResultKey::Tile1Granularity, pp.tile1Granularity);
             m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
@@ -93,10 +94,6 @@ namespace Tensile
             m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
             m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
             
-            m_reporter->report(ResultKey::AluUs, pp.staticModel.aluUs);
-            m_reporter->report(ResultKey::MemReadUs, pp.staticModel.memReadUs);
-            m_reporter->report(ResultKey::MemWriteUs, pp.staticModel.memWriteUs);
-
             m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
             m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
             m_reporter->report(ResultKey::MemGlobalReads, pp.staticModel.memGlobalReads);
@@ -109,6 +106,9 @@ namespace Tensile
 
             double gflops = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
             uint64_t gflopsUint = static_cast<uint64_t> (round(gflops));
+            
+            ContractionSolution::ProjectedPerformance pp =
+              m_solution.projectedPerformance(m_problem, m_hardware);
 
             m_reporter->report(ResultKey::TimeUS,      timePerEnqueue_us);
             if (gflopsUint)
@@ -119,14 +119,12 @@ namespace Tensile
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
             
-            m_reporter->report(ResultKey::PeakGFlops, pm.m_peakGFlops);
-            m_reporter->report(ResultKey::Efficiency, pm.m_eff);
-            m_reporter->report(ResultKey::L2BandwidthMBps, pm.m_readMul*pm.m_memBandwidthMBps);
-         
-            pm.m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
-            pm.m_eff = std::numeric_limits<double>::quiet_NaN();
-            pm.m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
-            pm.gFlops = std::numeric_limits<double>::quiet_NaN();
+            m_reporter->report(ResultKey::PeakGFlops, perf.peakGFlops);
+            m_reporter->report(ResultKey::Efficiency, perf.efficiency);
+            m_reporter->report(ResultKey::L2BandwidthMBps, perf.memBandwidthMBps*perf.readMul);
+            m_reporter->report(ResultKey::AluUs, pp.staticModel.aluUs);
+            m_reporter->report(ResultKey::MemReadUs, pp.staticModel.memReadUs);
+            m_reporter->report(ResultKey::MemWriteUs, pp.staticModel.memWriteUs);
         }
 
         bool BenchmarkTimer::needMoreRunsInSolution() const

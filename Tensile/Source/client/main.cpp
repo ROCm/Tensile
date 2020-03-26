@@ -387,6 +387,8 @@ int main(int argc, const char * argv[])
 
     auto reporters = std::make_shared<MetaResultReporter>();
     reporters->addReporter(PerformanceReporter::Default(args));
+    
+    //PerformanceReporter needs to be called before these two, or else values will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
 

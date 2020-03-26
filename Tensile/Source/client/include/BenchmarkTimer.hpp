@@ -84,9 +84,8 @@ namespace Tensile
                                             TimingEvents const&  stopEvents) override;
 
             virtual void finalizeReport() override;
-
             virtual int error() const override;
-
+    
         private:
             const int m_numWarmups;
             const int m_numBenchmarks;
@@ -101,6 +100,7 @@ namespace Tensile
 
             Hardware const & m_hardware;
             ContractionProblem m_problem;
+            ContractionSolution m_solution;
 
             int m_numEnqueuesInSolution = 0;
             int m_numSyncsInBenchmark = 0;
