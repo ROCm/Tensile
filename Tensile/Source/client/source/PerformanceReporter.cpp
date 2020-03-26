@@ -49,12 +49,12 @@ namespace Tensile
         
         PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma)
         {
-            hipGetDeviceProperties(&props, deviceIndex);
+            hipGetDeviceProperties(&m_props, deviceIndex);
             setNumCUs();
             setMemoryBusWidth();
             setPerfModel(l2ReadHits, l2WriteHits, readEff, mfma);
             setMagicNum();
-            deviceProps = true;
+            m_deviceProps = true;
             
             perf.l2ReadHitRate = getL2ReadHits();
             perf.l2WriteHitRate = getL2WriteHits();
@@ -64,7 +64,7 @@ namespace Tensile
         
         void PerformanceReporter::reportValue_uint(std::string const& key, uint64_t value) 
         {
-            if(key == ResultKey::SpeedGFlops && deviceProps) 
+            if(key == ResultKey::SpeedGFlops && m_deviceProps) 
             {
                 reportValue_numeric(key, value);
             }
@@ -72,24 +72,24 @@ namespace Tensile
 
         void PerformanceReporter::reportValue_double(std::string const& key, double value) 
         {
-            if(key == ResultKey::ClockRateSys && deviceProps)
+            if(key == ResultKey::ClockRateSys && m_deviceProps)
             {
                 m_clockMhz = value;
                 perf.clock = getClock();
             }
-            if(!std::isnan(m_clockMhz) && deviceProps)
+            if(!std::isnan(m_clockMhz) && m_deviceProps)
             {
                 m_peakGFlops = getNumCUs()*getMagicNum()*getReadMultiplier()*m_clockMhz/1000;
                 perf.peakGFlops = getPeakGFlops();
             }
-            if(key == ResultKey::ClockRateMem && deviceProps)
+            if(key == ResultKey::ClockRateMem && m_deviceProps)
             {
                 m_memClockMhz = value;
                 perf.memClock = getMemClock();
                 m_memBandwidthMBps = m_memoryBusWidth*m_memClockMhz;
                 perf.memBandwidthMBps = getMemBandwidthMBps();
             }
-            if(key == ResultKey::SpeedGFlops && deviceProps) 
+            if(key == ResultKey::SpeedGFlops && m_deviceProps) 
             {
                 reportValue_numeric(key, value);
             }
@@ -98,10 +98,10 @@ namespace Tensile
         template <typename T> 
         void PerformanceReporter::reportValue_numeric(std::string const& key, T value)
         {
-            if(key == ResultKey::SpeedGFlops && deviceProps)
+            if(key == ResultKey::SpeedGFlops && m_deviceProps)
             {
                 m_gFlops = (double)value;
-                if(!std::isnan(m_peakGFlops) && deviceProps)
+                if(!std::isnan(m_peakGFlops) && m_deviceProps)
                 {
                     m_eff = 100*m_gFlops/m_peakGFlops;
                     perf.efficiency = getEfficiency();
@@ -122,17 +122,8 @@ namespace Tensile
             perf.readMul = getReadMultiplier();
         }
 
-        void PerformanceReporter::preSolution(ContractionSolution const& solution)
-        {
-            report(ResultKey::L2BandwidthMBps, perf.memBandwidthMBps*perf.readMul);
-        }
-        
         void PerformanceReporter::postSolution()  
         {
-            //report(ResultKey::PeakGFlops, perf.peakGFlops);
-            //report(ResultKey::Efficiency, perf.efficiency);
-            //report(ResultKey::SpeedGFlops, perf.gFlops);
-            //report(ResultKey::L2BandwidthMBps, perf.memBandwidthMBps*perf.readMul);
             m_clockMhz = std::numeric_limits<double>::quiet_NaN();
             m_memClockMhz = std::numeric_limits<double>::quiet_NaN();
             m_gFlops = std::numeric_limits<double>::quiet_NaN();
@@ -150,12 +141,12 @@ namespace Tensile
         
         void PerformanceReporter::setNumCUs()
         {
-            m_numCUs = props.multiProcessorCount;
+            m_numCUs = m_props.multiProcessorCount;
         }
 
         void PerformanceReporter::setMemoryBusWidth()
         {
-            m_memoryBusWidth = props.memoryBusWidth/1024;
+            m_memoryBusWidth = m_props.memoryBusWidth/1024;
         }
 
         void PerformanceReporter::setMagicNum()
@@ -180,6 +171,7 @@ namespace Tensile
         void    PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
         void    PerformanceReporter::reportValue_string(std::string const& key, std::string const& value) {}
         void    PerformanceReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) {}
+        void    PerformanceReporter::preSolution(ContractionSolution const& solution) {}
         void    PerformanceReporter::finalizeReport() {}
 
     }

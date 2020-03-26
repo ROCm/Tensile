@@ -89,7 +89,7 @@ namespace Tensile
 
 
         protected: 
-            hipDeviceProp_t props;
+            hipDeviceProp_t m_props;
             double  m_clockMhz = std::numeric_limits<double>::quiet_NaN();
             double  m_memClockMhz = std::numeric_limits<double>::quiet_NaN();
             double  m_gFlops = std::numeric_limits<double>::quiet_NaN();
@@ -98,7 +98,7 @@ namespace Tensile
             int     m_magicNum;
             int     m_numCUs;
             int     m_memoryBusWidth;
-            bool    deviceProps = false;
+            bool    m_deviceProps = false;
             double  m_l2ReadHits;
             double  m_l2WriteHits;
             double  m_readEff;
