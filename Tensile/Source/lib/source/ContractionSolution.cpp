@@ -663,10 +663,10 @@ namespace Tensile
         auto cInfo = DataTypeInfo::Get(problemType.cType);
         auto dInfo = DataTypeInfo::Get(problemType.dType);
 
-        double readMultiplier = perf.readMul;//m_ReadMultiplier, PerformanceReporter;
-        spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * aInfo.elementSize;//(problemType.aType == DataType::Float ? 4 : 2); // hack
-        spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * bInfo.elementSize;//(problemType.bType == DataType::Float ? 4 : 2); // hack
-        spm.memReadBytesC = (NumBatches*M*N) * betaReads * cInfo.elementSize; //(problemType.cType == DataType::Float ? 4 : 2); // hack
+        double readMultiplier = perf.readMul;
+        spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * aInfo.elementSize;
+        spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * bInfo.elementSize;
+        spm.memReadBytesC = (NumBatches*M*N) * betaReads * cInfo.elementSize;
 #if 0
         spm.memReadBytesB = (M*N*K)/MT0 * TypeInfo<typename TypedInputs::BType>::ElementSize();
         //if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
@@ -674,42 +674,36 @@ namespace Tensile
         spm.memWriteBytesD   = (M*N) *TypeInfo<typename TypedInputs::DType>::ElementSize();
 #endif
 
-        auto  dSize = dInfo.elementSize; // hack
         if (GlobalSplitU == 1)
-            spm.memWriteBytesD   = (NumBatches*M*N)*(1+betaWrites);
+            spm.memWriteBytesD   = (NumBatches*M*N)*(1+betaWrites)*dInfo.elementSize;
         else
         {
             bool hardwareAtomic = false;  //TODO-model
             double atomicOperations = hardwareAtomic ? 2:3; //read-mod-write or cas  //TODO-model
             double atomicCollisions = 1.0;  //TODO-could be based on K, GSU
-            spm.memWriteBytesD   = (NumBatches*M*N) * (betaWrites + atomicOperations * atomicCollisions);
+            spm.memWriteBytesD   = (NumBatches*M*N) * (betaWrites + atomicOperations * atomicCollisions) * dInfo.elementSize;
         }
         spm.memReadBytes = spm.memReadBytesA + spm.memReadBytesB + spm.memReadBytesC;
         spm.memGlobalReads = spm.memReadBytes / readMultiplier;
         spm.memGlobalWrites = NumBatches*M*N;
-
-        std::cout<<"memGlobalWrites: "<<spm.memGlobalWrites<<" memGlobalReads: "<<spm.memGlobalReads<<" memReadBytes: "<<spm.memReadBytes<<std::endl;
-        
-        //TODO: need to get all of this from PerformanceReporter
-        double readEfficiency = perf.readEff; //m_ReadEff; // TODO-model: read from arch with yaml override
-        double l2ReadHit = perf.l2ReadHitRate; //m_L2ReadHit; // TODO-model: read from arch with yaml override
-        double l2WriteHit = perf.l2WriteHitRate; //m_L2WriteHit; // TODO-model: read from arch with yaml override
-        double frequency = perf.clock; //m_Clock;
-        double memFrequency = perf.memClock; //m_MemClock;
-        double memBandwidthMBps = perf.memBandwidthMBps; //m_MemBandwidthMBps; //getMemoryBusWidth()*memFrequency;
-
-        double l2BandwidthMBps = perf.memBandwidthMBps*perf.readMul; //m_L2BandwidthMBps; //readMultiplier*memBandwidthMBps; // TODO-model: read multiplier(currently 2) from arch props
-        double peakMFlops = perf.peakGFlops*1000.0; //m_PeakMFlops; //frequency*NumCUs*getMagicNum()*readMultiplier;  // TODO-model: read clock from smi, flops/cu from Arch and aType/dType
-
-        std::cout<<"Readeff: "<<readEfficiency<<" l2ReadHit: "<<l2ReadHit<<" l2WriteHit: "<<l2WriteHit<<" frequency: "<<frequency<<" memFreq: "<<memFrequency<<" memBandwidthMBps: "<<memBandwidthMBps<<" peakMFlops: "<<peakMFlops<<" readMul: "<<readMultiplier<<std::endl;
+       
+        std::cout<<"memReadBytes: "<<spm.memReadBytes<<"memGlobalReads: "<<spm.memGlobalReads<<"numBytes: "<<spm.memReadBytes/spm.memGlobalReads<<std::endl;
+        std::cout<<"memWriteBytes: "<<spm.memWriteBytesD<<"memGlobalWrites: "<<spm.memGlobalWrites<<"numWBytes: "<<spm.memWriteBytesD/spm.memGlobalWrites<<std::endl;
+         
+        double readEfficiency = perf.readEff;         
+        double l2ReadHit = perf.l2ReadHitRate;
+        double l2WriteHit = perf.l2WriteHitRate;
+        double frequency = perf.clock;
+        double memFrequency = perf.memClock;
+        double memBandwidthMBps = perf.memBandwidthMBps;
+        double l2BandwidthMBps = perf.memBandwidthMBps*perf.readMul;        
+        double peakMFlops = perf.peakGFlops*1000.0;
         
         spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
         spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
 
         double flops = readMultiplier*NumBatches*M*N*K;
         spm.aluUs = flops/(peakMFlops*TotalGranularity);
-
-        std::cout<<"memReadUs: "<<spm.memReadUs<<" memWriteUs: "<<spm.memWriteUs<<" aluUs: "<<spm.aluUs<<std::endl;
 
         return spm;
     }
@@ -769,7 +763,6 @@ namespace Tensile
         double MT1 = sizeMapping.macroTile.y;
 
         double NumCUs = perf.CUs;
-        std::cout<<"NumCUs: "<<NumCUs<<std::endl;
 
         AMDGPU const *pAMDGPU = dynamic_cast<AMDGPU const *>(&hardware);
         if (pAMDGPU != nullptr)

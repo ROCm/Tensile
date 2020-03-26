@@ -44,15 +44,6 @@ namespace Tensile
     {
         namespace po = boost::program_options;
 
-        struct PerformanceModel
-        {
-            double  gFlops = std::numeric_limits<double>::quiet_NaN();
-            double  m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
-            double  m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
-            double  m_eff = std::numeric_limits<double>::quiet_NaN();
-            double  m_readMul = std::numeric_limits<double>::quiet_NaN();
-        } pm;
-
         class PerformanceReporter: public ResultReporter
         {
         public:
@@ -91,6 +82,7 @@ namespace Tensile
             double  getPeakGFlops();
             double  getMemBandwidthMBps();
 
+            template <typename T> void reportValue_numeric(std::string const& key, T value);
             virtual void reportValue_string(std::string const& key, std::string const& value) override;
             virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override;
             void finalizeReport() override;
@@ -98,10 +90,11 @@ namespace Tensile
 
         protected: 
             hipDeviceProp_t props;
-            double  m_clock = std::numeric_limits<double>::quiet_NaN();
-            double  m_memClock = std::numeric_limits<double>::quiet_NaN();
-            double  m_dgFlops = std::numeric_limits<double>::quiet_NaN();
-            int64_t m_gFlops = std::numeric_limits<int64_t>::quiet_NaN();
+            double  m_clockMhz = std::numeric_limits<double>::quiet_NaN();
+            double  m_memClockMhz = std::numeric_limits<double>::quiet_NaN();
+            double  m_gFlops = std::numeric_limits<double>::quiet_NaN();
+            double  m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
+            double  m_eff;
             int     m_magicNum;
             int     m_numCUs;
             int     m_memoryBusWidth;
@@ -109,6 +102,8 @@ namespace Tensile
             double  m_l2ReadHits;
             double  m_l2WriteHits;
             double  m_readEff;
+            double  m_readMul;
+            double  m_memBandwidthMBps;
             bool    m_mfma;
         };
     }
