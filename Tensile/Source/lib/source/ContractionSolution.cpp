@@ -684,12 +684,9 @@ namespace Tensile
             spm.memWriteBytesD   = (NumBatches*M*N) * (betaWrites + atomicOperations * atomicCollisions) * dInfo.elementSize;
         }
         spm.memReadBytes = spm.memReadBytesA + spm.memReadBytesB + spm.memReadBytesC;
-        spm.memGlobalReads = spm.memReadBytes / readMultiplier;
-        spm.memGlobalWrites = NumBatches*M*N;
+        spm.memGlobalReads = spm.memReadBytesA/aInfo.elementSize + spm.memReadBytesB/bInfo.elementSize + spm.memReadBytesC/cInfo.elementSize;
+        spm.memGlobalWrites = spm.memWriteBytesD/dInfo.elementSize;
        
-        std::cout<<"memReadBytes: "<<spm.memReadBytes<<"memGlobalReads: "<<spm.memGlobalReads<<"numBytes: "<<spm.memReadBytes/spm.memGlobalReads<<std::endl;
-        std::cout<<"memWriteBytes: "<<spm.memWriteBytesD<<"memGlobalWrites: "<<spm.memGlobalWrites<<"numWBytes: "<<spm.memWriteBytesD/spm.memGlobalWrites<<std::endl;
-         
         double readEfficiency = perf.readEff;         
         double l2ReadHit = perf.l2ReadHitRate;
         double l2WriteHit = perf.l2WriteHitRate;
