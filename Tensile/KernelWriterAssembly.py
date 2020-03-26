@@ -3113,8 +3113,7 @@ class KernelWriterAssembly(KernelWriter):
           assert(0) # no other type allowed
 
         # mirrored dim also may be unrolled index
-        if indices[i] in kernel["ProblemType"]["MirrorDims%s" % tc]:
-          isMirrorIdx = True
+        isMirrorIdx = indices[i] in kernel["ProblemType"]["MirrorDims%s" % tc]
 
         # offset is VGPR or SGPR string to use for the offset
         if offsetIsVgpr:
@@ -3162,13 +3161,13 @@ class KernelWriterAssembly(KernelWriter):
                 kStr += inst("v_sub_u32", \
                     destLo,
                     destLo, \
-                    "1", \
+                    1, \
                     mirrorComment)
               else:
                 kStr += inst("v_sub_u32", \
                     destLo,
                     sgpr("Size%s" % idxChars[i]), \
-                    "1", \
+                    1, \
                     mirrorComment)
               kStr += inst("v_mul_lo_u32", \
                   destLo,
@@ -4098,7 +4097,6 @@ class KernelWriterAssembly(KernelWriter):
       uVW = tP["glvw"]
       uVS = 1
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
-    tmpMirror = self.vgprPool.checkOut(1)
     graIdx = 0
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
@@ -4115,7 +4113,6 @@ class KernelWriterAssembly(KernelWriter):
             if graIdx==0 or not kernel["_UseSgprForGRO"]:
               # emit global offset macro
               # TODO -refactor this and macro def to pass all indices, use the ones we need
-
               if kernel["BufferLoad"]:
                 kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
               else:
@@ -4279,7 +4276,6 @@ class KernelWriterAssembly(KernelWriter):
       tP["vgprPackedOffsets"] = None
 
     self.vgprPool.checkIn(tmp)
-    self.vgprPool.checkIn(tmpMirror)
     #if tP["isB"]:
     #  kStr += self.bomb(0x100)
 
@@ -4548,6 +4544,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[dimIdx]
 
     stride = self.strideRef(tc, dimIdx)
+    isMirrorIdx = dimIdx in kernel["ProblemType"]["MirrorDims%s"%tc]
 
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
@@ -4653,10 +4650,20 @@ class KernelWriterAssembly(KernelWriter):
 
           # subtract amount that previous inner loop will have already incremented:
           # graInc is used as temp for the prev loop calc
-          kStr += inst("s_sub_i32", sgpr(graInc), \
-              stride, \
-              sgpr(graInc), \
-              "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
+          if isMirrorIdx:
+            kStr += inst("s_add_i32", sgpr(graInc), \
+                stride, \
+                sgpr(graInc), \
+                "incr%s%s = stride%s%s + <prev-incs>"%(tc, loopChar, tc, loopChar) )
+            kStr += inst("s_sub_i32", sgpr(graInc), \
+                0, \
+                sgpr(graInc), \
+                "incr%s%s = - (stride%s%s + <prev-incs>)"%(tc, loopChar, tc, loopChar) )
+          else:
+            kStr += inst("s_sub_i32", sgpr(graInc), \
+                stride, \
+                sgpr(graInc), \
+                "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
 
           kStr += inst("s_lshl_b32", \
               sgpr(graInc), \
@@ -5190,6 +5197,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.staggerU:
       assert (kernel["BufferLoad"])
       staggerTmp = self.getTmpSgpr(1)
+      isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]
 
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
@@ -5215,7 +5223,7 @@ class KernelWriterAssembly(KernelWriter):
                 0, \
                 "remove one iteration")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
+      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0, isMirrorUnrolledIdx=isMirrorUnrolledIdx)
 
       if tP["isB"]:
         # Convert passed in S' to S for easy loop comparison.  S=S-(PGR-1)'
@@ -5255,6 +5263,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.staggerU:
       tc = tP["tensorChar"]
       tmp = self.getTmpSgpr(1)
+      isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]
       # might be able to refactor this to eliminate signed math
       kStr += inst("s_sub_i32", sgpr(tmp), 2+kernel["PrefetchGlobalRead"], \
                   sgpr("StaggerUIter"), "")
@@ -5263,7 +5272,7 @@ class KernelWriterAssembly(KernelWriter):
                     "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0)
+      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0, isMirrorUnrolledIdx=isMirrorUnrolledIdx)
 
     return kStr
 
@@ -6124,28 +6133,28 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   ##############################################################################
   # incLower must be constant or SGRP unsigned value
-  def incrementSrd(self, kernel, tP, incLower, incUpper, checkShadowLimitCopy=True):
+  def incrementSrd(self, kernel, tP, incLower, incUpper, checkShadowLimitCopy=True, isMirrorUnrolledIdx=False):
     tc = tP["tensorChar"]
     kStr = ""
 
-    incInstructionLo = "s_add_u32" if not tP["mirror"] else "s_sub_u32"
-    incInstructionHi = "s_addc_u32" if not tP["mirror"] else "s_subb_u32"
+    incInstructionLo = "s_add_u32" if not isMirrorUnrolledIdx else "s_sub_u32"
+    incInstructionHi = "s_addc_u32" if not isMirrorUnrolledIdx else "s_subb_u32"
     kStr += inst(incInstructionLo, \
          sgpr("Srd%s+0"%(tc)), \
          sgpr("Srd%s+0"%(tc)), \
          incLower, \
-         "gra SRD %s= inc(lower)"%("+" if not tP["mirror"] else "-"))
+         "gra SRD %s= inc(lower)"%("+" if not isMirrorUnrolledIdx else "-"))
     kStr += inst(incInstructionHi, \
          sgpr("Srd%s+1"%(tc)), \
          sgpr("Srd%s+1"%(tc)), \
          incUpper, \
-         "gra SRD %s= inc(upper)"%("+" if not tP["mirror"] else "-"))
+         "gra SRD %s= inc(upper)"%("+" if not isMirrorUnrolledIdx else "-"))
 
     # also have to move the boundary since we change the base
     # so less buffers to the edge:
-    limitInstructtionLo = "s_sub_u32" if not tP["mirror"] else "s_add_u32"
-    limitInstructionHi = "s_subb_u32" if not tP["mirror"] else "s_addc_u32"
-    limitComment = "limit %s= inc)"%("-" if not tP["mirror"] else "+")
+    limitInstructtionLo = "s_sub_u32" if not isMirrorUnrolledIdx else "s_add_u32"
+    limitInstructionHi = "s_subb_u32" if not isMirrorUnrolledIdx else "s_addc_u32"
+    limitComment = "limit %s= inc)"%("-" if not isMirrorUnrolledIdx else "+")
     if self.use64bShadowLimit:
       kStr += inst(limitInstructtionLo, \
           sgpr("ShadowLimit%s+0"%tc), \
@@ -6230,6 +6239,9 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
 
+    isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] in kernel["ProblemType"]["MirrorDims%s" % tc] \
+        if loopIdx == self.unrollIdx else False
+
     imod.addComment1("global read inc %s loop%s"%(tc,loopChar))
 
     if kernel["BufferLoad"]:
@@ -6252,7 +6264,7 @@ class KernelWriterAssembly(KernelWriter):
                     "incLower <- ?")
         imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0,
                     "incUpper <- ?")
-        imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
+        imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True, isMirrorUnrolledIdx=isMirrorUnrolledIdx))
       else:
         if loopIdx != self.unrollIdx:
           incUpper = sgpr(self.getTmpSgpr(1))
@@ -6260,7 +6272,7 @@ class KernelWriterAssembly(KernelWriter):
           imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
         else:
           incUpper = 0 # GRO is positive for loop unroll
-        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper))
+        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper, isMirrorUnrolledIdx=isMirrorUnrolledIdx))
     else:
       graIdx = 0
       #for perp in range(0, tP["nrp"]):

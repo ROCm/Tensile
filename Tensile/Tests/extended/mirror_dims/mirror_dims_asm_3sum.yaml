@@ -23,8 +23,8 @@ BenchmarkProblems:
     DestDataType: s
     UseBeta: False
     NumIndicesC: 2
-    IndexAssignmentsA: [ 0, 2, 3 ]
-    IndexAssignmentsB: [ 3, 2, 1 ]
+    IndexAssignmentsA: [ 0, 2, 3, 4 ]
+    IndexAssignmentsB: [ 4, 3, 2, 1 ]
     MirrorDimsA: [ 2 ]
     MirrorDimsB: [ 2 ]
     UseInitialStridesAB: True
@@ -47,11 +47,11 @@ BenchmarkProblems:
         - [ 16, 16, 1 ]
       - DepthU: [4, 8, 16]
       - VectorWidth: [2,4]
-      - GlobalReadVectorWidth: [2,4]
+      - GlobalReadVectorWidth: [1,2,4]
     BenchmarkForkParameters:
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
       - ProblemSizes:
-        - Exact: [ 49, 100, 86, 4 ]
-        - Exact: [ 3, 5, 9, 4 ]
-        - Exact: [ 49, 100, 86, 22 ]
+        - Exact: [ 49, 100, 86, 4, 3 ]
+        - Exact: [ 3, 5, 9, 4, 7 ]
+        - Exact: [ 49, 100, 86, 22, 21 ]
