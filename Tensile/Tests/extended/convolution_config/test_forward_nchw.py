@@ -108,6 +108,10 @@ def test_nchw_const_use_initial_strides(tensile_state, run_convolution_level):
 
 @pytest.mark.parametrize("unrollOnChannel", [0, 1], ids=["unrollOnChannel0", "unrollOnChannel1"])
 def test_nchw_filter2x2(tensile_state, run_convolution_level, unrollOnChannel):
+    from YamlBuilder.YamlBuilder import Solutions
+    if unrollOnChannel == 0 and run_convolution_level.level >= 2 and run_convolution_level.solution in (Solutions.asm3_pbd, Solutions.asm3_splitu):
+        pytest.xfail()
+
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
               config={'TensorAFormat': 'NCHW',
@@ -127,11 +131,7 @@ def test_nchw_filter2x2(tensile_state, run_convolution_level, unrollOnChannel):
         assert(conv.solutionParms["AssertStrideBEqual"] == {0:1,4:0})
         assert(conv.solutionParms["AssertSizeEqual"] == {filterDims[0]:2, filterDims[1]:2})
 
-    if unrollOnChannel == 0 and run_convolution_level.level >= 2:
-        with pytest.raises(SystemExit):
-            run_convolution_level.func(conv, z, run_convolution_level.solution)
-    else:
-        run_convolution_level.func(conv, z, run_convolution_level.solution)
+    run_convolution_level.func(conv, z, run_convolution_level.solution)
 
 @pytest.mark.parametrize("problemSizes", [defaultSizes, resnetSizes, inceptionSizes])
 def test_nchw_filter2x1(tensile_state, run_convolution_level, problemSizes):
