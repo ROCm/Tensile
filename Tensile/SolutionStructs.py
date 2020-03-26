@@ -1603,7 +1603,7 @@ class Solution:
     self._name = None
 
   # these keys are copied from ProblemType to internal that may be overridden
-  InternalKeys = ["UseSgprForGRO"]
+  InternalKeys = ["UseSgprForGRO","VectorStore"]
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -1923,7 +1923,8 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minGrvw = 2 if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
+    minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
+                globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -1969,8 +1970,9 @@ class Solution:
       # end-- while loop
 
     if bestVw == -1:
-      #print "reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
-      # state["GlobalReadVectorWidth"]
+      if dbFract:
+        print ("reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
+         state["GlobalReadVectorWidth"])
       return False  # could not find a solution, perhaps only possible for half ?
 
     state["GlobalLoadVectorWidth%s"%tc] = bestVw
@@ -1997,7 +1999,7 @@ class Solution:
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
-      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+      print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used %s" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
              nlc, nlp, \
              nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
@@ -2034,6 +2036,9 @@ class Solution:
     for s in Solution.InternalKeys:
         state['_'+s] = state[s]
         #del state[s]
+
+    if state["VectorStore"] == -1:
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
@@ -2376,6 +2381,8 @@ class Solution:
               " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA)
         print("info: totalElementsCoalescedB=", totalElementsCoalescedB, \
               " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
+        print ("info", pvar(state, "VectorWidth"))
+                #, pvar(state, "GlobalLoadVectorWidthA"), pvar(state, "GlobalLoadVectorWidthB"))
 
       #if state["ProblemType"]["DataType"].isHalf() \
       #    and (state["GlobalLoadVectorWidthA"] == 1 \
@@ -2809,14 +2816,15 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["VectorStore"] and state["PackGranularity"]==2 \
+    if packedC0 and state["PackGranularity"]==2 \
         and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
-          reject(state, "packedC0 requires AF0EM>VectorWidth (for stores)")
-    if packedC1 and state["VectorStore"] and state["PackGranularity"]==2 \
-        and state["AssertFree1ElementMultiple"]<state["VectorWidth"]:
-          # Not sure if this is actually required??
-          reject(state, "packedC1 requires AF1EM>VectorWidth (for stores)")
-
+          if state["KernelLanguage"] == "Source":
+              reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
+          else:
+            if state["VectorStore"] <= 0:
+              state["_VectorStore"] = 0
+            else:
+              reject(state, "packedC0 Assembly requires AF0EM>VectorWidth or not VectorStore (for stores)")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:
