@@ -2817,16 +2817,17 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["PackGranularity"]==2 \
-        and (state["AssertFree0ElementMultiple"]<state["VectorWidth"] \
-        or state["AssertFree0ElementMultiple"] == 1):
-          if state["KernelLanguage"] == "Source":
-              reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
-          else:
+    if packedC0 and state["PackGranularity"]==2:
+      if state["KernelLanguage"] == "Source":
+        if state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
+          reject(state, "packedC0 Source requires AF0EM>=VectorWidth (for loads and stores)")
+      else:
+        if state["AssertFree0ElementMultiple"]<state["VectorWidth"]\
+          or state["AssertFree0ElementMultiple"] == 1:
             if state["VectorStore"] <= 0:
               state["_VectorStore"] = 0
             else:
-              reject(state, "packedC0 Assembly requires AF0EM>VectorWidth or not VectorStore (for stores)")
+              reject(state, "packedC0 Assembly requires AF0EM>=VectorWidth or not VectorStore (for stores)")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:
