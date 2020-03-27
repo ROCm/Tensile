@@ -71,6 +71,9 @@ def configMarks(filepath, rootDir, availableArchs):
         ArchFail = "xfail-%s" % arch
         if markNamed(ArchFail) in marks:
             marks.append(pytest.mark.xfail)
+        ArchSkip = "skip-%s" % arch
+        if markNamed(ArchSkip) in marks:
+            marks.append(pytest.mark.skip)
 
     validate = True
     validateAll = False

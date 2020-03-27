@@ -232,6 +232,7 @@ namespace Tensile
             bool m_cEqualsD;
             bool m_convolutionVsContraction;
 
+            int m_elementsToValidate = 0;
 
             /// If true, we will allocate an extra copy of the inputs on the GPU.
             /// This will improve performance as we don't have to copy from the CPU

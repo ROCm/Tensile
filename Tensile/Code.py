@@ -162,7 +162,9 @@ class Module(Item):
       else:
         flatitems.append(i)
     return flatitems
-
+   
+  def addTempVgpr(self, vgpr):
+    self.tempVgpr = vgpr
 
 class StructuredModule(Module):
   def __init__(self, name=None):

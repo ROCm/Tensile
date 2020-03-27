@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -313,7 +313,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1],
+    "ScheduleIterAlg":             [0, 1, 2],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -675,9 +675,10 @@ validParameters = {
     # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-    # If False, store 1 element per instruction.
-    # If True, store vector-width elements per instruction.
-    "VectorStore":                    [False, True],
+    # If 0, store 1 element per instruction.
+    # If 1, store vector-width elements per instruction.
+    # if -1, store vector-wide elements per instruction unless PBD would not generate a valid kernel
+    "VectorStore":                    [-1, 0, 1],
 
     # Controls desired width (#elements) for stores from reg to global memory.
     # When MatrixInstruciton == None, derived parameter gwvw takes precedence.
@@ -747,7 +748,7 @@ validParameters = {
 
     # Group together unroll iterations inside the unroll loop.
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
-    "InnerUnroll":                [1,2,4],
+    "InnerUnroll":                [1,2,4,8,16,32,64],
 
     # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
     # 1 is default and results in no interleaving.
@@ -790,7 +791,7 @@ defaultBenchmarkCommonParameters = [
     {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"VectorStore":               [ True ] },
+    {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
@@ -1266,7 +1267,7 @@ def assignGlobalParameters( config ):
 
   print1("# Restoring default globalParameters")
   for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
+    globalParameters[key] = deepcopy(defaultGlobalParameters[key])
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -1361,9 +1362,9 @@ def assignGlobalParameters( config ):
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
-    destinationDictionary[key] = defaultDictionary[key]
+    destinationDictionary[key] = deepcopy(defaultDictionary[key])
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
