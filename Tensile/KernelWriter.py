@@ -144,9 +144,22 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.perIterGlobalReadCode[0].addCode(self.dtlsM0UpdateACode)
       # append 'n' global load at a time 
       # append global load(S) first 'number of global load(s) determined by  firstStep
-      for item in itemsToSched[:firstStep]:
-        self.perIterGlobalReadCode[0].addCode(item)
-      itemsToSched = itemsToSched[firstStep:]
+      # insert dtlsM0UpdateBCode for B loads if firstStep > #A loads
+      if firstStep > self.globalReadACode.middle.countType(Code.GlobalReadInst):
+         readACnt = self.globalReadACode.middle.countType(Code.GlobalReadInst)
+         for item in itemsToSched[:readACnt]:
+           self.perIterGlobalReadCode[0].addCode(item)
+         self.perIterGlobalReadCode[0].addCode(self.dtlsM0UpdateBCode) 
+         schedDtls = 1
+         itemsToSched = itemsToSched[readACnt:]
+         readACnt = firstStep - readACnt
+         for item in itemsToSched[:readACnt]:
+           self.perIterGlobalReadCode[0].addCode(item)
+         itemsToSched = itemsToSched[readACnt:]
+      else:
+         for item in itemsToSched[:firstStep]:
+           self.perIterGlobalReadCode[0].addCode(item)
+         itemsToSched = itemsToSched[firstStep:]
       for u in range(1, endIter):
         itemPerIter = 1
         try:

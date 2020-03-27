@@ -4096,7 +4096,6 @@ class KernelWriterAssembly(KernelWriter):
     elif tP["ruc"]:
       uVW = tP["glvw"]
       uVS = 1
-    instructionOffset = 0
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
     waveStartSgpr = self.getTmpSgpr(1)
     if not tP["tlu"]:
@@ -4269,17 +4268,6 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr(scalarGro), \
                   hex(log2(tP["bpe"])), \
                   "scalar offset *= bytes/element")
-              #For DirecToLDS Instruction subtract instruction offset from scalar offset
-              if (kernel["DirectToLds%s"%tc]):
-                ##instructionOffset = kernel[tP["lsp"]]*kernel[tP["lsc"]]*tP["bpe"]
-                instructionOffset += kernel["NumThreads"]*4
-                ldsPadOffset = ((instructionOffset)//256)*kernel["LdsPad%s"%tc]*tP["bpe"]
-                if kernel["UseInstOffsetForGRO"]:
-                  kStr += inst("s_sub_u32", \
-                      sgpr(scalarGro), \
-                      sgpr(scalarGro), \
-                      hex(instructionOffset+ldsPadOffset),\
-                      "scalar offset = scalar offset - instruction offset")
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
                 print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
@@ -4897,7 +4885,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(ldlOffsetVgpr)
 
     if tP["isB"]:
-      if kernel["DirectToLdsB"] and kernel["MatrixInstruction"] :
+      if kernel["TransposeLDS"] and kernel["DirectToLdsB"] and kernel["MatrixInstruction"] :
         kStr += inst("s_add_u32", \
             sgpr("LocalWriteAddrB"), \
             hex(kernel["LdsOffsetB"]*tP["bpe"]), \
@@ -4948,7 +4936,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["LocalWriteUseSgpr%s"%tc]:
       # TODO: Can refactor code above to Compute this directly:
-      if not kernel["MatrixInstruction"]:
+      if not kernel["TransposeLDS"]:
         kStr += inst("v_readfirstlane_b32", \
             sgpr("LocalWriteAddr%s"%tc), \
             vgpr(destVgpr), \
