@@ -4096,7 +4096,6 @@ class KernelWriterAssembly(KernelWriter):
     elif tP["ruc"]:
       uVW = tP["glvw"]
       uVS = 1
-    instructionOffset = 0
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
     waveStartSgpr = self.getTmpSgpr(1)
     if not tP["tlu"]:
