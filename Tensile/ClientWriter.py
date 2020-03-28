@@ -535,6 +535,12 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         if not globalParameters["KernelTime"]:
             param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])
+        param("perf-l2-read-hits",        globalParameters["PerfModelL2ReadHits"])
+        param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
+        param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
+        param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
+        param("perf-ops-per-cycle",       globalParameters["PerfModelOpsPerCycle"])
+
 
 
 ################################################################################

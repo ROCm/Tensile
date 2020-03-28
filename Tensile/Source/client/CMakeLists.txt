@@ -12,6 +12,7 @@ set(client_sources
     source/HardwareMonitor.cpp
     source/HardwareMonitorListener.cpp
     source/MetaRunListener.cpp
+    source/PerformanceReporter.cpp
     source/ProgressListener.cpp
     source/Reference.cpp
     source/ReferenceValidator.cpp

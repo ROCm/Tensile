@@ -93,22 +93,22 @@ namespace Tensile
 
             const std::string MemReadBytes   = "mem-read-bytes";
             const std::string MemWriteBytes  = "mem-write-bytes";
-            const std::string MemReadUs  = "mem-read-us";
-            const std::string MemWriteUs = "mem-write-us";
-            const std::string AluUs      = "alu-us";
             const std::string Empty          = "empty";
+            const std::string Efficiency     = "efficiency";
+            const std::string NumCus         = "num-cus";
 
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
             const std::string ClockRateSys        = "clock-sys";
             const std::string ClockRateSOC        = "clock-soc";
             const std::string ClockRateMem        = "clock-mem";
+            const std::string DeviceIndex         = "device-idx";
             const std::string FanSpeedRPMs        = "fan-rpm";
             const std::string HardwareSampleCount = "hardware-samples";
         };
-
+        
         class ResultReporter: public RunListener
-        {
+        { 
         public:
             /**
              * Reports the value for a key, related to the current state of the run.
@@ -213,5 +213,6 @@ namespace Tensile
                 return 0;
             }
         };
+
     }
 }

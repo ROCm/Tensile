@@ -21,8 +21,9 @@
 
 #pragma once
 
-#include <memory>
 #include <cstddef>
+#include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -34,7 +35,22 @@
 
 namespace Tensile
 {
-
+    struct PerfModel
+    {
+        double clock = std::numeric_limits<double>::quiet_NaN(); 
+        double memClock = std::numeric_limits<double>::quiet_NaN(); 
+        double peakGFlops = std::numeric_limits<double>::quiet_NaN(); 
+        double efficiency = std::numeric_limits<double>::quiet_NaN(); 
+        double memBandwidthMBps= std::numeric_limits<double>::quiet_NaN(); 
+        double l2ReadBwMul= std::numeric_limits<double>::quiet_NaN();
+        double gFlops= std::numeric_limits<double>::quiet_NaN();
+        int    opsPerCycle = std::numeric_limits<int>::quiet_NaN(); 
+        double readEff=0.0;
+        double l2ReadHitRate=0.0;
+        double l2WriteHitRate=0.0;
+        double CUs=0.0;
+    } perf;
+    
     /**
      * Represents a single kernel or set of kernels that can perform a single
      * tensor contraction.
@@ -54,7 +70,7 @@ namespace Tensile
         virtual std::string KernelName() const { return kernelName; }
         virtual std::string name() const { return kernelName; }
         virtual std::string description() const { return kernelName; }
-
+        
         bool isSourceKernel() const;
 
         //! Estimates based on problem size, solution tile, and  machine hardware charz:
@@ -65,12 +81,15 @@ namespace Tensile
           size_t memReadBytesC=0.0; //! Estimated memory reads C
           size_t memWriteBytesD=0.0; //! Estimated memory writes D
           size_t memReadBytes=0.0;
+          size_t memGlobalReads=0;
+          size_t memGlobalWrites=0;
 
           //! Times in US
           double aluUs=0.0; //! Estimated alu cycles
           double memReadUs=0.0; //! Estimated memory read cycles
           double memWriteUs=0.0; //! Estimated memory write cycles
-        };
+        
+         };
 
         struct ProjectedPerformance
         {
@@ -86,11 +105,12 @@ namespace Tensile
           double totalGranularity=0.0;
 
           double speedGFlops=0.0; //! final gflops projection
-
+          double efficiency=0.0;
+          double CUs=0.0;
+          
           StaticPerformanceModel staticModel;
         };
-
-
+        
         StaticPerformanceModel staticPerformanceModel
           (double M, double N, double K, double NumBatches,  double MT0, double MT1, 
            double NumCUs, double totalGranularity, int globalSplitU) const;

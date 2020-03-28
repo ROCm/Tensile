@@ -43,6 +43,7 @@
 
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 #include "ResultFileReporter.hpp"
 
@@ -144,6 +145,12 @@ namespace Tensile
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
 
+                ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
+                ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
+                ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
+                ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
+                ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
+                
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
 
@@ -380,6 +387,9 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
+    reporters->addReporter(PerformanceReporter::Default(args));
+    
+    //PerformanceReporter needs to be called before these two, or else values will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
 

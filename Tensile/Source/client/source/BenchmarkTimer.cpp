@@ -25,6 +25,7 @@
  *******************************************************************************/
 
 #include "BenchmarkTimer.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 
 #include "Reference.hpp"
@@ -81,28 +82,21 @@ namespace Tensile
         {
             m_numEnqueuesInSolution = 0;
             m_timeInSolution = double_millis::zero();
-
+            
             ContractionSolution::ProjectedPerformance pp =
               solution.projectedPerformance(m_problem, m_hardware);
-
+            m_solution = solution;        
+    
             m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
             m_reporter->report(ResultKey::Tile1Granularity, pp.tile1Granularity);
             m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
             m_reporter->report(ResultKey::WaveGranularity, pp.waveGranularity);
             m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
-
+            
+            m_reporter->report(ResultKey::NumCus, perf.CUs);
             m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
-
-            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
-
-            m_reporter->report(ResultKey::AluUs, pp.staticModel.aluUs);
-            m_reporter->report(ResultKey::MemReadUs, pp.staticModel.memReadUs);
-            m_reporter->report(ResultKey::MemWriteUs, pp.staticModel.memWriteUs);
-
             m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
             m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
-
-            // TODO-perfcounter - add memory global reads and writes from performance counter
         }
 
         void BenchmarkTimer::postSolution()
@@ -111,6 +105,9 @@ namespace Tensile
 
             double gflops = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
             uint64_t gflopsUint = static_cast<uint64_t> (round(gflops));
+            
+            ContractionSolution::ProjectedPerformance pp =
+              m_solution.projectedPerformance(m_problem, m_hardware);
 
             m_reporter->report(ResultKey::TimeUS,      timePerEnqueue_us);
             if (gflopsUint)
@@ -120,7 +117,8 @@ namespace Tensile
 
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
-
+            
+            m_reporter->report(ResultKey::Efficiency, perf.efficiency);
         }
 
         bool BenchmarkTimer::needMoreRunsInSolution() const
