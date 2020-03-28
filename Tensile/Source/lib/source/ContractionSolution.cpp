@@ -694,7 +694,7 @@ namespace Tensile
         spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
         spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
 
-        double flops = l2ReadBwMultiplier*NumBatches*M*N*K;
+        double flops = 2.0*l2ReadBwMultiplier*NumBatches*M*N*K;
         spm.aluUs = flops/(peakMFlops*TotalGranularity);
 
         return spm;
