@@ -92,12 +92,11 @@ namespace Tensile
             m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
             m_reporter->report(ResultKey::WaveGranularity, pp.waveGranularity);
             m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
-            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
             
+            m_reporter->report(ResultKey::NumCus, perf.CUs);
+            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
             m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
             m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
-            m_reporter->report(ResultKey::MemGlobalReads, pp.staticModel.memGlobalReads);
-            m_reporter->report(ResultKey::MemGlobalWrites, pp.staticModel.memGlobalWrites);
         }
 
         void BenchmarkTimer::postSolution()
@@ -119,12 +118,7 @@ namespace Tensile
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
             
-            m_reporter->report(ResultKey::PeakGFlops, perf.peakGFlops);
             m_reporter->report(ResultKey::Efficiency, perf.efficiency);
-            m_reporter->report(ResultKey::L2BandwidthMBps, perf.memBandwidthMBps*perf.readMul);
-            m_reporter->report(ResultKey::AluUs, pp.staticModel.aluUs);
-            m_reporter->report(ResultKey::MemReadUs, pp.staticModel.memReadUs);
-            m_reporter->report(ResultKey::MemWriteUs, pp.staticModel.memWriteUs);
         }
 
         bool BenchmarkTimer::needMoreRunsInSolution() const

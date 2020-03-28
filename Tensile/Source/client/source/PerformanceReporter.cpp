@@ -41,24 +41,26 @@ namespace Tensile
             int     deviceIndex = args["device-idx"].as<int>();
             double  l2ReadHits = args["perf-l2-read-hits"].as<double>();
             double  l2WriteHits = args["perf-l2-write-hits"].as<double>();
+            double  l2ReadBwMultiplier = args["perf-l2-read-bw-mul"].as<double>();
             double  readEff = args["perf-read-efficiency"].as<double>();
-            bool    mfma = args["perf-mfma"].as<bool>();
+            int     opsPerCycle = args["perf-ops-per-cycle"].as<int>();
  
-            return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, readEff, mfma);
+            return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff, opsPerCycle);
         }
         
-        PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma)
+        PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff, int opsPerCycle)
         {
             hipGetDeviceProperties(&m_props, deviceIndex);
             setNumCUs();
             setMemoryBusWidth();
-            setPerfModel(l2ReadHits, l2WriteHits, readEff, mfma);
-            setMagicNum();
+            setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff, opsPerCycle);
             m_deviceProps = true;
             
             perf.l2ReadHitRate = getL2ReadHits();
             perf.l2WriteHitRate = getL2WriteHits();
+            perf.l2ReadBwMul = getL2ReadBwMultiplier();
             perf.readEff = getReadEff();
+            perf.opsPerCycle = getOpsPerCycle();
             perf.CUs = getNumCUs();
         }
         
@@ -74,20 +76,11 @@ namespace Tensile
         {
             if(key == ResultKey::ClockRateSys && m_deviceProps)
             {
-                m_clockMhz = value;
-                perf.clock = getClock();
-            }
-            if(!std::isnan(m_clockMhz) && m_deviceProps)
-            {
-                m_peakGFlops = getNumCUs()*getMagicNum()*getReadMultiplier()*m_clockMhz/1000;
-                perf.peakGFlops = getPeakGFlops();
+                setClockMhz(value);
             }
             if(key == ResultKey::ClockRateMem && m_deviceProps)
             {
-                m_memClockMhz = value;
-                perf.memClock = getMemClock();
-                m_memBandwidthMBps = m_memoryBusWidth*m_memClockMhz;
-                perf.memBandwidthMBps = getMemBandwidthMBps();
+                setMemClockMhz(value);
             }
             if(key == ResultKey::SpeedGFlops && m_deviceProps) 
             {
@@ -100,26 +93,50 @@ namespace Tensile
         {
             if(key == ResultKey::SpeedGFlops && m_deviceProps)
             {
-                m_gFlops = (double)value;
-                if(!std::isnan(m_peakGFlops) && m_deviceProps)
-                {
-                    m_eff = 100*m_gFlops/m_peakGFlops;
-                    perf.efficiency = getEfficiency();
-                }
+                setEfficiency(value);
             }
         }
 
-        void PerformanceReporter::preProblem(ContractionProblem const& problem) 
+        void PerformanceReporter::setClockMhz(double value)
         {
-            int dataEnum = (int)problem.a().dataType();
-            std::unordered_map<int,double> readMulMap = {{0,2},{1,1},{2,1},{3,0.5}, {4,4}, {5,8}, {6,2}, {7,4}};
-
-            for(std::unordered_map<int,double>::iterator it=readMulMap.begin(); it != readMulMap.end(); it++)
-            {
-                if(it->first == dataEnum) m_readMul = it->second;
-            }
+            m_clockMhz = value;
+            perf.clock = getClockMhz();
             
-            perf.readMul = getReadMultiplier();
+            if(!std::isnan(m_clockMhz) && m_deviceProps)
+            {
+                setPeakGFlops();
+            }
+        }
+
+        void PerformanceReporter::setMemClockMhz(double value)
+        {
+            m_memClockMhz = value;
+            perf.memClock = getMemClockMhz();
+            setMemBandwidthMBps();
+        }
+
+        void PerformanceReporter::setMemBandwidthMBps()
+        {
+            m_memBandwidthMBps = m_memoryBusWidth*m_memClockMhz;
+            perf.memBandwidthMBps = getMemBandwidthMBps();
+        }
+
+        void PerformanceReporter::setPeakGFlops()
+        {
+            m_peakGFlops = getNumCUs()*getOpsPerCycle()*getL2ReadBwMultiplier()*m_clockMhz/1000;
+            perf.peakGFlops = getPeakGFlops();
+        }
+
+        template <typename T>
+        void PerformanceReporter::setEfficiency(T value)
+        {
+            m_gFlops = (double)value;
+            if(!std::isnan(m_peakGFlops) && m_deviceProps)
+            {
+                m_eff = 100*m_gFlops/m_peakGFlops;
+                perf.efficiency = getEfficiency();
+            }
+
         }
 
         void PerformanceReporter::postSolution()  
@@ -131,12 +148,13 @@ namespace Tensile
             m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
         }
         
-        void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double readEff, bool mfma)
+        void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff, int opsPerCycle)
         {
             m_l2ReadHits = l2ReadHits;
             m_l2WriteHits = l2WriteHits;
+            m_l2ReadBwMul = l2ReadBwMultiplier;
             m_readEff = readEff;
-            m_mfma = mfma;
+            m_ops = opsPerCycle;
         }
         
         void PerformanceReporter::setNumCUs()
@@ -149,18 +167,11 @@ namespace Tensile
             m_memoryBusWidth = m_props.memoryBusWidth/1024;
         }
 
-        void PerformanceReporter::setMagicNum()
-        {
-            if(getMfma()) m_magicNum = 128;
-            else m_magicNum = 64;
-        }
-
         int     PerformanceReporter::getNumCUs(){return m_numCUs;}
-        int     PerformanceReporter::getMagicNum(){return m_magicNum;}
-        double  PerformanceReporter::getMemClock(){return m_memClockMhz;}
-        double  PerformanceReporter::getClock(){return m_clockMhz;}
-        bool    PerformanceReporter::getMfma(){return m_mfma;}
-        double  PerformanceReporter::getReadMultiplier(){return m_readMul;}
+        int     PerformanceReporter::getOpsPerCycle(){return m_ops;}
+        double  PerformanceReporter::getMemClockMhz(){return m_memClockMhz;}
+        double  PerformanceReporter::getClockMhz(){return m_clockMhz;}
+        double  PerformanceReporter::getL2ReadBwMultiplier(){return m_l2ReadBwMul;}
         double  PerformanceReporter::getPeakGFlops(){return m_peakGFlops;}
         double  PerformanceReporter::getL2ReadHits(){return m_l2ReadHits;}
         double  PerformanceReporter::getL2WriteHits(){return m_l2WriteHits;}
@@ -171,6 +182,7 @@ namespace Tensile
         void    PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
         void    PerformanceReporter::reportValue_string(std::string const& key, std::string const& value) {}
         void    PerformanceReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) {}
+        void    PerformanceReporter::preProblem(ContractionProblem const& problem) {}
         void    PerformanceReporter::preSolution(ContractionSolution const& solution) {}
         void    PerformanceReporter::finalizeReport() {}
 

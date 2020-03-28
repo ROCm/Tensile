@@ -42,8 +42,9 @@ namespace Tensile
         double peakGFlops = std::numeric_limits<double>::quiet_NaN(); 
         double efficiency = std::numeric_limits<double>::quiet_NaN(); 
         double memBandwidthMBps= std::numeric_limits<double>::quiet_NaN(); 
-        double readMul= std::numeric_limits<double>::quiet_NaN();
+        double l2ReadBwMul= std::numeric_limits<double>::quiet_NaN();
         double gFlops= std::numeric_limits<double>::quiet_NaN();
+        int    opsPerCycle = std::numeric_limits<int>::quiet_NaN(); 
         double readEff=0.0;
         double l2ReadHitRate=0.0;
         double l2WriteHitRate=0.0;
