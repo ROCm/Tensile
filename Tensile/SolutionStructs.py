@@ -2813,8 +2813,7 @@ class Solution:
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
     if packedC0 and state["PackGranularity"]==2 \
-        and (state["AssertFree0ElementMultiple"]<state["VectorWidth"] \
-        or state["AssertFree0ElementMultiple"] == 1):
+        and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
           if state["KernelLanguage"] == "Source":
               reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
           else:
