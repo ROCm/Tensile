@@ -50,7 +50,7 @@ namespace Tensile
     
             static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
         
-            PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
+            PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff, int opsPerCycle);
 
             virtual void reportValue_int(std::string const& key, int64_t value) override;
             
@@ -64,17 +64,21 @@ namespace Tensile
 
             virtual void postSolution() override;
             
-            void    setPerfModel(double l2ReadHits, double l2WriteHits, double readEff, bool mfma);
+            void    setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMul, double readEff, int opsPerCycle);
             void    setNumCUs();
             void    setMemoryBusWidth();
-            void    setMagicNum();
+            void    setClockMhz(double value);
+            void    setMemClockMhz(double value);
+            void    setMemBandwidthMBps();
+            void    setPeakGFlops();
+            template <typename T> void setEfficiency(T value);
 
             int     getNumCUs();
             int     getMagicNum();
-            double  getMemClock();
-            double  getClock();
-            bool    getMfma();
-            double  getReadMultiplier();
+            double  getMemClockMhz();
+            double  getClockMhz();
+            int     getOpsPerCycle();
+            double  getL2ReadBwMultiplier();
             double  getL2ReadHits();
             double  getL2WriteHits();
             double  getReadEff();
@@ -95,16 +99,15 @@ namespace Tensile
             double  m_gFlops = std::numeric_limits<double>::quiet_NaN();
             double  m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
             double  m_eff;
-            int     m_magicNum;
+            int     m_ops;
             int     m_numCUs;
             int     m_memoryBusWidth;
             bool    m_deviceProps = false;
             double  m_l2ReadHits;
             double  m_l2WriteHits;
+            double  m_l2ReadBwMul;
             double  m_readEff;
-            double  m_readMul;
             double  m_memBandwidthMBps;
-            bool    m_mfma;
         };
     }
 }

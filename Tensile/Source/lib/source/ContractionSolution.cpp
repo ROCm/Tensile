@@ -663,17 +663,11 @@ namespace Tensile
         auto cInfo = DataTypeInfo::Get(problemType.cType);
         auto dInfo = DataTypeInfo::Get(problemType.dType);
 
-        double readMultiplier = perf.readMul;
+        double l2ReadBwMultiplier = perf.l2ReadBwMul;
         spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * aInfo.elementSize;
         spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * bInfo.elementSize;
         spm.memReadBytesC = (NumBatches*M*N) * betaReads * cInfo.elementSize;
-#if 0
-        spm.memReadBytesB = (M*N*K)/MT0 * TypeInfo<typename TypedInputs::BType>::ElementSize();
-        //if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
-        //spm.memReadBytesC = (M*N) *TypeInfo<typename TypedInputs::CType>::ElementSize();
-        spm.memWriteBytesD   = (M*N) *TypeInfo<typename TypedInputs::DType>::ElementSize();
-#endif
-
+        
         if (GlobalSplitU == 1)
             spm.memWriteBytesD   = (NumBatches*M*N)*(1+betaWrites)*dInfo.elementSize;
         else
@@ -693,13 +687,13 @@ namespace Tensile
         double frequency = perf.clock;
         double memFrequency = perf.memClock;
         double memBandwidthMBps = perf.memBandwidthMBps;
-        double l2BandwidthMBps = perf.memBandwidthMBps*perf.readMul;        
+        double l2BandwidthMBps = perf.memBandwidthMBps*perf.l2ReadBwMul;        
         double peakMFlops = perf.peakGFlops*1000.0;
-        
+ 
         spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
         spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
 
-        double flops = readMultiplier*NumBatches*M*N*K;
+        double flops = l2ReadBwMultiplier*NumBatches*M*N*K;
         spm.aluUs = flops/(peakMFlops*TotalGranularity);
 
         return spm;
