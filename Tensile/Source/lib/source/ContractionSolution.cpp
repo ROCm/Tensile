@@ -639,7 +639,8 @@ namespace Tensile
          double NumCUs, double TotalGranularity, int GlobalSplitU) const
     {
         StaticPerformanceModel spm;
-        double beta = 0.0; // TODO-model - base on input value
+        
+        int beta = (int)problemType.useBeta;
         int betaReads=0, betaWrites=0;
         if (GlobalSplitU==1)
         {
@@ -662,7 +663,7 @@ namespace Tensile
         auto bInfo = DataTypeInfo::Get(problemType.bType);
         auto cInfo = DataTypeInfo::Get(problemType.cType);
         auto dInfo = DataTypeInfo::Get(problemType.dType);
-
+        
         double l2ReadBwMultiplier = perf.l2ReadBwMul;
         spm.memReadBytesA = (NumBatches*M*N*K)/MT1 * aInfo.elementSize;
         spm.memReadBytesB = (NumBatches*M*N*K)/MT0 * bInfo.elementSize;
