@@ -2831,7 +2831,8 @@ class Solution:
             else:
               reject(state, "packedC0 Assembly requires AF0EM>=VectorWidth or not VectorStore (for stores)")
 
-    if problemType["UseInitialStridesCD"]:
+    if state["AssertStrideCEqual"].get(0,-1) != 1 or state["AssertStrideDEqual"].get(0,-1) != 1:
+      # Disable vector stores if not allowed:
       if state["VectorStore"] <= 0:
         state["_VectorStore"] = 0
       else:
