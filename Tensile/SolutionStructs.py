@@ -510,7 +510,6 @@ class Convolution:
             {problemTypeOut["IndexAssignmentsB"].index(s[0]) : s[1] for s in strideb}
     problemTypeOut["SetConstStrideB"] = strideb
 
-
     self.solutionParms["AssertSizeEqual"] = {regDim.idx:regDim.dim.size for regDim in self.indexAssignments if regDim.dim.size != -1}
 
     if self.solutionParms["AssertStrideAEqual"].get(0,-1) == 1 and \
@@ -2089,6 +2088,10 @@ class Solution:
       for (tc) in ('A','B'):
         state["AssertStride%sEqual"%tc][0]=1
 
+    if not problemType["UseInitialStridesCD"]:
+      for (tc) in ('C','D'):
+        state["AssertStride%sEqual"%tc][0]=1
+
     # Add AssertStride*Equal for PackBatchDims, if needed
     for (mask, tc) in ((0x1,'B'), (0x2,'A')):
       if state["PackBatchDims"] & mask:
@@ -2444,7 +2447,7 @@ class Solution:
        or bool(problemType["ZeroPadA"]) or bool(problemType["ZeroPadB"]):
         # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
         # problems that require tail loop.
-        if state["DepthU"] %  state["AssertSummationElementMultiple"] != 0:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
           reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
         else:
           state["AssertSummationElementMultiple"] = state["DepthU"]

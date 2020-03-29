@@ -494,6 +494,9 @@ validParameters = {
 
     "AssertStrideBEqual":  -1,
 
+    "AssertStrideCEqual":  -1,
+    "AssertStrideDEqual":  -1,
+
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
@@ -848,6 +851,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertMinApproxSize":        [ -1 ] },
     {"AssertStrideAEqual":        [ {} ] },
     {"AssertStrideBEqual":        [ {} ] },
+    {"AssertStrideCEqual":        [ {} ] },
+    {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
