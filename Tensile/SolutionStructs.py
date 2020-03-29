@@ -2828,6 +2828,12 @@ class Solution:
             else:
               reject(state, "packedC0 Assembly requires AF0EM>=VectorWidth or not VectorStore (for stores)")
 
+    if problemType["UseInitialStridesCD"]:
+      if state["VectorStore"] <= 0:
+        state["_VectorStore"] = 0
+      else:
+        reject(state, "UseInitialStridesCD requires not VectorStore since store locations not adjacent")
+
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:
     #   - don't allocate VGPRs for multiple perp/pad cases
