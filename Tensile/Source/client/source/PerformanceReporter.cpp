@@ -94,11 +94,7 @@ namespace Tensile
         {
             m_clockMhz = value;
             perf.clock = getClockMhz();
-            
-            if(!std::isnan(m_clockMhz) && m_deviceProps)
-            {
-                setPeakGFlops();
-            }
+            setPeakGFlops();
         }
 
         void PerformanceReporter::setMemClockMhz(double value)
