@@ -117,8 +117,6 @@ namespace Tensile
 
             m_timeInSolution = double_millis::zero();
             m_numEnqueuesInSolution = 0;
-            
-            m_reporter->report(ResultKey::Efficiency, perf.efficiency);
         }
 
         bool BenchmarkTimer::needMoreRunsInSolution() const
