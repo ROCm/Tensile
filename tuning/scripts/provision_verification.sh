@@ -28,7 +28,7 @@ function provision_rocblas() {
 }
 
 
-HELP_STR="usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <githup tag>] [-l|--library <gpu library>] [-n|--no-massage]  [--rocblas-fork <username>] [-h|--help]"
+HELP_STR="usage: ./provision_verification.sh [-w|--working-path <path>] [-r <Tensile reference>] [-b|--branch <branch>] [-c | --commit <github commit id>] [-t|--tag <githup tag>] [-l|--library <gpu library>] [-n|--no-merge] [--no-massage]  [--rocblas-fork <username>] [-h|--help]"
 
 HELP=false
 ROCBLAS_BRANCH='develop'
