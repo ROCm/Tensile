@@ -4096,31 +4096,16 @@ class KernelWriterAssembly(KernelWriter):
     elif tP["ruc"]:
       uVW = tP["glvw"]
       uVS = 1
-    instructionOffset = 0
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
     waveStartSgpr = self.getTmpSgpr(1)
     if not tP["tlu"]:
       if kernel["TransposeLDS"]:
-        # add wave starting offset to Offset0I(A), Offset1J(B) registers
-        if tP["grcg"]:
-          if tP["grcv"]:
-            PerpName = tP["lvp"]
-          else:
-            # Fractional load use the more accurate lsc, multiply by VW later
-            PerpName = tP["lsp"]
-        else:
-          if tP["grcv"]:
-            PerpName = tP["lvc"]
-          else:
-            PerpName = tP["lsc"]
-        numPerpElementsPerLoad = kernel[PerpName]
-        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad if not kernel["DirectToLds%s"%tP["tensorChar"]] else numPerpElementsPerLoad
+        numPerpElementsPerLoad = kernel[tP["lsp"]] // (kernel["NumThreads"] // globalParameters["WavefrontWidth"]) 
+        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
         assert(numPerpElementsPerWave>0)
         #calculate numberofLoads
         if not kernel["DirectToLds%s"%tP["tensorChar"]]:
-          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"")
-        #strideF = "Stride%s%s"%(tc,self.indexChars[tP['idx']])
-        #kStr += inst("s_mul_i32", sgpr(waveStartSgpr), sgpr(tmpSgpr), sgpr(strideF), "wave_start_offset = MT//4*(waveId)")
+          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"waveOffset = (%s//%s//%s)*%s" %(kernel[tP["lsp"]],kernel["NumThreads"],globalParameters["WavefrontWidth"],tP["nrp"]))
     graIdx = 0
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
@@ -4269,17 +4254,6 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr(scalarGro), \
                   hex(log2(tP["bpe"])), \
                   "scalar offset *= bytes/element")
-              #For DirecToLDS Instruction subtract instruction offset from scalar offset
-              if (kernel["DirectToLds%s"%tc]):
-                ##instructionOffset = kernel[tP["lsp"]]*kernel[tP["lsc"]]*tP["bpe"]
-                instructionOffset += kernel["NumThreads"]*4
-                ldsPadOffset = ((instructionOffset)//256)*kernel["LdsPad%s"%tc]*tP["bpe"]
-                if kernel["UseInstOffsetForGRO"]:
-                  kStr += inst("s_sub_u32", \
-                      sgpr(scalarGro), \
-                      sgpr(scalarGro), \
-                      hex(instructionOffset+ldsPadOffset),\
-                      "scalar offset = scalar offset - instruction offset")
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
                 print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
@@ -4803,24 +4777,25 @@ class KernelWriterAssembly(KernelWriter):
           ## calculate number lanes for insrting LDSPad
           if not kernel["LdsBlockSizePerPad"] == -1:
             divisorVal = log2(kernel["LdsBlockSizePerPad"]//(tP["glvw"]*tP["bpe"]))
-            kStr += inst("v_lshrrev_b32",\
-                vgpr(tmpVgpr1), \
-                divisorVal, \
-                vgpr(tmpVgpr), \
-                "")
-            #add PadBytes to write Offset
-            kStr += inst("v_mul_lo_u32", \
-                vgpr(tmpVgpr1),
-                (kernel["LdsPad%s"%tc]*tP["bpe"]), \
-                vgpr(tmpVgpr1), \
-                "")
-            #calcualte finale LwFo by adding DepthU dimenstion with LDSPad offset
-            kStr += inst("v_add_u32", \
-                vgpr(destVgpr), \
-                vgpr(tmpVgpr1), \
-                vgpr(destVgpr), \
-               "lwFO%s = (lwFO%s + LDSPAD)" \
-               % (tc,tc))
+            if divisorVal < 64 :  
+               kStr += inst("v_lshrrev_b32",\
+                   vgpr(tmpVgpr1), \
+                   divisorVal, \
+                   vgpr(tmpVgpr), \
+                   "")
+               #add PadBytes to write Offset
+               kStr += inst("v_mul_lo_u32", \
+                   vgpr(tmpVgpr1),
+                   (kernel["LdsPad%s"%tc]*tP["bpe"]), \
+                   vgpr(tmpVgpr1), \
+                   "")
+               #calcualte finale LwFo by adding DepthU dimenstion with LDSPad offset
+               kStr += inst("v_add_u32", \
+                   vgpr(destVgpr), \
+                   vgpr(tmpVgpr1), \
+                   vgpr(destVgpr), \
+                  "lwFO%s = (lwFO%s + LDSPAD)" \
+                  % (tc,tc))
         else:
           kStr += inst("s_mul_i32", \
               sgpr("LocalWriteAddr%s"%tc), \
@@ -4897,7 +4872,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(ldlOffsetVgpr)
 
     if tP["isB"]:
-      if kernel["DirectToLdsB"] and kernel["MatrixInstruction"] :
+      if kernel["TransposeLDS"] and kernel["DirectToLdsB"] and kernel["MatrixInstruction"] :
         kStr += inst("s_add_u32", \
             sgpr("LocalWriteAddrB"), \
             hex(kernel["LdsOffsetB"]*tP["bpe"]), \
@@ -4948,7 +4923,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["LocalWriteUseSgpr%s"%tc]:
       # TODO: Can refactor code above to Compute this directly:
-      if not kernel["MatrixInstruction"]:
+      if not kernel["TransposeLDS"]:
         kStr += inst("v_readfirstlane_b32", \
             sgpr("LocalWriteAddr%s"%tc), \
             vgpr(destVgpr), \
@@ -5105,24 +5080,28 @@ class KernelWriterAssembly(KernelWriter):
             kernel["DepthU"], \
             vgpr(tP["gpr"]["lro"]), \
             "")
-        if (kernel["LdsBlockSizePerPad"]//(kernel["DepthU"]*tP["bpe"]) > 1):
-          #Add pad for evry LdsBLockSizePerPad
-          kStr += inst("v_lshrrev_b32", \
-              vgpr(tmpVgprPadoffset), \
-              log2(kernel["LdsBlockSizePerPad"]//(kernel["DepthU"]*tP["bpe"])), \
-              vgpr(tP["gpr"]["lro"]), \
-              "")
-          kStr += inst("v_mul_lo_u32", \
-              vgpr(tmpVgprPadoffset), \
-              (kernel["LdsPad%s"%tc]*tP["bpe"]), \
-              vgpr(tmpVgprPadoffset), \
-              "")
-        else:
-          kStr += inst("v_mul_lo_u32", \
-              vgpr(tmpVgprPadoffset), \
-              (kernel["LdsPad%s"%tc]*tP["bpe"]), \
-              vgpr(tP["gpr"]["lro"]), \
-              "")
+        if (kernel["LdsBlockSizePerPad"] != -1):
+          padShiftFactor = kernel["LdsBlockSizePerPad"]//(kernel["DepthU"]*tP["bpe"])
+          if padShiftFactor > 1 :
+            #Add pad for evry LdsBLockSizePerPad
+            kStr += inst("v_lshrrev_b32", \
+                vgpr(tmpVgprPadoffset), \
+                log2(padShiftFactor), \
+                vgpr(tP["gpr"]["lro"]), \
+                "")
+            kStr += inst("v_mul_lo_u32", \
+                vgpr(tmpVgprPadoffset), \
+                (kernel["LdsPad%s"%tc]*tP["bpe"]), \
+                vgpr(tmpVgprPadoffset), \
+                "")
+          else:
+            #case blockSizePErPad <= depthU*bpe
+            padShiftFactor = (kernel["DepthU"]*tP["bpe"]) // kernel["LdsBlockSizePerPad"]
+            kStr += inst("v_mul_lo_u32", \
+                vgpr(tmpVgprPadoffset), \
+                (padShiftFactor*kernel["LdsPad%s"%tc]*tP["bpe"]), \
+                vgpr(tP["gpr"]["lro"]), \
+                "")
         kStr += inst("v_and_b32", \
             vgpr(tmpVgpr), \
             hex(globalParameters["WavefrontWidth"]-1), \
@@ -5170,19 +5149,7 @@ class KernelWriterAssembly(KernelWriter):
             "")
 
         if tc == "B": # For BBlocks, A and B use this case
-          #add perWave LDS base offset
-          if tP["grcg"]:
-            if tP["grcv"]:
-              PerpName = tP["lvp"]
-            else:
-              # Fractional load use the more accurate lsc, multiply by VW later
-              PerpName = tP["lsp"]
-          else:
-            if tP["grcv"]:
-              PerpName = tP["lvc"]
-            else:
-              PerpName = tP["lsc"]
-          numPerpElementsPerLoad = kernel[PerpName] if not kernel["DirectToLds%s"%tP["tensorChar"]] else  (globalParameters["WavefrontWidth"] * 4 // (kernel["DepthU"] * tP["bpe"])) 
+          numPerpElementsPerLoad = kernel[tP["lsp"]] // (kernel["NumThreads"] // globalParameters["WavefrontWidth"]) 
           numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
           assert(numPerpElementsPerWave>0)
           #calculate numberofLoads
@@ -7741,7 +7708,7 @@ class KernelWriterAssembly(KernelWriter):
                   InstructionTileOuput = (globalParameters["WavefrontWidth"] // kernel["MIWG0"] ) * (kernel["MatrixInstN"] // kernel["InstSplit"])
                 blockOffset = (InstructionTileOuput) * kernel["DepthU"] * tP["bpe"]
                 ldsPadOffset = (blockOffset//kernel["LdsBlockSizePerPad"])*kernel["LdsPad%s"%tc]*tP["bpe"]
-                offset = (blockOffset + ldsPadOffset)*rIdx + uIdx*kernel["MatrixInstK"]*tP["bpe"] + tP["localReadSwapByteOffset"]
+                offset = (blockOffset + ldsPadOffset)*rIdx + (uIdx)*kernel["MatrixInstK"]*tP["bpe"] + tP["localReadSwapByteOffset"]
                 paramList.append(offset)
             else:
               paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
@@ -8921,12 +8888,8 @@ class KernelWriterAssembly(KernelWriter):
     elements = []
     if kernel["MatrixInstruction"]:
       ##TODO remove and use VectorWidth once VW mapping of TT is done
-      fullVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
+      fullVw = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
       mfmaColStoreVw = 1 #TODO check can hardcode or not
-      elementsLoadedPerfullVw = kernel["NumThreads"]*fullVw
-      elementsLoadedPervw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
-      if elementsLoadedPervw > elementsLoadedPerfullVw:
-        fullVw = kernel["StoreVectorWidth"]
     else:
       fullVw = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
     fullVw = min(fullVw, self.maxGwvw(kernel))
@@ -8950,7 +8913,7 @@ class KernelWriterAssembly(KernelWriter):
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//mfmaColStoreVw)*numcolBlocksperInstruction)) :
         for vc1 in range(0, mfmaColStoreVw):
-          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//fullVw):
+          for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//kernel["StoreVectorWidth"]):
             for vc0 in range(0, kernel["StoreVectorWidth"], fullVw):
               element = (tt1, tt0, vc1, vc0)
               elements.append(element)
@@ -9268,7 +9231,10 @@ class KernelWriterAssembly(KernelWriter):
           # use same address vgpr for all
           addr = self.sharedColVgprs
         elif self.optSharedColVgpr:
-          elementCol = (d0*gwvw + vc0) / gwvw
+          if kernel["MatrixInstruction"]:
+            elementCol = (d0*kernel["StoreVectorWidth"] + vc0) / gwvw
+          else:
+            elementCol = (d0*gwvw + vc0) / gwvw
           assert (modf(elementCol)[0] < 0.001)
           elementCol = trunc(elementCol)
           addr = self.sharedColVgprs+elementCol
@@ -9624,14 +9590,14 @@ class KernelWriterAssembly(KernelWriter):
           sTmp2 = tmpS01+2
           # check conditions
           kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, 0, vgpr(self.coord1Vgpr), "coord1 & ~(vw-1)")
-          kStr += inst("v_bfi_b32", vgpr(vTmp2), vw-1, 0, sgpr("SizesFree+1"), "sizeFree1 & ~(vw-1)")
+          kStr += inst("v_bfi_b32", vgpr(vTmp2), vw-1, 0, sgpr("SizesFree+%u"%kw.tPB["idx"]), "sizeFree & ~(vw-1)")
           kStr += inst("v_cmp_eq_u32", sgpr(sTmp1,2), vgpr(vTmp1), vgpr(vTmp2), "if coord1 is in edge glvw")
-          kStr += inst("v_and_b32", vgpr(vTmp2), sgpr("SizesFree+1"), vw-1, "sizeFree1 mod VW")
+          kStr += inst("v_and_b32", vgpr(vTmp2), sgpr("SizesFree+%u"%kw.tPB["idx"]), vw-1, "sizeFree mod VW")
           kStr += inst("v_cmp_gt_u32", sgpr(sTmp2,2), vgpr(vTmp2), 0, "this problem is not multiple size of glvw")
           kStr += inst("s_and_b64", sgpr(sTmp1,2), sgpr(sTmp1,2), sgpr(sTmp2,2), "AND both conditions")
           # calculate new coord
           kStr += inst("v_add_u32", vgpr(vTmp1), vgpr(self.coord1Vgpr), vgpr(vTmp2), "shift coord1")
-          kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, vgpr(vTmp1), sgpr("SizesFree+1"), "new coord1 = (shift coord1 & (vw-1)) |  (sizeFree1 & ~(vw-1))")
+          kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, vgpr(vTmp1), sgpr("SizesFree+%u"%kw.tPB["idx"]), "new coord1 = (shift coord1 & (vw-1)) |  (sizeFree & ~(vw-1))")
           kStr += inst("v_sub_i32", vgpr(vTmp2), vgpr(vTmp1), vgpr(self.coord1Vgpr), "shift how many column")
           kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp1), \
                         sgpr(sTmp1,2), "set new coord1 if meet conditions" )
