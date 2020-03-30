@@ -539,7 +539,6 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
         param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
-        param("perf-ops-per-cycle",       globalParameters["PerfModelOpsPerCycle"])
 
 
 
