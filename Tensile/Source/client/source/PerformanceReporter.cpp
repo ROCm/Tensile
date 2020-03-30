@@ -43,24 +43,22 @@ namespace Tensile
             double  l2WriteHits = args["perf-l2-write-hits"].as<double>();
             double  l2ReadBwMultiplier = args["perf-l2-read-bw-mul"].as<double>();
             double  readEff = args["perf-read-efficiency"].as<double>();
-            int     opsPerCycle = args["perf-ops-per-cycle"].as<int>();
  
-            return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff, opsPerCycle);
+            return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
         }
         
-        PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff, int opsPerCycle)
+        PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff)
         {
             hipGetDeviceProperties(&m_props, deviceIndex);
             setNumCUs();
             setMemoryBusWidth();
-            setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff, opsPerCycle);
+            setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
             m_deviceProps = true;
             
             perf.l2ReadHitRate = getL2ReadHits();
             perf.l2WriteHitRate = getL2WriteHits();
             perf.l2ReadBwMul = getL2ReadBwMultiplier();
             perf.readEff = getReadEff();
-            perf.opsPerCycle = getOpsPerCycle();
             perf.CUs = getNumCUs();
         }
         
@@ -148,13 +146,13 @@ namespace Tensile
             m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
         }
         
-        void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff, int opsPerCycle)
+        void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff)
         {
             m_l2ReadHits = l2ReadHits;
             m_l2WriteHits = l2WriteHits;
             m_l2ReadBwMul = l2ReadBwMultiplier;
             m_readEff = readEff;
-            m_ops = opsPerCycle;
+            m_ops = 64;
         }
         
         void PerformanceReporter::setNumCUs()

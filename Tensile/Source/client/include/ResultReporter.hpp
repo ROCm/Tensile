@@ -103,7 +103,6 @@ namespace Tensile
             const std::string L2WriteHits           = "perf-l2-write-hits";
             const std::string L2ReadBwMul           = "perf-l2-read-bw-mul";
             const std::string L2BandwidthMBps       = "perf-l2-bandwidth-mbps";
-            const std::string OpsPerCycle           = "perf-ops-per-cycle";
 
             const std::string Empty                 = "empty";
             const std::string Efficiency            = "efficiency";
