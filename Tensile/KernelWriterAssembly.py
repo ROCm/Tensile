@@ -3896,24 +3896,12 @@ class KernelWriterAssembly(KernelWriter):
     waveStartSgpr = self.getTmpSgpr(1)
     if not tP["tlu"]:
       if kernel["TransposeLDS"]:
-        # add wave starting offset to Offset0I(A), Offset1J(B) registers
-        if tP["grcg"]:
-          if tP["grcv"]:
-            PerpName = tP["lvp"]
-          else:
-            # Fractional load use the more accurate lsc, multiply by VW later
-            PerpName = tP["lsp"]
-        else:
-          if tP["grcv"]:
-            PerpName = tP["lvc"]
-          else:
-            PerpName = tP["lsc"]
-        numPerpElementsPerLoad = kernel[PerpName]
-        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad if not kernel["DirectToLds%s"%tP["tensorChar"]] else numPerpElementsPerLoad
+        numPerpElementsPerLoad = kernel[tP["lsp"]] // (kernel["NumThreads"] // globalParameters["WavefrontWidth"]) 
+        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
         assert(numPerpElementsPerWave>0)
         #calculate numberofLoads
         if not kernel["DirectToLds%s"%tP["tensorChar"]]:
-          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"")
+          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"waveOffset = (%s//%s//%s)*%s" %(kernel[tP["lsp"]],kernel["NumThreads"],globalParameters["WavefrontWidth"],tP["nrp"]))
         if kernel["BufferLoad"]:
           if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]) and \
              not kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -4130,15 +4118,6 @@ class KernelWriterAssembly(KernelWriter):
       uVW = tP["glvw"]
       uVS = 1
     tmp = self.vgprPool.checkOut(3, "tmp", self.preventVgprOverflowDuringNewTile)
-    waveStartSgpr = self.getTmpSgpr(1)
-    if not tP["tlu"]:
-      if kernel["TransposeLDS"]:
-        numPerpElementsPerLoad = kernel[tP["lsp"]] // (kernel["NumThreads"] // globalParameters["WavefrontWidth"]) 
-        numPerpElementsPerWave = tP["nrp"]*numPerpElementsPerLoad
-        assert(numPerpElementsPerWave>0)
-        #calculate numberofLoads
-        if not kernel["DirectToLds%s"%tP["tensorChar"]]:
-          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"waveOffset = (%s//%s//%s)*%s" %(kernel[tP["lsp"]],kernel["NumThreads"],globalParameters["WavefrontWidth"],tP["nrp"]))
     graIdx = 0
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
