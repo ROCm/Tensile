@@ -108,7 +108,7 @@ namespace Tensile
             const std::string Empty                 = "empty";
             const std::string Efficiency            = "efficiency";
             const std::string NumCus                = "num-cus";
-            const std::string PeakGFlops            = "peak-gflops"
+            const std::string PeakGFlops            = "peak-gflops";
 
             // Hardware monitoring
             const std::string TempEdge              = "temp-edge";
