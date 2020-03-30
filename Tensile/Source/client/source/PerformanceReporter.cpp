@@ -54,7 +54,8 @@ namespace Tensile
             setMemoryBusWidth();
             setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
             m_deviceProps = true;
-            
+            m_ops = 64;
+ 
             perf.l2ReadHitRate = getL2ReadHits();
             perf.l2WriteHitRate = getL2WriteHits();
             perf.l2ReadBwMul = getL2ReadBwMultiplier();
@@ -64,13 +65,16 @@ namespace Tensile
         
         void PerformanceReporter::reportValue_uint(std::string const& key, uint64_t value) 
         {
-            if(key == ResultKey::SpeedGFlops && m_deviceProps) 
-            {
-                reportValue_numeric(key, value);
-            }
+            reportValue_numeric(key, value);
         }
 
         void PerformanceReporter::reportValue_double(std::string const& key, double value) 
+        {
+            reportValue_numeric(key, value);
+        }
+
+        template <typename T> 
+        void PerformanceReporter::reportValue_numeric(std::string const& key, T value)
         {
             if(key == ResultKey::ClockRateSys && m_deviceProps)
             {
@@ -80,15 +84,6 @@ namespace Tensile
             {
                 setMemClockMhz(value);
             }
-            if(key == ResultKey::SpeedGFlops && m_deviceProps) 
-            {
-                reportValue_numeric(key, value);
-            }
-        }
-
-        template <typename T> 
-        void PerformanceReporter::reportValue_numeric(std::string const& key, T value)
-        {
             if(key == ResultKey::SpeedGFlops && m_deviceProps)
             {
                 setEfficiency(value);
@@ -121,7 +116,7 @@ namespace Tensile
 
         void PerformanceReporter::setPeakGFlops()
         {
-            m_peakGFlops = getNumCUs()*getOpsPerCycle()*getL2ReadBwMultiplier()*m_clockMhz/1000;
+            m_peakGFlops = getNumCUs()*getL2ReadBwMultiplier()*getOpsPerCycle()*m_clockMhz/1000;
             perf.peakGFlops = getPeakGFlops();
         }
 
@@ -152,7 +147,6 @@ namespace Tensile
             m_l2WriteHits = l2WriteHits;
             m_l2ReadBwMul = l2ReadBwMultiplier;
             m_readEff = readEff;
-            m_ops = 64;
         }
         
         void PerformanceReporter::setNumCUs()
