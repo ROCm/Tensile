@@ -4,7 +4,7 @@ HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r|--referen
 HELP=false
 PLOT=true
 
-OPTS=`getopt -o hf:s:b:o:r:z:g:m:n --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma:,n -n '
+OPTS=`getopt -o hf:s:b:o:r:z:g:m:n --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma:,no-plot -n '
 parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
@@ -20,8 +20,8 @@ while true; do
     -z )                       LOG="$2"; shift 2;;
     -f )                       FREQ="$2"; shift 2;;
     -s )                       SZ="$2"; shift 2;;
-    -g | --gpu ) 	       GPU="$2"; shift 2;;
-    -m | --mfma )	       MFMA="$2"; shift 2;;
+    -g | --gpu ) 	           GPU="$2"; shift 2;;
+    -m | --mfma )	           MFMA="$2"; shift 2;;
     -n | --no-plot )           PLOT=false; shift;;
     -- ) shift; break ;;
     * ) break ;;
