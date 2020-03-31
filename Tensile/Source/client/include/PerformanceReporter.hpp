@@ -47,13 +47,13 @@ namespace Tensile
         class PerformanceReporter: public ResultReporter
         {
         public:
-    
+
             static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
-        
+
             PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff);
 
             virtual void reportValue_int(std::string const& key, int64_t value) override;
-            
+
             virtual void reportValue_uint(std::string const& key, uint64_t value) override;
 
             virtual void reportValue_double(std::string const& key, double value) override;
@@ -63,27 +63,22 @@ namespace Tensile
             virtual void preProblem(ContractionProblem const& problem) override;
 
             virtual void postSolution() override;
-            
+
             void    setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMul, double readEff);
             void    setNumCUs();
             void    setMemoryBusWidth();
             void    setClockMhz(double value);
             void    setMemClockMhz(double value);
             void    setMemBandwidthMBps();
-            void    setPeakGFlops();
-            template <typename T> void setEfficiency(T value);
 
             int     getNumCUs();
             int     getMagicNum();
             double  getMemClockMhz();
             double  getClockMhz();
-            int     getOpsPerCycle();
             double  getL2ReadBwMultiplier();
             double  getL2ReadHits();
             double  getL2WriteHits();
             double  getReadEff();
-            double  getEfficiency();
-            double  getPeakGFlops();
             double  getMemBandwidthMBps();
 
             template <typename T> void reportValue_numeric(std::string const& key, T value);
@@ -92,14 +87,11 @@ namespace Tensile
             void finalizeReport() override;
 
 
-        protected: 
+        protected:
             hipDeviceProp_t m_props;
             double  m_clockMhz = std::numeric_limits<double>::quiet_NaN();
             double  m_memClockMhz = std::numeric_limits<double>::quiet_NaN();
             double  m_gFlops = std::numeric_limits<double>::quiet_NaN();
-            double  m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
-            double  m_eff;
-            int     m_ops;
             int     m_numCUs;
             int     m_memoryBusWidth;
             bool    m_deviceProps = false;

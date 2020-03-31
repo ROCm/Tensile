@@ -40,15 +40,13 @@ namespace Tensile
         double clock = std::numeric_limits<double>::quiet_NaN(); 
         double memClock = std::numeric_limits<double>::quiet_NaN(); 
         double peakGFlops = std::numeric_limits<double>::quiet_NaN(); 
-        double efficiency = std::numeric_limits<double>::quiet_NaN(); 
         double memBandwidthMBps= std::numeric_limits<double>::quiet_NaN(); 
         double l2ReadBwMul= std::numeric_limits<double>::quiet_NaN();
         double gFlops= std::numeric_limits<double>::quiet_NaN();
-        int    opsPerCycle = std::numeric_limits<int>::quiet_NaN(); 
         double readEff=0.0;
         double l2ReadHitRate=0.0;
         double l2WriteHitRate=0.0;
-        double CUs=0.0;
+        int    CUs=0;
     } perf;
     
     /**
@@ -88,8 +86,8 @@ namespace Tensile
           double aluUs=0.0; //! Estimated alu cycles
           double memReadUs=0.0; //! Estimated memory read cycles
           double memWriteUs=0.0; //! Estimated memory write cycles
-        
-         };
+
+        };
 
         struct ProjectedPerformance
         {
@@ -105,14 +103,13 @@ namespace Tensile
           double totalGranularity=0.0;
 
           double speedGFlops=0.0; //! final gflops projection
-          double efficiency=0.0;
-          double CUs=0.0;
-          
+          int    CUs=0;
+
           StaticPerformanceModel staticModel;
         };
-        
+
         StaticPerformanceModel staticPerformanceModel
-          (double M, double N, double K, double NumBatches,  double MT0, double MT1, 
+          (double M, double N, double K, double NumBatches,  double MT0, double MT1,
            double NumCUs, double totalGranularity, int globalSplitU) const;
 
         /**
