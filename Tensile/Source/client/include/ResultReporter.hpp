@@ -93,11 +93,8 @@ namespace Tensile
 
             const std::string MemReadBytes          = "mem-read-bytes";
             const std::string MemWriteBytes         = "mem-write-bytes";
-            const std::string MemReadUs             = "mem-read-us";
-            const std::string MemWriteUs            = "mem-write-us";
             const std::string MemGlobalReads        = "mem-global-reads";
             const std::string MemGlobalWrites       = "mem-global-writes";
-            const std::string AluUs                 = "alu-us";
 
             const std::string L2ReadHits            = "perf-l2-read-hits";
             const std::string L2WriteHits           = "perf-l2-write-hits";

@@ -43,10 +43,10 @@ namespace Tensile
             double  l2WriteHits = args["perf-l2-write-hits"].as<double>();
             double  l2ReadBwMultiplier = args["perf-l2-read-bw-mul"].as<double>();
             double  readEff = args["perf-read-efficiency"].as<double>();
- 
+
             return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
         }
-        
+
         PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff)
         {
             hipGetDeviceProperties(&m_props, deviceIndex);
@@ -54,26 +54,25 @@ namespace Tensile
             setMemoryBusWidth();
             setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
             m_deviceProps = true;
-            m_ops = 64;
- 
+
             perf.l2ReadHitRate = getL2ReadHits();
             perf.l2WriteHitRate = getL2WriteHits();
             perf.l2ReadBwMul = getL2ReadBwMultiplier();
             perf.readEff = getReadEff();
             perf.CUs = getNumCUs();
         }
-        
-        void PerformanceReporter::reportValue_uint(std::string const& key, uint64_t value) 
+
+        void PerformanceReporter::reportValue_uint(std::string const& key, uint64_t value)
         {
             reportValue_numeric(key, value);
         }
 
-        void PerformanceReporter::reportValue_double(std::string const& key, double value) 
+        void PerformanceReporter::reportValue_double(std::string const& key, double value)
         {
             reportValue_numeric(key, value);
         }
 
-        template <typename T> 
+        template <typename T>
         void PerformanceReporter::reportValue_numeric(std::string const& key, T value)
         {
             if(key == ResultKey::ClockRateSys && m_deviceProps)
@@ -84,17 +83,12 @@ namespace Tensile
             {
                 setMemClockMhz(value);
             }
-            if(key == ResultKey::SpeedGFlops && m_deviceProps)
-            {
-                setEfficiency(value);
-            }
         }
 
         void PerformanceReporter::setClockMhz(double value)
         {
             m_clockMhz = value;
             perf.clock = getClockMhz();
-            setPeakGFlops();
         }
 
         void PerformanceReporter::setMemClockMhz(double value)
@@ -110,33 +104,14 @@ namespace Tensile
             perf.memBandwidthMBps = getMemBandwidthMBps();
         }
 
-        void PerformanceReporter::setPeakGFlops()
-        {
-            m_peakGFlops = getNumCUs()*getL2ReadBwMultiplier()*getOpsPerCycle()*m_clockMhz/1000;
-            perf.peakGFlops = getPeakGFlops();
-        }
-
-        template <typename T>
-        void PerformanceReporter::setEfficiency(T value)
-        {
-            m_gFlops = (double)value;
-            if(!std::isnan(m_peakGFlops) && m_deviceProps)
-            {
-                m_eff = 100*m_gFlops/m_peakGFlops;
-                perf.efficiency = getEfficiency();
-            }
-
-        }
-
-        void PerformanceReporter::postSolution()  
+        void PerformanceReporter::postSolution()
         {
             m_clockMhz = std::numeric_limits<double>::quiet_NaN();
             m_memClockMhz = std::numeric_limits<double>::quiet_NaN();
             m_gFlops = std::numeric_limits<double>::quiet_NaN();
-            m_peakGFlops = std::numeric_limits<double>::quiet_NaN();
             m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
         }
-        
+
         void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff)
         {
             m_l2ReadHits = l2ReadHits;
@@ -144,7 +119,7 @@ namespace Tensile
             m_l2ReadBwMul = l2ReadBwMultiplier;
             m_readEff = readEff;
         }
-        
+
         void PerformanceReporter::setNumCUs()
         {
             m_numCUs = m_props.multiProcessorCount;
@@ -156,15 +131,12 @@ namespace Tensile
         }
 
         int     PerformanceReporter::getNumCUs(){return m_numCUs;}
-        int     PerformanceReporter::getOpsPerCycle(){return m_ops;}
         double  PerformanceReporter::getMemClockMhz(){return m_memClockMhz;}
         double  PerformanceReporter::getClockMhz(){return m_clockMhz;}
         double  PerformanceReporter::getL2ReadBwMultiplier(){return m_l2ReadBwMul;}
-        double  PerformanceReporter::getPeakGFlops(){return m_peakGFlops;}
         double  PerformanceReporter::getL2ReadHits(){return m_l2ReadHits;}
         double  PerformanceReporter::getL2WriteHits(){return m_l2WriteHits;}
         double  PerformanceReporter::getReadEff(){return m_readEff;}
-        double  PerformanceReporter::getEfficiency(){return m_eff;}
         double  PerformanceReporter::getMemBandwidthMBps(){return m_memBandwidthMBps;}
 
         void    PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
