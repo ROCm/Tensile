@@ -85,7 +85,12 @@ namespace Tensile
                         new LogReporter(LogLevel::Debug,
                                         {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
                                          OperationIdentifier, ProblemSizes, SolutionName,
-                                         Validation, TimeUS, SpeedGFlops,
+                                         Validation, TimeUS, SpeedGFlops, Empty,
+                                         AluUs, MemReadUs, MemWriteUs,
+                                         TotalGranularity, TilesPerCu,
+                                         Tile0Granularity, Tile1Granularity, CuGranularity,
+                                         WaveGranularity,
+                                         MemReadBytes, MemWriteBytes,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
                                         stream, dumpTensors));

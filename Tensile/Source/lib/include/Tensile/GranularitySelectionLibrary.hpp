@@ -117,7 +117,7 @@ namespace Tensile
 
             for(auto const& row: solutions)
             {
-                auto myPerformance = row.second->projectedPerformance(problem, hardware);
+                auto myPerformance = row.second->projectedPerformance(problem, hardware).speedGFlops;
 
                 if(debug)
                 {

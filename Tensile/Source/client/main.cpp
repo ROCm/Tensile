@@ -376,7 +376,7 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
     listeners.addListener(std::make_shared<ProgressListener>());
 
-    listeners.addListener(std::make_shared<BenchmarkTimer>(args));
+    listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();

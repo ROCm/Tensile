@@ -83,6 +83,21 @@ namespace Tensile
             const std::string SpeedGFlops = "gflops";
             const std::string EnqueueTime = "enqueue-time";
 
+            // Performance estimation and granularity
+            const std::string Tile0Granularity = "tile0-granularity";
+            const std::string Tile1Granularity = "tile1-granularity";
+            const std::string CuGranularity = "cu-granularity";
+            const std::string WaveGranularity = "wave-granularity";
+            const std::string TotalGranularity = "total-granularity";
+            const std::string TilesPerCu = "tiles-per-cu";
+
+            const std::string MemReadBytes   = "mem-read-bytes";
+            const std::string MemWriteBytes  = "mem-write-bytes";
+            const std::string MemReadUs  = "mem-read-us";
+            const std::string MemWriteUs = "mem-write-us";
+            const std::string AluUs      = "alu-us";
+            const std::string Empty          = "empty";
+
             // Hardware monitoring
             const std::string TempEdge            = "temp-edge";
             const std::string ClockRateSys        = "clock-sys";
