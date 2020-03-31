@@ -5,7 +5,7 @@ from YamlBuilder.YamlBuilder import YamlBuilder
 from YamlBuilder.YamlBuilder import Solutions
 
 TestConfig=namedtuple("TestConfig", ["solution", "problem_func"])
-Runner=namedtuple("Runner", ["func", "solution"])
+Runner=namedtuple("Runner", ["level", "func", "solution"])
 TensileState=namedtuple("TensileState", ["args"])
 
 # this control the default solutions used for each test.
@@ -77,7 +77,7 @@ def run_convolution_level(request,
     argLevel = request.config.getoption("--test-level")
     if curLevel > argLevel:
         pytest.skip()
-    return Runner(level_fixtures[curLevel], request.param[1])
+    return Runner(curLevel, level_fixtures[curLevel], request.param[1])
 
 def pytest_addoption(parser):
     parser.addoption(

@@ -37,7 +37,6 @@ def RunMain():
     argParser.add_argument("combined_file", help="path where the combined results are located")
 
     args = argParser.parse_args(userArgs)
-
     currentFileName = args.current_file
     newFileName = args.new_file
     combinedFileName = args.combined_file
