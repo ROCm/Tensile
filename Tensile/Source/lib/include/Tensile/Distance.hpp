@@ -21,7 +21,6 @@
 
 #pragma once
 
-#include <Tensile/PropertyMatching.hpp>
 
 #include <cmath>
 
@@ -38,6 +37,36 @@ namespace Tensile
          * \addtogroup DistanceFunctions
          * @{
          */
+
+        /**
+         * @brief Abstract Distance function base class
+         */
+
+        /**
+         * Distance functions must implement the following methods:
+         * 
+         *      double operator()(Key const& p1, Key const& p2)
+         * 
+         * Returns the distance between p1 and p2.
+         * 
+         *      bool improvementPossible(Key const& p1, Key const& p2, size_t idx, double bestDistance) const
+         * 
+         * May return `false` if it's impossible for `p1` and `p2` to be closer than
+         * `bestDistance` based on `p1[idx]` and `p2[idx]` alone. This can be used to exit
+         * early when searching a table sorted by element `idx`.
+         * 
+         * If that doesn't apply to the given distance metric, returning `true` will give the
+         * correct result.
+         */
+        template <typename Key>
+        class Distance
+        {
+        public:
+            virtual std::string type() const = 0;
+            virtual ~Distance() = default;
+
+        };
+
         template <typename Key>
         struct RatioDistance: public Distance<Key>
         {
@@ -45,14 +74,20 @@ namespace Tensile
             static std::string  Type() { return "Ratio"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (Key const& p1, Key const& p2) const override
+            inline double operator() (Key const& p1, Key const& p2) const
             {
                 double distance = 1.0;
                 for (int i=0; i<p1.size(); i++)
                 {
                     distance += std::abs(std::log(double(p1[i])/double(p2[i])));
                 }
-              return distance;
+
+                return distance;
+            }
+
+            inline bool improvementPossible(Key const& p1, Key const& p2, size_t idx, double bestDistance) const
+            {
+                return true;
             }
         };
         
@@ -63,15 +98,21 @@ namespace Tensile
             static std::string  Type() { return "Manhattan"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (Key const& p1, Key const& p2) const override
+            inline double operator() (Key const& p1, Key const& p2) const
             {
                 double distance = 0;
                 for (int i=0; i<p1.size(); i++)
                 {
-                    distance += std::abs(double(p1[i]) - double(p2[i]));
+                    distance += std::abs(p1[i] - p2[i]);
+                }
+                return distance;
             }
-            return distance;
-          }
+
+            inline bool improvementPossible(Key const& p1, Key const& p2, size_t idx, double bestDistance) const
+            {
+                double d0 = std::abs(p1[idx] - p2[idx]);
+                return (d0 < bestDistance) || (p1 == p2);
+            }
         };
         
         
@@ -83,14 +124,22 @@ namespace Tensile
             static std::string  Type() { return "Euclidean"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (Key const& p1, Key const& p2) const override
+            inline double operator() (Key const& p1, Key const& p2) const
             {
-                double distance = 0;
+                double distance = 0.0;
+
                 for (int i=0; i<p1.size(); i++)
                 {
-                    distance += std::pow(double(p1[i])-double(p2[i]),2);
+                    double di = p1[i]-p2[i];
+                    distance += di*di;
                 }
                 return distance;
+            }
+
+            inline bool improvementPossible(Key const& p1, Key const& p2, size_t idx, double bestDistance) const
+            {
+                double d0 = p1[idx] - p2[idx];
+                return ((d0*d0) < bestDistance) || (p1 == p2);
             }
         };
         
@@ -102,9 +151,14 @@ namespace Tensile
             static std::string  Type() { return "Random"; }
             virtual std::string type() const override { return Type(); }
 
-            double operator() (Key const& p1, Key const& p2) const override
+            inline double operator() (Key const& p1, Key const& p2) const
             {
                 return double(rand());
+            }
+
+            inline bool improvementPossible(Key const& p1, Key const& p2, size_t idx, double bestDistance) const
+            {
+                return true;
             }
         };
 

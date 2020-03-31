@@ -87,9 +87,20 @@ namespace Tensile
     {
     }
 
+    void KernelArguments::reserve(size_t bytes, size_t count)
+    {
+        m_data.reserve(bytes);
+        m_names.reserve(count);
+        if(m_log)
+            m_argRecords.reserve(count);
+    }
+
     bool KernelArguments::isFullyBound() const
     {
-        for(auto& record: m_argRecords)
+        if(!m_log)
+            return true;
+
+        for(auto const& record: m_argRecords)
         {
             if(!std::get<ArgBound>(record.second))
                 return false;
@@ -109,26 +120,6 @@ namespace Tensile
     size_t KernelArguments::size() const
     {
         return m_data.size();
-    }
-
-    void KernelArguments::alignTo(size_t alignment)
-    {
-        size_t extraElements = m_data.size() % alignment;
-        size_t padding = (alignment - extraElements) % alignment;
-
-        m_data.insert(m_data.end(), padding, 0);
-    }
-
-    void KernelArguments::appendRecord(std::string const& name, KernelArguments::Arg record)
-    {
-        auto it = m_argRecords.find(name);
-        if(it != m_argRecords.end())
-        {
-            throw "Duplicate argument name: " + name;
-        }
-
-        m_argRecords[name] = record;
-        m_names.push_back(name);
     }
 }
 

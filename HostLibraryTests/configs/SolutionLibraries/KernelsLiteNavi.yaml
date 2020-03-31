@@ -6,8 +6,7 @@ library:
         Contraction_l_Ailk_Bjlk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -9250,8 +9249,7 @@ library:
         Contraction_l_Ailk_Bljk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -18494,8 +18492,7 @@ library:
         Contraction_l_Alik_Bjlk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -27738,8 +27735,7 @@ library:
         Contraction_l_Alik_Bljk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -36992,8 +36988,7 @@ library:
         Contraction_l_Ailk_Bjlk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -46236,8 +46231,7 @@ library:
         Contraction_l_Ailk_Bljk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -55480,8 +55474,7 @@ library:
         Contraction_l_Alik_Bjlk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -64724,8 +64717,7 @@ library:
         Contraction_l_Alik_Bljk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -73978,8 +73970,7 @@ library:
         Contraction_l_Ailk_Bjlk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -83222,8 +83213,7 @@ library:
         Contraction_l_Ailk_Bljk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -92466,8 +92456,7 @@ library:
         Contraction_l_Alik_Bjlk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA
@@ -101710,8 +101699,7 @@ library:
         Contraction_l_Alik_Bljk_Cijk_Dijk:
           rows:
           - library:
-              distance:
-                type: Euclidean
+              distance: Euclidean
               properties:
               - index: 0
                 type: FreeSizeA

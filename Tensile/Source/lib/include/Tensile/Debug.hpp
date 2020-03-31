@@ -38,6 +38,8 @@ namespace Tensile
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
 
+        bool printLookupEfficiency() const;
+
         bool printCodeObjectInfo() const;
 
         bool printKernelArguments() const;
@@ -57,10 +59,13 @@ namespace Tensile
 
         bool printLibraryVersion() const;
 
+        bool naivePropertySearch() const;
+
     private:
         friend LazySingleton<Debug>;
 
-        int value;
+        int  m_value;
+        bool m_naivePropertySearch = false;
 
         Debug();
 

@@ -97,25 +97,29 @@ class MatchingLibrary:
         propertyKeys = {
                 2:lambda: Properties.Property('FreeSizeA', index=0),
                 3:lambda: Properties.Property('FreeSizeB', index=0),
-                0:lambda: Properties.Property('BatchSize', index=0),
+                #0:lambda: Properties.Property('BatchSize', index=0),
                 1:lambda: Properties.Property('BoundSize', index=0)
             }
 
-        properties = list([propertyKeys[i]() for i in indices])
+        properties = list([propertyKeys[i]() for i in indices if i in propertyKeys])
+        keyOrder = [i for i,j in enumerate(indices) if j in propertyKeys]
 
         table = []
 
-        distance = {'type': 'Euclidean'}
+        distance = 'Euclidean'
 
         for row in origTable:
             try:
                 index = row[1][0]
                 value = SingleSolutionLibrary(solutions[index])
-                key = list(row[0][0:len(properties)])
+                key = list([row[0][i] for i in keyOrder])
+                #key = list(row[0][0:len(properties)])
                 entry = {'key': key, 'value': value, 'speed': row[1][1]}
                 table.append(entry)
             except KeyError:
                 pass
+
+        table.sort(key=lambda r: r['key'])
 
         return cls(properties, table, distance)
 
@@ -129,6 +133,8 @@ class MatchingLibrary:
                 and self.distance == other.distance
 
         self.table += other.table
+
+        self.table.sort(key=lambda r: r['key'])
 
     def remapSolutionIndices(self,indexMap):
         pass
@@ -210,13 +216,13 @@ class MasterSolutionLibrary:
             else:
                 solutionsSoFar.add(solution.index)
     @classmethod
-    def FromOriginalState(cls, d, solutionClass=Contractions.Solution, libraryOrder = None):
+    def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
-        origSolutions = d[5]
+        #origSolutions = d[5]
         origLibrary = d[6:8]
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
@@ -226,7 +232,7 @@ class MasterSolutionLibrary:
             assert libraryOrder[-1] == "Matching"
             libraryOrder[-1] = "Granularity"
         
-        allSolutions = [solutionClass.FromOriginalState(s, deviceSection) for s in origSolutions]
+        allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
         solutions = {s.index: s for s in allSolutions}

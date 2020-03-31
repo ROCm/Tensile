@@ -366,6 +366,10 @@ class Solution:
     HiddenKeys = ['originalSolution']
 
     @classmethod
+    def FromSolutionStruct(cls, solution, deviceInfo=None):
+        return cls.FromOriginalState(solution._state)
+
+    @classmethod
     def FromOriginalState(cls, d, deviceInfo=None):
         rv = cls()
 

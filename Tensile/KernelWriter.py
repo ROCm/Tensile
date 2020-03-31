@@ -2794,10 +2794,6 @@ for codeObjectFileName in codeObjectFileNames:
     secondPart = base[pivot:]
 
     secondHash = hashlib.sha256(secondPart.encode()).digest()
-    #hash(secondPart)
-    #n = secondHash.bit_length()+1
-    #n = (n + 7) // 8
-    #secondBytes = secondHash.to_bytes(n, 'big', signed=True)
     secondPart = base64.b64encode(secondHash, b'_-').decode()
 
     return firstPart + secondPart

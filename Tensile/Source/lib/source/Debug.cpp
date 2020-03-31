@@ -33,70 +33,83 @@ namespace Tensile
 
     bool Debug::printPropertyEvaluation() const
     {
-        return value & (0x2 | 0x4);
+        return m_value & (0x2 | 0x4);
     }
 
 
     bool Debug::printDeviceSelection() const
     {
-        return value & 0x8;
+        return m_value & 0x8;
     }
 
     bool Debug::printPredicateEvaluation() const
     {
-        return value & 0x10;
+        return m_value & 0x10;
+    }
+
+    bool Debug::printLookupEfficiency() const
+    {
+        return m_value & 0x4000;
     }
 
     bool Debug::printCodeObjectInfo() const
     {
-        return value & 0x20;
+        return m_value & 0x20;
     }
 
     bool Debug::printKernelArguments() const
     {
-        return value & 0x40;
+        return m_value & 0x40;
     }
 
     bool Debug::printTensorInfo() const
     {
-        return value & 0x80;
+        return m_value & 0x80;
     }
 
     bool Debug::printConvolutionReference1() const
     {
-        return value & 0x100;
+        return m_value & 0x100;
     }
     bool Debug::printConvolutionReference2() const
     {
-        return value & 0x200;
+        return m_value & 0x200;
     }
     bool Debug::printConvolutionReference3() const
     {
-        return value & 0x400;
+        return m_value & 0x400;
     }
 
     bool Debug::printTensorModeHex() const
     {
-        return value & 0x800;
+        return m_value & 0x800;
     }
 
     bool Debug::printEmbeddedDataInit() const
     {
-        return value & 0x1000;
+        return m_value & 0x1000;
     }
 
     bool Debug::printLibraryVersion() const
     {
-        return value & 0x2000;
+        return m_value & 0x2000;
+    }
+
+    bool Debug::naivePropertySearch() const
+    {
+        return m_naivePropertySearch;
     }
 
     Debug::Debug()
-        : value(DEBUG_SM)
+        : m_value(DEBUG_SM)
     {
         const char * db = std::getenv("TENSILE_DB");
-
         if(db)
-            value = strtol(db, nullptr, 0);
+            m_value = strtol(db, nullptr, 0);
+
+        const char * naive = std::getenv("TENSILE_NAIVE_SEARCH");
+        if(naive)
+            m_naivePropertySearch = strtol(naive, nullptr, 0) != 0;
     }
 
 }
