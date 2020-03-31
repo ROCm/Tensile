@@ -46,65 +46,77 @@ namespace Tensile
 
         namespace ResultKey
         {
-            const std::string BenchmarkRunNumber = "run";
+            const std::string BenchmarkRunNumber    = "run";
 
             // Problem definition
-            const std::string ProblemIndex = "problem-index";
-            const std::string ProblemCount = "problem-count";
-            const std::string ProblemProgress = "problem-progress";
-            const std::string OperationIdentifier = "operation";
+            const std::string ProblemIndex          = "problem-index";
+            const std::string ProblemCount          = "problem-count";
+            const std::string ProblemProgress       = "problem-progress";
+            const std::string OperationIdentifier   = "operation";
 
-            const std::string ASizes = "a-sizes";
-            const std::string BSizes = "b-sizes";
-            const std::string CSizes = "c-sizes";
-            const std::string DSizes = "d-sizes";
+            const std::string ASizes                = "a-sizes";
+            const std::string BSizes                = "b-sizes";
+            const std::string CSizes                = "c-sizes";
+            const std::string DSizes                = "d-sizes";
 
-            const std::string AStrides = "a-strides";
-            const std::string BStrides = "b-strides";
-            const std::string CStrides = "c-strides";
-            const std::string DStrides = "d-strides";
+            const std::string AStrides              = "a-strides";
+            const std::string BStrides              = "b-strides";
+            const std::string CStrides              = "c-strides";
+            const std::string DStrides              = "d-strides";
 
-            const std::string LDA = "lda";
-            const std::string LDB = "ldb";
-            const std::string LDC = "ldc";
-            const std::string LDD = "ldd";
+            const std::string LDA                   = "lda";
+            const std::string LDB                   = "ldb";
+            const std::string LDC                   = "ldc";
+            const std::string LDD                   = "ldd";
 
-            const std::string TotalFlops   = "total-flops";
-            const std::string ProblemSizes = "problem-sizes";
+            const std::string TotalFlops            = "total-flops";
+            const std::string ProblemSizes          = "problem-sizes";
 
             // Solution information
-            const std::string SolutionName = "solution";
-            const std::string SolutionIndex = "solution-index";
-            const std::string SolutionProgress = "solution-progress";
+            const std::string SolutionName          = "solution";
+            const std::string SolutionIndex         = "solution-index";
+            const std::string SolutionProgress      = "solution-progress";
 
             // Performance-related
-            const std::string Validation  = "validation";
-            const std::string TimeUS      = "time-us";
-            const std::string SpeedGFlops = "gflops";
-            const std::string EnqueueTime = "enqueue-time";
+            const std::string Validation            = "validation";
+            const std::string TimeUS                = "time-us";
+            const std::string SpeedGFlops           = "gflops";
+            const std::string EnqueueTime           = "enqueue-time";
 
             // Performance estimation and granularity
-            const std::string Tile0Granularity = "tile0-granularity";
-            const std::string Tile1Granularity = "tile1-granularity";
-            const std::string CuGranularity = "cu-granularity";
-            const std::string WaveGranularity = "wave-granularity";
-            const std::string TotalGranularity = "total-granularity";
-            const std::string TilesPerCu = "tiles-per-cu";
+            const std::string Tile0Granularity      = "tile0-granularity";
+            const std::string Tile1Granularity      = "tile1-granularity";
+            const std::string CuGranularity         = "cu-granularity";
+            const std::string WaveGranularity       = "wave-granularity";
+            const std::string TotalGranularity      = "total-granularity";
+            const std::string TilesPerCu            = "tiles-per-cu";
 
-            const std::string MemReadBytes   = "mem-read-bytes";
-            const std::string MemWriteBytes  = "mem-write-bytes";
-            const std::string Empty          = "empty";
-            const std::string Efficiency     = "efficiency";
-            const std::string NumCus         = "num-cus";
+            const std::string MemReadBytes          = "mem-read-bytes";
+            const std::string MemWriteBytes         = "mem-write-bytes";
+            const std::string MemReadUs             = "mem-read-us";
+            const std::string MemWriteUs            = "mem-write-us";
+            const std::string MemGlobalReads        = "mem-global-reads";
+            const std::string MemGlobalWrites       = "mem-global-writes";
+            const std::string AluUs                 = "alu-us";
+
+            const std::string L2ReadHits            = "perf-l2-read-hits";
+            const std::string L2WriteHits           = "perf-l2-write-hits";
+            const std::string L2ReadBwMul           = "perf-l2-read-bw-mul";
+            const std::string L2BandwidthMBps       = "perf-l2-bandwidth-mbps";
+
+            const std::string Empty                 = "empty";
+            const std::string Efficiency            = "efficiency";
+            const std::string NumCus                = "num-cus";
+            const std::string PeakGFlops            = "peak-gflops";
 
             // Hardware monitoring
-            const std::string TempEdge            = "temp-edge";
-            const std::string ClockRateSys        = "clock-sys";
-            const std::string ClockRateSOC        = "clock-soc";
-            const std::string ClockRateMem        = "clock-mem";
-            const std::string DeviceIndex         = "device-idx";
-            const std::string FanSpeedRPMs        = "fan-rpm";
-            const std::string HardwareSampleCount = "hardware-samples";
+            const std::string TempEdge              = "temp-edge";
+            const std::string ClockRateSys          = "clock-sys";
+            const std::string ClockRateSOC          = "clock-soc";
+            const std::string ClockRateMem          = "clock-mem";
+            const std::string DeviceIndex           = "device-idx";
+            const std::string FanSpeedRPMs          = "fan-rpm";
+            const std::string HardwareSampleCount   = "hardware-samples";
         };
         
         class ResultReporter: public RunListener

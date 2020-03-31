@@ -50,7 +50,7 @@ namespace Tensile
     
             static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
         
-            PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff, int opsPerCycle);
+            PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff);
 
             virtual void reportValue_int(std::string const& key, int64_t value) override;
             
@@ -64,7 +64,7 @@ namespace Tensile
 
             virtual void postSolution() override;
             
-            void    setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMul, double readEff, int opsPerCycle);
+            void    setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMul, double readEff);
             void    setNumCUs();
             void    setMemoryBusWidth();
             void    setClockMhz(double value);
