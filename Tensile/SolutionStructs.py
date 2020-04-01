@@ -2221,7 +2221,7 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization 
-      state["StoreVectorWidth"] = 4  
+      state["StoreVectorWidth"] = 4
 
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
@@ -2534,6 +2534,10 @@ class Solution:
     if state["TransposeLDS"] == 1:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
+
+    if state["LocalReadVectorWidth"] != -1:
+      if not state["TransposeLDS"] == 1:
+        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     if not state["LdsBlockSizePerPad"] == -1:
