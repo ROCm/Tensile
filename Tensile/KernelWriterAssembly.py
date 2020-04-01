@@ -3063,8 +3063,8 @@ class KernelWriterAssembly(KernelWriter):
           calcDims.append(i)
         elif indices[i] in kernel["ProblemType"]["IndicesSummation"]:
           # other summation index (not unroll)
-          if     tc == 'A' and kernel["ProblemType"]["MirrorDimsA"] == [indices[i]] \
-              or tc == 'B' and kernel["ProblemType"]["MirrorDimsB"] == [indices[i]]:
+          if     tc == 'A' and indices[i] in kernel["ProblemType"]["MirrorDimsA"] \
+              or tc == 'B' and indices[i] in kernel["ProblemType"]["MirrorDimsB"]:
             calcDims.append(i)
           continue
         else:
