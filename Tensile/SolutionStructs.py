@@ -2221,7 +2221,7 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization 
-      state["StoreVectorWidth"] = 4  
+      state["StoreVectorWidth"] = 4
 
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
@@ -2534,6 +2534,11 @@ class Solution:
     if state["TransposeLDS"] == 1:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
+
+    if state["LocalReadVectorWidth"] != -1:
+      if not state["TransposeLDS"] == 1:
+        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     if not state["LdsBlockSizePerPad"] == -1:
         #calculate number of boundaries from MT*depthU
@@ -2811,16 +2816,17 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["PackGranularity"]==2 \
-        and (state["AssertFree0ElementMultiple"]<state["VectorWidth"] \
-        or state["AssertFree0ElementMultiple"] == 1):
-          if state["KernelLanguage"] == "Source":
-              reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
-          else:
+    if packedC0 and state["PackGranularity"]==2:
+      if state["KernelLanguage"] == "Source":
+        if state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
+          reject(state, "packedC0 Source requires AF0EM>=VectorWidth (for loads and stores)")
+      else:
+        if state["AssertFree0ElementMultiple"]<state["VectorWidth"]\
+          or state["AssertFree0ElementMultiple"] == 1:
             if state["VectorStore"] <= 0:
               state["_VectorStore"] = 0
             else:
-              reject(state, "packedC0 Assembly requires AF0EM>VectorWidth or not VectorStore (for stores)")
+              reject(state, "packedC0 Assembly requires AF0EM>=VectorWidth or not VectorStore (for stores)")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:

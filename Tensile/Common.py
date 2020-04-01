@@ -20,19 +20,21 @@
 ################################################################################
 
 from . import __version__
+from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
 from subprocess import Popen, PIPE
 
-import itertools
+
 import math
 import os.path
 import subprocess
 import sys
 import time
 
-
 startTime = time.time()
+
+ParallelMap = Parallel.ParallelMap
 
 # print level
 # 0 - user wants no printing
@@ -663,6 +665,15 @@ validParameters = {
     #  1 cannot be used for half type.
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
+    # Controls desired width (#elements) for loads from LDS -> VGPR.
+    # -1 : Set LocalReadVectorWidth =  VectorWidth
+    #  1 cannot be used for half type.
+    # used in combination with TransposeLDS=True
+    # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
+    # helps optimizing instruction scheduling between MFMA and nonMFMA instructions
+
+    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
+
     # threads should read/write/operate on this many contiguous elements from the C matrix.
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
@@ -794,6 +805,7 @@ defaultBenchmarkCommonParameters = [
     {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
+    {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
@@ -1373,101 +1385,6 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
-def CPUThreadCount(enable=True):
-  if not enable or globalParameters["CpuThreads"] == 0:
-    return 0
-  else:
-    cpu_count = len(os.sched_getaffinity(0))
-    cpuThreads = globalParameters["CpuThreads"]
-    if cpuThreads < 0:
-        return cpu_count*abs(cpuThreads)
-    return min(cpu_count, cpuThreads)
-
-def starmap_apply(item):
-  func, item = item
-  return func(*item)
-
-def apply_print_exception(item, *args):
-  #print(item, args)
-  try:
-    if len(args) > 0:
-      func = item
-      args = args[0]
-      return func(*args)
-    else:
-      func, item = item
-      return func(item)
-  except Exception:
-    import traceback
-    traceback.print_exc()
-    raise
-  finally:
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-def ProcessingPool(enable=True):
-  import multiprocessing
-  import multiprocessing.dummy
-
-  threadCount = CPUThreadCount()
-
-  if (not enable) or threadCount <= 1:
-    return multiprocessing.dummy.Pool(1)
-
-  return multiprocessing.Pool(threadCount)
-
-def ParallelMap(function, objects, message="", enable=True, method=None):
-  """
-  Generally equivalent to list(map(function, objects)), possibly executing in parallel.
-
-    message: A message describing the operation to be performed.
-    enable: May be set to false to disable parallelism.
-    method: A function which can fetch the mapping function from a processing pool object.
-        Leave blank to use .map(), other possiblities:
-           - `lambda x: x.starmap` - useful if `function` takes multiple parameters.
-           - `lambda x: x.imap` - lazy evaluation
-           - `lambda x: x.imap_unordered` - lazy evaluation, does not preserve order of return value.
-  """
-  threadCount = CPUThreadCount(enable)
-  pool = ProcessingPool(enable)
-
-  if threadCount <= 1 and globalParameters["ShowProgressBar"]:
-    # Provide a progress bar for single-threaded operation.
-    # This works for method=None, and for starmap.
-    mapFunc = map
-    if method is not None:
-      # itertools provides starmap which can fill in for pool.starmap.  It provides imap on Python 2.7.
-      # If this works, we will use it, otherwise we will fallback to the "dummy" pool for single threaded
-      # operation.
-      try:
-        mapFunc = method(itertools)
-      except NameError:
-        mapFunc = None
-
-    if mapFunc is not None:
-      from . import Utils
-      return list(mapFunc(function, Utils.tqdm(objects, message)))
-
-  mapFunc = pool.map
-  if method: mapFunc = method(pool)
-
-  objects = zip(itertools.repeat(function), objects)
-  function = apply_print_exception
-
-  countMessage = ""
-  try:
-    countMessage = " for {} tasks".format(len(objects))
-  except TypeError: pass
-
-  if message != "": message += ": "
-
-  print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
-  sys.stdout.flush()
-  rv = mapFunc(function, objects)
-  print("{0}Done.".format(message))
-  sys.stdout.flush()
-  pool.close()
-  return rv
 
 ################################################################################
 # Push / Pop Working Path
