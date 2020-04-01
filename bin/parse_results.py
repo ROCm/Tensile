@@ -21,7 +21,7 @@ class DataRow:
             peakMFlops = float(self["clock-sys"]) * float(self["num-cus"]) * args.ops_per_cu_per_cycle
             sizes = [int(p) for p in self['problem-sizes'].strip("()").split(",")]
             work = reduce(operator.mul, sizes, 2.0)
-            self.derivedFields['model-alu-us'] = '%6.0f' % (work / peakMFlops * float(self["total-granularity"]))
+            self.derivedFields['model-alu-us'] = '%6.0f' % (work / peakMFlops * float(self["total-gran"]))
         if args.mem_width:
             peakMBps = float(self["clock-mem"]) * args.mem_width * args.mem_eff/100.0
             self.derivedFields['model-mem-read-us']  = "%6.0f" % (float(self["mem-read-bytes"]) / peakMBps)
@@ -78,7 +78,7 @@ class Reader:
         dictReader = csv.DictReader(csv_table, csv_field_names, skipinitialspace=True)
 
         fieldsToPrint= ('problem-progress', 'problem-sizes', 'solution', 'time-us', 'gflops', \
-                        'tiles-per-cu', 'total-granularity', 'cu-granularity', 'tile0-granularity', 'tile1-granularity')
+                        'tiles-per-cu', 'total-gran', 'cu-gran', 'tile0-gran', 'tile1-gran')
         derivedFieldsToPrint = []
         if args.ops_per_cu_per_cycle:
             derivedFieldsToPrint += ["model-alu-us"]
