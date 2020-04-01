@@ -667,7 +667,7 @@ validParameters = {
     # -1 : Set LocalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
     # used in combination with TransposeLDS=True
-    # in TransposeLDS=1 case, use wider load to fetch elements from LDS 
+    # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
     # helps optimizing instruction scheduling between MFMA and nonMFMA instructions
 
     "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
