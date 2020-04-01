@@ -4622,6 +4622,7 @@ class KernelWriterAssembly(KernelWriter):
           dimIdxPrev    = kernel["ProblemType"]["IndicesSummation"][loopIdxPrev] # dimension index
           loopCharPrev  = self.indexChars[dimIdxPrev]
           stridePrev = self.strideRef(tc, dimIdxPrev)
+          isMirrorIdxPrev = dimIdxPrev in kernel["ProblemType"]["MirrorDims%s"%tc]
 
           kStr += self.comment("compute globalReadInc for higher-level loop")
 
@@ -4650,7 +4651,13 @@ class KernelWriterAssembly(KernelWriter):
 
           # subtract amount that previous inner loop will have already incremented:
           # graInc is used as temp for the prev loop calc
-          if isMirrorIdx:
+          # import pdb; pdb.set_trace()
+          if isMirrorIdx and isMirrorIdxPrev:
+            kStr += inst("s_sub_i32", sgpr(graInc), \
+                sgpr(graInc), \
+                stride, \
+                "incr%s%s = <prev-incs> - stride%s%s"%(tc, loopChar, tc, loopChar) )
+          elif isMirrorIdx:
             kStr += inst("s_add_i32", sgpr(graInc), \
                 stride, \
                 sgpr(graInc), \
@@ -4659,6 +4666,11 @@ class KernelWriterAssembly(KernelWriter):
                 0, \
                 sgpr(graInc), \
                 "incr%s%s = - (stride%s%s + <prev-incs>)"%(tc, loopChar, tc, loopChar) )
+          elif isMirrorIdxPrev:
+            kStr += inst("s_add_i32", sgpr(graInc), \
+                stride, \
+                sgpr(graInc), \
+                "incr%s%s = stride%s%s + <prev-incs>"%(tc, loopChar, tc, loopChar) )
           else:
             kStr += inst("s_sub_i32", sgpr(graInc), \
                 stride, \
