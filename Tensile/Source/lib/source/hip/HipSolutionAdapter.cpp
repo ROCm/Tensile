@@ -157,6 +157,11 @@ namespace Tensile
             }
         }
 
+        void SolutionAdapter::initKernel(std::string const& name)
+        {
+            getKernel(name);
+        }
+
         hipFunction_t SolutionAdapter::getKernel(std::string const& name)
         {
             std::unique_lock<std::mutex> guard(m_access);

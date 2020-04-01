@@ -153,7 +153,9 @@ endif()
 
 if(TENSILE_USE_HIP)
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
-    #target_link_libraries(TensileTests PRIVATE "--amdgpu-target=gfx900")
+    foreach(arch IN LISTS TENSILE_GPU_ARCHS)
+        target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")
+    endforeach(arch)
 endif()
 
 if(TENSILE_USE_OPENMP)

@@ -43,6 +43,10 @@ namespace Tensile
             Debug,
             Count
         };
+        
+        std::string ToString(LogLevel level);
+        std::ostream & operator<<(std::ostream & stream, LogLevel   level);
+        std::istream & operator>>(std::istream & stream, LogLevel & level);
 
         namespace ResultKey
         {

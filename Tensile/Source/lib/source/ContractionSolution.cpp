@@ -164,7 +164,10 @@ namespace Tensile
 
         KernelInvocation rv;
 
-        rv.args = KernelArguments(true);
+        bool debug = Debug::Instance().printKernelArguments();
+        rv.args = KernelArguments(debug);
+
+        rv.args.reserve(1024, 128);
 
         rv.kernelName = kernelName;
 
@@ -443,7 +446,10 @@ namespace Tensile
 
         KernelInvocation rv;
 
-        rv.args = KernelArguments(true);
+        bool debug = Debug::Instance().printKernelArguments();
+        rv.args = KernelArguments(debug);
+
+        rv.args.reserve(512, 64);
 
         rv.kernelName = betaOnlyKernelName(problem, inputs, hardware);
 
