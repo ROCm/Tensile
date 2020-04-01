@@ -115,7 +115,6 @@ class Solutions:
                     {"VectorWidth": [1,4]},
                     {"FractionalLoad": [0,1]},
                     {"PackBatchDims": [0,1]},
-                    {"VectorStore": [1]}, # TODO - remove when VectorStore=0 + PBD bug fixed
                 ]
 
         return s
