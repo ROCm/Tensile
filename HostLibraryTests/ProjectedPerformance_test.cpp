@@ -156,9 +156,6 @@ TEST(ContractionPerformance, Problem3)
 
     ASSERT_DOUBLE_EQ(model.tilesPerCu, .1875);
     ASSERT_DOUBLE_EQ(model.totalGranularity, .140625);
-    ASSERT_NEAR(model.staticModel.aluUs, 5.9077, .001);
-    ASSERT_NEAR(model.staticModel.memReadUs, 0.27648, .001);
-    ASSERT_NEAR(model.staticModel.memWriteUs, 0.018432, .001);
     ASSERT_DOUBLE_EQ(model.speedGFlops, 421.875);
 }
 
@@ -190,9 +187,6 @@ TEST(ContractionPerformance, Problem4)
 
     ASSERT_DOUBLE_EQ(model.tilesPerCu, 225);
     ASSERT_NEAR(model.totalGranularity, .984375, .001);
-    ASSERT_NEAR(model.staticModel.aluUs, 88.62, .01);
-    ASSERT_NEAR(model.staticModel.memReadUs, 43.55, .01);
-    ASSERT_NEAR(model.staticModel.memWriteUs, 7.26, .01);
     ASSERT_DOUBLE_EQ(model.speedGFlops, 2953.125);
 }
 

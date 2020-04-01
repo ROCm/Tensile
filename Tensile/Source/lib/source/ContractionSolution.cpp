@@ -691,11 +691,7 @@ namespace Tensile
         double l2BandwidthMBps = perf.memBandwidthMBps*perf.l2ReadBwMul;        
         double peakMFlops = perf.peakGFlops*1000.0;
  
-        spm.memReadUs  = (spm.memReadBytes*l2ReadHit/l2BandwidthMBps + spm.memReadBytes*(1.0-l2ReadHit))/memBandwidthMBps;
-        spm.memWriteUs = (spm.memWriteBytesD * l2WriteHit/l2BandwidthMBps + spm.memWriteBytesD * (1.0 - l2WriteHit)) / l2BandwidthMBps;
-
         double flops = 2.0*l2ReadBwMultiplier*NumBatches*M*N*K;
-        spm.aluUs = flops/(peakMFlops*TotalGranularity);
 
         return spm;
     }
@@ -799,10 +795,6 @@ namespace Tensile
             << " memReadBytesB=" << spm.memReadBytesB
             << " memReadBytesC=" << spm.memReadBytesC
             << " memWriteBytesD=" << spm.memWriteBytesD
-
-            << " aluUs=" << spm.aluUs
-            << " memReadUs=" << spm.memReadUs
-            << " memWriteUs=" << spm.memWriteUs
             ;
     }
 

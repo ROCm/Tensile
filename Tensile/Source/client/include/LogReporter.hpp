@@ -89,6 +89,7 @@ namespace Tensile
                                          TotalGranularity, TilesPerCu, NumCus,
                                          Tile0Granularity, Tile1Granularity, CuGranularity,
                                          WaveGranularity,
+                                         MemReadBytes, MemWriteBytes,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
                                         stream, dumpTensors));

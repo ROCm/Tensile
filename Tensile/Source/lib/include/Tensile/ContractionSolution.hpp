@@ -68,7 +68,7 @@ namespace Tensile
         virtual std::string KernelName() const { return kernelName; }
         virtual std::string name() const { return kernelName; }
         virtual std::string description() const { return kernelName; }
-        
+
         bool isSourceKernel() const;
 
         //! Estimates based on problem size, solution tile, and  machine hardware charz:
@@ -81,12 +81,6 @@ namespace Tensile
           size_t memReadBytes=0.0;
           size_t memGlobalReads=0;
           size_t memGlobalWrites=0;
-
-          //! Times in US
-          double aluUs=0.0; //! Estimated alu cycles
-          double memReadUs=0.0; //! Estimated memory read cycles
-          double memWriteUs=0.0; //! Estimated memory write cycles
-
         };
 
         struct ProjectedPerformance

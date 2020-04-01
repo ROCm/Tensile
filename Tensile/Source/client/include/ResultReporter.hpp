@@ -108,9 +108,9 @@ namespace Tensile
 
             // Hardware monitoring
             const std::string TempEdge              = "temp-edge";
-            const std::string ClockRateSys          = "clock-sys";
-            const std::string ClockRateSOC          = "clock-soc";
-            const std::string ClockRateMem          = "clock-mem";
+            const std::string ClockRateSys          = "clock-sys";  // GPU clock in Mhz
+            const std::string ClockRateSOC          = "clock-soc";  // Soc clock in Mhz
+            const std::string ClockRateMem          = "clock-mem";  // Mem clock in Mhz
             const std::string DeviceIndex           = "device-idx";
             const std::string FanSpeedRPMs          = "fan-rpm";
             const std::string HardwareSampleCount   = "hardware-samples";
