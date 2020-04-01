@@ -4995,13 +4995,9 @@ class KernelWriterAssembly(KernelWriter):
         self.commentSuffix, self.endLine)
 
     divisor = kernel["SubGroup0"]
-    # TODO: generalize over different MIs
-    if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
-      if kernel["MatrixInstruction"]:
-        divisor *= kernel["MatrixInstK"]
-        pack = 4 // tP["bpe"]
-        divisor //= pack
-    # end TODO
+    if kernel["MatrixInstruction"] and not (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
+      pack = 4 // tP["bpe"]
+      divisor //= pack
     qReg = self.vgprPool.checkOut(1,"qReg") # quotient
     rReg = self.vgprPool.checkOut(1,"rReg") # remainder
     dividendReg = "Serial" # local serial
@@ -5144,7 +5140,7 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(tmpVgpr), \
             hex(log2(tP["bpe"])), \
             "")
-	#Add Lds PAD logic
+	      #Add Lds PAD logic
         kStr += inst("v_add_u32", \
             vgpr("LocalReadAddr%s"%tc), \
             vgpr(tmpVgprPadoffset), \
@@ -5205,13 +5201,12 @@ class KernelWriterAssembly(KernelWriter):
 
       # TODO: generalize over different MIs
       if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
-        if tc == "B" and "MatrixInstK" in kernel and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
+        if "MatrixInstK" in kernel and kernel["MatrixInstK"] > 1 and tP["bpe"] == 4:
           kDiv = kernel["MatrixInstN"]
           kStr += vectorStaticDivide(rReg, dividendReg, kDiv, tmpVgpr, tmpSgpr)
           kStr += inst("v_and_b32", \
               vgpr(rReg), \
-              # 2 = 64 / 32 or number of ks
-              hex(2-1), \
+              hex(kernel["MatrixInstK"]-1), \
               vgpr(rReg), \
               "k groups")
           kStr += inst("s_mov_b32", \
