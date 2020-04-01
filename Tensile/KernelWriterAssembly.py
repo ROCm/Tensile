@@ -7552,7 +7552,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
     if self.inTailLoop:
-      if not kernel["TransposeLDS"]:
+      if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
         inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"] 
       else:
         LdsPadCnt = (kernel["LocalSplitU"]*tP["bpe"]) // kernel["LdsBlockSizePerPad"] if kernel["LdsBlockSizePerPad"] != -1  else 0
@@ -7571,7 +7571,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       if tP["localReadInstruction"].numOffsets == 1:
         if kernel["MatrixInstruction"]:
-          if not kernel["TransposeLDS"]:
+          if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
             tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc])*kernel["MatrixInstK"]
           else:
             LdsPadCnt = (kernel["LocalSplitU"]*kernel["MatrixInstK"]) // kernel["LdsBlockSizePerPad"] if kernel["LdsBlockSizePerPad"] != -1  else 0
@@ -7706,6 +7706,9 @@ class KernelWriterAssembly(KernelWriter):
               if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
                 tIdx = tP["tensorIdx"]
                 readOffsetWidth = kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx]
+                if tP["isA"]:
+                  print ("TLUA",kernel["ProblemType"]["TLU%s"%tP["tensorChar"]])
+                  print ("readOffsetWidth",readOffsetWidth)
                 if tP["isB"]:
                   readOffsetWidth = kernel["MacroTile%u" % tIdx] // (4 * kernel["ThreadTile1"] // kernel["MatrixInstN"]) # 4 simds
                 paramList.append(((rIdx * blockWidth * readOffsetWidth + kernel["SubGroup%u" % tIdx]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
