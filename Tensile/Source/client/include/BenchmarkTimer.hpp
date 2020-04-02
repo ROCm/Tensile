@@ -46,8 +46,8 @@ namespace Tensile
         {
         public:
             using clock = std::chrono::steady_clock;
-
-            BenchmarkTimer(po::variables_map const& args);
+            
+            BenchmarkTimer(po::variables_map const& args, Hardware const& hardware);
 
             virtual bool needMoreBenchmarkRuns() const override;
             virtual void preBenchmarkRun() override;
@@ -84,9 +84,8 @@ namespace Tensile
                                             TimingEvents const&  stopEvents) override;
 
             virtual void finalizeReport() override;
-
             virtual int error() const override;
-
+    
         private:
             const int m_numWarmups;
             const int m_numBenchmarks;
@@ -99,7 +98,9 @@ namespace Tensile
 
             int m_numBenchmarksRun = 0;
 
+            Hardware const & m_hardware;
             ContractionProblem m_problem;
+            ContractionSolution m_solution;
 
             int m_numEnqueuesInSolution = 0;
             int m_numSyncsInBenchmark = 0;
