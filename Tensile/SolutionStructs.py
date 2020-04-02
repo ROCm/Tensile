@@ -2529,8 +2529,8 @@ class Solution:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
     if "MatrixInstruction" in state:
       if state["TransposeLDS"] == 1:
-        if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
-          reject(state, "TransposeLds requires TLU=0")
+        if state["ProblemType"]["TLUA"] and  state["ProblemType"]["TLUB"]:
+          reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
     if state["TransposeLDS"] == 1:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
