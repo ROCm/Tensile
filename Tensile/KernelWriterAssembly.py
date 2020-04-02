@@ -6290,6 +6290,13 @@ class KernelWriterAssembly(KernelWriter):
         assert(len(kernel["PackedC1IndicesX"]) == 1)
 
         ss.setupStoreElementsForBatch(kernel, fullVw, elements, None)
+        if not kernel["MatrixInstruction"]:
+          kStr += inst("_v_add_lshl_u32", \
+              vgpr(ss.sharedColVgprs), \
+              vgpr(self.cinRowPtr), \
+              vgpr(self.coord0), \
+              hex(log2(self.bpeCexternal)), \
+             "NLL: init cb addr <-  cinRowStart + coord0, scaled by BPE")
 
         if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
           vgprBf16Temp = self.vgprPool.checkOut(4,"vgprBf16Mask")
