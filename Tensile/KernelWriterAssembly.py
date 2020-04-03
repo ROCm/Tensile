@@ -4613,11 +4613,18 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["PackSummationDims"]:
           # simpler address calculation here - don't need to subtract prev iteration increments
           # since only one iteration
-          kStr += inst("s_lshl_b32", \
-              sgpr(graInc), \
-              stride, \
-              "Bpe%sLog2"%tc,
-              "<- scale by bpe")
+          if isMirrorIdx:
+            kStr += inst("s_mul_i32", \
+                sgpr(graInc), \
+                stride, \
+                "-Bpe%s"%tc,
+                "<- scale by bpe")
+          else:
+            kStr += inst("s_lshl_b32", \
+                sgpr(graInc), \
+                stride, \
+                "Bpe%sLog2"%tc,
+                "<- scale by bpe")
         else:
           # subtract increments done by the inner iterations
           # may be negative:
@@ -5212,7 +5219,6 @@ class KernelWriterAssembly(KernelWriter):
     if self.staggerU:
       assert (kernel["BufferLoad"])
       staggerTmp = self.getTmpSgpr(1)
-      isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc] # TODO mirror for stagger!!
 
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
@@ -5278,7 +5284,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.staggerU:
       tc = tP["tensorChar"]
       tmp = self.getTmpSgpr(1)
-      isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]
+
       # might be able to refactor this to eliminate signed math
       kStr += inst("s_sub_i32", sgpr(tmp), 2+kernel["PrefetchGlobalRead"], \
                   sgpr("StaggerUIter"), "")
@@ -6250,7 +6256,7 @@ class KernelWriterAssembly(KernelWriter):
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
 
     isMirrorIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] in kernel["ProblemType"]["MirrorDims%s" % tc]
-    import pdb; pdb.set_trace()
+
     imod.addComment1("global read inc %s loop%s"%(tc,loopChar))
 
     if kernel["BufferLoad"]:
@@ -6349,6 +6355,7 @@ class KernelWriterAssembly(KernelWriter):
 
       psdPackedBits = "DepthU" if prefetchIndex>0 else unrollLoopCounter
       incCodeA.addComment1("extract indices here from %s"%psdPackedBits)
+      incUpper = { "A": 0, "B": 0 }
       for os in reversed(range(problemType["NumIndicesSummation"])):
         sumDim  = problemType["IndicesSummation"][os]
         sumChar = self.indexChars[sumDim]
@@ -6420,6 +6427,12 @@ class KernelWriterAssembly(KernelWriter):
 
           psdPackedBits = sgpr(tmpSgpr+0)
 
+        for tc in ('A','B'):
+          assert(not self.use64bPackSumOffset)
+          if sumDim in problemType["MirrorDims%s"%(tc)] and os!=self.unrollIdx :
+            incUpper[tc] = sgpr(self.getTmpSgpr(1))
+            incCodeA.addInst("s_ashr_i32", incUpper[tc], sgpr("GlobalReadIncs%s+%d"%(tc,os)), 31, "sign-extend")
+
         if 0 and lastIter:
           incCodeA.addText(self.assert_ne(sgpr("LoopCounterM"), 8))
 
@@ -6440,9 +6453,9 @@ class KernelWriterAssembly(KernelWriter):
 
       # TODO - this skips over the stagger-u wrap codes
       incCodeA.addText("\n");
-      incCodeA.addText(self.incrementSrd(kernel, self.tPA, sgpr(inc['A']), sgpr(inc['A']+1) if self.use64bPackSumOffset else 0))
+      incCodeA.addText(self.incrementSrd(kernel, self.tPA, sgpr(inc['A']), sgpr(inc['A']+1) if self.use64bPackSumOffset else incUpper["A"]))
       incCodeA.addText("\n");
-      incCodeA.addText(self.incrementSrd(kernel, self.tPB, sgpr(inc['B']), sgpr(inc['B']+1) if self.use64bPackSumOffset else 0))
+      incCodeA.addText(self.incrementSrd(kernel, self.tPB, sgpr(inc['B']), sgpr(inc['B']+1) if self.use64bPackSumOffset else incUpper["B"]))
     else:
       self.globalReadIncrement(kernel, incCodeA, loopIdx, self.tPA, prefetchIndex, incs)
       self.globalReadIncrement(kernel, incCodeB, loopIdx, self.tPB, prefetchIndex, incs)
