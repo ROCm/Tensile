@@ -99,8 +99,8 @@ def GetSize(problemDefinition):
     k = int(problemDefinition["k"])
     b = 1
 
-    if "batch" in problemDefinition:
-        b = int(problemDefinition["batch"])
+    if "batch_count" or "batch" in problemDefinition:
+        b = int(problemDefinition["batch_count"])
 
     return [m, n, b, k]
 

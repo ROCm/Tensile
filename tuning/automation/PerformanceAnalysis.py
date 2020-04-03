@@ -95,14 +95,14 @@ def getCuCount(gpu):
 
     return 64
 
-def fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided):
+def fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided, isOne):
 
     for i in problemMapper:
         for klist in i:
             midList = list()
             for key in klist:
                 if key == "transposeA" or key == "transposeB" or key == "f" or key == "i":
-                    if klist[key] == 10:
+                    if klist[key] == 10 and isOne == "enabled":
                         klist[key] = 1
                     midList.append(klist[key])
                 if len(midList) == 4:
@@ -155,15 +155,17 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     key.append("us")
 
     performanceField = "rocblas-Gflops"
+    timingField = "us"
 
     df = data.groupby(key)
 
     results = df[performanceField].mean().to_frame()
+    timingResults = df[timingField].mean().to_frame()
 
     freq=freqM
     factor=sz * 64 * multiplier * cus
     results['eff'] = 100*1e3*results['rocblas-Gflops'] / (factor * freq) 
-    results['wa'] = results['rocblas-Gflops']*call_count
+    results['wa'] = timingResults['us']*call_count
 
     aggragateFileName = resultsName + "-aggregated.csv"
     aggragateFilePath = os.path.join(outputPath, aggragateFileName)
@@ -183,8 +185,9 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     
     largeAgg = large.groupby(key)
     largeResults = largeAgg[performanceField].mean().to_frame()
+    largeResultsTime = largeAgg[timingField].mean().to_frame()
     largeResults['eff'] = 100*1e3*largeResults['rocblas-Gflops'] / (factor * freq)
-    largeResults['wa'] = largeResults['rocblas-Gflops']
+    largeResults['wa'] = largeResultsTime['us']
 
     resultsFileName = resultsName + "-large.csv"
     resultsFilePath = os.path.join(outputPath, resultsFileName)
@@ -207,6 +210,7 @@ def RunMain():
     argParser.add_argument("input_file_name", help="configuration file path")
     argParser.add_argument("gpu", help="which gpu was used", type=str,default="vega20") 
     argParser.add_argument("mfma", help="were mfma instructions enabled", type=str,default="disabled")
+    argParser.add_argument("is_count_1", help="were mfma instructions enabled", type=str,default="disabled")
     
     args = argParser.parse_args(userArgs)
 
@@ -217,7 +221,8 @@ def RunMain():
     inputFileName = args.input_file_name
     cu = args.gpu
     xdl = args.mfma
-    
+    isOne = args.is_count_1
+ 
     problemMapper = list(ProcessFile(inputFileName).values())
     callCounts = list(list())
     callCountNN = list()
@@ -227,7 +232,7 @@ def RunMain():
     callCountTN = list()
     callCountTNstrided = list()
     
-    fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided,callCountTN, callCountTNstrided)
+    fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided, isOne)
 
     resultsFiles = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)))]
     resultsNameSet = set()
