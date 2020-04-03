@@ -62,11 +62,12 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
-  if globalParameters["NewClient"] == 2:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "CMakeListsCreateLibrary.txt"),
-        os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt") )
-  else:
+  #if globalParameters["NewClient"] == 2:
+    #shutil_copy(
+    #    os.path.join(globalParameters["SourcePath"], "CMakeListsCreateLibrary.txt"),
+    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt") )
+  #else:
+  if globalParameters["NewClient"] < 2:
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "CMakeLists.txt"),
         globalParameters["WorkingPath"] )
@@ -159,7 +160,7 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
     return process.returncode
   else:
     if not forBenchmark:
-      buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+      buildScriptName = writeBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
       with ClientExecutionLock():
         process = subprocess.Popen(buildScriptName, cwd=path)
         process.communicate()
@@ -180,7 +181,6 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   runScriptFile = io.StringIO()
   q = "" if os.name == "nt" else "\""
   echoLine = "@echo." if os.name == "nt" else "echo"
-  #if globalParameters["NewClient"] <= 2:
   runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake")
@@ -229,6 +229,54 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
       if os.name != "nt" else "") )
 
   return runScriptFile.getvalue()
+
+def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
+  import io
+  runScriptFile = io.StringIO()
+
+  callCreateLibraryCmd = globalParameters["ScriptPath"] + "/bin/TensileCreateLibrary"
+ 
+  
+  if globalParameters["MergeFiles"]:
+    callCreateLibraryCmd += " --merge-files"
+  else:
+    callCreateLibraryCmd += " --no-merge-files"
+
+  callCreateLibraryCmd += " --no-legacy-components"
+
+  if globalParameters["ShortNames"]:
+    callCreateLibraryCmd += " --short-file-names"
+  else:
+    callCreateLibraryCmd += " --no-short-file-names"
+
+  if globalParameters["LibraryPrintDebug"]:
+    callCreateLibraryCmd += " --library-print-debug"
+  else:
+    callCreateLibraryCmd += " --no-library-print-debug"
+
+  callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
+  callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
+  callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
+
+  callCreateLibraryCmd += " %s" % libraryLogicPath
+  callCreateLibraryCmd += " %s" % buildPath #" ../source" 
+  callCreateLibraryCmd += " %s\n" % globalParameters["RuntimeLanguage"]
+
+  runScriptFile.write(callCreateLibraryCmd)
+
+  return runScriptFile.getvalue()
+
+def writeBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+  filename = os.path.join(path, \
+    "build.%s" % ("bat" if os.name == "nt" else "sh") )
+  with open(filename, "w") as file:
+    file.write("#!/bin/bash\n\n")
+    file.write("set -ex\n")
+    file.write(getBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark))
+
+  if os.name != "nt":
+    os.chmod(filename, 0o777)
+  return filename
 
 def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
   filename = os.path.join(path, \
@@ -510,8 +558,11 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         sourceDir = os.path.join(stepBaseDir, "source")
         libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
         param("library-file", libraryFile)
+
+        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"] 
         for coFile in codeObjectFiles:
-            param("code-object", os.path.join(sourceDir,coFile))
+            if (currentGFXName in coFile):
+                param("code-object", os.path.join(sourceDir,coFile))
 
         if tileAwareSelection:
           param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv"))

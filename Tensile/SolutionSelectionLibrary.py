@@ -20,6 +20,7 @@
 ################################################################################
 
 from .Common import printExit
+from .CSVReader import readCSV
 from .SolutionStructs import Solution
 from . import YAMLIO
 
@@ -112,13 +113,13 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     if len(solutions) == 0:
       printExit("%s doesn't contains any solutions." % (solutionsFileName) )
       
-    dataFile = open(dataFileName, "r") 
-    csvFile = csv.reader(dataFile)
+    csvData = readCSV(dataFileName)
 
     rowIdx = 0
     summationKeys = None
 
-    for row in csvFile:
+    #for row in csvFile:
+    for row in csvData:
       if rowIdx == 0:
         print(rowIdx)
         summationKeys = getSummationKeys(row)
@@ -127,7 +128,6 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
           solution = solutions[rowIdx - 1]
           keyBase = makeKey(row)
           idx=7
-          #name = row[0]
           perfData = {}
           for summationKey in summationKeys:
             key = "%s_%s" % (keyBase,summationKey)
@@ -148,8 +148,6 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
               if value > valueOld:
                 performanceMap[key] = (solution, value)
       rowIdx+=1
-
-    dataFile.close()
 
   validSolutions = []
   validSolutionSet = set([])
