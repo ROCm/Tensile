@@ -4592,6 +4592,9 @@ class KernelWriterAssembly(KernelWriter):
         if gsu>1:
           m += "*%d"%gsu
 
+        if isMirrorIdx:
+          m = "-%s"%(m)
+
         # multiply by stride, optimizing if unit stride
         if self.isConstUnitStride(stride):
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), m, \
@@ -5209,7 +5212,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.staggerU:
       assert (kernel["BufferLoad"])
       staggerTmp = self.getTmpSgpr(1)
-      isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]
+      isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc] # TODO mirror for stagger!!
 
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
@@ -5235,7 +5238,7 @@ class KernelWriterAssembly(KernelWriter):
                 0, \
                 "remove one iteration")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0, isMirrorUnrolledIdx=isMirrorUnrolledIdx)
+      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
 
       if tP["isB"]:
         # Convert passed in S' to S for easy loop comparison.  S=S-(PGR-1)'
@@ -5284,7 +5287,7 @@ class KernelWriterAssembly(KernelWriter):
                     "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0, isMirrorUnrolledIdx=isMirrorUnrolledIdx)
+      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0)
 
     return kStr
 
@@ -6145,48 +6148,43 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   ##############################################################################
   # incLower must be constant or SGRP unsigned value
-  def incrementSrd(self, kernel, tP, incLower, incUpper, checkShadowLimitCopy=True, isMirrorUnrolledIdx=False):
+  def incrementSrd(self, kernel, tP, incLower, incUpper, checkShadowLimitCopy=True):
     tc = tP["tensorChar"]
     kStr = ""
 
-    incInstructionLo = "s_add_u32" if not isMirrorUnrolledIdx else "s_sub_u32"
-    incInstructionHi = "s_addc_u32" if not isMirrorUnrolledIdx else "s_subb_u32"
-    kStr += inst(incInstructionLo, \
+    kStr += inst("s_add_u32", \
          sgpr("Srd%s+0"%(tc)), \
          sgpr("Srd%s+0"%(tc)), \
          incLower, \
-         "gra SRD %s= inc(lower)"%("+" if not isMirrorUnrolledIdx else "-"))
-    kStr += inst(incInstructionHi, \
+         "gra SRD += inc(lower)")
+    kStr += inst("s_addc_u32", \
          sgpr("Srd%s+1"%(tc)), \
          sgpr("Srd%s+1"%(tc)), \
          incUpper, \
-         "gra SRD %s= inc(upper)"%("+" if not isMirrorUnrolledIdx else "-"))
+         "gra SRD += inc(upper)")
 
     # also have to move the boundary since we change the base
     # so less buffers to the edge:
-    limitInstructtionLo = "s_sub_u32" if not isMirrorUnrolledIdx else "s_add_u32"
-    limitInstructionHi = "s_subb_u32" if not isMirrorUnrolledIdx else "s_addc_u32"
-    limitComment = "limit %s= inc)"%("-" if not isMirrorUnrolledIdx else "+")
     if self.use64bShadowLimit:
-      kStr += inst(limitInstructtionLo, \
+      kStr += inst("s_sub_u32", \
           sgpr("ShadowLimit%s+0"%tc), \
           sgpr("ShadowLimit%s+0"%tc), \
           incLower, \
-            limitComment)
-      kStr += inst(limitInstructionHi, \
+            "limit -= inc)" )
+      kStr += inst("s_subb_u32", \
           sgpr("ShadowLimit%s+1"%tc), \
           sgpr("ShadowLimit%s+1"%tc), \
           incUpper, \
-            limitComment )
+            "limit -= inc)" )
       if checkShadowLimitCopy:
         kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
         kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
     else:
-      kStr += inst(limitInstructtionLo, \
+      kStr += inst("s_sub_u32", \
            sgpr("Srd%s+2"%(tc)), \
            sgpr("Srd%s+2"%(tc)), \
            incLower, \
-            limitComment )
+            "limit -= inc)" )
 
     return kStr
 
@@ -6251,9 +6249,8 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
 
-    isMirrorUnrolledIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] in kernel["ProblemType"]["MirrorDims%s" % tc] \
-        if loopIdx == self.unrollIdx else False
-
+    isMirrorIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] in kernel["ProblemType"]["MirrorDims%s" % tc]
+    import pdb; pdb.set_trace()
     imod.addComment1("global read inc %s loop%s"%(tc,loopChar))
 
     if kernel["BufferLoad"]:
@@ -6276,15 +6273,15 @@ class KernelWriterAssembly(KernelWriter):
                     "incLower <- ?")
         imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0,
                     "incUpper <- ?")
-        imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True, isMirrorUnrolledIdx=isMirrorUnrolledIdx))
+        imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
       else:
-        if loopIdx != self.unrollIdx:
+        if loopIdx == self.unrollIdx and not isMirrorIdx:
+          incUpper = 0 # GRO is positive for loop unroll
+        else:
           incUpper = sgpr(self.getTmpSgpr(1))
           # GRO may be negative for other summation if stride-other < stride-unroll.
           imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
-        else:
-          incUpper = 0 # GRO is positive for loop unroll
-        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper, isMirrorUnrolledIdx=isMirrorUnrolledIdx))
+        imod.addText( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper))
     else:
       graIdx = 0
       #for perp in range(0, tP["nrp"]):
