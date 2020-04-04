@@ -147,8 +147,7 @@ def findConfigs(rootDir=None):
             if filename.endswith('.yaml'):
                 filepath = os.path.join(rootDir, dirpath, filename)
                 marks = configMarks(filepath, rootDir, availableArchs)
-                testname = os.path.splitext(filename)[0]
-                params.append(pytest.param(filepath, marks=marks, id=testname))
+                params.append(pytest.param(filepath, marks=marks, id=filepath))
     return params
 
 @pytest.mark.parametrize("config", findConfigs())
