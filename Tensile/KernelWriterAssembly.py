@@ -6293,14 +6293,13 @@ class KernelWriterAssembly(KernelWriter):
 
         # TODO - maybe this should be encapulated in the SS setup code
         tmpSgpr = self.getTmpSgpr(2)
-        if len(kernel["PackedC0IndicesX"]) > 1:
-          tmpVgpr= self.vgprPool.checkOut(3, "NLL address tmps")
-        else:
+        if ss.optSingleColVgpr:
           tmpVgpr= None # don't need tmps for other uses?
-         # need to allocate vgprs for this path,
+        else:
+          tmpVgpr= self.vgprPool.checkOut(3, "NLL address tmps")
         assert(len(kernel["PackedC1IndicesX"]) == 1)
 
-        ss.setupStoreElementsForBatch(kernel, fullVw, elements, None)
+        ss.setupStoreElementsForBatch(kernel, fullVw, elements, None, isOptNLL=True)
         if not kernel["MatrixInstruction"]:
           kStr += inst("_v_add_lshl_u32", \
               vgpr(ss.sharedColVgprs), \
@@ -6345,6 +6344,8 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
           self.vgprPool.checkIn(vgprBf16Temp)
+        if tmpVgpr:
+          self.vgprPool.checkIn(tmpVgpr)
 
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
@@ -9212,7 +9213,7 @@ class KernelWriterAssembly(KernelWriter):
     #
     # Also create an AddrCalc for each memory operation.
     ##############################################################################
-    def setupStoreElementsForBatch(self, kernel, gwvw, batchElements, batchElementSgprs):
+    def setupStoreElementsForBatch(self, kernel, gwvw, batchElements, batchElementSgprs, isOptNLL):
 
       self.elementAddr = []
       self.elementData = []  # VGPR to use for element data, needed for atomic or beta
@@ -9279,7 +9280,7 @@ class KernelWriterAssembly(KernelWriter):
         else:
           # allocate new VGPR for each element:
           addr = kw.vgprPool.checkOut(self.cfg.numVgprsPerAddr, \
-              "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
+              "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=not isOptNLL)
 
         self.elementAddr.append(kw.AddrCalc(kw, self, addr, element, coordOffset0, \
           self.kernelWriter.coord1, coordOffset1, coordOffset1 - self.lastCoordOffset1, newCoord1))
@@ -9291,12 +9292,12 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ProblemType"]["HighPrecisionAccumulate"] and \
                (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
               data = kw.vgprPool.checkOut(int(2*self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw), \
-                    "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
+                    "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=not isOptNLL)
             else:
               if elementIdx%2 == 0:
                 # allocate for two elements:
                 data = kw.vgprPool.checkOut(int(2*self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw), \
-                        "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
+                        "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=not isOptNLL)
                 lastData = data
               else:
                 data = lastData
@@ -9418,6 +9419,7 @@ class KernelWriterAssembly(KernelWriter):
         self.coord0Vgpr = kw.coord0
       elif not ss.optSharedColVgpr or (d1 == vc1 == 0):
         # not share mode or first row always does the address calc math:
+
         if self.coordOffset0 == 0:
           self.coord0Vgpr = kw.coord0
         elif self.coordOffset0 <= 64:
@@ -10092,7 +10094,7 @@ class KernelWriterAssembly(KernelWriter):
         # so if we don't have *GPR resources to handle a larger batch then need
         # to mark overflowedResources rather than generate a kernel that won't work.
         if numSgprs+self.startSgprTmpPool >=  self.maxSgprs:
-          self.overflowedResources = 2 
+          self.overflowedResources = 2
         else:
           tmpSgpr = self.getTmpSgpr(numSgprs)
           elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
@@ -10393,7 +10395,7 @@ class KernelWriterAssembly(KernelWriter):
         commentStr += "; "
     kStr += self.comment3(commentStr)
 
-    ss.setupStoreElementsForBatch(kernel, gwvw, batchElements, batchElementSgprs)
+    ss.setupStoreElementsForBatch(kernel, gwvw, batchElements, batchElementSgprs, isOptNLL=False)
 
     loadsIssued = 0
     storesIssued = 0
