@@ -229,23 +229,24 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             scheme["AssertFree0ElementMultiple"] = [2]
         
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
-        
-        if count <= 1:   
-            appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
-            appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[4,32],[1,64],[2,64]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1]])
-        elif count == 2:
-            appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
-            appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[4,32],[1,64],[2,64]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1]])
-        elif count == 3: 
-            appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
-            appendThreadTiles(benchmarkGroup, [[4,16],[8,16],[2,32],[4,32],[2,64]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1]])
-        elif count == 4:
-            appendMatrixInstructions(benchmarkGroup, [[16, 16, 4, 1]])
-            appendThreadTiles(benchmarkGroup, [[4,16],[8,16],[2,32],[4,32],[2,64]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1]])
+       
+        if dType == "s": 
+            if count <= 1:   
+                appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
+                appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[4,32],[1,64],[2,64]])
+                appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1]])
+            elif count == 2:
+                appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
+                appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[4,32],[1,64],[2,64]])
+                appendWorkGroups(benchmarkGroup, [[16,16,1]])
+            elif count == 3: 
+                appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
+                appendThreadTiles(benchmarkGroup, [[4,16],[8,16],[2,32],[4,32],[2,64]])
+                appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1]])
+            elif count == 4:
+                appendMatrixInstructions(benchmarkGroup, [[16, 16, 4, 1]])
+                appendThreadTiles(benchmarkGroup, [[4,16],[8,16],[2,32],[4,32],[2,64]])
+                appendWorkGroups(benchmarkGroup, [[16,16,1]])
         
         appendSizes(benchmarkGroup,sizeList,tileAware)
         problemGroup.append(benchmarkGroup)
