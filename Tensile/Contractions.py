@@ -259,6 +259,10 @@ class ProblemPredicate(Properties.Predicate):
             return extractDimPredicate(cls, key, value, "StrideAEqual")
         if key == "AssertStrideBEqual":
             return extractDimPredicate(cls, key, value, "StrideBEqual")
+        if key == "AssertStrideCEqual":
+            return extractDimPredicate(cls, key, value, "StrideCEqual")
+        if key == "AssertStrideDEqual":
+            return extractDimPredicate(cls, key, value, "StrideDEqual")
 
         if key == "AssertSizeEqual":
             return extractDimPredicate(cls, key, value, "SizeEqual")
