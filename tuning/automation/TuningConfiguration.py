@@ -250,6 +250,10 @@ libraryLogicMapper={'arcturus': arcturusLibraryLogic, 'vega20': vega20LibraryLog
 def getLibraryLogic(logicType):
     libraryLogic = libraryLogicMapper[logicType]
     return libraryLogic
+
+def appendMatrixInstructions(benchmarkGroup, matrixInstructions):
+    forkedParams = benchmarkGroup["ForkParameters"]
+    forkedParams.append({"MatrixInstruction": matrixInstructions})
   
 def appendThreadTiles(benchmarkGroup, threadTiles):
     forkedParams = benchmarkGroup["ForkParameters"]
@@ -259,7 +263,7 @@ def appendWorkGroups(benchmarkGroup, workGroups):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"WorkGroup": workGroups})
 
-def appendSizes(benchmarkGroup, sizes, tileAware="true"):
+def appendSizes(benchmarkGroup, sizes, tileAware="false"):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
     for size in sizes:

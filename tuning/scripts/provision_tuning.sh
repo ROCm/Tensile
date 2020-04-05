@@ -8,7 +8,7 @@ function extract_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA}"
 
   ${EXTRACT_EXE}
 
@@ -23,7 +23,7 @@ function extract_network_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA}"
 
   ${EXTRACT_EXE}
 
@@ -84,8 +84,9 @@ ROCBLAS_FORK='ROCmSoftwarePlatform'
 TENSILE_BRANCH='develop'
 TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
 TILE_AWARE=false
+MFMA=false
 
-OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:ai: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,no-tensile -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:ami: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,mfma,no-tensile -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -107,6 +108,7 @@ while true; do
     -y | --type )         CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )      LIBRARY="$2"; shift 2;;
     -a | --tile-aware )   TILE_AWARE=true; shift;;
+    -m | --mfma )         MFMA=true; shift;;
     --no-tensile )        SUPPRESS_TENSILE=true; shift;;
     -i )                  ID="$2"; shift 2;;
     -- ) shift; break ;;
