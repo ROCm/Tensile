@@ -6277,7 +6277,7 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += self.assert_scc_is_1() # break at the wrap iteration
         imod.addInst("s_cselect_b32", sgpr(incLower), sgpr("WrapU%s+0"%tc), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "incLower <- ?")
-        imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0,
+        imod.addInst("s_cselect_b32", sgpr(incUpper), sgpr("WrapU%s+1"%tc), 0 if not isMirrorIdx else -1,
                     "incUpper <- ?")
         imod.addText(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
       else:
@@ -6429,7 +6429,7 @@ class KernelWriterAssembly(KernelWriter):
 
         for tc in ('A','B'):
           assert(not self.use64bPackSumOffset)
-          if sumDim in problemType["MirrorDims%s"%(tc)] and os!=self.unrollIdx :
+          if sumDim in problemType["MirrorDims%s"%(tc)]:
             incUpper[tc] = sgpr(self.getTmpSgpr(1))
             incCodeA.addInst("s_ashr_i32", incUpper[tc], sgpr("GlobalReadIncs%s+%d"%(tc,os)), 31, "sign-extend")
 
