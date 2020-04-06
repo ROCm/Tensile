@@ -6431,7 +6431,7 @@ class KernelWriterAssembly(KernelWriter):
           assert(not self.use64bPackSumOffset)
           if sumDim in problemType["MirrorDims%s"%(tc)]:
             incUpper[tc] = sgpr(self.getTmpSgpr(1))
-            incCodeA.addInst("s_ashr_i32", incUpper[tc], sgpr("GlobalReadIncs%s+%d"%(tc,os)), 31, "sign-extend")
+            incCodeA.addInst("s_ashr_i32", incUpper[tc], sgpr(inc[tc]), 31, "sign-extend")
 
         if 0 and lastIter:
           incCodeA.addText(self.assert_ne(sgpr("LoopCounterM"), 8))
