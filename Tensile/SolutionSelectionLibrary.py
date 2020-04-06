@@ -118,7 +118,6 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     rowIdx = 0
     summationKeys = None
 
-    #for row in csvFile:
     for row in csvData:
       if rowIdx == 0:
         print(rowIdx)

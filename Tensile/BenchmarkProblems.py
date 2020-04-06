@@ -502,22 +502,6 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
         kernelsBetaOnly.append(kernel)
         kernelNamesBetaOnly.add(kName)
 
-  maxMacroTile0 = 0
-  maxMacroTile1 = 0
-  for solution in solutions:
-    macroTile0 = solution["MacroTile0"]
-    macroTile1 = solution["MacroTile1"]
-    if macroTile0 > maxMacroTile0:
-      maxMacroTile0 = macroTile0
-    if macroTile1 > maxMacroTile1:
-      maxMacroTile1 = macroTile1
-  idealM = 36 * maxMacroTile0
-  idealN = 36 * maxMacroTile1
-  idealSizes = []
-  for idealK in solutionSummationSizes:
-    idealSize = {"Exact": [idealM, idealN, 1, idealK]}
-    idealSizes.append(idealSize)
-
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
   solutionMinNaming = Solution.getMinNaming(solutions)
@@ -545,8 +529,30 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 
   writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, False)
-  idealProblemSizes = ProblemSizes(problemType, idealSizes)
-  writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
+
+  if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:
+    maxMacroTile0 = 0
+    maxMacroTile1 = 0
+    for solution in solutions:
+      macroTile0 = solution["MacroTile0"]
+      macroTile1 = solution["MacroTile1"]
+      if macroTile0 > maxMacroTile0:
+        maxMacroTile0 = macroTile0
+      if macroTile1 > maxMacroTile1:
+        maxMacroTile1 = macroTile1
+    idealM = 36 * maxMacroTile0
+    idealN = 36 * maxMacroTile1
+    idealSizes = []
+    if problemType["Batched"]:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+          idealSizes.append(idealSize)
+    else:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, idealK]}
+          idealSizes.append(idealSize)
+    idealProblemSizes = ProblemSizes(problemType, idealSizes)
+    writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:
     printExit("write solutions and kernels results 0 valid soultion.")
