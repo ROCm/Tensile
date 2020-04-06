@@ -6771,6 +6771,7 @@ class KernelWriterAssembly(KernelWriter):
     ldsOffset = 0
 
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
+    isMirrorIdx = problemType["IndicesSummation"][loopIdx] in problemType["MirrorDims%s"%tc]
     if kernel["SuppressNoLoadLoop"]:
       if mode==1 and tP["isA"]:
         imod.header.addInst("s_cmp_eq_i32", \
@@ -6853,12 +6854,22 @@ class KernelWriterAssembly(KernelWriter):
             imod.middle.addCode(loadModule)
 
             if kernel["BufferLoad"]:
+              vtmpOffset = self.vgprPool.checkOut(1,"tmpOffset")
               if graIdx==0 or not kernel["_UseSgprForGRO"]:
                 offsetVgpr= "GlobalReadOffset%s+%u"%(tc, graIdx)
                 soffset = "0"
               else:
-                offsetVgpr= "GlobalReadOffset%s+0"%(tc)
-                soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+                if isMirrorIdx:
+                  # BufferLoad instruction represents soffset as unsigned value therefore we cannot use negative soffset to read mirrored values correctly
+                  codeMod = Code.Module("groMirror%u"%loopCnt)
+                  codeMod.addInst("_v_sub_u32", vgpr(vtmpOffset), vgpr("GlobalReadOffset%s+0"%(tc)), sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1)), "")
+                  loadModule.addCode(codeMod)
+
+                  offsetVgpr = vtmpOffset
+                  soffset = "0"
+                else:
+                  offsetVgpr= "GlobalReadOffset%s+0"%(tc)
+                  soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
 
               if problemType["ZeroPad%s"%tc]:
                 codeMod = Code.Module("guardZeroPad%u"%loopCnt)
@@ -6895,6 +6906,7 @@ class KernelWriterAssembly(KernelWriter):
                         extraFields=extraFields, \
                         hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)))
+              self.vgprPool.checkIn(vtmpOffset)
               #print "IM=", type(imod.instList[-1]), imod.instList[-1], 
             else: # not buffer load
               # load one element from address
