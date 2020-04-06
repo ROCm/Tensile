@@ -855,7 +855,7 @@ class KernelWriterAssembly(KernelWriter):
     # groOffsetInMacroTile doesn't work with packed dims since these need to set SRD to the tensor base
     # then extract the packed dimensions from the flattened index (including the workgroup) and scale by strides
     # - the index is per-work-item so can't put work-group into the SRD
-    # ZeroPad requires groOffsetInMacroTile since it needs the gro offsets in each dimension to include
+    # ZeroPad requires groOffsetIn0acroTile since it needs the gro offsets in each dimension to include
     # the tile components, since those same vars are used to compute the ZP offsets used for edge comparisons.
     if problemType["ZeroPadA"] == [] and problemType["ZeroPadB"] == [] and \
        len(kernel["PackedC0IndicesX"])==1 and len(kernel["PackedC1IndicesX"])==1 and kernel["BufferLoad"]:
@@ -3031,6 +3031,8 @@ class KernelWriterAssembly(KernelWriter):
                     "sgprStrides%s+%u"%(tc, i))
 
     kStr += "\n"
+    kStr += self.macroRegister("MT0", kernel["MacroTile0"])
+    kStr += self.macroRegister("MT1", kernel["MacroTile1"])
     kStr += self.macroRegister("DepthU", kernel["DepthU"])
     kStr += self.macroRegister("GSU", kernel["GlobalSplitU"])
     kStr += self.macroRegister("BpeA", self.tPA["bpe"])
@@ -8488,7 +8490,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
     kStr += inst("s_mul_i32", \
         sgpr(wgMT1), \
-        hex(kernel["MacroTile1"]), \
+        "MT1", \
         sgpr("WorkGroup1"), \
         "<- wg1*MT1")
 
@@ -8686,7 +8688,7 @@ class KernelWriterAssembly(KernelWriter):
         #TODO review below code
         kStr += inst("s_mul_i32", \
             sgpr(wgMT1), \
-            hex(kernel["MacroTile1"]), \
+            "MT1", \
             sgpr(wg1), \
             "<- wg1*MT1")
         kStr += inst("_v_add_co_u32", \
@@ -9272,7 +9274,7 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["MatrixInstruction"]:
             elementCol = (d0*kernel["StoreVectorWidth"] + vc0) / gwvw
           else:
-            elementCol = (d0*gwvw + vc0) / gwvw
+            elementCol = (d0*kernel["VectorWidth"] + vc0) / gwvw
           assert (modf(elementCol)[0] < 0.001)
           elementCol = trunc(elementCol)
           addr = self.sharedColVgprs+elementCol
@@ -10785,7 +10787,8 @@ class KernelWriterAssembly(KernelWriter):
         if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
-      kStr += self.comment("apply mask, calc new C and issue write")
+      kStr += self.comment("apply mask, calc new C and issue writes")
+      #kStr += self.bomb() # can see store addresses just before the store inst
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
         vgprBf16Temp = self.vgprPool.checkOut(4)
