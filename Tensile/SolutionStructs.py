@@ -1664,11 +1664,6 @@ class Solution:
           state["MatrixInstN"] = state["MatrixInstruction"][1]
           state["MatrixInstK"] = state["MatrixInstruction"][2]
           state["MatrixInstB"] = state["MatrixInstruction"][3]
-      if not state["ProblemType"]["HighPrecisionAccumulate"] and \
-         not state["ProblemType"]["DataType"].isSingle() :
-        reject(state, "Matrix instructions for half types are natively accumulated" + \
-         " in fp32 precision. Please add the following config:" + \
-         "\n - HighPrecisionAccumulate: True")
     else:
       if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
         reject(state, "Invalid value for ThreadTile")
@@ -2066,6 +2061,11 @@ class Solution:
       if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
         state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
         reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+      if not state["ProblemType"]["HighPrecisionAccumulate"] and \
+         not state["ProblemType"]["DataType"].isSingle() :
+        reject(state, "Matrix instructions for half types are natively accumulated" + \
+         " in fp32 precision. Please add the following config:" + \
+         "\n - HighPrecisionAccumulate: True")
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
