@@ -7709,9 +7709,6 @@ class KernelWriterAssembly(KernelWriter):
               if not kernel["TransposeLDS"] or (kernel["ProblemType"]["TLU%s"%tP["tensorChar"]] and (kernel["TransposeLDS"] == 1)):
                 tIdx = tP["tensorIdx"]
                 readOffsetWidth = kernel["MacroTile%u" % tIdx] // kernel["ThreadTile%u" % tIdx]
-                if tP["isA"]:
-                  print ("TLUA",kernel["ProblemType"]["TLU%s"%tP["tensorChar"]])
-                  print ("readOffsetWidth",readOffsetWidth)
                 if tP["isB"]:
                   readOffsetWidth = kernel["MacroTile%u" % tIdx] // (4 * kernel["ThreadTile1"] // kernel["MatrixInstN"]) # 4 simds
                 paramList.append(((rIdx * blockWidth * readOffsetWidth + kernel["SubGroup%u" % tIdx]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
