@@ -36,17 +36,18 @@ BenchmarkProblems:
     ForkParameters:
       - KernelLanguage: [Assembly]
       - PrefetchLocalRead: [False, True]
-      - PrefetchGlobalRead: [False]
+      - PrefetchGlobalRead: [True, False]
       - ThreadTile:
         - [ 2, 2 ]
         - [ 2, 4 ]
         - [ 4, 2 ]
+        - [ 4, 4 ]
       - WorkGroup:
         - [ 8, 8, 1 ]
         - [ 8, 8, 8 ]
         - [ 16, 16, 1 ]
       - DepthU: [4, 8, 16]
-      - VectorWidth: [2,4]
+      - VectorWidth: [1,2,4]
       - GlobalReadVectorWidth: [1,2,4]
     BenchmarkForkParameters:
     BenchmarkJoinParameters:

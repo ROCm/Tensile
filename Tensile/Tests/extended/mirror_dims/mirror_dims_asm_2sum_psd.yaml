@@ -23,10 +23,10 @@ BenchmarkProblems:
     DestDataType: s
     UseBeta: False
     NumIndicesC: 2
-    IndexAssignmentsA: [ 0, 2, 3, 4 ]
-    IndexAssignmentsB: [ 4, 3, 2, 1 ]
+    IndexAssignmentsA: [ 0, 2, 3 ]
+    IndexAssignmentsB: [ 3, 2, 1 ]
     MirrorDimsA: [ 2, 3 ]
-    MirrorDimsB: [ 3 ]
+    MirrorDimsB: [ 2 ]
     UseInitialStridesAB: True
 
   - # BenchmarkProblemSizeGroup - Standard
@@ -34,6 +34,7 @@ BenchmarkProblems:
     BenchmarkCommonParameters:
       - EdgeType: ["ShiftPtr"]
     ForkParameters:
+      - PackSummationDims: [1]
       - KernelLanguage: [Assembly]
       - PrefetchLocalRead: [False, True]
       - PrefetchGlobalRead: [True, False]
@@ -53,6 +54,6 @@ BenchmarkProblems:
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
       - ProblemSizes:
-        - Exact: [ 49, 100, 86, 4, 3 ]
-        - Exact: [ 3, 5, 9, 4, 7 ]
-        - Exact: [ 49, 100, 86, 22, 21 ]
+        - Exact: [ 49, 100, 86, 4 ]
+        - Exact: [ 3, 5, 9, 4 ]
+        - Exact: [ 49, 100, 86, 22 ]
