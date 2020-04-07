@@ -6478,6 +6478,7 @@ class KernelWriterAssembly(KernelWriter):
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth
+    isMirrorIdx = problemType["IndicesSummation"][self.unrollIdx] in problemType["MirrorDims%s"%tc]
 
     ########################################
     # Calculate Max Addr
@@ -6586,12 +6587,22 @@ class KernelWriterAssembly(KernelWriter):
                 # and each increment of SRD base in the unroll loop does a corresponding decrement
                 # of the srd limit - so base+limit stays constant and also points at maximum
                 # element that should be accessed.
+                vtmpOffset = self.vgprPool.checkOut(1,"tmpOffset")
                 if kernel["_UseSgprForGRO"]:
                   offsetVgpr = "GlobalReadOffset%s+0"%(tc)
                   if graIdx==0:
                     soffset = "0"
                   else:
-                    soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+                    if isMirrorIdx:
+                      # BufferLoad instruction represents soffset as unsigned value therefore we cannot use negative soffset to read mirrored values correctly
+                      codeMod = Code.Module("groMirror%u"%loopCnt)
+                      codeMod.addInst("_v_sub_u32", vgpr(vtmpOffset), vgpr("GlobalReadOffset%s+0"%(tc)), sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1)), "")
+                      kStr += str(codeMod)
+
+                      offsetVgpr = vtmpOffset
+                      soffset = "0"
+                    else:
+                      soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
                 else:
                   offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
                   soffset = "0"
@@ -6637,6 +6648,7 @@ class KernelWriterAssembly(KernelWriter):
                           extraFields=extraFields, \
                           hi16=hi16, \
                           comment=comment).toStr()
+                self.vgprPool.checkIn(vtmpOffset)
                 # print("  bpl={}, destVgpr={}, soffset={}, offset={}, hi16={}".format(bpl, destVgpr, soffset, offset, hi16))
 
               else: # Not buffer load, ie 'flat' load
