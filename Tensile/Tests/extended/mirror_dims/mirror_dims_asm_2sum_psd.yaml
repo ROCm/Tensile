@@ -26,7 +26,7 @@ BenchmarkProblems:
     IndexAssignmentsA: [ 0, 2, 3 ]
     IndexAssignmentsB: [ 3, 2, 1 ]
     MirrorDimsA: [ 2, 3 ]
-    MirrorDimsB: [ 2 ]
+    MirrorDimsB: [ 2, 3 ]
     UseInitialStridesAB: True
 
   - # BenchmarkProblemSizeGroup - Standard

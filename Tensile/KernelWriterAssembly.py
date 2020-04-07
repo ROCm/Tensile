@@ -6347,9 +6347,12 @@ class KernelWriterAssembly(KernelWriter):
 
     if loopIdx==self.unrollIdx and kernel["PackSummationDims"] and self.actualSummationLoops==1:
       incSize = 2 if self.use64bPackSumOffset else 1
-      tmpSgpr = self.getTmpSgpr(3 + 2*incSize + (3 if kernel["GlobalSplitU"]>1 else 0))
+      tmpSgpr = self.getTmpSgpr(3 + 2 + 2*incSize + (3 if kernel["GlobalSplitU"]>1 else 0))
+      signExtend ={}
+      signExtend['A'] = tmpSgpr + 3
+      signExtend['B'] = signExtend['A'] + 1
       inc ={}
-      inc['A'] = tmpSgpr + 3
+      inc['A'] = tmpSgpr + 5
       inc['B'] = inc['A'] + incSize
       gsuMagic = inc['B'] + incSize
 
@@ -6430,7 +6433,7 @@ class KernelWriterAssembly(KernelWriter):
         for tc in ('A','B'):
           assert(not self.use64bPackSumOffset)
           if sumDim in problemType["MirrorDims%s"%(tc)]:
-            incUpper[tc] = sgpr(self.getTmpSgpr(1))
+            incUpper[tc] = sgpr(signExtend[tc])
             incCodeA.addInst("s_ashr_i32", incUpper[tc], sgpr(inc[tc]), 31, "sign-extend")
 
         if 0 and lastIter:
