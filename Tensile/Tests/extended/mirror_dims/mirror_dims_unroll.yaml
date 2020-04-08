@@ -33,7 +33,7 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - EdgeType: [ShiftPtr]
+      - EdgeType: [ShiftPtr]
       ForkParameters:
         - KernelLanguage: [Source]
         - PrefetchLocalRead: [False]
@@ -47,7 +47,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - StaggerU: [0]
         - StaggerUMapping: [0]
-        - DepthU: [4, 8, 16]
+        - DepthU: [4] # 8 and 16 doesn't work with MirrorDimsB
         - FractionalLoad: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:

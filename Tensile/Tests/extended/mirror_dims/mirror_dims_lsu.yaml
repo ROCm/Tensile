@@ -15,6 +15,8 @@ GlobalParameters:
   PrintTensorD: 2
   CpuThreads: 0
   NewClient: 2
+  InitTensorA: 8
+  InitTensorB: 8
 
 BenchmarkProblems:
   -
@@ -46,11 +48,11 @@ BenchmarkProblems:
           - [ 16, 8, 2 ]
         - StaggerU: [0]
         - StaggerUMapping: [0]
-        - DepthU: [4, 8, 16]
+        - DepthU: [4, 8] # 16 doesn't work with MirrorDimsB
         - FractionalLoad: [1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 49, 100, 86 ]
-          - Exact: [ 3, 5, 9 ]
+           - Exact: [ 49, 100, 86 ]
+           - Exact: [ 7, 9, 9 ]
