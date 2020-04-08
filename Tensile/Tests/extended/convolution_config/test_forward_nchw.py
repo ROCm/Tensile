@@ -108,7 +108,6 @@ def test_nchw_const_use_initial_strides(tensile_state, run_convolution_level):
 
 @pytest.mark.parametrize("unrollOnChannel", [0, 1], ids=["unrollOnChannel0", "unrollOnChannel1"])
 def test_nchw_filter2x2(tensile_state, run_convolution_level, unrollOnChannel):
-    from YamlBuilder.YamlBuilder import Solutions
 
     z={} # problemType definition
     conv = Convolution(z, 'ConvolutionForward',
