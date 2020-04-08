@@ -510,7 +510,6 @@ class Convolution:
             {problemTypeOut["IndexAssignmentsB"].index(s[0]) : s[1] for s in strideb}
     problemTypeOut["SetConstStrideB"] = strideb
 
-
     self.solutionParms["AssertSizeEqual"] = {regDim.idx:regDim.dim.size for regDim in self.indexAssignments if regDim.dim.size != -1}
 
     if self.solutionParms["AssertStrideAEqual"].get(0,-1) == 1 and \
@@ -1484,11 +1483,16 @@ class ProblemSizes:
         self.ranges[i].problemSizes[:] = \
           [ExactList.convertLeadingDims(self.problemType, problemSize) for problemSize in self.ranges[i].problemSizes]
 
-    self.problems = set()
+    self.problems = OrderedDict()
     for sizeRange in self.ranges:
-      self.problems.update([Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) for rangeSize in sizeRange.problemSizes])
-    self.problems.update(self.exacts)
-    self.problems =  sorted(list( self.problems), key=operator.attrgetter("sizes"))
+        for rangeSize in sizeRange.problemSizes:
+            self.problems.update({Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) : 1 })
+    for e in self.exacts:
+        self.problems.update({e : 1})
+    if globalParameters["SortProblems"]:
+      self.problems =  sorted(list( self.problems.keys()), key=operator.attrgetter("sizes"))
+    else:
+      self.problems =  list(self.problems.keys())
     self.totalProblemSizes = len(self.problems)
 
     # max sizes
@@ -2089,6 +2093,10 @@ class Solution:
       for (tc) in ('A','B'):
         state["AssertStride%sEqual"%tc][0]=1
 
+    if not problemType["UseInitialStridesCD"]:
+      for (tc) in ('C','D'):
+        state["AssertStride%sEqual"%tc][0]=1
+
     # Add AssertStride*Equal for PackBatchDims, if needed
     for (mask, tc) in ((0x1,'B'), (0x2,'A')):
       if state["PackBatchDims"] & mask:
@@ -2221,7 +2229,7 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization 
-      state["StoreVectorWidth"] = 4  
+      state["StoreVectorWidth"] = 4
 
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
@@ -2444,7 +2452,7 @@ class Solution:
        or bool(problemType["ZeroPadA"]) or bool(problemType["ZeroPadB"]):
         # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
         # problems that require tail loop.
-        if state["DepthU"] %  state["AssertSummationElementMultiple"] != 0:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
           reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
         else:
           state["AssertSummationElementMultiple"] = state["DepthU"]
@@ -2529,11 +2537,15 @@ class Solution:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
     if "MatrixInstruction" in state:
       if state["TransposeLDS"] == 1:
-        if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
-          reject(state, "TransposeLds requires TLU=0")
+        if state["ProblemType"]["TLUA"] and  state["ProblemType"]["TLUB"]:
+          reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
     if state["TransposeLDS"] == 1:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
+
+    if state["LocalReadVectorWidth"] != -1:
+      if not state["TransposeLDS"] == 1:
+        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     if not state["LdsBlockSizePerPad"] == -1:
@@ -2823,6 +2835,13 @@ class Solution:
               state["_VectorStore"] = 0
             else:
               reject(state, "packedC0 Assembly requires AF0EM>=VectorWidth or not VectorStore (for stores)")
+
+    if state["AssertStrideCEqual"].get(0,-1) != 1 or state["AssertStrideDEqual"].get(0,-1) != 1:
+      # Disable vector stores if not allowed:
+      if state["VectorStore"] <= 0:
+        state["_VectorStore"] = 0
+      else:
+        reject(state, "UseInitialStridesCD requires not VectorStore since store locations not adjacent")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:

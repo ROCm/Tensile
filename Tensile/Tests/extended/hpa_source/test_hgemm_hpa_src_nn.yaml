@@ -30,7 +30,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 2, 4 ]
+          ##- [ 2, 4 ]
           - [ 4, 8 ]
           - [ 16, 8 ]
         - WorkGroup:
@@ -43,7 +43,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Source
       InitialSolutionParameters:
@@ -56,7 +56,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 4, 2 ]
+          ##- [ 4, 2 ]
           - [ 4, 8 ]
           - [ 16, 16 ]
           - [ 8, 8 ]
@@ -70,7 +70,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # hgemm NT
     - # ProblemType
@@ -94,7 +94,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 2, 2 ]
+          ##- [ 2, 2 ]
           - [ 4, 4 ]
           - [ 8, 16 ]
         - WorkGroup:
@@ -107,7 +107,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Source
       InitialSolutionParameters:
@@ -120,7 +120,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 4, 2 ]
+          ##- [ 4, 2 ]
           - [ 8, 8 ]
           - [ 8, 4 ]
         - WorkGroup:
@@ -133,4 +133,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]

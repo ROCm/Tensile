@@ -93,7 +93,7 @@ TEST(ContractionPerformance, Problem1)
     auto problem = ContractionProblem::GEMM(false, false, 1536, 1536, 64, 1536, 64, 1536, 1.5, false, 1.0);
 
     AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
-    double perf = solution->projectedPerformance(problem, hardware);
+    double perf = solution->projectedPerformance(problem, hardware).speedGFlops;
 
     ASSERT_DOUBLE_EQ(perf, 3000.0);
 }
@@ -122,7 +122,7 @@ TEST(ContractionPerformance, Problem2)
     auto problem = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
 
     AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
-    double perf = solution->projectedPerformance(problem, hardware);
+    double perf = solution->projectedPerformance(problem, hardware).speedGFlops;
  
     ASSERT_DOUBLE_EQ(perf, 843.75);
 }
@@ -137,7 +137,7 @@ TEST(ContractionPerformance, Problem3)
 
     solution->ideals = ideals;
 
-    
+
     Tensile::dim3 workgroupSize = Tensile::dim3(16,16,2);
     Tensile::dim3 threadTile = Tensile::dim3(8,8,0);
     Tensile::dim3 macroTile = Tensile::dim3(128,128,16);
@@ -146,13 +146,17 @@ TEST(ContractionPerformance, Problem3)
     ContractionSolution::SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
- 
-    auto problem = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
- 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
-    double perf = solution->projectedPerformance(problem, hardware);
 
-    ASSERT_DOUBLE_EQ(perf, 421.875);
+    auto problem = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
+
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    auto model = solution->projectedPerformance(problem, hardware);
+
+    //std::cout << model << "\n";
+
+    ASSERT_DOUBLE_EQ(model.tilesPerCu, .1875);
+    ASSERT_DOUBLE_EQ(model.totalGranularity, .140625);
+    ASSERT_DOUBLE_EQ(model.speedGFlops, 421.875);
 }
 
 TEST(ContractionPerformance, Problem4)
@@ -165,7 +169,6 @@ TEST(ContractionPerformance, Problem4)
 
     solution->ideals = ideals;
 
-    
     Tensile::dim3 workgroupSize = Tensile::dim3(16,16,4);
     Tensile::dim3 threadTile = Tensile::dim3(8,4,0);
     Tensile::dim3 macroTile = Tensile::dim3(128,64,16);
@@ -174,12 +177,16 @@ TEST(ContractionPerformance, Problem4)
     ContractionSolution::SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
- 
+
     auto problem = ContractionProblem::GEMM(false, false, 1536, 1575, 64, 1536, 64, 1536, 1.5, false, 3.0);
 
     AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
-    double perf = solution->projectedPerformance(problem, hardware); 
+    auto model = solution->projectedPerformance(problem, hardware);
 
-    ASSERT_DOUBLE_EQ(perf, 2953.125);
+    //std::cout << model << "\n";
+
+    ASSERT_DOUBLE_EQ(model.tilesPerCu, 225);
+    ASSERT_NEAR(model.totalGranularity, .984375, .001);
+    ASSERT_DOUBLE_EQ(model.speedGFlops, 2953.125);
 }
 

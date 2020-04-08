@@ -564,9 +564,10 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
       clientName)
 
-  forBenchmark = True
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
+  if globalParameters["NewClient"] != 2:
+      forBenchmark = True
+      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+          filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
 
 
 ################################################################################

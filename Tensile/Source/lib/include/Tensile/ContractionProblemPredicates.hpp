@@ -237,7 +237,6 @@ namespace Tensile
                 }
             };
 
-
             struct StrideAEqual: public Predicate_CRTP<StrideAEqual, ContractionProblem>
             {
                 enum { HasIndex = true, HasValue = true };
@@ -285,6 +284,58 @@ namespace Tensile
                     bool rv = (*this)(problem);
 
                     stream << *this << ": (" << problem.b().strides()[index] << " == " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct StrideCEqual: public Predicate_CRTP<StrideCEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                StrideCEqual() = default;
+                StrideCEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "StrideCEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.c().strides()[index] == value ;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.c().strides()[index] << " == " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct StrideDEqual: public Predicate_CRTP<StrideDEqual, ContractionProblem>
+            {
+                enum { HasIndex = true, HasValue = true };
+                size_t index;
+                size_t value;
+
+                StrideDEqual() = default;
+                StrideDEqual(size_t index, size_t value): index(index), value(value) {}
+
+                static std::string Type() { return "StrideDEqual"; }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.d().strides()[index] == value ;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem, std::ostream & stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.d().strides()[index] << " == " << value << ") == " << rv;
 
                     return rv;
                 }

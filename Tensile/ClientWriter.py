@@ -112,7 +112,8 @@ def main( config ):
   problemSizes = None
   stepName = None
   solutionSummationSizes = None
-  if logicFiles:
+  if globalParameters["NewClient"] != 2:
+    if logicFiles:
       writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
@@ -461,7 +462,8 @@ def problemSizeParams(solution, problem):
             bstrides[index.b] = sc[1]
 
 
-    cstrides = dstrides = None
+    cstrides = problem.stridesC
+    dstrides = problem.stridesD
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
@@ -624,6 +626,11 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         if not globalParameters["KernelTime"]:
             param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])
+        param("perf-l2-read-hits",        globalParameters["PerfModelL2ReadHits"])
+        param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
+        param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
+        param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
+
 
 
 ################################################################################
@@ -1274,7 +1281,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # strides
     indexChars = globalParameters["IndexChars"]
     firstStride = 1
-    assert(not problemType["UseInitialStridesCD"]) # not supported in old client
+    #assert(not problemType["UseInitialStridesCD"]) # not supported in old client
     if problemType["UseInitialStridesAB"]:
       firstStride = 0
     lastStrideD = problemType["NumIndicesC"]
