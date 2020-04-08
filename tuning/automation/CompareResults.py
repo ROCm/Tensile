@@ -48,12 +48,13 @@ def RunMain():
     new_data = pd.read_csv(newFileName)
     
     result1 = pd.merge(current_data, new_data, on=keys, how='inner')
-    result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current', 'rocblas-Gflops_y':'rocblas-Gflops_new','us_x':'us_current','us_y':'us_new','counts_x':'counts_current','score_x':'score_current','counts_y':'counts_new','score_y':'score_new','wa_x':'wa_current','wa_y':'wa_new'})
+    result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current', 'rocblas-Gflops_y':'rocblas-Gflops_new','us_x':'us_current','us_y':'us_new','counts_x':'counts_current','score_x':'score_current','counts_y':'counts_new','score_y':'score_new','us_w_x':'us_w_current','us_w_y':'us_w_new'})
 
+    result['us_saved_total'] = result['us_w_current'] - result['us_w_new']
     result['speedup'] = 100.0 * (result['us_current'] - result['us_new']) /result['us_current']
-    result['weighted speedup'] = result['speedup'] * result['wa_new'] / result['us_new']
-    result['call count'] = result['weighted speedup'] / result['speedup']
-    result['overall speedup'] = sum(result['weighted speedup']) / sum(result['call count'])
+    result['call_count'] = result['us_w_new'] / result['us_new']
+    result['overall_us_saved'] = sum(result['us_saved_total'])
+    result['overall_speedup'] = 100.0 - 100.0*(sum(result['us_w_current'])-sum(result['us_saved_total']))/sum(result['us_w_current'])
 
     result.to_csv(combinedFileName, header=True, index=False)
 

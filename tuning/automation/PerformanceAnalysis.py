@@ -165,7 +165,7 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     freq=freqM
     factor=sz * 64 * multiplier * cus
     results['eff'] = 100*1e3*results['rocblas-Gflops'] / (factor * freq) 
-    results['wa'] = timingResults['us']*call_count
+    results['us_w'] = timingResults['us']*call_count
 
     aggragateFileName = resultsName + "-aggregated.csv"
     aggragateFilePath = os.path.join(outputPath, aggragateFileName)
@@ -187,7 +187,7 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     largeResults = largeAgg[performanceField].mean().to_frame()
     largeResultsTime = largeAgg[timingField].mean().to_frame()
     largeResults['eff'] = 100*1e3*largeResults['rocblas-Gflops'] / (factor * freq)
-    largeResults['wa'] = largeResultsTime['us']
+    largeResults['us_w'] = largeResultsTime['us']
 
     resultsFileName = resultsName + "-large.csv"
     resultsFilePath = os.path.join(outputPath, resultsFileName)
