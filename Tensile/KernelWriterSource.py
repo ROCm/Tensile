@@ -2841,12 +2841,8 @@ class KernelWriterSource(KernelWriter):
 
     index1 = kernel["ProblemType"]["Index1"]
     kStr += "  unsigned int flattenedGlobalC1 = "
-    if kernel["ProblemType"]["MirrorDimsB"]:
-      kStr += "(nwg%s - wg%s - 1)*MT%s + ((NUM_THREADS - serial - 1) / SG%s)*VECTOR_WIDTH;%s" \
-            % (self.indexChars[index1], self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
-    else:
-      kStr += "(wg%s)*MT%s + (serial / SG%s)*VECTOR_WIDTH;%s" \
-            % (self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
+    kStr += "(wg%s)*MT%s + (serial / SG%s)*VECTOR_WIDTH;%s" \
+          % (self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
 
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         kStr += "  unsigned int globalC%s = " % self.indexChars[i]
@@ -2883,7 +2879,6 @@ class KernelWriterSource(KernelWriter):
             offsetS1 = ""
           else:
             offsetS1 = ((" + %u"%s1) if kernel["VectorWidth"]>1 else "")
-          s1 = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] else s1
           for s0 in range(0, kernel["VectorWidth"]):
             # set default offsets, may be overridden in packed mode:
             offsetS0 = ((" + %u"%s0) if kernel["VectorWidth"]>1 else "")
@@ -2930,10 +2925,9 @@ class KernelWriterSource(KernelWriter):
               globalC1ForCheck = "flattenedGlobalC1"
               size1ForCheck = " * ".join(self.tPB["packedSizeList"])
 
-              s1Tmp = kernel["VectorWidth"] - 1 - s1 if kernel["ProblemType"]["MirrorDimsB"] else s1
               kStr += "  if (%s%s + %u*SG%s*VECTOR_WIDTH < %s) {" \
                   % (globalC1ForCheck,
-                  ((" + %u"%s1Tmp) if kernel["VectorWidth"]>1 else ""), \
+                  ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
                   b, self.tileChar1, size1ForCheck)
 
             # Write the result
@@ -2965,11 +2959,8 @@ class KernelWriterSource(KernelWriter):
             #    % (a, s1, self.tileChar0, b, self.tileChar0, \
             #    ((".%s"%self.vectorComponents[s0]) if kernel["VectorWidth"]>1\
             #    else "") )
-            bStore = b
-            if kernel["ProblemType"]["MirrorDimsB"]:
-              bStore = kernel["ThreadTile1"]//kernel["VectorWidth"] - b - 1
             kStr += ", rC[%u*VECTOR_WIDTH+%u + (%u*VECTOR_WIDTH+%u)*TT%s]" \
-                % (a, s0, bStore, s1, self.tileChar0 )
+                % (a, s0, b, s1, self.tileChar0 )
             if kernel["ProblemType"]["UseBeta"]:
               kStr += ", beta"
             kStr += ")"
