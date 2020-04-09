@@ -855,7 +855,7 @@ class KernelWriterAssembly(KernelWriter):
     # groOffsetInMacroTile doesn't work with packed dims since these need to set SRD to the tensor base
     # then extract the packed dimensions from the flattened index (including the workgroup) and scale by strides
     # - the index is per-work-item so can't put work-group into the SRD
-    # ZeroPad requires groOffsetIn0acroTile since it needs the gro offsets in each dimension to include
+    # ZeroPad requires groOffsetInMacroTile since it needs the gro offsets in each dimension to include
     # the tile components, since those same vars are used to compute the ZP offsets used for edge comparisons.
     if problemType["ZeroPadA"] == [] and problemType["ZeroPadB"] == [] and \
        len(kernel["PackedC0IndicesX"])==1 and len(kernel["PackedC1IndicesX"])==1 and kernel["BufferLoad"]:
