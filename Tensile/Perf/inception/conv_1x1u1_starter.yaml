@@ -48,7 +48,6 @@ BenchmarkProblems:
         - VectorWidth: [1,-1]
         - FractionalLoad: [1]
         - PackBatchDims: [0,1]
-          #- VectorStore: [0,1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

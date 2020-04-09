@@ -77,7 +77,7 @@ class Solutions:
                     {"PrefetchGlobalRead": [0]},
                     {"KernelLanguage": ["Assembly"]},
                     {"ThreadTile": [
-                        [ 2, 2 ]
+                        [ 4, 4 ]
                         ]},
                     {"WorkGroup": [
                         [  8, 8, 1 ]
@@ -101,7 +101,7 @@ class Solutions:
                     {"PrefetchGlobalRead": [1]},
                     {"KernelLanguage": ["Assembly"]},
                     {"ThreadTile": [
-                        [ 2, 2 ],
+                        [ 8, 4 ],
                         [ 4, 8 ],
                         [ 8, 8 ]
                         ]},
@@ -130,6 +130,7 @@ class Solutions:
                     {"ThreadTile": [
                         [ 4, 4 ],
                         [ 4, 8 ],
+                        [ 8, 4 ],
                         [ 8, 8],
                         ]},
                     {"WorkGroup": [
