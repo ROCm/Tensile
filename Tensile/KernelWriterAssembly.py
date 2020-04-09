@@ -3968,7 +3968,7 @@ class KernelWriterAssembly(KernelWriter):
 
           for l in range(0, tP["nrt"]):
             lastGroVgpr = vgpr(v+l)
-            lastGroIdx = 0
+            lastGroIdx = tP["PackedIndices"][0]
             kStr += "\n"
             for p in range(0, numExtraPackedOffsetsPerTile):
               groIdx  = tP["PackedIndices"][p+1]
