@@ -140,7 +140,7 @@ namespace Tensile
             {
             }
 
-            virtual std::string distanceType() const
+            virtual std::string distanceType() const override
             {
                 return Distance::Type();
             }
