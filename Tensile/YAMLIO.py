@@ -234,8 +234,6 @@ def readLibraryLogicForSchedule( filename ):
   exactLogic        = data[7]
   rangeLogic        = data[8]
 
-  newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data)
-
   # does version match
   if not versionIsCompatible(versionString):
     printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
@@ -256,6 +254,8 @@ def readLibraryLogicForSchedule( filename ):
       printExit("ProblemType of file doesn't match solution: %s != %s" \
           % (problemType, solutionObject["ProblemType"]))
     solutions.append(solutionObject)
+
+  newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
   return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
       exactLogic, rangeLogic, newLibrary, architectureName)

@@ -189,17 +189,13 @@ def generateDefaultScheme():
     scheme={"EdgeType": ["ShiftPtr"],
             "KernelLanguage": ["Assembly"],
             "LoopTail": [True],
-            "WorkGroupMapping": [1, 8, 16],
+            "WorkGroupMapping": [1,4,8,16],
             "DepthU": [8,16,32],
             "VectorWidth": [-1],
-            "GlobalSplitU": [1, 2, 4, 6, 8, 12, 16],
+            "GlobalSplitU": [1],
             "GlobalReadVectorWidth": [-1],
-            #"LdsPadA": [0, -1 ],
-            #"LdsPadB": [0, -1 ],
-            #"UseSgprForGRO": [0, 1],
-            "FractionalLoad": [1],
-            "PrefetchGlobalRead": [False],
-            "PrefetchLocalRead": [ False, True]}
+            "FractionalLoad": [0,1],
+            "PrefetchLocalRead": [False,True]}
 
     return scheme
 
@@ -218,54 +214,41 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
     
     if sizeKey == "batch":
         scheme["GlobalSplitU"] = [1]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
-        appendThreadTiles(benchmarkGroup, [[4,4],[4,2],[2,4],[4,8],[8,4],[8,8]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1]])
+        appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
+        appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "tiny":
-        scheme["GlobalSplitU"] = [1,2,3,4]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
+        scheme["GlobalSplitU"] = [1,4]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
-        appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[32,8,4],[8,32,4]])
-        #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[8,16,4],[16,8,2],[16,8,4],[8,8,1],
-        #    [8,8,2],[8,8,4],[4,16,4],[16,4,4],[4,8,8],[8,4,8],[4,4,4],[4,4,8]])
+        appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
+        appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "small":
-        scheme["GlobalSplitU"] = [1,2,4,6,8]
-        scheme["LdsPadA"] = [0, -1]
-        scheme["LdsPadB"] = [0, -1]
+        scheme["GlobalSplitU"] = [1,4]
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4]])
-        #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,8,4],[8,16,2],[8,16,4],[16,8,2],
-        #    [16,8,4],[32,4,2],[4,32,2],[4,16,4],[16,4,4]])
+        appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
+        appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "medium":
         if transposeType == "tn":
-            scheme["GlobalSplitU"] = [1,2,4,6,8]
+            scheme["GlobalSplitU"] = [1,8]
             scheme["DepthU"] = [8, 16]
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
-            appendThreadTiles(benchmarkGroup, [[8,8],[4,6],[8,4],[6,4]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4]])
+            appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[8,4],[4,8],[8,8]])
+            appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
         else:
-            scheme["GlobalSplitU"] = [1,2,4,6,8]
-            scheme["LdsPadA"] = [0, -1]
-            scheme["LdsPadB"] = [0, -1]
+            scheme["GlobalSplitU"] = [1,8]
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
-            appendThreadTiles(benchmarkGroup, [[8,8],[4,4],[6,4],[4,6]])
-            appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4]])
-            #appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4],[8,8,8],[4,16,4],[16,4,4],[32,8,2],[8,32,2]])
+            appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
+            appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
     else: #sizeKey == "large"
-        scheme["GlobalSplitU"] = [1,2,4,6,8,12]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
-        appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8],[12,12]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1]])
+        scheme["GlobalSplitU"] = [1]
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme, tileAware) 
+        appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
+        appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
 
     problemGroup.append(benchmarkGroup)
@@ -458,6 +441,9 @@ def RunMain():
     scriptPath = os.path.join(outputPath, "scripts")
     if not os.path.exists(scriptPath):
         os.makedirs(scriptPath)
+    scriptPath2 = os.path.join(outputPath, "scripts2")
+    if not os.path.exists(scriptPath2):
+        os.makedirs(scriptPath2)
     sizePath = os.path.join(outputPath, "sizes")
     if not os.path.exists(sizePath):
         os.makedirs(sizePath)
@@ -466,11 +452,11 @@ def RunMain():
     
     if len(sys.argv) <= 6:
         OutputScript(problemMapper, scriptPath, namePart)
-        OutputScript2(problemMapper, scriptPath, namePart+'2')
+        OutputScript2(problemMapper, scriptPath2, namePart)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
         OutputScript(problemMapper, scriptPath, networkName)
-        OutputScript2(problemMapper, scriptPath, networkName+'2')
+        OutputScript2(problemMapper, scriptPath2, networkName)
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":

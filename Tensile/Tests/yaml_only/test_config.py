@@ -71,6 +71,9 @@ def configMarks(filepath, rootDir, availableArchs):
         ArchFail = "xfail-%s" % arch
         if markNamed(ArchFail) in marks:
             marks.append(pytest.mark.xfail)
+        ArchSkip = "skip-%s" % arch
+        if markNamed(ArchSkip) in marks:
+            marks.append(pytest.mark.skip)
 
     validate = True
     validateAll = False
@@ -135,6 +138,9 @@ def findConfigs(rootDir=None):
     """
     if rootDir ==  None:
         rootDir = os.path.dirname(os.path.dirname(__file__))
+        printRoot = os.path.dirname(os.path.dirname(rootDir))
+    else:
+        printRoot = rootDir
     
     availableArchs = findAvailableArchs()
 
@@ -144,8 +150,8 @@ def findConfigs(rootDir=None):
             if filename.endswith('.yaml'):
                 filepath = os.path.join(rootDir, dirpath, filename)
                 marks = configMarks(filepath, rootDir, availableArchs)
-                testname = os.path.splitext(filename)[0]
-                params.append(pytest.param(filepath, marks=marks, id=testname))
+                relpath = os.path.relpath(filepath, printRoot)
+                params.append(pytest.param(filepath, marks=marks, id=relpath))
     return params
 
 @pytest.mark.parametrize("config", findConfigs())

@@ -25,6 +25,7 @@
  *******************************************************************************/
 
 #include "BenchmarkTimer.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 
 #include "Reference.hpp"
@@ -40,11 +41,12 @@ namespace Tensile
     {
         static_assert(BenchmarkTimer::clock::is_steady, "Clock must be steady.");
 
-        BenchmarkTimer::BenchmarkTimer(po::variables_map const& args)
+        BenchmarkTimer::BenchmarkTimer(po::variables_map const& args, Hardware const& hardware)
             : m_numWarmups(          args["num-warmups"].as<int>()),
               m_numBenchmarks(       args["num-benchmarks"].as<int>()),
               m_numEnqueuesPerSync(  args["num-enqueues-per-sync"].as<int>()),
               m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>()),
+              m_hardware(hardware),
               m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark),
               m_useGPUTimer(         args["use-gpu-timer"].as<bool>()),
               m_sleepPercent(        args["sleep-percent"].as<int>()),
@@ -80,6 +82,21 @@ namespace Tensile
         {
             m_numEnqueuesInSolution = 0;
             m_timeInSolution = double_millis::zero();
+
+            ContractionSolution::ProjectedPerformance pp =
+              solution.projectedPerformance(m_problem, m_hardware);
+            m_solution = solution;
+
+            m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
+            m_reporter->report(ResultKey::Tile1Granularity, pp.tile1Granularity);
+            m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
+            m_reporter->report(ResultKey::WaveGranularity, pp.waveGranularity);
+            m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
+
+            m_reporter->report(ResultKey::NumCus, perf.CUs);
+            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
+            m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
+            m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
         }
 
         void BenchmarkTimer::postSolution()
@@ -88,6 +105,9 @@ namespace Tensile
 
             double gflops = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
             uint64_t gflopsUint = static_cast<uint64_t> (round(gflops));
+
+            ContractionSolution::ProjectedPerformance pp =
+              m_solution.projectedPerformance(m_problem, m_hardware);
 
             m_reporter->report(ResultKey::TimeUS,      timePerEnqueue_us);
             if (gflopsUint)
@@ -109,21 +129,21 @@ namespace Tensile
             return m_numWarmups;
         }
 
-        void   BenchmarkTimer::setNumWarmupRuns(size_t count)
+        void BenchmarkTimer::setNumWarmupRuns(size_t count)
         {
             if(count < m_numWarmups)
                 throw std::runtime_error(concatenate("Expected at least", m_numWarmups, " warmup runs, got ", count, "."));
         }
 
-        void   BenchmarkTimer::preWarmup()
+        void BenchmarkTimer::preWarmup()
         {
         }
 
-        void   BenchmarkTimer::postWarmup()
+        void BenchmarkTimer::postWarmup()
         {
         }
 
-        void   BenchmarkTimer::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+        void BenchmarkTimer::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
                                                TimingEvents const& startEvents,
                                                TimingEvents const&  stopEvents)
         {
@@ -139,11 +159,11 @@ namespace Tensile
             m_numSyncsInBenchmark = count;
         }
 
-        void   BenchmarkTimer::preSyncs()
+        void BenchmarkTimer::preSyncs()
         {
         }
 
-        void   BenchmarkTimer::postSyncs()
+        void BenchmarkTimer::postSyncs()
         {
         }
 
@@ -157,7 +177,7 @@ namespace Tensile
             m_curNumEnqueuesPerSync = count;
         }
 
-        void   BenchmarkTimer::preEnqueues()
+        void BenchmarkTimer::preEnqueues()
         {
             if(!m_useGPUTimer)
             {
@@ -165,7 +185,7 @@ namespace Tensile
             }
         }
 
-        void   BenchmarkTimer::postEnqueues(TimingEvents const& startEvents,
+        void BenchmarkTimer::postEnqueues(TimingEvents const& startEvents,
                                             TimingEvents const&  stopEvents)
         {
             if(!m_useGPUTimer)
@@ -175,7 +195,7 @@ namespace Tensile
             }
         }
 
-        void   BenchmarkTimer::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+        void BenchmarkTimer::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
                                                 TimingEvents const& startEvents,
                                                 TimingEvents const&  stopEvents)
         {

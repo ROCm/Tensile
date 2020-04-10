@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+import collections
 import csv
 import filecmp
 import itertools
@@ -35,10 +36,10 @@ from . import YAMLIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess
 from .ClientWriter import runClient, writeClientParameters, writeClientConfig
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
-from .SolutionStructs import Solution, ProblemType
+from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 
@@ -111,7 +112,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       print1(printStr)
 
     if False:
-    # print1(hardcoded parameters and their winners
       print1("# HardcodedParameters | WinningParameters:")
       paramDictIdx = 0
       hardcodedMinNaming = \
@@ -199,10 +199,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
     print1("# Enumerating Solutions")
-    if globalParameters["PrintLevel"] >= 1:
-      progressBar = ProgressBar(maxPossibleSolutions)
     solutionSet = set() # avoid duplicates for nlca=-1, 1
-    for hardcodedIdx in range(0, numHardcoded):
+    for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
       for benchmarkIdx, benchmarkPermutation in enumerate(benchmarkPermutations):
@@ -230,19 +228,14 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         else:
           if globalParameters["PrintSolutionRejectionReason"]:
             print1("rejecting solution %s" % str(solutionObject))
-        if globalParameters["PrintLevel"] >= 1:
-          progressBar.increment()
 
     # remove hardcoded that don't have any valid benchmarks
-    removeHardcoded = []
-    for hardcodedIdx in range(0, numHardcoded):
-      if len(solutions[hardcodedIdx]) == 0:
-        hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
-        removeHardcoded.append(hardcodedParamDict)
-    removesExist = len(removeHardcoded) > 0
-    for hardcodedParam in removeHardcoded:
-      benchmarkStep.hardcodedParameters.remove(hardcodedParam)
+    removeHardcoded = list([x for i,x in enumerate(benchmarkStep.hardcodedParameters) if len(solutions[i]) == 0])
+    validHardcoded =  list([x for i,x in enumerate(benchmarkStep.hardcodedParameters) if len(solutions[i]) > 0])
 
+    removesExist = len(removeHardcoded) > 0
+
+    benchmarkStep.hardcodedParameters = validHardcoded
 
     if removesExist:
       print1("# Updating winners since enumeration removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
@@ -360,10 +353,11 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
-    print2("CSV Results: %s" % results)
-    winners.addResults(benchmarkStep.hardcodedParameters, \
-        benchmarkPermutations, solutions, results)
+    if not enableTileSelection:
+        results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
+        print2("CSV Results: %s" % results)
+        winners.addResults(benchmarkStep.hardcodedParameters, \
+            benchmarkPermutations, solutions, results)
 
     ############################################################################
     # Write Solutions YAML
@@ -489,17 +483,24 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
   # Min Naming
   ##############################################################################
+
   kernels = []
   kernelsBetaOnly = []
-  for solution in solutions:
+  kernelNames = set()
+  kernelNamesBetaOnly = set()
+  for solution in Utils.tqdm(solutions, "Finding unique solutions"):
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
-      if kernel not in kernels:
+      kName = Solution.getNameFull(kernel)
+      if kName not in kernelNames:
         kernels.append(kernel)
+        kernelNames.add(kName)
     solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
     for kernel in solutionKernelsBetaOnly:
-      if kernel not in kernelsBetaOnly:
+      kName = Solution.getNameFull(kernel)
+      if kName not in kernelNamesBetaOnly:
         kernelsBetaOnly.append(kernel)
+        kernelNamesBetaOnly.add(kName)
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -527,7 +528,31 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 
-  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles)
+  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, False)
+
+  if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:
+    maxMacroTile0 = 0
+    maxMacroTile1 = 0
+    for solution in solutions:
+      macroTile0 = solution["MacroTile0"]
+      macroTile1 = solution["MacroTile1"]
+      if macroTile0 > maxMacroTile0:
+        maxMacroTile0 = macroTile0
+      if macroTile1 > maxMacroTile1:
+        maxMacroTile1 = macroTile1
+    idealM = 36 * maxMacroTile0
+    idealN = 36 * maxMacroTile1
+    idealSizes = []
+    if problemType["Batched"]:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+          idealSizes.append(idealSize)
+    else:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, idealK]}
+          idealSizes.append(idealSize)
+    idealProblemSizes = ProblemSizes(problemType, idealSizes)
+    writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:
     printExit("write solutions and kernels results 0 valid soultion.")
@@ -539,18 +564,20 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
       clientName)
 
-  forBenchmark = True
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
+  if globalParameters["NewClient"] != 2:
+      forBenchmark = True
+      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+          filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
 
 
 ################################################################################
 # FrozenDictionary
 ################################################################################
-class FrozenDictionary:
+class FrozenDictionary(collections.abc.Mapping):
   def __init__(self, parameters):
     self.parameters = deepcopy(parameters)
-    self.hashValue = hash(Solution.getNameFull(self.parameters))
+    self.stringValue = Solution.getNameFull(self.parameters)
+    self.hashValue = hash(self.stringValue)
 
   def __len__(self):
     return len(self.parameters)
@@ -565,9 +592,9 @@ class FrozenDictionary:
     return self.hashValue
 
   def __str__(self):
-    return Solution.getNameFull(self.parameters)
+    return self.stringValue
   def __repr__(self):
-    return self.__str__();
+    return self.__str__()
 
 
 ################################################################################
@@ -589,10 +616,8 @@ class WinningParameterDict:
   # Add Winning Parameters For Hardcoded Parameters
   def addResults( self, hardcodedParameterList, benchmarkPermutations, \
       solutions, results):
-    if globalParameters["PrintLevel"] >= 1:
-      print1("# Adding Results to Solution Database")
-      progressBar = ProgressBar(len(results))
-    for hardcodedIdx,hardcodedResults in enumerate(results):
+    print1("# Adding Results to Solution Database")
+    for hardcodedIdx,hardcodedResults in enumerate(Utils.tqdm(results)):
       if not hardcodedResults: continue
       
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
@@ -620,8 +645,6 @@ class WinningParameterDict:
       #oldScore = matches[0][2]
       self.winners[hardcodedParametersKey][0].update(winningParameters)
       self.winners[hardcodedParametersKey][1] = winningScore
-      if globalParameters["PrintLevel"] >= 1:
-        progressBar.increment()
 
 
   ##########################################################

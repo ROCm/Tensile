@@ -20,6 +20,9 @@ def runCI =
 
     boolean formatCheck = false
 
+    // temporarily increase timeout from 5 hours to 8 hours
+    prj.timeout.test = 480
+
     def commonGroovy
 
     def compileCommand =
@@ -34,7 +37,7 @@ def runCI =
     {
         platform, project->
 
-        def test_marks = "unit or pre_checkin"
+        def test_marks = "pre_checkin"
         commonGroovy.runTestCommand(platform, project, test_marks)   
     }
 

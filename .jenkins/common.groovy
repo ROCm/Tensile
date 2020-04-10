@@ -8,6 +8,9 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
+
+    def test_dir =  "Tensile/Tests"
+    def test_marks = "unit"
     
     def command = """#!/usr/bin/env bash
             set -ex
@@ -21,6 +24,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml
 
             mkdir build
             pushd build
@@ -34,7 +38,14 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             doxygen docs/Doxyfile
             """
 
-    platform.runCommand(this, command)
+    try
+    {
+        platform.runCommand(this, command)
+    }
+    finally
+    {
+        junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
+    }
 
     publishHTML([allowMissing: false,
                 alwaysLinkToLastBuild: false,
@@ -92,7 +103,7 @@ def runTestCommand (platform, project, test_marks)
         }
         finally
         {
-            junit "${project.paths.project_build_prefix}/*_tests.xml"
+            junit "${project.paths.project_build_prefix}/python_tests.xml"
         }
         
     }

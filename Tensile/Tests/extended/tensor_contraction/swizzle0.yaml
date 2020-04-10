@@ -3,7 +3,7 @@ GlobalParameters:
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
-  CMakeBuildType: Debug
+  #CMakeBuildType: Debug
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False

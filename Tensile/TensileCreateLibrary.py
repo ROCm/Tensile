@@ -100,10 +100,11 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
           newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
         else:
           newCOFiles = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
+
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
         coFiles += newCOFiles
-    
+
     return coFiles
 
 def which(p):
@@ -266,7 +267,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       #print "*** warning: invalid kernel#%s"%kernelName
 
     # Don't create a file for empty kernels.
-    if len(src.strip()) == 0:
+    if len(src.strip()) == 0 and globalParameters["NewClient"] > 1:
       continue
 
     #if kernelSourceFile:
@@ -328,7 +329,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
+      kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
     kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
   kernelsWithBuildErrs = {}
@@ -343,8 +344,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   removeKernels = []
   removeSolutions = []
   removeResults = []
-  for kernIdx in range(0, len(results)):
-    (err,src,header,kernelName) = results[kernIdx]
+  for kernIdx, res in Utils.tqdm(enumerate(results)):
+    (err,src,header,kernelName) = res
     if(err == -2):
       removeKernels.append(kernels[kernIdx])
       removeSolutions.append(solutions[kernIdx])
@@ -412,8 +413,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
-  print1("# Writing Solutions")
   if globalParameters["LegacyComponents"]:
+    print1("# Writing Solutions")
     ##############################################################################
     # Write Solutions
     ##############################################################################
@@ -1004,7 +1005,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--no-short-file-names",    dest="ShortNames",        action="store_false")
   argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
-  argParser.add_argument("--no-enumerate",           action="store_true")
+  argParser.add_argument("--no-enumerate",           action="store_true", help="Do not run rocm_agent_enumerator.")
   argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False)
   argParser.add_argument("--no-legacy-components",   dest="LegacyComponents",  action="store_false", default=True)
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",

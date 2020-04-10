@@ -24,7 +24,7 @@
  *
  *******************************************************************************/
 
-#include <hip/hip_hcc.h>
+#include <hip/hip_ext.h>
 #include <hip/hip_runtime.h>
 
 #include <cstddef>
@@ -155,6 +155,11 @@ namespace Tensile
                 m_modules.insert(m_modules.end(), newModules.begin(), newModules.end());
                 m_loadedModuleNames.push_back(concatenate("Embedded code object ", key, " (", newModules.size(), ")"));
             }
+        }
+
+        void SolutionAdapter::initKernel(std::string const& name)
+        {
+            getKernel(name);
         }
 
         hipFunction_t SolutionAdapter::getKernel(std::string const& name)

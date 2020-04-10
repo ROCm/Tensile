@@ -12,10 +12,12 @@ set(client_sources
     source/HardwareMonitor.cpp
     source/HardwareMonitorListener.cpp
     source/MetaRunListener.cpp
+    source/PerformanceReporter.cpp
     source/ProgressListener.cpp
     source/Reference.cpp
     source/ReferenceValidator.cpp
     source/ResultFileReporter.cpp
+    source/ResultReporter.cpp
     source/TimingEvents.cpp
     )
 
@@ -35,8 +37,11 @@ target_link_libraries(TensileClient TensileHost ${Boost_LIBRARIES} rocm_smi)
 
 add_executable(tensile_client main.cpp)
 
-target_link_libraries(tensile_client TensileHost TensileClient ${Boost_LIBRARIES})
+target_link_libraries(tensile_client PRIVATE TensileHost TensileClient ${Boost_LIBRARIES})
 if(OpenMP_FOUND)
-    target_link_libraries(tensile_client "${OpenMP_EXE_LINKER_FLAGS}")
+    target_link_libraries(tensile_client PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+foreach(arch IN LISTS TENSILE_GPU_ARCHS)
+    target_link_libraries(tensile_client PRIVATE "--amdgpu-target=${arch}")
+endforeach(arch)

@@ -32,6 +32,12 @@ if(TENSILE_NEW_CLIENT)
     set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use LLVM for parsing config files.")
     set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
+  if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
+      set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx1010 CACHE STRING "GPU architectures")
+  else()
+      set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 CACHE STRING "GPU architectures")
+  endif()
+
     include(CMakeDependentOption)
     CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
                            "TENSILE_USE_HIP;TENSILE_USE_LLVM" OFF)

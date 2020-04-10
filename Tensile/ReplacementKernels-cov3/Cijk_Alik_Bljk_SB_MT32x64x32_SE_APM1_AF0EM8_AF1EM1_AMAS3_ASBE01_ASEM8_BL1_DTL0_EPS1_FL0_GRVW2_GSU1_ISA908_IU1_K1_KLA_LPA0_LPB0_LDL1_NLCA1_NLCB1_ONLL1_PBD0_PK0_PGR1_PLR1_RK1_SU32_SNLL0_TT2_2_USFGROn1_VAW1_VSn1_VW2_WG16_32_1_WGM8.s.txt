@@ -1,0 +1,910 @@
+
+
+/******************************************/
+/* Function Prefix                        */
+/******************************************/
+
+
+
+/******************************************/
+/* Begin Kernel                           */
+/******************************************/
+
+.amdgcn_target "amdgcn-amd-amdhsa--gfx908+sram-ecc"
+.text
+.protected Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8
+.globl Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8
+.p2align 8
+.type Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8,@function
+.section .rodata,#alloc
+.p2align 6
+.amdhsa_kernel Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8
+  .amdhsa_user_sgpr_kernarg_segment_ptr 1
+  .amdhsa_next_free_vgpr 108 // vgprs
+  .amdhsa_next_free_sgpr 98 // sgprs
+  .amdhsa_group_segment_fixed_size 28672 // lds bytes
+  .amdhsa_private_segment_fixed_size 0
+  .amdhsa_system_sgpr_workgroup_id_x 1
+  .amdhsa_system_sgpr_workgroup_id_y 1
+  .amdhsa_system_sgpr_workgroup_id_z 1
+  .amdhsa_system_vgpr_workitem_id 0
+.end_amdhsa_kernel
+.text
+
+/******************************************/
+/* Optimizations and Config:              */
+/******************************************/
+/* ThreadTile= 4 x 4 */
+/* SubGroup= 16 x 32 */
+/* VectorWidth=4 */
+/* GlobalLoadVectorWidthA=4, GlobalLoadVectorWidthB=4 */
+/* DirectToLdsA=False */
+/* DirectToLdsB=False */
+/* UseSgprForGRO=1 */
+.amdgpu_metadata
+---
+amdhsa.version:
+  - 1
+  - 0
+amdhsa.kernels:
+  - .name: Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8
+    .symbol: 'Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8.kd'
+    .language:                   OpenCL C
+    .language_version:
+      - 2
+      - 0
+    .args:
+      - .name:            sizeC
+        .size:            8
+        .offset:          0
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            sizeA
+        .size:            8
+        .offset:          8
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            sizeB
+        .size:            8
+        .offset:          16
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            D
+        .size:            8
+        .offset:          24
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            C
+        .size:            8
+        .offset:          32
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            A
+        .size:            8
+        .offset:          40
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            B
+        .size:            8
+        .offset:          48
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            alpha
+        .size:            4
+        .offset:          56
+        .value_kind:      by_value
+        .value_type:      f32
+      - .name:            beta
+        .size:            4
+        .offset:          60
+        .value_kind:      by_value
+        .value_type:      f32
+      - .name:            strideD0
+        .size:            4
+        .offset:          64
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideD1
+        .size:            4
+        .offset:          68
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideC0
+        .size:            4
+        .offset:          72
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideC1
+        .size:            4
+        .offset:          76
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideA0
+        .size:            4
+        .offset:          80
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideA1
+        .size:            4
+        .offset:          84
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideB0
+        .size:            4
+        .offset:          88
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideB1
+        .size:            4
+        .offset:          92
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesFree0
+        .size:            4
+        .offset:          96
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesFree1
+        .size:            4
+        .offset:          100
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesFree2
+        .size:            4
+        .offset:          104
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesSum0
+        .size:            4
+        .offset:          108
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            OrigStaggerUIter
+        .size:            4
+        .offset:          112
+        .value_kind:      by_value
+        .value_type:      i32
+      - .name:            NumWorkGroups0
+        .size:            4
+        .offset:          116
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            NumWorkGroups1
+        .size:            4
+        .offset:          120
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            MagicNumberProblemNumGroupTiles0
+        .size:            4
+        .offset:          124
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            GridNumWorkGroups0
+        .size:            4
+        .offset:          128
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            NumFullBlocks
+        .size:            4
+        .offset:          132
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            WgmRemainder1
+        .size:            4
+        .offset:          136
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            MagicNumberWgmRemainder1
+        .size:            4
+        .offset:          140
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            padding
+        .size:            4
+        .offset:          144
+        .value_kind:      by_value
+        .value_type:      u32
+    .group_segment_fixed_size:   28672
+    .kernarg_segment_align:      8
+    .kernarg_segment_size:       152
+    .max_flat_workgroup_size:    512
+    .private_segment_fixed_size: 0
+    .sgpr_count:                 98
+    .sgpr_spill_count:           0
+    .vgpr_count:                 108
+    .vgpr_spill_count:           0
+    .wavefront_size:             64
+...
+.end_amdgpu_metadata
+Cijk_Alik_Bljk_SB_MT32x64x32_SE_APM1_AF0EM8_AF1EM1_AMAS3_ASBE01_ASEM8_BL1_DTL0_EPS1_FL0_GRVW2_GSU1_ISA908_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR1_RK1_SU32_SNLL0_TT2_2_USFGROn1_VAW1_VSn1_VW2_WG16_32_1_WGM8:
+
+/******************************************/
+/* Asm syntax workarounds                 */
+/******************************************/
+.macro _v_add_co_u32 dst, cc, src0, src1, dpp=
+   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp
+.endm
+
+.macro _v_add_u32 dst, src0, src1, dpp=
+   v_add_u32 \dst, \src0, \src1 \dpp
+.endm
+
+.macro _v_sub_co_u32 dst, cc, src0, src1, dpp=
+   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp
+.endm
+
+.macro _v_sub_u32 dst, src0, src1, dpp=
+   v_sub_u32 \dst, \src0, \src1 \dpp
+.endm
+
+.macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=
+   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp
+.endm
+
+.macro _v_add_lshl_u32 dst, src0, src1, shiftCnt
+    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt
+.endm
+
+.macro _v_lshl_add_u32 dst, src0, src1, shiftCnt
+    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt
+.endm
+
+/******************************************/
+/* Magic div and mod functions            */
+/******************************************/
+.macro V_MAGIC_DIV dstIdx, dividend, magicNumber, magicShift
+    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber
+    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber
+    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]
+.endm
+
+/******************************************/
+/* VGPR Assignments                       */
+/******************************************/
+.set vgprValuC, 0
+/* ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx */
+.set vgprValuA_X0_I0, 32
+.set vgprValuA_X1_I0, 34
+.set vgprG2LA, 36
+.set vgprValuB_X0_I0, 40
+.set vgprValuB_X1_I0, 44
+.set vgprG2LB, 48
+.set vgprLocalWriteAddrA, 56
+.set vgprLocalWriteAddrB, 57
+.set vgprGlobalReadOffsetA, 58
+.set vgprGlobalReadOffsetB, 59
+.set vgprLocalReadAddrA, 60
+.set vgprLocalReadAddrB, 61
+.set vgprSerial, 62
+/* Num VGPR=63 */
+
+/******************************************/
+/* SGPR Assignments                       */
+/******************************************/
+.set sgprKernArgAddress, 0
+.set sgprWorkGroup0, 2
+.set sgprWorkGroup1, 3
+.set sgprWorkGroup2, 4
+.set sgprNumWorkGroups0, 5
+.set sgprNumWorkGroups1, 6
+.set sgprSrdA, 8
+.set sgprSrdB, 12
+.set sgprSrdD, 16
+.set sgprSrdC, 20
+.set sgprTensor2dSizeC, 24
+.set sgprTensor2dSizeA, 26
+.set sgprTensor2dSizeB, 28
+.set sgprSaveExecMask, 30
+.set sgprAddressD, 32
+.set sgprAddressC, 34
+.set sgprStridesD, 36
+.set sgprStridesC, 38
+.set sgprAlpha, 40
+.set sgprBeta, 41
+.set sgprSizesFree, 42
+.set sgprSizesSum, 45
+.set sgprLoopCounters, 46
+.set sgprOrigLoopCounter, 47
+.set sgprStridesA, 48
+.set sgprStridesB, 50
+.set sgprAddressA, 52
+.set sgprAddressB, 54
+.set sgprShadowLimitA, 56
+.set sgprShadowLimitB, 58
+.set sgprOrigStaggerUIter, 60
+.set sgprStaggerUIter, 61
+.set sgprWrapUA, 62
+.set sgprWrapUB, 64
+.set sgprNumFullBlocks, 66
+.set sgprWgmRemainder1, 67
+.set sgprMagicNumberWgmRemainder1, 68
+.set sgprGlobalReadIncsA, 69
+.set sgprGlobalReadIncsB, 70
+.set sgprScalarGlobalReadOffsetA, 71
+.set sgprScalarGlobalReadOffsetB, 72
+/* max SGPR=98 */
+
+/* Size Assignments */
+.set sgprSizeD0I, sgprSizesFree+0
+.set sgprSizeD1J, sgprSizesFree+1
+.set sgprSizeDK, sgprSizesFree+2
+.set sgprSizeC0I, sgprSizesFree+0
+.set sgprSizeC1J, sgprSizesFree+1
+.set sgprSizeCK, sgprSizesFree+2
+.set sgprSizeAL, sgprSizesSum+0
+.set sgprSizeA0I, sgprSizesFree+0
+.set sgprSizeAK, sgprSizesFree+2
+.set sgprSizeBL, sgprSizesSum+0
+.set sgprSizeB1J, sgprSizesFree+1
+.set sgprSizeBK, sgprSizesFree+2
+
+/* Stride Assignments */
+.set constStrideD0I, 1
+.set sgprStrideD1J, sgprStridesD+0
+.set sgprStrideDK, sgprStridesD+1
+.set constStrideC0I, 1
+.set sgprStrideC1J, sgprStridesC+0
+.set sgprStrideCK, sgprStridesC+1
+.set constStrideAL, 1
+.set sgprStrideA0I, sgprStridesA+0
+.set sgprStrideAK, sgprStridesA+1
+.set constStrideBL, 1
+.set sgprStrideB1J, sgprStridesB+0
+.set sgprStrideBK, sgprStridesB+1
+
+.set DepthU, 32
+/* Number of elements to shift-left SRD */
+.set SrdShiftLeftA, 4
+.set SrdShiftLeftB, 4
+/* 2GB limit - set offsets to -1 to exceed this and clamp */
+.set BufferLimit, 0x80000000
+/* Bits 127:96 of SRD.  Set DataFormat = 32 bit */
+.set Srd127_96, 0x0020000
+.set BufferOOB, 0x80000000
+
+/* Global Offset A */
+.macro GLOBAL_OFFSET_A vgprAddr vgprOffsetL vgprOffset0I vgprTmp
+v_mul_lo_u32 v[\vgprTmp+0], s[sgprStrideA0I], v[\vgprOffset0I] // mul d1 lower
+_v_add_co_u32 v[\vgprAddr+0], vcc, v[\vgprOffsetL], v[\vgprTmp+0] // accumulate d1 lower
+_v_add_u32 v[\vgprAddr+0], 0x4, v[\vgprAddr+0]     // add prepad for pointer shift
+v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
+.endm
+
+/* Global Offset B */
+.macro GLOBAL_OFFSET_B vgprAddr vgprOffsetL vgprOffset1J vgprTmp
+v_mul_lo_u32 v[\vgprTmp+0], s[sgprStrideB1J], v[\vgprOffset1J] // mul d1 lower
+_v_add_co_u32 v[\vgprAddr+0], vcc, v[\vgprOffsetL], v[\vgprTmp+0] // accumulate d1 lower
+_v_add_u32 v[\vgprAddr+0], 0x4, v[\vgprAddr+0]     // add prepad for pointer shift
+v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
+.endm
+
+/******************************************/
+/* Dynamic Scalar Divide: vQuotient=vDividend/vDivisor; vRemainder=vDividend%vDivisor; */
+/******************************************/
+.macro DYNAMIC_VECTOR_DIVIDE vQuotient vRemainder vDividend vDivisor vTmp0 vTmp1 sTmp
+v_cvt_f32_u32 v[\vQuotient], v[\vDivisor]          //
+v_rcp_f32 v[\vQuotient], v[\vQuotient]             //
+v_mul_f32 v[\vQuotient], 0x4f800000, v[\vQuotient] //
+v_cvt_u32_f32 v[\vQuotient], v[\vQuotient]         //
+v_mul_lo_u32 v[\vRemainder], v[\vDivisor], v[\vQuotient] //
+v_mul_hi_u32 v[\vTmp0], v[\vDivisor], v[\vQuotient] //
+_v_sub_co_u32 v[\vTmp1], vcc, 0x0, v[\vRemainder]  //
+v_cmp_ne_i32 s[\sTmp:\sTmp+1], 0x0, v[\vTmp0]      //
+v_cndmask_b32 v[\vRemainder], v[\vTmp1], v[\vRemainder], s[\sTmp:\sTmp+1] //
+v_mul_hi_u32 v[\vRemainder], v[\vRemainder], v[\vQuotient] //
+_v_sub_co_u32 v[\vTmp0], vcc, v[\vQuotient], v[\vRemainder] //
+_v_add_co_u32 v[\vQuotient], vcc, v[\vQuotient], v[\vRemainder] //
+v_cndmask_b32 v[\vQuotient], v[\vQuotient], v[\vTmp0], s[\sTmp:\sTmp+1] //
+v_mul_hi_u32 v[\vQuotient], v[\vQuotient], v[\vDividend] //
+v_mul_lo_u32 v[\vRemainder], v[\vQuotient], v[\vDivisor] //
+_v_sub_co_u32 v[\vTmp0], vcc, v[\vDividend], v[\vRemainder] //
+v_cmp_ge_u32 s[\sTmp:\sTmp+1], v[\vDividend], v[\vRemainder] //
+_v_add_co_u32 v[\vRemainder], vcc, 0x1, v[\vQuotient] //
+_v_add_co_u32 v[\vTmp1], vcc, -1, v[\vQuotient]    //
+v_cmp_le_u32 vcc, v[\vDivisor], v[\vTmp0]          //
+s_and_b64 vcc, s[\sTmp:\sTmp+1], vcc               //
+v_cndmask_b32 v[\vQuotient], v[\vQuotient], v[\vRemainder], vcc //
+v_cndmask_b32 v[\vQuotient], v[\vTmp1], v[\vQuotient], s[\sTmp:\sTmp+1] //
+v_cmp_ne_i32 vcc, 0x0, v[\vDivisor]                //
+v_cndmask_b32 v[\vQuotient], -1, v[\vQuotient], vcc // final result
+v_mul_lo_u32 v[\vRemainder], v[\vQuotient], v[\vDivisor] //
+_v_sub_co_u32 v[\vRemainder], vcc, v[\vDividend], v[\vRemainder] // final result
+.endm
+
+/******************************************/
+/* 4x8 thread-tile                        */
+/******************************************/
+.macro MAC_4x8_X0
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[0] iui=0
+s_setprio 1 // Raise priority while processing macs
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[1]
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[4]
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+0], v[vgprValuC+0*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[5]
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[2] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[3]
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[6]
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+0], v[vgprValuC+1*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[7]
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[8] iui=0
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[9]
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[12]
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+1], v[vgprValuC+0*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[13]
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[10] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[11]
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[14]
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+1], v[vgprValuC+1*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[15]
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[16] iui=0
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[17]
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[20]
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+2], v[vgprValuC+0*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[21]
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[18] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[19]
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[22]
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+2], v[vgprValuC+1*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[23]
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[24] iui=0
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[25]
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+0], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[28]
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+1], v[vgprValuA_X0_I0+0], v[vgprValuB_X0_I0+3], v[vgprValuC+0*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[29]
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[26] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[27]
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+0], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[30]
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+1], v[vgprValuA_X0_I0+1], v[vgprValuB_X0_I0+3], v[vgprValuC+1*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[31]
+s_setprio 0 // Reset priority after macs
+.endm
+.macro MAC_4x8_X1
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[0] iui=0
+s_setprio 1 // Raise priority while processing macs
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[1]
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[4]
+v_fma_mix_f32 v[vgprValuC+0*2+0*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+0], v[vgprValuC+0*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[5]
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[2] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[3]
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[6]
+v_fma_mix_f32 v[vgprValuC+1*2+0*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+0], v[vgprValuC+1*2+0*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[7]
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[8] iui=0
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[9]
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[12]
+v_fma_mix_f32 v[vgprValuC+0*2+1*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+1], v[vgprValuC+0*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[13]
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[10] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[11]
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[14]
+v_fma_mix_f32 v[vgprValuC+1*2+1*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+1], v[vgprValuC+1*2+1*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[15]
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[16] iui=0
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[17]
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[20]
+v_fma_mix_f32 v[vgprValuC+0*2+2*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+2], v[vgprValuC+0*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[21]
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[18] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[19]
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[22]
+v_fma_mix_f32 v[vgprValuC+1*2+2*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+2], v[vgprValuC+1*2+2*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[23]
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[24] iui=0
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+0*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[25]
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+0], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[28]
+v_fma_mix_f32 v[vgprValuC+0*2+3*4*2+2*2+1], v[vgprValuA_X1_I0+0], v[vgprValuB_X1_I0+3], v[vgprValuC+0*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[29]
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+0*2+0] op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[26] iui=0
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+0*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+0*2+1] op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[27]
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+0], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+2*2+0] op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[30]
+v_fma_mix_f32 v[vgprValuC+1*2+3*4*2+2*2+1], v[vgprValuA_X1_I0+1], v[vgprValuB_X1_I0+3], v[vgprValuC+1*2+3*4*2+2*2+1] op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[31]
+s_setprio 0 // Reset priority after macs
+.endm
+
+
+
+
+/***** program start from here *****/
+
+.long 0xC00A0600, 0x00000008
+.long 0xC00A0D00, 0x00000028
+.long 0xC00A0C00, 0x00000050
+.long 0xC0020B40, 0x0000006C
+.long 0x7EC80300
+.long 0x26CA00BF
+.long 0xB8D0F804
+.long 0xD1130004, 0x0000A0B0
+.long 0x20CC0884
+.long 0x7EA40566
+.long 0xD1130067, 0x0000A08F
+.long 0x7EA20567
+.long 0xBF068151
+.long 0xBF8400EA
+.long 0xBF8CC07F
+.long 0xBE880034
+.long 0xBE890035
+.long 0xBE8A00FF, 0x80000000
+.long 0xBE8B00FF, 0x00020000
+.long 0x96553104
+.long 0x92543104
+.long 0x8ED48254
+.long 0x80085408
+.long 0x82095509
+.long 0x9254A030
+.long 0x92545402
+.long 0x92558830
+.long 0x92555552
+.long 0x81545554
+.long 0x2000CA85
+.long 0xD2850004, 0x00020030
+.long 0x2602CA9F
+.long 0x32A40304
+.long 0x68A4A454
+.long 0x24A4A482
+.long 0x8E478330
+.long 0x80C7FF47, 0x00000120
+.long 0x68A6A447
+.long 0x68A8A647
+.long 0x68AAA847
+.long 0xBECC00FF, 0x00000480
+.long 0x924C4C52
+.long 0xBE8C0036
+.long 0xBE8D0037
+.long 0xBE8E00FF, 0x80000000
+.long 0xBE8F00FF, 0x00020000
+.long 0x96553304
+.long 0x92543304
+.long 0x8ED48254
+.long 0x800C540C
+.long 0x820D550D
+.long 0x9254C032
+.long 0x92545403
+.long 0x92559032
+.long 0x92555552
+.long 0x81545554
+.long 0x2004CA85
+.long 0xD2850004, 0x00020432
+.long 0x2606CA9F
+.long 0x32AC0704
+.long 0x68ACAC54
+.long 0x24ACAC82
+.long 0x8E4A8332
+.long 0x80CAFF4A, 0x00000120
+.long 0x68AEAC4A
+.long 0x68B0AE4A
+.long 0x68B2B04A
+.long 0x68B4B24A
+.long 0x68B6B44A
+.long 0x68B8B64A
+.long 0x68BAB84A
+.long 0xBECE00FF, 0x00000900
+.long 0x924E4E52
+.long 0x814EFF4E, 0x00002400
+.long 0xBF8A0000
+.long 0xBEFC004C
+.long 0x814DFF4C, 0x00001200
+.long 0xE0511000, 0x80023052
+.long 0xE0511120, 0x80023153
+.long 0xE0511240, 0x80023254
+.long 0xE0511360, 0x80023355
+.long 0xBEFC004E
+.long 0x814FFF4E, 0x00002400
+.long 0xE0511000, 0x80034456
+.long 0xE0511120, 0x80034557
+.long 0xE0511240, 0x80034658
+.long 0xE0511360, 0x80034759
+.long 0xE0511480, 0x8003485A
+.long 0xE05115A0, 0x8003495B
+.long 0xE05116C0, 0x80034A5C
+.long 0xE05117E0, 0x80034B5D
+.long 0xBEFC004D
+.long 0x8008FF08, 0x00000080
+.long 0x82098009
+.long 0x800CFF0C, 0x00000080
+.long 0x820D800D
+.long 0xE0511000, 0x80023052
+.long 0xE0511120, 0x80023153
+.long 0xE0511240, 0x80023254
+.long 0xE0511360, 0x80023355
+.long 0xBEFC004F
+.long 0xBF800000
+.long 0xE0511000, 0x80034456
+.long 0xE0511120, 0x80034557
+.long 0xE0511240, 0x80034658
+.long 0xE0511360, 0x80034759
+.long 0xE0511480, 0x8003485A
+.long 0xE05115A0, 0x8003495B
+.long 0xE05116C0, 0x80034A5C
+.long 0xE05117E0, 0x80034B5D
+.long 0x8008FF08, 0x00000080
+.long 0x82098009
+.long 0x800CFF0C, 0x00000080
+.long 0x820D800D
+.long 0xBEFC004C
+.long 0xBF8C4F74
+.long 0xBF8A0000
+.long 0xBF8C0F7C
+.long 0xBF8A0000
+.long 0x8F2E852D
+.long 0x80AE2E80
+.long 0xBF03C22E
+.long 0xBF85004F
+.long 0xBF8A0000
+.long 0xE0511000, 0x80023052
+.long 0xE0511120, 0x80023153
+.long 0xE0511240, 0x80023254
+.long 0xE0511360, 0x80023355
+.long 0xBEFC004E
+.long 0xBF800000
+.long 0xE0511000, 0x80034456
+.long 0xE0511120, 0x80034557
+.long 0xE0511240, 0x80034658
+.long 0xE0511360, 0x80034759
+.long 0xE0511480, 0x8003485A
+.long 0xE05115A0, 0x8003495B
+.long 0xE05116C0, 0x80034A5C
+.long 0xE05117E0, 0x80034B5D
+.long 0xBF8C4F74
+.long 0xBF8A0000
+.long 0x8008FF08, 0x00000080
+.long 0x82098009
+.long 0xBF8C0F7C
+.long 0xBF8A0000
+.long 0x800CFF0C, 0x00000080
+.long 0x820D800D
+.long 0xBEFC004D
+.long 0xBF8A0000
+.long 0xE0511000, 0x80023052
+.long 0xE0511120, 0x80023153
+.long 0xE0511240, 0x80023254
+.long 0xE0511360, 0x80023355
+.long 0xBEFC004F
+.long 0xBF800000
+.long 0xE0511000, 0x80034456
+.long 0xE0511120, 0x80034557
+.long 0xE0511240, 0x80034658
+.long 0xE0511360, 0x80034759
+.long 0xE0511480, 0x8003485A
+.long 0xE05115A0, 0x8003495B
+.long 0xE05116C0, 0x80034A5C
+.long 0xE05117E0, 0x80034B5D
+.long 0xBF8C4F74
+.long 0xBF8A0000
+.long 0x8008FF08, 0x00000080
+.long 0x82098009
+.long 0xBF8C0F7C
+.long 0xBF8A0000
+.long 0x800CFF0C, 0x00000080
+.long 0x820D800D
+.long 0xBEFC004C
+.long 0x802E822E
+.long 0xBF03C22E
+.long 0xBF84FFB1
+.long 0xBF8C0F78
+.long 0xBF8A0000
+.long 0xBF8C0F70
+.long 0xBF8A0000
+.long 0xBF810000
+.long 0xC0060700, 0x00000000
+.long 0xC00A0800, 0x00000018
+.long 0xC00A0A00, 0x00000038
+.long 0xC00A0900, 0x00000040
+.long 0xD3D94000, 0x18000080
+.long 0xD3D94001, 0x18000080
+.long 0xD3D94002, 0x18000080
+.long 0xD3D94003, 0x18000080
+.long 0xD3D94004, 0x18000080
+.long 0xD3D94005, 0x18000080
+.long 0xD3D94006, 0x18000080
+.long 0xD3D94007, 0x18000080
+.long 0xD1130001, 0x00011F65
+.long 0xD285005E, 0x000202A0
+.long 0x20040281
+.long 0xD2850002, 0x000204A0
+.long 0x2002CA84
+.long 0x24020282
+.long 0x68BCBD01
+.long 0x24BCBC82
+.long 0x68BCBD02
+.long 0x68BCBC80
+.long 0x68BEBCFF, 0x00001200
+.long 0xBF8A0000
+.long 0xD1130001, 0x00011F65
+.long 0xD2850060, 0x000202A0
+.long 0x20040281
+.long 0xD2850002, 0x000204A0
+.long 0x2002CA84
+.long 0x24020282
+.long 0x68C0C101
+.long 0x24C0C082
+.long 0x68C0C102
+.long 0x9254FF52, 0x00000900
+.long 0x68C0C054
+.long 0x68C0C0FF, 0x00002400
+.long 0x68C2C0FF, 0x00002400
+.long 0xBF8CC07F
+.long 0xBE900022
+.long 0xBE910023
+.long 0xBE9200FF, 0x80000000
+.long 0xBE9300FF, 0x00020000
+.long 0x925603C0
+.long 0x96552656
+.long 0x92542656
+.long 0x8ED48254
+.long 0x80105410
+.long 0x82115511
+.long 0x96552704
+.long 0x92542704
+.long 0x8ED48254
+.long 0x80105410
+.long 0x82115511
+.long 0xD2850004, 0x0002CC90
+.long 0xD2850003, 0x00004D04
+.long 0x2608CA8F
+.long 0xD2850005, 0x00004D04
+.long 0x200CCA84
+.long 0x240C0C82
+.long 0x68D60B03
+.long 0x925402A0
+.long 0x32D40C54
+.long 0xD1FE0068, 0x020AD76A
+.long 0xBE940020
+.long 0xBE950021
+.long 0xBE9600FF, 0x80000000
+.long 0xBE9700FF, 0x00020000
+.long 0x925603C0
+.long 0x96552456
+.long 0x92542456
+.long 0x8ED48254
+.long 0x80145414
+.long 0x82155515
+.long 0x96552504
+.long 0x92542504
+.long 0x8ED48254
+.long 0x80145414
+.long 0x82155515
+.long 0xD2850004, 0x0002CC90
+.long 0xD2850003, 0x00004904
+.long 0x2608CA8F
+.long 0xD2850005, 0x00004904
+.long 0x200CCA84
+.long 0x240C0C82
+.long 0x68D60B03
+.long 0x925402A0
+.long 0x32D40C54
+.long 0xD1FE0069, 0x020AD76A
+.long 0xBF8A0000
+.long 0xD9FE0000, 0x2000005E
+.long 0xD9FE0900, 0x2800005E
+.long 0xD9FE0040, 0x2400005E
+.long 0xD9FE0940, 0x2C00005E
+.long 0xBF8A0000
+.long 0xD9FE0000, 0x44000060
+.long 0xD9FE0040, 0x48000060
+.long 0x8F2E852D
+.long 0x80AE2E80
+.long 0xBF03C22E
+.long 0xBF850065
+.long 0xBF8A0000
+.long 0xBF8CC17F
+.long 0xD3C50000, 0x04028920
+.long 0xD3C50004, 0x04128928
+.long 0xD3C50000, 0x04028B21
+.long 0xD3C50004, 0x04128B29
+.long 0xD3C50000, 0x04028D22
+.long 0xBF8A0000
+.long 0xD3C50004, 0x04128D2A
+.long 0xD9FE0000, 0x3000005F
+.long 0xD3C50000, 0x04028F23
+.long 0xD9FE0900, 0x3800005F
+.long 0xD3C50004, 0x04128F2B
+.long 0xD9FE0040, 0x3400005F
+.long 0xBF8CC37F
+.long 0xD3C50000, 0x04029124
+.long 0xD9FE0940, 0x3C00005F
+.long 0xD3C50004, 0x0412912C
+.long 0xD3C50000, 0x04029325
+.long 0xD3C50004, 0x0412932D
+.long 0xD3C50000, 0x04029526
+.long 0xD3C50004, 0x0412952E
+.long 0xBF8A0000
+.long 0xD9FE0000, 0x4C000061
+.long 0xD3C50000, 0x04029727
+.long 0xD9FE0040, 0x50000061
+.long 0xD3C50004, 0x0412972F
+.long 0xBF8A0000
+.long 0xBF8CC17F
+.long 0xD3C50000, 0x04029930
+.long 0xD3C50004, 0x04129938
+.long 0xD3C50000, 0x04029B31
+.long 0xD3C50004, 0x04129B39
+.long 0xD3C50000, 0x04029D32
+.long 0xBF8A0000
+.long 0xD3C50004, 0x04129D3A
+.long 0xD9FE0000, 0x2000005E
+.long 0xD3C50000, 0x04029F33
+.long 0xD9FE0900, 0x2800005E
+.long 0xD3C50004, 0x04129F3B
+.long 0xD9FE0040, 0x2400005E
+.long 0xBF8CC37F
+.long 0xD3C50000, 0x0402A134
+.long 0xD9FE0940, 0x2C00005E
+.long 0xD3C50004, 0x0412A13C
+.long 0xD3C50000, 0x0402A335
+.long 0xD3C50004, 0x0412A33D
+.long 0xD3C50000, 0x0402A536
+.long 0xD3C50004, 0x0412A53E
+.long 0xBF8A0000
+.long 0xD9FE0000, 0x44000060
+.long 0xD3C50000, 0x0402A737
+.long 0xD9FE0040, 0x48000060
+.long 0xD3C50004, 0x0412A73F
+.long 0x802E822E
+.long 0xBF03C22E
+.long 0xBF84FF9B
+.long 0xBF8CC17F
+.long 0xD3C50000, 0x04028920
+.long 0xE05C1000, 0x80041068
+.long 0xE05C1040, 0x80041468
+.long 0xD3C50004, 0x04128928
+.long 0xD3C50000, 0x04028B21
+.long 0xBF8A0000
+.long 0xD3C50004, 0x04128B29
+.long 0xD9FE0000, 0x3000005F
+.long 0xD3C50000, 0x04028D22
+.long 0xD9FE0900, 0x3800005F
+.long 0xD3C50004, 0x04128D2A
+.long 0xD9FE0040, 0x3400005F
+.long 0xD3C50000, 0x04028F23
+.long 0xD9FE0940, 0x3C00005F
+.long 0xD3C50004, 0x04128F2B
+.long 0xBF8CC37F
+.long 0xD3C50000, 0x04029124
+.long 0xD3C50004, 0x0412912C
+.long 0xD3C50000, 0x04029325
+.long 0xD3C50004, 0x0412932D
+.long 0xD3C50000, 0x04029526
+.long 0xBF8A0000
+.long 0xD9FE0000, 0x4C000061
+.long 0xD3C50004, 0x0412952E
+.long 0xD9FE0040, 0x50000061
+.long 0xD3C50000, 0x04029727
+.long 0xD3C50004, 0x0412972F
+.long 0xBF8CC17F
+.long 0xD3C50000, 0x04029930
+.long 0xD3C50004, 0x04129938
+.long 0xD3C50000, 0x04029B31
+.long 0xD3C50004, 0x04129B39
+.long 0xD3C50000, 0x04029D32
+.long 0xD3C50004, 0x04129D3A
+.long 0xD3C50000, 0x04029F33
+.long 0xD3C50004, 0x04129F3B
+.long 0xBF8CC07F
+.long 0xD3C50000, 0x0402A134
+.long 0xD3C50000, 0x0402A335
+.long 0xD3C50000, 0x0402A536
+.long 0xD3C50000, 0x0402A737
+.long 0xD3C50004, 0x0412A13C
+.long 0xD3C50004, 0x0412A33D
+.long 0xD3C50004, 0x0412A53E
+.long 0xD3C50004, 0x0412A73F
+.long 0xD3D84000, 0x18000100
+.long 0x0A000028
+.long 0xD3D84001, 0x18000101
+.long 0x0A020228
+.long 0xD3D84002, 0x18000102
+.long 0x0A040428
+.long 0xD3D84003, 0x18000103
+.long 0x0A060628
+.long 0xBF8C0F71
+.long 0xD1CB0000, 0x04005310
+.long 0xD1CB0001, 0x04045311
+.long 0xD1CB0002, 0x04085312
+.long 0xD1CB0003, 0x040C5313
+.long 0xE07C1000, 0x80050069
+.long 0xD3D84004, 0x18000104
+.long 0x0A080828
+.long 0xD3D84005, 0x18000105
+.long 0x0A0A0A28
+.long 0xD3D84006, 0x18000106
+.long 0x0A0C0C28
+.long 0xD3D84007, 0x18000107
+.long 0x0A0E0E28
+.long 0xBF8C0F71
+.long 0xD1CB0004, 0x04105314
+.long 0xD1CB0005, 0x04145315
+.long 0xD1CB0006, 0x04185316
+.long 0xD1CB0007, 0x041C5317
+.long 0xE07C1040, 0x80050469
+.long 0xBF8C0000
+.long 0xBF810000

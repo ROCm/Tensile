@@ -43,6 +43,7 @@
 
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 #include "ResultFileReporter.hpp"
 
@@ -144,6 +145,12 @@ namespace Tensile
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
 
+                ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
+                ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
+                ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
+                ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
+                ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
+                
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
 
@@ -180,12 +187,17 @@ namespace Tensile
                 ("c-ops",                    vector_default_empty<TensorOp>(), "Operations applied to C.")
                 ("d-ops",                    vector_default_empty<TensorOp>(), "Operations applied to D.")
 
+                ("problem-start-idx",        po::value<int>()->default_value(0),  "First problem to run")
+                ("num-problems",             po::value<int>()->default_value(-1), "Number of problems to run")
+
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
 
                 ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
+                ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
+                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ;
 
             return options;
@@ -232,6 +244,7 @@ namespace Tensile
         void LoadCodeObjects(po::variables_map const& args, hip::SolutionAdapter & adapter)
         {
             auto const& filenames = args["code-object"].as<std::vector<std::string>>();
+            auto logLevel = args["log-level"].as<LogLevel>();
 
             if(filenames.empty())
             {
@@ -241,7 +254,8 @@ namespace Tensile
             {
                 for(auto const& filename: filenames)
                 {
-                    std::cout << "Loading " << filename << std::endl;
+                    if(logLevel >= LogLevel::Verbose)
+                        std::cout << "Loading " << filename << std::endl;
                     adapter.loadCodeObjectFile(filename);
                 }
             }
@@ -354,8 +368,15 @@ int main(int argc, const char * argv[])
 
     auto dataInit = DataInitialization::Get(args, problemFactory);
 
+    auto problems = problemFactory.problems();
+    int firstProblemIdx = args["problem-start-idx"].as<int>();
+    int numProblems = args["num-problems"].as<int>();
+    if(numProblems < 0)
+        numProblems = problems.size();
+    int lastProblemIdx = firstProblemIdx + numProblems-1;
+
     int firstSolutionIdx = args["solution-start-idx"].as<int>();
-    int numSolutions = args["solution-start-idx"].as<int>();
+    int numSolutions = args["num-solutions"].as<int>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -376,10 +397,13 @@ int main(int argc, const char * argv[])
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
     listeners.addListener(std::make_shared<ProgressListener>());
 
-    listeners.addListener(std::make_shared<BenchmarkTimer>(args));
+    listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
+    reporters->addReporter(PerformanceReporter::Default(args));
+    
+    //PerformanceReporter needs to be called before these two, or else values will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
 
@@ -402,9 +426,10 @@ int main(int argc, const char * argv[])
     {
         listeners.preBenchmarkRun();
 
-        size_t problemIdx = 0;
-        for(auto const& problem: problemFactory.problems())
+        for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
         {
+            auto const& problem = problems[problemIdx];
+
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress, concatenate(problemIdx, "/", problemFactory.problems().size()));
 
@@ -512,7 +537,6 @@ int main(int argc, const char * argv[])
             }
 
             listeners.postProblem();
-            problemIdx++;
         }
 
         listeners.postBenchmarkRun();

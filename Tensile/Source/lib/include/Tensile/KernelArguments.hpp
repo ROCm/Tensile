@@ -39,6 +39,8 @@ namespace Tensile
         KernelArguments(bool log = true);
         virtual ~KernelArguments();
 
+        void reserve(size_t bytes, size_t count);
+
         template <typename T>
         void append(std::string const& name, T value);
 
@@ -98,6 +100,11 @@ namespace Tensile
     template <typename T>
     inline void KernelArguments::bind(std::string const& name, T value)
     {
+        if(!m_log)
+        {
+            throw std::runtime_error("Binding is not supported without logging.");
+        }
+
         auto it = m_argRecords.find(name);
         if(it == m_argRecords.end())
         {
@@ -147,14 +154,16 @@ namespace Tensile
     template <typename T>
     inline void KernelArguments::append(std::string const& name, T value, bool bound)
     {
-        std::string valueString = stringForValue(value, bound);
-
         alignTo(alignof(T));
 
         size_t offset = m_data.size();
         size_t size = sizeof(T);
 
-        appendRecord(name, Arg(offset, size, bound, valueString));
+        if(m_log)
+        {
+            std::string valueString = stringForValue(value, bound);
+            appendRecord(name, Arg(offset, size, bound, valueString));
+        }
 
         m_data.insert(m_data.end(), sizeof(value), 0);
         writeValue(offset, value);
@@ -169,6 +178,26 @@ namespace Tensile
         }
 
         std::memcpy(&m_data[offset], &value, sizeof(T));
+    }
+
+    inline void KernelArguments::alignTo(size_t alignment)
+    {
+        size_t extraElements = m_data.size() % alignment;
+        size_t padding = (alignment - extraElements) % alignment;
+
+        m_data.insert(m_data.end(), padding, 0);
+    }
+
+    inline void KernelArguments::appendRecord(std::string const& name, KernelArguments::Arg record)
+    {
+        auto it = m_argRecords.find(name);
+        if(it != m_argRecords.end())
+        {
+            throw std::runtime_error("Duplicate argument name: " + name);
+        }
+
+        m_argRecords[name] = record;
+        m_names.push_back(name);
     }
 }
 

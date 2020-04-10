@@ -2262,6 +2262,15 @@ class KernelWriterSource(KernelWriter):
     return imod
 
   ##############################################################################
+  # DirectToLds M0 update: Do It A/B
+  ##############################################################################
+  def directToLdsM0Update(self, kernel, mode, tP):
+    tc = tP["tensorChar"]
+    imod = Code.Module("directToLdsM0Update%s_%u"%(tc,mode))
+    return imod
+
+
+  ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
   def globalReadDo(self, kernel, mode, tP):
@@ -2459,7 +2468,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   ##############################################################################
-  def localReadDo(self, kernel, black, iui, epsi, tP):
+  def localReadDo(self, kernel, black, iui, epsi, uIdx, tP):
     kStr = ""
     for r in range(0, kernel[tP["tt"]]//kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):

@@ -8,6 +8,7 @@ GlobalParameters:
   DataInitTypeAB: 1
   DataInitTypeC: 1
   ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
+  NewClient: 2
 
 BenchmarkProblems:
     # Covers TN and TT cases to test combining at at
@@ -33,8 +34,8 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [8, 8]
-          - [7, 4]
-          - [3, 5]
+          ##- [7, 4]
+          ##- [3, 5]
           - [2, 6]
           - [1, 1]
         - WorkGroup:
@@ -47,7 +48,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [   1,   1,   1 ]
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
 
     - # Non-Tile Sizes
@@ -58,15 +59,15 @@ BenchmarkProblems:
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GlobalReadCoalesceGroupA: [False, True]
-        - GlobalReadCoalesceGroupB: [False, True]
+        ##- GlobalReadCoalesceGroupA: [False, True]
+        ##- GlobalReadCoalesceGroupB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [1]
         - GlobalSplitU: [1, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
     - # Branches
       BenchmarkCommonParameters:
@@ -83,7 +84,7 @@ BenchmarkProblems:
         - VectorWidth: [1]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
+          - Range: [ [8, 32, 0, 40], [8, 32, 0, 40], [63, 1, 64] ]
 
 
     ############################################################################
@@ -133,15 +134,15 @@ BenchmarkProblems:
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GlobalReadCoalesceGroupA: [False, True]
-        - GlobalReadCoalesceGroupB: [False, True]
+        ##- GlobalReadCoalesceGroupA: [False, True]
+        ##- GlobalReadCoalesceGroupB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [1]
         - GlobalSplitU: [1, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
     - # Branches
       BenchmarkCommonParameters:
@@ -158,7 +159,7 @@ BenchmarkProblems:
         - VectorWidth: [1]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
+          - Range: [ [8, 32, 0, 40], [8, 32, 0, 40], [63, 1, 64] ]
 
 LibraryLogic:
     ScheduleName: "vega10"
@@ -177,4 +178,4 @@ LibraryLogic:
 #   DeviceNames: ["Device 0000"]
 #   ArchitectureName: "fallback"
 
-LibraryClient:
+#LibraryClient:
