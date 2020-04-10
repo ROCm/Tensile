@@ -17,6 +17,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
 
@@ -43,7 +44,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 5 ]
           - [ 4, 8 ]
-          - [ 8, 8 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 32,  4,  1 ]
           - [  8,  8,  1 ]
@@ -54,7 +55,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -67,10 +68,10 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 3 ]
+          #- [ 3, 3 ]
           - [ 4, 4 ]
           - [ 5, 5 ]
-          - [ 8, 8 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -81,7 +82,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # sgemm NT
     - # ProblemType
@@ -106,7 +107,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 5 ]
           - [ 4, 8 ]
-          - [ 8, 8 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8, 16,  1 ]
@@ -117,7 +118,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -132,8 +133,8 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
-          - [ 8, 8 ]
+          #- [ 5, 5 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [ 16,  8,  1 ]
@@ -144,7 +145,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # sgemm TN
     - # ProblemType
@@ -169,7 +170,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 5 ]
           - [ 4, 8 ]
-          - [ 8, 8 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [ 32,  4,  1 ]
@@ -180,7 +181,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -195,8 +196,8 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
-          - [ 8, 8 ]
+          #- [ 5, 5 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -207,7 +208,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # sgemm TT
     - # ProblemType
@@ -231,7 +232,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 5 ]
           - [ 4, 8 ]
-          - [ 8, 8 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -242,7 +243,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -256,8 +257,8 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
-          - [ 8, 8 ]
+          #- [ 5, 5 ]
+          #- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -268,27 +269,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
-
-LibraryLogic:
-    SolutionImportanceMin: 0
-    ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Vega 20"]
-    ArchitectureName: "gfx906"
-
-    #ScheduleName: "vega10"
-    #DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 [Radeon Instinct MI25]"]
-    #ArchitectureName: "gfx900"
-
-#   ScheduleName: "mi25"
-#   DeviceNames: ["Device 6860"]
-#   ArchitectureName: "gfx900"
-
-#   ScheduleName: "r9nano"
-#   DeviceNames: ["Device 7300"]
-#   ArchitectureName: "gfx803"
-
-#   ScheduleName: "hip"
-#   DeviceNames: ["Device 0000"]
-#   ArchitectureName: "fallback"
-LibraryClient:
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
