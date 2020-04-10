@@ -95,7 +95,7 @@ def getCuCount(gpu):
 
     return 64
 
-def fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided, isOne):
+def fillCallCounts(problemMapper, callCounts, callCount, callCountStrided, isOne):
 
     for i in problemMapper:
         for klist in i:
@@ -107,35 +107,17 @@ def fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, c
                     midList.append(klist[key])
                 if len(midList) == 4:
                     callCounts.append(midList)
-    
-    for line in callCounts:
-        if line[0] == "gemm" and line[1] == "N" and line[2] == "N":
-            callCountNN.append(line[3])
-        elif line[0] == "gemm" and line[1] == "N" and line[2] == "T":
-            callCountNT.append(line[3])
-        elif line[0] == "gemm" and line[1] == "T" and line[2] == "N":
-            callCountTN.append(line[3])
-        elif line[0] == "gemm_strided_batched" and line[1] == "N" and line[2] == "N":
-            callCountNNstrided.append(line[3])
-        elif line[0] == "gemm_strided_batched" and line[1] == "N" and line[2] == "T":
-            callCountNTstrided.append(line[3])
-        elif line[0] == "gemm_strided_batched" and line[1] == "T" and line[2] == "N":
-            callCountTNstrided.append(line[3])
 
-def chooseCallCount(resultsName, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided):
-    
-    if "strided-NN" in resultsName:
-        return callCountNNstrided
-    elif "strided-NT" in resultsName:
-        return callCountNTstrided
-    elif "strided-TN" in resultsName:
-        return callCountTNstrided
-    elif "NN" in resultsName:
-        return callCountNN
-    elif "NT" in resultsName:
-        return callCountNT
-    elif "TN" in resultsName:
-        return callCountTN
+    for line in callCounts:
+        if line[0] == "gemm":
+            callCount.append(line[3])
+        elif line[0] == "gemm_strided_batched":
+            callCountStrided.append(line[3])
+
+def chooseCallCount(resultsName, callCount, callCountStrided):
+    if "strided" in resultsName:
+        return callCountStrided
+    return callCount
 
 def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20', xdl = False):
     
@@ -152,12 +134,12 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     headerValues = headers.strip().split(",")
     headerLength = len(headerValues)
     key = headerValues[0:headerLength-2]
-    key.append("us")
+    key.append('us')
 
     performanceField = "rocblas-Gflops"
     timingField = "us"
 
-    df = data.groupby(key)
+    df = data.groupby(key,sort=False)
 
     results = df[performanceField].mean().to_frame()
     timingResults = df[timingField].mean().to_frame()
@@ -167,15 +149,15 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
     results['eff'] = 100*1e3*results['rocblas-Gflops'] / (factor * freq) 
     results['us_w'] = timingResults['us']*call_count
 
-    aggragateFileName = resultsName + "-aggregated.csv"
-    aggragateFilePath = os.path.join(outputPath, aggragateFileName)
+    aggregateFileName = resultsName + "-aggregated.csv"
+    aggregateFilePath = os.path.join(outputPath, aggregateFileName)
 
-    results.to_csv(aggragateFilePath, header=True)
+    results.to_csv(aggregateFilePath, header=True)
     
     resultsBad = results[results['eff'] < 70]
     badResultsFileName = resultsName + "-bad.csv"
     badResultsFilePath = os.path.join(outputPath, badResultsFileName)
-    resultsBad.to_csv(badResultsFilePath, header=True)    
+    resultsBad.sort_values(by='us_w',ascending=False).to_csv(badResultsFilePath, header=True)    
 
     large1 = data
     large1['N'] = pd.to_numeric(large1['N'])
@@ -191,12 +173,12 @@ def ProcessResults(outputPath, resultsName, freqM, sz, call_count, gpu = 'vega20
 
     resultsFileName = resultsName + "-large.csv"
     resultsFilePath = os.path.join(outputPath, resultsFileName)
-    largeResults.to_csv(resultsFilePath, header=True)  
+    largeResults.sort_values(by='us_w',ascending=False).to_csv(resultsFilePath, header=True)  
 
     resultsBad = largeResults[largeResults['eff'] < 70]
     badResultsFileName = resultsName + "-bad-large.csv"
     badResultsFilePath = os.path.join(outputPath, badResultsFileName)
-    resultsBad.to_csv(badResultsFilePath, header=True)  
+    resultsBad.sort_values(by='eff',ascending=True).to_csv(badResultsFilePath, header=True)  
 
 def RunMain():
 
@@ -225,14 +207,10 @@ def RunMain():
  
     problemMapper = list(ProcessFile(inputFileName).values())
     callCounts = list(list())
-    callCountNN = list()
-    callCountNNstrided = list()
-    callCountNT = list()
-    callCountNTstrided = list()
-    callCountTN = list()
-    callCountTNstrided = list()
+    callCount = list()
+    callCountStrided = list()
     
-    fillCallCounts(problemMapper, callCounts, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided, isOne)
+    fillCallCounts(problemMapper, callCounts, callCount, callCountStrided, isOne)
 
     resultsFiles = [f for f in os.listdir(inputPath) if (os.path.isfile(os.path.join(inputPath, f)))]
     resultsNameSet = set()
@@ -245,8 +223,8 @@ def RunMain():
 
     for resultsName in resultsNames:
         ParseResults(inputPath, outputPath, resultsName)
-        callCount = chooseCallCount(resultsName, callCountNN, callCountNNstrided, callCountNT, callCountNTstrided, callCountTN, callCountTNstrided)
-        ProcessResults(outputPath, resultsName, freqM, sz, callCount, cu, xdl)
+        callCountChoice = chooseCallCount(resultsName, callCount, callCountStrided)
+        ProcessResults(outputPath, resultsName, freqM, sz, callCountChoice, cu, xdl)
 
 
 if __name__ == "__main__":

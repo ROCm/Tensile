@@ -56,7 +56,7 @@ def RunMain():
     result['overall_us_saved'] = sum(result['us_saved_total'])
     result['overall_speedup'] = 100.0 - 100.0*(sum(result['us_w_current'])-sum(result['us_saved_total']))/sum(result['us_w_current'])
 
-    result.to_csv(combinedFileName, header=True, index=False)
+    result.sort_values(by='us_w_new',ascending=False).to_csv(combinedFileName, header=True, index=False)
 
     inputFileBaseName = os.path.basename(combinedFileName)
     outputDir = os.path.dirname(combinedFileName)

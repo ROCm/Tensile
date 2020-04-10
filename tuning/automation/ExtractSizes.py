@@ -765,7 +765,6 @@ def GetTensileSize(problemDefinition):
     return size
 
 def BuildRocBLASBenchmarkCall(problemDefinition):
-    
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 

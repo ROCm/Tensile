@@ -354,15 +354,8 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
         newConfig = configDefs[key]
         newConfig.writeLibraryLogic(key)
 
-def GetOutputFileName(outputPath, namePart, key, ext):
-    function, transposeA, transposeB, dType = key
-    fileName = namePart
-
-    if "strided" in function:
-        fileName += "-strided-%s%s.%s" % (transposeA,transposeB,ext)
-    else:
-        fileName += "-%s%s.%s" % (transposeA,transposeB,ext)
-
+def GetOutputFileName(outputPath, namePart, ext):
+    fileName = namePart+".%s" % (ext)
     outputFileName = outputFileName = os.path.join(outputPath, fileName)
     return outputFileName
 
@@ -392,22 +385,38 @@ done
     doitFile.close() 
 
 def OutputScript(problemMapper, scriptPath, namePart):
-
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
+    outputFileName = GetOutputFileName(scriptPath, namePart, "sh")
+    outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
+    outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
+    scriptFileNames.append(outputFileName)
+    scriptFileNames.append(outputFileName2)
+    count = 0
 
     for key in keys:
-        outputFileName = GetOutputFileName(scriptPath, namePart, key, "sh")
-        scriptFileNames.append(outputFileName)
         lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
             lines.append(rocblas_call)
-        with open(outputFileName, 'w') as f:
+        with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
-                f.write("%s\n" % line)
+                if "strided" in line:
+                    g.write("%s\n" % line)
+                    h.write("%s\n" % line)
+                else:
+                    if "bash" in line:
+                        if count == 0:
+                            f.write("%s\n" % line)
+                            g.write("%s\n" % line)
+                            h.write("%s\n" % line)
+                            count = 1
+                    else:
+                        f.write("%s\n" % line)
+                        h.write("%s\n" % line)
+        lines = []
 
     generateRunScript(scriptFileNames, scriptPath)
     
@@ -416,31 +425,53 @@ def OutputScript2(problemMapper, scriptPath, namePart):
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
-    
+    outputFileName = GetOutputFileName(scriptPath, namePart, "sh")
+    outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
+    outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
+    scriptFileNames.append(outputFileName)
+    scriptFileNames.append(outputFileName2)
+    count = 0    
+
     for key in keys:
-        outputFileName = GetOutputFileName(scriptPath, namePart, key, "sh")
-        scriptFileNames.append(outputFileName)
         lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
             lines.append(rocblas_call)
-        with open(outputFileName, 'w') as f:
+        with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
-                if "rocblas-bench" in line:
-                    f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
+                if "strided" in line:
+                    if "rocblas-bench" in line:
+                        g.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
+                        h.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
+                    else:
+                        g.write("%s\n" % line)
+                        h.write("%s\n" % line)
                 else:
-                    f.write("%s\n" % line)
+                    if "rocblas-bench" in line:
+                        f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
+                        h.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
+                    else:
+                        if "bash" in line:
+                            if count == 0:
+                                f.write("%s\n" % line)
+                                g.write("%s\n" % line)
+                                h.write("%s\n" % line)
+                                count = 1
+                        else:
+                            f.write("%s\n" % line)
+                            h.write("%s\n" % line)
+        lines = []
                     
     generateRunScript(scriptFileNames, scriptPath,'2')
 
 def OutputProblemDefinitions(problemMapper, sizePath, namePart):
 
     keys = list(problemMapper.keys())
+    outputFileName = GetOutputFileName(sizePath, namePart, "csv")
 
     for key in keys:
         lineDefinitions = problemMapper[key]
-        outputFileName = GetOutputFileName(sizePath, namePart, key, "csv")
         output = open(outputFileName,"w+")
         writer = csv.DictWriter(output, fieldnames=rocblas_parameters, extrasaction='ignore')
         writer.writeheader()
@@ -502,11 +533,11 @@ def RunMain():
 
     if len(sys.argv) <= 7:
         OutputScript(problemMapper, scriptPath, namePart)
-        OutputScript2(problemMapper, scriptPath2, namePart)
+        OutputScript2(problemMapper, scriptPath2, namePart+'2')
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
         OutputScript(problemMapper, scriptPath, networkName)
-        OutputScript2(problemMapper, scriptPath2, networkName)
+        OutputScript2(problemMapper, scriptPath2, networkName+'2')
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":
