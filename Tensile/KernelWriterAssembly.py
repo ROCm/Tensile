@@ -189,10 +189,9 @@ class RegisterPool:
     return self.checkOutAligned(size, 1, tag, preventOverflow)
 
   def checkOutAligned(self, size, alignment, tag="_untagged_aligned_", preventOverflow=-1):
-    if preventOverflow==-1:
+    if preventOverflow == -1:
       preventOverflow = self.defaultPreventOverflow
     assert(size > 0)
-    assert(self.type != 's') # use getTmpSgpr instead of checkout
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -815,9 +814,9 @@ class KernelWriterAssembly(KernelWriter):
     if self.startSgprTmpPool != None:
       raise RuntimeError("Expected defineSgpr to be called before setStartTmpPool")
 
-
-    # round up to next alignment boundary:
-    self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
+    self.sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
+    #self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
+    #print (name, "->", self.sgprIdx, "+", numSgprs)
     self.sgprs[name] = self.sgprIdx
     self.sgprIdx += numSgprs
 
@@ -1509,6 +1508,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
+    self.sgprPool = RegisterPool(0, 's', 0, defaultPreventOverflow=True, printRP=0)
     self.setStartTmpPool(None)
     numSgprAddressD = self.rpga # til end
     numSgprAddressC = self.rpga # til end
@@ -1595,9 +1595,6 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("StridesD", self.numSgprStridesDToLoad)
     self.defineSgpr("StridesC", self.numSgprStridesC)
 
-    # doubles need to be aligned to even
-    #if tPA["bpe"] > 4 and self.sgprIdx%2==1:
-    #  self.sgprIdx += 1
     self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
       self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
@@ -1793,8 +1790,6 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.add(self.startVgprValuA, \
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
-
-    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0, defaultPreventOverflow=True, printRP=0)
 
     self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, defaultPreventOverflow=False, printRP=0)
     # C regs are not used during initialization so mark them as available - 
