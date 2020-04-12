@@ -118,10 +118,12 @@ class RegisterPool:
 
   ########################################
   # Init
-  def __init__(self, size, type, reservedAtEnd, printRP=0):
+  # defaultPreventOverflow: if true, default checkouts can't grow pool
+  def __init__(self, size, type, reservedAtEnd, defaultPreventOverflow, printRP=0):
     self.printRP=printRP
     self.type = type
     self.reservedAtEnd = reservedAtEnd
+    self.defaultPreventOverflow = defaultPreventOverflow
     self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
 
@@ -183,10 +185,12 @@ class RegisterPool:
 
   ########################################
   # Check Out
-  def checkOut(self, size, tag="_untagged_", preventOverflow=False):
+  def checkOut(self, size, tag="_untagged_", preventOverflow=-1):
     return self.checkOutAligned(size, 1, tag, preventOverflow)
 
-  def checkOutAligned(self, size, alignment, tag="_untagged_aligned_", preventOverflow=False):
+  def checkOutAligned(self, size, alignment, tag="_untagged_aligned_", preventOverflow=-1):
+    if preventOverflow==-1:
+      preventOverflow = self.defaultPreventOverflow
     assert(size > 0)
     assert(self.type != 's') # use getTmpSgpr instead of checkout
     found = -1
@@ -758,9 +762,12 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprTmpPool = newStartTmpPool
 
   def getTmpSgpr(self, num):
-    pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
+    pad = 0 if num==1 else self.startSgprTmpPool & 0x1
     if self.startSgprTmpPool+num+pad > self.totalSgprs:
       self.totalSgprs = self.startSgprTmpPool + num + pad
+      if self.totalSgprs >= self.maxSgprs:
+          warn("Out of SGPRs in getTmpSgpr!")
+          #assert(0)
       if 0:
         print("startSgprTmpPool=", self.startSgprTmpPool,
               " ask count =",num,
@@ -1774,7 +1781,8 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs, 'v', reservedAtEnd=1, printRP=self.db["PrintRP"])
+    self.vgprPool = RegisterPool(self.totalVgprs, 'v', reservedAtEnd=1, defaultPreventOverflow=False,
+                                 printRP=self.db["PrintRP"])
     #print self.vgprPool.state()
     self.savedVgprPool = None
 
@@ -1786,9 +1794,9 @@ class KernelWriterAssembly(KernelWriter):
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
 
-    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0, 0)
+    self.sgprPool = RegisterPool(self.totalSgprs, 's', 0, defaultPreventOverflow=True, printRP=0)
 
-    self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, 0)
+    self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, defaultPreventOverflow=False, printRP=0)
     # C regs are not used during initialization so mark them as available - 
     # we will claim then just before the start of the unroll loop:
     self.agprPool.add(0, self.totalAgprs, "ValuC-Block")
