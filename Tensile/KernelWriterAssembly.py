@@ -421,7 +421,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Various debug flags and modes
     self.db = {}
-    self.db["EnableAsserts"]     = True  # Enable assertion codegen
+    self.db["EnableAsserts"]     = False  # Enable assertion codegen. Requires 2 SGPR.
     self.db["DebugKernelMaxItems"] = 16  # Capture first N(=16) print values, ignore subsequent.  If -1, debug writing is faster but writing more than 16 values is undefined.
 
     # Chicken bit to add conservative synchronization at strategic points:
