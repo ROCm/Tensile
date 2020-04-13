@@ -4158,9 +4158,22 @@ class KernelWriterAssembly(KernelWriter):
                           self.strideRef(tc, freeDim), \
                           "zp.freeDim * strideFree")
                 #iaToGpr[sumDim] will be 0 for other summation dims
+                vgprSumIdxOffset = vgpr(iaToGpr[sumDim]) if vgpr(iaToGpr[sumDim]) else 0
+                if sumDim in kernel["ProblemType"]["MirrorDims%s"%(tc)]:
+                  kStr += inst("v_sub_u32",
+                            vgpr(tmp), \
+                            sgpr("Size%s" % sumDimChar), \
+                            vgprSumIdxOffset, \
+                            "mirrored zp.sumDim offset")
+                  kStr += inst("v_sub_u32",
+                            vgpr(tmp), \
+                            vgpr(tmp), \
+                            1, \
+                            "")
+                  vgprSumIdxOffset = vgpr(tmp)
                 kStr += inst("v_mul_lo_u32", \
                           vgpr(tmp), \
-                          vgpr(iaToGpr[sumDim]) if vgpr(iaToGpr[sumDim]) else 0, \
+                          vgprSumIdxOffset, \
                           self.strideRef(tc, sumDim), \
                           "zp.sumDim * strideSum")
                 kStr += inst("_v_add_u32", \
@@ -6744,8 +6757,12 @@ class KernelWriterAssembly(KernelWriter):
         assert (soffset == "0") # need to add to scalar above.  Can't happen with UseSgprForGRO=0
         codeMod.addInst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), soffset, "add soffset ")
 
-      codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
-                        "<- GRO + scaled elementCounter")
+      if sumDim in kernel["ProblemType"]["MirrorDims%s"%(tc)]:
+        codeMod.addInst("_v_sub_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
+                        "<- GRO - scaled elementCounter")
+      else:
+        codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
+                          "<- GRO + scaled elementCounter")
 
       cmpDest = "vcc" if i==0 else sgpr(tmpSgpr,2) # first one writes vcc
       codeMod.addInst("v_cmp_ge_u32", cmpDest, vgpr(addrV), \
