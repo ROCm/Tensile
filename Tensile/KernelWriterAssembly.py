@@ -816,6 +816,11 @@ class KernelWriterAssembly(KernelWriter):
 
     return sgprIdx
 
+  def undefineSgpr(self, name):
+    self.sgprPool.checkIn(self.sgprs[name])
+    # later references will result in compile-time error (with odd 'error: expected relocatable expression')
+    # and 'Kernel ... not found in any loaded module'
+    return ".set %s, UNDEF\n" % name
 
   ##############################################################################
   # Init Kernel
@@ -1676,7 +1681,6 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
       self.defineSgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx), 1)
-
 
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
@@ -5970,6 +5974,13 @@ class KernelWriterAssembly(KernelWriter):
 
     self.vgprPool.add(self.startVgprValuA, \
         self.lastVgprForReads - self.startVgprValuA, "endSummation")
+
+    lastRegTag=None
+    for i in range(self.lastPostLoopSgpr+1, self.sgprPool.size()):
+      regTag = self.sgprPool.pool[i].tag
+      if regTag != lastRegTag:
+        kStr += self.undefineSgpr(regTag)
+        lastRegTag = regTag
 
     self.setStartTmpPool(self.lastPostLoopSgpr)
 
