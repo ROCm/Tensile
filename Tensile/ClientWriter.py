@@ -356,10 +356,10 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
     if globalParameters["NewClient"]:
       newClientExe = ClientExecutable.getClientExecutable()
-      configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
+      configFile = os.path.join(globalParameters['WorkingPath'], '../source/', globalParameters['ClientParamsFile'])
       runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
       if enableTileSelection and (globalParameters["NewClient"] == 2):
-        configFileGranularity = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters_Granularity.ini')
+        configFileGranularity = os.path.join(globalParameters['WorkingPath'], '../source/', globalParameters['ClientParamsGranularityFile'])
         runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFileGranularity, globalParameters["NewClientArgs"]))
       runScriptFile.write("ERR2=$?\n\n")
     else:
@@ -630,6 +630,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
         param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
+        param("best-solution",     globalParameters["BestSolution"])
 
 
 

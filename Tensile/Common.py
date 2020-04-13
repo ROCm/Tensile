@@ -179,6 +179,8 @@ globalParameters["WorkingPath"] = os.getcwd()           # path where tensile cal
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
+globalParameters["ClientParamsFile"] = "ClientParameters.ini"
+globalParameters["ClientParamsGranularityFile"] = "ClientParameters_Granularity.ini"
 globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
@@ -203,6 +205,10 @@ globalParameters["PerfModelL2ReadHits"] = 0.0
 globalParameters["PerfModelL2WriteHits"] = 0.15
 globalParameters["PerfModelL2ReadBwMul"] = 2
 globalParameters["PerfModelReadEfficiency"] = 0.85
+
+# network benchmark
+globalParameters["BestSolution"] = False
+globalParameters["NetworkName"] = ""
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
