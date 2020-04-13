@@ -118,7 +118,8 @@ class RegisterPool:
 
   ########################################
   # Init
-  # defaultPreventOverflow: if true, default checkouts can't grow pool
+  # reservedAtEnd: reserve a register at the end of the poool, used for vserial
+  # defaultPreventOverflow: control behavior of checkout and checkoutAligned when preventOverflow is not explicitly specificed.
   def __init__(self, size, type, reservedAtEnd, defaultPreventOverflow, printRP=0):
     self.printRP=printRP
     self.type = type
@@ -802,25 +803,19 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
 
-  ##############################################################################
-  #
-  #   Functions to Write Kernel Segments
-  #
-  ##############################################################################
-
   def defineSgpr(self, name, numSgprs, align=1):
     if numSgprs == 0: return
 
     if self.startSgprTmpPool != None:
       raise RuntimeError("Expected defineSgpr to be called before setStartTmpPool")
 
-    self.sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
+    sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
     #self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     #print (name, "->", self.sgprIdx, "+", numSgprs)
-    self.sgprs[name] = self.sgprIdx
-    self.sgprIdx += numSgprs
+    self.sgprs[name] = sgprIdx
 
-    return
+    return sgprIdx
+
 
   ##############################################################################
   # Init Kernel
@@ -839,7 +834,6 @@ class KernelWriterAssembly(KernelWriter):
     tPB["localReadOffset"] = 0
 
     self.sgprs=collections.OrderedDict()
-    self.sgprIdx = 0
 
     self.LdsOOB = 0xF00000
 
@@ -1568,9 +1562,8 @@ class KernelWriterAssembly(KernelWriter):
         self.defineSgpr("WorkGroup%u"%wg, 1)
         wg+=1
 
-    self.lastUserSgprPlus1=self.sgprIdx  # For initSgpr, this is one past the past user sgpr
-
-    self.defineSgpr("NumWorkGroups0", 1)
+    # SGPR above are user SGPR which are set by GPU hardware when the kernel is launched
+    self.firstInitSgpr = self.defineSgpr("NumWorkGroups0", 1)
     self.defineSgpr("NumWorkGroups1", 1)
 
     if kernel["BufferLoad"]:
@@ -1675,7 +1668,7 @@ class KernelWriterAssembly(KernelWriter):
     # (we reclaim them to use as temps, typically for execmasks)
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
-    self.lastPostLoopSgpr = self.sgprIdx
+    self.lastPostLoopSgpr = self.sgprPool.size()
 
     if self.unrollIncIsDepthU:
       # product of all summation dimensions, this also will be divided if GSU is enabled
@@ -1750,15 +1743,15 @@ class KernelWriterAssembly(KernelWriter):
     for i in range(numDummySgpr):
       self.defineSgpr("DummySgpr%d"%i, 1)
 
-    if self.sgprIdx >= self.maxSgprs:
+    if self.sgprPool.size() >= self.maxSgprs:
       print ("warning: Number of defined SGPRS (%d) overflowed max SGPRS (%d)." \
-               % (self.sgprIdx, self.maxSgprs))
+               % (self.sgprPool.size(), self.maxSgprs))
 
     # TODO-persistent - likely recompute some of the registers above.
     if kernel["PersistentKernel"]:
-      self.lastPostLoopSgpr = self.sgprIdx
+      self.lastPostLoopSgpr = self.sgprPool.size()
 
-    self.totalSgprs = self.sgprIdx
+    self.totalSgprs = self.sgprPool.size()
     self.setStartTmpPool(self.totalSgprs)
 
     ########################################
@@ -3365,7 +3358,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.do["PreLoop"]: 
       if self.db["InitSgpr"] & 0x1:
         kStr += self.comment("Init SGPRs")
-        for i in range(self.lastUserSgprPlus1, self.totalSgprs):
+        for i in range(self.firstInitSgpr, self.totalSgprs):
           kStr += inst("s_mov_b32", sgpr(i), hex(self.initSgprValue), "InitSgpr&0x1")
         kStr += "\n"
 
