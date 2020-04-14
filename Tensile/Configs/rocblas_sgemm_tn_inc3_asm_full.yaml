@@ -256,6 +256,111 @@ BenchmarkProblems:
           - Exact: [ 4096, 480, 1, 4096, 4128, 4128, 4128, 4128]
           - Exact: [ 8192, 480, 1, 8192, 8224, 8224, 8224, 8224]
 
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 64 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+        - WorkGroupMapping: [1]
+        - DirectToLds: [0]
+        - TransposeLDS: [1]
+        - GlobalSplitU: [1]
+        - DepthU: [16]
+        - VectorWidth: [1]
+        - GlobalReadVectorWidth: [4]
+        - SuppressNoLoadLoop: [True,False]
+        - InnerUnroll: [1]
+        - ScheduleIterAlg: [1]
+        - OptNoLoadLoop: [0]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,4096,1,4096,1056,1056,4128,4160 ]
+          - Exact: [ 4096,4096,1,1024,4128,4128,1088,1056 ]
+          - Exact: [ 1024,2048,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,3072,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,2048,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,2048,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,512,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,512,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 512,512,1,64,544,544,128,96 ]
+          - Exact: [ 64,512,1,512,92,96,576,544 ]
+          - Exact: [ 3072,512,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 30528,4096,1,1024,30554,30554,1088,1056 ]
+          - Exact: [ 30528,2048,1,1024,30554,30554,1088,1056 ]
+
+  ########################################
+  # TN - standard 1Blocks/Inst
+  ########################################
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 2, 1]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 64 ]
+        - WorkGroup:
+          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+        - WorkGroupMapping: [1]
+        - DirectToLds: [0]
+        - TransposeLDS: [1]
+        - LdsBlockSizePerPad: [128]
+        - LdsPadA: [4]
+        - LdsPadB: [4]
+        - GlobalSplitU: [1]
+        - DepthU: [ 16 ]
+        - VectorWidth: [1]
+        - GlobalReadVectorWidth: [4]
+        - InnerUnroll: [1]
+        - ScheduleIterAlg: [1]
+        - OptNoLoadLoop: [0]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,4096,1,4096,1056,1056,4128,4160 ]
+          - Exact: [ 4096,4096,1,1024,4128,4128,1088,1056 ]
+          - Exact: [ 1024,2048,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,3072,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,2048,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,2048,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,512,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,512,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 512,512,1,64,544,544,128,96 ]
+          - Exact: [ 64,512,1,512,92,96,576,544 ]
+          - Exact: [ 3072,512,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 30528,4096,1,1024,30554,30554,1088,1056 ]
+          - Exact: [ 30528,2048,1,1024,30554,30554,1088,1056 ]
+
 #########################################
 LibraryLogic:
     ScheduleName: "arcturus"
