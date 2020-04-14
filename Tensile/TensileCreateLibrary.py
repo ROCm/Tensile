@@ -99,7 +99,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         if globalParameters["PackageLibrary"]:
           newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
         else:
-          newCOFiles = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
+          newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
 
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
