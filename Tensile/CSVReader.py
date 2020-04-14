@@ -19,15 +19,19 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-# Even though we don't support python 2, this is still packaged sometimes with python 2.
-from __future__ import print_function
+from .Common import printExit
+import csv
 
-# hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.18.0"
+def readCSV(csvFileName):
+    csvData = None
+    try:
+        with open(csvFileName, "r") as selectionfFile:
+            csvFile = csv.reader(selectionfFile)
+            csvData = list(csvFile)
+    except IOError:
+        printExit("Can't open \"%s\" to get data" % csvFileName)
+    
+    return csvData
 
-def PrintTensileRoot():
-    import os.path
 
-    print(os.path.dirname(__file__), end='')
-
-
+  

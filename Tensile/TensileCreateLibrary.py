@@ -329,7 +329,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
+      kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
     kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
   kernelsWithBuildErrs = {}
@@ -413,8 +413,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
-  print1("# Writing Solutions")
   if globalParameters["LegacyComponents"]:
+    print1("# Writing Solutions")
     ##############################################################################
     # Write Solutions
     ##############################################################################

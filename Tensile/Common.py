@@ -56,6 +56,7 @@ globalParameters["KernelTime"] = False            # T=use device timers, F=use h
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
 # timing between GSU / non-GSU kernels
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
+globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -494,6 +495,9 @@ validParameters = {
 
     "AssertStrideBEqual":  -1,
 
+    "AssertStrideCEqual":  -1,
+    "AssertStrideDEqual":  -1,
+
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
@@ -848,6 +852,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertMinApproxSize":        [ -1 ] },
     {"AssertStrideAEqual":        [ {} ] },
     {"AssertStrideBEqual":        [ {} ] },
+    {"AssertStrideCEqual":        [ {} ] },
+    {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
@@ -1009,8 +1015,19 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStridesAB":      False,  # use initial strides for AB.
-    "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
+
+    # use initial strides for AB.
+    # This has some performance impact for the increased flexibility:
+    #   - Additional strides will be passed into the kernel and will occupy SGPR registers
+    #   - GlobalReadWidth must be 1 (since elements are not guaranteed to be adjacent in memory)
+    "UseInitialStridesAB":      False,
+
+    # use initial strides for CD.
+    # This has some performance impact for the increased flexibility:
+    #   - Additional strides will be passed into the kernel and will occupy SGPR registers
+    #   - Additional multiply on the store address path
+    #   -VectorStore must be 0.  If VectorStore is -1, it will be silently set to 0 internally.
+    "UseInitialStridesCD":      False,
 
     "AllowNoFreeDims":          False,  # allow A or B to specify no free dims
                                         # (if false, A and B must have at least one free dim)
