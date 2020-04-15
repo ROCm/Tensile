@@ -52,7 +52,11 @@ function(TensileCreateLibraryCmake
 
   execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/TensileCreateLibrary)
   execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/Tensile)
-  
+ 
+  if(Tensile_COMPILER MATCHES "hipcc")
+    set(HIPCC_COMPILE_FLAGS_APPEND "-parallel-jobs=2")
+  endif()
+ 
   set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
