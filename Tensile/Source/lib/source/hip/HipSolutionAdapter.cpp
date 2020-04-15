@@ -148,7 +148,12 @@ namespace Tensile
             std::vector<hipModule_t> newModules(embeddedData.size());
 
             for(size_t i = 0; i < embeddedData.size(); i++)
-                HIP_CHECK_EXC(hipModuleLoadData(&newModules[i], embeddedData[i].data()));
+            {
+                auto error = hipModuleLoadData(&newModules[i], embeddedData[i].data());
+                if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+                    continue;
+                HIP_CHECK_EXC(error);
+            }
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
