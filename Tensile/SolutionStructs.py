@@ -2487,8 +2487,12 @@ class Solution:
     ########################################
     while True: # exit criteria at end
       validDepthU = True
+      # peek LoopIters
+      loopIters = (depthU // state["LocalSplitU"]) // state["InnerUnroll"]
+      if "MatrixInstK" in state:
+        loopIters //= state["MatrixInstK"]
 
-      if depthU % (state["PrefetchLocalRead"]+1) != 0:
+      if (depthU % ((state["PrefetchLocalRead"]%loopIters)+1)) != 0:
         validDepthU = False
 
       # how many elements to load
@@ -2849,15 +2853,14 @@ class Solution:
     if "MatrixInstK" in state:
       state["LoopIters"] //= state["MatrixInstK"]
 
-    # LoopIters should greater than PrefetchLocalRead
-    if (state["LoopIters"] - state["PrefetchLocalRead"]) < 1:
-      reject(state, "LoopIters %u should greater than PrefetchLocalRead %u" \
-        % (state["LoopIters"],state["PrefetchLocalRead"]))
+    # PLR > 2xLoopIters is redundant setting
+    if state["PrefetchLocalRead"] >= 2*state["LoopIters"]:
+      reject(state, "PrefetchLocalRead %u larger than 2x LoopIters %u" % (state["PrefetchLocalRead"],state["LoopIters"]))
 
     # reject conditions with lower performance
     if state["ScheduleIterAlg"] == 2 and \
     (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
-      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGW1, LoopIter=1")
+      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA

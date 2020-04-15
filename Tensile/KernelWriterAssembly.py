@@ -1300,7 +1300,8 @@ class KernelWriterAssembly(KernelWriter):
     #jgolds bpeCinternal because we are allocating accumulation registers here
     self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)//self.bpr
 
-    valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
+    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
+    valuBlocks = (1+PLR) * kernel["InnerUnroll"]
     if kernel["EnableMatrixInstruction"]:
       self.numVgprValuAPerBlock = kernel["MIWaveTile"][0] * kernel["ProblemType"]["DataType"].numMIInput() * tPA["bpe"] // self.bpr
       self.numVgprValuBPerBlock = kernel["MIWaveTile"][1] * kernel["ProblemType"]["DataType"].numMIInput() * tPA["bpe"] // self.bpr
@@ -1406,7 +1407,8 @@ class KernelWriterAssembly(KernelWriter):
 
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
 
-    valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
+    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
+    valuBlocks = (1+PLR) * kernel["InnerUnroll"]
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
         self.startVgprG2LA = vgprIdx; vgprIdx += self.numVgprG2LA
@@ -2167,7 +2169,8 @@ class KernelWriterAssembly(KernelWriter):
     # MACs
     kStr += self.comment3("%dx%d thread-tile" \
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
-    for m in range(0, 1+kernel["PrefetchLocalRead"]):
+    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
+    for m in range(0, 1+PLR):
       # Create a special macro that does one K iter if needed:
       ext = "_OneIUI" if oneIUI else ""
       if useMacro:
@@ -2327,8 +2330,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
+    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
     ri = 0
-    for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indices
+    for bi in range(0,PLR+1): # buffer indices
       for iui in range(0, kernel["InnerUnroll"]):
         kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
         ri += self.numVgprValuAPerBlock
@@ -2336,7 +2340,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
 
     ri = 0
-    for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indices
+    for bi in range(0,PLR+1): # buffer indices
       for iui in range(0, kernel["InnerUnroll"]):
         kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
         ri += self.numVgprValuBPerBlock

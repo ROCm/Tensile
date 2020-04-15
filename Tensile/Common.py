@@ -281,7 +281,7 @@ validParameters = {
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
+    "PrefetchLocalRead":          list(range(128+1)), # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
