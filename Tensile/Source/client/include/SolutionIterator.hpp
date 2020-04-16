@@ -1,0 +1,147 @@
+/*******************************************************************************
+ *
+ * MIT License
+ *
+ * Copyright (c) 2020 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
+
+#pragma once
+
+#include <Tensile/MasterSolutionLibrary.hpp>
+
+#include <boost/program_options.hpp>
+
+#include "RunListener.hpp"
+
+namespace Tensile
+{
+    namespace Client
+    {
+        namespace po = boost::program_options;
+
+        /**
+         * Not an iterator by the traditional definition but I can't think of a better name
+         */
+        class SolutionIterator: public RunListener
+        {
+        public:
+            static std::shared_ptr<SolutionIterator> Default(
+                std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+                std::shared_ptr<Hardware> hardware,
+                po::variables_map const& args);
+
+            virtual bool needMoreBenchmarkRuns() const { return false; }
+            virtual void preBenchmarkRun() { }
+            virtual void postBenchmarkRun() { }
+
+            virtual bool needMoreRunsInSolution() const { return false; }
+
+            virtual size_t numWarmupRuns() { return 0; }
+            virtual void   setNumWarmupRuns(size_t count) {}
+            virtual void   preWarmup() {}
+            virtual void   postWarmup() {}
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) {}
+
+            virtual size_t numSyncs() { return 0; }
+            virtual void   setNumSyncs(size_t count) {}
+            virtual void   preSyncs() {}
+            virtual void   postSyncs() {}
+
+            virtual size_t numEnqueuesPerSync() { return 0; }
+            virtual void   setNumEnqueuesPerSync(size_t count) {}
+            virtual void   preEnqueues() {}
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) {}
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) {}
+
+            virtual void finalizeReport() {}
+
+            virtual int error() const { return 0; }
+
+            virtual bool moreSolutionsInProblem() const = 0;
+            virtual std::shared_ptr<ContractionSolution> getSolution() = 0;
+            virtual bool runCurrentSolution();
+
+            virtual void preProblem(ContractionProblem const& problem) override;
+
+        protected:
+            SolutionIterator(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+                             std::shared_ptr<Hardware> hardware);
+
+            virtual bool checkSolution(ContractionSolution const& solution);
+
+            std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> m_library;
+            std::shared_ptr<Hardware> m_hardware;
+            ContractionProblem m_problem;
+        };
+
+        class AllSolutionsIterator: public SolutionIterator
+        {
+        public:
+            AllSolutionsIterator
+                (std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+                 std::shared_ptr<Hardware> hardware,
+                 int firstSolutionIdx, int numSolutions);
+
+            virtual void preProblem(ContractionProblem const& problem) override;
+            virtual void postProblem() override;
+
+            virtual void preSolution(ContractionSolution const& solution) override;
+            virtual void postSolution() override;
+
+            virtual bool moreSolutionsInProblem() const override;
+            virtual std::shared_ptr<ContractionSolution> getSolution() override;
+
+        private:
+            int m_firstSolutionIdx;
+            int m_lastSolutionIdx;
+
+            int m_currentSolutionIdx;
+        };
+
+        class BestSolutionIterator: public SolutionIterator
+        {
+        public:
+            BestSolutionIterator(
+                std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+                std::shared_ptr<Hardware> hardware);
+
+            virtual void preProblem(ContractionProblem const& problem) override;
+            virtual void postProblem() override;
+
+            virtual void preSolution(ContractionSolution const& solution) override;
+            virtual void postSolution() override;
+
+            virtual bool moreSolutionsInProblem() const override;
+            virtual std::shared_ptr<ContractionSolution> getSolution() override;
+
+        private:
+
+            std::shared_ptr<ContractionSolution> m_currentSolution;
+            bool m_usedCurrentSolution = false;
+        };
+    }
+}
