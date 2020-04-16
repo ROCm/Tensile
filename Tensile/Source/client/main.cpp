@@ -151,7 +151,6 @@ namespace Tensile
                 ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
                 ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
                 ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
-                ("best-solution",            po::value<bool>()->default_value(false), "Use best known solution")
                 
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")

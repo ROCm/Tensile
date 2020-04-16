@@ -74,7 +74,7 @@ def RunTensileClient(client, kernelTimes, counts):
 def PrintOutput(counts, kernelTimes):
     for size in counts.keys():
         if len(size) == 3:
-            print("ProblemType{}:".format(counts[size]),end=" ")
+            print("ProblemType{},".format(counts[size]),end=" ")
             print("Network Name: {0}, ProblemType: {1}, DataType: {2}".format(*size,counts[size]))
         else:
             print("{}, count: {}, kernel time: {} ms, total time: {} ms\n".format(size, counts[size], kernelTimes[size], counts[size]*kernelTimes[size])) 
