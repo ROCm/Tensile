@@ -1,0 +1,56 @@
+GlobalParameters:
+  NewClient: 2
+  BestSolution: True
+  NetworkName: Transformer
+ProblemType:
+  OperationType: GEMM
+  DataType: s
+  TransposeA: False
+  TransposeB: False
+  UseBeta: True
+  Batched: True
+  ProblemSizes:
+    Train:
+    - Exact: [count: 12, size: !!python/tuple [5504, 5504, 1, 3104]]
+    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+    Validate:
+    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+ProblemType2:
+  OperationType: GEMM
+  DataType: s
+  TransposeA: False
+  TransposeB: True
+  UseBeta: True
+  Batched: True
+  ProblemSizes:
+    Train:
+    - Exact: [count: 16, size: !!python/tuple [5502, 5506, 1, 3100]]
+    - Exact: [count: 4, size: !!python/tuple [2754, 2754, 128, 1554]]
+    Validate:
+    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+ProblemType3:
+  OperationType: GEMM
+  DataType: s
+  TransposeA: True
+  TransposeB: False
+  UseBeta: True
+  Batched: True
+  ProblemSizes:
+    Train:
+    - Exact: [count: 11, size: !!python/tuple [5508, 5508, 1, 3108]]
+    - Exact: [count: 9, size: !!python/tuple [2758, 2758, 256, 1558]]
+    Validate:
+    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+ProblemType4:
+  OperationType: GEMM
+  DataType: h
+  TransposeA: False
+  TransposeB: False
+  UseBeta: True
+  Batched: True
+  ProblemSizes:
+    Train:
+    - Exact: [count: 7, size: !!python/tuple [5518, 5518, 1, 3118]]
+    - Exact: [count: 13, size: !!python/tuple [2768, 2768, 512, 1568]]
+    Validate:
+    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]

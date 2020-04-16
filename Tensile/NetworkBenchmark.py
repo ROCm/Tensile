@@ -39,6 +39,7 @@ def convertTranspose(transpose):
     return 'N'
 
 def ParseNetworkConfig(network, problemSizes):
+    problemTypeCounter = 1
     with open(network) as f:
         data = yaml.load(f,yaml.FullLoader)
         for problem in data:
@@ -52,27 +53,31 @@ def ParseNetworkConfig(network, problemSizes):
                         transposeA = convertTranspose(data[problem][param])
                     elif param == "TransposeB":
                         transposeB = convertTranspose(data[problem][param])
-                        matType = (globalParameters["NetworkName"], transposeA, transposeB)
-                        problemSizes[matType] = dataType
+                        matType = (globalParameters["NetworkName"], transposeA+transposeB,dataType)
+                        problemSizes[matType] = problemTypeCounter
+                        problemTypeCounter += 1
                     elif param == "ProblemSizes":
-                        for action in data[problem][param]:
-                            if action == "Train":
-                                for exact in data[problem][param][action].items():
-                                    print(exact)
-
-def RunTensileClient(client, kernelTimes):
-    for size in kernelTimes.keys():
+                        for action in data[problem]["ProblemSizes"]:
+                            if "Train" in action: #ignore validate for now
+                                for exact in data[problem]["ProblemSizes"]["Train"]:
+                                    for items in exact.values():
+                                        count = items[0]["count"]
+                                        size = items[1]["size"]
+                                        problemSizes[size] = count
+                                    
+def RunTensileClient(client, kernelTimes, counts):
+    for size in counts.keys():
         #kernelTimes[size] = int(subprocess.check_output(client+ " --best-solution --problem-size "+size, shell=True))
         if len(size) == 4:
-            kernelTimes[keys] = 10
+            kernelTimes[size] = 10 #pass in dummy value until I test this with --best-solution
 
 def PrintOutput(counts, kernelTimes):
     for size in counts.keys():
         if len(size) == 3:
-            print("Network Name: {0}, ProblemType: {1}{2},".format(*size,counts[size]),end=" ")
-            print("DataType: {}".format(counts[size]))
+            print("ProblemType{}:".format(counts[size]),end=" ")
+            print("Network Name: {0}, ProblemType: {1}, DataType: {2}".format(*size,counts[size]))
         else:
-            print("{}, kernel time: {} ms, total time: {} ms\n".format(size, kernelTimes[size], counts[size]*kernelTimes[size])) 
+            print("{}, count: {}, kernel time: {} ms, total time: {} ms\n".format(size, counts[size], kernelTimes[size], counts[size]*kernelTimes[size])) 
 
 def NetworkBenchmark():
     userArgs = sys.argv[1:]
@@ -88,9 +93,9 @@ def NetworkBenchmark():
     
     counts = dict()
     ParseNetworkConfig(network, counts)
-
-    kernelTimes = counts
-    RunTensileClient(client, kernelTimes)
+    
+    kernelTimes = dict()
+    RunTensileClient(client, kernelTimes, counts)
 
     PrintOutput(counts,kernelTimes)
 
