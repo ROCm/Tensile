@@ -5258,9 +5258,7 @@ class KernelWriterAssembly(KernelWriter):
               vgpr(dividendReg), \
               "")
               #"LaneOffset=vgprSerial % %s"%(kernel["MatrixInstN"]))
-          numColBlocks = 1
-          if (kernel["MatrixInstN"] != 4 and kernel["MatrixInstB"] != 1):
-            numColBlocks = 1 if kernel["MIWG0"] > globalParameters["WavefrontWidth"]  else globalParameters["WavefrontWidth"] // kernel["MIWG0"]
+          numColBlocks = kernel["numBlocksNDim"]
           # determine wave col-blockId offset
           # numColblockPerInstr>1 : v3 * 32 for each blocks per Instruction
           # offset Calculation for simd(wave0 of simd)  (tt1//matrixInstN -1) * numColBlocks * matrixInstN
@@ -8788,10 +8786,7 @@ class KernelWriterAssembly(KernelWriter):
       
         kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
           tmpV0, tmpS0)
-        numColBlocks = 1 
-        if (kernel["MatrixInstM"] != 4 and kernel["MatrixInstB"] != 1):
-          if kernel["MIWG0"] <= globalParameters["WavefrontWidth"]:
-            numColBlocks = globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
+        numColBlocks = kernel["numBlocksNDim"] 
         numColBlocks *= kernel["ThreadTile1"] // kernel["MatrixInstN"]
         if numColBlocks > 1:
           kStr += inst("v_mul_lo_u32", vgpr(tid1),hex(numColBlocks),vgpr(tid1), \
@@ -9106,18 +9101,8 @@ class KernelWriterAssembly(KernelWriter):
       #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
       numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
       numStoresperBlock = 4 if kernel["MatrixInstM"] == 4 else  numStoresperInstruction//kernel["MatrixInstB"]
-      #TODO HACK to support latest
-      numRowBlocksperInstruction = 1 
-      #this variable really tracks number of regster 'blocks' required  for each column block
-      # for mfma_4x4 we only need 4 register and thats been accounted numStoresperInstruction
-      numcolBlocksperInstruction = 1 
-      if (kernel["MatrixInstM"] != 4 and kernel["MatrixInstB"] != 1):
-        if kernel["MIWG0"] <= globalParameters["WavefrontWidth"]:
-          numRowBlocksperInstruction = kernel["MIWG0"] // kernel["MatrixInstM"]   
-          numcolBlocksperInstruction = globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
-        else:
-          numRowBlocksperInstruction = globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]   
-          numcolBlocksperInstruction = 1
+      numRowBlocksperInstruction = kernel["numBlocksMDim"]
+      numcolBlocksperInstruction = kernel["numBlocksNDim"] 
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//mfmaColStoreVw)*numcolBlocksperInstruction)) :
         for vc1 in range(0, mfmaColStoreVw):
           for tt0 in range(0, (kernel["ThreadTile0"] * numRowBlocksperInstruction * numStoresperBlock)//kernel["StoreVectorWidth"]):
@@ -9171,15 +9156,8 @@ class KernelWriterAssembly(KernelWriter):
       #numStoresperRowBlock = kernel["MatrixInstM"]//numRowsPerStore 
       numStoresperInstruction = 4 if kernel["MatrixInstM"] == 4  else (kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"]) //(globalParameters["WavefrontWidth"])
       numStoresperBlock = 4 if kernel["MatrixInstM"] == 4 else  numStoresperInstruction//kernel["MatrixInstB"]
-      numRowBlocksperInstruction = 1 
-      numcolBlocksperInstruction = 1 
-      if (kernel["MatrixInstM"] != 4 and kernel["MatrixInstB"] != 1):
-        if kernel["MIWG0"] <= globalParameters["WavefrontWidth"]:
-          numRowBlocksperInstruction = kernel["MIWG0"] // kernel["MatrixInstM"] 
-          numcolBlocksperInstruction = globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
-        else:
-          numRowBlocksperInstruction =  globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
-          numcolBlocksperInstruction = 1
+      numRowBlocksperInstruction = kernel["numBlocksMDim"]
+      numcolBlocksperInstruction = kernel["numBlocksNDim"] 
       #re-adjust columnBlock for  4x4mfma
       #TODO introduce another dimension for MatrixInstruction[B} > 1 and ThreadTile1/vectorWidth>1
       for tt1 in range(0, (((kernel["ThreadTile1"]//kernel["MatrixInstN"])//mfmaColStoreVw)*numcolBlocksperInstruction)) :
@@ -9512,16 +9490,7 @@ class KernelWriterAssembly(KernelWriter):
             # for MFMA 4x4, we would write all blocks ijn single storevectorWidth write 
             mfmaColStoreVw = 1 #TODO check can hardcode or not
             #numberColBlocks = kernel["MatrixInstB"]
-            numberRowBlocks = 1
-            if (kernel["MatrixInstM"] != 4 and kernel["MatrixInstB"] != 1):
-              if kernel["MIWG0"] <= globalParameters["WavefrontWidth"]:
-                numberRowBlocks = kernel["MIWG0"]//kernel["MatrixInstM"]
-              else:
-                numberRowBlocks = globalParameters["WavefrontWidth"] // kernel["MatrixInstM"] 
-            #if (numberRowBlocks == kernel["MatrixInstB"]):
-            #  numberColBlocks = 1
-            #else:
-            #  numberColBlocks = kernel["MatrixInstB"] // numberRowBlocks
+            numberRowBlocks = kernel["numBlocksMDim"]
             numberofDstRgs = (kernel["MatrixInstN"] * kernel["MatrixInstM"] * kernel["MatrixInstB"]) // globalParameters["WavefrontWidth"]
             if numberRowBlocks == kernel["MatrixInstB"]:
               numberofRowDstRgs = numberofDstRgs
@@ -11472,16 +11441,8 @@ class KernelWriterAssembly(KernelWriter):
     # TODO: generalize over different MIs
     numRowsPerBlock = 4 if kernel["MatrixInstM"] == 4 else kernel["MatrixInstM"]//(kernel["MatrixInstB"] * kernel["InstSplit"])
     #state variable for blocks per instruction in row/col dimension
-    numRowblocks = 1 
-    numColBlocks = 1 
-    if (kernel["MatrixInstM"] != 4 and kernel["MatrixInstB"] != 1):
-      if kernel["MIWG0"]  <= globalParameters["WavefrontWidth"]:
-        numRowblocks = kernel["MIWG0"] // kernel["MatrixInstM"] 
-        numColBlocks = globalParameters["WavefrontWidth"] // (kernel["InstSplit"] * kernel["MIWG0"])
-      else:
-        numRowblocks = globalParameters["WavefrontWidth"] // kernel["MatrixInstM"] 
-        numColBlocks = 1
-  
+    numRowblocks = kernel["numBlocksMDim"]
+    numColBlocks = kernel["numBlocksNDim"] 
     numColInstructions = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     numRowInstructions = kernel["ThreadTile0"]
     mfmaColStoreVw = 1 #Todo check it can be other case or not

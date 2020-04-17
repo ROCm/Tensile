@@ -1689,6 +1689,15 @@ class Solution:
       state["SubGroup1"] = state["MIWG1"]
       state["LocalSplitU"] = state["WorkGroup"][2]
       state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
+      state["numBlocksMDim"] = 1
+      state["numBlocksNDim"] = 1
+      if (state["MatrixInstM"] != 4 and state["MatrixInstB"] != 1):
+        if state["MIWG0"] <= globalParameters["WavefrontWidth"]:
+          state["numBlocksMDim"] = state["MIWG0"] // state["MatrixInstM"]
+          state["numBlocksNDim"] = globalParameters["WavefrontWidth"] // (state["InstSplit"] * state["MIWG0"])
+        else:
+          state["numBlocksMDim"] = globalParameters["WavefrontWidth"] // state["MatrixInstM"]
+          state["numBlocksNDim"] = 1 
     else:
       state["SubGroup0"] = state["WorkGroup"][0]
       state["SubGroup1"] = state["WorkGroup"][1]
