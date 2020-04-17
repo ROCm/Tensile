@@ -61,7 +61,7 @@ namespace Tensile
         {
         }
 
-        void SolutionIterator::preProblem(ContractionProblem const& problem) override
+        void SolutionIterator::preProblem(ContractionProblem const& problem)
         {
             m_problem = problem;
         }
@@ -127,14 +127,14 @@ namespace Tensile
             m_currentSolutionIdx = m_firstSolutionIdx;
         }
 
-        void AllSolutionsIterator::preProblem(ContractionProblem const& problem) override
+        void AllSolutionsIterator::preProblem(ContractionProblem const& problem)
         {
             SolutionIterator::preProblem(problem);
 
             m_currentSolutionIdx = m_firstSolutionIdx;
         }
 
-        void AllSolutionsIterator::postProblem() override
+        void AllSolutionsIterator::postProblem()
         {
         }
 
@@ -151,12 +151,12 @@ namespace Tensile
             m_currentSolutionIdx++;
         }
 
-        bool AllSolutionsIterator::moreSolutionsInProblem() const override
+        bool AllSolutionsIterator::moreSolutionsInProblem() const
         {
             return m_currentSolutionIdx <= m_lastSolutionIdx;
         }
 
-        std::shared_ptr<ContractionSolution> AllSolutionsIterator::getSolution() override
+        std::shared_ptr<ContractionSolution> AllSolutionsIterator::getSolution()
         {
             auto iter = m_library->solutions.find(m_currentSolutionIdx);
             if(iter == m_library->solutions.end())
@@ -172,7 +172,7 @@ namespace Tensile
         {
         }
 
-        void BestSolutionIterator::preProblem(ContractionProblem const& problem) override
+        void BestSolutionIterator::preProblem(ContractionProblem const& problem)
         {
             SolutionIterator::preProblem(problem);
 
@@ -180,7 +180,7 @@ namespace Tensile
             m_usedCurrentSolution = false;
         }
 
-        void BestSolutionIterator::postProblem() override
+        void BestSolutionIterator::postProblem()
         {
         }
 
@@ -195,12 +195,12 @@ namespace Tensile
             m_usedCurrentSolution = true;
         }
 
-        bool BestSolutionIterator::moreSolutionsInProblem() const override
+        bool BestSolutionIterator::moreSolutionsInProblem() const
         {
             return !m_usedCurrentSolution;
         }
 
-        std::shared_ptr<ContractionSolution> BestSolutionIterator::getSolution() override
+        std::shared_ptr<ContractionSolution> BestSolutionIterator::getSolution()
         {
             return m_currentSolution;
         }
