@@ -691,6 +691,48 @@ def UpdateOutputMapping(mapper, problemDefinition):
     if problemDefinition not in lineDefinitions:
         lineDefinitions.append(problemDefinition)
 
+def ConvertToRocBlasBenchCall(line):
+    benchLine = './rocblas-bench '
+    if "strided" in line:
+        benchLine += '-f gemm_strided_batched'
+    else:
+        benchLine += '-f gemm'
+    if "_ex" in line:
+        benchLine += '_ex '
+    else:
+        benchLine += ' '
+    line = str(line.split(','))
+    line = line.replace('"','').replace(' ','').replace('\'','').replace('[-{','').replace('}\\n]','').replace(':',',')
+    line = line.split(',')
+    
+    sameParams = set(['r','b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','alpha','beta'])
+
+    for item in range(2,len(line)):
+        if line[item] in sameParams: 
+            benchLine += ('--'+line[item]+' '+line[item+1]+' ')
+        if line[item] == 'transA':
+            benchLine += ('--transposeA '+line[item+1]+' ')
+        if line[item] == 'transB':
+            benchLine += ('--transposeB '+line[item+1]+' ')
+        if line[item] == 'M':
+            benchLine += ('-m '+line[item+1]+' ')
+        if line[item] == 'N' and line[item-1] != 'transA' and line[item-1] != 'transB':
+            benchLine += ('-n '+line[item+1]+' ')
+        if line[item] == 'K':
+            benchLine += ('-k '+line[item+1]+' ')
+        if line[item] == 'call_count':
+            benchLine += ('-i '+line[item+1])
+        if line[item] == 'a_type':
+            if line[item+1] == 'f32_r':
+                benchLine += ('-r s ')
+            elif line[item+1] == 'f16_r':
+                benchLine += ('-r h ')
+            else:
+                benchLine += ('-r d ')
+            benchLine += ('--'+line[item]+' '+line[item+1]+' ')
+
+    return benchLine
+
 def ProcessFile(filename):
 
     parser = GetInceptionParser()
@@ -717,6 +759,13 @@ def ProcessFile(filename):
             if "rocblas-bench" in line:
                 args=line.split(' ')
                 parsedArgs, otherArgs =  rocblasParser.parse_known_args(args)
+                problemDefinition = vars(parsedArgs)
+                UpdateOutputMapping(problemMapper, problemDefinition)
+
+            if "{" in line:
+                benchLine = ConvertToRocBlasBenchCall(line)
+                args = benchLine.split(' ')
+                parsedArgs, otherArgs = rocblasParser.parse_known_args(args)
                 problemDefinition = vars(parsedArgs)
                 UpdateOutputMapping(problemMapper, problemDefinition)
 
