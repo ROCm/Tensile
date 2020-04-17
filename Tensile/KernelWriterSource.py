@@ -1561,7 +1561,7 @@ class KernelWriterSource(KernelWriter):
         else:
           # other summation that does not immediately wrap the unroll inc:
           kStr += declStr
-          kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
+          kStr += " %s stride%s%s*(size%s)" % ("+" if isPervMirrorIdx else "-", tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 

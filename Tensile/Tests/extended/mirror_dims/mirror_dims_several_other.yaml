@@ -25,7 +25,7 @@ BenchmarkProblems:
     NumIndicesC: 2
     IndexAssignmentsA: [ 0, 2, 3, 4 ]
     IndexAssignmentsB: [ 4, 3, 2, 1 ]
-    MirrorDimsA: [ 2, 3 ]
+    MirrorDimsA: [ 3, 4 ]
     MirrorDimsB: [ 3 ]
     UseInitialStridesAB: True
 
@@ -36,7 +36,7 @@ BenchmarkProblems:
     ForkParameters:
       - KernelLanguage: [Assembly]
       - PrefetchLocalRead: [False, True]
-      - PrefetchGlobalRead: [True, False]
+      - PrefetchGlobalRead: [False]
       - ThreadTile:
         - [ 2, 2 ]
         - [ 2, 4 ]
