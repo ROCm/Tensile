@@ -1351,9 +1351,10 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for l in range(0, tP["nru"]):
       for s in range(0, 1 if tP["rc"] else kernel["VectorWidth"]):
-        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u + %d*%s;%s" \
+        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u %s %d*%s;%s" \
             % (tP["tensorChar"], self.unrollChar, l, s, \
-            tP["tensorChar"], self.unrollChar, s, l, \
+            tP["tensorChar"], self.unrollChar, s,    \
+            "-" if kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] else "+", l, \
             (tP["lsp"] if tP["tlu"] else tP["lsc"]), \
             self.endLine)
       #else:
@@ -2297,26 +2298,16 @@ class KernelWriterSource(KernelWriter):
             guarded = 0
             if guardK:
               guarded = 1
+              guardMirror = ""
               if kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tc]:
-                gro = "globalReadOffset%s%s_%u_%u + %u" \
-                    % (tP["tensorChar"], self.unrollChar, \
-                    (perp if tP["tlu"] else para), \
-                    (sPerp if tP["tlu"] else 0), (0 if tP["tlu"] else sPara))
-                tile = "(size%s %% LOCAL_DEPTHU%s)" \
-                    % (self.unrollChar, \
-                    (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""))
-
-                unroll = "(size%s / LOCAL_DEPTHU)"% (self.unrollChar)
-                kStr += "(( %s < %s ) && ( %s > 0) || ( %s >= %s ) && ( %s == 0))" \
-                    % (gro, tile, unroll, gro, tile, unroll)
-              else:
-                kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
-                    % (tP["tensorChar"], self.unrollChar, \
-                    (perp if tP["tlu"] else para), \
-                    (sPerp if tP["tlu"] else 0), (0 if tP["tlu"] else sPara), self.unrollChar, \
-                    (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
-                    else ""), (" || !numIter%s"%self.unrollChar) \
-                    if kernel["GlobalSplitU"] > 1 else "")
+                guardMirror = "size%s - 1 -" % (self.unrollChar)
+              kStr += "( %s globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
+                  % (guardMirror, tP["tensorChar"], self.unrollChar, \
+                  (perp if tP["tlu"] else para), \
+                  (sPerp if tP["tlu"] else 0), (0 if tP["tlu"] else sPara), self.unrollChar, \
+                  (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
+                  else ""), (" || !numIter%s"%self.unrollChar) \
+                  if kernel["GlobalSplitU"] > 1 else "")
 
             # guard around pad
             for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
@@ -2333,6 +2324,8 @@ class KernelWriterSource(KernelWriter):
                 iterVar = "psdIter"
               else:
                 raise RuntimeError("ZP not supported with multiple summations and PSD==0")
+              if sumDim in kernel["ProblemType"]["MirrorDims%s"%(tc)]:
+                iterVar = "-" + iterVar
 
               globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s + %u" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, \
