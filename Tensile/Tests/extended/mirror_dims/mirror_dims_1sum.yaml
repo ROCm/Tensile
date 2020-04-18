@@ -34,7 +34,7 @@ BenchmarkProblems:
     BenchmarkCommonParameters:
       - EdgeType: ["ShiftPtr"]
     ForkParameters:
-      - KernelLanguage: [Assembly]
+      - KernelLanguage: [Source,Assembly]
       - PrefetchLocalRead: [False, True]
       - PrefetchGlobalRead: [True, False]
       - ThreadTile:

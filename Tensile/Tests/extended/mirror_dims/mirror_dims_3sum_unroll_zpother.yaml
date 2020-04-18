@@ -15,7 +15,6 @@ GlobalParameters:
   CpuThreads: 0
   NewClient: 2
 
-# 2sums, single zero-pad, with padding on the 'other' (non-unroll) summation dim
 BenchmarkProblems:
   -
     - # ProblemType
@@ -26,8 +25,8 @@ BenchmarkProblems:
       NumIndicesC: 2
       IndexAssignmentsA: [ 0, 2, 3, 4 ]
       IndexAssignmentsB: [ 4, 3, 2, 1 ]
-      MirrorDimsA: [4]
       ZeroPadA: [[0, 2,   -1, -1 ]]
+      MirrorDimsA: [ 4 ]
       UseInitialStridesAB: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -36,7 +35,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - PackSummationDims: [1]
-        - KernelLanguage: [Assembly]
+        - KernelLanguage: [Source,Assembly]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False,True]
         - ThreadTile:

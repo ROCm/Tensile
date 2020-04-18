@@ -25,8 +25,8 @@ BenchmarkProblems:
     NumIndicesC: 2
     IndexAssignmentsA: [ 0, 2, 3 ]
     IndexAssignmentsB: [ 3, 2, 1 ]
-    MirrorDimsA: [ 2 ]
-    ZeroPadA: [[0, 3,   2, 2]]
+    MirrorDimsA: [ 3 ]
+    MirrorDimsB: [ 3 ]
     UseInitialStridesAB: True
 
   - # BenchmarkProblemSizeGroup - Standard
@@ -34,10 +34,9 @@ BenchmarkProblems:
     BenchmarkCommonParameters:
       - EdgeType: ["ShiftPtr"]
     ForkParameters:
-      - PackSummationDims: [1]
-      - KernelLanguage: [Assembly]
+      - KernelLanguage: [Source,Assembly]
       - PrefetchLocalRead: [False, True]
-      - PrefetchGlobalRead: [True, False]
+      - PrefetchGlobalRead: [False]
       - ThreadTile:
         - [ 2, 2 ]
         - [ 2, 4 ]
