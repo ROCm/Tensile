@@ -2294,17 +2294,19 @@ class KernelWriterSource(KernelWriter):
                 % (tP["tensorChar"].lower(), \
                 para, sPara, perp, sPerp )
             kStr += "%s%s = " % (self.indent, dest)
+            isMirrorIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tc]
             # guard around K
             guarded = 0
             if guardK:
               guarded = 1
               guardMirror = ""
-              if kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tc]:
-                guardMirror = "size%s - 1 -" % (self.unrollChar)
-              kStr += "( %s globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
-                  % (guardMirror, tP["tensorChar"], self.unrollChar, \
-                  (perp if tP["tlu"] else para), \
-                  (sPerp if tP["tlu"] else 0), (0 if tP["tlu"] else sPara), self.unrollChar, \
+              if isMirrorIdx:
+                guardMirror += "- (size%s / LOCAL_DEPTHU)*LOCAL_DEPTHU" % (self.unrollChar)
+              kStr += "( globalReadOffset%s%s_%u_%u %s %s %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
+                  % (tP["tensorChar"], self.unrollChar, \
+                  (perp if tP["tlu"] else para), (sPerp if tP["tlu"] else 0), \
+                  guardMirror, "-" if isMirrorIdx and tc == 'B' else "+", \
+                  (0 if tP["tlu"] else sPara), self.unrollChar, \
                   (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
                   else ""), (" || !numIter%s"%self.unrollChar) \
                   if kernel["GlobalSplitU"] > 1 else "")
@@ -2343,8 +2345,8 @@ class KernelWriterSource(KernelWriter):
                   (tP["tensorChar"], para if tP["tlu"] else perp) )
             if guarded:
               kStr += " ? SCALAR_OOB_DATA : "
-            kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
-                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \
+            kStr += "*(globalRead%s_%u_%u_%u_%u %s %u);%s" \
+                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, "-" if isMirrorIdx and tc == 'B' else "+", sPara if tP["rc"] else 0, \
                 self.endLine)
 
             #if self.db["PrintStagger"] and tP["isA"]:
