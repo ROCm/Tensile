@@ -701,11 +701,17 @@ def ConvertToRocBlasBenchCall(line):
         benchLine += '_ex '
     else:
         benchLine += ' '
+    if "sgemm" in line:
+        benchLine += '-r s '
+    elif "hgemm" in line:
+        benchLine += '-r h '
+    elif "dgemm" in line:
+        benchLine += '-r d '
+
     line = str(line.split(','))
     line = line.replace('"','').replace(' ','').replace('\'','').replace('[-{','').replace('}\\n]','').replace(':',',')
     line = line.split(',')
-    
-    sameParams = set(['r','b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','alpha','beta'])
+    sameParams = set(['b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','alpha','beta'])
 
     for item in range(2,len(line)):
         if line[item] in sameParams: 
@@ -730,7 +736,7 @@ def ConvertToRocBlasBenchCall(line):
             else:
                 benchLine += ('-r d ')
             benchLine += ('--'+line[item]+' '+line[item+1]+' ')
-
+    
     return benchLine
 
 def ProcessFile(filename):
