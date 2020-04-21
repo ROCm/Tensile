@@ -668,6 +668,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       for solution in solutions:
         solutionName = solutionWriter.getSolutionName(solution)
         h += "#include \"" + solutionName + ".h\"\n"
+        h += "#include \"Solutions.h\"\n"
     h += "\n"
   else:
     h += "#include \"Solutions.h\"\n"
