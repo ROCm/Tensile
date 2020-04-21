@@ -3128,6 +3128,26 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
+  # Workgrup wave Assignment  Fetch/Math 
+  ##############################################################################
+  def WrkGrpWaveAssignment(self, kernel, Labelname):
+    return ""
+
+  ##############################################################################
+  # openMathWave
+  # Label for Wave Start entry
+  ##############################################################################
+  def openKernelWave(self, kernel, Labelname):
+    return ""
+
+  ##############################################################################
+  # closeMathWave
+  # Label for Wave Start entry
+  ##############################################################################
+  def closeKernelWave(self, kernel, Labelname):
+    return ""
+
+  ##############################################################################
   #
   #   Beta-Only Kernel
   #

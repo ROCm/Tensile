@@ -11308,6 +11308,47 @@ class KernelWriterAssembly(KernelWriter):
                 VgprRegIdx = VgprRegIdx + 1
     return kStr
 
+  ##############################################################################
+  # Workgrup wave Assignment  Fetch/Math 
+  ##############################################################################
+
+  def WrkGrpWaveAssignment(self, kernel, Labelname):
+
+    kStr = ""
+
+    tmpSgpr = self.getTmpSgpr(1)
+    tmpVgpr = self.vgprPool.checkOut(1)
+    kStr += inst("s_getreg_b32", sgpr(tmpSgpr), "hwreg(HW_REG_HW_ID)" , "Read HWID register")
+    kStr += inst("v_and_b32", vgpr(tmpVgpr), hex(15), sgpr(tmpSgpr) , "Mask waveID")
+    kStr += inst("v_readfirstlane_b32",   sgpr(tmpSgpr), vgpr(tmpVgpr), "Read waveID")
+    kStr += inst("s_cmp_eq_u32",  sgpr(tmpSgpr), hex(1), "Check WaveId == 1") 
+    kStr += inst("s_cbranch_scc0", self.getNamedLabel(Labelname), "Jump to Math wave")
+
+    self.vgprPool.checkIn(tmpVgpr)
+
+    return kStr
+
+  ##############################################################################
+  # openMathWave
+  # Label for Wave Start entry
+  ##############################################################################
+  def openKernelWave(self, kernel, Labelname):
+    kStr = ""
+    Labelname = "%s_Start" %(Labelname)
+    Comment = "start of %s" %(Labelname) 
+    kStr += self.getNamedLabelDef(Labelname,Comment)
+    return kStr
+
+  ##############################################################################
+  # closeMathWave
+  # Label for Wave Start entry
+  ##############################################################################
+  def closeKernelWave(self, kernel, Labelname):
+    kStr = ""
+    Labelname = "%s_End" %(Labelname)
+    Comment = "end of %s" %(Labelname) 
+    kStr += self.getNamedLabelDef(Labelname,Comment)
+    return kStr
 
   ##############################################################################
   #

@@ -210,13 +210,21 @@ defaultGlobalParameters = deepcopy(globalParameters)
 ################################################################################
 # Enumerate Valid Solution Parameters
 ################################################################################
+
+#with with multi-wave kernel option requires 
+# workGroup = [wg0, wg1, splitK, numWavesPerKernel]
+# does it requires us to change all our exisitng configuration yaml files?
+#alternate option  define paramater MultiWaveKernel and have parameter be part of
+# numthreads calculation
+
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
-  for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
-    for sg0 in range(1, numThreads//nsg+1):
-      sg1 = numThreads//nsg//sg0
-      if sg0*sg1*nsg == numThreads:
-          workGroup = [sg0, sg1, nsg]
+  for nsk in [ 1, 2]:   # multi-wave kernel solution (1 : each wave cotains math+fetch ; 2 : fetch and math wave are handled by different waves
+    for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
+      for sg0 in range(1, numThreads//nsg+1):
+        sg1 = numThreads//nsg//sg0//nsk
+        if sg0*sg1*nsg*nsk == numThreads:
+          workGroup = [sg0, sg1, nsg, nsk]
           validWorkGroups.append(workGroup)
 
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] + list(range(20, 256, 4))
@@ -270,7 +278,7 @@ validParameters = {
     "GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [        True ],
 
-    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    "PrefetchGlobalRead":         [ 0,1,2,3], # prefetch reads from global memory -> vgprs -> lds. Requires 2X LDS space. ( 2 for triple-buffer, 3 for quad-buffer) and VGPRs for buffering data on way into LDS.
     "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
     # Split the unroll summation into multiple sections and combine the sections
@@ -820,7 +828,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
-    {"PrefetchGlobalRead":        [ True ] },
+    {"PrefetchGlobalRead":        [ 1 ] },
     {"PrefetchLocalRead":         [ 1 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
@@ -879,7 +887,7 @@ defaultBenchmarkCommonParameters = [
 
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
-    {"WorkGroup":                 [ [16,16,1]] },
+    {"WorkGroup":                 [ [16,16,1,1]] },
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },

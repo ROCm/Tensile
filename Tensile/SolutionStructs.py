@@ -1688,7 +1688,8 @@ class Solution:
       state["SubGroup0"] = state["MIWG0"] # TODO calc
       state["SubGroup1"] = state["MIWG1"]
       state["LocalSplitU"] = state["WorkGroup"][2]
-      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
+      state["MultiWaveKernel"] = state["WorkGroup"][3]
+      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] * state["MultiWaveKernel"] # TODO probably fix for LDS
     else:
       state["SubGroup0"] = state["WorkGroup"][0]
       state["SubGroup1"] = state["WorkGroup"][1]
