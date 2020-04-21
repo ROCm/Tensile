@@ -122,10 +122,10 @@ def Tensile(userArgs):
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
-      action="store", default="hcc", help="select which compiler to use")
+      action="store", default="hipcc", help="select which compiler to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
-  # argParser.add_argument("--hcc-version", dest="HccVersion", \
+  # argParser.add_argument("--hip-clang-version", dest="HipClangVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
   print1("# Restoring default globalParameters")

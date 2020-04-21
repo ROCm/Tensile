@@ -139,7 +139,7 @@ globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=a
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
-globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hcc, etc)
+globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 
 # TODO - remove this when NewClient is mainstream
 globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
@@ -174,11 +174,12 @@ globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ens
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/bin/hcc
+globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
+globalParameters["HipClangVersion"] = "0,0,0"
 globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
@@ -188,7 +189,7 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "V2"
-globalParameters["CxxCompiler"] = "hcc"
+globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
@@ -1194,11 +1195,11 @@ def printExit(message):
 
 ################################################################################
 # Locate Executables
-# rocm-smi, hcc, rocm_agent_enumerator
+# rocm-smi, hip-clang, rocm_agent_enumerator
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
-def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
+def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
   # look in path first
   for path in os.environ["PATH"].split(os.pathsep):
     exePath = os.path.join(path, exeName)
@@ -1327,10 +1328,15 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  if globalParameters["AssemblerPath"] is None:
+  if globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
+    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/hip/bin", "hipcc")
+  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
-  globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+  if globalParameters["CxxCompiler"] == "hipcc":
+    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
+  elif globalParameters["CxxCompiler"] == "hcc":
+    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
@@ -1365,7 +1371,7 @@ def assignGlobalParameters( config ):
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
-  # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
+  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
 
@@ -1373,14 +1379,19 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    if globalParameters["CxxCompiler"] == "hipcc":
+      output = subprocess.run(["dpkg", "-l", "hip-rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    elif globalParameters["CxxCompiler"] == "hcc":
+      output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'hcc' in line:
+      if 'hipcc' in line:
+        globalParameters['HipClangVersion'] = line.split()[2]
+      elif 'hcc' in line:
         globalParameters['HccVersion'] = line.split()[2]
 
   except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hcc', e))
+      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hip-rocclr', e))
 
   for key in config:
     value = config[key]

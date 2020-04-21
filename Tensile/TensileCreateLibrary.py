@@ -169,7 +169,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
 
@@ -996,7 +996,7 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hcc")
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V2")
   argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906", "gfx908"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
