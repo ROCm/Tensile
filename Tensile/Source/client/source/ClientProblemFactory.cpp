@@ -40,8 +40,6 @@ namespace Tensile
               m_problemSizes(args["problem-size"].as<std::vector<std::vector<size_t>>>()),
               m_aZeroPads(args["a-zero-pads"].as<std::vector<std::vector<size_t>>>()),
               m_bZeroPads(args["b-zero-pads"].as<std::vector<std::vector<size_t>>>()),
-              m_aMirrorDims(args["a-mirror-dims"].as<std::vector<std::vector<size_t>>>()),
-              m_bMirrorDims(args["b-mirror-dims"].as<std::vector<std::vector<size_t>>>()),
               m_aType(DataType::Float),
               m_bType(DataType::Float),
               m_cType(DataType::Float),
@@ -137,14 +135,6 @@ namespace Tensile
                                      static_cast<int64_t>(zp[zi+2]), static_cast<int64_t>(zp[zi+3])}));
                     }
                 }
-
-                if(i < m_aMirrorDims.size())
-                    for(const size_t dim : m_aMirrorDims[i])
-                        rv.back().addAMirrorDim(dim);
-
-                if(i < m_bMirrorDims.size())
-                    for(const size_t dim : m_bMirrorDims[i])
-                        rv.back().addBMirrorDim(dim);
 
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
 

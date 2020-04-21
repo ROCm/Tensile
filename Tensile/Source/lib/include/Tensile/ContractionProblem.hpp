@@ -312,12 +312,6 @@ namespace Tensile
         void addAZeroPad(const ZeroPad &zp);
         void addBZeroPad(const ZeroPad &zp);
 
-        std::vector<size_t> const& aMirrorDims() const { return m_aMirrorDims; }
-        std::vector<size_t> const& bMirrorDims() const { return m_bMirrorDims; }
-
-        void addAMirrorDim(size_t dim);
-        void addBMirrorDim(size_t dim);
-
         bool transposeC01() const { return m_transposeC01; };
 
         double beta() const { return m_beta; }
@@ -364,9 +358,6 @@ namespace Tensile
 
         ZeroPads     m_aZeroPads;
         ZeroPads     m_bZeroPads;
-
-        std::vector<size_t> m_aMirrorDims;
-        std::vector<size_t> m_bMirrorDims;
 
         std::vector<size_t> m_freeSizesA;
         std::vector<size_t> m_freeSizesB;
