@@ -5712,7 +5712,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx):
+  def openLoop(self, kernel, loopIdx, LabelName):
     kStr = ""
     # TODO - rewrite this function to simplify control-flow between tail-loop / unroll loop
     tailLoop = loopIdx < 0
@@ -5722,9 +5722,9 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if not tailLoop:
-      kStr += "%s:\n" % self.getNamedLabel("openLoop%s"%loopChar)
-    loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
-    loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
+      kStr += "%s:\n" % self.getNamedLabel("%sopenLoop%s"%(LabelName,loopChar))
+    loopLabelBegin = self.getLabelNum("%s%sLoopBegin%s"%(LabelName,"Tail" if tailLoop else "", loopChar) )
+    loopLabelEnd = self.getLabelNum("%s%sLoopEnd%s"%(LabelName,"Tail" if tailLoop else "", loopChar) )
 
     # is numIter at least 1? otherwise skip to end
     # PGL needs a skip-check here if not bufferload
@@ -5825,7 +5825,7 @@ class KernelWriterAssembly(KernelWriter):
   # Close Loop
   # finalLoop : final unroll loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop):
+  def closeLoop(self, kernel, loopIdx, finalLoop, LabelName):
     kStr = ""
     #kStr += self.indent + self.syncStr + self.endLine
     #kStr += "s_endpgm\n"
@@ -5834,9 +5834,9 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = self.unrollIdx
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-      loopLabelBegin = self.getLabelNum("TailLoopBegin%s"%(loopChar) )
-      loopLabelEnd = self.getLabelNum("TailLoopEnd%s"%(loopChar) )
-      loopLabelEndOddExit = self.getLabelNum("TailLoopEnd%s_oddexit"%(loopChar) )
+      loopLabelBegin = self.getLabelNum("%sTailLoopBegin%s"%(LabelName,loopChar) )
+      loopLabelEnd = self.getLabelNum("%sTailLoopEnd%s"%(LabelName,loopChar) )
+      loopLabelEndOddExit = self.getLabelNum("%sTailLoopEnd%s_oddexit"%(LabelName,loopChar) )
       if self.prefetchAcrossPersistent0:
         loopCounter = "TailLoopCounter"
       else:
@@ -5869,9 +5869,9 @@ class KernelWriterAssembly(KernelWriter):
     else: # not tailloop
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-      loopLabelBegin = self.getLabelNum("LoopBegin%s"%(loopChar) )
-      loopLabelEnd = self.getLabelNum("LoopEnd%s"%(loopChar) )
-      loopLabelEndOddExit = self.getLabelNum("LoopEnd%s_oddexit"%(loopChar) )
+      loopLabelBegin = self.getLabelNum("%sLoopBegin%s"%(LabelName,loopChar) )
+      loopLabelEnd = self.getLabelNum("%sLoopEnd%s"%(LabelName,loopChar) )
+      loopLabelEndOddExit = self.getLabelNum("%sLoopEnd%s_oddexit"%(LabelName,loopChar) )
       loopCounter = self.loopCounter(kernel, loopIdx)
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
 
@@ -5952,11 +5952,28 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  #closeTailLoop
+  # function to closeTailloop for case LoopCounter==0
+  # mainly used in multiWaveKernel soultion
   ##############################################################################
-  def openLoopCopy(self, kernel, lc):
+  def closeTailLoop(self, kernel, finalLoop, LabelName):
+    kStr = ""
+    loopIdx = self.unrollIdx
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    loopLabelEnd = self.getLabelNum("%sTailLoopEnd%s"%(LabelName,loopChar) )
+    loopLabelEndOddExit = self.getLabelNum("%sTailLoopEnd%s_oddexit"%(LabelName,loopChar) )
+    kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=1" % (loopChar, finalLoop))
+    kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
+
+    return kStr
+
+  ##############################################################################
+  ##############################################################################
+  def openLoopCopy(self, kernel, lc,LabelName):
     kStr = ""
 
-    kStr += self.getLabelDef("LoopCopy%u"%(lc+1) )
+    kStr += self.getLabelDef("%sLoopCopy%u"%(LabelName,lc+1) )
 
 
     return kStr

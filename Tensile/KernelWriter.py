@@ -1629,14 +1629,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.syncThreads(kernel))
     # open unrolled summation loop
     kl.append(self.comment3("Fetch Wave: Unrolled Loop(s) - Begin"))
-    kl.append(self.openLoop(kernel, self.unrollIdx))
+    kl.append(self.openLoop(kernel, self.unrollIdx, "FetchWv"))
 
     expand = kernel["ExpandPointerSwap"]
     loopCopies = 2 if expand else 1
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
-      kl.append(self.openLoopCopy(kernel, lc))
+      kl.append(self.openLoopCopy(kernel, lc, "FetchWv"))
       if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
@@ -1719,7 +1719,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.closeString(kernel))
       kl.append(self.openString(kernel))
          
-      if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
+      if kernel["PrefetchGlobalRead"]: 
+        #optimize: itemize writes() one per each vmcnt()
+        if self.enable["Wait"]:
+          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, \
+              "1wait for global read"))
+        if self.enable["LocalWrite"]:
+          kl.append(self.comment("local write a"))
+          kl.append(self.localWriteDo(kernel, tensorParametersA))
+          kl.append(self.comment("local write b"))
+          kl.append(self.localWriteDo(kernel, tensorParametersB))
         if self.enable["Wait"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, \
               "3wait for local write"))
@@ -1749,7 +1758,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         kl.append(self.comment3("FetchWave:Unrolled Loop - End"))
 
-      kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop))
+      kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop, "FetchWv"))
 
 
     if self.staggerU and self.actualSummationLoops>1:
@@ -1803,15 +1812,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
       #kl.append(self.dumpLds(kernel, 0, 8))
-
-      # tail: close
-      kl.append(self.closeLoop(kernel, -1, True))
+      if self.enable["GlobalRead"]:
+        kl.append(self.closeTailLoop(kernel,1,""))
 
     # extra summation loops: global increment and close
     for i in reversed(range(self.otherSummationLoops)):
       kl.append(self.comment("global read inc AB"))
       kl.append(self.globalReadIncrementAB(kernel, i, 0))
-      kl.append(self.closeLoop(kernel, i, True))
+      kl.append(self.closeLoop(kernel, i, True,""))
 
     if self.enable["PostLoop"]:
       ####################################
@@ -1824,7 +1832,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.syncThreads(kernel))
 
       
-    kl.append(self.functionEnd(kernel, False))
     kl.append(self.closeString(kernel))
     kStr = '\n'.join([str(x) for x in kl])
 
@@ -1888,7 +1895,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("summation loop %u"%i))
         kl.append(self.calculateLoopNumIter(kernel, i, False))
         if self.actualSummationLoops>1:
-          kl.append(self.openLoop(kernel, i))
+          kl.append(self.openLoop(kernel, i, "MathWv"))
       kl.append(self.calculateLoopNumIter(kernel, self.unrollIdx, False))
 
       kl.append(self.openPersistentLoop(kernel))
@@ -1961,13 +1968,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
-    kl.append(self.openLoop(kernel, self.unrollIdx))
+    kl.append(self.openLoop(kernel, self.unrollIdx, "MathWv"))
     expand = kernel["ExpandPointerSwap"]
     loopCopies = 2 if expand else 1
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
-      kl.append(self.openLoopCopy(kernel, lc))
+      kl.append(self.openLoopCopy(kernel, lc,"MathWv"))
       if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
@@ -2242,7 +2249,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         kl.append(self.comment3("Unrolled Loop - End"))
 
-      kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop))
+      kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop,"MathWv"))
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     # doShadowInit is required since this pushes up the store SRD initialization before the NLL
@@ -2296,7 +2303,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               self.vgprPool.checkIn(packCode.tempVgpr)
       # tail: macs
       kl.append(self.comment("tail loop: macs"))
-      kl.append(self.openLoop(kernel, -1))
+      kl.append(self.openLoop(kernel, -1,""))
       # Try to use InnerUnroll in the tail loop if allowed:
       k = kernel["MatrixInstK"] if kernel["MatrixInstruction"] else 1
       tailLoopInnerUnroll = \
@@ -3315,21 +3322,27 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # loopIdx<0 : tail loop
   ##############################################################################
   @abc.abstractmethod
-  def openLoop(self, kernel, loopIdx):
+  def openLoop(self, kernel, loopIdx, LabelName=""):
     return ""
 
   ##############################################################################
   # Close Loop
   ##############################################################################
   @abc.abstractmethod
-  def closeLoop(self, kernel, loopIdx, finalLoop):
+  def closeLoop(self, kernel, loopIdx, finalLoop, LabelName=""):
+    return ""
+
+  ##############################################################################
+  # Close Tail Loop
+  ##############################################################################
+  def closeTailLoop(self, kernel, finalLoop, LabelName=""):
     return ""
 
   ##############################################################################
   # Open Loop Copy
   ##############################################################################
   @abc.abstractmethod
-  def openLoopCopy(self, kernel, lc):
+  def openLoopCopy(self, kernel, lc, LabelName=""):
       return ""
 
   ##############################################################################
