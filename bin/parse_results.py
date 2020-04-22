@@ -70,7 +70,7 @@ class Reader:
         for line in fileinput.input(fileName):
             if line.startswith("run,"):
                 csv_field_names = line.replace(' ', '').split(',')
-            elif csv_field_names and "Contraction" in line:
+            elif csv_field_names and len(line) and line[0].isdigit() and ", Contraction" in line:
                 csv_table.append(line)
                 if db:
                     print ("L=",line),
