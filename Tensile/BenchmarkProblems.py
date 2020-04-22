@@ -540,17 +540,19 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
         maxMacroTile0 = macroTile0
       if macroTile1 > maxMacroTile1:
         maxMacroTile1 = macroTile1
-    idealM = 36 * maxMacroTile0
-    idealN = 36 * maxMacroTile1
     idealSizes = []
-    if problemType["Batched"]:
-        for idealK in solutionSummationSizes:
-          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
-          idealSizes.append(idealSize)
-    else:
-        for idealK in solutionSummationSizes:
-          idealSize = {"Exact": [idealM, idealN, idealK]}
-          idealSizes.append(idealSize)
+    for idealK in solutionSummationSizes:
+      # lowest-order non-boud (free or batch) index
+      nonBoundA0Index = [p for p in problemType["IndexAssignmentsA"] if p not in problemType["IndicesSummation"]][0]
+      nonBoundB0Index = [p for p in problemType["IndexAssignmentsB"] if p not in problemType["IndicesSummation"]][0]
+      bound0Index = problemType["IndicesSummation"][-1]
+      idealSize = [1] * problemType["TotalIndices"]
+      idealSize[nonBoundA0Index] = 36 * macroTile0
+      idealSize[nonBoundB0Index] = 36 * macroTile1
+      idealSize[bound0Index] = idealK
+      idealSizes.append({"Exact": idealSize})
+      print (idealSizes[-1])
+
     idealProblemSizes = ProblemSizes(problemType, idealSizes)
     writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
