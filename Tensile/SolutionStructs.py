@@ -1387,7 +1387,7 @@ class ExactDict(Problem):
       if f in ExactDict.AllowedFields:
         setattr(self, f, e[f])
       else:
-        raise RuntimeError ("specified field '%s' is not a valid Exact dict field"%f)
+          raise RuntimeError ("specified field '%s' is not a valid Exact dict field. Choose from: %s\nExample: '- Exact {sizes: [100,200,300], stridesA: [-1,500] }'"%(f,ExactDict.AllowedFields))
 
 
     if problemType:
