@@ -462,8 +462,9 @@ def problemSizeParams(solution, problem):
             bstrides[index.b] = sc[1]
 
 
-    cstrides = problem.stridesC
-    dstrides = problem.stridesD
+    cstrides = problem.stridesC if problem.stridesC else [-1] * solution.problemType.cDims
+    dstrides = problem.stridesD if problem.stridesD else [-1] * solution.problemType.dDims
+
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
@@ -493,10 +494,8 @@ def problemSizeParams(solution, problem):
 
     rv.append(('a-strides', ",".join(map(str, astrides))))
     rv.append(('b-strides', ",".join(map(str, bstrides))))
-    if cstrides:
-      rv.append(('c-strides', ",".join(map(str, cstrides))))
-    if dstrides:
-      rv.append(('d-strides', ",".join(map(str, dstrides))))
+    rv.append(('c-strides', ",".join(map(str, cstrides))))
+    rv.append(('d-strides', ",".join(map(str, dstrides))))
 
     if problem.zeroPadA:
         rv.append(('a-zero-pads', ';'.join([','.join(map(str,zp)) for zp in problem.zeroPadA])))
