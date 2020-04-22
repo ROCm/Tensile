@@ -580,8 +580,8 @@ validParameters = {
     #
     # Examples for 2D matrix:
     # WGM=8:  on CU64 machine this is a square box
-    # WGM=1:  Short/Fat - this will cover maximum width in I dimension of C.  This matches hardware assigned mapping.
-    # WGM=64: Tall/Skinny - this will cover maximum width in J dimention of C.
+    # WGM=1:  Short/Fat - this will cover maximum width in I dimension of C.  This matches hardware assigned mapping, and in asm is same code as WGM==0.
+    # WGM=64: Tall/Skinny - this will cover maximum width in J dimension of C.
     #
     # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
