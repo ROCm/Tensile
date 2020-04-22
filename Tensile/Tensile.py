@@ -128,10 +128,6 @@ def Tensile(userArgs):
   # argParser.add_argument("--hip-clang-version", dest="HipClangVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
-  print1("# Restoring default globalParameters")
-  for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
-
   # parse arguments
   args = argParser.parse_args(userArgs)
   configPath = os.path.realpath( args.config_file)
@@ -142,6 +138,13 @@ def Tensile(userArgs):
   print1(HR)
   print1("")
 
+  print1("# Restoring default globalParameters")
+  for key in defaultGlobalParameters:
+    if args.CxxCompiler:
+      globalParameters['CxxCompiler'] = args.CxxCompiler
+    else:
+      globalParameters[key] = defaultGlobalParameters[key]
+  
   # read config
   config = YAMLIO.readConfig( configPath )
   globalParameters["ConfigPath"] = configPath
