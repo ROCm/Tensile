@@ -6246,7 +6246,7 @@ class KernelWriterAssembly(KernelWriter):
       # check alpha
       if self.do["ApplyAlpha"]:
         if kernel["ProblemType"]["DataType"].isHalf():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          if not kernel["ProblemType"]["HighPrecisionAccumulate"] or kernel["ProblemType"]["ComputeDataType"].isHalf():
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0x3c003c00", "Packed alpha==1.0")
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), sgpr(tmpSgpr), "alpha == 1.0?")
           else: # HPA
@@ -6383,8 +6383,13 @@ class KernelWriterAssembly(KernelWriter):
           # pack stores, beta and non-beta reach here:
           for vi in range(0, fullVw):
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
-            #TODO add fp16 hpa as well
-            if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              assert (fullVw % 2 == 0)
+              kStr += inst("v_cvt_f16_f32", vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "convert C to fp16" )
+              if vi%2 == 1:
+                d = ss.elementSumIdx[elementIdx] + vi//2
+                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor")
+            elif kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
               assert (fullVw % 2 == 0)
               kStr += inst("v_cmp_u_f32", sgpr(tmpSgpr,2), vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "check Nan" )
               kStr += inst("v_bfe_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), "16", "1", "Non-Nan case: store lsb of bf16" )
