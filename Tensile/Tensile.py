@@ -181,6 +181,8 @@ def Tensile(userArgs):
     globalParameters["MergeFiles"] = False
   if args.CxxCompiler:
     globalParameters['CxxCompiler'] = args.CxxCompiler
+    if globalParameters['CxxCompiler'] == "hipcc" and not args.CodeObjectVersion:
+      globalParameters["CodeObjectVersion"] = "V3"
   print1("")
   if args.client_build_path:
     globalParameters["ClientBuildPath"] = args.client_build_path
