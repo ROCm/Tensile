@@ -1383,7 +1383,7 @@ v_mul_f64 v[vgprValuC+2:vgprValuC+2+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+2:
 v_fma_f64 v[vgprValuC+0:vgprValuC+0+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+0:vgprValuC+0+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+2:vgprValuC+2+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+2:vgprValuC+2+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[0:3], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[0:3], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1394,7 +1394,7 @@ v_mul_f64 v[vgprValuC+14:vgprValuC+14+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+12:vgprValuC+12+1], v[vgprG2LB+0:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+12:vgprValuC+12+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+14:vgprValuC+14+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+14:vgprValuC+14+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[12:15], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[12:15], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
 s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2 new=0
@@ -1430,7 +1430,7 @@ v_mul_f64 v[vgprValuC+6:vgprValuC+6+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+6:
 v_fma_f64 v[vgprValuC+4:vgprValuC+4+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+4:vgprValuC+4+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+6:vgprValuC+6+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+6:vgprValuC+6+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[4:7], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[4:7], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1441,7 +1441,7 @@ v_mul_f64 v[vgprValuC+18:vgprValuC+18+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+16:vgprValuC+16+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+16:vgprValuC+16+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+18:vgprValuC+18+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+18:vgprValuC+18+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[16:19], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[16:19], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
@@ -1478,7 +1478,7 @@ v_mul_f64 v[vgprValuC+10:vgprValuC+10+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+8:vgprValuC+8+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+8:vgprValuC+8+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+10:vgprValuC+10+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+10:vgprValuC+10+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[8:11], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[8:11], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1489,7 +1489,7 @@ v_mul_f64 v[vgprValuC+22:vgprValuC+22+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+20:vgprValuC+20+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+20:vgprValuC+20+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+22:vgprValuC+22+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+22:vgprValuC+22+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[20:23], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[20:23], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_mul_i32  s56, s[sgprStridesC+0], 248              // Scale by BPE
 s_add_u32   s[sgprSrdC+0], s[sgprSrdC+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdC+1], s[sgprSrdC+1], 0        // gra SRD += inc(upper)
@@ -1528,7 +1528,7 @@ v_mul_f64 v[vgprValuC+26:vgprValuC+26+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+24:vgprValuC+24+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+24:vgprValuC+24+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+26:vgprValuC+26+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+26:vgprValuC+26+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[24:27], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[24:27], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_mov_b32       s87, s[sgprSrdD+0]
 s_mov_b32       s88, s[sgprSrdD+1]                 /* local read init pointers b */
 s_lshl_b32      s56, s[sgprStridesD+0], 3         // Scale     s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
@@ -1541,7 +1541,7 @@ v_mul_f64 v[vgprValuC+38:vgprValuC+38+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+36:vgprValuC+36+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+36:vgprValuC+36+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+38:vgprValuC+38+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+38:vgprValuC+38+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[36:39], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[36:39], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
 s_mov_b32       s[sgprSrdD+0], s87
@@ -1576,7 +1576,7 @@ v_mul_f64 v[vgprValuC+30:vgprValuC+30+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+28:vgprValuC+28+1], v[vgprG2LA+0:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+28:vgprValuC+28+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+30:vgprValuC+30+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+30:vgprValuC+30+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[28:31], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[28:31], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1587,7 +1587,7 @@ v_mul_f64 v[vgprValuC+42:vgprValuC+42+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+40:vgprValuC+40+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+40:vgprValuC+40+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+42:vgprValuC+42+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+42:vgprValuC+42+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[40:43], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[40:43], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
@@ -1619,7 +1619,7 @@ v_mul_f64 v[vgprValuC+34:vgprValuC+34+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+32:vgprValuC+32+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+32:vgprValuC+32+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+34:vgprValuC+34+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+34:vgprValuC+34+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[32:35], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[32:35], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_lshl_b32  s56, 	   s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32   s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1631,7 +1631,7 @@ v_mul_f64 v[vgprValuC+46:vgprValuC+46+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+44:vgprValuC+44+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+44:vgprValuC+44+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+46:vgprValuC+46+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+46:vgprValuC+46+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[44:47], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[44:47], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_add_u32            s[sgprLoopCounters+0], s[sgprLoopCounters+0], 0x1 // inc counterL
 
 
@@ -1826,7 +1826,7 @@ v_mul_f64 v[vgprValuC+2:vgprValuC+2+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+2:
 v_fma_f64 v[vgprValuC+0:vgprValuC+0+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+0:vgprValuC+0+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+2:vgprValuC+2+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+2:vgprValuC+2+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[0:3], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[0:3], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1837,7 +1837,7 @@ v_mul_f64 v[vgprValuC+14:vgprValuC+14+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+12:vgprValuC+12+1], v[vgprG2LB+0:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+12:vgprValuC+12+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+14:vgprValuC+14+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+14:vgprValuC+14+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[12:15], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[12:15], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
 s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2 new=0
@@ -1873,7 +1873,7 @@ v_mul_f64 v[vgprValuC+6:vgprValuC+6+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+6:
 v_fma_f64 v[vgprValuC+4:vgprValuC+4+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+4:vgprValuC+4+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+6:vgprValuC+6+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+6:vgprValuC+6+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[4:7], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[4:7], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1884,7 +1884,7 @@ v_mul_f64 v[vgprValuC+18:vgprValuC+18+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+16:vgprValuC+16+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+16:vgprValuC+16+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+18:vgprValuC+18+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+18:vgprValuC+18+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[16:19], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[16:19], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
@@ -1921,7 +1921,7 @@ v_mul_f64 v[vgprValuC+10:vgprValuC+10+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+8:vgprValuC+8+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+8:vgprValuC+8+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+10:vgprValuC+10+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+10:vgprValuC+10+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[8:11], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[8:11], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -1932,7 +1932,7 @@ v_mul_f64 v[vgprValuC+22:vgprValuC+22+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+20:vgprValuC+20+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+20:vgprValuC+20+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+22:vgprValuC+22+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+22:vgprValuC+22+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[20:23], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[20:23], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_mul_i32  s56, s[sgprStridesC+0], 248              // Scale by BPE
 s_add_u32   s[sgprSrdC+0], s[sgprSrdC+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdC+1], s[sgprSrdC+1], 0        // gra SRD += inc(upper)
@@ -1971,7 +1971,7 @@ v_mul_f64 v[vgprValuC+26:vgprValuC+26+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+24:vgprValuC+24+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+24:vgprValuC+24+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+26:vgprValuC+26+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+26:vgprValuC+26+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[24:27], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[24:27], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_mov_b32       s87, s[sgprSrdD+0]
 s_mov_b32       s88, s[sgprSrdD+1]                 /* local read init pointers b */
 s_lshl_b32      s56, s[sgprStridesD+0], 3         // Scale     s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
@@ -1984,7 +1984,7 @@ v_mul_f64 v[vgprValuC+38:vgprValuC+38+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+36:vgprValuC+36+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+36:vgprValuC+36+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+38:vgprValuC+38+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+38:vgprValuC+38+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[36:39], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[36:39], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
 s_mov_b32       s[sgprSrdD+0], s87
@@ -2019,7 +2019,7 @@ v_mul_f64 v[vgprValuC+30:vgprValuC+30+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+28:vgprValuC+28+1], v[vgprG2LA+0:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+28:vgprValuC+28+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+30:vgprValuC+30+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+30:vgprValuC+30+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[28:31], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[28:31], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -2030,7 +2030,7 @@ v_mul_f64 v[vgprValuC+42:vgprValuC+42+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+40:vgprValuC+40+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+40:vgprValuC+40+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+42:vgprValuC+42+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+42:vgprValuC+42+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[40:43], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[40:43], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_mov_b32       s[sgprSrdC+0], s85
 s_mov_b32       s[sgprSrdC+1], s86                 /* local read init pointers b */
@@ -2062,7 +2062,7 @@ v_mul_f64 v[vgprValuC+34:vgprValuC+34+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+32:vgprValuC+32+1], v[vgprG2LA:vgprG2LA+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+32:vgprValuC+32+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+34:vgprValuC+34+1], v[vgprG2LA+2:vgprG2LA+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+34:vgprValuC+34+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[32:35], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[32:35], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_lshl_b32  s56, 	   s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32   s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
@@ -2074,7 +2074,7 @@ v_mul_f64 v[vgprValuC+46:vgprValuC+46+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 v_fma_f64 v[vgprValuC+44:vgprValuC+44+1], v[vgprG2LB:vgprG2LB+1], s[sgprBeta:sgprBeta+1], v[vgprValuC+44:vgprValuC+44+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+46:vgprValuC+46+1], v[vgprG2LB+2:vgprG2LB+3], s[sgprBeta:sgprBeta+1], v[vgprValuC+46:vgprValuC+46+1] // finalSum = sum*alpha + C*beta
 
-buffer_store_dwordx4 v[44:47], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[44:47], v[vgprGlobalReadOffsetA], s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_add_u32            s[sgprLoopCounters+0], s[sgprLoopCounters+0], 0x1 // inc counterL
 
 
@@ -2902,27 +2902,27 @@ _v_add_lshl_u32 v54, v50, v48, 0x3                 // init cb addr <-  rowStart 
 //v_mul_f64 v[vgprValuC+46:vgprValuC+46+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+46:vgprValuC+46+1] // *= alpha
 
 /* apply mask, calc new C and issue write */
-buffer_store_dwordx4 v[0:3], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx4 v[4:7], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
-buffer_store_dwordx4 v[8:11], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[0:3], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx4 v[4:7], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
+buffer_store_dwordx4 v[8:11], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_lshl_b32  s56, s[sgprStridesC+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
-buffer_store_dwordx4 v[12:15], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx4 v[16:19], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
-buffer_store_dwordx4 v[20:23], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[12:15], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx4 v[16:19], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
+buffer_store_dwordx4 v[20:23], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_mul_i32 s56, s[sgprStridesC+0], 248              // scale StrideC *= 31 * bpe
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
-buffer_store_dwordx4 v[24:27], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx4 v[28:31], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
-buffer_store_dwordx4 v[32:35], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[24:27], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx4 v[28:31], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
+buffer_store_dwordx4 v[32:35], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_lshl_b32  s56, s[sgprStridesC+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
-buffer_store_dwordx4 v[36:39], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx4 v[40:43], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
-buffer_store_dwordx4 v[44:47], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[36:39], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx4 v[40:43], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
+buffer_store_dwordx4 v[44:47], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_branch label_0037                                // jump to end
 label_0029:
 
@@ -3102,24 +3102,24 @@ v_cndmask_b32 v71, -1, v71, s[96:97]               // clip if OOB. offset
 //v_mul_f64 v[vgprValuC+34:vgprValuC+34+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+34:vgprValuC+34+1] // *= alpha
 
 /* apply mask, calc new C and issue write */
-buffer_store_dwordx2 v[0:1], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[2:3], v55, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[4:5], v56, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[6:7], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[8:9], v58, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[10:11], v59, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[12:13], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[14:15], v61, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[16:17], v62, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[18:19], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[20:21], v64, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[22:23], v65, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[24:25], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[26:27], v67, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[28:29], v68, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[30:31], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[32:33], v70, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[34:35], v71, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[0:1], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[2:3], v55, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[4:5], v56, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[6:7], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[8:9], v58, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[10:11], v59, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[12:13], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[14:15], v61, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[16:17], v62, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[18:19], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[20:21], v64, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[22:23], v65, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[24:25], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[26:27], v67, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[28:29], v68, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[30:31], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[32:33], v70, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[34:35], v71, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 /******************************************/
 /* Global Write Edge Batch #1 (d1,d0,vc1,vc0) =
@@ -3186,12 +3186,12 @@ v_cndmask_b32 v59, -1, v59, s[72:73]               // clip if OOB. offset
 //v_mul_f64 v[vgprValuC+46:vgprValuC+46+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+46:vgprValuC+46+1] // *= alpha
 
 /* apply mask, calc new C and issue write */
-buffer_store_dwordx2 v[36:37], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[38:39], v55, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[40:41], v56, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[42:43], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[44:45], v58, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
-buffer_store_dwordx2 v[46:47], v59, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[36:37], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[38:39], v55, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[40:41], v56, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[42:43], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[44:45], v58, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
+buffer_store_dwordx2 v[46:47], v59, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_branch label_0037                                // jump to end
 label_0030:
 s_mov_b32 s56, 0x0                                 // rMT0=0
@@ -3264,17 +3264,17 @@ v_mul_f64 v[vgprValuC+22:vgprValuC+22+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+0:vgprValuC+0+1], v[55:56], s[sgprBeta:sgprBeta+1], v[vgprValuC+0:vgprValuC+0+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+2:vgprValuC+2+1], v[57:58], s[sgprBeta:sgprBeta+1], v[vgprValuC+2:vgprValuC+2+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[0:3], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[0:3], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+4:vgprValuC+4+1], v[59:60], s[sgprBeta:sgprBeta+1], v[vgprValuC+4:vgprValuC+4+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+6:vgprValuC+6+1], v[61:62], s[sgprBeta:sgprBeta+1], v[vgprValuC+6:vgprValuC+6+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[4:7], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[4:7], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+8:vgprValuC+8+1], v[63:64], s[sgprBeta:sgprBeta+1], v[vgprValuC+8:vgprValuC+8+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+10:vgprValuC+10+1], v[65:66], s[sgprBeta:sgprBeta+1], v[vgprValuC+10:vgprValuC+10+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[8:11], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[8:11], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+12:vgprValuC+12+1], v[67:68], s[sgprBeta:sgprBeta+1], v[vgprValuC+12:vgprValuC+12+1] // finalSum = sum*alpha + C*beta
@@ -3282,17 +3282,17 @@ v_fma_f64 v[vgprValuC+14:vgprValuC+14+1], v[69:70], s[sgprBeta:sgprBeta+1], v[vg
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
-buffer_store_dwordx4 v[12:15], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[12:15], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+16:vgprValuC+16+1], v[71:72], s[sgprBeta:sgprBeta+1], v[vgprValuC+16:vgprValuC+16+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+18:vgprValuC+18+1], v[73:74], s[sgprBeta:sgprBeta+1], v[vgprValuC+18:vgprValuC+18+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[16:19], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[16:19], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+20:vgprValuC+20+1], v[75:76], s[sgprBeta:sgprBeta+1], v[vgprValuC+20:vgprValuC+20+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+22:vgprValuC+22+1], v[77:78], s[sgprBeta:sgprBeta+1], v[vgprValuC+22:vgprValuC+22+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[20:23], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[20:23], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 
 /******************************************/
 /* Global Write Beta Batch #1 (d1,d0,vc1,vc0) =
@@ -3341,17 +3341,17 @@ v_fma_f64 v[vgprValuC+26:vgprValuC+26+1], v[57:58], s[sgprBeta:sgprBeta+1], v[vg
 s_mul_i32 s56, s[sgprStridesD+0], 248              // scale StrideC *= 31 * bpe
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
-buffer_store_dwordx4 v[24:27], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[24:27], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+28:vgprValuC+28+1], v[59:60], s[sgprBeta:sgprBeta+1], v[vgprValuC+28:vgprValuC+28+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+30:vgprValuC+30+1], v[61:62], s[sgprBeta:sgprBeta+1], v[vgprValuC+30:vgprValuC+30+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[28:31], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[28:31], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+32:vgprValuC+32+1], v[63:64], s[sgprBeta:sgprBeta+1], v[vgprValuC+32:vgprValuC+32+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+34:vgprValuC+34+1], v[65:66], s[sgprBeta:sgprBeta+1], v[vgprValuC+34:vgprValuC+34+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[32:35], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[32:35], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+36:vgprValuC+36+1], v[67:68], s[sgprBeta:sgprBeta+1], v[vgprValuC+36:vgprValuC+36+1] // finalSum = sum*alpha + C*beta
@@ -3359,17 +3359,17 @@ v_fma_f64 v[vgprValuC+38:vgprValuC+38+1], v[69:70], s[sgprBeta:sgprBeta+1], v[vg
 s_lshl_b32  s56, s[sgprStridesD+0], 3              // Scale by BPE
 s_add_u32  s[sgprSrdD+0], s[sgprSrdD+0], s56       // gra SRD += inc(lower)
 s_addc_u32  s[sgprSrdD+1], s[sgprSrdD+1], 0        // gra SRD += inc(upper)
-buffer_store_dwordx4 v[36:39], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx4 v[36:39], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+40:vgprValuC+40+1], v[71:72], s[sgprBeta:sgprBeta+1], v[vgprValuC+40:vgprValuC+40+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+42:vgprValuC+42+1], v[73:74], s[sgprBeta:sgprBeta+1], v[vgprValuC+42:vgprValuC+42+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[40:43], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128,  // store C
+buffer_store_dwordx4 v[40:43], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:128 // store C
 
 s_waitcnt vmcnt(5)                                 // wait C (interleaved)
 v_fma_f64 v[vgprValuC+44:vgprValuC+44+1], v[75:76], s[sgprBeta:sgprBeta+1], v[vgprValuC+44:vgprValuC+44+1] // finalSum = sum*alpha + C*beta
 v_fma_f64 v[vgprValuC+46:vgprValuC+46+1], v[77:78], s[sgprBeta:sgprBeta+1], v[vgprValuC+46:vgprValuC+46+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx4 v[44:47], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256,  // store C
+buffer_store_dwordx4 v[44:47], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:256 // store C
 s_branch label_0037                                // jump to end
 label_0036:
 
@@ -3466,21 +3466,21 @@ s_waitcnt vmcnt(0)                                 // wait C
 
 /* apply mask, calc new C and issue write */
 v_fma_f64 v[vgprValuC+0:vgprValuC+0+1], v[55:56], s[sgprBeta:sgprBeta+1], v[vgprValuC+0:vgprValuC+0+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[0:1], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[0:1], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+2:vgprValuC+2+1], v[58:59], s[sgprBeta:sgprBeta+1], v[vgprValuC+2:vgprValuC+2+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[2:3], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[2:3], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+4:vgprValuC+4+1], v[61:62], s[sgprBeta:sgprBeta+1], v[vgprValuC+4:vgprValuC+4+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[4:5], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[4:5], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+6:vgprValuC+6+1], v[64:65], s[sgprBeta:sgprBeta+1], v[vgprValuC+6:vgprValuC+6+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[6:7], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[6:7], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+8:vgprValuC+8+1], v[67:68], s[sgprBeta:sgprBeta+1], v[vgprValuC+8:vgprValuC+8+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[8:9], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[8:9], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+10:vgprValuC+10+1], v[70:71], s[sgprBeta:sgprBeta+1], v[vgprValuC+10:vgprValuC+10+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[10:11], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[10:11], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+12:vgprValuC+12+1], v[73:74], s[sgprBeta:sgprBeta+1], v[vgprValuC+12:vgprValuC+12+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[12:13], v72, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[12:13], v72, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+14:vgprValuC+14+1], v[76:77], s[sgprBeta:sgprBeta+1], v[vgprValuC+14:vgprValuC+14+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[14:15], v75, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[14:15], v75, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 /******************************************/
 /* Global Write Beta Edge Batch #1 (d1,d0,vc1,vc0) =
@@ -3576,21 +3576,21 @@ s_waitcnt vmcnt(0)                                 // wait C
 
 /* apply mask, calc new C and issue write */
 v_fma_f64 v[vgprValuC+16:vgprValuC+16+1], v[55:56], s[sgprBeta:sgprBeta+1], v[vgprValuC+16:vgprValuC+16+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[16:17], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[16:17], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+18:vgprValuC+18+1], v[58:59], s[sgprBeta:sgprBeta+1], v[vgprValuC+18:vgprValuC+18+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[18:19], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[18:19], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+20:vgprValuC+20+1], v[61:62], s[sgprBeta:sgprBeta+1], v[vgprValuC+20:vgprValuC+20+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[20:21], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[20:21], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+22:vgprValuC+22+1], v[64:65], s[sgprBeta:sgprBeta+1], v[vgprValuC+22:vgprValuC+22+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[22:23], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[22:23], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+24:vgprValuC+24+1], v[67:68], s[sgprBeta:sgprBeta+1], v[vgprValuC+24:vgprValuC+24+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[24:25], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[24:25], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+26:vgprValuC+26+1], v[70:71], s[sgprBeta:sgprBeta+1], v[vgprValuC+26:vgprValuC+26+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[26:27], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[26:27], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+28:vgprValuC+28+1], v[73:74], s[sgprBeta:sgprBeta+1], v[vgprValuC+28:vgprValuC+28+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[28:29], v72, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[28:29], v72, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+30:vgprValuC+30+1], v[76:77], s[sgprBeta:sgprBeta+1], v[vgprValuC+30:vgprValuC+30+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[30:31], v75, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[30:31], v75, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 
 /******************************************/
 /* Global Write Beta Edge Batch #2 (d1,d0,vc1,vc0) =
@@ -3685,21 +3685,21 @@ s_waitcnt vmcnt(0)                                 // wait C
 
 /* apply mask, calc new C and issue write */
 v_fma_f64 v[vgprValuC+32:vgprValuC+32+1], v[55:56], s[sgprBeta:sgprBeta+1], v[vgprValuC+32:vgprValuC+32+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[32:33], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[32:33], v54, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+34:vgprValuC+34+1], v[58:59], s[sgprBeta:sgprBeta+1], v[vgprValuC+34:vgprValuC+34+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[34:35], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[34:35], v57, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+36:vgprValuC+36+1], v[61:62], s[sgprBeta:sgprBeta+1], v[vgprValuC+36:vgprValuC+36+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[36:37], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[36:37], v60, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+38:vgprValuC+38+1], v[64:65], s[sgprBeta:sgprBeta+1], v[vgprValuC+38:vgprValuC+38+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[38:39], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[38:39], v63, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+40:vgprValuC+40+1], v[67:68], s[sgprBeta:sgprBeta+1], v[vgprValuC+40:vgprValuC+40+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[40:41], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[40:41], v66, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+42:vgprValuC+42+1], v[70:71], s[sgprBeta:sgprBeta+1], v[vgprValuC+42:vgprValuC+42+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[42:43], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[42:43], v69, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+44:vgprValuC+44+1], v[73:74], s[sgprBeta:sgprBeta+1], v[vgprValuC+44:vgprValuC+44+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[44:45], v72, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[44:45], v72, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 v_fma_f64 v[vgprValuC+46:vgprValuC+46+1], v[76:77], s[sgprBeta:sgprBeta+1], v[vgprValuC+46:vgprValuC+46+1] // finalSum = sum*alpha + C*beta
-buffer_store_dwordx2 v[46:47], v75, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0,  // store C
+buffer_store_dwordx2 v[46:47], v75, s[sgprSrdD:sgprSrdD+3], 0, offen, offset:0 // store C
 s_branch label_0037                                // jump to end
 label_0037:
 
