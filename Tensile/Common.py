@@ -162,7 +162,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 0                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -1329,7 +1329,6 @@ def assignGlobalParameters( config ):
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
-    print("AssemblerPath: ",globalParameters["AssemblerPath"])
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
 
