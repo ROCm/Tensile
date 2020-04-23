@@ -204,6 +204,8 @@ globalParameters["PerfModelL2WriteHits"] = 0.15
 globalParameters["PerfModelL2ReadBwMul"] = 2
 globalParameters["PerfModelReadEfficiency"] = 0.85
 
+globalParameters["TileAwareDimPadBytes"] = 64 # padding for each dimension, in bytes, to minimize hotspotting
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 

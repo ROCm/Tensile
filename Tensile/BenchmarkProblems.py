@@ -471,6 +471,36 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
+def calculateStrides(sizes, stridePadding, indexAssignments):
+    strides = [1]*len(indexAssignments)
+    lastStride = strides[0] = int(1+stridePadding[0])
+    for i in range(1,len(strides)):
+        lastStride = strides[i] = int(lastStride * sizes[indexAssignments[i-1]] + stridePadding[i])
+
+    return strides
+
+
+def calculateTasSize(problemType, idealM, idealN, idealK):
+  # lowest-order non-bound (free or batch) index
+  nonBoundA0Index = [p for p in problemType["IndexAssignmentsA"] if p not in problemType["IndicesSummation"]][0]
+  nonBoundB0Index = [p for p in problemType["IndexAssignmentsB"] if p not in problemType["IndicesSummation"]][0]
+  bound0Index = problemType["IndicesSummation"][-1]
+  idealSize = [1] * problemType["TotalIndices"]
+  idealSize[nonBoundA0Index] = idealM
+  idealSize[nonBoundB0Index] = idealN
+  idealSize[bound0Index] = idealK
+  padAB = globalParameters["TileAwareDimPadBytes"] / problemType["DataType"].numBytes()
+  padCD = globalParameters["TileAwareDimPadBytes"] / problemType["DestDataType"].numBytes()
+  idealProblem = collections.OrderedDict()
+  idealProblem['sizes']=idealSize
+
+  padsAB = [0] + [padAB] * (problemType["TotalIndices"] - 1)
+  idealProblem['stridesA']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsA"])
+  idealProblem['stridesB']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsB"])
+  padsCD = [0] + [padAB] * (problemType["TotalIndices"] - 1)
+  idealProblem['stridesC']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]))
+  idealProblem['stridesD']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]))
+  return idealProblem
 
 ################################################################################
 # Write Benchmark Files
@@ -534,30 +564,21 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
     maxMacroTile0 = 0
     maxMacroTile1 = 0
     for solution in solutions:
-      macroTile0 = solution["MacroTile0"]
-      macroTile1 = solution["MacroTile1"]
-      if macroTile0 > maxMacroTile0:
-        maxMacroTile0 = macroTile0
-      if macroTile1 > maxMacroTile1:
-        maxMacroTile1 = macroTile1
+      maxMacroTile0 = max(maxMacroTile0, solution["MacroTile0"])
+      maxMacroTile1 = max(maxMacroTile1, solution["MacroTile1"])
     idealSizes = []
-    for idealK in solutionSummationSizes:
-      # lowest-order non-boud (free or batch) index
-      nonBoundA0Index = [p for p in problemType["IndexAssignmentsA"] if p not in problemType["IndicesSummation"]][0]
-      nonBoundB0Index = [p for p in problemType["IndexAssignmentsB"] if p not in problemType["IndicesSummation"]][0]
-      bound0Index = problemType["IndicesSummation"][-1]
-      idealSize = [1] * problemType["TotalIndices"]
-      idealSize[nonBoundA0Index] = 36 * macroTile0
-      idealSize[nonBoundB0Index] = 36 * macroTile1
-      idealSize[bound0Index] = idealK
-      idealSizes.append({"Exact": idealSize})
-      print (idealSizes[-1])
+    print ("Starting tile-aware solution creation:")
+    for (tileScale0, tileScale1) in ((36,36),(32,16)):
+      for idealK in solutionSummationSizes:
+        idealProblem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, idealK)
+        idealSizes.append({"Exact": idealProblem})
+        print (idealSizes[-1])
 
     idealProblemSizes = ProblemSizes(problemType, idealSizes)
     writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:
-    printExit("write solutions and kernels results 0 valid soultion.")
+    printExit("write solutions and kernels generated 0 valid solutions.")
   ##############################################################################
   # Write CMake
   ##############################################################################
