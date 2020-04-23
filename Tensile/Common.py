@@ -1328,7 +1328,8 @@ def assignGlobalParameters( config ):
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/hip/bin", "hipcc")
+    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
+    print("AssemblerPath: ",globalParameters["AssemblerPath"])
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
 
