@@ -5381,6 +5381,7 @@ class KernelWriterAssembly(KernelWriter):
   def declareStaggerParms(self, kernel):
 
     kStr=""
+    tmpSgpr = self.getTmpSgpr(2)
     if self.staggerU:
       # this coud be dynamic?
       if kernel["StaggerUMapping"] == 0:
@@ -5390,8 +5391,16 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["StaggerUMapping"] == 2:
         staggerInput = sgpr("WorkGroup2")
       elif kernel["StaggerUMapping"] == 3:
-        # TODO: add some adds
-        assert(0)
+        # wgSerial = (nwg0*ngw1)*wg2 + (nwg0)*wg1 + wg0
+        wgSerial = tmpSgpr
+        tmp = tmpSgpr+1
+        kStr += inst("s_mul_i32", sgpr(wgSerial), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), \
+          "wgSerial = (nwg0*ngw1)*wg2 + (nwg0)*wg1 + wg0")
+        kStr += inst("s_mul_i32", sgpr(wgSerial), sgpr(wgSerial), sgpr("WorkGroup2"), "")
+        kStr += inst("s_mul_i32", sgpr(tmp), sgpr("NumWorkGroups0"), sgpr("WorkGroup1"), "")
+        kStr += inst("s_add_u32", sgpr(wgSerial), sgpr(wgSerial), sgpr(tmp), "")
+        kStr += inst("s_add_u32", sgpr(wgSerial), sgpr(wgSerial), sgpr("WorkGroup0"), "")
+        staggerInput = sgpr(wgSerial)
       elif kernel["StaggerUMapping"] == 4:
         staggerInput = -1
 
