@@ -11719,7 +11719,12 @@ class KernelWriterAssembly(KernelWriter):
 # Format Instruction
 #######################################
 def inst(*args):
-  params = args[0:len(args)-1]
+  # exclude the last parameter (before comment)
+  # if it is empty (needed for clang++ assembler)
+  if len(args) > 2 and args[len(args)-2] == "":
+    params = args[0:len(args)-2]
+  else:
+    params = args[0:len(args)-1]
   comment = args[len(args)-1]
   formatting = "%s"
   if len(params) > 1:
