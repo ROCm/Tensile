@@ -67,9 +67,12 @@ def ParseNetworkConfig(network, problemSizes):
                                     
 def RunTensileClient(client, kernelTimes, counts):
     for size in counts.keys():
-        #kernelTimes[size] = int(subprocess.check_output(client+ " --best-solution --problem-size "+size, shell=True))
         if len(size) == 4:
-            kernelTimes[size] = 10 #pass in dummy value until I test this with --best-solution
+            replaceChars = '( )'
+            strSize = str(size)
+            for char in replaceChars:
+                strSize = strSize.replace(char,'')
+            kernelTimes[size] = int(subprocess.check_output(client+ " --best-solution True --problem-size="+strSize, shell=True))
 
 def PrintOutput(counts, kernelTimes):
     for size in counts.keys():
