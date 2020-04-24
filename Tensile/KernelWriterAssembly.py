@@ -5241,9 +5241,13 @@ class KernelWriterAssembly(KernelWriter):
                   log2(globalParameters["WavefrontWidth"]), \
                   vgpr(tP["gpr"]["lro"]), \
                   "")
-            kStr += inst("v_lshlrev_b32", \
+            kStr += inst("s_mov_b32", \
+                  sgpr(tmpSgpr), \
+                  hex((kernel["ThreadTile0"] -1) * (globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]) * kernel["MatrixInstM"]), \
+                  "")
+            kStr += inst("v_mul_lo_u32", \
                   vgpr(tmpVgpr+1), \
-                  log2((kernel["ThreadTile0"] -1) * (globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]) * kernel["MatrixInstM"]), \
+                  sgpr(tmpSgpr), \
                   vgpr(tmpVgpr+1), \
                   "Wave-RowElementId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
             kStr += inst("v_add_u32", \
@@ -5269,15 +5273,17 @@ class KernelWriterAssembly(KernelWriter):
                   log2(numColBlocks), \
                   vgpr(tP["gpr"]["lro"]), \
                   "")
-              kStr += inst("v_lshlrev_b32", \
+              kStr += inst("s_mov_b32", \
+                  sgpr(tmpSgpr), \
+                  hex(((kernel["ThreadTile1"]//kernel["MatrixInstN"]) -1 ) * numColBlocks * kernel["MatrixInstN"]), \
+                  "")
+              kStr += inst("v_mul_lo_u32", \
                   vgpr(tmpVgpr+1), \
-                  #log2(kernel["MatrixInstN"]*locks*(kernel["ThreadTile1"]//kernel["MatrixInstN"])), \
-                  log2(((kernel["ThreadTile1"]//kernel["MatrixInstN"]) -1 ) * numColBlocks * kernel["MatrixInstN"]), \
+                  sgpr(tmpSgpr), \
                   vgpr(tmpVgpr+1), \
                   "Wave-ColElementId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
               kStr += inst("v_lshlrev_b32", \
                   vgpr(tP["gpr"]["lro"]), \
-                  #log2(kernel["MatrixInstN"]*locks*(kernel["ThreadTile1"]//kernel["MatrixInstN"])), \
                   log2(kernel["MatrixInstN"]), \
                   vgpr(tP["gpr"]["lro"]), \
                   "Wave-ColLaneId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
@@ -5287,9 +5293,13 @@ class KernelWriterAssembly(KernelWriter):
                   vgpr(tP["gpr"]["lro"]), \
                   "Wave-ColsubTileId= Wave-ColLaneId+Wave-ColElementId")
             else:
-              kStr += inst("v_lshlrev_b32", \
+              kStr += inst("s_mov_b32", \
+                  sgpr(tmpSgpr), \
+                  hex(kernel["MatrixInstN"]*numColBlocks*(kernel["ThreadTile1"]//kernel["MatrixInstN"])), \
+                  "")
+              kStr += inst("v_mul_lo_u32", \
                   vgpr(tP["gpr"]["lro"]), \
-                  log2(kernel["MatrixInstN"]*numColBlocks*(kernel["ThreadTile1"]//kernel["MatrixInstN"])), \
+                  sgpr(tmpSgpr), \
                   vgpr(tP["gpr"]["lro"]), \
                   "Wave-ColLaneId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
           else:
@@ -5313,9 +5323,13 @@ class KernelWriterAssembly(KernelWriter):
                 log2(globalParameters["WavefrontWidth"]), \
                 vgpr(tP["gpr"]["lro"]), \
                 "v[%s] = v[%s] / v[%s] "%(tmpVgpraddr, tP["gpr"]["lro"],log2(globalParameters["WavefrontWidth"]-1)))
-            kStr += inst("v_lshlrev_b32", \
+            kStr += inst("s_mov_b32", \
+                sgpr(tmpSgpr), \
+                hex(kernel["MatrixInstM"]*kernel["ThreadTile0"]), \
+                "")
+            kStr += inst("v_mul_lo_u32", \
                 vgpr(tmpVgpraddr), \
-                log2(kernel["MatrixInstM"]*kernel["ThreadTile0"]), \
+                sgpr(tmpSgpr), \
                 vgpr(tmpVgpraddr), \
                 "RowblockStartOffset = %s << (%s*%s)"%(tmpVgpraddr, kernel["MatrixInstM"],kernel["ThreadTile0"]))
             kStr += inst("v_and_b32", \
@@ -5328,9 +5342,13 @@ class KernelWriterAssembly(KernelWriter):
                 log2(kernel["MatrixInstM"]), \
                 vgpr(rReg), \
                 "KIdx = v1 %% %s"%(log2(kernel["MatrixInstM"])))
-            kStr += inst("v_lshlrev_b32", \
+            kStr += inst("s_mov_b32", \
+                sgpr(tmpSgpr), \
+                hex(kernel["MacroTile0"]), \
+                "")
+            kStr += inst("v_mul_lo_u32", \
                 vgpr(rReg), \
-                log2(kernel["MacroTile0"]), \
+                sgpr(tmpSgpr), \
                 vgpr(rReg), \
                 "Koffset = Kidx+MT0")
             kStr += inst("v_and_b32", \
@@ -5359,9 +5377,13 @@ class KernelWriterAssembly(KernelWriter):
                 log2(kernel["MatrixInstM"]), \
                 vgpr(rReg), \
                 "KIdx = v1 >> %s"%(log2(kernel["MatrixInstM"])))
-            kStr += inst("v_lshlrev_b32", \
+            kStr += inst("s_mov_b32", \
+                sgpr(tmpSgpr), \
+                hex(kernel["MacroTile1"]), \
+                "")
+            kStr += inst("v_mul_lo_u32", \
                 vgpr(rReg), \
-                log2(kernel["MacroTile1"]), \
+                sgpr(tmpSgpr), \
                 vgpr(rReg), \
                 "Koffset = Kidx+MT0")
             kStr += inst("v_add_u32", \
@@ -8820,16 +8842,20 @@ class KernelWriterAssembly(KernelWriter):
         # subgroup[0] > 64 threads or MatrixInstB=1 
         # requires to generate rowBlockId for each sIMD
 
+        tmpSgpr = self.getTmpSgpr(1)
         # 1 row-block per Instruction
         if  kernel["MatrixInstB"] == 1:
           kStr += inst("v_lshrrev_b32", vgpr(tmpV4), log2(globalParameters["WavefrontWidth"]),vgpr(tid0),"Row-BlockId in macroTile0")
-          kStr += inst("v_lshlrev_b32", vgpr(tmpV4), log2(kernel["MatrixInstM"]*kernel["ThreadTile0"]),vgpr(tmpV4),"Row-BlockId in macroTile0")
+          #kStr += inst("v_lshlrev_b32", vgpr(tmpV4), log2(kernel["MatrixInstM"]*kernel["ThreadTile0"]),vgpr(tmpV4),"Row-BlockId in macroTile0")
+          kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MatrixInstM"]*kernel["ThreadTile0"]), "")
+          kStr += inst("v_mul_lo_u32", vgpr(tmpV4), sgpr(tmpSgpr),vgpr(tmpV4),"Row-BlockId in macroTile0")
           kStr += inst("v_and_b32", vgpr(tid0), hex(globalParameters["WavefrontWidth"]-1), vgpr(tid0), "WaveFrontLaneId")
        
         # 2 row-blocks per Instruction
         if kernel["MIWG0"] > globalParameters["WavefrontWidth"] and kernel["MatrixInstB"] != 1:
           kStr += inst("v_lshrrev_b32", vgpr(tmpV4), log2(globalParameters["WavefrontWidth"]),vgpr(tid0),"Row-BlockId in macroTile0")
-          kStr += inst("v_lshlrev_b32", vgpr(tmpV4), log2(2*kernel["MatrixInstM"]*kernel["ThreadTile0"]),vgpr(tmpV4),"Row-BlockId in macroTile0")
+          kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(2*kernel["MatrixInstM"]*kernel["ThreadTile0"]),"")
+          kStr += inst("v_mul_lo_u32", vgpr(tmpV4), sgpr(tmpSgpr),vgpr(tmpV4),"Row-BlockId in macroTile0")
           kStr += inst("v_and_b32", vgpr(tid0), hex(globalParameters["WavefrontWidth"]-1), vgpr(tid0), "WaveFrontLaneId")
 
         kStr += "\n"
