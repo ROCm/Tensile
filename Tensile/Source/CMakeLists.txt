@@ -21,6 +21,9 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+# Override all paths arguments as they do not work properly
+list(APPEND CMAKE_PREFIX_PATH /opt/rocm)
+
 option(TENSILE_NEW_CLIENT "Build the new client" ON)
 
 if(TENSILE_NEW_CLIENT)

@@ -169,7 +169,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
 
