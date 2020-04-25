@@ -471,11 +471,14 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
-def calculateStrides(sizes, stridePadding, indexAssignments):
+def calculateStrides(sizes, stridePadding, indexAssignments, elementSize):
     strides = [1]*len(indexAssignments)
     lastStride = strides[0] = int(1+stridePadding[0])
     for i in range(1,len(strides)):
-        lastStride = strides[i] = int(lastStride * sizes[indexAssignments[i-1]] + stridePadding[i])
+        strides[i] = lastStride * sizes[indexAssignments[i-1]]
+        if strides[i]*elementSize>256:
+            strides[i] += stridePadding[i]
+        lastStride = strides[i] = int(strides[i])
 
     return strides
 
@@ -495,11 +498,11 @@ def calculateTasSize(problemType, idealM, idealN, idealK):
   idealProblem['sizes']=idealSize
 
   padsAB = [0] + [padAB] * (problemType["TotalIndices"] - 1)
-  idealProblem['stridesA']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsA"])
-  idealProblem['stridesB']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsB"])
+  idealProblem['stridesA']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsA"], problemType["DataType"].numBytes())
+  idealProblem['stridesB']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsB"], problemType["DataType"].numBytes())
   padsCD = [0] + [padAB] * (problemType["TotalIndices"] - 1)
-  idealProblem['stridesC']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]))
-  idealProblem['stridesD']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]))
+  idealProblem['stridesC']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]), problemType["DestDataType"].numBytes())
+  idealProblem['stridesD']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]), problemType["DestDataType"].numBytes())
   return idealProblem
 
 ################################################################################
