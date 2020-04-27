@@ -24,7 +24,7 @@
  *
  *******************************************************************************/
 
-#include <hip/hip_hcc.h>
+#include <hip/hip_ext.h>
 #include <hip/hip_runtime.h>
 
 #include <cstddef>
@@ -145,10 +145,18 @@ namespace Tensile
                 return;
             }
 
-            std::vector<hipModule_t> newModules(embeddedData.size());
+            std::vector<hipModule_t> newModules;
+            newModules.reserve(embeddedData.size());
 
             for(size_t i = 0; i < embeddedData.size(); i++)
-                HIP_CHECK_EXC(hipModuleLoadData(&newModules[i], embeddedData[i].data()));
+            {
+                hipModule_t nextModule;
+                auto error = hipModuleLoadData(&nextModule, embeddedData[i].data());
+                if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+                    continue;
+                newModules.push_back(nextModule);
+                HIP_CHECK_EXC(error);
+            }
 
             {
                 std::lock_guard<std::mutex> guard(m_access);

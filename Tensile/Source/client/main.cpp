@@ -39,6 +39,7 @@
 #include "MetaRunListener.hpp"
 #include "ProgressListener.hpp"
 #include "ReferenceValidator.hpp"
+#include "SolutionIterator.hpp"
 #include "TimingEvents.hpp"
 
 #include "LogReporter.hpp"
@@ -192,6 +193,7 @@ namespace Tensile
 
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
+                ("best-solution",            po::value<bool>()->default_value(false), "Best solution benchmark mode")
 
                 ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
@@ -393,7 +395,11 @@ int main(int argc, const char * argv[])
         lastSolutionIdx = firstSolutionIdx + numSolutions-1;
     }
 
+    auto solutionIterator = SolutionIterator::Default(library, hardware, args);
+
     MetaRunListener listeners;
+
+    listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
     listeners.addListener(std::make_shared<ProgressListener>());
 
@@ -441,96 +447,64 @@ int main(int argc, const char * argv[])
 
             listeners.preProblem(problem);
 
-            for(int solutionIdx = firstSolutionIdx; solutionIdx <= lastSolutionIdx; solutionIdx++)
+            while(solutionIterator->moreSolutionsInProblem())
             {
-                std::shared_ptr<ContractionSolution> solution;
-
-                auto iter = library->solutions.find(solutionIdx);
-                if(iter == library->solutions.end())
-                    continue;
-                else
-                    solution = iter->second;
+                auto solution = solutionIterator->getSolution();
 
                 listeners.preSolution(*solution);
 
-                reporters->report(ResultKey::SolutionProgress, concatenate(solutionIdx,"/",lastSolutionIdx));
-
-                if(!(*solution->hardwarePredicate)(*hardware))
+                if(solutionIterator->runCurrentSolution())
                 {
-                    reporters->report(ResultKey::Validation, "WRONG_HARDWARE");
-                    if(reporters->logAtLevel(LogLevel::Verbose))
+                    try
                     {
-                        std::ostringstream msg;
-                        solution->hardwarePredicate->debugEval(*hardware, msg);
-                        reporters->log(LogLevel::Verbose, msg.str());
-                    }
-
-                    listeners.postSolution();
-                    continue;
-                }
-
-                if(!(*solution->problemPredicate)(problem))
-                {
-                    reporters->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
-                    if(reporters->logAtLevel(LogLevel::Verbose))
-                    {
-                        std::ostringstream msg;
-                        solution->problemPredicate->debugEval(problem, msg);
-                        reporters->log(LogLevel::Verbose, msg.str());
-                    }
-                    listeners.postSolution();
-                    continue;
-                }
-
-                try
-                {
-                    while(listeners.needMoreRunsInSolution())
-                    {
-                        auto inputs = dataInit->prepareGPUInputs(problem);
-
-                        auto kernels = solution->solve(problem, *inputs, *hardware);
-
-                        size_t warmupInvocations = listeners.numWarmupRuns();
-                        TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
-                        TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
-
-                        for(int i = 0; i < warmupInvocations; i++)
+                        while(listeners.needMoreRunsInSolution())
                         {
-                            listeners.preWarmup();
-                            adapter.launchKernels(kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
-                            listeners.postWarmup();
-                        }
+                            auto inputs = dataInit->prepareGPUInputs(problem);
 
-                        listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
+                            auto kernels = solution->solve(problem, *inputs, *hardware);
 
-                        size_t syncs = listeners.numSyncs();
-                        size_t enq   = listeners.numEnqueuesPerSync();
+                            size_t warmupInvocations = listeners.numWarmupRuns();
+                            TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
+                            TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
 
-                        for(int i = 0; i < syncs; i++)
-                        {
-                            listeners.preSyncs();
-
-                            TimingEvents startEvents(enq, kernels.size());
-                            TimingEvents  stopEvents(enq, kernels.size());
-
-                            listeners.preEnqueues();
-
-                            for(int j = 0; j < enq; j++)
+                            for(int i = 0; i < warmupInvocations; i++)
                             {
-                                adapter.launchKernels(kernels, stream, startEvents[j], stopEvents[j]);
+                                listeners.preWarmup();
+                                adapter.launchKernels(kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                listeners.postWarmup();
                             }
 
-                            listeners.postEnqueues(startEvents, stopEvents);
-                            listeners.validateEnqueues(inputs, startEvents, stopEvents);
+                            listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
 
-                            listeners.postSyncs();
+                            size_t syncs = listeners.numSyncs();
+                            size_t enq   = listeners.numEnqueuesPerSync();
+
+                            for(int i = 0; i < syncs; i++)
+                            {
+                                listeners.preSyncs();
+
+                                TimingEvents startEvents(enq, kernels.size());
+                                TimingEvents  stopEvents(enq, kernels.size());
+
+                                listeners.preEnqueues();
+
+                                for(int j = 0; j < enq; j++)
+                                {
+                                    adapter.launchKernels(kernels, stream, startEvents[j], stopEvents[j]);
+                                }
+
+                                listeners.postEnqueues(startEvents, stopEvents);
+                                listeners.validateEnqueues(inputs, startEvents, stopEvents);
+
+                                listeners.postSyncs();
+                            }
                         }
                     }
-                }
-                catch(std::runtime_error const& err)
-                {
-                    reporters->report(ResultKey::Validation, "INVALID");
-                    reporters->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
+                    catch(std::runtime_error const& err)
+                    {
+                        reporters->report(ResultKey::Validation, "INVALID");
+                        reporters->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
+                    }
                 }
 
                 listeners.postSolution();

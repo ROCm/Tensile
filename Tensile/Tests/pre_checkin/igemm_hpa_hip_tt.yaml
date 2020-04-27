@@ -47,30 +47,30 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [127,1,129], 0, [2], [63,1,65] ]
 
-    - # BenchmarkProblemSizeGroup - Source
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - LoopTail: [True]
-        - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
-      ForkParameters:
-        - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [False]
-        - ThreadTile:
-          - [ 8, 8 ]
-          - [ 8, 2 ]
-          - [ 4, 8 ]
-        - WorkGroup:
-          - [ 16, 16,  1 ]
-          - [  8,  8,  1 ]
-        - DepthU: [16]
-        - VectorWidth: [-1]
-        - AssertSummationElementMultiple: [1,2]
-        - AssertFree0ElementMultiple: [1,2]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+##    - # BenchmarkProblemSizeGroup - Source
+##      InitialSolutionParameters:
+##      BenchmarkCommonParameters:
+##        - LoopTail: [True]
+##        - EdgeType: ["ShiftPtr"]
+##        - KernelLanguage: ["Source"]
+##      ForkParameters:
+##        - GlobalSplitU: [1, 3]
+##        - PrefetchLocalRead: [True]
+##        - PrefetchGlobalRead: [False]
+##        - ThreadTile:
+##          - [ 8, 8 ]
+##          - [ 8, 2 ]
+##          - [ 4, 8 ]
+##        - WorkGroup:
+##          - [ 16, 16,  1 ]
+##          - [  8,  8,  1 ]
+##        - DepthU: [16]
+##        - VectorWidth: [-1]
+##        - AssertSummationElementMultiple: [1,2]
+##        - AssertFree0ElementMultiple: [1,2]
+##      BenchmarkForkParameters:
+##      JoinParameters:
+##      BenchmarkJoinParameters:
+##      BenchmarkFinalParameters:
+##        - ProblemSizes:
+##          - Range: [ [127,1,129], 0, [2], [63,1,65] ]

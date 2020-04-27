@@ -18,6 +18,7 @@ set(client_sources
     source/ReferenceValidator.cpp
     source/ResultFileReporter.cpp
     source/ResultReporter.cpp
+    source/SolutionIterator.cpp
     source/TimingEvents.cpp
     )
 

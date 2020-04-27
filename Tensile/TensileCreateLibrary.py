@@ -99,7 +99,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         if globalParameters["PackageLibrary"]:
           newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
         else:
-          newCOFiles = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
+          newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
 
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
@@ -169,7 +169,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
 
@@ -329,7 +329,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
+      kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
     kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
   kernelsWithBuildErrs = {}

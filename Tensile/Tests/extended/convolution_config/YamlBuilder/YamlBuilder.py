@@ -61,8 +61,8 @@ class Solutions:
                     {"DepthU": [4]},
                     {"PackBatchDims": [0,1]},
                     {"PackSummationDims": [0,1]},
-                    {"GlobalSplitU": [1,2,3,4,7,17]},
-                    {"GlobalReadVectorWidth": [1,-1]},
+                    {"GlobalSplitU": [1,2,4,7,17]},
+                    {"GlobalReadVectorWidth": [-1]},
                     {"VectorWidth": [1,-1]},
                 ]
 
@@ -77,7 +77,7 @@ class Solutions:
                     {"PrefetchGlobalRead": [0]},
                     {"KernelLanguage": ["Assembly"]},
                     {"ThreadTile": [
-                        [ 2, 2 ]
+                        [ 4, 4 ]
                         ]},
                     {"WorkGroup": [
                         [  8, 8, 1 ]
@@ -87,7 +87,7 @@ class Solutions:
                     {"PackSummationDims": [1]}, # required to handle padding cases
                     {"GlobalReadVectorWidth": [-1]},
                     {"VectorWidth": [1]},
-                    {"FractionalLoad": [0]}
+                    {"FractionalLoad": [1]}
                 ]
 
         return s
@@ -101,7 +101,7 @@ class Solutions:
                     {"PrefetchGlobalRead": [1]},
                     {"KernelLanguage": ["Assembly"]},
                     {"ThreadTile": [
-                        [ 2, 2 ],
+                        [ 8, 4 ],
                         [ 4, 8 ],
                         [ 8, 8 ]
                         ]},
@@ -113,7 +113,7 @@ class Solutions:
                     {"GlobalReadVectorWidth": [-1]},
                     {"PackSummationDims": [0,1]},
                     {"VectorWidth": [1,4]},
-                    {"FractionalLoad": [0,1]},
+                    {"FractionalLoad": [1]},
                     {"PackBatchDims": [0,1]},
                 ]
 
@@ -130,6 +130,7 @@ class Solutions:
                     {"ThreadTile": [
                         [ 4, 4 ],
                         [ 4, 8 ],
+                        [ 8, 4 ],
                         [ 8, 8],
                         ]},
                     {"WorkGroup": [
@@ -145,7 +146,7 @@ class Solutions:
                     {"GlobalSplitU": [1,2,3,4,8,17]},
                     {"VectorWidth": [1,4]},
                     {"PackBatchDims": [1]},
-                    {"FractionalLoad": [0,1]}
+                    {"FractionalLoad": [1]}
                 ]
 
         return s
@@ -263,7 +264,7 @@ class YamlBuilder:
     @classmethod
     def ProblemSizesResNet(cls, conv, problemType, problemLevel):
         problems = []
-        n=64
+        n=12
         for (c,h,w,k, x,y, p,q ,u,v) in (
                 [1024,14,14,2048,1,1,0,0,0,0],
                 [1024,14,14,256,1,1,0,0,0,0],
@@ -295,7 +296,7 @@ class YamlBuilder:
     @classmethod
     def ProblemSizesInception(cls, conv, problemType, problemLevel):
         problems = []
-        n=32
+        n=8
 
         for (count, c,h,w,k,x,y, p,q, u,v) in (
             (2,128,17,17,128,1,7,0,3,1,1),
