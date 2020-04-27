@@ -2381,7 +2381,6 @@ class Solution:
       # use wider store for best store optimization
       state["StoreVectorWidth"] = 4
 
-
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
       reject(state, "VW * DataType.numBytes() > 16")
@@ -2491,6 +2490,9 @@ class Solution:
       loopIters = (depthU // state["LocalSplitU"]) // state["InnerUnroll"]
       if "MatrixInstK" in state:
         loopIters //= state["MatrixInstK"]
+      if loopIters < 1:
+        reject(state, "LoopIters need to greater than 0")
+        return
 
       if (depthU % ((state["PrefetchLocalRead"]%loopIters)+1)) != 0:
         validDepthU = False
@@ -2693,12 +2695,28 @@ class Solution:
       reject(state, "Source KernelLanguage only supports LdsPadA == LdsPadB")
       return
 
+    # Default LocalReadVectorWidth
+    if state["LocalReadVectorWidth"] == -1:
+      if state["MatrixInstruction"]:
+        state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
+      else:
+        state["LocalReadVectorWidth"] = state["VectorWidth"]
+    else:
+      if not state["MatrixInstruction"]:
+        reject(state, "LocalReadVectorWidth requires MatrixInstruction")
+      if not state["TransposeLDS"]:
+        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
+      if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
+        reject(state, "LocalReadVectorWidth requires TN TransposeLDS=1")
+      if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
+        reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
+
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
         state["LdsPadA"] = 0
       else:
         if state["MatrixInstruction"] and state["TransposeLDS"]:
-          state["LdsPadA"] = max(state["GlobalReadVectorWidth"],state["ProblemType"]["DataType"].numMIInput())
+          state["LdsPadA"] = max(state["GlobalReadVectorWidth"],state["LocalReadVectorWidth"])
         else:
           state["LdsPadA"] = state["VectorWidth"]
       assert(state["LdsPadA"] >= 0)
@@ -2707,17 +2725,13 @@ class Solution:
         state["LdsPadB"] = 0
       else:
         if state["MatrixInstruction"] and state["TransposeLDS"]:
-          state["LdsPadB"] = max(state["GlobalReadVectorWidth"],state["ProblemType"]["DataType"].numMIInput())
+          state["LdsPadB"] = max(state["GlobalReadVectorWidth"],state["LocalReadVectorWidth"])
         else:
           state["LdsPadB"] = state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
 
     if (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) and (not state["EnableMatrixInstruction"]):
         reject(state, "UnrollMajorLDS Supports only in EnableMatrixInstruction=1")
-
-    if state["LocalReadVectorWidth"] != -1:
-      if (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False):
-        reject(state, "LocalReadVectorWidth requires UnrollMajorLDS=1")
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
 
@@ -2853,14 +2867,46 @@ class Solution:
     if "MatrixInstK" in state:
       state["LoopIters"] //= state["MatrixInstK"]
 
+    if state["LoopIters"] < 1:
+      reject(state, "LoopIters need to greater than 0")
+      return
+
     # PLR > 2xLoopIters is redundant setting
     if state["PrefetchLocalRead"] >= 2*state["LoopIters"]:
       reject(state, "PrefetchLocalRead %u larger than 2x LoopIters %u" % (state["PrefetchLocalRead"],state["LoopIters"]))
+
+    # prefetch wider read iteration > LoopIters, no enough iterations for prefetching
+    if state["EnableMatrixInstruction"]:
+      if (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput() >= state["LoopIters"]:
+        reject(state, "with PrefetchLocalRead %u LoopIters %u LocalReadVectorWidth %u, not enough LoopIters to prefetch %ux%u iterations, " \
+          % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"],\
+          (state["PrefetchLocalRead"]%state["LoopIters"]),state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()))
 
     # reject conditions with lower performance
     if state["ScheduleIterAlg"] == 2 and \
     (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
       reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
+
+    if state["TransposeLDS"] == 1:
+      if not state["MatrixInstruction"]:
+        reject(state, "TransposeLds Supports only in MatrixInstruction=1")
+      if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
+          reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
+      if state["MatrixInstruction"]:
+        # enable widerLocalRead
+        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
+          # not support 1 block MI
+          # TODO: need to enable ds_read2 to support 1 block MI
+          # if state["MatrixInstB"] == 1:
+            # reject(state, "wider localRead not support 1 block MatrixInstruction yet")
+          # wider localRead support 2 types
+          # 1. prefetch all lds to register
+          # 2. using larger InnerUnroll
+          if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
+            not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
+            reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
+        if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
+          reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
