@@ -28,6 +28,7 @@ from . import Common
 from .Common import assignGlobalParameters, globalParameters
 
 import argparse
+import csv
 import os
 import subprocess
 import sys
@@ -37,6 +38,18 @@ def convertTranspose(transpose):
     if transpose: 
         return 'T'
     return 'N'
+
+def convertToProblemIdentifier(transpose):
+    contractionMap = {"NN":"Contraction_l_Ailk_Bljk_Cijk_Dijk","NT":"Contraction_l_Ailk_Bjlk_Cijk_Dijk","TN":"Contraction_l_Alik_Bljk_Cijk_Dijk","TT":"Contraction_l_Alik_Bjlk_Cijk_Dijk"}
+    for item in contractionMap:
+        if item == transpose:
+            return contractionMap[item]
+
+def convertToDataType(dataType):
+    dataTypeMap = {'s':"Float",'d':"Double",'h':"Half"}
+    for item in dataTypeMap:
+        if item == dataType:
+            return dataTypeMap[item]
 
 def ParseNetworkConfig(network, problemSizes):
     problemTypeCounter = 1
@@ -65,14 +78,24 @@ def ParseNetworkConfig(network, problemSizes):
                                         size = items[1]["size"]
                                         problemSizes[size] = count
                                     
-def RunTensileClient(client, kernelTimes, counts):
+def RunTensileClient(client, kernelTimes, counts, libraryFile, architecture):
+    fileNum = 1
+    splitLibraryFile = libraryFile.split('.')
+    splitLibraryFile.append(splitLibraryFile[0].replace('TensileLibrary',''))
+    contraction = ''
+    dataType = ''
     for size in counts.keys():
-        if len(size) == 4:
+        if len(size) == 3:
+            contraction = convertToProblemIdentifier(str(size[1]))
+            dataType = convertToDataType(str(size[2]))
+            hpa = "True" if dataType == "Half" else "False"
+        elif len(size) == 4:
             replaceChars = '( )'
             strSize = str(size)
             for char in replaceChars:
                 strSize = strSize.replace(char,'')
-            kernelTimes[size] = int(subprocess.check_output(client+ " --best-solution True --problem-size="+strSize, shell=True))
+            args = [client,"--library-file="+libraryFile,"--code-object="+splitLibraryFile[2]+"Kernels.so-000-"+architecture+".hsaco","--code-object="+splitLibraryFile[0]+"_"+architecture+".co","--results-file="+splitLibraryFile[2]+"../../../Data/00_Final-new.csv","--problem-identifier="+contraction,"--a-type="+dataType,"--b-type="+dataType,"--c-type="+dataType,"--d-type="+dataType,"--alpha-type="+dataType,"--beta-type="+dataType,"--high-precision-accumulate="+hpa,"--best-solution=True","--log-file=bestSolution"+str(fileNum),"--problem-size="+strSize]
+            subprocess.check_call(args)
 
 def PrintOutput(counts, kernelTimes):
     for size in counts.keys():
@@ -87,18 +110,20 @@ def NetworkBenchmark():
     argParser = argparse.ArgumentParser()
     argParser.add_argument("network_config", help="path and name of network config yaml file")
     argParser.add_argument("tensile_library", help="path of TensileLibrary.yaml")
-    argParser.add_argument("client_path", help="path of tensile_client", default=os.path.join(globalParameters["WorkingPath"],globalParameters["ClientBuildPath"],"tensile_client"))
+    argParser.add_argument("client_path", help="path of tensile_client", default=os.path.join(globalParameters["WorkingPath"], globalParameters["ClientBuildPath"],"tensile_client"))
+    argParser.add_argument("architecture", help="gpu architecture", default="gfx906")
 
     args = argParser.parse_args(userArgs)
     network = args.network_config
     library = args.tensile_library
     client = args.client_path
+    gfx = args.architecture
     
     counts = dict()
     ParseNetworkConfig(network, counts)
     
     kernelTimes = dict()
-    RunTensileClient(client, kernelTimes, counts)
+    RunTensileClient(client,kernelTimes,counts,library,gfx)
 
     PrintOutput(counts,kernelTimes)
 

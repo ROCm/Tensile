@@ -156,10 +156,10 @@ function(TensileCreateLibraryFiles
 endfunction()
 
 function(NetworkBenchmark NETWORK
-        Tensile_LIBRARY Tensile_CLIENT)
+        Tensile_LIBRARY Tensile_CLIENT Tensile_ARCHITECTURE)
 
   # Tensile_ROOT can be specified instead of using the installed path.
-  set(multiValueArgs NETWORK Tensile_LIBRARY Tensile_CLIENT)
+  set(multiValueArgs NETWORK Tensile_LIBRARY Tensile_CLIENT Tensile_ARCHITECTURE)
   cmake_parse_arguments(Tensile "${multiValueArgs}" ${ARGN})
 
   set(Script "${Tensile_ROOT}/bin/NetworkBenchmark")
@@ -177,6 +177,10 @@ function(NetworkBenchmark NETWORK
 
   if(Tensile_CLIENT)
     set(Options ${Options} "--client_path ${Tensile_CLIENT}")
+  endif()
+  
+  if(Tensile_ARCHITECTURE)
+    set(Options ${Options} "--architecture ${Tensile_ARCHITECTURE}")
   endif()
 
 endfunction()
