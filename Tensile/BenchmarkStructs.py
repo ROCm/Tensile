@@ -163,7 +163,8 @@ class BenchmarkProcess:
     # don't show up in Ccommon/Cfork/CBfork/Cjoin/CBjoin
     # followed by Ccommon
     self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
-    for paramDict in defaultBenchmarkCommonParameters:
+    # need to use deepcopy to prevent default parameters from being washed-out later
+    for paramDict in deepcopy(defaultBenchmarkCommonParameters):  
       for paramName in paramDict:
         if not hasParam( paramName, [ configBenchmarkCommonParameters, \
             configForkParameters, configBenchmarkForkParameters, \
@@ -181,7 +182,8 @@ class BenchmarkProcess:
     # don't show up in Bcommon/Cfork/CBfork/Cjoin/CBjoin
     # followed by Cfork
     self.forkParameters = []
-    for paramDict in defaultForkParameters:
+    # need to use deepcopy to prevent default parameters from being washed-out later
+    for paramDict in deepcopy(defaultForkParameters):
       for paramName in paramDict:
         if not hasParam( paramName, [ self.benchmarkCommonParameters, \
             configForkParameters, configBenchmarkForkParameters, \
@@ -206,7 +208,8 @@ class BenchmarkProcess:
     # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
     # followed by CBforked
     self.benchmarkForkParameters = [{"ProblemSizes": currentProblemSizes}]
-    for paramDict in defaultBenchmarkForkParameters:
+    # need to use deepcopy to prevent default parameters from being washed-out later
+    for paramDict in deepcopy(defaultBenchmarkForkParameters):
       for paramName in paramDict:
         if not hasParam( paramName, [ self.benchmarkCommonParameters, \
             self.forkParameters, configBenchmarkForkParameters, \
@@ -224,7 +227,8 @@ class BenchmarkProcess:
     # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
     # followed by CBforked
     self.joinParameters = []
-    for paramName in defaultJoinParameters:
+    # need to use deepcopy to prevent default parameters from being washed-out later
+    for paramName in deepcopy(defaultJoinParameters):
       if not hasParam( paramName, [ self.benchmarkCommonParameters, \
           self.forkParameters, self.benchmarkForkParameters, \
           configJoinParameters, configBenchmarkJoinParameters]) \
@@ -250,7 +254,8 @@ class BenchmarkProcess:
     # don't show up in Bcommon/Bfork/BBfork/Bjoin/CBjoin
     # followed by CBjoin
     self.benchmarkJoinParameters = [{"ProblemSizes": currentProblemSizes}]
-    for paramDict in defaultBenchmarkJoinParameters:
+    # need to use deepcopy to prevent default parameters from being washed-out later
+    for paramDict in deepcopy(defaultBenchmarkJoinParameters):
       for paramName in paramDict:
         if not hasParam( paramName, [ self.benchmarkCommonParameters, \
             self.forkParameters, self.benchmarkForkParameters, \
