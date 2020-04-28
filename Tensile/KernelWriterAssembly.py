@@ -5234,123 +5234,138 @@ class KernelWriterAssembly(KernelWriter):
             kernel["VectorWidth"], sgpr(tmpSgpr))
 
       #if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
+      # miWG0 requiriing > 1 SIMD case
       if kernel["MatrixInstruction"]:
         if tc == "A":  
+            #sub-case 1: MatrixInstB != case 
           if kernel["MIWG0"] > globalParameters["WavefrontWidth"] and kernel["ThreadTile0"] > 1 and kernel["MatrixInstB"] != 1:
+            # generate row-blockId of wave per Mi   = (vgprSerial%SG0I)%waveFrontWidth
             kStr += inst("v_lshrrev_b32", \
                   vgpr(tmpVgpr+1), \
                   log2(globalParameters["WavefrontWidth"]), \
                   vgpr(tP["gpr"]["lro"]), \
-                  "")
+                  "WaveTile-LRO = %s %% %u) %% %s"%(vgpr("Serial"),divisor,globalParameters["WavefrontWidth"]))
+            # generate starting rowIdx of wave = (tt0-1)*number_of_blocks_per_wavefrontwidth*mi[M]
+            # calculate number of Row tile(s) per Wave (called as wave-tile)
+            # multiply with Idx generated above to get starting rowIdx of wave=tile
             kStr += inst("s_mov_b32", \
                   sgpr(tmpSgpr), \
                   hex((kernel["ThreadTile0"] -1) * (globalParameters["WavefrontWidth"]//kernel["MatrixInstM"]) * kernel["MatrixInstM"]), \
-                  "")
+                  "numMtilesPerWave = %s-1 *(%s / %s) * %s"%(kernel["ThreadTile0"],globalParameters["WavefrontWidth"],kernel["MatrixInstM"],kernel["MatrixInstM"]))
             kStr += inst("v_mul_lo_u32", \
                   vgpr(tmpVgpr+1), \
                   sgpr(tmpSgpr), \
                   vgpr(tmpVgpr+1), \
-                  "Wave-RowElementId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
+                  "waveTile-MIdx = numMtilesPerWave * WaveTile-LRO")
+            # lane offset for wavetile = LRO + waveTile-RowIdx
             kStr += inst("v_add_u32", \
                   vgpr(tP["gpr"]["lro"]), \
                   vgpr(tmpVgpr+1),\
                   vgpr(tP["gpr"]["lro"]), \
-                  "Wave-RowsubTileId= Wave-ColLaneId+Wave-ColElementId")
+                  "LRO= LRO+WaveTile-MIdx")
         if tc == "B":  
+          # lane offset for given 'MAtrixN'
           kStr += inst("v_and_b32", \
               vgpr(tmpVgpraddr), \
               hex(kernel["MatrixInstN"]-1), \
               vgpr(dividendReg), \
-              "")
-              #"LaneOffset=vgprSerial % %s"%(kernel["MatrixInstN"]))
+              "LaneOffset = %s %% %s"%(vgpr("Serial"),hex(kernel["MatrixInstN"]-1)))
           numColBlocks = kernel["numBlocksNDim"]
-          # determine wave col-blockId offset
-          # numColblockPerInstr>1 : v3 * 32 for each blocks per Instruction
+          # determine wavetile colIdx based on MAtrixN and TT1
+          # 1. calculate PerInstruction ColIDx = LRO<< numColBLocks 
+          # 2. Calculate number of instructions for each Wave and add to ColIdx per Instruction
           # offset Calculation for simd(wave0 of simd)  (tt1//matrixInstN -1) * numColBlocks * matrixInstN
           if kernel["ThreadTile1"]//kernel["MatrixInstN"] > 1:
             if numColBlocks > 1: 
+              # waveTile_NIdx (column-id of srcB) =  numBLocks_perMi * subgroup01J
               kStr += inst("v_lshrrev_b32", \
                   vgpr(tmpVgpr+1), \
                   log2(numColBlocks), \
                   vgpr(tP["gpr"]["lro"]), \
-                  "")
+                  "WaveTile_LRO = LRO << %u"%(log2(numColBlocks)))
               kStr += inst("s_mov_b32", \
                   sgpr(tmpSgpr), \
                   hex(((kernel["ThreadTile1"]//kernel["MatrixInstN"]) -1 ) * numColBlocks * kernel["MatrixInstN"]), \
-                  "")
+                  "numNtilesPerWave = (%s / %s) * %s * %s"%(kernel["ThreadTile1"],kernel["MatrixInstN"],numColBlocks,kernel["MatrixInstN"]))
               kStr += inst("v_mul_lo_u32", \
                   vgpr(tmpVgpr+1), \
                   sgpr(tmpSgpr), \
                   vgpr(tmpVgpr+1), \
-                  "Wave-ColElementId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
+                  "WaveTile-NIdx = WaveTile_LRO * numNtilesPerWave")
+              # calculate starting colId of each 'N' lanes per MI
               kStr += inst("v_lshlrev_b32", \
                   vgpr(tP["gpr"]["lro"]), \
                   log2(kernel["MatrixInstN"]), \
                   vgpr(tP["gpr"]["lro"]), \
-                  "Wave-ColLaneId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
+                  "Mi_BlockColIdx = LRO << %s" %(log2(kernel["MatrixInstN"])))
+              # add WaveTile-Nidx + Mi_BlockOffset to get base col-id of subgroup01J
               kStr += inst("v_add_u32", \
                   vgpr(tP["gpr"]["lro"]), \
                   vgpr(tmpVgpr+1),\
                   vgpr(tP["gpr"]["lro"]), \
-                  "Wave-ColsubTileId= Wave-ColLaneId+Wave-ColElementId")
+                  "WaveTile-NIdx= Mi_BlockColIdx + WaveTile-NIdx")
             else:
               kStr += inst("s_mov_b32", \
                   sgpr(tmpSgpr), \
                   hex(kernel["MatrixInstN"]*numColBlocks*(kernel["ThreadTile1"]//kernel["MatrixInstN"])), \
-                  "")
+                  "numNtilesPerWave = (%s / %s) * %s * %s"%(kernel["ThreadTile1"],kernel["MatrixInstN"],numColBlocks,kernel["MatrixInstN"]))
               kStr += inst("v_mul_lo_u32", \
                   vgpr(tP["gpr"]["lro"]), \
                   sgpr(tmpSgpr), \
                   vgpr(tP["gpr"]["lro"]), \
-                  "Wave-ColLaneId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
+                  "WaveTile-NIdx = LRO * numNtilesPerWave")
           else:
             kStr += inst("v_lshlrev_b32", \
                 vgpr(tP["gpr"]["lro"]), \
                 log2(kernel["MatrixInstN"]), \
                 vgpr(tP["gpr"]["lro"]), \
-                "Wave-ColLaneId = %s << %s"%(tP["gpr"]["lro"],kernel["MatrixInstN"]))
+                "WaveTile-NIdx = LRO << %s" %(log2(kernel["MatrixInstN"])))
 
           kStr += inst("v_add_u32", \
               vgpr(tP["gpr"]["lro"]), \
               vgpr(tmpVgpraddr),\
               vgpr(tP["gpr"]["lro"]), \
-              "")
-      #if kernel["MatrixInstruction"] and not kernel["ProblemType"]["DataType"].isHalf():
+              "LRO = WaveTile-NIdx + LaneOffset")
+
+      #Special Case : 
+      #single block output : wavefrontWidth working MiMxN instruction producing single MxN output space
+      #data parallelism in summation index dimension
+
       if kernel["MatrixInstruction"]:
         if (kernel["MatrixInstB"] == 1):
           if tc == "A":  
-            #special case for InstSplilt
             kStr += inst("v_lshrrev_b32", \
                 vgpr(tmpVgpraddr), \
                 log2(globalParameters["WavefrontWidth"]), \
                 vgpr(tP["gpr"]["lro"]), \
-                "v[%s] = v[%s] / v[%s] "%(tmpVgpraddr, tP["gpr"]["lro"],log2(globalParameters["WavefrontWidth"]-1)))
+                "WaveTile-LRO = %s  << %u)"%(vgpr(tP["gpr"]["lro"]),globalParameters["WavefrontWidth"]))
             kStr += inst("s_mov_b32", \
                 sgpr(tmpSgpr), \
                 hex(kernel["MatrixInstM"]*kernel["ThreadTile0"]), \
-                "")
+                "numMtilesPerWave = %s * %s"%(kernel["MatrixInstM"],kernel["ThreadTile0"]))
             kStr += inst("v_mul_lo_u32", \
                 vgpr(tmpVgpraddr), \
                 sgpr(tmpSgpr), \
                 vgpr(tmpVgpraddr), \
-                "RowblockStartOffset = %s << (%s*%s)"%(tmpVgpraddr, kernel["MatrixInstM"],kernel["ThreadTile0"]))
+                "WaveTile-MIdx= WaveTile_LRO * numMtilesPerWave ")
+            # calculate WaveFrontLAneoffset
             kStr += inst("v_and_b32", \
                 vgpr(rReg), \
                 hex(globalParameters["WavefrontWidth"]-1), \
                 vgpr(dividendReg), \
-                "Laneoffset = v[vgprSerial] %% %s-1"%(hex(kernel["MatrixInstM"])))
+                "WaveLaneoffset =  %s & %s-1"%(vgpr(dividendReg),hex(globalParameters["WavefrontWidth"])))
             kStr += inst("v_lshrrev_b32", \
                 vgpr(rReg), \
                 log2(kernel["MatrixInstM"]), \
                 vgpr(rReg), \
-                "KIdx = v1 %% %s"%(log2(kernel["MatrixInstM"])))
+                "M_KIdx = WaveLaneoffset << %s"%(log2(kernel["MatrixInstM"])))
             if kernel["ProblemType"]["DataType"].isBFloat16() :
               #adjust Kindex value for bfloat16
               kStr += inst("v_lshlrev_b32", \
                   vgpr(rReg), \
                   log2(self.bpr//tP["bpe"]), \
                   vgpr(rReg), \
-                  "KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstM"]),tP["bpe"]))
+                  "M_KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstM"]),tP["bpe"]))
             if kernel["ProblemType"]["DataType"].isHalf():
               #adjust Kindex value for half
               # numSrcs =2
@@ -5358,7 +5373,7 @@ class KernelWriterAssembly(KernelWriter):
                   vgpr(rReg), \
                   log2(2*self.bpr//tP["bpe"]), \
                   vgpr(rReg), \
-                  "KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstM"]),tP["bpe"]))
+                  "M_KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstM"]),tP["bpe"]))
             kStr += inst("s_mov_b32", \
                 sgpr(tmpSgpr), \
                 hex(kernel["MacroTile0"]), \
@@ -5367,47 +5382,48 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr(rReg), \
                 sgpr(tmpSgpr), \
                 vgpr(rReg), \
-                "Koffset = Kidx+MT0")
+                "M_Koffset = M_Kidx+MT0")
             kStr += inst("v_and_b32", \
                 vgpr(tP["gpr"]["lro"]), \
                 hex(kernel["MatrixInstM"]-1), \
                 vgpr(tP["gpr"]["lro"]), \
-                "")
+                "Mi_Kidx = LRO & %s-1"%(hex(kernel["MatrixInstM"])))
             kStr += inst("v_add_u32", \
                 vgpr(tP["gpr"]["lro"]), \
                 vgpr(rReg),\
                 vgpr(tP["gpr"]["lro"]), \
-                "")
+                "M_Koffset = Mi_Kidx + M_Koffset")
             kStr += inst("v_add_u32", \
                 vgpr(tP["gpr"]["lro"]), \
                 vgpr(tmpVgpraddr),\
                 vgpr(tP["gpr"]["lro"]), \
-                "")
+                "LRO = LRO + M_Koffset")
           else:
             kStr += inst("v_and_b32", \
                 vgpr(rReg), \
                 hex(globalParameters["WavefrontWidth"]-1), \
                 vgpr(dividendReg), \
-                "")
+                "WaveLaneoffset =  %s & %s-1"%(vgpr(dividendReg),hex(globalParameters["WavefrontWidth"])))
+            #optimization : fetch both MiK+0, MiK+B in single local Read
             kStr += inst("v_lshrrev_b32", \
                 vgpr(rReg), \
                 log2(kernel["MatrixInstM"]), \
                 vgpr(rReg), \
-                "KIdx = v1 >> %s"%(log2(kernel["MatrixInstM"])))
+                "N_KIdx = v1 >> %s"%(log2(kernel["MatrixInstM"])))
             if kernel["ProblemType"]["DataType"].isBFloat16() :
               #adjust (summation) K' index value for bfloat16/half
               kStr += inst("v_lshlrev_b32", \
                   vgpr(rReg), \
                   log2(self.bpr//tP["bpe"]), \
                   vgpr(rReg), \
-                  "KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstM"]),tP["bpe"]))
+                  "N_KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstN"]),tP["bpe"]))
             if kernel["ProblemType"]["DataType"].isHalf() :
               #adjust (summation) K' index value for bfloat16/half
               kStr += inst("v_lshlrev_b32", \
                   vgpr(rReg), \
                   log2(2*self.bpr//tP["bpe"]), \
                   vgpr(rReg), \
-                  "KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstM"]),tP["bpe"]))
+                  "N_KIdx = v1 %% %s*%s"%(log2(kernel["MatrixInstN"]),tP["bpe"]))
             kStr += inst("s_mov_b32", \
                 sgpr(tmpSgpr), \
                 hex(kernel["MacroTile1"]), \
@@ -5416,12 +5432,12 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr(rReg), \
                 sgpr(tmpSgpr), \
                 vgpr(rReg), \
-                "Koffset = Kidx+MT0")
+                "N_Koffset = N_Kidx+MT1")
             kStr += inst("v_add_u32", \
                 vgpr(tP["gpr"]["lro"]), \
                 vgpr(rReg),\
                 vgpr(tP["gpr"]["lro"]), \
-                "LaneOffset = WaveOffset + Koffset + LaneOffset")
+                "LRO = LRO + N_Koffset")
 
       kStr += inst("_v_add_lshl_u32", \
           vgpr("LocalReadAddr%s"%tc), \
@@ -7799,6 +7815,16 @@ class KernelWriterAssembly(KernelWriter):
     offsetMultiplier = 1 # instruction.offsetMultiplier
     #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx = 0
+
+    # cleanup code 
+    # simplify both f32, half/float16 code ; no need for branch (next optimization)
+    # remove unnecessary numReadsAlongK (numReadPerVector should take care of that)
+    # numVectorsPerTile = take care of numer of instructions per wave
+    # numReadsPerVector = take care of number of local reads required per instruction
+    # re-insert numberofOffset loop ; next optimization to fetch different colIdx/rowIdx for broadcast/swizzling option
+    # next clean-up 
+    #   transposeLDS case 
+
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
     if (kernel["MatrixInstruction"]):
       if tc == "A":
@@ -7819,7 +7845,7 @@ class KernelWriterAssembly(KernelWriter):
       numKperRead = 1 if kernel["MatrixInstB"] != 1 else globalParameters["WavefrontWidth"] // kernel["MatrixInstM"]
       numReadsPerVector = int((kernel["MatrixInstK"] * tP["bpe"]) // (numKperRead*blockWidth*self.bpr)) # TODO:
       if kernel["TransposeLDS"] == 1:
-        numReadsAlongK =1
+        numReadsPerVector=1
 
     loopIdx = self.unrollIdx
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]

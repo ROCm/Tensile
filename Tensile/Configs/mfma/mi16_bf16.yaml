@@ -1,0 +1,98 @@
+GlobalParameters:
+  MinimumRequiredVersion: 4.4.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  NumBenchmarks: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: -1
+  ValidationMaxToPrint: 0
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  PinClocks: True
+  SleepPercent: 0
+  PrintSolutionRejectionReason: True
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  #DataInitTypeC: 0
+  #DataInitTypeD: 0
+  DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
+  PrintTensorA: 0
+  PrintTensorB: 0
+  PrintTensorB: 0
+  PrintTensorD: 0
+  NewClient: 0
+
+BenchmarkProblems:
+  ########################################
+  # NT - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: B
+      DestDataType: B
+      ComputeDataType: s
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+      HighPrecisionAccumulate: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        #- LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 2, 4]
+          - [16, 16, 8, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 1, 16 ]
+          - [ 1, 32 ]
+          - [ 1, 48 ]
+          - [ 1, 64 ]
+          - [ 2, 16 ]
+          - [ 2, 32 ]
+          - [ 2, 48 ]
+          - [ 2, 64 ]
+          - [ 3, 16 ]
+          - [ 3, 32 ]
+          - [ 3, 48 ]
+          - [ 3, 64 ]
+          - [ 4, 16 ]
+          - [ 4, 32 ]
+          - [ 4, 48 ]
+          - [ 4, 64 ]
+        - WorkGroup:
+          #- [ 64, 4, 1 ]
+          #- [ 128, 2, 1 ]
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [1]
+        - GlobalSplitU: [1]
+        - InnerUnroll: [1]
+        - DepthU: [ 8,16,32 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 960, 1024, 1, 1024, 992,992,1056,1088 ]
+          - Exact: [ 960, 1024, 1, 1024, 1088,1088,1088,1088 ]
