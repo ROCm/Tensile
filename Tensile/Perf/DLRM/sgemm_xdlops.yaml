@@ -1,0 +1,149 @@
+# A config to generate a fast kernel(s) for  DLRM model GEMM problem sizes
+# problem sizes comes from Kaggle and Medium_4 data sets
+# update parameters to produce best kernel(S)
+# to keep number of kernel produced minimum 
+#   1) add new sections if certain paramters are more conducive to certain problem sizes
+#   2) create separate sections for replacement kernel(s)
+
+GlobalParameters:
+  MinimumRequiredVersion: 4.14.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 1
+  ValidationMaxToPrint: 0
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  PinClocks: False
+  SleepPercent: 0
+  PrintSolutionRejectionReason: True
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
+  PrintTensorA: 0
+  PrintTensorB: 0
+  PrintTensorD: 0
+  NewClient: 1
+
+
+BenchmarkProblems:
+
+  ########################################
+  # TN - 
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: True 
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+  ########################################
+  # TN - standard 2Blocks/Inst
+  #    - medium_4 dataset
+  ########################################
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+          - [16, 16, 1, 4]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 16 ]
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+        - WorkGroupMapping: [1]
+        - DirectToLds: [0]
+        - TransposeLDS: [1]
+        - LdsBlockSizePerPad: [128]
+        - LdsPadA: [4]
+        - LdsPadB: [4]
+        - GlobalSplitU: [1]
+        - DepthU: [ 16 ]
+        - VectorWidth: [1]
+        - GlobalReadVectorWidth: [4]
+        - InnerUnroll: [1]
+        - ScheduleIterAlg: [1]
+        - OptNoLoadLoop: [0]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 2048,512,1,2048,2070,2070,2070, 2102]
+          - Exact: [ 1024,512,1,2048,1056,1056,2070, 2102]
+          - Exact: [ 1024,512,1,1600,1056,1056,1632, 1664]
+          - Exact: [ 64,512,1,1024,96,96,1056, 1088]
+          - Exact: [ 2048,512,1,74,2070,2070,106,138]
+
+  ########################################
+  # TN - standard 2Blocks/Inst
+  #    - criteo_kaggle_26 dataset
+  ########################################
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 4, 1]
+        - ThreadTile:
+          - [ 1, 16 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [1]
+        - DirectToLds: [0]
+        - TransposeLDS: [1]
+        - LdsBlockSizePerPad: [128]
+        - LdsPadA: [4]
+        - LdsPadB: [4]
+        - GlobalSplitU: [1]
+        - DepthU: [ 16 ]
+        - VectorWidth: [1]
+        - GlobalReadVectorWidth: [4]
+        - InnerUnroll: [1]
+        - ScheduleIterAlg: [1]
+        - OptNoLoadLoop: [0]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 256,128,1,512]
+          - Exact: [ 512,128,1,367]
+          - Exact: [ 64,128,1,256]
+          - Exact: [ 64,128,1,256]
+          - Exact: [ 512,128,1,13]
+          - Exact: [ 16,128,1,64]
+          - Exact: [ 128,1,1,256]
+
+########################################
+LibraryLogic:
+    ScheduleName: "arcturus"
+    DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]

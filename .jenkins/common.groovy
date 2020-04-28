@@ -8,6 +8,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
+    String parallelJobs = jobName.contains('hipclang') ? "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2" : ":"
 
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit"
@@ -18,6 +19,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             hostname
 
             cd ${project.paths.project_build_prefix}
+            ${parallelJobs}
 
             #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins

@@ -201,6 +201,7 @@ class TextBlock(Item):
   def __init__(self,text):
     assert(isinstance(text, str))
     self.text = text
+    self.name = text
 
   def __str__(self):
     return self.text
@@ -318,7 +319,7 @@ class  MFMAInst (Inst):
       numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, self.innerUnroll):
-           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs,numOfDstRgs)
+           cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs)
            aStr = "v[%s+%u]" \
                % ("vgprValuA_X%u_I%u"%(self.PLR,iui), self.aIdx)
            bStr = "v[%s+%u]" \
