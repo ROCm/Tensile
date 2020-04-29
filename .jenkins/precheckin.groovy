@@ -48,8 +48,8 @@ def runCI =
 ci: { 
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
-    def propertyList = ["compute-rocm-dkms-no-npi":[]],
-                        "compute-rocm-dkms-no-npi-hipclang":[]],
+    def propertyList = ["compute-rocm-dkms-no-npi":[],
+                        "compute-rocm-dkms-no-npi-hipclang":[],
                         "rocm-docker":[]]
     propertyList = auxiliary.appendPropertyList(propertyList)
 
