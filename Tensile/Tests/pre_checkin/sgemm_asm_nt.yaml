@@ -17,7 +17,8 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
-  NewClient: 2
+  # NewClient: 2
+  NewClient: 0 # Temporarily revert pre_checkin tests to old client pending hipclang udpates
 
 BenchmarkProblems:
 

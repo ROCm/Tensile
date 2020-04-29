@@ -1,3 +1,6 @@
+GlobalParameters:
+  NewClient: 0 # Temporarily revert pre_checkin tests to old client pending hipclang udpates
+
 BenchmarkProblems:
   - # sgemm NT
     - # ProblemType

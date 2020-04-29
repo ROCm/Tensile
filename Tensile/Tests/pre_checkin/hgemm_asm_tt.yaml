@@ -3,6 +3,7 @@ GlobalParameters:
   NumElementsToValidate: -1
   BoundsCheck: True
   KernelTime: True
+  NewClient: 0 # Temporarily revert pre_checkin tests to old client pending hipclang udpates
 
 BenchmarkProblems:
   - # hgemm TT

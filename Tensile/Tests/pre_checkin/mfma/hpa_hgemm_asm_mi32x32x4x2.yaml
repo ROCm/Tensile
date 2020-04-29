@@ -5,6 +5,7 @@ GlobalParameters:
   NumElementsToValidate: 16384
   BoundsCheck: True
   KernelTime: True
+  NewClient: 0 # Temporarily revert pre_checkin tests to old client pending hipclang udpates
 
 BenchmarkProblems:
   ########################################
