@@ -780,7 +780,7 @@ class KernelWriterAssembly(KernelWriter):
       return self.regIdx
 
     def __int__(self):
-      return self.regIdx()
+      return self.idx()
 
     def __del__(self):
       self.regPool.checkIn(self.regIdx)
