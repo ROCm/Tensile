@@ -167,19 +167,24 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       subprocess.check_call(extractArgs, cwd=buildPath)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
+
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
+      hipFlags = ['-I', outputPath]
 
-      hipFlags += ['-I', outputPath]
-
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-shared', '-c', '-o', os.path.join(buildPath,soFilename)]
+      extractArgs = [globalParameters['ExtractKernelPath'], '-i', os.path.join(buildPath,soFilename)]
 
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      coFilenames = [soFilename]
+      if globalParameters["PrintCodeCommands"]:
+        print(' '.join(extractArgs))
+      subprocess.check_call(extractArgs, cwd=buildPath)
+
+      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
+
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
