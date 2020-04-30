@@ -162,6 +162,14 @@ run_tune_all_scripts () {
     cp ${TN}/3_LibraryLogic/* exact/
 }
 
+make_packages()
+{
+    make package
+    make package_clients
+    cp *.deb ../../../packages/library
+    cp clients/*.deb ../../../packages/client
+}
+
 mkdir ${OUTPUT_DIR}
 EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
 if [ -z ${NETWORK+foo} ]; then
@@ -189,8 +197,13 @@ if [[ "${LIBRARY}" != arcturus ]]; then
     python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
 fi
 
+mkdir packages
+mkdir packages/library
+mkdir packages/client
 pushd rocBLAS
 ./install.sh -c --build_dir reference-build 2>&1 | tee log-reference-build
+pushd reference-build/release
+popd
 
 if [[ "${LIBRARY}" != arcturus ]]; then
     cp ../library/massage/* library/src/blas3/Tensile/Logic/asm_full
@@ -200,6 +213,9 @@ else
     cp ../library/merge/* library/src/blas3/Tensile/Logic/asm_full
 fi
 ./install.sh -c --build_dir tuned-build 2>&1 | tee log-tuned-build
+pushd tuned-build/release
+make_packages
+popd
 
 cp ../scripts/*.sh reference-build/release/clients/staging
 cp ../scripts/*.sh tuned-build/release/clients/staging
@@ -213,7 +229,7 @@ pushd tuned-build/release/clients/staging
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
 popd
 
-mv ../scripts/${OUTPUT_DIR}-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
+mv ../scripts/*-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
 popd
 popd
 
