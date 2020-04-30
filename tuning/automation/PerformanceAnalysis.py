@@ -81,7 +81,7 @@ def ParseResults(inputPath, outputPath, resultsName):
 
 def getMultiplier(xdl):
 
-    if xdl == "enabled":
+    if xdl == "true":
         return 2
     
     return 1
@@ -102,7 +102,7 @@ def fillCallCounts(problemMapper, callCounts, callCount, callCountStrided, isOne
             midList = list()
             for key in klist:
                 if key == "transposeA" or key == "transposeB" or key == "f" or key == "i":
-                    if klist[key] == 10 and isOne == "enabled":
+                    if klist[key] == 10 and isOne == "true":
                         klist[key] = 1
                     midList.append(klist[key])
                 if len(midList) == 4:
@@ -191,8 +191,8 @@ def RunMain():
     argParser.add_argument("data_size", help="data size",type=int,default=2)
     argParser.add_argument("input_file_name", help="configuration file path")
     argParser.add_argument("gpu", help="which gpu was used", type=str,default="vega20") 
-    argParser.add_argument("mfma", help="were mfma instructions enabled", type=str,default="disabled")
-    argParser.add_argument("is_count_1", help="were mfma instructions enabled", type=str,default="disabled")
+    argParser.add_argument("mfma", help="were mfma instructions enabled", type=str,default="false")
+    argParser.add_argument("is_count_1", help="were mfma instructions enabled", type=str,default="false")
     
     args = argParser.parse_args(userArgs)
 

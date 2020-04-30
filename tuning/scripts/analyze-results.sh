@@ -3,6 +3,8 @@
 HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r|--reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-c|--count] [-h|--help]"
 HELP=false
 PLOT=true
+MFMA=false
+COUNT=false
 
 OPTS=`getopt -o hf:s:b:o:r:z:g:mcn --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma,count,no-plot -n '
 parse-options' -- "$@"`
@@ -20,9 +22,9 @@ while true; do
     -z )                       LOG="$2"; shift 2;;
     -f )                       FREQ="$2"; shift 2;;
     -s )                       SZ="$2"; shift 2;;
-    -g | --gpu ) 	       GPU="$2"; shift 2;;
-    -m | --mfma )	       MFMA=true; shift ;;
-    -c | --count )	       COUNT=true; shift ;;
+    -g | --gpu ) 	           GPU="$2"; shift 2;;
+    -m | --mfma )	           MFMA=true; shift ;;
+    -c | --count )	           COUNT=true; shift ;;
     -n | --no-plot )           PLOT=false; shift ;;
     -- ) shift; break ;;
     * ) break ;;
@@ -67,18 +69,6 @@ fi
 if [ -z ${GPU+foo} ]; then
    printf "GPU not specified, assuming MI60\n"
    GPU=vega20
-fi
-
-if [ -z ${COUNT} ]; then
-   COUNT=disabled
-else
-   COUNT=enabled
-fi
-
-if [ -z ${MFMA} ]; then
-   MFMA=disabled
-else
-   MFMA=enabled
 fi
 
 CASE_REFERENCE=${OUTPUT_PATH}/reference
