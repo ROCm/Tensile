@@ -320,8 +320,8 @@ namespace Tensile
         std::string const& dNames()   const { return m_dNames; }
         std::string const& sumNames() const { return m_sumNames; }
 
-        bool transA() const { return m_transA; }
-        bool transB() const { return m_transB; }
+        bool transA() const { return m_aNames == "lik"; }
+        bool transB() const { return m_bNames == "jlk"; }
 
         std::string operationName() const;
         std::string const& operationIdentifier()   const { return m_operationIdentifier; }

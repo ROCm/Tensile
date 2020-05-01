@@ -214,7 +214,8 @@ namespace Tensile
     }
 
 
-    template <typename TypedInputs>
+
+    template <typename TypedInputs, bool T_Debug>
     KernelInvocation ContractionSolution::generateSingleCall(ContractionSolution::Problem const& problem,
                                                              TypedInputs                  const& inputs,
                                                              Hardware                     const& hardware) const
@@ -228,8 +229,7 @@ namespace Tensile
 
         KernelInvocation rv;
 
-        bool debug = Debug::Instance().printKernelArguments();
-        rv.args = KernelArguments(debug);
+        rv.args = KernelArguments(T_Debug);
 
         rv.args.reserve(1024, 128);
 
@@ -297,7 +297,7 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            uint64_t tensor2dSizeC = 0;
+            uint64_t tensor2dSizeC = c.totalAllocatedElements();
             uint64_t tensor2dSizeA = (sizeMapping.packBatchDims & 0x1) ? a.totalAllocatedElements() : problem.allocatedElementsNonBatchA() ;
             uint64_t tensor2dSizeB = (sizeMapping.packBatchDims & 0x2) ? b.totalAllocatedElements() : problem.allocatedElementsNonBatchB() ;
 
@@ -326,22 +326,22 @@ namespace Tensile
         size_t startStrideAB = problemType.useInitialStridesAB ? 0:1;
 
         for(size_t i = startStrideCD; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i), d.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i), d.strides()[i]);
 
         for(size_t i = startStrideCD; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), c.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.strides()[i]);
 
         for(size_t i = startStrideAB; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideA", i), a.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
 
         for(size_t i = startStrideAB; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideB", i), b.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
 
         {
             int idx=0;
             for(auto size: problem.problemSizes())
             {
-                rv.args.append<uint32_t>(concatenate("size_",idx), size);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_",idx), size);
                 idx++;
             }
         }
@@ -357,18 +357,18 @@ namespace Tensile
                     numIter = numIter / sizeMapping.depthU / sizeMapping.globalSplitU * sizeMapping.depthU;
                 }
                 uint32_t magicShift;
-                rv.args.append<uint32_t>(concatenate("magicNumberNumIter_",si),
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicNumberNumIter_",si),
                                           magicNumber(sizeMapping.magicDivAlg, numIter, &magicShift));
-                rv.args.append<uint32_t>(concatenate("magicShiftNumIter_",si), magicShift);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicShiftNumIter_",si), magicShift);
 
                 if (isUnroll and sizeMapping.globalSplitU>1)
                 {
                     // compute magic number for gsu remainder iterations:
                     // Kernel will select whether to use above or remainder portion based on work-group assignment
-                    rv.args.append<uint32_t>(concatenate("magicNumberNumIter_GsuRemainder"),
+                    rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicNumberNumIter_GsuRemainder"),
                                               magicNumber(sizeMapping.magicDivAlg, 
                                                 numIter+sizeMapping.depthU, &magicShift));
-                    rv.args.append<uint32_t>(concatenate("magicShiftNumIter_GsuRemainder"), magicShift);
+                    rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicShiftNumIter_GsuRemainder"), magicShift);
                 }
             }
 
@@ -382,9 +382,9 @@ namespace Tensile
                 auto idx = *pi;
                 auto size = a.sizes()[idx];
                 uint32_t magicShift;
-                rv.args.append<uint32_t>(concatenate("magicNumberSizeA_",idx),
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicNumberSizeA_",idx),
                                           magicNumber(sizeMapping.magicDivAlg, size, &magicShift));
-                rv.args.append<uint32_t>(concatenate("magicShiftSizeA_",idx), magicShift);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicShiftSizeA_",idx), magicShift);
             }
         }
         if (problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
@@ -397,9 +397,9 @@ namespace Tensile
                 auto idx = *pi;
                 auto size = b.sizes()[idx];
                 uint32_t magicShift;
-                rv.args.append<uint32_t>(concatenate("magicNumberSizeB_",idx),
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicNumberSizeB_",idx),
                                           magicNumber(sizeMapping.magicDivAlg, size, &magicShift));
-                rv.args.append<uint32_t>(concatenate("magicShiftSizeB_",idx), magicShift);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("magicShiftSizeB_",idx), magicShift);
             }
         }
 
@@ -407,16 +407,16 @@ namespace Tensile
         {
             if (si.aZeroPad.valid())
             {
-                rv.args.append<int32_t>(concatenate("padStartA_",si.a),
+                rv.args.append<int32_t>(concatenate_if<T_Debug>("padStartA_",si.a),
                             si.aZeroPad.padStart);
-                rv.args.append<int32_t>(concatenate("padEndA_",si.a),
+                rv.args.append<int32_t>(concatenate_if<T_Debug>("padEndA_",si.a),
                             si.aZeroPad.padEnd );
             }
             if (si.bZeroPad.valid())
             {
-                rv.args.append<int32_t>(concatenate("padStartB_",si.b),
+                rv.args.append<int32_t>(concatenate_if<T_Debug>("padStartB_",si.b),
                             si.bZeroPad.padStart);
-                rv.args.append<int32_t>(concatenate("padEndB_",si.b),
+                rv.args.append<int32_t>(concatenate_if<T_Debug>("padEndB_",si.b),
                             si.bZeroPad.padEnd);
             }
         }
@@ -459,7 +459,7 @@ namespace Tensile
         return sizeMapping.sourceKernel;
     }
 
-    template <typename TypedInputs>
+    template <typename TypedInputs, bool T_Debug>
     KernelInvocation ContractionSolution::generateBetaOnlyCall(Problem     const& problem,
                                                                TypedInputs const& inputs,
                                                                Hardware    const& hardware) const
@@ -469,8 +469,7 @@ namespace Tensile
 
         KernelInvocation rv;
 
-        bool debug = Debug::Instance().printKernelArguments();
-        rv.args = KernelArguments(debug);
+        rv.args = KernelArguments(T_Debug);
 
         rv.args.reserve(512, 64);
 
@@ -502,15 +501,15 @@ namespace Tensile
         rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
 
         for(size_t i = 1; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i), d.sizes()[i] == 1 ? 0 : d.strides()[i]);
 
         for(size_t i = 1; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.sizes()[i] == 1 ? 0 : c.strides()[i]);
 
         int idx=0;
         for(auto size: problem.d().sizes())
         {
-            rv.args.append<uint32_t>(concatenate("size_",idx), size);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_",idx), size);
             idx++;
         }
 
@@ -528,8 +527,8 @@ namespace Tensile
                                                         Hardware    const& hardware) const
     {
         std::string name = concatenate("C", problem.cNames(),
-                                        "_",
-                                        TypeInfo<typename TypedInputs::DType>::Abbrev());
+                                       "_",
+                                       TypeInfo<typename TypedInputs::DType>::Abbrev());
 
         if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
         {
@@ -544,6 +543,8 @@ namespace Tensile
                                     TypedInputs const& inputs,
                                     Hardware    const& hardware) const
     {
+        bool debug = Debug::Instance().printKernelArguments();
+
         std::vector<KernelInvocation> rv;
 
         if(sizeMapping.globalSplitU > 1)
@@ -552,9 +553,17 @@ namespace Tensile
             rv.reserve(1);
 
         if(sizeMapping.globalSplitU > 1)
-            rv.push_back(generateBetaOnlyCall(problem, inputs, hardware));
+        {
+            if(debug)
+                rv.push_back(generateBetaOnlyCall<TypedInputs, true>(problem, inputs, hardware));
+            else
+                rv.push_back(generateBetaOnlyCall<TypedInputs, false>(problem, inputs, hardware));
+        }
 
-        rv.push_back(generateSingleCall(problem, inputs, hardware));
+        if(debug)
+            rv.push_back(generateSingleCall<TypedInputs, true>(problem, inputs, hardware));
+        else
+            rv.push_back(generateSingleCall<TypedInputs, false>(problem, inputs, hardware));
 
         return rv;
     }

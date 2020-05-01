@@ -38,10 +38,14 @@ class ReplacementKernels:
     def getKernelName(self, filename):
         marker = self.marker
 
-        with open(filename, 'r') as f:
-            for line in f:
-                if line.startswith(marker):
-                    return line[len(marker):].strip()
+        try:
+            with open(filename, 'r') as f:
+                for line in f:
+                    if line.startswith(marker):
+                        return line[len(marker):].strip()
+        except Exception:
+            print(filename)
+            raise
         raise RuntimeError("Could not parse kernel name from {}".format(filename))
 
     @property
@@ -49,6 +53,9 @@ class ReplacementKernels:
         if not self._cache:
             self._cache = self.generateCache()
         return self._cache
+
+    def populateCache(self):
+        _ = self.cache
 
     def generateCache(self):
         cache = {}

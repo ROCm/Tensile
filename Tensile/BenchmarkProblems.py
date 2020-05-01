@@ -592,7 +592,7 @@ class WinningParameterDict:
   def addResults( self, hardcodedParameterList, benchmarkPermutations, \
       solutions, results):
     print1("# Adding Results to Solution Database")
-    for hardcodedIdx,hardcodedResults in enumerate(Utils.tqdm(results)):
+    for hardcodedIdx,hardcodedResults in Utils.tqdm(enumerate(results)):
       if not hardcodedResults: continue
       
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]

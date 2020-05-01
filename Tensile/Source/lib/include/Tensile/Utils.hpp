@@ -113,6 +113,15 @@ namespace Tensile
         return msg.str();
     }
 
+    template <bool T_Enable, typename... Ts>
+    inline std::string concatenate_if(Ts const&... vals)
+    {
+        if(!T_Enable)
+            return "";
+
+        return concatenate(vals...);
+    }
+
     template <typename T, size_t N>
     inline std::ostream & operator<<(std::ostream & stream, std::array<T, N> const& array)
     {
