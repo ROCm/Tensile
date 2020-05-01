@@ -51,10 +51,10 @@ TEST(Cache, Simple)
 
     EXPECT_EQ(-1, cache.find(5));
 
-    cache.add(5, 7);
+    cache.add(7, 5);
     EXPECT_EQ(7, cache.find(5));
 
-    cache.add(5, 9);
+    cache.add(9, 5);
     EXPECT_EQ(7, cache.find(5));
 }
 
@@ -81,7 +81,7 @@ TEST(Cache, Threaded)
             if(lookup != -1)
                 EXPECT_EQ(lookup, value);
 
-            cache.add(key, value);
+            cache.add(value, key);
             EXPECT_EQ(value, cache.find(key));
         }
     }

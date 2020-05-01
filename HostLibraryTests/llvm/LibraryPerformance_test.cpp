@@ -119,6 +119,28 @@ TEST_P(LibraryPerformanceTest, FindSolution)
     }
 }
 
+TEST_P(LibraryPerformanceTest, FindCachedSolution)
+{
+    for(int i = 0; i < 100; i++)
+    {
+        auto problem = RandomGEMM();
+        auto solution = library->findBestSolution(problem, hardware);
+
+        if(solutionRequired)
+            ASSERT_NE(solution, nullptr) << i << problem;
+    }
+
+    auto problem = RandomGEMM();
+
+    for(int i = 0; i < 1000000; i++)
+    {
+        auto solution = library->findBestSolution(problem, hardware);
+
+        if(solutionRequired)
+            ASSERT_NE(solution, nullptr) << i << problem;
+    }
+}
+
 TEST_P(LibraryPerformanceTest, Solve)
 {
     float a, b, c, d;

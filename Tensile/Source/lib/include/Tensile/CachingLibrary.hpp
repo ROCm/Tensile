@@ -38,9 +38,34 @@
 
 namespace Tensile
 {
-    template <typename Key, typename Value>
+    template <typename Value, typename Key, typename... Keys>
+    struct MultiLevelMap
+    {
+        using type = typename MultiLevelMap<std::unordered_map<Key, Value>, Keys...>::type;
+    };
+
+    template <typename Value, typename Key>
+    struct MultiLevelMap<Value, Key>
+    {
+        using type = std::unordered_map<Key, Value>;
+    };
+
+    /**
+     * Thread-safe multi-valued cache.
+     * 
+     * Note that due to a quirk with templates, the order of the keys in find() and add() is *opposite* of that in the type.
+     * 
+     * e.g.
+     * 
+     *     CacheMap<int, float, std::string> myCache
+     *     myCache.find("foo", 1.4); // great
+     *     myCache.find(1.4, "foo"); // error!
+     */
+    template <typename Value, typename... Keys>
     class CacheMap
     {
+        using Map = typename MultiLevelMap<Value, Keys...>::type;
+
     public:
         CacheMap(Value const& nullValue)
             : m_nullValue(nullValue),
@@ -56,34 +81,67 @@ namespace Tensile
                 std::cout << "CacheMap: " << m_hits << "/" << m_lookups << " cache hits" << std::endl;
         }
 
-        Value find(Key const& key)
+        template <typename... Ks>
+        Value find(Ks const&... keys)
         {
             std::shared_lock<std::shared_timed_mutex> lock(m_mutex);
 
-            auto iter = m_map.find(key);
+            auto rv = find_impl(m_map, keys...);
 
             if(m_lookupEfficiency)
             {
                 m_lookups++;
-                if(iter != m_map.end())
+                if(rv != m_nullValue)
                     m_hits++;
             }
 
-            if(iter != m_map.end())
-                return iter->second;
-
-            return m_nullValue;
+            return rv;
         }
 
-        void add(Key const& key, Value const& value)
+        template <typename... Ks>
+        void add(Value const& value, Ks const&... ks)
         {
             std::lock_guard<std::shared_timed_mutex> lock(m_mutex);
 
-            m_map.emplace(key, value);
+            add_impl(m_map, value, ks...);
         }
 
     private:
-        std::unordered_map<Key, Value> m_map;
+        template <typename SubMap, typename K>
+        Value find_impl(SubMap const& map, K const& key)
+        {
+            auto iter = map.find(key);
+
+            if(iter == map.end())
+                return m_nullValue;
+
+            return iter->second;
+        }
+
+        template <typename SubMap, typename K, typename... Ks>
+        Value find_impl(SubMap const& map, K const& key, Ks const&... ks)
+        {
+            auto iter = map.find(key);
+
+            if(iter == map.end())
+                return m_nullValue;
+
+            return find_impl(iter->second, ks...);
+        }
+
+        template <typename SubMap, typename K>
+        void add_impl(SubMap & map, Value const& value, K const& key)
+        {
+            map.emplace(key, value);
+        }
+
+        template <typename SubMap, typename K, typename... Ks>
+        void add_impl(SubMap & map, Value const& value, K const& key, Ks const&... ks)
+        {
+            add_impl(map[key], value, ks...);
+        }
+
+        Map m_map;
         std::shared_timed_mutex m_mutex;
         Value m_nullValue;
 
@@ -97,8 +155,7 @@ namespace Tensile
     {
     public:
         using Library = SolutionLibrary<MyProblem, MySolution>;
-        using Key = std::tuple<MyProblem, AMDGPU>;
-        using Cache = CacheMap<Key, std::shared_ptr<MySolution>>;
+        using Cache = CacheMap<std::shared_ptr<MySolution>, AMDGPU, MyProblem>;
 
         CachingLibrary(std::shared_ptr<Library> subLibrary)
             : m_subLibrary(subLibrary),
@@ -111,15 +168,14 @@ namespace Tensile
         {
             try
             {
-                auto amdgpu = dynamic_cast<AMDGPU const&>(hardware);
-                auto key = std::make_tuple(problem, amdgpu);
+                auto const& amdgpu = dynamic_cast<AMDGPU const&>(hardware);
 
-                auto rv = m_cache.find(key);
+                auto rv = m_cache.find(problem, amdgpu);
                 if(rv) return rv;
 
                 rv = m_subLibrary->findBestSolution(problem, hardware);
                 if(rv)
-                    m_cache.add(key, rv);
+                    m_cache.add(rv, problem, amdgpu);
 
                 return rv;
             }
@@ -140,10 +196,9 @@ namespace Tensile
             findSolutionInCache(MyProblem const& problem,
                                 Hardware  const& hardware) const
         {
-            auto amdgpu = dynamic_cast<AMDGPU const&>(hardware);
-            auto key = std::make_tuple(problem, amdgpu);
+            auto const& amdgpu = dynamic_cast<AMDGPU const&>(hardware);
 
-            return m_cache.find(key);
+            return m_cache.find(problem, amdgpu);
         }
 
         virtual std::string type() const override
