@@ -471,19 +471,24 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
-def calculateStrides(sizes, stridePadding, indexAssignments, elementSize):
+TasConfig = collections.namedtuple ("TasConfig", ["name", "mtScale", "ksweep", "padBytes", "minLeadingStride"])
+
+def calculateStrides(sizes, stridePadding, indexAssignments, elementSize, minLeadingStride):
     strides = [1]*len(indexAssignments)
     lastStride = strides[0] = int(1+stridePadding[0])
     for i in range(1,len(strides)):
         strides[i] = lastStride * sizes[indexAssignments[i-1]]
         if strides[i]*elementSize>256:
             strides[i] += stridePadding[i]
+        if i==1 and minLeadingStride>=0:
+            strides[i] = max(strides[i],minLeadingStride)
         lastStride = strides[i] = int(strides[i])
+
 
     return strides
 
 
-def calculateTasSize(problemType, idealM, idealN, idealK):
+def calculateTasSize(problemType, idealM, idealN, idealK, tasConfig):
   # lowest-order non-bound (free or batch) index
   nonBoundA0Index = [p for p in problemType["IndexAssignmentsA"] if p not in problemType["IndicesSummation"]][0]
   nonBoundB0Index = [p for p in problemType["IndexAssignmentsB"] if p not in problemType["IndicesSummation"]][0]
@@ -492,18 +497,23 @@ def calculateTasSize(problemType, idealM, idealN, idealK):
   idealSize[nonBoundA0Index] = idealM
   idealSize[nonBoundB0Index] = idealN
   idealSize[bound0Index] = idealK
-  padAB = globalParameters["TileAwareDimPadBytes"] / problemType["DataType"].numBytes()
-  padCD = globalParameters["TileAwareDimPadBytes"] / problemType["DestDataType"].numBytes()
+  padAB = tasConfig.padBytes / problemType["DataType"].numBytes()
+  padCD = tasConfig.padBytes / problemType["DestDataType"].numBytes()
   idealProblem = collections.OrderedDict()
   idealProblem['sizes']=idealSize
 
   padsAB = [0] + [padAB] * (problemType["TotalIndices"] - 1)
-  idealProblem['stridesA']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsA"], problemType["DataType"].numBytes())
-  idealProblem['stridesB']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsB"], problemType["DataType"].numBytes())
+  idealProblem['stridesA']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsA"], \
+                                            problemType["DataType"].numBytes(), tasConfig.minLeadingStride)
+  idealProblem['stridesB']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsB"], \
+                                            problemType["DataType"].numBytes(), tasConfig.minLeadingStride)
   padsCD = [0] + [padAB] * (problemType["TotalIndices"] - 1)
-  idealProblem['stridesC']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]), problemType["DestDataType"].numBytes())
-  idealProblem['stridesD']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]), problemType["DestDataType"].numBytes())
+  idealProblem['stridesC']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]), \
+                                            problemType["DestDataType"].numBytes(), tasConfig.minLeadingStride)
+  idealProblem['stridesD']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]),
+                                            problemType["DestDataType"].numBytes(), tasConfig.minLeadingStride)
   return idealProblem
+
 
 ################################################################################
 # Write Benchmark Files
@@ -570,12 +580,22 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       maxMacroTile0 = max(maxMacroTile0, solution["MacroTile0"])
       maxMacroTile1 = max(maxMacroTile1, solution["MacroTile1"])
     idealSizes = []
-    print ("Starting tile-aware solution creation:")
-    for (tileScale0, tileScale1) in ((36,36),(32,16)):
-      for idealK in solutionSummationSizes:
-        idealProblem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, idealK)
-        idealSizes.append({"Exact": idealProblem})
-        print (idealSizes[-1])
+    tasConfigs = [ \
+          TasConfig(name="ideal", mtScale=[32,16], ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1),
+          TasConfig(name="channel_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
+                          padBytes=0, minLeadingStride=-1),
+          #TasConfig(name="tlb_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
+          #                padBytes=0, minLeadingStride=32768+256),
+          ]
+
+    for tasConfig in tasConfigs:
+        (tileScale0,tileScale1) = tasConfig.mtScale
+        for idealK in tasConfig.ksweep:
+          idealProblem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, idealK, tasConfig)
+          #print (idealProblem)
+          idealSizes.append({"Exact": idealProblem})
+
 
     idealProblemSizes = ProblemSizes(problemType, idealSizes)
     writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
