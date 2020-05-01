@@ -1,4 +1,3 @@
-
 /*******************************************************************************
  *
  * MIT License
@@ -31,21 +30,31 @@
 #include <Tensile/Distance.hpp>
 
 #include <cstddef>
+#include <unordered_set>
 
 namespace Tensile
 {
     namespace Serialization
     {
-        template <typename Key, typename MyProblem, typename Element, typename Return, typename IO>
-        struct MappingTraits<Matching::DistanceMatchingTable<Key, MyProblem, Element, Return>, IO>
+        template <typename Key, typename MyProblem, typename Element, typename Return, typename Distance, typename IO>
+        struct MappingTraits<Matching::DistanceMatchingTable<Key, MyProblem, Element, Return, Distance>, IO>
         {
-            using Table = Matching::DistanceMatchingTable<Key, MyProblem, Element, Return>;
+            using Table = Matching::DistanceMatchingTable<Key, MyProblem, Element, Return, Distance>;
             using iot = IOTraits<IO>;
 
             static void mapping(IO & io, Table & table)
             {
                 iot::mapRequired(io, "table",      table.table);
-                iot::mapRequired(io, "distance",   table.distance);
+
+                if(!iot::outputting(io))
+                {
+                    using Entry = typename Table::Entry;
+                    auto comp = [](Entry const& e1, Entry const& e2)
+                    {
+                        return e1.key < e2.key || (e1.key == e2.key && e1.speed > e2.speed);
+                    };
+                    std::sort(table.table.begin(), table.table.end(), comp);
+                }
             }
 
             const static bool flow = false;
@@ -72,19 +81,19 @@ namespace Tensile
 
                 bool success = false;
                 if(properties.size() == 0)      iot::setError(io, "Matching table must have at least one property.");
-                else if(properties.size() ==  1) success = mappingKey<std::array<size_t,  1>>(io, lib, properties);
-                else if(properties.size() ==  2) success = mappingKey<std::array<size_t,  2>>(io, lib, properties);
-                else if(properties.size() ==  3) success = mappingKey<std::array<size_t,  3>>(io, lib, properties);
-                else if(properties.size() ==  4) success = mappingKey<std::array<size_t,  4>>(io, lib, properties);
-                else if(properties.size() ==  5) success = mappingKey<std::array<size_t,  5>>(io, lib, properties);
-                else if(properties.size() ==  6) success = mappingKey<std::array<size_t,  6>>(io, lib, properties);
-                else if(properties.size() ==  7) success = mappingKey<std::array<size_t,  7>>(io, lib, properties);
-                else if(properties.size() ==  8) success = mappingKey<std::array<size_t,  8>>(io, lib, properties);
-                else if(properties.size() ==  9) success = mappingKey<std::array<size_t,  9>>(io, lib, properties);
-                else if(properties.size() == 10) success = mappingKey<std::array<size_t, 10>>(io, lib, properties);
+                else if(properties.size() ==  1) success = mappingKey<std::array<int64_t,  1>>(io, lib, properties);
+                else if(properties.size() ==  2) success = mappingKey<std::array<int64_t,  2>>(io, lib, properties);
+                else if(properties.size() ==  3) success = mappingKey<std::array<int64_t,  3>>(io, lib, properties);
+                else if(properties.size() ==  4) success = mappingKey<std::array<int64_t,  4>>(io, lib, properties);
+                else if(properties.size() ==  5) success = mappingKey<std::array<int64_t,  5>>(io, lib, properties);
+                else if(properties.size() ==  6) success = mappingKey<std::array<int64_t,  6>>(io, lib, properties);
+                else if(properties.size() ==  7) success = mappingKey<std::array<int64_t,  7>>(io, lib, properties);
+                else if(properties.size() ==  8) success = mappingKey<std::array<int64_t,  8>>(io, lib, properties);
+                else if(properties.size() ==  9) success = mappingKey<std::array<int64_t,  9>>(io, lib, properties);
+                else if(properties.size() == 10) success = mappingKey<std::array<int64_t, 10>>(io, lib, properties);
 
                 if(!success)
-                    success = mappingKey<std::vector<size_t>>(io, lib, properties);
+                    success = mappingKey<std::vector<int64_t>>(io, lib, properties);
 
                 if(!success)
                     iot::setError(io, "Can't write out key: wrong type.");
@@ -94,7 +103,43 @@ namespace Tensile
             template <typename Key>
             static bool mappingKey(IO & io, Library & lib, Properties const& properties)
             {
-                using Table = Matching::DistanceMatchingTable<Key, MyProblem, Element, std::shared_ptr<MySolution>>;
+                std::string distanceType;
+
+                if(iot::outputting(io))
+                    distanceType = lib.table->distanceType();
+
+                iot::mapRequired(io, "distance", distanceType);
+
+                bool success = false;
+
+                if(distanceType == "Euclidean")
+                {
+                    success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "Manhattan")
+                {
+                    success = mappingDistance<Key, Matching::ManhattanDistance<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "Ratio")
+                {
+                    success = mappingDistance<Key, Matching::RatioDistance<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "Random")
+                {
+                    success = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);
+                }
+                else
+                {
+                    iot::setError(io, concatenate("Unknown distance function", distanceType));
+                }
+
+                return success;
+            }
+
+            template <typename Key, typename Distance>
+            static bool mappingDistance(IO & io, Library & lib, Properties const& properties)
+            {
+                using Table = Matching::DistanceMatchingTable<Key, MyProblem, Element, std::shared_ptr<MySolution>, Distance>;
 
                 std::shared_ptr<Table> table;
 

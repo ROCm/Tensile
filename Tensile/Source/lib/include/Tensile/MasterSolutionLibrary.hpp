@@ -26,6 +26,13 @@
 
 #pragma once
 
+#include <map>
+#include <memory>
+
+#include <Tensile/SolutionLibrary.hpp>
+
+#include <Tensile/Tensile.hpp>
+
 namespace Tensile
 {
 

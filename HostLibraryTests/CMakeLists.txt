@@ -49,7 +49,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.17.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.18.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -153,7 +153,9 @@ endif()
 
 if(TENSILE_USE_HIP)
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
-    #target_link_libraries(TensileTests PRIVATE "--amdgpu-target=gfx900")
+    foreach(arch IN LISTS TENSILE_GPU_ARCHS)
+        target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")
+    endforeach(arch)
 endif()
 
 if(TENSILE_USE_OPENMP)

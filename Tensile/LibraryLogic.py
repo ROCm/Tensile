@@ -42,6 +42,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   solutionsList = []
   problemSizesList = []
   dataFileNameList = []
+  selectionFileNameList = []
+
   for problemSizeGroup in problemSizeGroups:
     problemSizes = problemSizeGroup[0]
     dataFileName = problemSizeGroup[1]
@@ -50,6 +52,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     #print "  problemSizes:", problemSizes
     #print "# DataFileName:", dataFileName
     #print "  solutionsFileName:", solutionsFileName
+    if enableTileSelection:
+      selectionFileName = problemSizeGroup[3]
+      selectionFileNameList.append(selectionFileName) 
 
     ######################################
     # Read Solutions
@@ -71,6 +76,11 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   # Create Logic Analyzer
   logicAnalyzer = LogicAnalyzer( problemType, problemSizesList, solutionsList, \
       dataFileNameList, inputParameters)
+
+  selectionSolutionsIdsList = None
+  selectionSolutions = None
+
+  validSelectionSolutions = []
 
   ######################################
   # Remove invalid solutions
@@ -102,49 +112,38 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
       line += "\n"
     print(line)
 
-  ######################################
-  # Print solutions used
-  print1("# Solutions Used:")
-  for i in range(0, len(logicAnalyzer.solutions)):
-    s = logicAnalyzer.solutions[i]
-    s["SolutionIndex"] = i
-    s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
-    print1("(%2u) %s : %s" % (i, \
-        Solution.getNameMin(s, solutionMinNaming), \
-        Solution.getNameFull(s)))  # this is the right name
-
-  selectionSolutionsIdsList = None 
-  selectionSolutions = None
   if enableTileSelection:
-    validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, problemSizeGroups)
+    if globalParameters["NewClient"] == 2:
+      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
+          logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
+    else:
+      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionOldClient(problemType, problemSizeGroups)
   
     validSelectionSolutionsIncluded = []
     validSelectionSolutionsRemainder = []
+    selectionSolutionsIds = set([])
     for validSelectionSolution in validSelectionSolutions:
-      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      (validSolution, validSolutionInfo) = validSelectionSolution
       if validSolution in logicAnalyzer.solutions:
         validExactSolutionIndex = logicAnalyzer.solutions.index(validSolution)
+        selectionSolutionsIds.add(validExactSolutionIndex)
         validExactSolution = logicAnalyzer.solutions[validExactSolutionIndex]
-        validSelectionSolutionsIncluded.append((validSolutionName, validExactSolution, validSolutionInfo))
+        validSelectionSolutionsIncluded.append((validExactSolution, validSolutionInfo))
       else:
         validSelectionSolutionsRemainder.append(validSelectionSolution)
 
     selectionSolutions = []
-    selectionSolutionsIds = set([])
     for i in range(0 ,len(validSelectionSolutionsIncluded)):
       validSelectionSolution = validSelectionSolutionsIncluded[i]
-      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      (validSolution, validSolutionInfo) = validSelectionSolution
       validSolution["Ideals"] = validSolutionInfo
-      selectionSolutionsIds.add(validSolution["SolutionIndex"])
-      #selectionSolutions.append(validSolution)
 
     solutionsStartIndex = len(logicAnalyzer.solutions)
 
     for i in range(0, len(validSelectionSolutionsRemainder)):
       validSelectionSolution = validSelectionSolutionsRemainder[i]
-      (validSolutionName, validSolution, validSolutionInfo) = validSelectionSolution
+      (validSolution, validSolutionInfo) = validSelectionSolution
       selectionSolutionIndex = solutionsStartIndex + i
-      validSolution["SolutionIndex"] = selectionSolutionIndex
       selectionSolutionsIds.add(selectionSolutionIndex)
       validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
       validSolution["Ideals"] = validSolutionInfo

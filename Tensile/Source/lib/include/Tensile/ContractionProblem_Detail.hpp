@@ -97,7 +97,7 @@ namespace std
     template <>
     struct hash<Tensile::ContractionProblem>
     {
-        inline size_t operator()(Tensile::ContractionProblem const& problem)
+        inline size_t operator()(Tensile::ContractionProblem const& problem) const
         {
             return Tensile::hash_combine(
                 problem.operationIdentifier(),

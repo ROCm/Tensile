@@ -194,6 +194,7 @@ namespace Tensile
               m_cMaxElements(0),
               m_dMaxElements(0),
               m_cEqualsD(args["c-equal-d"].as<bool>()),
+              m_elementsToValidate (args["num-elements-to-validate"].as<int>()),
               m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
               //, m_boundsCheck(args["bounds-check"].as<bool>())
         {

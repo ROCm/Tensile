@@ -127,7 +127,7 @@ class BenchmarkProcess:
 
     ############################################################################
     # Ensure only valid solution parameters were requested
-    validParameterNames = list(validParameters.keys())
+    validParameterNames = set(validParameters.keys())
     for paramDictList in [configBenchmarkCommonParameters, \
         configForkParameters, configBenchmarkForkParameters, \
         configBenchmarkJoinParameters]:
@@ -139,7 +139,7 @@ class BenchmarkProcess:
             else:
               if paramName not in validParameterNames:
                 printExit("Invalid parameter name: %s\nValid parameters are %s." \
-                    % (paramName, validParameterNames))
+                    % (paramName, sorted(validParameterNames)))
               paramValues = paramDict[paramName]
               for paramValue in paramValues:
                 if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:

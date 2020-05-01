@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,19 +20,21 @@
 ################################################################################
 
 from . import __version__
+from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
 from subprocess import Popen, PIPE
 
-import itertools
+
 import math
 import os.path
 import subprocess
 import sys
 import time
 
-
 startTime = time.time()
+
+ParallelMap = Parallel.ParallelMap
 
 # print level
 # 0 - user wants no printing
@@ -54,6 +56,7 @@ globalParameters["KernelTime"] = False            # T=use device timers, F=use h
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
 # timing between GSU / non-GSU kernels
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
+globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -136,7 +139,7 @@ globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=a
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
-globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hcc, etc)
+globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 
 # TODO - remove this when NewClient is mainstream
 globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
@@ -171,11 +174,12 @@ globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ens
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/bin/hcc
+globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
+globalParameters["HipClangVersion"] = "0,0,0"
 globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
@@ -194,6 +198,12 @@ globalParameters["ClientArgs"] = ""
 globalParameters["NewClientArgs"] = ""
 globalParameters["PackageLibrary"] = False
 globalParameters["LegacyComponents"] = True
+
+# perf model
+globalParameters["PerfModelL2ReadHits"] = 0.0
+globalParameters["PerfModelL2WriteHits"] = 0.15
+globalParameters["PerfModelL2ReadBwMul"] = 2
+globalParameters["PerfModelReadEfficiency"] = 0.85
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
@@ -313,7 +323,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1],
+    "ScheduleIterAlg":             [0, 1, 2, 3],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -347,6 +357,9 @@ validParameters = {
     # G2L registers used to stage data.  Also replaces the
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
+    #    - Requirements for DirectToLds=1: 
+    #      GlobalLoadVectorWidth? = 1
+    #      TransposeLDS = 1 for TLU=0 case
     "DirectToLds":                [ False, True ],
 
     # Load options:
@@ -378,6 +391,16 @@ validParameters = {
     #  = KernelWriterAssembly also supports 64-bit 2D buffer size (see use64bPbcLimit)
     #    - Requires 4 instructions to move scalar limit and a couple SGPR
     #    - Enabled by default.  If the overhead matters we can add asserts/YAML parm to specialize
+    #  = UseInstOffsetForGRO=1:
+    #    + Attempt to use Instruction offset for Global Read Offsets.
+    #    + This feature avoid updating m0 for subsequent GRO(s) for directToLds feature
+    #    - Requirements for UseInstOffsetForGRO=1:
+    #      - BufferLoad=1
+    #      - DirectToLds=1
+
+    #  converting m0 update from LocalWriteAddrSGpr using  is usually win
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
+    "UseInstOffsetForGRO":              [ -1, 0, 1],
 
 
     # Converting VGPR GRO into SGPR GRO is usually a win
@@ -473,6 +496,9 @@ validParameters = {
 
     "AssertStrideBEqual":  -1,
 
+    "AssertStrideCEqual":  -1,
+    "AssertStrideDEqual":  -1,
+
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
@@ -524,7 +550,7 @@ validParameters = {
     # 0: Use wg0
     # 1: Use wg1
     # 2: Use wg2
-    # 3: Use wgSerial, wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
+    # 3: Use wgSerial, wgSerial = wg0 + wg1 * nwg0 + wg2 * (nwg0 * nwg1)
     # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
     #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
@@ -650,6 +676,15 @@ validParameters = {
     #  1 cannot be used for half type.
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
+    # Controls desired width (#elements) for loads from LDS -> VGPR.
+    # -1 : Set LocalReadVectorWidth =  VectorWidth
+    #  1 cannot be used for half type.
+    # used in combination with TransposeLDS=True
+    # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
+    # helps optimizing instruction scheduling between MFMA and nonMFMA instructions
+
+    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
+
     # threads should read/write/operate on this many contiguous elements from the C matrix.
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
@@ -662,9 +697,10 @@ validParameters = {
     # Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
-    # If False, store 1 element per instruction.
-    # If True, store vector-width elements per instruction.
-    "VectorStore":                    [False, True],
+    # If 0, store 1 element per instruction.
+    # If 1, store vector-width elements per instruction.
+    # if -1, store vector-wide elements per instruction unless PBD would not generate a valid kernel
+    "VectorStore":                    [-1, 0, 1],
 
     # Controls desired width (#elements) for stores from reg to global memory.
     # When MatrixInstruciton == None, derived parameter gwvw takes precedence.
@@ -704,6 +740,14 @@ validParameters = {
     "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
+    # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
+    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
+    # optimized value is 128
+    "LdsBlockSizePerPad":          [-1, 64, 128, 256],
+
+    #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+    "TransposeLDS":                [-1, 1, 0],
+
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    list(range(-1, 16*16+1)),
     "PerformanceWaitLocation":    list(range(-1, 16*16+1)),
@@ -726,7 +770,7 @@ validParameters = {
 
     # Group together unroll iterations inside the unroll loop.
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
-    "InnerUnroll":                [1,2,4],
+    "InnerUnroll":                [1,2,4,8,16,32,64],
 
     # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
     # 1 is default and results in no interleaving.
@@ -765,11 +809,14 @@ defaultBenchmarkCommonParameters = [
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
+    {"LdsBlockSizePerPad":        [ -1 ] },
+    {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"VectorStore":               [ True ] },
+    {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
+    {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
@@ -799,12 +846,15 @@ defaultBenchmarkCommonParameters = [
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
+    {"UseInstOffsetForGRO":       [ 0 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"AssertFree1ElementMultiple": [ 1 ] },
     {"AssertMinApproxSize":        [ -1 ] },
     {"AssertStrideAEqual":        [ {} ] },
     {"AssertStrideBEqual":        [ {} ] },
+    {"AssertStrideCEqual":        [ {} ] },
+    {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
@@ -966,8 +1016,19 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStridesAB":      False,  # use initial strides for AB.
-    "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
+
+    # use initial strides for AB.
+    # This has some performance impact for the increased flexibility:
+    #   - Additional strides will be passed into the kernel and will occupy SGPR registers
+    #   - GlobalReadWidth must be 1 (since elements are not guaranteed to be adjacent in memory)
+    "UseInitialStridesAB":      False,
+
+    # use initial strides for CD.
+    # This has some performance impact for the increased flexibility:
+    #   - Additional strides will be passed into the kernel and will occupy SGPR registers
+    #   - Additional multiply on the store address path
+    #   -VectorStore must be 0.  If VectorStore is -1, it will be silently set to 0 internally.
+    "UseInitialStridesCD":      False,
 
     "AllowNoFreeDims":          False,  # allow A or B to specify no free dims
                                         # (if false, A and B must have at least one free dim)
@@ -1138,11 +1199,11 @@ def printExit(message):
 
 ################################################################################
 # Locate Executables
-# rocm-smi, hcc, rocm_agent_enumerator
+# rocm-smi, hip-clang, rocm_agent_enumerator
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
-def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
+def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
   # look in path first
   for path in os.environ["PATH"].split(os.pathsep):
     exePath = os.path.join(path, exeName)
@@ -1244,10 +1305,6 @@ def assignGlobalParameters( config ):
 
   global globalParameters
 
-  print1("# Restoring default globalParameters")
-  for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
-
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
@@ -1269,12 +1326,21 @@ def assignGlobalParameters( config ):
 
   # ROCm Agent Enumerator Path
   globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  if "CxxCompiler" in config:
+    globalParameters["CxxCompiler"] = config["CxxCompiler"]
+  
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  if globalParameters["AssemblerPath"] is None:
+  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
+    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
+  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
-  globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+  if globalParameters["CxxCompiler"] == "hcc":
+    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+  else:
+    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
@@ -1309,7 +1375,7 @@ def assignGlobalParameters( config ):
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
-  # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
+  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
 
@@ -1317,14 +1383,19 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    if globalParameters["CxxCompiler"] == "hipcc":
+      output = subprocess.run(["dpkg", "-l", "hip-rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    elif globalParameters["CxxCompiler"] == "hcc":
+      output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'hcc' in line:
+      if 'hipcc' in line:
+        globalParameters['HipClangVersion'] = line.split()[2]
+      elif 'hcc' in line:
         globalParameters['HccVersion'] = line.split()[2]
 
   except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hcc', e))
+      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hip-rocclr', e))
 
   for key in config:
     value = config[key]
@@ -1341,9 +1412,9 @@ def assignGlobalParameters( config ):
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
-    destinationDictionary[key] = defaultDictionary[key]
+    destinationDictionary[key] = deepcopy(defaultDictionary[key])
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
@@ -1352,101 +1423,6 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
-def CPUThreadCount(enable=True):
-  if not enable or globalParameters["CpuThreads"] == 0:
-    return 0
-  else:
-    cpu_count = len(os.sched_getaffinity(0))
-    cpuThreads = globalParameters["CpuThreads"]
-    if cpuThreads < 0:
-        return cpu_count*abs(cpuThreads)
-    return min(cpu_count, cpuThreads)
-
-def starmap_apply(item):
-  func, item = item
-  return func(*item)
-
-def apply_print_exception(item, *args):
-  #print(item, args)
-  try:
-    if len(args) > 0:
-      func = item
-      args = args[0]
-      return func(*args)
-    else:
-      func, item = item
-      return func(item)
-  except Exception:
-    import traceback
-    traceback.print_exc()
-    raise
-  finally:
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-def ProcessingPool(enable=True):
-  import multiprocessing
-  import multiprocessing.dummy
-
-  threadCount = CPUThreadCount()
-
-  if (not enable) or threadCount <= 1:
-    return multiprocessing.dummy.Pool(1)
-
-  return multiprocessing.Pool(threadCount)
-
-def ParallelMap(function, objects, message="", enable=True, method=None):
-  """
-  Generally equivalent to list(map(function, objects)), possibly executing in parallel.
-
-    message: A message describing the operation to be performed.
-    enable: May be set to false to disable parallelism.
-    method: A function which can fetch the mapping function from a processing pool object.
-        Leave blank to use .map(), other possiblities:
-           - `lambda x: x.starmap` - useful if `function` takes multiple parameters.
-           - `lambda x: x.imap` - lazy evaluation
-           - `lambda x: x.imap_unordered` - lazy evaluation, does not preserve order of return value.
-  """
-  threadCount = CPUThreadCount(enable)
-  pool = ProcessingPool(enable)
-
-  if threadCount <= 1 and globalParameters["ShowProgressBar"]:
-    # Provide a progress bar for single-threaded operation.
-    # This works for method=None, and for starmap.
-    mapFunc = map
-    if method is not None:
-      # itertools provides starmap which can fill in for pool.starmap.  It provides imap on Python 2.7.
-      # If this works, we will use it, otherwise we will fallback to the "dummy" pool for single threaded
-      # operation.
-      try:
-        mapFunc = method(itertools)
-      except NameError:
-        mapFunc = None
-
-    if mapFunc is not None:
-      from . import Utils
-      return list(mapFunc(function, Utils.tqdm(objects, message)))
-
-  mapFunc = pool.map
-  if method: mapFunc = method(pool)
-
-  objects = zip(itertools.repeat(function), objects)
-  function = apply_print_exception
-
-  countMessage = ""
-  try:
-    countMessage = " for {} tasks".format(len(objects))
-  except TypeError: pass
-
-  if message != "": message += ": "
-
-  print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
-  sys.stdout.flush()
-  rv = mapFunc(function, objects)
-  print("{0}Done.".format(message))
-  sys.stdout.flush()
-  pool.close()
-  return rv
 
 ################################################################################
 # Push / Pop Working Path
@@ -1545,7 +1521,7 @@ class ProgressBar:
 
 # Append copyrights to all files generated by tensile since they belong to Tensile intellectual property
 CMakeHeader = """################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1574,7 +1550,7 @@ CMakeHeader = """###############################################################
 """
 
 CHeader = """/*******************************************************************************
-* Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+* Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal

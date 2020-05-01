@@ -197,7 +197,8 @@ namespace Tensile
 
                 if(m_gpuInputs && !m_boundsCheck && !m_problemDependentData)
                 {
-                    copyD(m_gpuInputs, pristine);
+                    if (m_elementsToValidate)
+                        copyD(m_gpuInputs, pristine);
                 }
                 else
                 {

@@ -2,7 +2,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0
   NumElementsToValidate: -1
-  CMakeBuildType: Debug
+  #CMakeBuildType: Debug
   KernelTime: True
   SleepPercent: 0
   DataInitTypeBeta : 0

@@ -4,7 +4,7 @@ TestParameters:
   marks: [skip]
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Debug
+  #CMakeBuildType: Debug
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
