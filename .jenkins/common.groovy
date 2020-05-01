@@ -26,7 +26,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml
+            #### temporarily enable --no-merge-files until hipclang update is posted
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options="--no-merge-files"
 
             mkdir build
             pushd build
@@ -81,7 +82,8 @@ def runTestCommand (platform, project, test_marks)
                 export HOME=/home/jenkins
                 ####
                 tox --version
-                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
+                #### temporarily enable --no-merge-files until hipclang update is posted
+                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options="--no-merge-files"
                 PY_ERR=\$?
                 date
 
