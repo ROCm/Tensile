@@ -5402,7 +5402,7 @@ class KernelWriterAssembly(KernelWriter):
   def declareStaggerParms(self, kernel):
 
     kStr=""
-    tmpSgpr = self.getTmpSgpr(2)
+    tmpSgpr = self.getTmpSgpr(2).idx()
     if self.staggerU:
       # this coud be dynamic?
       if kernel["StaggerUMapping"] == 0:
