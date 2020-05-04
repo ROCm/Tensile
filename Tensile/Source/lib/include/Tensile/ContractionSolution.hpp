@@ -47,7 +47,9 @@ namespace Tensile
         double l2ReadHitRate=0.0;
         double l2WriteHitRate=0.0;
         int    CUs=0;
-    } perf;
+    };
+
+    extern PerfModel perf;
     
     /**
      * Represents a single kernel or set of kernels that can perform a single

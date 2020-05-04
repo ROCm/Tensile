@@ -104,7 +104,7 @@ else()
 
   if( DEFINED HIPCC)
 
-          set( HIP_PLATFORM "hcc" )
+          set( HIP_PLATFORM "hcc" ) #fix this when final container is available
     #export the environment variable, so that HIPCC can find it.
           set(ENV{HIP_PLATFORM} "hcc")
       # set (CMAKE_CXX_COMPILER ${HIPCC})
@@ -117,7 +117,7 @@ else()
     FOUND_VAR HIP_FOUND
     REQUIRED_VARS HIP_PATH HIP_INCLUDE_DIRS HIPCC)
 
-  if( HIP_FOUND )
+  if( HIP_FOUND AND CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
     find_dependency(HCC REQUIRED)
 
     message(STATUS "HCC_FOUND = ${HCC_FOUND}")

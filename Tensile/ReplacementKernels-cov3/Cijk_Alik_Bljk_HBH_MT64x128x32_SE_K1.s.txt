@@ -788,7 +788,7 @@ s_setprio 0 // Reset priority after macs
 .long 0x8F2E852D
 .long 0x80AE2E80
 .long 0xBF06C22E
-.long 0xBF850177
+.long 0xBF850064
 .long 0xD3CC0000, 0x04029D36
 .long 0xBF80000C
 .long 0xD3CC0010, 0x04428128

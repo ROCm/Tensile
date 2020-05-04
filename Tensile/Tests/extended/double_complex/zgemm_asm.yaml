@@ -16,6 +16,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
 
@@ -40,7 +41,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -53,7 +54,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -66,9 +67,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -80,7 +81,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # zgemm NT
     - # ProblemType
@@ -103,7 +104,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -116,7 +117,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -129,9 +130,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -143,7 +144,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # zgemm TN
     - # ProblemType
@@ -166,7 +167,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -179,7 +180,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -192,9 +193,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -206,7 +207,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # zgemm TT
     - # ProblemType
@@ -228,7 +229,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -241,7 +242,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -253,9 +254,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -267,7 +268,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # zgemm NC
     - # ProblemType
@@ -291,7 +292,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -304,7 +305,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -317,9 +318,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -331,7 +332,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # zgemm CN
     - # ProblemType
@@ -355,7 +356,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -368,7 +369,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -381,9 +382,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -395,7 +396,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
   - # zgemm TC
     - # ProblemType
@@ -418,7 +419,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -431,7 +432,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -443,9 +444,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -457,7 +458,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
 
   - # zgemm CT
@@ -481,7 +482,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -494,7 +495,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -506,9 +507,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -520,7 +521,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
 
   - # zgemm CC
@@ -545,7 +546,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 5 ]
+          ##- [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
@@ -558,7 +559,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -570,9 +571,9 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
@@ -584,5 +585,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 

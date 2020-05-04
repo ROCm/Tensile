@@ -30,6 +30,8 @@
 
 namespace Tensile
 {
+    PerfModel perf;
+    
     int32_t ContractionSolution::staggerUIter(ContractionSolution::Problem const& problem,
                                               ContractionSolution::Inputs  const& inputs,
                                               Hardware    const& hardware) const

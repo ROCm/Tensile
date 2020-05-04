@@ -21,6 +21,9 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+# Override all paths arguments as they do not work properly
+list(APPEND CMAKE_PREFIX_PATH /opt/rocm)
+
 option(TENSILE_NEW_CLIENT "Build the new client" ON)
 
 if(TENSILE_NEW_CLIENT)
@@ -48,11 +51,19 @@ if(TENSILE_NEW_CLIENT)
 
     if(TENSILE_USE_OPENMP)
         #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
-        find_package(OpenMP)
+        find_package(OpenMP QUIET)
         if (OPENMP_FOUND)
             set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
             set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
             set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+        else ()
+            if(EXISTS /etc/redhat-release)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
+            else()
+	        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+                set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
+                set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
+            endif()
         endif()
     endif()
 

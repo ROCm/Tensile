@@ -88,11 +88,11 @@ namespace Tensile
             const std::string EnqueueTime           = "enqueue-time";
 
             // Performance estimation and granularity
-            const std::string Tile0Granularity      = "tile0-granularity";
-            const std::string Tile1Granularity      = "tile1-granularity";
-            const std::string CuGranularity         = "cu-granularity";
-            const std::string WaveGranularity       = "wave-granularity";
-            const std::string TotalGranularity      = "total-granularity";
+            const std::string Tile0Granularity      = "tile0-gran";
+            const std::string Tile1Granularity      = "tile1-gran";
+            const std::string CuGranularity         = "cu-gran";
+            const std::string WaveGranularity       = "wave-gran";
+            const std::string TotalGranularity      = "total-gran";
             const std::string TilesPerCu            = "tiles-per-cu";
 
             const std::string MemReadBytes          = "mem-read-bytes";

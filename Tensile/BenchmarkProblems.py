@@ -39,7 +39,7 @@ from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
-from .SolutionStructs import Solution, ProblemType
+from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 
@@ -112,7 +112,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       print1(printStr)
 
     if False:
-    # print1(hardcoded parameters and their winners
       print1("# HardcodedParameters | WinningParameters:")
       paramDictIdx = 0
       hardcodedMinNaming = \
@@ -354,10 +353,11 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
-    print2("CSV Results: %s" % results)
-    winners.addResults(benchmarkStep.hardcodedParameters, \
-        benchmarkPermutations, solutions, results)
+    if not enableTileSelection:
+        results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
+        print2("CSV Results: %s" % results)
+        winners.addResults(benchmarkStep.hardcodedParameters, \
+            benchmarkPermutations, solutions, results)
 
     ############################################################################
     # Write Solutions YAML
@@ -528,7 +528,31 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 
-  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles)
+  writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, False)
+
+  if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:
+    maxMacroTile0 = 0
+    maxMacroTile1 = 0
+    for solution in solutions:
+      macroTile0 = solution["MacroTile0"]
+      macroTile1 = solution["MacroTile1"]
+      if macroTile0 > maxMacroTile0:
+        maxMacroTile0 = macroTile0
+      if macroTile1 > maxMacroTile1:
+        maxMacroTile1 = macroTile1
+    idealM = 36 * maxMacroTile0
+    idealN = 36 * maxMacroTile1
+    idealSizes = []
+    if problemType["Batched"]:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+          idealSizes.append(idealSize)
+    else:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, idealK]}
+          idealSizes.append(idealSize)
+    idealProblemSizes = ProblemSizes(problemType, idealSizes)
+    writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:
     printExit("write solutions and kernels results 0 valid soultion.")
@@ -540,9 +564,10 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
       clientName)
 
-  forBenchmark = True
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
+  if globalParameters["NewClient"] != 2:
+      forBenchmark = True
+      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+          filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
 
 
 ################################################################################
@@ -569,7 +594,7 @@ class FrozenDictionary(collections.abc.Mapping):
   def __str__(self):
     return self.stringValue
   def __repr__(self):
-    return self.__str__();
+    return self.__str__()
 
 
 ################################################################################

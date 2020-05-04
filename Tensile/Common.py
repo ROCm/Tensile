@@ -56,6 +56,7 @@ globalParameters["KernelTime"] = False            # T=use device timers, F=use h
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
 # timing between GSU / non-GSU kernels
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
+globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -138,7 +139,7 @@ globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=a
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
-globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hcc, etc)
+globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 
 # TODO - remove this when NewClient is mainstream
 globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
@@ -173,11 +174,12 @@ globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ens
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/bin/hcc
+globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
+globalParameters["HipClangVersion"] = "0,0,0"
 globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
@@ -321,7 +323,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1, 2],
+    "ScheduleIterAlg":             [0, 1, 2, 3],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -494,6 +496,9 @@ validParameters = {
 
     "AssertStrideBEqual":  -1,
 
+    "AssertStrideCEqual":  -1,
+    "AssertStrideDEqual":  -1,
+
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
@@ -545,7 +550,7 @@ validParameters = {
     # 0: Use wg0
     # 1: Use wg1
     # 2: Use wg2
-    # 3: Use wgSerial, wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
+    # 3: Use wgSerial, wgSerial = wg0 + wg1 * nwg0 + wg2 * (nwg0 * nwg1)
     # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
     #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
@@ -848,6 +853,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertMinApproxSize":        [ -1 ] },
     {"AssertStrideAEqual":        [ {} ] },
     {"AssertStrideBEqual":        [ {} ] },
+    {"AssertStrideCEqual":        [ {} ] },
+    {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
@@ -1009,8 +1016,19 @@ defaultProblemType = {
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
-    "UseInitialStridesAB":      False,  # use initial strides for AB.
-    "UseInitialStridesCD":      False,  # use initial strides for CD. Only supported on Source path.
+
+    # use initial strides for AB.
+    # This has some performance impact for the increased flexibility:
+    #   - Additional strides will be passed into the kernel and will occupy SGPR registers
+    #   - GlobalReadWidth must be 1 (since elements are not guaranteed to be adjacent in memory)
+    "UseInitialStridesAB":      False,
+
+    # use initial strides for CD.
+    # This has some performance impact for the increased flexibility:
+    #   - Additional strides will be passed into the kernel and will occupy SGPR registers
+    #   - Additional multiply on the store address path
+    #   -VectorStore must be 0.  If VectorStore is -1, it will be silently set to 0 internally.
+    "UseInitialStridesCD":      False,
 
     "AllowNoFreeDims":          False,  # allow A or B to specify no free dims
                                         # (if false, A and B must have at least one free dim)
@@ -1177,11 +1195,11 @@ def printExit(message):
 
 ################################################################################
 # Locate Executables
-# rocm-smi, hcc, rocm_agent_enumerator
+# rocm-smi, hip-clang, rocm_agent_enumerator
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
-def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
+def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
   # look in path first
   for path in os.environ["PATH"].split(os.pathsep):
     exePath = os.path.join(path, exeName)
@@ -1283,10 +1301,6 @@ def assignGlobalParameters( config ):
 
   global globalParameters
 
-  print1("# Restoring default globalParameters")
-  for key in defaultGlobalParameters:
-    globalParameters[key] = deepcopy(defaultGlobalParameters[key])
-
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
@@ -1308,12 +1322,21 @@ def assignGlobalParameters( config ):
 
   # ROCm Agent Enumerator Path
   globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  if "CxxCompiler" in config:
+    globalParameters["CxxCompiler"] = config["CxxCompiler"]
+  
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  if globalParameters["AssemblerPath"] is None:
+  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
+    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
+  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
     globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+
   globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
-  globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+  if globalParameters["CxxCompiler"] == "hcc":
+    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+  else:
+    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
@@ -1348,7 +1371,7 @@ def assignGlobalParameters( config ):
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
-  # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
+  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
 
@@ -1356,14 +1379,19 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    if globalParameters["CxxCompiler"] == "hipcc":
+      output = subprocess.run(["dpkg", "-l", "hip-rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    elif globalParameters["CxxCompiler"] == "hcc":
+      output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'hcc' in line:
+      if 'hipcc' in line:
+        globalParameters['HipClangVersion'] = line.split()[2]
+      elif 'hcc' in line:
         globalParameters['HccVersion'] = line.split()[2]
 
   except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hcc', e))
+      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hip-rocclr', e))
 
   for key in config:
     value = config[key]
