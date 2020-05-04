@@ -2054,7 +2054,7 @@ class KernelWriterAssembly(KernelWriter):
                   C[0] = A[0]*B[0]+D[0]
                   C[1] = A[1]*B[1]+D[1]
                   """
-            else:
+            else: # 900 Non-HPA
               b = blockB*2
               a = blockA*2
               for iui in range(0, innerUnroll):
@@ -2149,7 +2149,7 @@ class KernelWriterAssembly(KernelWriter):
                   C[1] = A[1]*B[1]+D[1]
                   """
                 #kStr += self.bomb(-13)
-            else:
+            else: # 906, 908 Non-HPA
               b = blockB*2
               a = blockA*2
               for iui in range(0, innerUnroll):
@@ -2170,6 +2170,37 @@ class KernelWriterAssembly(KernelWriter):
                 C[0] = A[0]*B[0]+D[0]
                 C[1] = A[1]*B[1]+D[1]
                 """
+          elif self.version == (10,1,0):
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              for iui in range(0, innerUnroll):
+                cStr1 = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+                cStr2 = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
+                aStr = "v[%s+%u]" \
+                    % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+                bStr = "v[%s+%u]" \
+                    % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,0,0,0] %s" % (cStr1, aStr, bStr, cStr1, self.endLine)
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,1,0,0] %s" % (cStr2, aStr, bStr, cStr2, self.endLine)
+                if beAggressive and not doOnce:
+                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+                  doOnce = True
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,0,1,1] %s" % (cStr1, aStr, bStr, cStr1, self.endLine)
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,1,1,1] %s" % (cStr2, aStr, bStr, cStr2, self.endLine)
+              #for b in range(blockB*2, (blockB+1)*2):
+              #  for a in range(blockA*2, (blockA+1)*2):
+              #    for iui in range(0, innerUnroll):
+              #      # v_mac_f16 or v_fma_f16
+              #      cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
+              #      aStr = "v[%s+%u]" \
+              #          % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+              #      bStr = "v[%s+%u]" \
+              #          % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+              #      kStr += "v_fma_f16 %s, %s, %s, %s%s" % (cStr, cStr, aStr, bStr, self.endLine) # FIXME op_sel
+              #      if beAggressive and not doOnce:
+              #        kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+              #        doOnce = True
+            else: # 1010 Non-HPA
+              raise NotImplementedError("Half-precision not supported without HPA for 1010")
           else:
             printExit("Half-precision not supported for arch=%u" % self.version )
       if beAggressive:
@@ -2438,6 +2469,25 @@ class KernelWriterAssembly(KernelWriter):
            self.endLine.join([macro(op, dtype)
                               for op in ops
                               for dtype in dtypes])
+
+  def defineF16PackedMathMacros(self, kernel):
+    """
+    Navi < 21 doesn't have the packed math instructions so define macros that replicate this behaviour.
+    """
+
+    def macro(op):
+      dict = {"op": op, "endl": self.endLine}
+      mStr = ".macro _v_pk_{op}_f16 dst, src0, src1={endl}".format(**dict)
+      if self.version == (10,1,0):
+        mStr += "    v_{op}_f16_sdwa \dst \src0 \src1 dst_sel:WORD_0 dst_unused:UNUSED_PRESERVE src0_sel:WORD_0 src1_sel:WORD_0{endl}".format(**dict)
+        mStr += "    v_{op}_f16_sdwa \dst \src0 \src1 dst_sel:WORD_1 dst_unused:UNUSED_PRESERVE src0_sel:WORD_1 src1_sel:WORD_1{endl}".format(**dict)
+      else:
+        mStr += "    v_pk_{op}_f16 \dst \src0 \src1{endl}".format(**dict)
+      mStr += ".endm{endl}".format(**dict)
+      return mStr
+
+    ops = ['add', 'sub', 'mul', 'max', 'min']
+    return self.endLine + self.endLine.join([macro(op) for op in ops])
 
 
   ##############################################################################
@@ -2953,8 +3003,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     kStr += self.defineCMPXMacros(kernel)
-
-
+    kStr += self.defineF16PackedMathMacros(kernel)
 
     # Performs a division using 'magic number' computed on host
     # Argument requirements:
@@ -8548,8 +8597,10 @@ class KernelWriterAssembly(KernelWriter):
           if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
             cIdx //= elementStep
             regIdx //= elementStep
-            kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), \
+
+            kStr += inst("_v_pk_add_f16", vgpr("ValuC+%u"%cIdx), \
                 vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+
           elif kernel["ProblemType"]["DataType"].isInt8x4():
             cIdx //= elementStep
             regIdx //= elementStep
@@ -10400,7 +10451,7 @@ class KernelWriterAssembly(KernelWriter):
                   dst, src0, src1, \
                   comment)
       else:
-        kStr += inst("v_pk_add_f16", \
+        kStr += inst("_v_pk_add_f16", \
                   dst, src0, src1, \
                   comment)
     elif kernel["ProblemType"]["DataType"].isInt8x4():
@@ -10429,7 +10480,7 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
           if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
             if sumIdxV%2:
-              kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV//2)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV//2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
+              kStr += inst("_v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV//2)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV//2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
           else: # HPA
             kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
 
@@ -10948,10 +10999,10 @@ class KernelWriterAssembly(KernelWriter):
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 if sumIdxV%2==0:
                   # dataV+0 = new c = old c*beta
-                  kStr += inst("v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
+                  kStr += inst("_v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
                       "%s = C*beta ei=%u vi=%u"%(vgpr(dataV),elementIdx, vi))
                   # dataV+0 = new c = old c*beta + rC
-                  kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%(sumIdxV//2)), vgpr(dataV), vgpr("ValuC+%u"%(sumIdxV//2)), \
+                  kStr += inst("_v_pk_add_f16", vgpr("ValuC+%u"%(sumIdxV//2)), vgpr(dataV), vgpr("ValuC+%u"%(sumIdxV//2)), \
                       "sum*alpha + C*beta")
                 else:
                   pass # add will have been done previously
