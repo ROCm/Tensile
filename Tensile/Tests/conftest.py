@@ -60,7 +60,6 @@ def worker_lock_instance(worker_lock_path):
 def tensile_args(pytestconfig, builddir, worker_lock_path):
     rv = []
     if worker_lock_path:
-        lockPath = tmp_path_factory.getbasetemp().parent / "client_execution.lock"
         rv += ["--client-lock", str(worker_lock_path)]
 
     extraOptions = pytestconfig.getoption("--tensile-options")
