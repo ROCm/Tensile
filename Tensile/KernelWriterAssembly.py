@@ -1623,6 +1623,7 @@ class KernelWriterAssembly(KernelWriter):
           self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
 
     self.defineSgpr("OrigLoopCounter", 1)
+
     if self.prefetchAcrossPersistent0:
       if kernel["ExpandPointerSwap"]:
         # For ExpandPointerSwap + PAP, track which expanded loop iter to start on
@@ -1645,9 +1646,20 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
+    # fill empty Sgpr slot caused by Sgpr alignment, 
+    # because we need following defineSgpr use continous sgpr
+    SgprSlot = []
+    currentSize = self.sgprPool.size()
+    while (1):
+      tempSgpr = self.sgprPool.checkOut(1,"fill empty slot temporarily",preventOverflow=0)
+      if tempSgpr >= currentSize:
+        self.sgprPool.checkIn(tempSgpr)
+        break
+      SgprSlot.append(tempSgpr)
+
     ###################################
     # Get kernel argument start here
-    self.defineSgpr("Tensor2dSizeA", 2,2)
+    self.defineSgpr("Tensor2dSizeA", 2,4)
     self.defineSgpr("Tensor2dSizeB", 2,2)
     self.defineSgpr("AddressD", numSgprAddressD)
     self.defineSgpr("AddressC", numSgprAddressC)
@@ -1656,7 +1668,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
       self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
-    self.defineSgpr("StridesD", self.numSgprStridesDToLoad)
+    self.defineSgpr("StridesD", self.numSgprStridesD)
     self.defineSgpr("StridesC", self.numSgprStridesC)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
@@ -1680,13 +1692,6 @@ class KernelWriterAssembly(KernelWriter):
     for idxChar in kernel["PackedC1IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
-    #------------------------
-    # Registers defined below this point are not available in the post-loop
-    # Post-loop is after tail loop exits, ie the store code.
-    # (we reclaim them to use as temps, typically for execmasks)
-    # Mostly impacts flat kernels and GSU edge since these need SGPR
-    # for conditionals
-    self.lastPostLoopSgpr = self.sgprPool.size()
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
         (freeDim, sumDim, padStart, padEnd) = zp
@@ -1695,13 +1700,18 @@ class KernelWriterAssembly(KernelWriter):
         # These will eventually be read as kernel args:
         self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1)
         self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1)
-    if self.staggerU:
-      self.defineSgpr("OrigStaggerUIter", 1)  # Original stagger register.  Only needed for Persistent
+    self.defineSgpr("OrigStaggerUIter", 1)  # Original stagger register.  Only needed for Persistent
     self.defineSgpr("NumWorkGroups0", 1)
     self.defineSgpr("NumWorkGroups1", 1)
-    if kernel["PersistentKernel"]:
-      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
-      self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
+    #------------------------
+    # Registers defined below this point are not available in the post-loop
+    # Post-loop is after tail loop exits, ie the store code.
+    # (we reclaim them to use as temps, typically for execmasks)
+    # Mostly impacts flat kernels and GSU edge since these need SGPR
+    # for conditionals
+    self.lastPostLoopSgpr = self.sgprPool.size()
+    self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
+    self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division
     self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
@@ -1712,8 +1722,18 @@ class KernelWriterAssembly(KernelWriter):
       len(kernel["PackedC1IdxChars"][:-1])*2 + len(kernel["ProblemType"]["ZeroPadA"])*2 + len(kernel["ProblemType"]["ZeroPadB"])*2 + 1 + 2 + 2 + 3
     # Get kernel argument end here
     ###################################
-
-
+    
+    # put unused Sgpr back to SgprPool
+    while SgprSlot:
+      tempSgpr = SgprSlot.pop(0)
+      self.sgprPool.checkIn(tempSgpr)
+    if not self.numSgprStridesDToLoad:
+      self.undefineSgpr("StridesD")
+    if not self.staggerU:
+      self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
+    if not kernel["PersistentKernel"]:
+      self.undefineSgpr("MagicNumberProblemNumGroupTiles0") # Magic number to use for division
+      self.undefineSgpr("GridNumWorkGroups0") # Magic number to use for division
 
     #------------------------
     # Registers defined below this point are not available in the post-loop
@@ -1721,7 +1741,7 @@ class KernelWriterAssembly(KernelWriter):
     # (we reclaim them to use as temps, typically for execmasks)
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
-    # self.lastPostLoopSgpr = self.sgprPool.size() - 1
+    # self.lastPostLoopSgpr = self.sgprPool.size()
 
     if self.unrollIncIsDepthU:
       # product of all summation dimensions, this also will be divided if GSU is enabled
@@ -3391,7 +3411,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   ##############################################################################
   def allocateResources(self, kernel):
-    problemType = kernel["ProblemType"]
     kStr = ""
     if self.do["NullKernel"]:
       kStr += inst("s_endpgm", "Skip the whole kernel")
@@ -3430,6 +3449,46 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += self.getKernArg("Tensor2dSizeC+0",0)
       kStr += self.getKernArg("Tensor2dSizeC+1",0)
+      
+      load = self.numSgprToLoad
+      sgprStart = self.sgprs["Tensor2dSizeA"]
+      while load > 0:
+        if load >= 16:
+          load -= 16
+          kStr += inst("s_load_dwordx16", sgpr(sgprStart,16), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+          sgprStart += 16
+          self.kernArgOffset += 16 * 4
+          continue
+        if load >= 8:
+          load -= 8
+          kStr += inst("s_load_dwordx8", sgpr(sgprStart,8), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+          sgprStart += 8
+          self.kernArgOffset += 8 * 4
+          continue
+        if load >= 4:
+          load -= 4
+          kStr += inst("s_load_dwordx4", sgpr(sgprStart,4), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+          sgprStart += 4
+          self.kernArgOffset += 4 * 4
+          continue
+        if load >= 2:
+          load -= 2
+          kStr += inst("s_load_dwordx2", sgpr(sgprStart,2), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+          sgprStart += 2
+          self.kernArgOffset += 2 * 4
+          continue
+        if load >= 1:
+          load -= 1
+          kStr += inst("s_load_dword", sgpr(sgprStart), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+          sgprStart += 1
+          self.kernArgOffset += 1 * 4
+          continue
+      # currently align sgpr to kernel argument memory, and use s_load_dwordxN to load argument as large as possible in one instruction
+      # however, in order to match sgpr to kernel argument memory, some unnecessarily sgpr will also be defined, and caused wasting of sgpr.
+      # TODO: more efficient way is to organize both sgpr and kernel argument memory in API
+      
+      # comment out original getKernArg, in case we need it back 
+      """
       kStr += self.getKernArg("Tensor2dSizeA+0")
       kStr += self.getKernArg("Tensor2dSizeA+1")
       kStr += self.getKernArg("Tensor2dSizeB+0")
@@ -3498,9 +3557,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
         kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
 
-      for idx in problemType["IndicesSummation"]:
+      for idx in kernel["ProblemType"]["IndicesSummation"]:
         for tc in ('A','B'):
-          for zp in problemType["ZeroPad%s"%tc]:
+          for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
             (freeDim, sumDim, padStart, padEnd) = zp
             if sumDim == idx:
               freeDimChar = globalParameters["IndexChars"][freeDim]
@@ -3517,6 +3576,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getKernArg("NumFullBlocks")
       kStr += self.getKernArg("WgmRemainder1")
       kStr += self.getKernArg("MagicNumberWgmRemainder1")
+      """
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % self.kernArgOffset )
