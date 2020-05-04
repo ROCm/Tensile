@@ -64,24 +64,27 @@ BenchmarkProblems:
           - [32, 32, 1, 2]
           #- [32, 32, 2, 1]
         - ThreadTile:
+          - [ 1, 32 ]
           - [ 2, 32 ]
+          - [ 3, 32 ]
+          - [ 4, 32 ]
           - [ 1, 64 ]
+          - [ 2, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1]
-        - DirectToLds: [0]
-        - TransposeLDS: [1]
-        - LdsBlockSizePerPad: [128]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
+        - WorkGroupMapping: [1,2,4]
+        - TransposeLDS: [0,1]
+        - LdsBlockSizePerPad: [-1,256,128]
+        - LdsPadA: [0,4]
+        - LdsPadB: [0,4]
         - GlobalSplitU: [1]
-        - DepthU: [ 16 ]
-        - VectorWidth: [1]
-        - GlobalReadVectorWidth: [4]
-        - InnerUnroll: [1]
-        - ScheduleIterAlg: [1]
-        - OptNoLoadLoop: [0]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [-1,1,2,4]
+        - InnerUnroll: [1,2,4]
+        - ScheduleIterAlg: [1,2,3]
+        - OptNoLoadLoop: [0,1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -121,22 +124,22 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 32 ]
           - [ 1, 64 ]
+          - [ 4, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
           - [ 32, 8, 1 ]
         - WorkGroupMapping: [1]
-        - DirectToLds: [0]
-        - TransposeLDS: [1]
-        - LdsBlockSizePerPad: [128]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
+        - TransposeLDS: [0,1]
+        - LdsBlockSizePerPad: [-1,256,128]
+        - LdsPadA: [0,4]
+        - LdsPadB: [0,4]
         - GlobalSplitU: [1]
-        - DepthU: [ 16 ]
-        - VectorWidth: [1]
-        - GlobalReadVectorWidth: [4]
-        - InnerUnroll: [1]
-        - ScheduleIterAlg: [1]
-        - OptNoLoadLoop: [0]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [-1,1,2,4]
+        - InnerUnroll: [1,2,4]
+        - ScheduleIterAlg: [1,2,3]
+        - OptNoLoadLoop: [0,1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -158,6 +161,68 @@ BenchmarkProblems:
           - Exact: [ 3072,512,1,1024,3104,3104,1088,1056 ]
           - Exact: [ 30528,4096,1,1024,30554,30554,1088,1056 ]
           - Exact: [ 30528,2048,1,1024,30554,30554,1088,1056 ]
+
+
+  ########################################
+  # TN - standard 1Blocks/Inst
+  # MFMA = 16x16x1x4 , 16x16x4x1
+  ########################################
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 1, 4]
+          - [16, 16, 4, 1]
+        - ThreadTile:
+          - [ 1, 32 ]
+          - [ 2, 16 ]
+          - [ 1, 16 ]
+          - [ 4, 32 ]
+          - [ 8, 32 ]
+          - [ 16, 32 ]
+        - WorkGroup:
+          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+        - WorkGroupMapping: [1,2,4,8]
+        - TransposeLDS: [0,1]
+        - LdsBlockSizePerPad: [-1,128,256]
+        - LdsPadA: [0,4]
+        - LdsPadB: [0,4]
+        - GlobalSplitU: [1]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [-1,1,2,4]
+        - InnerUnroll: [1,2,4]
+        - ScheduleIterAlg: [1,2,3]
+        - OptNoLoadLoop: [0,1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,4096,1,4096,1056,1056,4128,4160 ]
+          - Exact: [ 4096,4096,1,1024,4128,4128,1088,1056 ]
+          - Exact: [ 1024,2048,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,3072,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,2048,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,2048,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,512,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,512,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 512,512,1,64,544,544,128,96 ]
+          - Exact: [ 64,512,1,512,92,96,576,544 ]
+          - Exact: [ 3072,512,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 30528,4096,1,1024,30554,30554,1088,1056 ]
+          - Exact: [ 30528,2048,1,1024,30554,30554,1088,1056 ]
+
 
   ########################################
   # NN - 
@@ -186,20 +251,24 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [32, 32, 1, 2]
         - ThreadTile:
+          - [ 1, 32 ]
           - [ 2, 32 ]
+          - [ 3, 32 ]
+          - [ 4, 32 ]
           - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 3, 64 ]
+          - [ 4, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1]
-        - DirectToLds: [0]
-        - TransposeLDS: [0]
+        - WorkGroupMapping: [1,2,4,8]
         - GlobalSplitU: [1]
-        - DepthU: [ 16 ]
-        - VectorWidth: [1]
-        - GlobalReadVectorWidth: [4]
-        - InnerUnroll: [2]
-        - ScheduleIterAlg: [1]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [-1,1,2,4]
+        - InnerUnroll: [1,2,4]
+        - ScheduleIterAlg: [1,2,3]
         - OptNoLoadLoop: [0]
       BenchmarkForkParameters:
       JoinParameters:
@@ -238,24 +307,29 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [32, 32, 2, 1]
         - ThreadTile:
+          - [ 1, 32 ]
           - [ 2, 32 ]
+          - [ 3, 32 ]
+          - [ 4, 32 ]
           - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 3, 64 ]
+          - [ 4, 64 ]
         - WorkGroup:
-          - [ 64, 4, 1 ]
           - [ 32, 8, 1 ]
         - WorkGroupMapping: [1]
         - DirectToLds: [0]
         - TransposeLDS: [1]
-        - LdsBlockSizePerPad: [128]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
+        - LdsBlockSizePerPad: [-1,128,256]
+        - LdsPadA: [0,4]
+        - LdsPadB: [0,4]
         - GlobalSplitU: [1]
-        - DepthU: [ 16 ]
-        - VectorWidth: [1]
-        - GlobalReadVectorWidth: [4]
-        - InnerUnroll: [2]
-        - ScheduleIterAlg: [1]
-        - OptNoLoadLoop: [0]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [-1,2,1,4]
+        - InnerUnroll: [1,2,4]
+        - ScheduleIterAlg: [1,2,3]
+        - OptNoLoadLoop: [0,1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -300,25 +374,31 @@ BenchmarkProblems:
           - [16, 16, 1, 4]
         - ThreadTile:
           - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 3, 32 ]
           - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 3, 64 ]
           - [ 2, 16 ]
           - [ 4, 32 ]
+          - [ 8, 32 ]
+          - [ 16, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
           - [ 32, 8, 1 ]
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [1]
         - DirectToLds: [0]
-        - TransposeLDS: [1]
-        - LdsBlockSizePerPad: [128]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
+        - TransposeLDS: [1,0]
+        - LdsBlockSizePerPad: [-1,128,256]
+        - LdsPadA: [0,4]
+        - LdsPadB: [0,4]
         - GlobalSplitU: [1]
-        - DepthU: [ 16 ]
-        - VectorWidth: [1]
-        - GlobalReadVectorWidth: [4]
-        - InnerUnroll: [1]
-        - ScheduleIterAlg: [1]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [-1,1,2,4]
+        - InnerUnroll: [1,2,4]
+        - ScheduleIterAlg: [1,2,4]
         - OptNoLoadLoop: [0]
       BenchmarkForkParameters:
       JoinParameters:
