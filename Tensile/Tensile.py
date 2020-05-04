@@ -135,7 +135,7 @@ def Tensile(userArgs):
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
 
-  argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters)
+  argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
   # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
 
