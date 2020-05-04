@@ -21,6 +21,7 @@
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
+from . import Common
 from . import YAMLIO
 
 import os
@@ -565,9 +566,9 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
         param("library-file", libraryFile)
 
-        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"]
+        currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
         for coFile in codeObjectFiles:
-            if (currentGFXName in coFile):
+            if 'gfx' not in coFile or currentGFXName in coFile:
                 param("code-object", os.path.join(sourceDir,coFile))
 
         if tileAwareSelection:
