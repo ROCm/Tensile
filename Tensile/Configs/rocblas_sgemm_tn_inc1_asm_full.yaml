@@ -56,22 +56,32 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - ThreadTile:
           - [ 1, 32 ]
+          - [ 2, 32 ]
+          - [ 3, 32 ]
+          - [ 4, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 3, 64 ]
+          - [ 4, 64 ]
+          - [ 1, 96 ]
+          - [ 2, 96 ]
+          - [ 3, 96 ]
+          - [ 4, 96 ]
         - WorkGroup:
-          - [ 16, 16, 1 ]
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [8]
-        - LdsBlockSizePerPad: [128]
+        - WorkGroupMapping: [1,4,8]
+        - LdsBlockSizePerPad: [-1,128,256]
         - TransposeLDS: [0,1]
         - LdsPadA: [0,4]
         - LdsPadB: [0,4]
         - GlobalSplitU: [1]
         - DepthU: [8,16,32]
-        - VectorWidth: [1]
+        - VectorWidth: [1,2,4]
         - GlobalReadVectorWidth: [-1,1,2,4]
         - SuppressNoLoadLoop: [True,False]
         - OptNoLoadLoop: [0,1]
         - InnerUnroll: [1,2]
-        - ScheduleIterAlg: [1]
+        - ScheduleIterAlg: [1,2,3]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -217,26 +227,36 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
       ForkParameters:
         - MatrixInstruction:
-          - [32, 32, 1, 2]
           - [32, 32, 2, 1]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
+          - [ 1, 32 ]
           - [ 2, 32 ]
+          - [ 3, 32 ]
+          - [ 4, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 3, 64 ]
+          - [ 4, 64 ]
+          - [ 8, 64 ]
+          - [ 1, 96 ]
+          - [ 2, 96 ]
+          - [ 3, 96 ]
         - WorkGroup:
-          - [ 16, 16, 1 ]
-          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+        - LdsBlockSizePerPad: [-1,128,256]
         - TransposeLDS: [0,1]
         - LdsPadA: [0,4]
         - LdsPadB: [0,4]
-        - WorkGroupMapping: [8]
+        - WorkGroupMapping: [1,4,8]
         - GlobalSplitU: [1]
         - DepthU: [8,16]
-        - VectorWidth: [1]
+        - VectorWidth: [1,2,4]
         - GlobalReadVectorWidth: [-1,1,2,4]
         - SuppressNoLoadLoop: [True,False]
         - OptNoLoadLoop: [0,1]
         - InnerUnroll: [1,2]
-        - ScheduleIterAlg: [1]
+        - ScheduleIterAlg: [1,2,3]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -373,6 +393,7 @@ BenchmarkProblems:
           - Exact: [ 5, 5, 512, 64, 5, 5, 64, 64 ]
           - Exact: [ 9, 9, 512, 64, 9, 9, 64, 64 ]
 
+    - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
@@ -389,21 +410,24 @@ BenchmarkProblems:
           - [ 2, 16 ]
           - [ 1, 16 ]
           - [ 4, 32 ]
+          - [ 8, 32 ]
+          - [ 16, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
           - [ 64, 4, 1 ]
+        - LdsBlockSizePerPad: [-1,128,256]
         - TransposeLDS: [0,1]
         - LdsPadA: [0,4]
         - LdsPadB: [0,4]
-        - WorkGroupMapping: [8]
+        - WorkGroupMapping: [1,4,8]
         - GlobalSplitU: [1]
         - DepthU: [8,16,32]
-        - VectorWidth: [1,2]
+        - VectorWidth: [1,2,4]
         - GlobalReadVectorWidth: [-1,1,2,4]
         - SuppressNoLoadLoop: [True,False]
         - OptNoLoadLoop: [0,1]
         - InnerUnroll: [1,2]
-        - ScheduleIterAlg: [1]
+        - ScheduleIterAlg: [1,2,3]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -540,8 +564,79 @@ BenchmarkProblems:
           - Exact: [ 5, 5, 512, 64, 5, 5, 64, 64 ]
           - Exact: [ 9, 9, 512, 64, 9, 9, 64, 64 ]
 
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 32, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1]
+        - DepthU: [32]
+        - VectorWidth: [-1]
+        - AssertSummationElementMultiple: [8]
+        - AssertFree0ElementMultiple: [8]
+        - ReplacementKernel: [True]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 256, 10496, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 11264, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 11520, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 11776, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 12544, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 1280, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 13312, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 14336, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 14592, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 14848, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 15104, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 1536, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 16128, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 18176, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 18944, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 19200, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 20480, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 20992, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 21248, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 21504, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 22016, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 22344, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 2304, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 23296, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 23552, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 2560, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 2816, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 31488, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 33536, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 3584, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 44505, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 4608, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 4864, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 5376, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 5888, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 6144, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 6400, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 6656, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 684, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 7168, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 7424, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 7936, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 8192, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 8448, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 8960, 1, 1024, 280, 280, 1056, 1088]
+          - Exact: [ 256, 9984, 1, 1024, 280, 280, 1056, 1088]
 
-########################################
+#########################################
 LibraryLogic:
     ScheduleName: "arcturus"
     DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
