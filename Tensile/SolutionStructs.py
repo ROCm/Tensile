@@ -510,7 +510,6 @@ class Convolution:
             {problemTypeOut["IndexAssignmentsB"].index(s[0]) : s[1] for s in strideb}
     problemTypeOut["SetConstStrideB"] = strideb
 
-
     self.solutionParms["AssertSizeEqual"] = {regDim.idx:regDim.dim.size for regDim in self.indexAssignments if regDim.dim.size != -1}
 
     if self.solutionParms["AssertStrideAEqual"].get(0,-1) == 1 and \
@@ -1484,11 +1483,16 @@ class ProblemSizes:
         self.ranges[i].problemSizes[:] = \
           [ExactList.convertLeadingDims(self.problemType, problemSize) for problemSize in self.ranges[i].problemSizes]
 
-    self.problems = set()
+    self.problems = OrderedDict()
     for sizeRange in self.ranges:
-      self.problems.update([Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) for rangeSize in sizeRange.problemSizes])
-    self.problems.update(self.exacts)
-    self.problems =  sorted(list( self.problems), key=operator.attrgetter("sizes"))
+        for rangeSize in sizeRange.problemSizes:
+            self.problems.update({Problem(rangeSize, zeroPadA=problemType["ZeroPadA"]) : 1 })
+    for e in self.exacts:
+        self.problems.update({e : 1})
+    if globalParameters["SortProblems"]:
+      self.problems =  sorted(list( self.problems.keys()), key=operator.attrgetter("sizes"))
+    else:
+      self.problems =  list(self.problems.keys())
     self.totalProblemSizes = len(self.problems)
 
     # max sizes
@@ -1660,11 +1664,6 @@ class Solution:
           state["MatrixInstN"] = state["MatrixInstruction"][1]
           state["MatrixInstK"] = state["MatrixInstruction"][2]
           state["MatrixInstB"] = state["MatrixInstruction"][3]
-      if not state["ProblemType"]["HighPrecisionAccumulate"] and \
-         not state["ProblemType"]["DataType"].isSingle() :
-        reject(state, "Matrix instructions for half types are natively accumulated" + \
-         " in fp32 precision. Please add the following config:" + \
-         "\n - HighPrecisionAccumulate: True")
     else:
       if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
         reject(state, "Invalid value for ThreadTile")
@@ -1679,7 +1678,9 @@ class Solution:
         reject(state, "WorkGroup0 must be mulitple of MatrixInstM")
       #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
       #  reject(state, "Error calculating MIWG1")
-
+      widthPerMfmaInput = 8 if state["ProblemType"]["DataType"].isHalf() else 4 # in bytes; hardware specific constant
+      bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
+      state["_NumElemPerMfmaInput"] = int(widthPerMfmaInput/bpeAB)
       state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MIWG0"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
       state["SubGroup0"] = state["MIWG0"] # TODO calc
       state["SubGroup1"] = state["MIWG1"]
@@ -1792,6 +1793,8 @@ class Solution:
             and totalElementsPerp % nlp == 0:
           state["NumLoadsCoalesced%s"%tc] = nlc
           state["NumLoadsPerpendicular%s"%tc] = nlp
+          #print("NumLoadsCoalesced",state["NumLoadsCoalesced%s"%tc])
+          #print("NumLoadsPerpendicular",state["NumLoadsPerpendicular%s"%tc])
           foundValid = True
           break
       if not foundValid:
@@ -1842,16 +1845,9 @@ class Solution:
           // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
-      if not state["TransposeLDS"]:
-        state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-        state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-             // state["NumLoadsPerpendicular%s"%tc]
-      else:
-       # above LSP is broken  LSP is calculated from total vectors and hence LVP calculation from LSP is wrong
-        state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-       # Per instruction across the entire group:
-        elementsLoadedPerInst = state["NumThreads"]*state["GlobalReadVectorWidth"]
-        state["LSP%s"%tc] = min(state["MacroTile%s"%tc], elementsLoadedPerInst // state["DepthU"])  if not state["DepthU"] >= elementsLoadedPerInst else 1
+      state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
+      state["LSP%s"%tc] = state["MacroTile%s"%tc] \
+         // state["NumLoadsPerpendicular%s"%tc]
     
     return True
 
@@ -2065,6 +2061,11 @@ class Solution:
       if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
         state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
         reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+      if not state["ProblemType"]["HighPrecisionAccumulate"] and \
+         not state["ProblemType"]["DataType"].isSingle() :
+        reject(state, "Matrix instructions for half types are natively accumulated" + \
+         " in fp32 precision. Please add the following config:" + \
+         "\n - HighPrecisionAccumulate: True")
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
@@ -2092,6 +2093,10 @@ class Solution:
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):
+        state["AssertStride%sEqual"%tc][0]=1
+
+    if not problemType["UseInitialStridesCD"]:
+      for (tc) in ('C','D'):
         state["AssertStride%sEqual"%tc][0]=1
 
     # Add AssertStride*Equal for PackBatchDims, if needed
@@ -2226,7 +2231,7 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization 
-      state["StoreVectorWidth"] = 4  
+      state["StoreVectorWidth"] = 4
 
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
@@ -2449,7 +2454,7 @@ class Solution:
        or bool(problemType["ZeroPadA"]) or bool(problemType["ZeroPadB"]):
         # unrollIncIsDepthU does not support tail loop, so add asem requirement to reject
         # problems that require tail loop.
-        if state["DepthU"] %  state["AssertSummationElementMultiple"] != 0:
+        if state["DepthU"] % state["AssertSummationElementMultiple"] != 0:
           reject(state, "PackSummationDims=1 requires DepthU is integer multiple of ASEM")
         else:
           state["AssertSummationElementMultiple"] = state["DepthU"]
@@ -2532,13 +2537,23 @@ class Solution:
     if state["TransposeLDS"] == 1:
       if not state["MatrixInstruction"]:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
+      if state["MatrixInstruction"]:
+        # For TransposeLDS=1 there are talks about utilizing even wider loads (>numElemPerMfmaInput) to read once and feed 
+        # to at least 2 MFMA instructions. Until that is realized, its safer to reject this invalid combo
+        if state["VectorWidth"] > state["_NumElemPerMfmaInput"]:
+          reject(state, "VectorWidth cannot be greater than max allowed inputs per MFMA instruction")
+
     if "MatrixInstruction" in state:
       if state["TransposeLDS"] == 1:
-        if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
-          reject(state, "TransposeLds requires TLU=0")
+        if state["ProblemType"]["TLUA"] and  state["ProblemType"]["TLUB"]:
+          reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
     if state["TransposeLDS"] == 1:
       if state["LdsBlockSizePerPad"] == -1:
         state["LdsBlockSizePerPad"] = 256
+
+    if state["LocalReadVectorWidth"] != -1:
+      if not state["TransposeLDS"] == 1:
+        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     if not state["LdsBlockSizePerPad"] == -1:
@@ -2817,15 +2832,24 @@ class Solution:
           # for LDD as well. see emitExtractAndScalePackedDims
           reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
-    if packedC0 and state["PackGranularity"]==2 \
-        and state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
-          if state["KernelLanguage"] == "Source":
-              reject(state, "packedC0 Source requires AF0EM>VectorWidth (for loads and stores)")
-          else:
+    if packedC0 and state["PackGranularity"]==2:
+      if state["KernelLanguage"] == "Source":
+        if state["AssertFree0ElementMultiple"]<state["VectorWidth"]:
+          reject(state, "packedC0 Source requires AF0EM>=VectorWidth (for loads and stores)")
+      else:
+        if state["AssertFree0ElementMultiple"]<state["VectorWidth"]\
+          or state["AssertFree0ElementMultiple"] == 1:
             if state["VectorStore"] <= 0:
               state["_VectorStore"] = 0
             else:
-              reject(state, "packedC0 Assembly requires AF0EM>VectorWidth or not VectorStore (for stores)")
+              reject(state, "packedC0 Assembly requires AF0EM>=VectorWidth or not VectorStore (for stores)")
+
+    if state["AssertStrideCEqual"].get(0,-1) != 1 or state["AssertStrideDEqual"].get(0,-1) != 1:
+      # Disable vector stores if not allowed:
+      if state["VectorStore"] <= 0:
+        state["_VectorStore"] = 0
+      else:
+        reject(state, "UseInitialStridesCD requires not VectorStore since store locations not adjacent")
 
     # Not currently suppored.  Support would require some changes in the
     # zeroPadRegs management:

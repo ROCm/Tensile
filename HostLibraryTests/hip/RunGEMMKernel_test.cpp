@@ -38,6 +38,10 @@
 #include <Tensile/EmbeddedLibrary.hpp>
 #include <Tensile/Utils.hpp>
 
+#include <Tensile/AMDGPU_Detail.hpp>
+#include <Tensile/ContractionProblem_Detail.hpp>
+#include <Tensile/TensorDescriptor_Detail.hpp>
+
 #include "TestData.hpp"
 #include "TestUtils.hpp"
 
@@ -45,6 +49,7 @@
 
 #include <cstddef>
 #include <random>
+#include <unordered_map>
 
 using namespace Tensile;
 
@@ -92,6 +97,8 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     float *d_ref_d_alloc = nullptr;
 
     TypedContractionInputs<float> inputs;
+
+    static std::unordered_map<ContractionProblem, std::vector<float>> referenceCache;
 
     std::shared_ptr<Hardware> hardware;
 
@@ -176,16 +183,26 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
         hardware = hip::GetCurrentDevice();
         ASSERT_NE(hardware, nullptr);
 
-        TypedContractionInputs<float> inputsRefHost;
-        inputsRefHost.a = a_h.data();
-        inputsRefHost.b = b_h.data();
-        inputsRefHost.c = c_h.data();
-        inputsRefHost.d = d_ref_h.data();
-        inputsRefHost.alpha = inputs.alpha;
-        inputsRefHost.beta = inputs.beta;
+        auto iter = referenceCache.find(problem);
+        if(iter == referenceCache.end())
+        {
+            TypedContractionInputs<float> inputsRefHost;
+            inputsRefHost.a = a_h.data();
+            inputsRefHost.b = b_h.data();
+            inputsRefHost.c = c_h.data();
+            inputsRefHost.d = d_ref_h.data();
+            inputsRefHost.alpha = inputs.alpha;
+            inputsRefHost.beta = inputs.beta;
 
+            Client::SolveCPU(problem, inputsRefHost);
 
-        Client::SolveCPU(problem, inputsRefHost);
+            referenceCache[problem] = d_ref_h;
+        }
+        else
+        {
+            d_ref_h = iter->second;
+        }
+        
 	}
 	
     void TearDown() override
@@ -200,6 +217,8 @@ struct RunGEMMKernelTest: public ::testing::TestWithParam<
     }
 };
 
+std::unordered_map<ContractionProblem, std::vector<float>> RunGEMMKernelTest::referenceCache;
+
 TEST_P(RunGEMMKernelTest, BestSolution)
 {
     bool debug = Debug::Instance().printPredicateEvaluation();
@@ -208,14 +227,14 @@ TEST_P(RunGEMMKernelTest, BestSolution)
 
     ContractionProblem problem = std::get<0>(params);
 
-    if(debug)
-        std::cout << problem << std::endl;
 
     std::shared_ptr<SolutionLibrary<ContractionProblem>> library;
     std::shared_ptr<hip::SolutionAdapter> adapter;
     bool requiredMatch;
 
     std::tie(library, adapter, requiredMatch) = std::get<1>(params);
+    if(debug)
+        std::cout << problem << std::endl << adapter << std::endl;
 
     ASSERT_NE(library, nullptr);
     ASSERT_NE(adapter, nullptr);

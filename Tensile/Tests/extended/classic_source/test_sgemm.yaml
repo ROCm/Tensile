@@ -7,6 +7,7 @@ GlobalParameters:
   ValidationMaxToPrint: 4
   DataInitTypeAB: 1
   DataInitTypeC: 1
+  NewClient: 2
 
 BenchmarkProblems:
 
@@ -31,21 +32,21 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [8, 8]
-          - [7, 4]
+          ##- [7, 4]
           - [3, 5]
           - [2, 6]
-          - [1, 1]
+          ##- [1, 1]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  2, 16 ]
-          - [ 16, 12,  1 ]
+          ##- [ 16, 12,  1 ]
         - DepthU: [ 2, 16, 64 ]
         - GlobalSplitU: [1, 4]
         - VectorWidth: [1]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [   1, 1, 1, 1 ]
-          - Range: [ [127, 1, 129], [127, 1, 129], [1, 2], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [1, 2], [63, 1, 64] ]
 
 
     - # Non-Tile Sizes
@@ -56,15 +57,15 @@ BenchmarkProblems:
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GlobalReadCoalesceGroupA: [False, True]
-        - GlobalReadCoalesceGroupB: [False, True]
+        ##- GlobalReadCoalesceGroupA: [False, True]
+        ##- GlobalReadCoalesceGroupB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [1]
         - GlobalSplitU: [1, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127, 1, 129], [127, 1, 129], [1], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [1], [63, 1, 64] ]
 
     - # Branches
       BenchmarkCommonParameters:
@@ -94,13 +95,13 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
-          - [  8,  8,  1 ]
+          ##- [  8,  8,  1 ]
           - [  4,  4,  4 ]
         - DepthU: [-1]
         - VectorWidth: [-1]
@@ -109,7 +110,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
     ############################################################################
     # NT
@@ -131,21 +132,21 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [8, 8]
-          - [7, 4]
-          - [3, 5]
+          ##- [7, 4]
+          ##- [3, 5]
           - [2, 6]
           - [1, 1]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  2, 16 ]
-          - [ 16, 12,  1 ]
+          ##- [ 16, 12,  1 ]
         - DepthU: [ 2, 16, 64 ]
         - GlobalSplitU: [1, 4]
         - VectorWidth: [1]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [   1,   1,   1 ]
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
 
     - # Non-Tile Sizes
@@ -156,15 +157,15 @@ BenchmarkProblems:
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GlobalReadCoalesceGroupA: [False, True]
-        - GlobalReadCoalesceGroupB: [False, True]
+        ##- GlobalReadCoalesceGroupA: [False, True]
+        ##- GlobalReadCoalesceGroupB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [1]
         - GlobalSplitU: [1, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
     - # Branches
       BenchmarkCommonParameters:
@@ -197,8 +198,8 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
-          - [ 8, 8 ]
+          ##- [ 5, 5 ]
+          ##- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [ 16,  8,  1 ]
@@ -210,7 +211,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
 
     ############################################################################
@@ -233,21 +234,21 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [8, 8]
-          - [7, 4]
-          - [3, 5]
+          ##- [7, 4]
+          ##- [3, 5]
           - [2, 6]
           - [1, 1]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  2, 16 ]
-          - [ 16, 12,  1 ]
+          ##- [ 16, 12,  1 ]
         - DepthU: [ 2, 16, 64 ]
         - GlobalSplitU: [1, 4]
         - VectorWidth: [1]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [   1,   1,   1 ]
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
 
     - # Non-Tile Sizes
@@ -258,15 +259,15 @@ BenchmarkProblems:
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GlobalReadCoalesceGroupA: [False, True]
-        - GlobalReadCoalesceGroupB: [False, True]
+        ##- GlobalReadCoalesceGroupA: [False, True]
+        ##- GlobalReadCoalesceGroupB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [1]
         - GlobalSplitU: [1, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
     - # Branches
       BenchmarkCommonParameters:
@@ -298,8 +299,8 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
-          - [ 8, 8 ]
+          ##- [ 5, 5 ]
+          ##- [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -310,7 +311,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
 
     ############################################################################
@@ -333,12 +334,12 @@ BenchmarkProblems:
       ForkParameters:
         - ThreadTile:
           - [8, 8]
-          - [7, 4]
-          - [3, 5]
+          ##- [7, 4]
+          ##- [3, 5]
           - [2, 6]
           - [1, 1]
         - WorkGroup:
-          - [ 16, 16,  1 ]
+          ##- [ 16, 16,  1 ]
           - [  8,  2, 16 ]
           - [ 16, 12,  1 ]
         - DepthU: [ 2, 16, 64 ]
@@ -347,7 +348,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [   1,   1,   1 ]
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
 
     - # Non-Tile Sizes
@@ -358,15 +359,15 @@ BenchmarkProblems:
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GlobalReadCoalesceGroupA: [False, True]
-        - GlobalReadCoalesceGroupB: [False, True]
+        ##- GlobalReadCoalesceGroupA: [False, True]
+        ##- GlobalReadCoalesceGroupB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [1]
         - GlobalSplitU: [1, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 64] ]
 
     - # Branches
       BenchmarkCommonParameters:
@@ -395,13 +396,13 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 3, 3 ]
+          ##- [ 3, 3 ]
           - [ 4, 4 ]
-          - [ 5, 5 ]
+          ##- [ 5, 5 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
-          - [  8,  8,  1 ]
+          ##- [  8,  8,  1 ]
         - DepthU: [-1]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -409,7 +410,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [2], [63,1,64] ]
 
 LibraryLogic:
     ScheduleName: "vega10"
@@ -428,4 +429,4 @@ LibraryLogic:
 #   DeviceNames: ["Device 0000"]
 #   ArchitectureName: "fallback"
 
-LibraryClient:
+#LibraryClient:

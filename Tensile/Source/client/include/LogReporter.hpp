@@ -81,11 +81,17 @@ namespace Tensile
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
                 using namespace ResultKey;
+                auto logLevel = args["log-level"].as<LogLevel>();
+                std::cout << "Log level: " << logLevel << std::endl;
                 return std::shared_ptr<LogReporter>(
-                        new LogReporter(LogLevel::Debug,
+                        new LogReporter(logLevel,
                                         {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
                                          OperationIdentifier, ProblemSizes, SolutionName,
-                                         Validation, TimeUS, SpeedGFlops,
+                                         Validation, TimeUS, SpeedGFlops, Empty,
+                                         TotalGranularity, TilesPerCu, NumCus,
+                                         Tile0Granularity, Tile1Granularity, CuGranularity,
+                                         WaveGranularity,
+                                         MemReadBytes, MemWriteBytes,
                                          TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
                                          FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
                                         stream, dumpTensors));
@@ -98,6 +104,9 @@ namespace Tensile
 
             virtual void reportValue_string(std::string const& key, std::string const& value) override
             {
+                if(key == ResultKey::Validation)
+                    acceptValidation(value);
+
                 m_csvOutput.setValueForKey(key, value);
             }
 
@@ -123,6 +132,20 @@ namespace Tensile
                 streamJoin(msg, value, ",");
                 msg << ")";
                 reportValue_string(key, msg.str());
+            }
+
+            void acceptValidation(std::string const& value)
+            {
+                if(value == "PASSED" || value == "NO_CHECK")
+                    m_rowLevel = LogLevel::Verbose;
+                else if(value == "FAILED" || value == "FAILED_CONV")
+                    m_rowLevel = LogLevel::Error;
+                else if(value == "WRONG_HARDWARE")
+                    m_rowLevel = LogLevel::Terse;
+                else if(value == "DID_NOT_SATISFY_ASSERTS")
+                    m_rowLevel = LogLevel::Terse;
+                else if(value == "INVALID")
+                    m_rowLevel = LogLevel::Error;
             }
 
             virtual bool logAtLevel(LogLevel level) override
@@ -186,11 +209,13 @@ namespace Tensile
             virtual void preSolution(ContractionSolution const& solution) override
             {
                 m_csvOutput.push();
+                m_rowLevel = LogLevel::Verbose;
             }
 
             virtual void postSolution() override
             {
-                m_csvOutput.writeCurrentRow();
+                if(m_rowLevel <= m_level)
+                    m_csvOutput.writeCurrentRow();
                 m_csvOutput.pop();
             }
 
@@ -212,6 +237,8 @@ namespace Tensile
             bool m_firstRun = true;
             bool m_inSolution = false;
             bool m_dumpTensors = false;
+
+            LogLevel m_rowLevel;
 
             CSVStackFile m_csvOutput;
         };

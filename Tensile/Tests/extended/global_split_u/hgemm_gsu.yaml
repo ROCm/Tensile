@@ -27,6 +27,7 @@ GlobalParameters:
   PrintTensorA: 0
   PrintTensorB: 0
   PrintSolutionRejectionReason: 0
+  NewClient: 2
 
 
 BenchmarkProblems:
@@ -78,5 +79,7 @@ BenchmarkProblems:
         - ProblemSizes:
           # Note for K>1024 the operation order change with LSU doesn't consistently match CPU
           #- Range: [[64,8,64], [64,8,64], [1,1,2], [64, 64, 64, 1024]]
-          - Range: [[56,8,72], [56,8,72], [1,1,2], [64, 64, 34, 1024]]
-          - Range: [[56,8,72], [56,8,72], [1,1,2], [66, 64, 34, 1024]]
+          ##- Range: [[56,8,72], [56,8,72], [1,1,2], [64, 64, 34, 1024]]
+          ##- Range: [[56,8,72], [56,8,72], [1,1,2], [66, 64, 34, 1024]]
+          - Range: [[56,8,72], 0, [1,1,2], [64, 64, 34, 1024]]
+          - Range: [[56,8,72], 0, [1,1,2], [66, 64, 34, 1024]]

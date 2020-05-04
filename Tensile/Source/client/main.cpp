@@ -39,10 +39,12 @@
 #include "MetaRunListener.hpp"
 #include "ProgressListener.hpp"
 #include "ReferenceValidator.hpp"
+#include "SolutionIterator.hpp"
 #include "TimingEvents.hpp"
 
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
+#include "PerformanceReporter.hpp"
 #include "ResultReporter.hpp"
 #include "ResultFileReporter.hpp"
 
@@ -144,6 +146,12 @@ namespace Tensile
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
 
+                ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
+                ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
+                ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
+                ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
+                ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
+                
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
 
@@ -180,12 +188,18 @@ namespace Tensile
                 ("c-ops",                    vector_default_empty<TensorOp>(), "Operations applied to C.")
                 ("d-ops",                    vector_default_empty<TensorOp>(), "Operations applied to D.")
 
+                ("problem-start-idx",        po::value<int>()->default_value(0),  "First problem to run")
+                ("num-problems",             po::value<int>()->default_value(-1), "Number of problems to run")
+
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
+                ("best-solution",            po::value<bool>()->default_value(false), "Best solution benchmark mode")
 
                 ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
+                ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
+                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ;
 
             return options;
@@ -232,6 +246,7 @@ namespace Tensile
         void LoadCodeObjects(po::variables_map const& args, hip::SolutionAdapter & adapter)
         {
             auto const& filenames = args["code-object"].as<std::vector<std::string>>();
+            auto logLevel = args["log-level"].as<LogLevel>();
 
             if(filenames.empty())
             {
@@ -241,7 +256,8 @@ namespace Tensile
             {
                 for(auto const& filename: filenames)
                 {
-                    std::cout << "Loading " << filename << std::endl;
+                    if(logLevel >= LogLevel::Verbose)
+                        std::cout << "Loading " << filename << std::endl;
                     adapter.loadCodeObjectFile(filename);
                 }
             }
@@ -354,8 +370,15 @@ int main(int argc, const char * argv[])
 
     auto dataInit = DataInitialization::Get(args, problemFactory);
 
+    auto problems = problemFactory.problems();
+    int firstProblemIdx = args["problem-start-idx"].as<int>();
+    int numProblems = args["num-problems"].as<int>();
+    if(numProblems < 0)
+        numProblems = problems.size();
+    int lastProblemIdx = firstProblemIdx + numProblems-1;
+
     int firstSolutionIdx = args["solution-start-idx"].as<int>();
-    int numSolutions = args["solution-start-idx"].as<int>();
+    int numSolutions = args["num-solutions"].as<int>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -372,14 +395,21 @@ int main(int argc, const char * argv[])
         lastSolutionIdx = firstSolutionIdx + numSolutions-1;
     }
 
+    auto solutionIterator = SolutionIterator::Default(library, hardware, args);
+
     MetaRunListener listeners;
+
+    listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
     listeners.addListener(std::make_shared<ProgressListener>());
 
-    listeners.addListener(std::make_shared<BenchmarkTimer>(args));
+    listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
     listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
 
     auto reporters = std::make_shared<MetaResultReporter>();
+    reporters->addReporter(PerformanceReporter::Default(args));
+    
+    //PerformanceReporter needs to be called before these two, or else values will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
 
@@ -402,9 +432,10 @@ int main(int argc, const char * argv[])
     {
         listeners.preBenchmarkRun();
 
-        size_t problemIdx = 0;
-        for(auto const& problem: problemFactory.problems())
+        for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
         {
+            auto const& problem = problems[problemIdx];
+
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress, concatenate(problemIdx, "/", problemFactory.problems().size()));
 
@@ -416,103 +447,70 @@ int main(int argc, const char * argv[])
 
             listeners.preProblem(problem);
 
-            for(int solutionIdx = firstSolutionIdx; solutionIdx <= lastSolutionIdx; solutionIdx++)
+            while(solutionIterator->moreSolutionsInProblem())
             {
-                std::shared_ptr<ContractionSolution> solution;
-
-                auto iter = library->solutions.find(solutionIdx);
-                if(iter == library->solutions.end())
-                    continue;
-                else
-                    solution = iter->second;
+                auto solution = solutionIterator->getSolution();
 
                 listeners.preSolution(*solution);
 
-                reporters->report(ResultKey::SolutionProgress, concatenate(solutionIdx,"/",lastSolutionIdx));
-
-                if(!(*solution->hardwarePredicate)(*hardware))
+                if(solutionIterator->runCurrentSolution())
                 {
-                    reporters->report(ResultKey::Validation, "WRONG_HARDWARE");
-                    if(reporters->logAtLevel(LogLevel::Verbose))
+                    try
                     {
-                        std::ostringstream msg;
-                        solution->hardwarePredicate->debugEval(*hardware, msg);
-                        reporters->log(LogLevel::Verbose, msg.str());
-                    }
-
-                    listeners.postSolution();
-                    continue;
-                }
-
-                if(!(*solution->problemPredicate)(problem))
-                {
-                    reporters->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
-                    if(reporters->logAtLevel(LogLevel::Verbose))
-                    {
-                        std::ostringstream msg;
-                        solution->problemPredicate->debugEval(problem, msg);
-                        reporters->log(LogLevel::Verbose, msg.str());
-                    }
-                    listeners.postSolution();
-                    continue;
-                }
-
-                try
-                {
-                    while(listeners.needMoreRunsInSolution())
-                    {
-                        auto inputs = dataInit->prepareGPUInputs(problem);
-
-                        auto kernels = solution->solve(problem, *inputs, *hardware);
-
-                        size_t warmupInvocations = listeners.numWarmupRuns();
-                        TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
-                        TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
-
-                        for(int i = 0; i < warmupInvocations; i++)
+                        while(listeners.needMoreRunsInSolution())
                         {
-                            listeners.preWarmup();
-                            adapter.launchKernels(kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
-                            listeners.postWarmup();
-                        }
+                            auto inputs = dataInit->prepareGPUInputs(problem);
 
-                        listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
+                            auto kernels = solution->solve(problem, *inputs, *hardware);
 
-                        size_t syncs = listeners.numSyncs();
-                        size_t enq   = listeners.numEnqueuesPerSync();
+                            size_t warmupInvocations = listeners.numWarmupRuns();
+                            TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
+                            TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
 
-                        for(int i = 0; i < syncs; i++)
-                        {
-                            listeners.preSyncs();
-
-                            TimingEvents startEvents(enq, kernels.size());
-                            TimingEvents  stopEvents(enq, kernels.size());
-
-                            listeners.preEnqueues();
-
-                            for(int j = 0; j < enq; j++)
+                            for(int i = 0; i < warmupInvocations; i++)
                             {
-                                adapter.launchKernels(kernels, stream, startEvents[j], stopEvents[j]);
+                                listeners.preWarmup();
+                                adapter.launchKernels(kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                listeners.postWarmup();
                             }
 
-                            listeners.postEnqueues(startEvents, stopEvents);
-                            listeners.validateEnqueues(inputs, startEvents, stopEvents);
+                            listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
 
-                            listeners.postSyncs();
+                            size_t syncs = listeners.numSyncs();
+                            size_t enq   = listeners.numEnqueuesPerSync();
+
+                            for(int i = 0; i < syncs; i++)
+                            {
+                                listeners.preSyncs();
+
+                                TimingEvents startEvents(enq, kernels.size());
+                                TimingEvents  stopEvents(enq, kernels.size());
+
+                                listeners.preEnqueues();
+
+                                for(int j = 0; j < enq; j++)
+                                {
+                                    adapter.launchKernels(kernels, stream, startEvents[j], stopEvents[j]);
+                                }
+
+                                listeners.postEnqueues(startEvents, stopEvents);
+                                listeners.validateEnqueues(inputs, startEvents, stopEvents);
+
+                                listeners.postSyncs();
+                            }
                         }
                     }
-                }
-                catch(std::runtime_error const& err)
-                {
-                    reporters->report(ResultKey::Validation, "INVALID");
-                    reporters->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
+                    catch(std::runtime_error const& err)
+                    {
+                        reporters->report(ResultKey::Validation, "INVALID");
+                        reporters->log(LogLevel::Error, concatenate("Exception occurred: ", err.what(),"\n"));
+                    }
                 }
 
                 listeners.postSolution();
             }
 
             listeners.postProblem();
-            problemIdx++;
         }
 
         listeners.postBenchmarkRun();

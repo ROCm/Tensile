@@ -20,7 +20,7 @@ def runCI =
 
     boolean formatCheck = false
 
-    prj.timeout.test = 900
+    prj.timeout.test = 420
 
     def commonGroovy
 
@@ -36,7 +36,7 @@ def runCI =
     {
         platform, project->
 
-        def test_marks = "unit or pre_checkin or extended"
+        def test_marks = "pre_checkin or extended"
         commonGroovy.runTestCommand(platform, project, test_marks)   
     }
 
@@ -47,16 +47,16 @@ def runCI =
 ci: { 
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
-    def propertyList = ["compute-rocm-dkms-no-npi":[pipelineTriggers([cron('0 6 * * 6')])], 
-                        "compute-rocm-dkms-no-npi-hipclang":[pipelineTriggers([cron('0 6 * * 6')])],
+    def propertyList = ["compute-rocm-dkms-no-npi":[],
+                        "compute-rocm-dkms-no-npi-hipclang":[],
                         "rocm-docker":[]]
     propertyList = auxiliary.appendPropertyList(propertyList)
 
     def jobNameList = ["compute-rocm-dkms-no-npi":([ubuntu16:['gfx900','gfx906','gfx908']]), 
                        "compute-rocm-dkms-no-npi-hipclang":([ubuntu16:['gfx900','gfx906','gfx908']]), 
                        "rocm-docker":([ubuntu16:['gfx900','gfx906','gfx908']])]
-    
-    jobNameList = auxiliary.appendJobNameList(jobNameList)
+
+    // jobNameList = auxiliary.appendJobNameList(jobNameList)
 
     propertyList.each 
     {
@@ -77,7 +77,7 @@ ci: {
     // For url job names that are outside of the standardJobNameSet i.e. compute-rocm-dkms-no-npi-1901
     if(!jobNameList.keySet().contains(urlJobName))
     {
-        properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 6 * * 6')])]))
+        properties(auxiliary.addCommonProperties([]))
         stage(urlJobName) {
             runCI([ubuntu16:['any']], urlJobName)
         }
