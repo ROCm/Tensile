@@ -1349,12 +1349,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graUnrollOffsets(self, kernel, tP):
     kStr = ""
+    isMirrorUnroll = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tP["tensorChar"]]
     for l in range(0, tP["nru"]):
       for s in range(0, 1 if tP["rc"] else kernel["VectorWidth"]):
         kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u %s %d*%s;%s" \
             % (tP["tensorChar"], self.unrollChar, l, s, \
             tP["tensorChar"], self.unrollChar, s,    \
-            "-" if kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] else "+", l, \
+            "-" if isMirrorUnroll else "+", l, \
             (tP["lsp"] if tP["tlu"] else tP["lsc"]), \
             self.endLine)
       #else:
