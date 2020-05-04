@@ -1337,6 +1337,7 @@ def assignGlobalParameters( config ):
     globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
   else:
     globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
+    globalParameters["ClangOffloadBundlerPath"] = locateExe("/opt/rocm/llvm/bin", "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
