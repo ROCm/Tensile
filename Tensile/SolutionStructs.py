@@ -1750,8 +1750,8 @@ class Solution:
               % (pv, totalVectors, state["NumThreads"]))
           validDepthU = False
         if state["GlobalReadVectorWidth"] % pv != 0:
-          reject(None, "NumThreads %u %% totalVectors %u != 0" \
-              % (state["NumThreads"], totalVectors))
+          reject(None, "GlobalReadVectorWidth %u %% pv %u != 0" \
+              % (state["GlobalReadVectorWidth"], pv))
           validDepthU = False
     else:
       pv = 1 # no partial vector required
