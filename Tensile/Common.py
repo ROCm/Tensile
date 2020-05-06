@@ -323,7 +323,7 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1, 2],
+    "ScheduleIterAlg":             [0, 1, 2, 3],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -550,7 +550,7 @@ validParameters = {
     # 0: Use wg0
     # 1: Use wg1
     # 2: Use wg2
-    # 3: Use wgSerial, wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
+    # 3: Use wgSerial, wgSerial = wg0 + wg1 * nwg0 + wg2 * (nwg0 * nwg1)
     # 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
     #    to a different bank since all workgroups still start at same point.
     "StaggerUMapping":       [0,1,2,3,4],
@@ -1337,6 +1337,7 @@ def assignGlobalParameters( config ):
     globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
   else:
     globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
+    globalParameters["ClangOffloadBundlerPath"] = locateExe("/opt/rocm/llvm/bin", "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
