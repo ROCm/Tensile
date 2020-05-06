@@ -124,33 +124,33 @@ class ProblemType:
             rv.alphaType = DataType(dstType.single)
             rv.betaType  = DataType(dstType.single)
 
-        rv.highPrecisionAccumulate = False
-        if 'HighPrecisionAccumulate' in d:
-            rv.highPrecisionAccumulate = d['HighPrecisionAccumulate']
+        rv.highPrecisionAccumulate = d.get('HighPrecisionAccumulate', False)
 
-        rv.useInitialStridesAB = False
-        if 'UseInitialStridesAB' in d:
-            rv.useInitialStridesAB = d['UseInitialStridesAB']
-        rv.useInitialStridesCD = False
-        if 'UseInitialStridesCD' in d:
-            rv.useInitialStridesCD = d['UseInitialStridesCD']
+        rv.useInitialStridesAB = d.get('UseInitialStridesAB', False)
+        rv.useInitialStridesCD = d.get('UseInitialStridesCD', False)
 
-        rv.setConstStrideA = []
-        if 'SetConstStrideA' in d:
-            rv.setConstStrideA = d['SetConstStrideA']
-        rv.setConstStrideB = []
-        if 'SetConstStrideB' in d:
-            rv.setConstStrideB = d['SetConstStrideB']
-        rv.zeroPadA=[]
-        if 'ZeroPadA' in d:
-            rv.zeroPadA = d['ZeroPadA']
-        rv.zeroPadB=[]
-        if 'ZeroPadB' in d:
-            rv.zeroPadB = d['ZeroPadB']
+        rv.setConstStrideA = d.get('SetConstStrideA', [])
+        rv.setConstStrideB = d.get('SetConstStrideB', [])
 
-        rv.useBeta = True
-        if 'UseBeta' in d:
-            rv.useBeta = d['UseBeta']
+        rv.indexAssignmentsA = d["IndexAssignmentsA"]
+        rv.indexAssignmentsB = d["IndexAssignmentsB"]
+        rv.indexAssignmentsC = list(range(d["NumIndicesC"]))
+        rv.indexAssignmentsD = list(range(d["NumIndicesC"]))
+
+        rv.deltaStridesA = d.get('DeltaStridesA', [])
+        rv.deltaStridesB = d.get('DeltaStridesB', [])
+        rv.deltaStridesC = d.get('DeltaStridesC', [])
+        rv.deltaStridesD = d.get('DeltaStridesD', [])
+
+        assert len(rv.deltaStridesA) <= len(rv.indexAssignmentsA)
+        assert len(rv.deltaStridesB) <= len(rv.indexAssignmentsB)
+        assert len(rv.deltaStridesC) <= len(rv.indexAssignmentsC)
+        assert len(rv.deltaStridesD) <= len(rv.indexAssignmentsD)
+
+        rv.zeroPadA = d.get('ZeroPadA', [])
+        rv.zeroPadB = d.get('ZeroPadB', [])
+
+        rv.useBeta = d.get('UseBeta', True)
 
         rv.batched = d['Batched']
 

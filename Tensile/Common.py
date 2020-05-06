@@ -1044,6 +1044,15 @@ defaultProblemType = {
     "SetConstStrideA":          [],
     "SetConstStrideB":          [],
 
+    # delta pad to add to all strides, for each tensor A,B,C,D.
+    # Specify as list, ie [0,64].  # 0 means no change.
+    # Unit is elements.
+    # Note name is Strides not Stride
+    "DeltaStridesA" :      [],
+    "DeltaStridesB" :      [],
+    "DeltaStridesC" :      [],
+    "DeltaStridesD" :      [],
+
     # ZeroPad:
     # Zero-pad will add leading and trailing "pad" elements to the specified 'anchor'
     # dimension when accessed by specified summation dimension.

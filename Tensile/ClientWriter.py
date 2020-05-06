@@ -27,6 +27,7 @@ import os
 import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
+import copy
 
 from .Contractions import FreeIndex
 
@@ -432,15 +433,44 @@ def checkConstStride(constStrideMap, keyIdx):
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
 
+def finalizeStrides(sizes, strides, deltaStrides, indexAssignments):
+    """
+    Return strides with deltaStrides applied.
+      - May return -1 for default stride (if not overridden or deltaStride applied)
+
+     strides specifies override to default strides.
+       - extended with [-1] for any trailing unspecified strides
+       - may contain -1 indicating to use a default stride assignment, for any index
+
+     deltaStride is delta to add to each dimension.  0 = no change.  Padded with 0 for trailing unspecified strides
+    """
+
+    # pad with 0's for any unspecified dimensions
+    strides      += [-1] * (len(indexAssignments)-len(strides))
+    deltaStrides += [0]  * (len(indexAssignments)-len(deltaStrides))
+
+    expandedStrides = copy.copy(strides)
+    for i in range(0,len(expandedStrides)):
+        if expandedStrides[i] == -1:
+            if i==0:
+                expandedStrides[0] = 1 
+            else:
+                expandedStrides[i] = int(lastStride * sizes[indexAssignments[i-1]])
+
+        if deltaStrides[i] != 0:
+            expandedStrides[i] += deltaStrides[i]
+            strides[i] = expandedStrides[i]
+
+        lastStride = expandedStrides[i]
+
+    return strides
+
 def problemSizeParams(solution, problem):
 
     numIndices = len(solution.problemType.indices)
     rv = []
 
-    if problem.stridesA:
-        astrides = list(problem.stridesA)
-    else:
-        astrides = [-1] * solution.problemType.aDims
+    astrides = list(problem.stridesA) if problem.stridesA else [-1] * solution.problemType.aDims
     for sc in solution.problemType.setConstStrideA:
         index = solution.problemType.indices[sc[0]]
         if type(index) == FreeIndex:
@@ -448,11 +478,10 @@ def problemSizeParams(solution, problem):
             astrides[index.i] = sc[1]
         else:
             astrides[index.a] = sc[1]
+    astrides = finalizeStrides(problem.sizes, astrides, solution.problemType.deltaStridesA,
+                                solution.problemType.indexAssignmentsA)
 
-    if problem.stridesB:
-      bstrides = list(problem.stridesB)
-    else:
-      bstrides = [-1] * solution.problemType.bDims
+    bstrides = list(problem.stridesB) if problem.stridesB else [-1] * solution.problemType.bDims
     for sc in solution.problemType.setConstStrideB:
         index = solution.problemType.indices[sc[0]]
         if type(index) == FreeIndex:
@@ -460,10 +489,15 @@ def problemSizeParams(solution, problem):
             bstrides[index.i] = sc[1]
         else:
             bstrides[index.b] = sc[1]
-
+    bstrides = finalizeStrides(problem.sizes, bstrides, solution.problemType.deltaStridesB,
+                                solution.problemType.indexAssignmentsB)
 
     cstrides = problem.stridesC if problem.stridesC else [-1] * solution.problemType.cDims
+    cstrides = finalizeStrides(problem.sizes, cstrides, solution.problemType.deltaStridesC,
+                                solution.problemType.indexAssignmentsC)
     dstrides = problem.stridesD if problem.stridesD else [-1] * solution.problemType.dDims
+    dstrides = finalizeStrides(problem.sizes, dstrides, solution.problemType.deltaStridesD,
+                                solution.problemType.indexAssignmentsD)
 
     if len(problem.sizes) == numIndices:
         None
