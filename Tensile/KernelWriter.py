@@ -95,6 +95,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
+    self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
     assert([item.name for item in self.globalReadIncrements.itemList] == ['globalReadIncrementA', 'globalReadIncrementB'])
 
     globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
@@ -498,6 +499,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
               # if there is localWrite at first mfma, need to skip it in waitcnt.
               if i == 0:
                 skipLocalWriteWaitcnt += writeItem.countType(Code.LocalWriteInst)
+              if not localReadItems:
+                self.perIterLocalWriteCanSkip[iteration] += writeItem.countType(Code.LocalWriteInst)
           if i == numMfmaPerIter - 1:
             while globalReadCode.items():
               iterCode.addCode(globalReadCode.items().pop(0))
@@ -553,10 +556,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           lgkmcnt += skipLocalWriteWaitcnt
           # first localWrite iteration
           # in this iteration, we only have to skip localwrite schedule at last mfma
-          if self.perIterLocalWriteCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.LocalWriteInst) and kernel["PrefetchLocalRead"]:
-            preIterLocalWrites = self.perIterLocalWriteCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.LocalWriteInst)
-            preIterGlobalReads = self.perIterGlobalReadCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.GlobalReadInst)
-            skipPreIterLW = max(preIterLocalWrites - (numMfmaPerIter - preIterGlobalReads - 1),1) + max(numMfmaPerIter - readsPerIter, 0)
+          if kernel["PrefetchLocalRead"]:
+            skipPreIterLW = self.perIterLocalWriteCanSkip[iteration-kernel["PrefetchLocalRead"]]
             lgkmcnt += skipPreIterLW
       else:
         for item in list(iterCode.items()):
