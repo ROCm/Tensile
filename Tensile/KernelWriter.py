@@ -410,7 +410,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # mfma interleave
       if kernel["MatrixInstruction"]:
         numMfmaPerIter = self.numMfmas * kernel["InnerUnroll"]
-        writesPerIter = localWriteCode.countType(Code.LocalWriteInst)
+        writesModPerIter = len(localWriteCode.items())
         localWriteEndIter = kernel["LoopIters"] - kernel["PrefetchLocalRead"] - 1
         isBarrier = localWriteEndIter + 1
         writeItems = list(localWriteCode.items())
@@ -490,7 +490,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # let localWrite to be scheduled from last mfma
           # mfma|lw|mfma|lw|mfma|mfma => mfma|mfma|lw|mfma|lw|mfma
           # except for localWriteEndIter, because in that iteration, we only have numMfmaPerIter-1 localWrite
-          if (i >= numMfmaPerIter - writesPerIter) or (iteration == localWriteEndIter):
+          if (i >= numMfmaPerIter - writesModPerIter) or (iteration == localWriteEndIter):
             # in case there are localWrite and globalread in same iteration
             # we need to make sure globalRead before localWrite
             if writeItems and not globalReadCode.countType(Code.GlobalReadInst):
