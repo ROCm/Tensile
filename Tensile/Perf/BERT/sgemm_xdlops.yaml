@@ -126,7 +126,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 32, 8, 1 ]
         - WorkGroupMapping: [1]
-        - DirectToLDS: [0,1]
+        - DirectToLds: [0,1]
         - TransposeLDS: [0,1]
         - LdsBlockSizePerPad: [-1,256,128]
         - LdsPadA: [0,4]
