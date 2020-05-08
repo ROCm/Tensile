@@ -4,6 +4,7 @@ GlobalParameters:
   NumElementsToValidate: -1
   KernelTime: True
   SleepPercent: 0
+  NewClient: 2
 
 BenchmarkProblems:
 
