@@ -23,10 +23,9 @@ import collections
 import csv
 import filecmp
 import itertools
-import os
+import os, sys
 import shutil
-import sys
-import time
+import time, math
 
 from copy import deepcopy
 
@@ -253,7 +252,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
 
-
     # create linear list
     solutionList = list(itertools.chain.from_iterable(solutions))
 
@@ -471,17 +469,23 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
-TasConfig = collections.namedtuple ("TasConfig", ["name", "mtScale", "ksweep", "padBytes", "minLeadingStride"])
+TasConfig = collections.namedtuple ("TasConfig", ["name", "mtScale", "ksweep", "padBytes", "minLeadingStride", "stridePwrOfTwo"])
 
-def calculateStrides(sizes, stridePadding, indexAssignments, elementSize, minLeadingStride):
+def calculateStrides(sizes, stridePadding, indexAssignments, elementSize, tasConfig):
     strides = [1]*len(indexAssignments)
     lastStride = strides[0] = int(1+stridePadding[0])
     for i in range(1,len(strides)):
         strides[i] = lastStride * sizes[indexAssignments[i-1]]
         if strides[i]*elementSize>256:
             strides[i] += stridePadding[i]
-        if i==1 and minLeadingStride>=0:
-            strides[i] = max(strides[i],minLeadingStride)
+
+        strides[i] = int(strides[i])
+
+        if tasConfig.stridePwrOfTwo:
+            strides[i] = 2 ** (strides[i]-1).bit_length()
+
+        if i==1 and tasConfig.minLeadingStride>=0:
+            strides[i] = max(strides[i], tasConfig.minLeadingStride)
         lastStride = strides[i] = int(strides[i])
 
 
@@ -504,14 +508,14 @@ def calculateTasSize(problemType, idealM, idealN, idealK, tasConfig):
 
   padsAB = [0] + [padAB] * (problemType["TotalIndices"] - 1)
   idealProblem['stridesA']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsA"], \
-                                            problemType["DataType"].numBytes(), tasConfig.minLeadingStride)
+                                            problemType["DataType"].numBytes(), tasConfig)
   idealProblem['stridesB']=calculateStrides(idealSize, padsAB, problemType["IndexAssignmentsB"], \
-                                            problemType["DataType"].numBytes(), tasConfig.minLeadingStride)
+                                            problemType["DataType"].numBytes(), tasConfig)
   padsCD = [0] + [padAB] * (problemType["TotalIndices"] - 1)
   idealProblem['stridesC']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]), \
-                                            problemType["DestDataType"].numBytes(), tasConfig.minLeadingStride)
+                                            problemType["DestDataType"].numBytes(), tasConfig)
   idealProblem['stridesD']=calculateStrides(idealSize, padsCD, range(problemType["NumIndicesC"]),
-                                            problemType["DestDataType"].numBytes(), tasConfig.minLeadingStride)
+                                            problemType["DestDataType"].numBytes(), tasConfig)
   return idealProblem
 
 
@@ -580,11 +584,25 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       maxMacroTile0 = max(maxMacroTile0, solution["MacroTile0"])
       maxMacroTile1 = max(maxMacroTile1, solution["MacroTile1"])
     idealSizes = []
+
+    # Compute a rectangle for the number of cus, making it as sqaure as possible
+    numCus=64
+    for i in reversed(range(1,1+int(math.sqrt(numCus)))):
+        if numCus % i == 0:
+            break
+    baseShape=(numCus//i,i)
+    assert(baseShape[0]*baseShape[1])==numCus
+    largeShape=[4*baseShape[0], 2*baseShape[1]]
+
     tasConfigs = [ \
-          TasConfig(name="ideal", mtScale=[32,16], ksweep=solutionSummationSizes, \
-                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1),
-          TasConfig(name="channel_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
-                          padBytes=0, minLeadingStride=-1),
+          TasConfig(name="ideal", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1, stridePwrOfTwo=False),
+          TasConfig(name="channel_hotspot", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          padBytes=0, minLeadingStride=-1, stridePwrOfTwo=True),
+          TasConfig(name="onetilepercu", mtScale=baseShape, ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1, stridePwrOfTwo=False),
+          TasConfig(name="twotilepercu", mtScale=[2*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1, stridePwrOfTwo=False),
           #TasConfig(name="tlb_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
           #                padBytes=0, minLeadingStride=32768+256),
           ]
@@ -593,8 +611,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
         (tileScale0,tileScale1) = tasConfig.mtScale
         for idealK in tasConfig.ksweep:
           idealProblem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, idealK, tasConfig)
-          #print (idealProblem)
           idealSizes.append({"Exact": idealProblem})
+          print (", ".join(["%s : %s"%(k,v) for k,v in idealProblem.items()]))
 
 
     idealProblemSizes = ProblemSizes(problemType, idealSizes)
