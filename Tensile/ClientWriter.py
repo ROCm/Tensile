@@ -470,7 +470,9 @@ def problemSizeParams(solution, problem):
     numIndices = len(solution.problemType.indices)
     rv = []
 
-    astrides = list(problem.stridesA) if problem.stridesA else [-1] * solution.problemType.aDims
+    astrides = [-1] * solution.problemType.aDims
+    if problem.stridesA:
+        astrides[:len(problem.stridesA)] = list(problem.stridesA)
     for sc in solution.problemType.setConstStrideA:
         index = solution.problemType.indices[sc[0]]
         if type(index) == FreeIndex:
@@ -481,7 +483,9 @@ def problemSizeParams(solution, problem):
     astrides = finalizeStrides(problem.sizes, astrides, solution.problemType.deltaStridesA,
                                 solution.problemType.indexAssignmentsA)
 
-    bstrides = list(problem.stridesB) if problem.stridesB else [-1] * solution.problemType.bDims
+    bstrides = [-1] * solution.problemType.bDims
+    if problem.stridesB:
+        bstrides[:len(problem.stridesB)] = list(problem.stridesB)
     for sc in solution.problemType.setConstStrideB:
         index = solution.problemType.indices[sc[0]]
         if type(index) == FreeIndex:
