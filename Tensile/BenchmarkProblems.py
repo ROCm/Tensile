@@ -583,7 +583,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
     for solution in solutions:
       maxMacroTile0 = max(maxMacroTile0, solution["MacroTile0"])
       maxMacroTile1 = max(maxMacroTile1, solution["MacroTile1"])
-    idealSizes = []
+    problemsSet = collections.OrderedDict()
 
     # Compute a rectangle for the number of cus, making it as sqaure as possible
     numCus=64
@@ -607,16 +607,24 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
           #                padBytes=0, minLeadingStride=32768+256),
           ]
 
+    for solution in solutions:
+        solution.filter_problems=[]
+
     for tasConfig in tasConfigs:
-        (tileScale0,tileScale1) = tasConfig.mtScale
-        for idealK in tasConfig.ksweep:
-          idealProblem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, idealK, tasConfig)
-          idealSizes.append({"Exact": idealProblem})
-          print (", ".join(["%s : %s"%(k,v) for k,v in idealProblem.items()]))
+        for solution in solutions:
+            (tileScale0,tileScale1) = tasConfig.mtScale
+            for k in tasConfig.ksweep:
+              #problem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, k, tasConfig)
+              problem = calculateTasSize(problemType, tileScale0*solution["MacroTile0"], tileScale1*solution["MacroTile1"], k, tasConfig)
+              solution.filter_problems.append(problem)
+              s= " ".join(["%s:%s"%(k,v) for k,v in problem.items()])
+              problemsSet[hash(s)]=problem
 
-
-    idealProblemSizes = ProblemSizes(problemType, idealSizes)
-    writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
+    problemsList=[{'Exact' : p} for p in problemsSet.values()]
+    for d in problemsList:
+        print (" ".join(["%s:%s"%(k,v) for k,v, in d['Exact'].items()]))
+    problemSizes = ProblemSizes(problemType, problemsList)
+    writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:
     printExit("write solutions and kernels generated 0 valid solutions.")
