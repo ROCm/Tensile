@@ -149,17 +149,18 @@ class RegisterPool:
     oldSize = len(self.pool)
     if newSize > oldSize:
       for i in range(0, newSize-oldSize):
-        self.pool.addInst(self.Register(self.statusUnAvailable,tag))
+        self.pool.append(self.Register(self.statusUnAvailable,tag))
     # mark as available
     for i in range(start, start+size):
       if self.pool[i].status == self.statusUnAvailable:
         self.pool[i].status = self.statusAvailable
+        self.pool[i].tag = tag
       elif self.pool[i].status == self.statusAvailable:
-        warn("RegisterPool::add(%u,%u) pool[%u] already available" % (start, size, i))
+        printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already available" % (start, size, i, self.pool[i].tag))
       elif self.pool[i].status == self.statusInUse:
-        warn("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i))
+        printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already in use" % (start, size, i, self.pool[i].tag))
       else:
-        raise RuntimeError("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
+        raise RuntimeError("RegisterPool::add(%u,%u) pool[%u](%s) = %s" % (start, size, i, self.pool[i].tag, self.pool[i].status))
     if self.printRP:
       print(self.state())
   ########################################
@@ -178,11 +179,11 @@ class RegisterPool:
       if  self.pool[i].status == self.statusAvailable:
         self.pool[i].status = self.statusUnAvailable
       elif self.pool[i].status == self.statusUnAvailable:
-        printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i))
+        printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) already unavailable" % (start, size, i, self.pool[i].tag))
       elif  self.pool[i].status == self.statusInUse:
         printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) still in use" % (start, size, i, self.pool[i].tag))
       else:
-        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
+        printExit("RegisterPool::remove(%u,%u) pool[%u](%s) = %s" % (start, size, i, self.pool[i].tag, self.pool[i].status))
 
   ########################################
   # Check Out
