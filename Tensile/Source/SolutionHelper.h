@@ -23,6 +23,7 @@
 #define SOLUTION_HELPER_H
 
 #include "TensileTypes.h"
+#include <hip/hip_ext.h>
 #include <map>
 #include <unordered_map>
 #include <string>

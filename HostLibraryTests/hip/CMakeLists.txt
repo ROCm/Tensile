@@ -57,8 +57,8 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_tile_aware_selection
     EMBED_KEY     tile_aware_selection
-    TENSILE_COMPILER ${COMPILER}
-    TENSILE_CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
+    COMPILER ${COMPILER}
+    CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/tile_aware_selection")

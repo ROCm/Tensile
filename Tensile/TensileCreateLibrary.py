@@ -99,7 +99,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         if globalParameters["PackageLibrary"]:
           newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
         else:
-          newCOFiles = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
+          newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
 
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
@@ -169,17 +169,25 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      coFilenames = [soFilename]
+      for arch in archs:
+        infile = os.path.join(buildPath, objectFilename)
+        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa-%s" % arch, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        if globalParameters["PrintCodeCommands"]:
+          print(' '.join(bundlerArgs))
+        subprocess.check_call(bundlerArgs)
+
+      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
@@ -329,7 +337,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_hcc.h>\n\n")
+      kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
     kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
   kernelsWithBuildErrs = {}

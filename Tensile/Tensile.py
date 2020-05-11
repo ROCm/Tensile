@@ -125,12 +125,8 @@ def Tensile(userArgs):
       action="store", default="hcc", help="select which compiler to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
-  # argParser.add_argument("--hcc-version", dest="HccVersion", \
+  # argParser.add_argument("--hip-clang-version", dest="HipClangVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
-
-  print1("# Restoring default globalParameters")
-  for key in defaultGlobalParameters:
-    globalParameters[key] = defaultGlobalParameters[key]
 
   # parse arguments
   args = argParser.parse_args(userArgs)
@@ -142,6 +138,13 @@ def Tensile(userArgs):
   print1(HR)
   print1("")
 
+  print1("# Restoring default globalParameters")
+  for key in defaultGlobalParameters:
+    if args.CxxCompiler:
+      globalParameters['CxxCompiler'] = args.CxxCompiler
+    else:
+      globalParameters[key] = defaultGlobalParameters[key]
+  
   # read config
   config = YAMLIO.readConfig( configPath )
   globalParameters["ConfigPath"] = configPath
@@ -181,6 +184,8 @@ def Tensile(userArgs):
     globalParameters["MergeFiles"] = False
   if args.CxxCompiler:
     globalParameters['CxxCompiler'] = args.CxxCompiler
+    if globalParameters['CxxCompiler'] == "hipcc" and not args.CodeObjectVersion:
+      globalParameters["CodeObjectVersion"] = "V3"
   print1("")
   if args.client_build_path:
     globalParameters["ClientBuildPath"] = args.client_build_path

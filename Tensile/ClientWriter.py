@@ -55,13 +55,21 @@ def main( config ):
       "MathTemplates.h",
       "KernelHeader.h",
       "Tools.h",
-      "CMakeLists.txt",
       "TensileCreateLibrary.cmake",
       ]
 
   for f in filesToCopy:
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
+        globalParameters["WorkingPath"] )
+  #if globalParameters["NewClient"] == 2:
+    #shutil_copy(
+    #    os.path.join(globalParameters["SourcePath"], "CMakeListsCreateLibrary.txt"),
+    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt") )
+  #else:
+  if globalParameters["NewClient"] < 2:
+    shutil_copy(
+        os.path.join(globalParameters["SourcePath"], "CMakeLists.txt"),
         globalParameters["WorkingPath"] )
   if globalParameters["RuntimeLanguage"] == "OCL":
     shutil_copy(
@@ -136,73 +144,140 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
 
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
-  buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
-  runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+  if globalParameters["NewClient"] < 2:
+    buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+    runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
-  subprocess.check_call(buildScriptName, cwd=path)
+    subprocess.check_call(buildScriptName, cwd=path)
 
-  # run runScript
-  with ClientExecutionLock():
-    process = subprocess.Popen(runScriptName, cwd=path)
-    process.communicate()
+    # run runScript
+    with ClientExecutionLock():
+      process = subprocess.Popen(runScriptName, cwd=path)
+      process.communicate()
 
-  if process.returncode:
-    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-  popWorkingPath() # build
-  return process.returncode
+    if process.returncode:
+      printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+    popWorkingPath() # build
+    return process.returncode
+  else:
+    if not forBenchmark:
+      buildScriptName = writeBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+      with ClientExecutionLock():
+        process = subprocess.Popen(buildScriptName, cwd=path)
+        process.communicate()
+    else:
+      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
+      with ClientExecutionLock():
+        process = subprocess.Popen(runScriptName, cwd=path)
+        process.communicate()
+ 
+    if process.returncode:
+      printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+    popWorkingPath() # build
+    return process.returncode
 
 def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   import io
   runScriptFile = io.StringIO()
   q = "" if os.name == "nt" else "\""
   echoLine = "@echo." if os.name == "nt" else "echo"
-  if globalParameters["NewClient"] < 2:
-    runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
-        % (echoLine, q, HR, q, q, q, q, HR, q))
-    runScriptFile.write("cmake")
-    # runtime and kernel language
-    runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
-    runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
-    runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
-    runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
-    if globalParameters["EnableHalf"]:
-      runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
-    if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
-      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
-    else:
-      runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
-    if forBenchmark:
-      # for benchmark client
-      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-    else:
-      # for library client
-      runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
-      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
-      runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-      runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
-          % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
-      runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-          % ("ON" if globalParameters["ShortNames"] else "OFF"))
-    if globalParameters["CMakeCXXFlags"]:
-      runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
-    if globalParameters["CMakeCFlags"]:
-      runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
+      % (echoLine, q, HR, q, q, q, q, HR, q))
+  runScriptFile.write("cmake")
+  # runtime and kernel language
+  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
+  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
+  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
+  runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
+  if globalParameters["EnableHalf"]:
+    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
+  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
+  else:
+    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
+  if forBenchmark:
+    # for benchmark client
+    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
+  else:
+    # for library client
+    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
+    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
+    runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
+    runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
+        % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
+    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
+        % ("ON" if globalParameters["ShortNames"] else "OFF"))
+  if globalParameters["CMakeCXXFlags"]:
+    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
+  if globalParameters["CMakeCFlags"]:
+    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
+  if globalParameters["NewClient"] == 2:
+    runScriptFile.write(" -DTENSILE_NEW_CLIENT=ON")
+  else:
     runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
-    runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
-    # for both
-    if os.name == "nt":
-      runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-    runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-        % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-    runScriptFile.write(" ../source\n")
-    runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
-        % (echoLine, q, HR, q, q, q, q, HR, q))
-    runScriptFile.write("cmake --build . --config %s%s\n" \
-        % (globalParameters["CMakeBuildType"], " -- -j 8" \
-        if os.name != "nt" else "") )
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
+  # for both
+  if os.name == "nt":
+    runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
+  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
+      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
+  runScriptFile.write(" ../source\n")
+  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
+      % (echoLine, q, HR, q, q, q, q, HR, q))
+  runScriptFile.write("cmake --build . --config %s%s\n" \
+      % (globalParameters["CMakeBuildType"], " -- -j 8" \
+      if os.name != "nt" else "") )
 
   return runScriptFile.getvalue()
+
+def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
+  import io
+  runScriptFile = io.StringIO()
+
+  callCreateLibraryCmd = globalParameters["ScriptPath"] + "/bin/TensileCreateLibrary"
+ 
+  
+  if globalParameters["MergeFiles"]:
+    callCreateLibraryCmd += " --merge-files"
+  else:
+    callCreateLibraryCmd += " --no-merge-files"
+
+  callCreateLibraryCmd += " --no-legacy-components"
+
+  if globalParameters["ShortNames"]:
+    callCreateLibraryCmd += " --short-file-names"
+  else:
+    callCreateLibraryCmd += " --no-short-file-names"
+
+  if globalParameters["LibraryPrintDebug"]:
+    callCreateLibraryCmd += " --library-print-debug"
+  else:
+    callCreateLibraryCmd += " --no-library-print-debug"
+
+  callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
+  callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
+  callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
+
+  callCreateLibraryCmd += " %s" % libraryLogicPath
+  callCreateLibraryCmd += " %s" % buildPath #" ../source" 
+  callCreateLibraryCmd += " %s\n" % globalParameters["RuntimeLanguage"]
+
+  runScriptFile.write(callCreateLibraryCmd)
+
+  return runScriptFile.getvalue()
+
+def writeBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+  filename = os.path.join(path, \
+    "build.%s" % ("bat" if os.name == "nt" else "sh") )
+  with open(filename, "w") as file:
+    file.write("#!/bin/bash\n\n")
+    file.write("set -ex\n")
+    file.write(getBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark))
+
+  if os.name != "nt":
+    os.chmod(filename, 0o777)
+  return filename
 
 def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
   filename = os.path.join(path, \
@@ -283,6 +358,9 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       newClientExe = ClientExecutable.getClientExecutable()
       configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
       runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
+      if enableTileSelection and (globalParameters["NewClient"] == 2):
+        configFileGranularity = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters_Granularity.ini')
+        runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFileGranularity, globalParameters["NewClientArgs"]))
       runScriptFile.write("ERR2=$?\n\n")
     else:
       runScriptFile.write("ERR2=0\n")
@@ -465,9 +543,14 @@ def dataInitParams(problemType):
             ('init-alpha', dataInitName(initAlpha)),
             ('init-beta',  dataInitName(initBeta))]
 
-def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles):
+def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
 
-    filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+    if tileAwareSelection:
+      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters_Granularity.ini")
+    else:
+      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+
+
     if len(newLibrary.solutions)==0:
       raise RuntimeError ("No valid solutions found")
     with open(filename, "w") as f:
@@ -477,13 +560,19 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         sourceDir = os.path.join(stepBaseDir, "source")
         libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
         param("library-file", libraryFile)
-        for coFile in codeObjectFiles:
-            param("code-object", os.path.join(sourceDir,coFile))
 
-        if globalParameters["NewClient"] == 1:
-          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"] 
+        for coFile in codeObjectFiles:
+            if (currentGFXName in coFile):
+                param("code-object", os.path.join(sourceDir,coFile))
+
+        if tileAwareSelection:
+          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv"))
         else:
-          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
+          if globalParameters["NewClient"] == 1:
+            param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
+          else:
+            param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
 
         newSolution = next(iter(newLibrary.solutions.values()))
         if newSolution.problemType.convolution and globalParameters["ConvolutionVsContraction"]:
@@ -579,6 +668,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       for solution in solutions:
         solutionName = solutionWriter.getSolutionName(solution)
         h += "#include \"" + solutionName + ".h\"\n"
+        h += "#include \"Solutions.h\"\n"
     h += "\n"
   else:
     h += "#include \"Solutions.h\"\n"
