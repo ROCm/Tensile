@@ -4998,7 +4998,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(1).idx()
 
     # get constant parameter
-    dividendReg    = "Serial" # local serial
+    # dividendReg    = "Serial" # local serial
     LdsPad         = kernel["LdsPadA"] if kernel["LdsBlockSizePerPadA"] == 0 else 0
     MIBShape0      = kernel["MatrixInstM"] * kernel["MatrixInstBM"] # matrix instruction MN shape for M
     dividendForK   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
@@ -5103,7 +5103,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(1).idx()
 
     # get constant parameter
-    dividendReg    = "Serial" # local serial
+    # dividendReg    = "Serial" # local serial
     LdsPad         = kernel["LdsPadB"] if kernel["LdsBlockSizePerPadB"] == 0 else 0
     dividendForK   = kernel["MatrixInstN"] * kernel["MatrixInstB"]
     inputPerThread = kernel["MatrixInstN"] * kernel["MatrixInstK"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
@@ -6075,7 +6075,7 @@ class KernelWriterAssembly(KernelWriter):
     numMIInput       = kernel["ProblemType"]["DataType"].numMIInput()
     vgprPerInput     = int(numMIInput * numRegisters)
     shiftPerElement  = int(numRegisters * 32)
-    elementPerVgpr   = int(1 / numRegisters)
+    # elementPerVgpr   = int(1 / numRegisters)
     s_nop            = 0
 
     # alloc vgpr
@@ -7728,9 +7728,9 @@ class KernelWriterAssembly(KernelWriter):
     valuIdx           = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
-    loopIdx           = self.unrollIdx
-    loopDim           = kernel["ProblemType"]["IndicesSummation"][loopIdx]
-    loopChar          = self.indexChars[loopDim]
+    # loopIdx           = self.unrollIdx
+    # loopDim           = kernel["ProblemType"]["IndicesSummation"][loopIdx]
+    # loopChar          = self.indexChars[loopDim]
 
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):

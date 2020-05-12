@@ -25,7 +25,7 @@ from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
+from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
