@@ -222,11 +222,13 @@ cp ../scripts/*.sh tuned-build/release/clients/staging
 pushd reference-build/release/clients/staging
 ./doit_all1.sh
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
+./*verify.sh 2>&1 | tee log-verification-build
 popd
 
 pushd tuned-build/release/clients/staging
 ./doit_all1.sh
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
+./*verify.sh 2>&1 | tee log-verification-tuned-build
 popd
 
 mv ../scripts/*-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
