@@ -423,6 +423,14 @@ done
     doitFile.write(runallContent)
     doitFile.close() 
 
+def removeIter(lines):
+    noiterlines
+    separator = '-i'
+    for line in lines:
+        newline = line.split(separator, 1)[0]
+        noiterlines.append(newline)
+    return noiterlines
+
 def OutputScript(problemMapper, scriptPath, namePart):
     keys = list(problemMapper.keys())
 
@@ -441,34 +449,48 @@ def OutputScript(problemMapper, scriptPath, namePart):
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
             lines.append(rocblas_call)
-        with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h, open(outputFileName4, 'a') as i:
+        noiterlines = removeIter(lines)
+        with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
                     if "rocblas-bench" in line:
                         g.write("%s\n" % line)
                         h.write("%s\n" % line)
-                        i.write("%s -v 1\n" % line)
                     else:
                         g.write("%s\n" % line)
                         h.write("%s\n" % line)
-                        i.write("%s\n" % line)
                 else:
                     if "rocblas-bench" in line:
                         f.write("%s\n" % line)
                         h.write("%s\n" % line)
-                        i.write("%s -v 1\n" % line)
                     else:
                         if "bash" in line:
                             if count == 0:
                                 f.write("%s\n" % line)
                                 g.write("%s\n" % line)
                                 h.write("%s\n" % line)
-                                i.write("%s\n" % line)
                                 count = 1
                         else:
                             f.write("%s\n" % line)
                             h.write("%s\n" % line)
+        with open(outputFileName4, 'a') as i:
+            for line in noiterlines:
+                if "strided" in line:
+                    if "rocblas-bench" in line:
+                        i.write("%s -i 1 -v 1\n" % line)
+                    else:
+                        i.write("%s\n" % line)
+                else:
+                    if "rocblas-bench" in line:
+                        i.write("%s -i 1 -v 1\n" % line)
+                    else:
+                        if "bash" in line:
+                            if count == 1:
+                                i.write("%s\n" % line)
+                                count = 2
+                        else:
                             i.write("%s\n" % line)
+        noiterlines = [] 
         lines = []
 
     generateRunScript(scriptFileNames, scriptPath)
@@ -492,34 +514,48 @@ def OutputScript2(problemMapper, scriptPath, namePart):
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
             lines.append(rocblas_call)
-        with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h, open(outputFileName4, 'a') as i:
+        noiterlines = removeIter(lines)
+        with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
                     if "rocblas-bench" in line:
                         g.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
                         h.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
-                        i.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s -v 1\n" % line)
                     else:
                         g.write("%s\n" % line)
                         h.write("%s\n" % line)
-                        i.write("%s\n" % line)
                 else:
                     if "rocblas-bench" in line:
                         f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
                         h.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
-                        i.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s -v 1\n" % line)
                     else:
                         if "bash" in line:
                             if count == 0:
                                 f.write("%s\n" % line)
                                 g.write("%s\n" % line)
                                 h.write("%s\n" % line)
-                                i.write("%s\n" % line)
                                 count = 1
                         else:
                             f.write("%s\n" % line)
                             h.write("%s\n" % line)
+        with open(outputFileName4, 'a') as i:
+            for line in noiterlines:
+                if "strided" in line:
+                    if "rocblas-bench" in line:
+                        i.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s -i 1 -v 1\n" % line)
+                    else:
+                        i.write("%s\n" % line)
+                else:
+                    if "rocblas-bench" in line:
+                        i.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s -i 1 -v 1\n" % line)
+                    else:
+                        if "bash" in line:
+                            if count == 1:
+                                i.write("%s\n" % line)
+                                count = 2
+                        else:
                             i.write("%s\n" % line)
+        noiterlines = [] 
         lines = []
                     
     generateRunScript(scriptFileNames, scriptPath,'2')
