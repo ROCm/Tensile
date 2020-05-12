@@ -49,8 +49,9 @@ class Module(Item):
   make intelligent and legal transformations.
   """
   def __init__(self, name=""):
-    self.name = name
+    self.name     = name
     self.itemList = []
+    self.tempVgpr = None
 
   def findNamedItem(self, targetName):
     return next((item for item in self.itemList if item.name==targetName), None)

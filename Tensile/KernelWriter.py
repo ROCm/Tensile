@@ -95,14 +95,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
+    self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
     assert([item.name for item in self.globalReadIncrements.itemList] == ['globalReadIncrementA', 'globalReadIncrementB'])
 
     globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
     globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
     lastLoadIter = 0
-    if kernel["MatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
-      numMfmaPerIter = self.numMfmas * kernel["InnerUnroll"]
+    if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
+      numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
     else:
       numMfmaPerIter = 1
     if not self.scheduleGlobalRead:
@@ -200,7 +201,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       startIter = kernel["LoopIters"] - writesToSched
       # to offset last LW 1 mfma with barrier
       # TODO: how many mfma to offset based on mfma latency
-      if kernel["MatrixInstruction"]:
+      if kernel["EnableMatrixInstruction"]:
         writesToSched += 1
       startIter = localWriteEndIter - roundUp(writesToSched/numMfmaPerIter) + 1
       # - can't move a write past the load it depends on
@@ -238,7 +239,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if localwrite is not multiple of numMfmaPerIter, fill last iteration first.
           # make sure numMfmaPerIter is enough to schedule localwrite
           # TODO: if numMfmaPerIter is not enough to schedule localwrite, need smarter way to distribute localWrite
-          if kernel["MatrixInstruction"] and \
+          if kernel["EnableMatrixInstruction"] and \
             u == startIter and \
             not (startIter + writesToSched//numMfmaPerIter > localWriteEndIter) and \
             kernel["ScheduleIterAlg"] == 3:
@@ -364,7 +365,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # interleave pack code
       packItem = packCode.flatitems()
       packCount = 0
-      packInstPerIter = (1 + self.numRowInsts * self.numColInsts)*(kernel["MatrixInstK"]//2)
+      packInstPerIter = (1 + kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]) * (kernel["MatrixInstK"] // 2)
       while packItem:
         if packCount < packInstPerIter:
           item = packItem.pop(0)
@@ -381,10 +382,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addInst("s_setprio ","3","Raise priority while processing macs")
       macIterItem = macIterCode.flatitems()
       # pop the first code which is s_nop 1 for packing
-      if kernel["MatrixInstruction"] and not kernel["TransposeLDS"] and \
-      (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()):
-        item = macIterItem.pop(0)
-        iterCode.addCode(item)
+      item = macIterItem.pop(0)
+      iterCode.addCode(item)
 
       while macIterItem:
         item = macIterItem.pop(0)
@@ -407,8 +406,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       pass
     elif self.scheduleIterAlg == 3:
       # mfma interleave
-      if kernel["MatrixInstruction"]:
-        numMfmaPerIter = self.numMfmas * kernel["InnerUnroll"]
+      if kernel["EnableMatrixInstruction"]:
+        numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
         writesPerIter = localWriteCode.countType(Code.LocalWriteInst)
         localWriteEndIter = kernel["LoopIters"] - kernel["PrefetchLocalRead"] - 1
         isBarrier = localWriteEndIter + 1
@@ -448,9 +447,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
               packAB.addCode(packA.items().pop(0))
             if packB.items():
               packAB.addCode(packB.items().pop(0))
-        # remove s_nop for packing if TLDS
-        if (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and not kernel["TransposeLDS"]:
-          macIterItems.pop(0)
+
+        # remove s_nop for packing
+        macIterItems.pop(0)
+
         iterCode.addCode(waitLWCode)
         iterCode.addCode(syncCode)
         skipLocalWriteWaitcnt = 0
@@ -498,6 +498,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
               # if there is localWrite at first mfma, need to skip it in waitcnt.
               if i == 0:
                 skipLocalWriteWaitcnt += writeItem.countType(Code.LocalWriteInst)
+              if not localReadItems:
+                self.perIterLocalWriteCanSkip[iteration] += writeItem.countType(Code.LocalWriteInst)
           if i == numMfmaPerIter - 1:
             while globalReadCode.items():
               iterCode.addCode(globalReadCode.items().pop(0))
@@ -520,12 +522,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
     for item in list(packCode.items()):
-      self.vgprPool.checkIn(item.tempVgpr)
+      if item.tempVgpr != None:
+        self.vgprPool.checkIn(item.tempVgpr)
+        item.tempVgpr = None
 
     if isinstance(waitCode, Code.WaitCnt):
       # Set the waitCount, based on the new iter schedule
       lgkmcnt = 0 # most conservative
-      if kernel["MatrixInstruction"]:
+      if kernel["EnableMatrixInstruction"]:
         localReads  = localReadCode.countType(Code.LocalReadInst)
         localWrites = 0
         if kernel["ScheduleIterAlg"] == 0 or kernel["ScheduleIterAlg"] == 1:
@@ -553,10 +557,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           lgkmcnt += skipLocalWriteWaitcnt
           # first localWrite iteration
           # in this iteration, we only have to skip localwrite schedule at last mfma
-          if self.perIterLocalWriteCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.LocalWriteInst) and kernel["PrefetchLocalRead"]:
-            preIterLocalWrites = self.perIterLocalWriteCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.LocalWriteInst)
-            preIterGlobalReads = self.perIterGlobalReadCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.GlobalReadInst)
-            skipPreIterLW = max(preIterLocalWrites - (numMfmaPerIter - preIterGlobalReads - 1),1) + max(numMfmaPerIter - readsPerIter, 0)
+          if kernel["PrefetchLocalRead"]%kernel["LoopIters"]:
+            skipPreIterLW = self.perIterLocalWriteCanSkip[iteration-kernel["PrefetchLocalRead"]%kernel["LoopIters"]]
             lgkmcnt += skipPreIterLW
       else:
         for item in list(iterCode.items()):
@@ -800,23 +802,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for iui in range(0,kernel["InnerUnroll"]):
         if self.enable["LocalRead"]:
           if u < kernel["LoopIters"] - kernel["PrefetchLocalRead"]:
-            if kernel["MatrixInstruction"] and \
-              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
-              not kernel["TransposeLDS"] :
-              # Reading 16-bit data from LDS requires packing when ECC enabled
-              kl.append(self.comment("local read a"))
-              localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersA)
-              kl.append(localReadCodeA)
-              kl.append(self.comment("local read b"))
-              localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersB)
-              kl.append(localReadCodeB)
-              pack[plrIdx].addCode(packCodeA)
-              pack[plrIdx].addCode(packCodeB)
-            else:
-              kl.append(self.comment("local read a"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, 0,((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersA))
-              kl.append(self.comment("local read b"))
-              kl.append(self.localReadDo(kernel, plrIdx, iui, 0,((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersB))
+            # Reading 16-bit data from LDS requires packing when ECC enabled
+            kl.append(self.comment("local read a"))
+            localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersA)
+            kl.append(localReadCodeA)
+            kl.append(self.comment("local read b"))
+            localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"] + iui), tensorParametersB)
+            kl.append(localReadCodeB)
+            pack[plrIdx].addCode(packCodeA)
+            pack[plrIdx].addCode(packCodeB)
+
             kl.append(self.comment("local read inc a"))
             kl.append(self.localReadInc(kernel, iui, tensorParametersA))
             kl.append(self.comment("local read inc b"))
@@ -827,10 +822,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
             "7wait for local read"))
       if self.enable["MAC"]:
         luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
-        if kernel["MatrixInstruction"]:
+        if kernel["EnableMatrixInstruction"]:
           kl.append(pack[luIdx])
           for item in list(pack[luIdx].items()):
-            self.vgprPool.checkIn(item.tempVgpr)
+            if item.tempVgpr != None:
+              self.vgprPool.checkIn(item.tempVgpr)
+              item.tempVgpr = None
           kl.append(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
         else:
           kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], useMacro=not isOptNLL ))
@@ -956,23 +953,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
             pack[plrIdx] = Code.Module()
             for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
               for iui in range(0,kernel["InnerUnroll"]):
-                if kernel["MatrixInstruction"] and \
-                  (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
-                  not kernel["TransposeLDS"]:
-                  # Reading 16-bit data from LDS requires packing when ECC enabled
-                  kl.append(self.comment("local read prefetch a"))
-                  localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, espi, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersA)
-                  kl.append(localReadCodeA)
-                  kl.append(self.comment("local read prefetch b"))
-                  localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, espi, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersB)
-                  kl.append(localReadCodeB)
-                  pack[plrIdx].addCode(packCodeA)
-                  pack[plrIdx].addCode(packCodeB)
-                else:
-                  kl.append(self.comment("local read prefetch a"))
-                  kl.append(self.localReadDo(kernel, plrIdx, iui, espi,(plrIdx*kernel["InnerUnroll"]+iui), tensorParametersA))
-                  kl.append(self.comment("local read prefetch b"))
-                  kl.append(self.localReadDo(kernel, plrIdx, iui, espi,(plrIdx*kernel["InnerUnroll"]+iui), tensorParametersB))
+                # Reading 16-bit data from LDS requires packing when ECC enabled
+                kl.append(self.comment("local read prefetch a"))
+                localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, espi, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersA)
+                kl.append(localReadCodeA)
+                kl.append(self.comment("local read prefetch b"))
+                localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, espi, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersB)
+                kl.append(localReadCodeB)
+                pack[plrIdx].addCode(packCodeA)
+                pack[plrIdx].addCode(packCodeB)
+
                 kl.append(self.comment("local read inc a"))
                 kl.append(self.localReadInc(kernel, iui, tensorParametersA))
                 kl.append(self.comment("local read inc b"))
@@ -1065,23 +1055,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
           for plrIdx in range(0, kernel["PrefetchLocalRead"]):
             pack[plrIdx] = Code.Module()
             for iui in range(0,kernel["InnerUnroll"]):
-              if kernel["MatrixInstruction"] and \
-                (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
-                not kernel["TransposeLDS"] :
-                # Reading 16-bit data from LDS requires packing when ECC enabled
-                kl.append(self.comment("prefetch local a"))
-                localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersA)
-                kl.append(localReadCodeA)
-                kl.append(self.comment("prefetch local b"))
-                localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersB)
-                kl.append(localReadCodeB)
-                pack[plrIdx].addCode(packCodeA)
-                pack[plrIdx].addCode(packCodeB)
-              else:
-                kl.append(self.comment("prefetch local a"))
-                kl.append(self.localReadDo(kernel, plrIdx, iui, 0, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersA))
-                kl.append(self.comment("prefetch local b"))
-                kl.append(self.localReadDo(kernel, plrIdx, iui, 0, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersB))
+              # Reading 16-bit data from LDS requires packing when ECC enabled
+              kl.append(self.comment("prefetch local a"))
+              localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersA)
+              kl.append(localReadCodeA)
+              kl.append(self.comment("prefetch local b"))
+              localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, (plrIdx*kernel["InnerUnroll"]+iui), tensorParametersB)
+              kl.append(localReadCodeB)
+              pack[plrIdx].addCode(packCodeA)
+              pack[plrIdx].addCode(packCodeB)
               kl.append(self.comment1("local read increment a"))
               kl.append(self.localReadInc(kernel, iui, tensorParametersA))
               kl.append(self.comment1("local read increment b"))
@@ -1114,28 +1096,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if (u < kernel["LoopIters"] - kernel["PrefetchLocalRead"]) or kernel["PrefetchGlobalRead"]:
           for iui in range(0,kernel["InnerUnroll"]):
             if self.enable["LocalRead"]:
-              if kernel["MatrixInstruction"] and \
-                (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
-                not kernel["TransposeLDS"] :
-                # Reading 16-bit data from LDS requires packing when ECC enabled
-                localReads.addText(self.comment("local read a"))
-                localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"]+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersA)
-                localReads.addCode(localReadCodeA)
-                localReads.addText(self.comment("local read b"))
-                localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, ((u+pflr)*kernel["InnerUnroll"]+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersB)
-                localReads.addCode(localReadCodeB)
-                localReadsA.addCode(localReadCodeA)
-                localReadsB.addCode(localReadCodeB)
-                pack[plrIdx].addCode(packCodeA)
-                pack[plrIdx].addCode(packCodeB)
-              else:
-                localReads.addText(self.comment("local read a"))
-                localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0,((u+pflr)*kernel["InnerUnroll"]+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersA))
-                localReads.addText(self.comment("local read b"))
-                localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0,((u+pflr)*kernel["InnerUnroll"]+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersB))
-                #container for holding local read A & B elements for later re-ordering
-                localReadsA.addCode(self.localReadDo(kernel, plrIdx, iui, 0,((u+pflr)*kernel["InnerUnroll"]+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersA))
-                localReadsB.addCode(self.localReadDo(kernel, plrIdx, iui, 0,((u+pflr)*kernel["InnerUnroll"]+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersB))
+              # Reading 16-bit data from LDS requires packing when ECC enabled
+              localReads.addText(self.comment("local read a"))
+              lduIdx = ((u+pflr)*kernel["InnerUnroll"]+iui) % (kernel["LoopIters"]*kernel["InnerUnroll"])
+              localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, lduIdx, tensorParametersA)
+              localReads.addCode(localReadCodeA)
+              localReads.addText(self.comment("local read b"))
+              localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, lduIdx, tensorParametersB)
+              localReads.addCode(localReadCodeB)
+              localReadsA.addCode(localReadCodeA)
+              localReadsB.addCode(localReadCodeB)
+              pack[plrIdx].addCode(packCodeA)
+              pack[plrIdx].addCode(packCodeB)
 
               # Don't increment the LRO if we are going to reset them below:
               if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
@@ -1206,7 +1178,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         if self.enable["MAC"]:
           luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
-          if kernel["MatrixInstruction"]:
+          if kernel["EnableMatrixInstruction"]:
             macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
           else:
             macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
@@ -1391,23 +1363,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
         pack[plrIdx] = Code.Module()
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
-            if kernel["MatrixInstruction"] and \
-              (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
-              not kernel["TransposeLDS"] :
-              # Reading 16-bit data from LDS requires packing when ECC enabled
-              localReads.addText(self.comment("local read a"))
-              localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, (((unrollIter+pflr)*kernel["InnerUnroll"])+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersA)
-              localReads.addCode(localReadCodeA)
-              localReads.addText(self.comment("local read b"))
-              localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, (((unrollIter+pflr)*kernel["InnerUnroll"])+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersB)
-              localReads.addCode(localReadCodeB)
-              pack[plrIdx].addCode(packCodeA)
-              pack[plrIdx].addCode(packCodeB)
-            else:
-              localReads.addText(self.comment("local read a"))
-              localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (((unrollIter+pflr)*kernel["InnerUnroll"])+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersA))
-              localReads.addText(self.comment("local read b"))
-              localReads.addCode(self.localReadDo(kernel, plrIdx, iui, 0, (((unrollIter+pflr)*kernel["InnerUnroll"])+iui)%(kernel["LoopIters"]*kernel["InnerUnroll"]), tensorParametersB))
+            # Reading 16-bit data from LDS requires packing when ECC enabled
+            localReads.addText(self.comment("local read a"))
+            lduIdx = (((unrollIter+pflr)*kernel["InnerUnroll"])+iui) % (kernel["LoopIters"]*kernel["InnerUnroll"])
+            localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx, iui, 0, lduIdx, tensorParametersA)
+            localReads.addCode(localReadCodeA)
+            localReads.addText(self.comment("local read b"))
+            localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx, iui, 0, lduIdx, tensorParametersB)
+            localReads.addCode(localReadCodeB)
+            pack[plrIdx].addCode(packCodeA)
+            pack[plrIdx].addCode(packCodeB)
+
             if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
               localReads.addText(self.comment("unroll increments:"))
               localReads.addText(self.comment("local read inc a"))
@@ -1467,7 +1433,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # which waited for this ds_read
       if self.enable["MAC"]:
         luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
-        if kernel["MatrixInstruction"]:
+        if kernel["EnableMatrixInstruction"]:
           macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
         else:
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True))
@@ -1511,7 +1477,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         for i in range(kernel["PrefetchLocalRead"]):
           for item in list(pack[i].items()):
-            self.vgprPool.checkIn(item.tempVgpr)
+            if item.tempVgpr != None:
+              self.vgprPool.checkIn(item.tempVgpr)
+              item.tempVgpr = None
 
     if self.staggerU and self.actualSummationLoops>1:
       kl.append(self.comment("remove stagger offsets"))
@@ -1582,31 +1550,26 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # tail: macs
       kl.append(self.comment("tail loop: macs"))
       kl.append(self.openLoop(kernel, -1))
+
       # Try to use InnerUnroll in the tail loop if allowed:
-      k = kernel["MatrixInstK"] if kernel["MatrixInstruction"] else 1
-      tailLoopInnerUnroll = \
-        kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % (kernel["InnerUnroll"]*k)==0) else 1
-      
+      KinInnerUnroll = kernel["InnerUnroll"]
+      if kernel["EnableMatrixInstruction"]:
+        KinInnerUnroll *= kernel["MatrixInstK"]
+      tailLoopInnerUnroll = kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0) else 1
+
       pack[0] = Code.Module()
       for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
-          if kernel["MatrixInstruction"] and \
-            (kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isHalf()) and \
-            not kernel["TransposeLDS"] :
-            # Reading 16-bit data from LDS requires packing when ECC enabled
-            kl.append(self.comment("local read a"))
-            localReadCodeA, packCodeA = self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersA)
-            kl.append(localReadCodeA)
-            kl.append(self.comment("local read b"))
-            localReadCodeB, packCodeB = self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersB)
-            kl.append(localReadCodeB)
-            pack[0].addCode(packCodeA)
-            pack[0].addCode(packCodeB)
-          else:
-            kl.append(self.comment("local read a"))
-            kl.append(self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersA))
-            kl.append(self.comment("local read b"))
-            kl.append(self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersB))
+          # Reading 16-bit data from LDS requires packing when ECC enabled
+          kl.append(self.comment("local read a"))
+          localReadCodeA, packCodeA = self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersA)
+          kl.append(localReadCodeA)
+          kl.append(self.comment("local read b"))
+          localReadCodeB, packCodeB = self.localReadDo(kernel, 0, iui, 0, 0, tensorParametersB)
+          kl.append(localReadCodeB)
+          pack[0].addCode(packCodeA)
+          pack[0].addCode(packCodeB)
+
           kl.append(self.comment("local read inc a"))
           kl.append(self.localReadInc(kernel, iui, tensorParametersA))
           kl.append(self.comment("local read inc b"))
@@ -1614,11 +1577,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read"))
       if self.enable["MAC"]:
-        if kernel["MatrixInstruction"]:
+        if kernel["EnableMatrixInstruction"]:
           kl.append(pack[0])
           for item in list(pack[0].items()):
-            self.vgprPool.checkIn(item.tempVgpr)
-          kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll))
+            if item.tempVgpr != None:
+              self.vgprPool.checkIn(item.tempVgpr)
+              item.tempVgpr = None
+          kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll, True))
         else:
           kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
 
@@ -1646,12 +1611,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # shift vector components d0
         if not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA:
           kl.append(self.comment("shift vector components d0"))
-          if kernel["MatrixInstruction"]:
-            kl.append(self.shiftVectorComponentsForMatrixInst(kernel, tensorParametersA))
-          else:
-            kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+          kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
+
         # shift vector components d1
-        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["MatrixInstruction"]:
+        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["EnableMatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersB))
 
@@ -1919,27 +1882,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
     vwb = kernel["GlobalLoadVectorWidthB"]
 
     ########################################
-    # read / write vectors or vector components
+    # read vectors or vector components
     ########################################
     if kernel["ProblemType"]["TLUA"]: # NT no transpose
       self.numReadsTileA = kernel["NumLoadsCoalescedA"]
       self.numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
-      self.numWritesCoalA = kernel["NumLoadsCoalescedA"]
-      if kernel["GlobalReadCoalesceVectorA"]: # read vectors, write vectors
+      if kernel["GlobalReadCoalesceVectorA"]: # read vectors
         self.readTileDimComponentsA = False # Vector
         self.readTileDimVectorA = True # Vector
         self.readUnrollDimComponentsA = False # Scalar
         self.readUnrollDimVectorA = False # Scalar
         self.numReadsTileVecCompA = vwa
         self.numReadsUnrollVecCompA = 1
-
-        self.writeUnrollDimComponentsA = False # Scalar
-        if kernel["LocalDotLayout"]>1:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
-          writeCoal = False
-        else:
-          self.writeTileDimComponentsA = False # Vector
-          writeCoal = True
       else: # read components, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
@@ -1947,31 +1901,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.readUnrollDimVectorA = False # Components
         self.numReadsTileVecCompA = 1
         self.numReadsUnrollVecCompA = vwa
-
-        self.writeTileDimComponentsA = False # Scalar
-        self.writeUnrollDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
-        writeCoal = False
     else: # TN yes transpose
       self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
       self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"] if not kernel["TransposeLDS"]  else kernel["NumLoadsCoalescedA"]
-      if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
+      if kernel["GlobalReadCoalesceVectorA"]: # read vector
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
         self.readUnrollDimComponentsA = False # Vector
         self.readUnrollDimVectorA = True # Vector
         self.numReadsUnrollVecCompA = vwa
         self.numReadsTileVecCompA = 1
-
-        self.writeUnrollDimComponentsA = False # Scalar
-        if kernel["LocalDotLayout"]>1:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
-          # LDS writes with LDL>1 will never be coalesced
-          writeCoal = False
-        else:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 if not kernel["TransposeLDS"] else False# Components
-          self.writeUnrollDimComponentsA = False  if not kernel["TransposeLDS"] else kernel["GlobalReadVectorWidth"] > 1 # Scalar
-          writeCoal = False if not kernel["TransposeLDS"] else True
       else: # read components, write vectors
         self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
         self.readTileDimVectorA = False # Components
@@ -1980,6 +1919,36 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # NEW
         self.numReadsUnrollVecCompA = 1
         self.numReadsTileVecCompA = vwa
+
+    ########################################
+    # write vectors or vector components
+    ########################################
+    if kernel["ProblemType"]["TLUA"] != kernel["UnrollMajorLDSA"]: # NT no transpose
+      self.numWritesCoalA = kernel["NumLoadsCoalescedA"]
+      if kernel["GlobalReadCoalesceVectorA"]: # read vectors, write vectors
+        self.writeUnrollDimComponentsA = False # Scalar
+        if kernel["LocalDotLayout"]>1:
+          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
+        else:
+          self.writeTileDimComponentsA = False # Vector
+          writeCoal = True
+      else: # read components, write components
+        self.writeTileDimComponentsA = False # Scalar
+        self.writeUnrollDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+        writeCoal = False
+    else: # TN yes transpose
+      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"]
+      if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
+        self.writeUnrollDimComponentsA = False # Scalar
+        if kernel["LocalDotLayout"]>1:
+          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          # LDS writes with LDL>1 will never be coalesced
+          writeCoal = False
+        else:
+          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
+      else: # read components, write vectors
         self.writeTileDimComponentsA = False # Vector
         self.writeUnrollDimComponentsA = False # Scalar
         writeCoal = True
@@ -2021,12 +1990,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.readPerpendicularVectorA      = self.readTileDimVectorA
 
     ####################################
-    # read / write vectors or vector components b
+    # read vectors or vector components b
     ####################################
     if kernel["ProblemType"]["TLUB"]: # NT no transpose
       self.numReadsTileB = kernel["NumLoadsCoalescedB"]
       self.numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
-      self.numWritesCoalB = kernel["NumLoadsCoalescedB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         self.readTileDimComponentsB = False # Vector
         self.readTileDimVectorB = True # Vector
@@ -2034,6 +2002,39 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.readUnrollDimVectorB = False # Scalar
         self.numReadsTileVecCompB = vwb
         self.numReadsUnrollVecCompB = 1
+      else:
+        self.readTileDimComponentsB = False # Scalar
+        self.readTileDimVectorB = False # Scalar
+        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimVectorB = False # Components
+        # NEW
+        self.numReadsTileVecCompB = 1
+        self.numReadsUnrollVecCompB = vwb
+    else: # TN yes transpose
+      self.numReadsTileB = kernel["NumLoadsPerpendicularB"]
+      self.numReadsUnrollB = kernel["NumLoadsCoalescedB"]
+      if kernel["GlobalReadCoalesceVectorB"]:
+        self.readTileDimComponentsB = False # Scalar
+        self.readTileDimVectorB = False # Scalar
+        self.readUnrollDimComponentsB = False # Vector
+        self.readUnrollDimVectorB = True # Vector
+        self.numReadsUnrollVecCompB = vwb
+        self.numReadsTileVecCompB = 1
+      else:
+        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimVectorB = False # Components
+        self.readUnrollDimComponentsB = False # Scalar
+        self.readUnrollDimVectorB = False # Scalar
+        # NEW
+        self.numReadsUnrollVecCompB = 1
+        self.numReadsTileVecCompB = vwb
+
+    ####################################
+    # write vectors or vector components b
+    ####################################
+    if kernel["ProblemType"]["TLUB"] != kernel["UnrollMajorLDSB"]: # NT no transpose
+      self.numWritesCoalB = kernel["NumLoadsCoalescedB"]
+      if kernel["GlobalReadCoalesceVectorB"]:
         self.writeUnrollDimComponentsB = False # Vector
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
@@ -2042,47 +2043,26 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.writeTileDimComponentsB = False # Vector
           writeCoal = True
       else:
-        self.readTileDimComponentsB = False # Scalar
-        self.readTileDimVectorB = False # Scalar
-        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        self.readUnrollDimVectorB = False # Components
         self.writeTileDimComponentsB = False # Scalar
         self.writeUnrollDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
         # NEW
-        self.numReadsTileVecCompB = 1
-        self.numReadsUnrollVecCompB = vwb
         self.numWritesCoalVecCompB = 1
         self.numWritesPerpVecCompB = vwb
     else: # TN yes transpose
-      self.numReadsTileB = kernel["NumLoadsPerpendicularB"]
-      self.numReadsUnrollB = kernel["NumLoadsCoalescedB"]
       self.numWritesCoalB = kernel["NumLoadsPerpendicularB"]
       if kernel["GlobalReadCoalesceVectorB"]:
-        self.readTileDimComponentsB = False # Scalar
-        self.readTileDimVectorB = False # Scalar
-        self.readUnrollDimComponentsB = False # Vector
-        self.readUnrollDimVectorB = True # Vector
-        self.numReadsUnrollVecCompB = vwb
-        self.numReadsTileVecCompB = 1
         self.writeUnrollDimComponentsB = False
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
-          # LDS writes with LDL>1 will never be coalesced%
+          # LDS writes with LDL>1 will never be coalesced
           writeCoal = False
         else:
-          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 if not kernel["TransposeLDS"] else False # Components
-          self.writeUnrollDimComponentsB = False if not kernel["TransposeLDS"] else kernel["GlobalReadVectorWidth"] > 1
-          writeCoal = False if not kernel["TransposeLDS"] else True
+          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
       else:
-        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        self.readTileDimVectorB = False # Components
-        self.readUnrollDimComponentsB = False # Scalar
-        self.readUnrollDimVectorB = False # Scalar
         self.writeTileDimComponentsB = False # Vector
         self.writeUnrollDimComponentsB = False # Scalar
         # NEW
-        self.numReadsUnrollVecCompB = 1
-        self.numReadsTileVecCompB = vwb
         self.numWritesCoalVecCompB = vwb
         self.numWritesPerpVecCompB = 1
 
@@ -2685,10 +2665,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def shiftVectorComponents(self, kernel, tP):
-    return ""
-
-  @abc.abstractmethod
-  def shiftVectorComponentsForMatrixInst(self, kernel, tP):
     return ""
 
   ##############################################################################
