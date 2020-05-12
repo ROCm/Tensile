@@ -424,7 +424,7 @@ done
     doitFile.close() 
 
 def removeIter(lines):
-    noiterlines
+    noiterlines = []
     separator = '-i'
     for line in lines:
         newline = line.split(separator, 1)[0]
