@@ -8008,13 +8008,10 @@ class KernelWriterAssembly(KernelWriter):
 
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
     if (kernel["MatrixInstruction"]):
-      if kernel["TransposeLDS"]:
-        numVectorsPerTile = kernel["_NumElemPerMfmaInput"]//kernel["VectorWidth"]
-      else: 
-        if tc == "A":
-          numVectorsPerTile = kernel["ThreadTile0"]
-        else:
-          numVectorsPerTile = kernel["ThreadTile1"] // kernel["MatrixInstN"]
+      if tc == "A":
+        numVectorsPerTile = kernel["ThreadTile0"]
+      else:
+        numVectorsPerTile = kernel["ThreadTile1"] // kernel["MatrixInstN"]
     #print "numVectorsPerTile", numVectorsPerTile
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
     if kernel["MatrixInstruction"]:
@@ -8036,17 +8033,18 @@ class KernelWriterAssembly(KernelWriter):
           # emit an instruction for each half-dword load along k due to strided access
           # checkout 2 vregs for each half-dword loads
         for rIdx in range(0, numReadsPerVector):
+          localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
+          packCode = pack.addCode (Code.Module("packCode"))
+          destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx))) # inc by 1 every 2 kIdx
+          tmpVgpr = vgpr(tmpVgprIdx+int(valuIdx)) # inc by 1 every 2 kIdx
+          paramList = [] 
+          tIdx = tP["tensorIdx"]
+          if rIdx%2 == 0:
+            paramList.append(destVgpr)
+          else:
+            paramList.append(tmpVgpr)
+          paramList.append(vgpr("LocalReadAddr%s"%tc))
           for oIdx in range(0, numOffsets):
-            localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
-            paramList = []
-            destVgpr = vgpr("Valu%s_X%u_I%u+%u" % (tc, bufferIdx, iui, int(valuIdx))) # inc by 1 every 2 kIdx
-            tmpVgpr = vgpr(tmpVgprIdx+int(valuIdx)) # inc by 1 every 2 kIdx
-            tIdx = tP["tensorIdx"]
-            if rIdx%2 == 0:
-              paramList.append(destVgpr)
-            else:
-              paramList.append(tmpVgpr)
-            paramList.append(vgpr("LocalReadAddr%s"%tc))
             if tP["isA"]:
               if kernel["MatrixInstB"] == 1:
                 outputBlocks = 1 
@@ -9090,21 +9088,21 @@ class KernelWriterAssembly(KernelWriter):
         # subgroup[0] > 64 threads or MatrixInstB=1 
         # requires to generate rowBlockId for each sIMD
 
-        tmpSgpr = self.getTmpSgpr(1)
+        #tmpSgpr = self.getTmpSgpr(1)
         # 1 row-block per Instruction
-        if  kernel["MatrixInstB"] == 1 or kernel["MIWG0"] > globalParameters["WavefrontWidth"]:
+        if  kernel["MatrixInstB"] == 1: 
           kStr += inst("v_lshrrev_b32", vgpr(tmpV4), log2(globalParameters["WavefrontWidth"]),vgpr(tid0),"Row-BlockId in macroTile0")
           #kStr += inst("v_lshlrev_b32", vgpr(tmpV4), log2(kernel["MatrixInstM"]*kernel["ThreadTile0"]),vgpr(tmpV4),"Row-BlockId in macroTile0")
-          kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MatrixInstM"]*kernel["ThreadTile0"]), "")
-          kStr += inst("v_mul_lo_u32", vgpr(tmpV4), sgpr(tmpSgpr),vgpr(tmpV4),"Row-BlockId in macroTile0")
+          kStr += inst("s_mov_b32", sgpr(tmpS0), hex(kernel["MatrixInstM"]*kernel["ThreadTile0"]), "")
+          kStr += inst("v_mul_lo_u32", vgpr(tmpV4), sgpr(tmpS0),vgpr(tmpV4),"Row-BlockId in macroTile0")
           kStr += inst("v_and_b32", vgpr(tid0), hex(globalParameters["WavefrontWidth"]-1), vgpr(tid0), "WaveFrontLaneId")
        
         # 2 row-blocks per Instruction
-        #elif kernel["MatrixInstB"] != 1 and kernel["MIWG0"] > globalParameters["WavefrontWidth"]:
-        #  kStr += inst("v_lshrrev_b32", vgpr(tmpV4), log2(globalParameters["WavefrontWidth"]),vgpr(tid0),"Row-BlockId in macroTile0")
-        #  kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(2*kernel["MatrixInstM"]*kernel["ThreadTile0"]),"")
-        #  kStr += inst("v_mul_lo_u32", vgpr(tmpV4), sgpr(tmpSgpr),vgpr(tmpV4),"Row-BlockId in macroTile0")
-        #  kStr += inst("v_and_b32", vgpr(tid0), hex(globalParameters["WavefrontWidth"]-1), vgpr(tid0), "WaveFrontLaneId")
+        if kernel["MatrixInstB"] != 1 and kernel["MIWG0"] > globalParameters["WavefrontWidth"]:
+          kStr += inst("v_lshrrev_b32", vgpr(tmpV4), log2(globalParameters["WavefrontWidth"]),vgpr(tid0),"Row-BlockId in macroTile0")
+          kStr += inst("s_mov_b32", sgpr(tmpS0), hex(2*kernel["MatrixInstM"]*kernel["ThreadTile0"]),"")
+          kStr += inst("v_mul_lo_u32", vgpr(tmpV4), sgpr(tmpS0),vgpr(tmpV4),"Row-BlockId in macroTile0")
+          kStr += inst("v_and_b32", vgpr(tid0), hex(globalParameters["WavefrontWidth"]-1), vgpr(tid0), "WaveFrontLaneId")
 
         kStr += "\n"
         if (kernel["MatrixInstM"] != 4):
