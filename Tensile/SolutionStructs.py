@@ -1229,9 +1229,16 @@ class Problem:
     self.count = count
 
   def __str__(self):
-    rv= "sizes:" + str(self.sizes)
+    rv= "{ sizes:" + str(list(self.sizes))
     if self.stridesA:
-      rv += "stridesA:" + str(self.stridesA)
+      rv += ", stridesA:" + str(list(self.stridesA))
+    if self.stridesB:
+      rv += ", stridesB:" + str(list(self.stridesB))
+    if self.stridesC:
+      rv += ", stridesC:" + str(list(self.stridesC))
+    if self.stridesD:
+      rv += ", stridesD:" + str(list(self.stridesD))
+    rv += " }"
     return rv
 
 
@@ -1362,17 +1369,24 @@ class ExactList(Problem):
     # TODO- pass strides here, remove calls to convertLeadingDims
     Problem.__init__(self, sizes=sizes, zeroPadA=problemType["ZeroPadA"], zeroPadB=problemType["ZeroPadB"])
 
+  def __str__(self):
+    return str(list(self.sizes))
+
   @staticmethod
-  def convertLeadingDims(problemType, problemSize):
+  def convertLeadingDims(problemType, problemSize, stridesA = None, stridesB = None, stridesC = None, stridesD = None):
     # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked
     # onto the end of the sizes list
+    predStridesD = stridesD is not None and stridesD[1] != -1
+    predStridesC = stridesC is not None and stridesC[1] != -1
+    predStridesA = stridesA is not None and stridesA[1] != -1
+    predStridesB = stridesB is not None and stridesB[1] != -1
     return problemSize[:problemType["NumIndicesC"]+1] + \
-           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]),) + \
-           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][1]]),) + \
+           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]) if not predStridesD else stridesD[1], ) + \
+           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][1]]) if not predStridesC else stridesC[1], ) + \
            (max(problemSize[problemType["IndexAssignmentsLD"][2]],
-                problemSize[problemType["IndexAssignmentsA"][0]]),) + \
+                problemSize[problemType["IndexAssignmentsA"][0]]) if not predStridesA else stridesA[1], ) + \
            (max(problemSize[problemType["IndexAssignmentsLD"][3]],
-                problemSize[problemType["IndexAssignmentsB"][0]]),)
+                problemSize[problemType["IndexAssignmentsB"][0]]) if not predStridesB else stridesB[1], )
 
 
 class ExactDict(Problem):
@@ -1389,8 +1403,10 @@ class ExactDict(Problem):
       else:
         raise RuntimeError ("specified field '%s' is not a valid Exact dict field"%f)
 
-
     if problemType:
+      if "OperationType" in problemType and problemType["OperationType"] == "GEMM":
+        sizesTuple = tuple(self.sizes + [-1, -1, -1, -1])
+        self.sizes = ExactList.convertLeadingDims(problemType, sizesTuple, self.stridesA, self.stridesB, self.stridesC, self.stridesD)
       zp={}
       zp['A'] = deepcopy(problemType["ZeroPadA"])
       zp['B'] = deepcopy(problemType["ZeroPadB"])
@@ -1420,11 +1436,14 @@ class ExactDict(Problem):
       self.zeroPadA = self.zeroPadB = []
 
     if problemType:
-      if len(self.sizes) != problemType["TotalIndices"]:
+      if "OperationType" in problemType and problemType["OperationType"] == "GEMM":
+        if len(self.sizes) != (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
+        # FIXME-ExactDict size descriptor still (but preferrably not so) uses 8-tuple for GEMM problems
+          raise RuntimeError ("specified size=%s does not have enough indices for problem (expected %d, got %d)" \
+                % (self.sizes, problemType["TotalIndices"]+problemType["NumIndicesLD"], len(self.sizes)))
+      elif len(self.sizes) != problemType["TotalIndices"]:
         raise RuntimeError ("specified size=%s does not have enough indices for problem (expected %d, got %d)" \
                 % (self.sizes, problemType["TotalIndices"], len(self.sizes)))
-
-
 
 
 ################################################################################
