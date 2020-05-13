@@ -109,6 +109,27 @@ else
     GPU=mi60
 fi
 
+collect_uniques () {
+    strided=${LOGNAME}-strided.sh
+    regular=${LOGNAME}.sh
+    strided2=${LOGNAME}2-strided.sh
+    regular2=${LOGNAME}2.sh
+    
+    pushd scripts
+    bash ../../tuning/scripts/unique-rocblas-logs.sh ${strided}
+    bash ../../tuning/scripts/unique-rocblas-logs.sh ${regular}
+    mv unique-${strided} ${strided}
+    mv unique-${regular} ${regular}
+    popd
+
+    pushd scripts2
+    bash ../../tuning/scripts/unique-rocblas-logs.sh ${strided2}
+    bash ../../tuning/scripts/unique-rocblas-logs.sh ${regular2}
+    mv unique-${strided2} ${strided2}
+    mv unique-${regular2} ${regular2}
+    popd
+}
+
 run_tune_all_scripts () {
     NN=build-${LIBRARY}-${DATA_TYPE}-nn-${OUTPUT_DIR}
     NT=build-${LIBRARY}-${DATA_TYPE}-nt-${OUTPUT_DIR}
@@ -179,6 +200,8 @@ else
 fi
 
 pushd ${OUTPUT_DIR}
+LOGNAME="${LOG%.*}"
+collect_uniques
 chmod 755 scripts/*
 chmod 755 scripts2/*
 git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${BRANCH}
