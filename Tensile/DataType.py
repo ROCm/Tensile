@@ -45,7 +45,6 @@ class DataType:
             'isIntegral': False,
             'isComplex': False,
             'packing': 1,
-            'miInput' : 1,
         },
         {
             'char': 'D',
@@ -60,7 +59,6 @@ class DataType:
             'isIntegral': False,
             'isComplex': False,
             'packing': 1,
-            'miInput' : 1,
         },
         {
             'char': 'C',
@@ -75,7 +73,6 @@ class DataType:
             'isIntegral': False,
             'isComplex': True,
             'packing': 1,
-            'miInput' : 1,
         },
         {
             'char': 'Z',
@@ -90,7 +87,6 @@ class DataType:
             'isIntegral': False,
             'isComplex': True,
             'packing': 1,
-            'miInput' : 1,
         },
         {
             'char': 'H',
@@ -105,7 +101,6 @@ class DataType:
             'isIntegral': False,
             'isComplex': False,
             'packing': 1,
-            'miInput' : 4,
         },
         {
             'char': '4xi8',
@@ -120,7 +115,6 @@ class DataType:
             'isIntegral': True,
             'isComplex': False,
             'packing': 4,
-            'miInput' : 4,
         },
         {
             'char': 'I',
@@ -135,7 +129,6 @@ class DataType:
             'isIntegral': True,
             'isComplex': False,
             'packing': 1,
-            'miInput' : 1,
         },
         {
             'char': 'B',
@@ -150,7 +143,6 @@ class DataType:
             'isIntegral': False,
             'isComplex': False,
             'packing': 1,
-            'miInput' : 2,
         },
     ]
     lookup = {}    
@@ -245,8 +237,6 @@ class DataType:
         return self.properties['reg']
     def numBytes(self):
         return int(self.numRegisters() * 4)
-    def numMIInput(self):
-        return self.properties['miInput']
     def flopsPerMac(self):
         return 2 if self.isReal() else 8
 

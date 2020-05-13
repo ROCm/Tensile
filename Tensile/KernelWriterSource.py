@@ -2469,18 +2469,14 @@ class KernelWriterSource(KernelWriter):
   # Local Read: Do It A/B
   ##############################################################################
   def localReadDo(self, kernel, black, iui, epsi, uIdx, tP):
-    tc   = tP["tensorChar"]
-    imod = Code.Module("LocalReadDo%s_I%s"%(tc,iui))
-    pack = Code.Module("pack%s_I%s"%(tc,iui))
-
+    kStr = ""
     for r in range(0, kernel[tP["tt"]]//kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):
-        imod.addCode("%sr%s[%u*VECTOR_WIDTH+%u%s] = localRead%s[%u*SG%s*VECTOR_WIDTH + %u]; %s" \
+        kStr += "%sr%s[%u*VECTOR_WIDTH+%u%s] = localRead%s[%u*SG%s*VECTOR_WIDTH + %u]; %s" \
             % (self.indent, tP["tensorChar"], r, s, \
             (("+TT%s"%tP["tileChar"]) if black else ""), \
-            tP["tensorChar"], r, tP["tileChar"], s, self.endLine))
-
-    return imod, pack
+            tP["tensorChar"], r, tP["tileChar"], s, self.endLine)
+    return kStr
 
   ##############################################################################
   # Shift Vector Components d0,1
@@ -2539,6 +2535,8 @@ class KernelWriterSource(KernelWriter):
     kStr += "  }%s" % self.endLine
     return kStr
 
+  def shiftVectorComponentsForMatrixInst(self, kernel, tP):
+    return self.shiftVectorComponents(kernel, tP)
 
   ##############################################################################
   # Shift Vectors Components d1
