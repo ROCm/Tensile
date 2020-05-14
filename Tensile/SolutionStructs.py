@@ -24,7 +24,7 @@ import operator
 from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
-from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print2
 from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
@@ -2119,7 +2119,7 @@ class Solution:
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
-      print1("in assignDerivedParameters, state['Valid'] = False")
+      print2("in assignDerivedParameters, state['Valid'] = False")
       return
 
     # Init LoopIters parameter in case of early exit
