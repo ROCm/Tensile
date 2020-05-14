@@ -3052,9 +3052,9 @@ class Solution:
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     if "MatrixInstM" in state:
-      name += "%s%ux%ux%ux%u" \
+      name += "%s%ux%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
-          state["MatrixInstM"], state["MatrixInstN"],  state["MatrixInstK"], state["MatrixInstB"])
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"])
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"
