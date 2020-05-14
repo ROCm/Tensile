@@ -28,8 +28,11 @@ HELP_STR="
     [-c|--count]        Optional. Sets all cases where count=1 to count=10 (default=false)
     [-t|--tile-aware]   Optional. Use tile-aware method. (limited support, default=false) 
     [--number]          Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
-    [-u|--username]     Optional. Specify which rocBLAS/Tensile fork to use (default=ROCmSoftwarePlatform)
-    [-b|--branch]       Optional. Specify which rocBLAS/Tensile branch to use (default=develop)
+    [-u|--username]     Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
+    [--rocblas-fork]    Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
+    [-b|--branch]       Optional. Specify which Tensile branch to use (default=master)
+    [--rocblas-branch]  Optional. Specify which rocBLAS branch to use (default=develop)
+    [-p|--public]       Optional. Specify whether you want to use rocBLAS public repo (default=false)
 "
 HELP=false
 COUNT=false
@@ -42,9 +45,12 @@ DVAL=2
 NUM=1
 DATA_TYPE=sgemm
 ORGANIZATION=ROCmSoftwarePlatform
-BRANCH=develop
+ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
+ROCBLAS_BRANCH=develop
+TENSILE_BRANCH=master
+PUBLIC=true
 
-OPTS=`getopt -o hg:z:y:o:f:rmctu:b: --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,username:,branch:,number: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -64,7 +70,10 @@ while true; do
         -c | --count )        COUNT=true; shift ;;
         -t | --tile-aware )   TILE_AWARE=true; shift ;;
         -u | --username )     ORGANIZATION="$2"; shift 2;;
-        -b | --branch )       BRANCH="$2"; shift 2;;
+        --rocblas-fork )      ROCBLAS_ORGANIZATION="$2"; shift 2;;
+        -b | --branch )       TENSILE_BRANCH="$2"; shift 2;;
+        --rocblas-branch )    ROCBLAS_BRANCH="$2"; shift 2;;
+        -p | --public )       PUBLIC=true; shift ;;
         --number )            NUM="$2"; shift 2;;
         -- ) shift; break ;;
         * ) break ;;
@@ -204,13 +213,18 @@ LOGNAME="${LOG%.*}"
 collect_uniques
 chmod 755 scripts/*
 chmod 755 scripts2/*
-git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${BRANCH}
+git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${TENSILE_BRANCH}
 
 pushd Tensile
 run_tune_all_scripts
 popd
 
-git clone https://github.com/${ORGANIZATION}/rocBLAS-internal.git -b ${BRANCH} rocBLAS
+REPO=rocBLAS-internal
+if [[ "${PUBLIC}" == true ]]; then
+    REPO=rocBLAS
+fi
+
+git clone https://github.com/${ROCBLAS_ORGANIZATION}/${REPO}.git -b ${ROCBLAS_BRANCH} rocBLAS
 mkdir library
 mv Tensile/exact library/
 mkdir library/merge
