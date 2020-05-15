@@ -1781,6 +1781,10 @@ class Solution:
   #   state[LSPA]
   @staticmethod
   def setGlobalLoadTileDimClassic(state, tc, numLoads, totalVectorsCoalesced, totalElementsPerp):
+
+    if state["WaveSeparateGlobalRead%s"%tc]:
+      totalElementsPerp = roundupRatio(totalElementsPerp, state["NumThreads"] // globalParameters["WavefrontWidth"])
+
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
@@ -1839,13 +1843,14 @@ class Solution:
         return False
 
     if state["ProblemType"]["TLU%s"%tc]:
-      state["LSC%s"%tc] = state["MacroTile%s"%tc] \
-          // state["NumLoadsCoalesced%s"%tc]
+      state["LSC%s"%tc] = state["MacroTile%s"%tc] // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-      state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-         // state["NumLoadsPerpendicular%s"%tc]
+      state["LSP%s"%tc] = state["MacroTile%s"%tc] // state["NumLoadsPerpendicular%s"%tc]
+
+    if state["WaveSeparateGlobalRead%s"%tc]:
+      state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // globalParameters["WavefrontWidth"])
 
     return True
 
@@ -2029,11 +2034,11 @@ class Solution:
 
   @staticmethod
   def parameterWrapper(state):
-    state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"]
-    state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"]
+    state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
+    state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
-    state["UnrollMajorLDSA"]     = state["TransposeLDS"]
-    state["UnrollMajorLDSB"]     = state["TransposeLDS"]
+    state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSA"] else 0
+    state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSB"] else 0
 
     if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
       # set EnableMatrixInstruction
@@ -2066,6 +2071,23 @@ class Solution:
 
     else:
       state["EnableMatrixInstruction"] = False
+
+
+  ##############################################
+  # check and calculate Wave Seperate Global Read
+  @staticmethod
+  def checkAndAssignWaveSeparateGlobalRead(state, tc):
+    # check can we use WaveSeparateGlobalRead
+    numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+    if state["WaveSeparateGlobalRead%s"%tc]:
+      if state["FractionalLoad"] != 0:
+        reject(state, "didn't support WaveSeparateGlobalRead with FractionalLoad(%u) != 0" % state["FractionalLoad"])
+      if state["LocalDotLayout"]>1:
+        reject(state, "didn't support WaveSeparateGlobalRead when LocalDotLayout(%u) > 1" % state["LocalDotLayout"])
+      if state["ProblemType"]["TLU%s"%tc] and (state["DepthU"] > 0) and (state["DepthU"] % numOfWaves != 0):
+        reject(state, "dind't support WaveSeparateGlobalRead when DepthU is not multiple of wave %u in TLU%s" % (state["DepthU"], tc))
+      if not state["ProblemType"]["TLU%s"%tc] and (state["MacroTile%s" % tc] % numOfWaves != 0):
+        reject(state, "dind't support WaveSeparateGlobalRead when MacroTile is not multiple of wave %u in TLU%s" % (state["MacroTile%s"%tc], tc))
 
 
   ########################################
@@ -2152,6 +2174,9 @@ class Solution:
       state["SubGroupA"] = state["SubGroup1"]
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
+
+    Solution.checkAndAssignWaveSeparateGlobalRead(state, 'A')
+    Solution.checkAndAssignWaveSeparateGlobalRead(state, 'B')
 
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False
@@ -2396,8 +2421,13 @@ class Solution:
         return
 
     if userDepthU < 0:
-      depthU = 2
-      maxDepthU = globalParameters["MaxDepthU"]
+      depthU     = 2
+      maxDepthU  = globalParameters["MaxDepthU"]
+      numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      if state["ProblemType"]["TLUA"] and state["WaveSeparateGlobalReadA"]:
+        depthU = max(depthU, numOfWaves)
+      if state["ProblemType"]["TLUB"] and state["WaveSeparateGlobalReadB"]:
+        depthU = max(depthU, numOfWaves)
     else:
       depthU = userDepthU
       maxDepthU = userDepthU
@@ -2428,7 +2458,6 @@ class Solution:
 
       totalElementsA = totalElementsCoalescedA * totalElementsPerpA
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
-
 
       if state["FractionalLoad"]:
         if not Solution.setGlobalLoadTileDimFractional(state, "A", depthU):
