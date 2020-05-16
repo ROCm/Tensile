@@ -409,7 +409,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # mfma interleave
       if kernel["MatrixInstruction"]:
         numMfmaPerIter = self.numMfmas * kernel["InnerUnroll"]
-        writesPerIter = localWriteCode.countType(Code.LocalWriteInst)
+        writesPerIter = len(localWriteCode.items())
         localWriteEndIter = kernel["LoopIters"] - kernel["PrefetchLocalRead"] - 1
         isBarrier = localWriteEndIter + 1
         writeItems = list(localWriteCode.items())
@@ -556,7 +556,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if self.perIterLocalWriteCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.LocalWriteInst) and kernel["PrefetchLocalRead"]:
             preIterLocalWrites = self.perIterLocalWriteCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.LocalWriteInst)
             preIterGlobalReads = self.perIterGlobalReadCode[iteration-kernel["PrefetchLocalRead"]].countType(Code.GlobalReadInst)
-            skipPreIterLW = max(preIterLocalWrites - (numMfmaPerIter - preIterGlobalReads - 1),1) + max(numMfmaPerIter - readsPerIter, 0)
+            if preIterLocalWrites - (numMfmaPerIter - preIterGlobalReads - 1) < 0:
+               # condition for case in previous iteration writes scheduled < mfmaIter (we only got few slots for scheduling writes in previous writes)
+               skipPreIterLW = preIterLocalWrites - preIterGlobalReads
+            else:
+               skipPreIterLW = max(preIterLocalWrites - (numMfmaPerIter - preIterGlobalReads - 1),1) + max(numMfmaPerIter - readsPerIter, 0)
             lgkmcnt += skipPreIterLW
       else:
         for item in list(iterCode.items()):

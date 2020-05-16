@@ -4011,7 +4011,7 @@ class KernelWriterAssembly(KernelWriter):
         assert(numPerpElementsPerWave>0)
         #calculate numberofLoads
         if not kernel["DirectToLds%s"%tP["tensorChar"]]:
-          kStr += inst("s_lshl_b32", sgpr(waveStartSgpr), sgpr("WaveId"), log2(numPerpElementsPerWave),"waveOffset = (%s//%s//%s)*%s" %(kernel[tP["lsp"]],kernel["NumThreads"],globalParameters["WavefrontWidth"],tP["nrp"]))
+          kStr += inst("s_mul_i32", sgpr(waveStartSgpr), sgpr("WaveId"), numPerpElementsPerWave,"waveOffset = (%s//%s//%s)*%s" %(kernel[tP["lsp"]],kernel["NumThreads"],globalParameters["WavefrontWidth"],tP["nrp"]))
         if kernel["BufferLoad"]:
           if (kernel["TransposeLDS"] and not kernel["ProblemType"]["TLU%s"%tP["tensorChar"]]) and \
              not kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -4898,7 +4898,7 @@ class KernelWriterAssembly(KernelWriter):
           ## calculate number lanes for insrting LDSPad
           if not kernel["LdsBlockSizePerPad"] == -1:
             divisorVal = log2(kernel["LdsBlockSizePerPad"]//(tP["glvw"]*tP["bpe"]))
-            if divisorVal < 64 :  
+            if divisorVal < 6 :  
                kStr += inst("v_lshrrev_b32",\
                    vgpr(tmpVgpr1), \
                    divisorVal, \
@@ -4929,7 +4929,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         kStr += inst("v_mul_u32_u24", \
             vgpr(destVgpr), \
-            hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
+            hex(kernel["MacroTile%s"%tP["tensorChar"]] + (kernel["LdsPad%s"%tc])), \
             vgpr(uReg), \
             "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
         kStr += inst("_v_add_lshl_u32", \
@@ -5278,13 +5278,13 @@ class KernelWriterAssembly(KernelWriter):
         if tc == "A": # For BBlocks, A and B use this case
           kStr += inst("s_mov_b32", \
               sgpr(tmpSgpr), \
-              hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
+              hex(kernel["MacroTile%u"%tIdx] + (kernel["LdsPad%s"%tc])), \
               "MT%u+PAD"%tIdx )
         else: # For BBlocks, don't use else case
           kStr += inst("s_mov_b32", \
               sgpr(tmpSgpr), \
               #hex(kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]), \
-              hex((kernel["MacroTile%u"%tIdx] + kernel["LdsPad%s"%tc]) // 4), \
+              hex((kernel["MacroTile%u"%tIdx]//4) + kernel["LdsPad%s"%tc]), \
               "MT%u+PAD"%tIdx )
     else:
       kStr += inst("s_mov_b32", \
