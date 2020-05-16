@@ -27,7 +27,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
             #### temporarily enable --no-merge-files until hipclang update is posted
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options="--no-merge-files" --timing-file=\$(pwd)/timing.csv
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
 
             mkdir build
             pushd build
@@ -83,7 +83,7 @@ def runTestCommand (platform, project, test_marks)
                 ####
                 tox --version
                 #### temporarily enable --no-merge-files until hipclang update is posted
-                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options="--no-merge-files" --timing-file=\$(pwd)/timing.csv
+                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
                 PY_ERR=\$?
                 date
 
