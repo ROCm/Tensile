@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include "ResultReporter.hpp"
 #include "CSVStackFile.hpp"
+#include "ResultReporter.hpp"
 
 #include <cstddef>
 #include <string>
@@ -42,59 +42,86 @@ namespace Tensile
 {
     namespace Client
     {
-        class LogReporter: public ResultReporter
+        class LogReporter : public ResultReporter
         {
         public:
-            LogReporter(LogLevel level, std::initializer_list<const char *> keys, std::ostream & stream, bool dumpTensors)
-                : m_level(level),
-                  m_stream(stream),
-                  m_csvOutput(stream),
-                  m_dumpTensors(dumpTensors)
+            LogReporter(LogLevel                           level,
+                        std::initializer_list<const char*> keys,
+                        std::ostream&                      stream,
+                        bool                               dumpTensors)
+                : m_level(level)
+                , m_stream(stream)
+                , m_csvOutput(stream)
+                , m_dumpTensors(dumpTensors)
             {
-                for(auto const& key: keys)
+                for(auto const& key : keys)
                     m_csvOutput.setHeaderForKey(key, key);
             }
 
-            LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::ostream & stream, bool dumpTensors)
-                : m_level(level),
-                  m_stream(stream),
-                  m_csvOutput(stream),
-                  m_dumpTensors(dumpTensors)
+            LogReporter(LogLevel                           level,
+                        std::initializer_list<std::string> keys,
+                        std::ostream&                      stream,
+                        bool                               dumpTensors)
+                : m_level(level)
+                , m_stream(stream)
+                , m_csvOutput(stream)
+                , m_dumpTensors(dumpTensors)
             {
-                for(auto const& key: keys)
+                for(auto const& key : keys)
                     m_csvOutput.setHeaderForKey(key, key);
             }
 
-            LogReporter(LogLevel level, std::initializer_list<std::string> keys, std::shared_ptr<std::ostream> stream, bool dumpTensors)
-                : m_level(level),
-                  m_stream(*stream),
-                  m_ownedStream(stream),
-                  m_csvOutput(stream),
-                  m_dumpTensors(dumpTensors)
+            LogReporter(LogLevel                           level,
+                        std::initializer_list<std::string> keys,
+                        std::shared_ptr<std::ostream>      stream,
+                        bool                               dumpTensors)
+                : m_level(level)
+                , m_stream(*stream)
+                , m_ownedStream(stream)
+                , m_csvOutput(stream)
+                , m_dumpTensors(dumpTensors)
             {
-                for(auto const& key: keys)
+                for(auto const& key : keys)
                     m_csvOutput.setHeaderForKey(key, key);
             }
 
             template <typename Stream>
-            static std::shared_ptr<LogReporter> Default(po::variables_map const& args, Stream & stream)
+            static std::shared_ptr<LogReporter> Default(po::variables_map const& args,
+                                                        Stream&                  stream)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
                 using namespace ResultKey;
                 auto logLevel = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << logLevel << std::endl;
-                return std::shared_ptr<LogReporter>(
-                        new LogReporter(logLevel,
-                                        {BenchmarkRunNumber, ProblemProgress, SolutionProgress,
-                                         OperationIdentifier, ProblemSizes, SolutionName,
-                                         Validation, TimeUS, SpeedGFlops, Empty,
-                                         TotalGranularity, TilesPerCu, NumCus,
-                                         Tile0Granularity, Tile1Granularity, CuGranularity,
-                                         WaveGranularity,
-                                         MemReadBytes, MemWriteBytes,
-                                         TempEdge, ClockRateSys, ClockRateSOC, ClockRateMem,
-                                         FanSpeedRPMs, HardwareSampleCount, EnqueueTime},
-                                        stream, dumpTensors));
+                return std::shared_ptr<LogReporter>(new LogReporter(logLevel,
+                                                                    {BenchmarkRunNumber,
+                                                                     ProblemProgress,
+                                                                     SolutionProgress,
+                                                                     OperationIdentifier,
+                                                                     ProblemSizes,
+                                                                     SolutionName,
+                                                                     Validation,
+                                                                     TimeUS,
+                                                                     SpeedGFlops,
+                                                                     Empty,
+                                                                     TotalGranularity,
+                                                                     TilesPerCu,
+                                                                     NumCus,
+                                                                     Tile0Granularity,
+                                                                     Tile1Granularity,
+                                                                     CuGranularity,
+                                                                     WaveGranularity,
+                                                                     MemReadBytes,
+                                                                     MemWriteBytes,
+                                                                     TempEdge,
+                                                                     ClockRateSys,
+                                                                     ClockRateSOC,
+                                                                     ClockRateMem,
+                                                                     FanSpeedRPMs,
+                                                                     HardwareSampleCount,
+                                                                     EnqueueTime},
+                                                                    stream,
+                                                                    dumpTensors));
             }
 
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
@@ -102,7 +129,8 @@ namespace Tensile
                 return Default(args, std::cout);
             }
 
-            virtual void reportValue_string(std::string const& key, std::string const& value) override
+            virtual void reportValue_string(std::string const& key,
+                                            std::string const& value) override
             {
                 if(key == ResultKey::Validation)
                     acceptValidation(value);
@@ -125,7 +153,8 @@ namespace Tensile
                 m_csvOutput.setValueForKey(key, value);
             }
 
-            virtual void reportValue_sizes(std::string const& key, std::vector<size_t> const& value) override
+            virtual void reportValue_sizes(std::string const&         key,
+                                           std::vector<size_t> const& value) override
             {
                 std::ostringstream msg;
                 msg << "(";
@@ -163,15 +192,20 @@ namespace Tensile
             }
 
             template <typename T>
-            void logTensorTyped(LogLevel level, std::string const& name, T const* data, TensorDescriptor const& tensor, T const * ptrVal)
+            void logTensorTyped(LogLevel                level,
+                                std::string const&      name,
+                                T const*                data,
+                                TensorDescriptor const& tensor,
+                                T const*                ptrVal)
             {
                 if(logAtLevel(level))
                 {
                     if(m_dumpTensors)
                     {
-                        std::string fname = concatenate("tensor_", name, ".bin");
+                        std::string   fname = concatenate("tensor_", name, ".bin");
                         std::ofstream ofile(fname.c_str());
-                        ofile.write(reinterpret_cast<const char *>(data), tensor.totalAllocatedBytes());
+                        ofile.write(reinterpret_cast<const char*>(data),
+                                    tensor.totalAllocatedBytes());
 
                         m_stream << "Dumped tensor to file " << fname << std::endl;
                     }
@@ -183,23 +217,29 @@ namespace Tensile
                 }
             }
 
-            virtual void logTensor(LogLevel level, std::string const& name, void const* data, TensorDescriptor const& tensor, void const* ptrVal) override
+            virtual void logTensor(LogLevel                level,
+                                   std::string const&      name,
+                                   void const*             data,
+                                   TensorDescriptor const& tensor,
+                                   void const*             ptrVal) override
             {
                 if(logAtLevel(level))
                 {
                     if(tensor.dataType() == DataType::Float)
-                        logTensorTyped(level, name,
-                                       reinterpret_cast<float const*>(data), tensor, 
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<float const*>(data),
+                                       tensor,
                                        reinterpret_cast<float const*>(ptrVal));
                     else
-                        throw std::runtime_error(concatenate("Can't log tensor of type ", tensor.dataType()));
+                        throw std::runtime_error(
+                            concatenate("Can't log tensor of type ", tensor.dataType()));
                 }
             }
 
             /// RunListener interface functions
 
-            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override
-            {}
+            virtual void setReporter(std::shared_ptr<ResultReporter> reporter) override {}
 
             virtual void preProblem(ContractionProblem const& problem) override
             {
@@ -224,23 +264,21 @@ namespace Tensile
                 m_csvOutput.pop();
             }
 
-            virtual void finalizeReport() override
-            {
-            }
+            virtual void finalizeReport() override {}
 
         private:
             LogLevel m_level;
 
-            std::ostream & m_stream;
+            std::ostream&                 m_stream;
             std::shared_ptr<std::ostream> m_ownedStream;
 
-            bool m_firstRun = true;
-            bool m_inSolution = false;
+            bool m_firstRun    = true;
+            bool m_inSolution  = false;
             bool m_dumpTensors = false;
 
             LogLevel m_rowLevel;
 
             CSVStackFile m_csvOutput;
         };
-    }
-}
+    } // namespace Client
+} // namespace Tensile

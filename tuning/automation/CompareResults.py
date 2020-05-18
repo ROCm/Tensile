@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ def RunMain():
 
     keys = headers[0:len(headers)-4]
     new_data = pd.read_csv(newFileName)
-    
+
     result1 = pd.merge(current_data, new_data, on=keys, how='inner')
     result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current', 'rocblas-Gflops_y':'rocblas-Gflops_new','us_x':'us_current','us_y':'us_new','counts_x':'counts_current','score_x':'score_current','counts_y':'counts_new','score_y':'score_new','wa_x':'wa_current','wa_y':'wa_new'})
 

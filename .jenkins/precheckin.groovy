@@ -31,20 +31,20 @@ def runCI =
         commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
         commonGroovy.runCompileCommand(platform, project, jobName, false)
     }
-    
+
     def testCommand =
     {
         platform, project->
 
         def test_marks = "pre_checkin"
-        commonGroovy.runTestCommand(platform, project, test_marks)   
+        commonGroovy.runTestCommand(platform, project, test_marks)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
 
 }
 
-ci: { 
+ci: {
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
     def propertyList = ["compute-rocm-dkms-no-npi":[],
@@ -52,20 +52,20 @@ ci: {
                         "rocm-docker":[]]
     propertyList = auxiliary.appendPropertyList(propertyList)
 
-    def jobNameList = ["compute-rocm-dkms-no-npi":([ubuntu16:['gfx900','gfx906','gfx908']]), 
-                       "compute-rocm-dkms-no-npi-hipclang":([ubuntu16:['gfx900','gfx906','gfx908']]), 
+    def jobNameList = ["compute-rocm-dkms-no-npi":([ubuntu16:['gfx900','gfx906','gfx908']]),
+                       "compute-rocm-dkms-no-npi-hipclang":([ubuntu16:['gfx900','gfx906','gfx908']]),
                        "rocm-docker":([ubuntu16:['gfx900','gfx906','gfx908']])]
 
     // jobNameList = auxiliary.appendJobNameList(jobNameList)
 
-    propertyList.each 
+    propertyList.each
     {
         jobName, property->
         if (urlJobName == jobName)
             properties(auxiliary.addCommonProperties(property))
     }
 
-    jobNameList.each 
+    jobNameList.each
     {
         jobName, nodeDetails->
         if (urlJobName == jobName)
@@ -82,4 +82,4 @@ ci: {
             runCI([ubuntu16:['any']], urlJobName)
         }
     }
-} 
+}

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     #print "  solutionsFileName:", solutionsFileName
     if enableTileSelection:
       selectionFileName = problemSizeGroup[3]
-      selectionFileNameList.append(selectionFileName) 
+      selectionFileNameList.append(selectionFileName)
 
     ######################################
     # Read Solutions
@@ -118,7 +118,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
           logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
     else:
       validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionOldClient(problemType, problemSizeGroups)
-  
+
     validSelectionSolutionsIncluded = []
     validSelectionSolutionsRemainder = []
     selectionSolutionsIds = set([])
@@ -289,7 +289,7 @@ class LogicAnalyzer:
       self.rangeProblemSizes.update([tuple(problem.sizes) for problem in problemSizes.problems])
       for rangeSize in problemSizes.ranges:
 
-        if globalParameters["ExpandRanges"]: 
+        if globalParameters["ExpandRanges"]:
           # Treat ranges as pile of exacts:
           for rsize in rangeSize.problemSizes:
             self.exactProblemSizes.add(tuple(rsize))
@@ -505,7 +505,7 @@ class LogicAnalyzer:
   # one at a time.  Stop when leastImportantSolution indicates no more
   # solutions can be removed, which appears to be when the solution
   # is used by an exact problem or is the only possible solution for some
-  # problem or doesn't improve the a solution by > SolutionImportanceMin% 
+  # problem or doesn't improve the a solution by > SolutionImportanceMin%
   ##############################################################################
   def removeLeastImportantSolutions(self):
     # Remove least important solutions
@@ -979,7 +979,7 @@ class LogicAnalyzer:
           winnerIdx = solutionIdx
           winnerGFlops = solutionGFlops
         elif solutionGFlops > secondGFlops:
-          secondGFlops = solutionGFlops 
+          secondGFlops = solutionGFlops
 
       winnerTimeMs = totalFlops / winnerGFlops / 1000000.0
       secondTimeMs = totalFlops / secondGFlops / 1000000.0
@@ -1076,7 +1076,7 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # Prune a list of solutions, keeping only the indices specified in 
+  # Prune a list of solutions, keeping only the indices specified in
   # keepSolutions.  keepSolutions is a set not a list
   ##############################################################################
   def pruneSolutions(self, keepSolutions):

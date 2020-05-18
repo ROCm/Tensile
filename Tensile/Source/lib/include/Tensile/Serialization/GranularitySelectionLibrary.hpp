@@ -3,7 +3,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -12,8 +12,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
+#include <Tensile/MasterSolutionLibrary.hpp>
 
 namespace Tensile
 {
@@ -38,11 +38,11 @@ namespace Tensile
         struct MappingTraits<ExactSelectionTableEntry, IO>
         {
             using Entry = ExactSelectionTableEntry; //<Key, Value>;
-            using iot = IOTraits<IO>;
+            using iot   = IOTraits<IO>;
 
-            static void mapping(IO & io, Entry & entry)
+            static void mapping(IO& io, Entry& entry)
             {
-                iot::mapRequired(io, "key",   entry.key);
+                iot::mapRequired(io, "key", entry.key);
                 iot::mapRequired(io, "value", entry.value);
             }
 
@@ -56,31 +56,34 @@ namespace Tensile
 
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
-                SolutionMap<MySolution> * ctx = static_cast<SolutionMap<MySolution> *>(iot::getContext(io));
+                SolutionMap<MySolution>* ctx
+                    = static_cast<SolutionMap<MySolution>*>(iot::getContext(io));
                 if(ctx == nullptr)
                 {
-                    iot::setError(io, "GranularitySelectionLibrary requires that context be set to a SolutionMap.");
+                    iot::setError(io,
+                                  "GranularitySelectionLibrary requires that context be "
+                                  "set to a SolutionMap.");
                 }
 
-                std::vector<int> mappingIndices;
+                std::vector<int>                      mappingIndices;
                 std::vector<ExactSelectionTableEntry> mapEntries;
                 if(iot::outputting(io))
                 {
                     mappingIndices.reserve(lib.solutions.size());
 
-                    for(auto const& pair: lib.solutions)
+                    for(auto const& pair : lib.solutions)
                         mappingIndices.push_back(pair.first);
 
                     iot::mapRequired(io, "indices", mappingIndices);
-                    
-                    for (auto it=lib.exactMap.begin(); it!=lib.exactMap.end(); ++it)
+
+                    for(auto it = lib.exactMap.begin(); it != lib.exactMap.end(); ++it)
                     {
                         ExactSelectionTableEntry newEntry;
-                        newEntry.key = it->first;
+                        newEntry.key   = it->first;
                         newEntry.value = it->second;
-                        mapEntries.push_back (newEntry);
+                        mapEntries.push_back(newEntry);
                     }
                     iot::mapRequired(io, "exact", mapEntries);
                 }
@@ -88,9 +91,11 @@ namespace Tensile
                 {
                     iot::mapRequired(io, "indices", mappingIndices);
                     if(mappingIndices.empty())
-                        iot::setError(io, "GranularitySelectionLibrary requires non empty mapping index set.");
+                        iot::setError(io,
+                                      "GranularitySelectionLibrary requires non empty "
+                                      "mapping index set.");
 
-                    for(int index: mappingIndices)
+                    for(int index : mappingIndices)
                     {
                         auto slnIter = ctx->find(index);
                         if(slnIter == ctx->end())
@@ -99,21 +104,21 @@ namespace Tensile
                         }
                         else
                         {
-                            auto solution = slnIter->second; 
+                            auto solution = slnIter->second;
                             lib.solutions.insert(std::make_pair(index, solution));
                         }
                     }
-                    
+
                     iot::mapRequired(io, "exact", mapEntries);
 
-                    for (ExactSelectionTableEntry entry: mapEntries)
+                    for(ExactSelectionTableEntry entry : mapEntries)
                     {
-                        std::vector<size_t> key = entry.key;
-                        int value = entry.value;
-                        lib.exactMap.insert( std::pair<std::vector<size_t>,int>(key,value));
+                        std::vector<size_t> key   = entry.key;
+                        int                 value = entry.value;
+                        lib.exactMap.insert(std::pair<std::vector<size_t>, int>(key, value));
                     }
                 }
             }
-        };  
-    }
-}
+        };
+    } // namespace Serialization
+} // namespace Tensile

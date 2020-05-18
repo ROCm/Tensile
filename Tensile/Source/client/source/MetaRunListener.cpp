@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -29,8 +29,8 @@
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
 
-#include "RunListener.hpp"
 #include "ResultReporter.hpp"
+#include "RunListener.hpp"
 
 #include <cstddef>
 
@@ -56,7 +56,7 @@ namespace Tensile
                 throw std::runtime_error("Can't set reporter more than once.");
 
             m_reporter = reporter;
-            for(auto const& listener: m_listeners)
+            for(auto const& listener : m_listeners)
                 listener->setReporter(reporter);
 
             m_listeners.insert(m_listeners.begin(), reporter);
@@ -146,8 +146,8 @@ namespace Tensile
         }
 
         void MetaRunListener::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                              TimingEvents const& startEvents,
-                                              TimingEvents const&  stopEvents)
+                                              TimingEvents const&                startEvents,
+                                              TimingEvents const&                stopEvents)
         {
             for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
                 (*iter)->validateWarmups(inputs, startEvents, stopEvents);
@@ -206,15 +206,15 @@ namespace Tensile
         }
 
         void MetaRunListener::postEnqueues(TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents)
+                                           TimingEvents const& stopEvents)
         {
             for(auto iter = m_listeners.rbegin(); iter != m_listeners.rend(); iter++)
                 (*iter)->postEnqueues(startEvents, stopEvents);
         }
 
         void MetaRunListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                               TimingEvents const& startEvents,
-                                               TimingEvents const&  stopEvents)
+                                               TimingEvents const&                startEvents,
+                                               TimingEvents const&                stopEvents)
         {
             for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
                 (*iter)->validateEnqueues(inputs, startEvents, stopEvents);
@@ -231,11 +231,11 @@ namespace Tensile
             for(auto iter = m_listeners.begin(); iter != m_listeners.end(); iter++)
             {
                 int rv = (*iter)->error();
-                if(rv) return rv;
+                if(rv)
+                    return rv;
             }
 
             return 0;
         }
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile

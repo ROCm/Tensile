@@ -2,7 +2,7 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -43,17 +43,19 @@ namespace Tensile
     {
     public:
         CacheMap(Value const& nullValue)
-            : m_nullValue(nullValue),
-              m_lookupEfficiency(Debug::Instance().printLookupEfficiency()),
-              m_lookups(0),
-              m_hits(0)
+            : m_nullValue(nullValue)
+            , m_lookupEfficiency(Debug::Instance().printLookupEfficiency())
+            , m_lookups(0)
+            , m_hits(0)
 
-        {}
+        {
+        }
 
         ~CacheMap()
         {
             if(m_lookupEfficiency)
-                std::cout << "CacheMap: " << m_hits << "/" << m_lookups << " cache hits" << std::endl;
+                std::cout << "CacheMap: " << m_hits << "/" << m_lookups << " cache hits"
+                          << std::endl;
         }
 
         Value find(Key const& key)
@@ -84,38 +86,39 @@ namespace Tensile
 
     private:
         std::unordered_map<Key, Value> m_map;
-        std::shared_timed_mutex m_mutex;
-        Value m_nullValue;
+        std::shared_timed_mutex        m_mutex;
+        Value                          m_nullValue;
 
-        bool m_lookupEfficiency;
+        bool                 m_lookupEfficiency;
         std::atomic<int64_t> m_lookups;
         std::atomic<int64_t> m_hits;
     };
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    class CachingLibrary: public SolutionLibrary<MyProblem, MySolution>
+    class CachingLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
     public:
         using Library = SolutionLibrary<MyProblem, MySolution>;
-        using Key = std::tuple<MyProblem, AMDGPU>;
-        using Cache = CacheMap<Key, std::shared_ptr<MySolution>>;
+        using Key     = std::tuple<MyProblem, AMDGPU>;
+        using Cache   = CacheMap<Key, std::shared_ptr<MySolution>>;
 
         CachingLibrary(std::shared_ptr<Library> subLibrary)
-            : m_subLibrary(subLibrary),
-              m_cache(nullptr)
-        {}
+            : m_subLibrary(subLibrary)
+            , m_cache(nullptr)
+        {
+        }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             try
             {
                 auto amdgpu = dynamic_cast<AMDGPU const&>(hardware);
-                auto key = std::make_tuple(problem, amdgpu);
+                auto key    = std::make_tuple(problem, amdgpu);
 
                 auto rv = m_cache.find(key);
-                if(rv) return rv;
+                if(rv)
+                    return rv;
 
                 rv = m_subLibrary->findBestSolution(problem, hardware);
                 if(rv)
@@ -129,19 +132,17 @@ namespace Tensile
             }
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
             return m_subLibrary->findAllSolutions(problem, hardware);
         }
 
-        std::shared_ptr<MySolution>
-            findSolutionInCache(MyProblem const& problem,
-                                Hardware  const& hardware) const
+        std::shared_ptr<MySolution> findSolutionInCache(MyProblem const& problem,
+                                                        Hardware const&  hardware) const
         {
             auto amdgpu = dynamic_cast<AMDGPU const&>(hardware);
-            auto key = std::make_tuple(problem, amdgpu);
+            auto key    = std::make_tuple(problem, amdgpu);
 
             return m_cache.find(key);
         }
@@ -162,7 +163,7 @@ namespace Tensile
 
     private:
         std::shared_ptr<Library> m_subLibrary;
-        mutable Cache m_cache;
+        mutable Cache            m_cache;
     };
 
 #if 0
@@ -179,4 +180,4 @@ namespace Tensile
     };
 #endif
 
-}
+} // namespace Tensile

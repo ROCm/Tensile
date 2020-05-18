@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/MapLibrary.hpp>
+#include <Tensile/SolutionLibrary.hpp>
 
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Properties.hpp>
@@ -40,23 +40,25 @@ namespace Tensile
         struct MappingTraits<ProblemMapLibrary<MyProblem, MySolution, Key>, IO>
         {
             using Library = ProblemMapLibrary<MyProblem, MySolution, Key>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
                 iot::mapRequired(io, "property", lib.property);
-                iot::mapRequired(io, "map",      lib.map);
+                iot::mapRequired(io, "map", lib.map);
             }
 
             const static bool flow = false;
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO>:
-        public DefaultCustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>,
-                                          IO, true, false>
+        struct CustomMappingTraits<Tensile::LibraryMap<MyProblem, MySolution, std::string>, IO>
+            : public DefaultCustomMappingTraits<
+                  Tensile::LibraryMap<MyProblem, MySolution, std::string>,
+                  IO,
+                  true,
+                  false>
         {
         };
-    }
-}
-
+    } // namespace Serialization
+} // namespace Tensile

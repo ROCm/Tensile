@@ -48,14 +48,14 @@ BenchmarkProblems:
       ForkParameters:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - SuppressNoLoadLoop: [True] 
+        - SuppressNoLoadLoop: [True]
         - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16,  8,  1 ]
         - WorkGroupMapping: [1]
-        - DepthU: [ 8 ] 
+        - DepthU: [ 8 ]
         - VectorWidth: [1]
         - GlobalReadVectorWidth: [1]
       BenchmarkForkParameters:
@@ -85,7 +85,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True, False]
         - PersistentKernel: [0]
-        - SuppressNoLoadLoop: [True, False] 
+        - SuppressNoLoadLoop: [True, False]
         - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
@@ -591,7 +591,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True, False]
         - PersistentKernel: [0]
-        - SuppressNoLoadLoop: [True, False] 
+        - SuppressNoLoadLoop: [True, False]
         - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
@@ -1842,7 +1842,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True, False]
         - PersistentKernel: [0]
-        - SuppressNoLoadLoop: [True, False] 
+        - SuppressNoLoadLoop: [True, False]
         - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]
@@ -4334,7 +4334,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True, False]
         - PersistentKernel: [0]
-        - SuppressNoLoadLoop: [True, False] 
+        - SuppressNoLoadLoop: [True, False]
         - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]

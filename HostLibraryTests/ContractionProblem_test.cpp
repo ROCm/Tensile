@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -34,83 +34,107 @@ using namespace Tensile;
 
 TEST(ContractionProblem, OperationDescription)
 {
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  1.5, false, 2).beta(), 1.5);
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2).beta(), 1.5);
 
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[ljk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[jlk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[ljk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  1.5, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[jlk]) + beta * C[ijk]");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[ljk])");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[ilk] * B[jlk])");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[ljk])");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  0.0, false, 2).operationDescription(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationDescription(),
               "D[ijk] = alpha * (Sum[l] A[lik] * B[jlk])");
 }
 
 TEST(ContractionProblem, OperationIdentifier)
 {
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  1.5, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Ailk_Bljk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  1.5, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Ailk_Bjlk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  1.5, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 1.5, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Alik_Bljk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  1.5, false, 2).operationIdentifier(),
-              "Contraction_l_Alik_Bjlk_Cijk_Dijk");
+    EXPECT_EQ(
+        ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2).operationIdentifier(),
+        "Contraction_l_Alik_Bjlk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  1.0, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.0, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Ailk_Bljk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  1.0, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 1.0, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Ailk_Bjlk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  1.0, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 1.0, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Alik_Bljk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  1.0, false, 2).operationIdentifier(),
-              "Contraction_l_Alik_Bjlk_Cijk_Dijk");
+    EXPECT_EQ(
+        ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 1.0, false, 2).operationIdentifier(),
+        "Contraction_l_Alik_Bjlk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4,4,4, 4,4,4,  0.0, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Ailk_Bljk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM(false,  true, 4,4,4, 4,4,4,  0.0, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Ailk_Bjlk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true, false, 4,4,4, 4,4,4,  0.0, false, 2).operationIdentifier(),
+    EXPECT_EQ(ContractionProblem::GEMM(true, false, 4, 4, 4, 4, 4, 4, 0.0, false, 2)
+                  .operationIdentifier(),
               "Contraction_l_Alik_Bljk_Cijk_Dijk");
 
-    EXPECT_EQ(ContractionProblem::GEMM( true,  true, 4,4,4, 4,4,4,  0.0, false, 2).operationIdentifier(),
-              "Contraction_l_Alik_Bjlk_Cijk_Dijk");
+    EXPECT_EQ(
+        ContractionProblem::GEMM(true, true, 4, 4, 4, 4, 4, 4, 0.0, false, 2).operationIdentifier(),
+        "Contraction_l_Alik_Bjlk_Cijk_Dijk");
 }
 
 TEST(ContractionProblem, FromOperationIdentifier)
 {
-    std::vector<size_t> sizes{5,6,4,2};
+    std::vector<size_t> sizes{5, 6, 4, 2};
     std::vector<size_t> empty;
-    std::string identifier = "Contraction_l_AlikC_Bjlk_Cijk_Dijk";
-    auto problem = ContractionProblem::FromIndexSizes(identifier,
+    std::string         identifier = "Contraction_l_AlikC_Bjlk_Cijk_Dijk";
+    auto                problem    = ContractionProblem::FromIndexSizes(identifier,
                                                       sizes,
-                                                      DataType::ComplexFloat, empty,
-                                                      DataType::ComplexFloat, empty,
-                                                      DataType::ComplexFloat, empty,
-                                                      DataType::ComplexFloat, empty,
+                                                      DataType::ComplexFloat,
+                                                      empty,
+                                                      DataType::ComplexFloat,
+                                                      empty,
+                                                      DataType::ComplexFloat,
+                                                      empty,
+                                                      DataType::ComplexFloat,
+                                                      empty,
                                                       2.0);
 
     EXPECT_EQ(problem.operationIdentifier(), identifier);
@@ -312,7 +336,7 @@ TEST(ContractionProblem, Bad)
     TensorDescriptor a(DataType::Float, {2147, 1534, 28});
     TensorDescriptor b(DataType::Float, {3481, 2147, 28});
     TensorDescriptor c(DataType::Float, {1534, 3481, 28});
-    
+
     TensorDescriptor b_batch(DataType::Float, {3481, 2147, 12});
 
     EXPECT_THROW(ContractionProblem(a, noOps, a, noOps, c, noOps, c, noOps, false), std::runtime_error);

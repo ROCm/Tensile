@@ -275,7 +275,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
   // B matrix organized as 32 tiles of 32x1024 mapped to CU[0-63], each cU working on 32 columns (y dimension)
   // A matrix organized as 2 tiles of 32x1024  , each CU[0-31] responsible for 32 rows
   // Sub-tile/SIMD organization
-  // each 32x32 tile in CU split into 2 groups of 16x16  and simds split into 2 groups 
+  // each 32x32 tile in CU split into 2 groups of 16x16  and simds split into 2 groups
   // simd(s) use 16x16 mfma instruction to solve 32x32 tile simd[0,1] multiply first [0-15] rows with B[0-31]
 
    //TODO
@@ -284,7 +284,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
    // move Store C address calculation interleaved with noLoadLoop
 
 //////sreg def/////////////
-.set sgprKernArgAddress , 0 
+.set sgprKernArgAddress , 0
 .set sgprWorkGroup0 , 2
 .set sgprWorkGroup1 , 3
 .set sgprWorkGroup2 , 4
@@ -354,7 +354,7 @@ v_lshlrev_b32 v[\vgprAddr+0], 0x1, v[\vgprAddr+0]  // offset *= bytes/element
 .set vgprTmp,105
 
 //** maxVGPR 112 **/
-.set lds_pad_tail       , 16 
+.set lds_pad_tail       , 16
 .set lds_pad_qw_tail    , lds_pad_tail >> 2
 .set lds_Asize_per_wr_tail   , 256+lds_pad_tail           //each load inst load one 32X4 block.    need contiunous 32X4X2,256    bytes in LDS
 .set lds_Asize_per_tailwave , lds_Asize_per_wr_tail * 2   //each wave load 2 32X4 block one time.  need contiunous 32X4X4X2,1024 bytes in LDS

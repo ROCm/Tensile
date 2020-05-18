@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -35,7 +35,7 @@ namespace Tensile
 {
     namespace hip
     {
-        class SolutionAdapter: public Tensile::SolutionAdapter
+        class SolutionAdapter : public Tensile::SolutionAdapter
         {
         public:
             SolutionAdapter();
@@ -43,11 +43,14 @@ namespace Tensile
             SolutionAdapter(bool debug, std::string const& name);
             ~SolutionAdapter();
 
-            virtual std::string name() const { return m_name; }
+            virtual std::string name() const
+            {
+                return m_name;
+            }
 
             void loadCodeObjectFile(std::string const& path);
 
-            void loadCodeObject(const void * image);
+            void loadCodeObject(const void* image);
 
             void loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
 
@@ -56,40 +59,39 @@ namespace Tensile
 
             void launchKernel(KernelInvocation const& kernel);
             void launchKernel(KernelInvocation const& kernel,
-                              hipStream_t stream,
-                              hipEvent_t startEvent,
-                              hipEvent_t stopEvent);
+                              hipStream_t             stream,
+                              hipEvent_t              startEvent,
+                              hipEvent_t              stopEvent);
 
             void launchKernels(std::vector<KernelInvocation> const& kernels);
 
             void launchKernels(std::vector<KernelInvocation> const& kernels,
-                               hipStream_t stream,
-                               hipEvent_t startEvent,
-                               hipEvent_t stopEvent);
+                               hipStream_t                          stream,
+                               hipEvent_t                           startEvent,
+                               hipEvent_t                           stopEvent);
 
             void launchKernels(std::vector<KernelInvocation> const& kernels,
-                               hipStream_t stream,
-                               std::vector<hipEvent_t> const& startEvents,
-                               std::vector<hipEvent_t> const& stopEvents);
+                               hipStream_t                          stream,
+                               std::vector<hipEvent_t> const&       startEvents,
+                               std::vector<hipEvent_t> const&       stopEvents);
 
             void initKernel(std::string const& name);
 
         private:
-
             hipFunction_t getKernel(std::string const& name);
 
             std::mutex m_access;
 
-            std::vector<hipModule_t> m_modules;
+            std::vector<hipModule_t>                       m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
-            bool m_debug = false;
-            std::string m_name = "HipSolutionAdapter";
+            bool                                           m_debug = false;
+            std::string                                    m_name  = "HipSolutionAdapter";
 
             std::vector<std::string> m_loadedModuleNames;
 
-            friend std::ostream & operator<<(std::ostream & stream, SolutionAdapter const& adapter);
+            friend std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter);
         };
 
-        std::ostream & operator<<(std::ostream & stream, SolutionAdapter const& adapter);
-    }
-}
+        std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter);
+    } // namespace hip
+} // namespace Tensile

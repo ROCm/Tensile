@@ -100,7 +100,7 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: True
       Batched: True
- 
+
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
       BenchmarkCommonParameters:

@@ -64,8 +64,8 @@ DIRS=""
 echo "#!/bin/sh" > $DOIT
 
 for config in "$@"
-do  
-    make_tensile_tuning "${SOURCE}/${config}" 
+do
+    make_tensile_tuning "${SOURCE}/${config}"
     DIRNAME="${config%.*}"
     DIRS="${DIRS} ${DIRNAME}"
 done
@@ -77,7 +77,7 @@ echo "  ./doit.sh > doit-errs 2>&1" >> $DOIT
 echo "  cd .." >> $DOIT
 echo "done" >> $DOIT
 
-chmod +x $DOIT 
+chmod +x $DOIT
 
 
 

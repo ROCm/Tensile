@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ from Tensile.DataType import DataType
 def test_init_single():
     expected = DataType('S')
     assert DataType('single') == expected
-    assert DataType('Float') == expected 
+    assert DataType('Float') == expected
     assert DataType('tensileDataTypeFloat') == expected
 
 def test_init_double():
@@ -34,7 +34,7 @@ def test_init_double():
     assert DataType('double') == expected
     assert DataType('Double') == expected
     assert DataType('tensileDataTypeDouble') == expected
-    
+
 def test_init_complexSingle():
     expected = DataType('C')
     assert DataType('complexSingle') == expected
@@ -42,27 +42,27 @@ def test_init_complexSingle():
     assert DataType('tensileDataTypeComplexFloat') == expected
 
 def test_init_complexDouble():
-    expected = DataType('Z') 
-    assert DataType('complexDouble') == expected 
-    assert DataType('complexDouble') == expected 
-    assert DataType('tensileDataTypeComplexDouble') == expected 
+    expected = DataType('Z')
+    assert DataType('complexDouble') == expected
+    assert DataType('complexDouble') == expected
+    assert DataType('tensileDataTypeComplexDouble') == expected
 
 def test_init_half():
-    expected = DataType('H') 
+    expected = DataType('H')
     assert DataType('half') == expected
-    assert DataType('Half') == expected 
+    assert DataType('Half') == expected
     assert DataType('tensileDataTypeHalf') == expected
 
 def test_init_i8():
-    expected = DataType('4xi8') 
-    assert DataType('int8x4') == expected 
+    expected = DataType('4xi8')
+    assert DataType('int8x4') == expected
     assert DataType('Int8x4') == expected
     assert DataType('tensileDataTypeInt8x4') == expected
 
 def test_init_i32():
-    expected = DataType('I') 
-    assert DataType('int32') == expected 
-    assert DataType('Int32') == expected 
+    expected = DataType('I')
+    assert DataType('int32') == expected
+    assert DataType('Int32') == expected
     assert DataType('tensileDataTypeInt32') == expected
 
 def test_single():
@@ -77,7 +77,7 @@ def test_single():
     assert obj.getLibString() == 'tensileDataTypeFloat'
     assert obj.numBytes() == 4
     assert obj.isReal()
-    
+
 def test_double():
     obj = DataType(1)
     assert obj.toChar() == 'D'
@@ -88,9 +88,9 @@ def test_double():
     assert obj.toDevice("") == 'double'
     assert obj.toCpp() == 'double'
     assert obj.getLibString() == 'tensileDataTypeDouble'
-    assert obj.numBytes() == 8    
+    assert obj.numBytes() == 8
     assert obj.isReal()
-    
+
 def test_complexSingle():
     obj = DataType(2)
     assert obj.toChar() == 'C'
@@ -103,7 +103,7 @@ def test_complexSingle():
     assert obj.getLibString() == 'tensileDataTypeComplexFloat'
     assert obj.numBytes() == 8
     assert not obj.isReal()
-    
+
 def test_complexDouble():
     obj = DataType(3)
     assert obj.toChar() == 'Z'
@@ -116,7 +116,7 @@ def test_complexDouble():
     assert obj.getLibString() == 'tensileDataTypeComplexDouble'
     assert obj.numBytes() == 16
     assert not obj.isReal()
-    
+
 def test_half():
     obj = DataType(4)
     assert obj.toChar() == 'H'
@@ -127,10 +127,10 @@ def test_half():
     assert obj.toDevice("OCL") == 'ERROR'
     assert obj.toDevice("") == 'tensile_half'
     assert obj.toCpp() == 'TensileHalf'
-    assert obj.getLibString() == 'tensileDataTypeHalf'   
-    assert obj.numBytes() == 2    
+    assert obj.getLibString() == 'tensileDataTypeHalf'
+    assert obj.numBytes() == 2
     assert obj.isReal()
-    
+
 def test_int8():
     obj = DataType(5)
     assert obj.toChar() == '4xi8'
@@ -144,7 +144,7 @@ def test_int8():
     assert obj.getLibString() == 'tensileDataTypeInt8x4'
     assert obj.numBytes() == 4
     assert obj.isReal()
-    
+
 def test_int32():
     obj = DataType(6)
     assert obj.toChar() == 'I'

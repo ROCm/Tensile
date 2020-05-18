@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@ import functools
 
 @functools.total_ordering
 class DataType:
-    """ 
+    """
     Data Type (new)
     Uses a list of dictionaries to organize the DataType and Properties for the kernels
     Changed older properties list of lists to list of dictionaries
@@ -153,8 +153,8 @@ class DataType:
             'miInput' : 2,
         },
     ]
-    lookup = {}    
-            
+    lookup = {}
+
     def __init__(self, value):
         if isinstance(value, int):
             self.value = value
@@ -166,7 +166,7 @@ class DataType:
             raise RuntimeError("initializing DataType to {0} {1}".format(str(type(value)), str(value)))
 
         self.properties = DataType.properties[self.value]
-   
+
     def toChar(self):
         return self.properties['char']
     def toName(self):
@@ -192,8 +192,8 @@ class DataType:
     ########################################
     def zeroString(self, language, vectorWidth):
         """
-        Returns a string containing the data output format, depending on programming language 
-        and in the case of complex numbers, the vector width. 
+        Returns a string containing the data output format, depending on programming language
+        and in the case of complex numbers, the vector width.
         """
         zeroString = "("
         zeroString += self.toDevice(language)
@@ -280,15 +280,15 @@ class DataType:
 def populateLookupTable(properties,lookup):
     """
     Populates Lookup Table with the corresponding row number for each DataType. The row number
-    is assigned to self.value when a DataType object is called 
+    is assigned to self.value when a DataType object is called
     """
     for i,e in enumerate(properties):
         setattr(DataType, e['name'], i)
         for k in ['name','char','enum','libEnum']:
             lookupKey = e[k].lower()
             if lookupKey in lookup and lookup[lookupKey] != i:
-                raise RuntimeError("Duplicate key {1} in property '{0}'".format(k,lookupKey)) 
-            lookup[lookupKey] = i        
-    
+                raise RuntimeError("Duplicate key {1} in property '{0}'".format(k,lookupKey))
+            lookup[lookupKey] = i
+
 populateLookupTable(DataType.properties,DataType.lookup)
 

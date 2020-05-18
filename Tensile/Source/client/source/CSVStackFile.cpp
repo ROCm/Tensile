@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -24,8 +24,8 @@
  *
  *******************************************************************************/
 
-#include <iomanip>
 #include <CSVStackFile.hpp>
+#include <iomanip>
 
 #include <Tensile/Utils.hpp>
 
@@ -38,9 +38,9 @@ namespace Tensile
         {
         }
 
-        void null_deleter(void * ptr) {}
+        void null_deleter(void* ptr) {}
 
-        CSVStackFile::CSVStackFile(std::ostream & stream)
+        CSVStackFile::CSVStackFile(std::ostream& stream)
             : m_stream(&stream, null_deleter)
         {
         }
@@ -50,9 +50,7 @@ namespace Tensile
         {
         }
 
-        CSVStackFile::~CSVStackFile()
-        {
-        }
+        CSVStackFile::~CSVStackFile() {}
 
         void CSVStackFile::setHeaderForKey(std::string const& key, std::string const& header)
         {
@@ -91,7 +89,7 @@ namespace Tensile
         void CSVStackFile::writeRow(std::unordered_map<std::string, std::string> const& row)
         {
             bool firstCol = true;
-            for(auto const& key: m_keyOrder)
+            for(auto const& key : m_keyOrder)
             {
                 if(!firstCol)
                     (*m_stream) << ", ";
@@ -119,7 +117,7 @@ namespace Tensile
             bool needQuote = false;
 
             std::string badValues = ",\n\r";
-            for(char c: badValues)
+            for(char c : badValues)
             {
                 if(value.find(c) != std::string::npos)
                 {
@@ -139,7 +137,7 @@ namespace Tensile
             std::ostringstream rv;
             rv << '"';
 
-            for(char c: value)
+            for(char c : value)
             {
                 if(c == '"')
                     rv << "\"\"";
@@ -159,7 +157,7 @@ namespace Tensile
 
         void CSVStackFile::setValueForKey(std::string const& key, double const& value)
         {
-            if (value > 0.01)
+            if(value > 0.01)
             {
                 std::ostringstream ss;
                 ss << std::fixed << std::setprecision(2) << value;
@@ -168,7 +166,5 @@ namespace Tensile
             else
                 setValueForKey(key, boost::lexical_cast<std::string>(value));
         }
-    }
-}
-
-
+    } // namespace Client
+} // namespace Tensile

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -30,12 +30,12 @@
 
 #include <Tensile/Singleton.hpp>
 
-struct TestData: public Tensile::LazySingleton<TestData>
+struct TestData : public Tensile::LazySingleton<TestData>
 {
     using Base = Tensile::LazySingleton<TestData>;
 
     operator bool() const;
-    
+
     static TestData Invalid();
     static TestData Env(std::string const& varName);
 
@@ -50,7 +50,9 @@ private:
 
     boost::filesystem::path m_dataDir;
 
-    struct invalid_data {};
+    struct invalid_data
+    {
+    };
 
     static boost::filesystem::path ProgramLocation();
 
@@ -58,5 +60,3 @@ private:
     TestData(std::string const& dataDir);
     TestData(invalid_data);
 };
-
-

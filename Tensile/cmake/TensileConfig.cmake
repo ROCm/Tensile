@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -100,7 +100,7 @@ function(TensileCreateLibraryFiles
   else()
     set(Options ${Options} "--no-library-print-debug")
   endif()
-  
+
   if(Tensile_EMBED_LIBRARY)
     set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
   endif()
@@ -112,15 +112,15 @@ function(TensileCreateLibraryFiles
   if(Tensile_CODE_OBJECT_VERSION)
     set(Options ${Options} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   endif()
- 
+
   if(Tensile_COMPILER)
     set(Options ${Options} "--cxx-compiler=${Tensile_COMPILER}")
   endif()
-  
+
   if(Tensile_ARCHITECTURE)
     set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
   endif()
-  
+
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 

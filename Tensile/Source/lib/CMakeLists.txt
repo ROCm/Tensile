@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,7 @@ target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/in
 
 if(TENSILE_USE_LLVM)
     target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
-    find_library(LLVMObjectYAML_LIBRARY 
+    find_library(LLVMObjectYAML_LIBRARY
         NAMES LLVMObjectYAML
         PATHS ${LLVM_LIBRARY_DIR})
     message("LLVMObjectYAML_LIBRARY: ${LLVMObjectYAML_LIBRARY}")
@@ -79,7 +79,7 @@ if(TENSILE_USE_LLVM)
         target_link_libraries(TensileHost PRIVATE LLVMObjectYAML )
     else()
         target_link_libraries(TensileHost PRIVATE LLVM )
-    endif()  
+    endif()
     target_include_directories(TensileHost PRIVATE ${LLVM_INCLUDE_DIRS})
 endif()
 

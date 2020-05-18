@@ -3,14 +3,14 @@
 
 function provision_rocblas() {
 
-  local ROCBLAS_ID=$1 
+  local ROCBLAS_ID=$1
 
   local PROVISION_ROCBLAS="${SCRIPT_ROOT}/provision_repo.sh -r -w ${ROCBLAS_ROOT} -b ${ROCBLAS_BRANCH} -i ${ROCBLAS_ID} --rocblas-fork ${ROCBLAS_FORK}"
-  
+
   if [ -n "${ROCBLAS_FORK}" ]; then
     PROVISION_ROCBLAS="${PROVISION_ROCBLAS} --rocblas-fork ${ROCBLAS_FORK}"
   fi
-  
+
   if [ -n "${ID}" ]; then
     ROCBLAS_PATH="${ROCBLAS_PATH}-${ID}"
     PROVISION_ROCBLAS="${PROVISION_ROCBLAS} -i ${ID}"
@@ -23,7 +23,7 @@ function provision_rocblas() {
   if [ -n "${COMMIT}" ]; then
     PROVISION_ROCBLAS="${PROVISION_ROCBLAS} -c ${COMMIT}"
   fi
-  
+
   ${PROVISION_ROCBLAS}
 }
 
@@ -128,7 +128,7 @@ if [[ ${MERGE} == true ]]; then
   EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
   ${EXE_MERGE}
 else
-  MERGE_PATH=${EXACT_PATH} 
+  MERGE_PATH=${EXACT_PATH}
 fi
 
 if [[ ${MASSAGE} == true ]]; then

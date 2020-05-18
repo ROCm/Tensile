@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -34,8 +34,8 @@ namespace Tensile
     {
         std::shared_ptr<SolutionIterator> SolutionIterator::Default(
             std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
-            std::shared_ptr<Hardware> hardware,
-            po::variables_map const& args)
+            std::shared_ptr<Hardware>                                  hardware,
+            po::variables_map const&                                   args)
         {
             bool bestSolution = args["best-solution"].as<bool>();
 
@@ -46,18 +46,18 @@ namespace Tensile
             else
             {
                 int firstSolutionIdx = args["solution-start-idx"].as<int>();
-                int numSolutions = args["num-solutions"].as<int>();
+                int numSolutions     = args["num-solutions"].as<int>();
 
-                return std::make_shared<AllSolutionsIterator>(library, hardware,
-                                                              firstSolutionIdx, numSolutions);
+                return std::make_shared<AllSolutionsIterator>(
+                    library, hardware, firstSolutionIdx, numSolutions);
             }
         }
 
         SolutionIterator::SolutionIterator(
             std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
-            std::shared_ptr<Hardware> hardware)
-            : m_library(library),
-              m_hardware(hardware)
+            std::shared_ptr<Hardware>                                  hardware)
+            : m_library(library)
+            , m_hardware(hardware)
         {
         }
 
@@ -104,9 +104,10 @@ namespace Tensile
         }
 
         AllSolutionsIterator::AllSolutionsIterator(
-                std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
-                std::shared_ptr<Hardware> hardware,
-                int firstSolutionIdx, int numSolutions)
+            std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+            std::shared_ptr<Hardware>                                  hardware,
+            int                                                        firstSolutionIdx,
+            int                                                        numSolutions)
             : SolutionIterator(library, hardware)
         {
             m_firstSolutionIdx = firstSolutionIdx;
@@ -116,12 +117,12 @@ namespace Tensile
 
             if(numSolutions < 0)
             {
-                auto iter = library->solutions.rbegin();
+                auto iter         = library->solutions.rbegin();
                 m_lastSolutionIdx = iter->first;
             }
             else
             {
-                m_lastSolutionIdx = m_firstSolutionIdx + numSolutions-1;
+                m_lastSolutionIdx = m_firstSolutionIdx + numSolutions - 1;
             }
 
             m_currentSolutionIdx = m_firstSolutionIdx;
@@ -134,14 +135,11 @@ namespace Tensile
             m_currentSolutionIdx = m_firstSolutionIdx;
         }
 
-        void AllSolutionsIterator::postProblem()
-        {
-        }
+        void AllSolutionsIterator::postProblem() {}
 
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
         {
-            m_reporter->report(ResultKey::SolutionIndex,
-                               m_currentSolutionIdx);
+            m_reporter->report(ResultKey::SolutionIndex, m_currentSolutionIdx);
             m_reporter->report(ResultKey::SolutionProgress,
                                concatenate(m_currentSolutionIdx, "/", m_lastSolutionIdx));
         }
@@ -166,8 +164,8 @@ namespace Tensile
         }
 
         BestSolutionIterator::BestSolutionIterator(
-                std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library, 
-                std::shared_ptr<Hardware> hardware)
+            std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+            std::shared_ptr<Hardware>                                  hardware)
             : SolutionIterator(library, hardware)
         {
         }
@@ -176,13 +174,11 @@ namespace Tensile
         {
             SolutionIterator::preProblem(problem);
 
-            m_currentSolution = m_library->findBestSolution(m_problem, *m_hardware);
+            m_currentSolution     = m_library->findBestSolution(m_problem, *m_hardware);
             m_usedCurrentSolution = false;
         }
 
-        void BestSolutionIterator::postProblem()
-        {
-        }
+        void BestSolutionIterator::postProblem() {}
 
         void BestSolutionIterator::preSolution(ContractionSolution const& solution)
         {
@@ -204,5 +200,5 @@ namespace Tensile
         {
             return m_currentSolution;
         }
-    }
-}
+    } // namespace Client
+} // namespace Tensile

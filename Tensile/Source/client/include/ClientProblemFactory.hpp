@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/Tensile.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -48,17 +48,19 @@ namespace Tensile
 
             ClientProblemFactory(ContractionProblem const& problem)
                 : m_problems({problem})
-            {}
+            {
+            }
 
             template <typename Iterator>
             ClientProblemFactory(Iterator begin, Iterator end)
                 : m_problems(begin, end)
-            {}
+            {
+            }
 
             std::vector<ContractionProblem> const& problems() const;
 
-
             std::vector<ContractionProblem> createProblems();
+
         private:
             std::vector<ContractionProblem> m_problems;
 
@@ -72,7 +74,7 @@ namespace Tensile
             DataType m_dType;
             DataType m_alphaType;
             DataType m_betaType;
-            bool m_highPrecisionAccumulate;
+            bool     m_highPrecisionAccumulate;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;
@@ -90,7 +92,5 @@ namespace Tensile
             double m_beta;
         };
 
-    }
-}
-
-
+    } // namespace Client
+} // namespace Tensile
