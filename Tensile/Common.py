@@ -743,7 +743,9 @@ validParameters = {
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
     # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
     # optimized value is 128
-    "LdsBlockSizePerPad":          [-1, 64, 128, 256],
+    # 0 means disable LdsBlockSizePerPad,
+    # -1 means value is determined by Tensile logic
+    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256],
 
     #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     "TransposeLDS":                [-1, 1, 0],
@@ -809,7 +811,7 @@ defaultBenchmarkCommonParameters = [
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
-    {"LdsBlockSizePerPad":        [ -1 ] },
+    {"LdsBlockSizePerPad":        [ 0 ] },
     {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
@@ -1337,6 +1339,7 @@ def assignGlobalParameters( config ):
     globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
   else:
     globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
+    globalParameters["ClangOffloadBundlerPath"] = locateExe("/opt/rocm/llvm/bin", "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
