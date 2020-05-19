@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -42,11 +42,11 @@ namespace Tensile
     {
         namespace po = boost::program_options;
 
-        class BenchmarkTimer: public RunListener
+        class BenchmarkTimer : public RunListener
         {
         public:
             using clock = std::chrono::steady_clock;
-            
+
             BenchmarkTimer(po::variables_map const& args, Hardware const& hardware);
 
             virtual bool needMoreBenchmarkRuns() const override;
@@ -66,8 +66,8 @@ namespace Tensile
             virtual void   preWarmup() override;
             virtual void   postWarmup() override;
             virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                           TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents) override;
+                                           TimingEvents const&                startEvents,
+                                           TimingEvents const&                stopEvents) override;
 
             virtual size_t numSyncs() override;
             virtual void   setNumSyncs(size_t count) override;
@@ -78,14 +78,14 @@ namespace Tensile
             virtual void   setNumEnqueuesPerSync(size_t count) override;
             virtual void   preEnqueues() override;
             virtual void   postEnqueues(TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents) override;
+                                        TimingEvents const& stopEvents) override;
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                            TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) override;
+                                            TimingEvents const&                startEvents,
+                                            TimingEvents const&                stopEvents) override;
 
             virtual void finalizeReport() override;
-            virtual int error() const override;
-    
+            virtual int  error() const override;
+
         private:
             const int m_numWarmups;
             const int m_numBenchmarks;
@@ -94,16 +94,16 @@ namespace Tensile
             const int m_numEnqueuesPerSolution;
 
             const bool m_useGPUTimer;
-            const int m_sleepPercent;
+            const int  m_sleepPercent;
 
             int m_numBenchmarksRun = 0;
 
-            Hardware const & m_hardware;
-            ContractionProblem m_problem;
+            Hardware const&     m_hardware;
+            ContractionProblem  m_problem;
             ContractionSolution m_solution;
 
             int m_numEnqueuesInSolution = 0;
-            int m_numSyncsInBenchmark = 0;
+            int m_numSyncsInBenchmark   = 0;
             int m_curNumEnqueuesPerSync = 0;
 
             clock::time_point m_startTime;
@@ -116,6 +116,5 @@ namespace Tensile
             double_millis m_timeInSolution;
             double_millis m_totalGPUTime;
         };
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile

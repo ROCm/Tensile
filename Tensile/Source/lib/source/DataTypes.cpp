@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -38,16 +38,24 @@ namespace Tensile
     {
         switch(d)
         {
-            case DataType::Float         : return "Float";
-            case DataType::Double        : return "Double";
-            case DataType::ComplexFloat  : return "ComplexFloat";
-            case DataType::ComplexDouble : return "ComplexDouble";
-            case DataType::Half          : return "Half";
-            case DataType::Int8x4        : return "Int8x4";
-            case DataType::Int32         : return "Int32";
-            case DataType::BFloat16      : return "BFloat16";
+        case DataType::Float:
+            return "Float";
+        case DataType::Double:
+            return "Double";
+        case DataType::ComplexFloat:
+            return "ComplexFloat";
+        case DataType::ComplexDouble:
+            return "ComplexDouble";
+        case DataType::Half:
+            return "Half";
+        case DataType::Int8x4:
+            return "Int8x4";
+        case DataType::Int32:
+            return "Int32";
+        case DataType::BFloat16:
+            return "BFloat16";
 
-            case DataType::Count:;
+        case DataType::Count:;
         }
         return "Invalid";
     }
@@ -56,16 +64,24 @@ namespace Tensile
     {
         switch(d)
         {
-            case DataType::Float         : return "S";
-            case DataType::Double        : return "D";
-            case DataType::ComplexFloat  : return "C";
-            case DataType::ComplexDouble : return "Z";
-            case DataType::Half          : return "H";
-            case DataType::Int8x4        : return "4xi8";
-            case DataType::Int32         : return "I";
-            case DataType::BFloat16      : return "B";
+        case DataType::Float:
+            return "S";
+        case DataType::Double:
+            return "D";
+        case DataType::ComplexFloat:
+            return "C";
+        case DataType::ComplexDouble:
+            return "Z";
+        case DataType::Half:
+            return "H";
+        case DataType::Int8x4:
+            return "4xi8";
+        case DataType::Int32:
+            return "I";
+        case DataType::BFloat16:
+            return "B";
 
-            case DataType::Count:;
+        case DataType::Count:;
         }
         return "Invalid";
     }
@@ -78,14 +94,14 @@ namespace Tensile
         DataTypeInfo info;
 
         info.dataType = T_Info::Enum;
-        info.name = T_Info::Name();
-        info.abbrev = T_Info::Abbrev();
+        info.name     = T_Info::Name();
+        info.abbrev   = T_Info::Abbrev();
 
-        info.packing  = T_Info::Packing;
+        info.packing     = T_Info::Packing;
         info.elementSize = T_Info::ElementSize;
         info.segmentSize = T_Info::SegmentSize;
 
-        info.isComplex = T_Info::IsComplex;
+        info.isComplex  = T_Info::IsComplex;
         info.isIntegral = T_Info::IsIntegral;
 
         addInfoObject(info);
@@ -110,7 +126,7 @@ namespace Tensile
 
     void DataTypeInfo::addInfoObject(DataTypeInfo const& info)
     {
-        data[info.dataType] = info;
+        data[info.dataType]  = info;
         typeNames[info.name] = info.dataType;
     }
 
@@ -156,13 +172,20 @@ namespace Tensile
 
 #else
 
-        if(     strValue == ToString(DataType::Float        )) t = DataType::Float;
-        else if(strValue == ToString(DataType::Double       )) t = DataType::Double;
-        else if(strValue == ToString(DataType::ComplexFloat )) t = DataType::ComplexFloat;
-        else if(strValue == ToString(DataType::ComplexDouble)) t = DataType::ComplexDouble;
-        else if(strValue == ToString(DataType::Half         )) t = DataType::Half;
-        else if(strValue == ToString(DataType::Int8x4       )) t = DataType::Int8x4;
-        else if(strValue == ToString(DataType::Int32        )) t = DataType::Int32;
+        if(strValue == ToString(DataType::Float))
+            t = DataType::Float;
+        else if(strValue == ToString(DataType::Double))
+            t = DataType::Double;
+        else if(strValue == ToString(DataType::ComplexFloat))
+            t = DataType::ComplexFloat;
+        else if(strValue == ToString(DataType::ComplexDouble))
+            t = DataType::ComplexDouble;
+        else if(strValue == ToString(DataType::Half))
+            t = DataType::Half;
+        else if(strValue == ToString(DataType::Int8x4))
+            t = DataType::Int8x4;
+        else if(strValue == ToString(DataType::Int32))
+            t = DataType::Int32;
         else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
         {
             int value = atoi(strValue.c_str());
@@ -179,4 +202,4 @@ namespace Tensile
 
         return stream;
     }
-}
+} // namespace Tensile

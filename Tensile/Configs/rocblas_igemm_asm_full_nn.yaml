@@ -549,7 +549,7 @@ BenchmarkProblems:
           - Exact: [ 784, 128, 1, 128]        # MIOpen i8_r
           - Exact: [ 12544, 256, 1, 256]      # MIOpen i8_r
           - Exact: [ 3136, 2048, 1, 128]      # MIOpen i8_r
-          - Exact: [ 50176, 63, 1, 196]       # MIOpen i8_r 
+          - Exact: [ 50176, 63, 1, 196]       # MIOpen i8_r
           - Exact: [ 256, 193600, 1, 64 ]
           - Exact: [ 64, 193600, 1, 64 ]
           - Exact: [ 64, 193600, 1, 256 ]

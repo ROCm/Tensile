@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -39,42 +39,42 @@
 #include <Tensile/Serialization/Predicates.hpp>
 
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
+#include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/MatchingLibrary.hpp>
-#include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 
 namespace Tensile
 {
     namespace Serialization
     {
         template <typename IO>
-        struct MappingTraits<std::shared_ptr<SolutionLibrary<ContractionProblem>>, IO>:
-        public BaseClassMappingTraits<SolutionLibrary<ContractionProblem>, IO, false>
+        struct MappingTraits<std::shared_ptr<SolutionLibrary<ContractionProblem>>, IO>
+            : public BaseClassMappingTraits<SolutionLibrary<ContractionProblem>, IO, false>
         {
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>:
-            public DefaultSubclassMappingTraits<SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>,
-                                                SolutionLibrary<MyProblem, MySolution>,
-                                                IO>
+        struct SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>
+            : public DefaultSubclassMappingTraits<
+                  SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>,
+                  SolutionLibrary<MyProblem, MySolution>,
+                  IO>
         {
             using Self = SubclassMappingTraits<SolutionLibrary<MyProblem, MySolution>, IO>;
-            using Base = DefaultSubclassMappingTraits<Self, SolutionLibrary<MyProblem, MySolution>, IO>;
+            using Base
+                = DefaultSubclassMappingTraits<Self, SolutionLibrary<MyProblem, MySolution>, IO>;
             using SubclassMap = typename Base::SubclassMap;
             const static SubclassMap subclasses;
 
             static typename Base::SubclassMap GetSubclasses()
             {
                 return typename Base::SubclassMap(
-                {
-                    Base::template Pair<SingleSolutionLibrary   <MyProblem, MySolution>>(),
-                    Base::template Pair<HardwareSelectionLibrary<MyProblem, MySolution>>(),
-                    Base::template Pair<ProblemSelectionLibrary <MyProblem, MySolution>>(),
-                    Base::template Pair<ProblemMapLibrary       <MyProblem, MySolution>>(),
-                    Base::template Pair<ProblemMatchingLibrary  <MyProblem, MySolution>>(),
-                    Base::template Pair<GranularitySelectionLibrary  <MyProblem, MySolution>>()
-                });
+                    {Base::template Pair<SingleSolutionLibrary<MyProblem, MySolution>>(),
+                     Base::template Pair<HardwareSelectionLibrary<MyProblem, MySolution>>(),
+                     Base::template Pair<ProblemSelectionLibrary<MyProblem, MySolution>>(),
+                     Base::template Pair<ProblemMapLibrary<MyProblem, MySolution>>(),
+                     Base::template Pair<ProblemMatchingLibrary<MyProblem, MySolution>>(),
+                     Base::template Pair<GranularitySelectionLibrary<MyProblem, MySolution>>()});
             }
         };
 
@@ -83,21 +83,24 @@ namespace Tensile
 
         template <typename MyProblem, typename MySolution, typename IO>
         const typename dsmt<MyProblem, MySolution, IO>::SubclassMap
-            dsmt<MyProblem, MySolution, IO>::subclasses =
-        dsmt<MyProblem, MySolution, IO>::GetSubclasses();
+            dsmt<MyProblem, MySolution, IO>::subclasses
+            = dsmt<MyProblem, MySolution, IO>::GetSubclasses();
 
         template <typename MyProblem, typename MySolution, typename IO>
         struct MappingTraits<SingleSolutionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = SingleSolutionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
-                SolutionMap<MySolution> * ctx = static_cast<SolutionMap<MySolution> *>(iot::getContext(io));
+                SolutionMap<MySolution>* ctx
+                    = static_cast<SolutionMap<MySolution>*>(iot::getContext(io));
                 if(ctx == nullptr)
                 {
-                    iot::setError(io, "SingleSolutionLibrary requires that context be set to a SolutionMap.");
+                    iot::setError(io,
+                                  "SingleSolutionLibrary requires that context be set to "
+                                  "a SolutionMap.");
                 }
 
                 int index;
@@ -130,9 +133,9 @@ namespace Tensile
         struct MappingTraits<MasterSolutionLibrary<MyProblem, MySolution>, IO, EmptyContext>
         {
             using Library = MasterSolutionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
                 iot::mapOptional(io, "version", lib.version);
 
@@ -141,7 +144,7 @@ namespace Tensile
                 if(iot::outputting(io))
                 {
                     solutions.reserve(lib.solutions.size());
-                    for(auto const& pair: lib.solutions)
+                    for(auto const& pair : lib.solutions)
                         solutions.push_back(pair.second);
                 }
 
@@ -149,7 +152,7 @@ namespace Tensile
 
                 if(!iot::outputting(io))
                 {
-                    for(auto const& s: solutions)
+                    for(auto const& s : solutions)
                         lib.solutions[s->index] = s;
                 }
 
@@ -159,7 +162,8 @@ namespace Tensile
 
                 if(iot::outputting(io))
                 {
-                    auto cache = std::dynamic_pointer_cast<CachingLibrary<MyProblem, MySolution>>(lib.library);
+                    auto cache = std::dynamic_pointer_cast<CachingLibrary<MyProblem, MySolution>>(
+                        lib.library);
                     if(cache)
                     {
                         innerLibrary = cache->library();
@@ -174,7 +178,8 @@ namespace Tensile
 
                 if(!iot::outputting(io))
                 {
-                    auto cache = std::make_shared<CachingLibrary<MyProblem, MySolution>>(innerLibrary);
+                    auto cache
+                        = std::make_shared<CachingLibrary<MyProblem, MySolution>>(innerLibrary);
 
                     lib.library = cache;
                 }
@@ -182,6 +187,5 @@ namespace Tensile
 
             const static bool flow = false;
         };
-    }
-}
-
+    } // namespace Serialization
+} // namespace Tensile

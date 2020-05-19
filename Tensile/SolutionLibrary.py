@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -164,7 +164,7 @@ class ProblemMapLibrary:
                 self.mapping[key].merge(value)
             else:
                 self.mapping[key] = value
- 
+
     def remapSolutionIndices(self,indexMap):
         for key,value in list(self.mapping.items()):
             value.remapSolutionIndices(indexMap)
@@ -231,7 +231,7 @@ class MasterSolutionLibrary:
             # It's a Granularity library
             assert libraryOrder[-1] == "Matching"
             libraryOrder[-1] = "Granularity"
-        
+
         allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
@@ -241,7 +241,7 @@ class MasterSolutionLibrary:
             if libName == 'Matching':
                 matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
                 library = matchingLibrary
-            
+
             elif libName == 'Granularity':
                 selectionIndices = d[9]["TileSelectionIndices"]
                 library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)

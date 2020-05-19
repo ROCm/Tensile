@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -39,54 +39,81 @@ namespace Tensile
         {
             switch(mode)
             {
-                case InitMode::Zero:       return "Zero";
-                case InitMode::One:        return "One";
-                case InitMode::Two:        return "Two";
-                case InitMode::Random:     return "Random";
-                case InitMode::NaN:        return "NaN";
-                case InitMode::Inf:        return "Inf";
-                case InitMode::BadInput:   return "BadInput";
-                case InitMode::BadOutput:  return "BadOutput";
-                case InitMode::SerialIdx:  return "SerialIdx";
-                case InitMode::SerialDim0: return "SerialDim0";
-                case InitMode::SerialDim1: return "SerialDim1";
-                case InitMode::Identity:   return "Identity";
+            case InitMode::Zero:
+                return "Zero";
+            case InitMode::One:
+                return "One";
+            case InitMode::Two:
+                return "Two";
+            case InitMode::Random:
+                return "Random";
+            case InitMode::NaN:
+                return "NaN";
+            case InitMode::Inf:
+                return "Inf";
+            case InitMode::BadInput:
+                return "BadInput";
+            case InitMode::BadOutput:
+                return "BadOutput";
+            case InitMode::SerialIdx:
+                return "SerialIdx";
+            case InitMode::SerialDim0:
+                return "SerialDim0";
+            case InitMode::SerialDim1:
+                return "SerialDim1";
+            case InitMode::Identity:
+                return "Identity";
 
-                case InitMode::Count:     break;
+            case InitMode::Count:
+                break;
             }
 
-            throw std::runtime_error(concatenate("Invalid InitMode value: ", static_cast<int>(mode)));
+            throw std::runtime_error(
+                concatenate("Invalid InitMode value: ", static_cast<int>(mode)));
         }
 
-        std::ostream & operator<<(std::ostream & stream, InitMode const& mode)
+        std::ostream& operator<<(std::ostream& stream, InitMode const& mode)
         {
             return stream << ToString(mode);
         }
 
-        std::istream & operator>>(std::istream & stream, InitMode      & mode)
+        std::istream& operator>>(std::istream& stream, InitMode& mode)
         {
             std::string strValue;
             stream >> strValue;
 
-            if(     strValue == ToString(InitMode::Zero))       mode = InitMode::Zero;
-            else if(strValue == ToString(InitMode::One))        mode = InitMode::One;
-            else if(strValue == ToString(InitMode::Two))        mode = InitMode::Two;
-            else if(strValue == ToString(InitMode::Random))     mode = InitMode::Random;
-            else if(strValue == ToString(InitMode::NaN))        mode = InitMode::NaN;
-            else if(strValue == ToString(InitMode::Inf))        mode = InitMode::Inf;
-            else if(strValue == ToString(InitMode::BadInput))   mode = InitMode::BadInput;
-            else if(strValue == ToString(InitMode::BadOutput))  mode = InitMode::BadOutput;
-            else if(strValue == ToString(InitMode::SerialIdx))  mode = InitMode::SerialIdx;
-            else if(strValue == ToString(InitMode::SerialDim0)) mode = InitMode::SerialDim0;
-            else if(strValue == ToString(InitMode::SerialDim1)) mode = InitMode::SerialDim1;
-            else if(strValue == ToString(InitMode::Identity))   mode = InitMode::Identity;
+            if(strValue == ToString(InitMode::Zero))
+                mode = InitMode::Zero;
+            else if(strValue == ToString(InitMode::One))
+                mode = InitMode::One;
+            else if(strValue == ToString(InitMode::Two))
+                mode = InitMode::Two;
+            else if(strValue == ToString(InitMode::Random))
+                mode = InitMode::Random;
+            else if(strValue == ToString(InitMode::NaN))
+                mode = InitMode::NaN;
+            else if(strValue == ToString(InitMode::Inf))
+                mode = InitMode::Inf;
+            else if(strValue == ToString(InitMode::BadInput))
+                mode = InitMode::BadInput;
+            else if(strValue == ToString(InitMode::BadOutput))
+                mode = InitMode::BadOutput;
+            else if(strValue == ToString(InitMode::SerialIdx))
+                mode = InitMode::SerialIdx;
+            else if(strValue == ToString(InitMode::SerialDim0))
+                mode = InitMode::SerialDim0;
+            else if(strValue == ToString(InitMode::SerialDim1))
+                mode = InitMode::SerialDim1;
+            else if(strValue == ToString(InitMode::Identity))
+                mode = InitMode::Identity;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
                 if(value >= 0 && value < static_cast<int>(InitMode::Count))
                     mode = static_cast<InitMode>(value);
                 else
-                    throw std::runtime_error(concatenate("Can't convert ", strValue, " to InitMode."));
+                    throw std::runtime_error(
+                        concatenate("Can't convert ", strValue, " to InitMode."));
             }
             else
             {
@@ -110,16 +137,18 @@ namespace Tensile
         }
 
         template <typename TypedInputs>
-        std::shared_ptr<TypedDataInitialization<TypedInputs>> DataInitialization::GetTyped(
-                po::variables_map const& args, ClientProblemFactory const& problemFactory)
+        std::shared_ptr<TypedDataInitialization<TypedInputs>>
+            DataInitialization::GetTyped(po::variables_map const&    args,
+                                         ClientProblemFactory const& problemFactory)
         {
-            auto * ptr = new TypedDataInitialization<TypedInputs>(args, problemFactory);
+            auto* ptr = new TypedDataInitialization<TypedInputs>(args, problemFactory);
 
             return std::shared_ptr<TypedDataInitialization<TypedInputs>>(ptr);
         }
 
-        std::shared_ptr<DataInitialization> DataInitialization::Get(
-                po::variables_map const& args, ClientProblemFactory const& problemFactory)
+        std::shared_ptr<DataInitialization>
+            DataInitialization::Get(po::variables_map const&    args,
+                                    ClientProblemFactory const& problemFactory)
         {
             auto aType     = args["a-type"].as<DataType>();
             auto bType     = args["b-type"].as<DataType>();
@@ -128,84 +157,96 @@ namespace Tensile
             auto alphaType = args["alpha-type"].as<DataType>();
             auto betaType  = args["beta-type"].as<DataType>();
 
-            if(aType == DataType::Float && bType == DataType::Float
-            && cType == DataType::Float && dType == DataType::Float
-            && alphaType == DataType::Float && betaType == DataType::Float)
+            if(aType == DataType::Float && bType == DataType::Float && cType == DataType::Float
+               && dType == DataType::Float && alphaType == DataType::Float
+               && betaType == DataType::Float)
             {
                 return GetTyped<TypedContractionInputs<float>>(args, problemFactory);
             }
             else if(aType == DataType::Double && bType == DataType::Double
-                 && cType == DataType::Double && dType == DataType::Double
-                 && alphaType == DataType::Double && betaType == DataType::Double)
+                    && cType == DataType::Double && dType == DataType::Double
+                    && alphaType == DataType::Double && betaType == DataType::Double)
             {
                 return GetTyped<TypedContractionInputs<double>>(args, problemFactory);
             }
             else if(aType == DataType::ComplexFloat && bType == DataType::ComplexFloat
-                 && cType == DataType::ComplexFloat && dType == DataType::ComplexFloat
-                 && alphaType == DataType::ComplexFloat && betaType == DataType::ComplexFloat)
+                    && cType == DataType::ComplexFloat && dType == DataType::ComplexFloat
+                    && alphaType == DataType::ComplexFloat && betaType == DataType::ComplexFloat)
             {
                 return GetTyped<TypedContractionInputs<std::complex<float>>>(args, problemFactory);
             }
             else if(aType == DataType::ComplexDouble && bType == DataType::ComplexDouble
-                 && cType == DataType::ComplexDouble && dType == DataType::ComplexDouble
-                 && alphaType == DataType::ComplexDouble && betaType == DataType::ComplexDouble)
+                    && cType == DataType::ComplexDouble && dType == DataType::ComplexDouble
+                    && alphaType == DataType::ComplexDouble && betaType == DataType::ComplexDouble)
             {
                 return GetTyped<TypedContractionInputs<std::complex<double>>>(args, problemFactory);
             }
-            else if(aType == DataType::Half && bType == DataType::Half
-                 && cType == DataType::Half && dType == DataType::Half
-                 && alphaType == DataType::Half && betaType == DataType::Half)
+            else if(aType == DataType::Half && bType == DataType::Half && cType == DataType::Half
+                    && dType == DataType::Half && alphaType == DataType::Half
+                    && betaType == DataType::Half)
             {
                 return GetTyped<TypedContractionInputs<Half>>(args, problemFactory);
             }
             else if(aType == DataType::Int8x4 && bType == DataType::Int8x4
-                 && cType == DataType::Int32 && dType == DataType::Int32
-                 && alphaType == DataType::Int32 && betaType == DataType::Int32)
+                    && cType == DataType::Int32 && dType == DataType::Int32
+                    && alphaType == DataType::Int32 && betaType == DataType::Int32)
             {
-                return GetTyped<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>(args, problemFactory);
+                return GetTyped<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>(
+                    args, problemFactory);
             }
-            else if(aType == DataType::Int32 && bType == DataType::Int32
-                 && cType == DataType::Int32 && dType == DataType::Int32
-                 && alphaType == DataType::Int32 && betaType == DataType::Int32)
+            else if(aType == DataType::Int32 && bType == DataType::Int32 && cType == DataType::Int32
+                    && dType == DataType::Int32 && alphaType == DataType::Int32
+                    && betaType == DataType::Int32)
             {
                 return GetTyped<TypedContractionInputs<int32_t>>(args, problemFactory);
             }
             else if(aType == DataType::BFloat16 && bType == DataType::BFloat16
-                 && cType == DataType::BFloat16 && dType == DataType::BFloat16
-                 && alphaType == DataType::Float && betaType == DataType::Float)
+                    && cType == DataType::BFloat16 && dType == DataType::BFloat16
+                    && alphaType == DataType::Float && betaType == DataType::Float)
             {
                 return GetTyped<BFloat16ContractionInputs>(args, problemFactory);
             }
 
             throw std::runtime_error(concatenate("Invalid combination of data types: ",
-                                                 "a: ", aType, ", b: ", bType, ", c: ", cType, ", d: ", dType,
-                                                 ", alpha: ", alphaType, ", beta: ", betaType));
+                                                 "a: ",
+                                                 aType,
+                                                 ", b: ",
+                                                 bType,
+                                                 ", c: ",
+                                                 cType,
+                                                 ", d: ",
+                                                 dType,
+                                                 ", alpha: ",
+                                                 alphaType,
+                                                 ", beta: ",
+                                                 betaType));
         }
 
-        DataInitialization::DataInitialization(po::variables_map const& args, ClientProblemFactory const& problemFactory)
-            : m_aInit(    args["init-a"].as<InitMode>()),
-              m_bInit(    args["init-b"].as<InitMode>()),
-              m_cInit(    args["init-c"].as<InitMode>()),
-              m_dInit(    args["init-d"].as<InitMode>()),
-              m_alphaInit(args["init-alpha"].as<InitMode>()),
-              m_betaInit( args["init-beta"].as<InitMode>()),
-              m_aMaxElements(0),
-              m_bMaxElements(0),
-              m_cMaxElements(0),
-              m_dMaxElements(0),
-              m_cEqualsD(args["c-equal-d"].as<bool>()),
-              m_elementsToValidate (args["num-elements-to-validate"].as<int>()),
-              m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
-              //, m_boundsCheck(args["bounds-check"].as<bool>())
+        DataInitialization::DataInitialization(po::variables_map const&    args,
+                                               ClientProblemFactory const& problemFactory)
+            : m_aInit(args["init-a"].as<InitMode>())
+            , m_bInit(args["init-b"].as<InitMode>())
+            , m_cInit(args["init-c"].as<InitMode>())
+            , m_dInit(args["init-d"].as<InitMode>())
+            , m_alphaInit(args["init-alpha"].as<InitMode>())
+            , m_betaInit(args["init-beta"].as<InitMode>())
+            , m_aMaxElements(0)
+            , m_bMaxElements(0)
+            , m_cMaxElements(0)
+            , m_dMaxElements(0)
+            , m_cEqualsD(args["c-equal-d"].as<bool>())
+            , m_elementsToValidate(args["num-elements-to-validate"].as<int>())
+            , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
+        //, m_boundsCheck(args["bounds-check"].as<bool>())
         {
-            auto x = args.find("bounds-check");
-            auto arg = args["bounds-check"];
+            auto x        = args.find("bounds-check");
+            auto arg      = args["bounds-check"];
             m_boundsCheck = arg.as<bool>();
 
-            if (args.count("convolution-vs-contraction"))
+            if(args.count("convolution-vs-contraction"))
                 m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
 
-            for(auto const& problem: problemFactory.problems())
+            for(auto const& problem : problemFactory.problems())
             {
                 m_aMaxElements = std::max(m_aMaxElements, problem.a().totalAllocatedElements());
                 m_bMaxElements = std::max(m_bMaxElements, problem.b().totalAllocatedElements());
@@ -215,18 +256,16 @@ namespace Tensile
 
             if(m_boundsCheck)
             {
-                m_aMaxElements  += 1024;
-                m_bMaxElements  += 1024;
-                m_cMaxElements  += 1024;
-                m_dMaxElements  += 1024;
+                m_aMaxElements += 1024;
+                m_bMaxElements += 1024;
+                m_cMaxElements += 1024;
+                m_dMaxElements += 1024;
             }
 
-            m_problemDependentData = IsProblemDependent(m_aInit) || IsProblemDependent(m_bInit) || IsProblemDependent(m_cInit) || IsProblemDependent(m_dInit);
+            m_problemDependentData = IsProblemDependent(m_aInit) || IsProblemDependent(m_bInit)
+                                     || IsProblemDependent(m_cInit) || IsProblemDependent(m_dInit);
         }
 
-        DataInitialization::~DataInitialization()
-        {
-        }
-    }
-}
-
+        DataInitialization::~DataInitialization() {}
+    } // namespace Client
+} // namespace Tensile

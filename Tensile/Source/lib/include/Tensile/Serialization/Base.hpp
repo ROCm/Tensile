@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -33,14 +33,16 @@
 #include <unordered_map>
 #include <vector>
 
-#include <Tensile/geom.hpp>
 #include <Tensile/DataTypes.hpp>
+#include <Tensile/geom.hpp>
 
 namespace Tensile
 {
     namespace Serialization
     {
-        struct EmptyContext {};
+        struct EmptyContext
+        {
+        };
 
         template <typename IO>
         struct IOTraits
@@ -62,7 +64,7 @@ namespace Tensile
         template <typename T, typename IO>
         struct SequenceTraits
         {
-            using Value = int;
+            using Value            = int;
             static const bool flow = false;
         };
 
@@ -71,15 +73,13 @@ namespace Tensile
         {
         };
 
-
         template <typename Object, typename IO>
         struct EmptyMappingTraits
         {
             using iot = IOTraits<IO>;
-            static_assert(Object::HasValue == false, "Object has a value.  Use the value base class.");
-            static void mapping(IO & io, Object & obj)
-            {
-            }
+            static_assert(Object::HasValue == false,
+                          "Object has a value.  Use the value base class.");
+            static void mapping(IO& io, Object& obj) {}
 
             const static bool flow = true;
         };
@@ -88,8 +88,9 @@ namespace Tensile
         struct ValueMappingTraits
         {
             using iot = IOTraits<IO>;
-            static_assert(Object::HasValue == true, "Object has no value.  Use the empty base class.");
-            static void mapping(IO & io, Object & obj)
+            static_assert(Object::HasValue == true,
+                          "Object has no value.  Use the empty base class.");
+            static void mapping(IO& io, Object& obj)
             {
                 iot::mapRequired(io, "value", obj.value);
             }
@@ -101,8 +102,9 @@ namespace Tensile
         struct IndexMappingTraits
         {
             using iot = IOTraits<IO>;
-            static_assert(Object::HasIndex == true, "Object doesn't have index/value.  Use the empty base class.");
-            static void mapping(IO & io, Object & obj)
+            static_assert(Object::HasIndex == true,
+                          "Object doesn't have index/value.  Use the empty base class.");
+            static void mapping(IO& io, Object& obj)
             {
                 iot::mapRequired(io, "index", obj.index);
             }
@@ -116,7 +118,7 @@ namespace Tensile
             using iot = IOTraits<IO>;
             static_assert(Object::HasIndex == true && Object::HasValue == true,
                           "Object doesn't have index/value.  Use the empty base class.");
-            static void mapping(IO & io, Object & obj)
+            static void mapping(IO& io, Object& obj)
             {
                 iot::mapRequired(io, "index", obj.index);
                 iot::mapRequired(io, "value", obj.value);
@@ -125,32 +127,32 @@ namespace Tensile
             const static bool flow = true;
         };
 
-        template <typename Object, typename IO, bool HasIndex = Object::HasIndex, bool HasValue = Object::HasValue>
+        template <typename Object,
+                  typename IO,
+                  bool HasIndex = Object::HasIndex,
+                  bool HasValue = Object::HasValue>
         struct AutoMappingTraits
         {
         };
 
         template <typename Object, typename IO>
-        struct AutoMappingTraits<Object, IO, false, false>:
-            public EmptyMappingTraits<Object, IO>
+        struct AutoMappingTraits<Object, IO, false, false> : public EmptyMappingTraits<Object, IO>
         {
         };
 
         template <typename Object, typename IO>
-        struct AutoMappingTraits<Object, IO, false,  true>:
-            public ValueMappingTraits<Object, IO>
+        struct AutoMappingTraits<Object, IO, false, true> : public ValueMappingTraits<Object, IO>
         {
         };
 
         template <typename Object, typename IO>
-        struct AutoMappingTraits<Object, IO,  true, false>:
-            public IndexMappingTraits<Object, IO>
+        struct AutoMappingTraits<Object, IO, true, false> : public IndexMappingTraits<Object, IO>
         {
         };
 
         template <typename Object, typename IO>
-        struct AutoMappingTraits<Object, IO,  true,  true>:
-            public IndexValueMappingTraits<Object, IO>
+        struct AutoMappingTraits<Object, IO, true, true>
+            : public IndexValueMappingTraits<Object, IO>
         {
         };
 
@@ -167,7 +169,7 @@ namespace Tensile
         {
             using iot = IOTraits<IO>;
             template <typename Base>
-            static bool mapping(IO & io, std::shared_ptr<Base> & p, Context & ctx)
+            static bool mapping(IO& io, std::shared_ptr<Base>& p, Context& ctx)
             {
                 std::shared_ptr<Subclass> sc;
 
@@ -178,7 +180,7 @@ namespace Tensile
                 else
                 {
                     sc = std::make_shared<Subclass>();
-                    p = sc;
+                    p  = sc;
                 }
 
                 MappingTraits<Subclass, IO, Context>::mapping(io, *sc, ctx);
@@ -192,7 +194,7 @@ namespace Tensile
         {
             using iot = IOTraits<IO>;
             template <typename Base>
-            static bool mapping(IO & io, std::shared_ptr<Base> & p)
+            static bool mapping(IO& io, std::shared_ptr<Base>& p)
             {
                 std::shared_ptr<Subclass> sc;
 
@@ -203,7 +205,7 @@ namespace Tensile
                 else
                 {
                     sc = std::make_shared<Subclass>();
-                    p = sc;
+                    p  = sc;
                 }
 
                 MappingTraits<Subclass, IO>::mapping(io, *sc);
@@ -217,7 +219,7 @@ namespace Tensile
         {
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, std::shared_ptr<T> & value)
+            static void mapping(IO& io, std::shared_ptr<T>& value)
             {
                 std::string type;
 
@@ -239,8 +241,8 @@ namespace Tensile
         template <typename CRTP_Traits, typename T, typename IO, typename Context>
         struct DefaultSubclassMappingTraits
         {
-            using iot = IOTraits<IO>;
-            using SubclassFn = bool(IO &, typename std::shared_ptr<T> &, Context &);
+            using iot         = IOTraits<IO>;
+            using SubclassFn  = bool(IO&, typename std::shared_ptr<T>&, Context&);
             using SubclassMap = std::unordered_map<std::string, std::function<SubclassFn>>;
 
             template <typename Subclass>
@@ -250,7 +252,8 @@ namespace Tensile
                 return typename SubclassMap::value_type(Subclass::Type(), f);
             }
 
-            static bool mapping(IO & io, std::string const& type, std::shared_ptr<T> & p, Context & ctx)
+            static bool
+                mapping(IO& io, std::string const& type, std::shared_ptr<T>& p, Context& ctx)
             {
                 auto iter = CRTP_Traits::subclasses.find(type);
                 if(iter != CRTP_Traits::subclasses.end())
@@ -262,8 +265,8 @@ namespace Tensile
         template <typename CRTP_Traits, typename T, typename IO>
         struct DefaultSubclassMappingTraits<CRTP_Traits, T, IO, EmptyContext>
         {
-            using iot = IOTraits<IO>;
-            using SubclassFn = bool(IO &, typename std::shared_ptr<T> &);
+            using iot         = IOTraits<IO>;
+            using SubclassFn  = bool(IO&, typename std::shared_ptr<T>&);
             using SubclassMap = std::unordered_map<std::string, std::function<SubclassFn>>;
 
             template <typename Subclass>
@@ -273,7 +276,7 @@ namespace Tensile
                 return typename SubclassMap::value_type(Subclass::Type(), f);
             }
 
-            static bool mapping(IO & io, std::string const& type, std::shared_ptr<T> & p)
+            static bool mapping(IO& io, std::string const& type, std::shared_ptr<T>& p)
             {
                 auto iter = CRTP_Traits::subclasses.find(type);
                 if(iter != CRTP_Traits::subclasses.end())
@@ -287,10 +290,14 @@ namespace Tensile
         {
             using Value = Data;
 
-            static size_t size(IO & io, vector2<Data> & v) { return 2; }
-            static Data & element(IO & io, vector2<Data> & v, size_t index)
+            static size_t size(IO& io, vector2<Data>& v)
             {
-                if(index == 0) return v.x;
+                return 2;
+            }
+            static Data& element(IO& io, vector2<Data>& v, size_t index)
+            {
+                if(index == 0)
+                    return v.x;
                 return v.y;
             }
 
@@ -302,11 +309,16 @@ namespace Tensile
         {
             using Value = Data;
 
-            static size_t size(IO & io, vector3<Data> & v) { return 3; }
-            static Data & element(IO & io, vector3<Data> & v, size_t index)
+            static size_t size(IO& io, vector3<Data>& v)
             {
-                if(index == 0) return v.x;
-                if(index == 1) return v.y;
+                return 3;
+            }
+            static Data& element(IO& io, vector3<Data>& v, size_t index)
+            {
+                if(index == 0)
+                    return v.x;
+                if(index == 1)
+                    return v.y;
                 return v.z;
             }
 
@@ -318,12 +330,18 @@ namespace Tensile
         {
             using Value = Data;
 
-            static size_t size(IO & io, vector4<Data> & v) { return 4; }
-            static Data & element(IO & io, vector4<Data> & v, size_t index)
+            static size_t size(IO& io, vector4<Data>& v)
             {
-                if(index == 0) return v.x;
-                if(index == 1) return v.y;
-                if(index == 2) return v.z;
+                return 4;
+            }
+            static Data& element(IO& io, vector4<Data>& v, size_t index)
+            {
+                if(index == 0)
+                    return v.x;
+                if(index == 1)
+                    return v.y;
+                if(index == 2)
+                    return v.z;
                 return v.w;
             }
 
@@ -335,7 +353,7 @@ namespace Tensile
         {
             using iot = IOTraits<IO>;
 
-            static void enumeration(IO & io, DataType & value)
+            static void enumeration(IO& io, DataType& value)
             {
                 for(int i = 0; i < static_cast<int>(DataType::Count); i++)
                 {
@@ -344,7 +362,5 @@ namespace Tensile
                 }
             }
         };
-    }
-}
-
-
+    } // namespace Serialization
+} // namespace Tensile

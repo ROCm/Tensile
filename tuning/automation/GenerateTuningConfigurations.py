@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -56,12 +56,12 @@ def ProcesDefinitionFile(definitionFileName):
             configDefinitionList = configurationMapper[key]
         else:
             configDefinitionList = []
-            configurationMapper[key] = configDefinitionList 
+            configurationMapper[key] = configDefinitionList
 
         configDefinition = (solutionFileName, fileName)
         configDefinitionList.append(configDefinition)
 
-    definitionFile.close()    
+    definitionFile.close()
 
     return configurationMapper
 
@@ -69,8 +69,8 @@ def ProcesDefinitionFile(definitionFileName):
 
 
 def processFile(headerFileName, key, configDefinitionList, configurationPath, workingDirectoryName, outputFileName, outputPath):
-    
-    libraryName, solutionName, transformatnType = key.split('_') 
+
+    libraryName, solutionName, transformatnType = key.split('_')
 
     typeFileName = "types/%s_%s.yml" % (solutionName, transformatnType)
     typeFilePath = os.path.join(configurationPath, typeFileName)
@@ -82,7 +82,7 @@ def processFile(headerFileName, key, configDefinitionList, configurationPath, wo
 
     for configDefinition in configDefinitionList:
         problemFileName, sizeFileName = configDefinition
-        
+
         problemFilePath = os.path.join(configurationPath, problemFileName)
         contentFileNames.append(problemFilePath)
         contentFileNames.append(sizeFileName)
@@ -163,7 +163,7 @@ def generateBenchmarkGroupFromScheme(scheme, tileAware="false"):
     finalParams = []
 
     if tileAware == "true":
-        finalParams.append({"ProblemSizes":None}) 
+        finalParams.append({"ProblemSizes":None})
         finalParams.append({"SolutionSummationSizes":[30,60,90,120,180,360,720,1440,2880,5000,10000,15000,20000,25000,30000]})
 
     for key in scheme:
@@ -202,7 +202,7 @@ def generateDefaultScheme():
 def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAware="false"):
 
     _ , transposeA, transposeB, dType = problemKey
-    
+
     transposeType = "%s%s" % (transposeA.lower(),transposeB.lower())
     benchmarkGroup = None
 
@@ -211,16 +211,16 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
     if dType == "h":
         scheme["AssertSummationElementMultiple"] = [2]
         scheme["AssertFree0ElementMultiple"] = [2]
-    
+
     if sizeKey == "batch":
         scheme["GlobalSplitU"] = [1]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
     elif sizeKey == "tiny":
         scheme["GlobalSplitU"] = [1,4]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
@@ -234,19 +234,19 @@ def updateProblemGroupFromKey(problemKey, sizeKey,problemGroup,sizeList, tileAwa
         if transposeType == "tn":
             scheme["GlobalSplitU"] = [1,8]
             scheme["DepthU"] = [8, 16]
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[8,4],[4,8],[8,8]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
         else:
             scheme["GlobalSplitU"] = [1,8]
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
     else: #sizeKey == "large"
         scheme["GlobalSplitU"] = [1]
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme, tileAware) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme, tileAware)
         appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
@@ -283,7 +283,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware):
         configurationFilePath = os.path.join(configPath, configurationFileName)
 
 
-        newConfig = None 
+        newConfig = None
         problemGroup = None
 
         if configurationFilePath in configDefs:
@@ -301,7 +301,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware):
         for sizeKey in sizeMapper:
             sizeList = sizeMapper[sizeKey]
             updateProblemGroupFromKey(key,sizeKey,problemGroup,sizeList,tileAware)
-        
+
     for key in configDefs:
         newConfig = configDefs[key]
         newConfig.writeLibraryLogic(key)
@@ -320,7 +320,7 @@ def GetOutputFileName(outputPath, namePart, key, ext):
 
 
 def generateRunScript(fileNames, outputPath,count='1'):
-    
+
     scriptNames = ""
 
     for fileName in fileNames:
@@ -336,12 +336,12 @@ for NAME in%s
 do
 ./${NAME}.sh > results%s/${NAME}.1 2>&1
 done
-""" 
+"""
     runallContent = runallTemplate % (count, scriptNames, count)
     doitFileName = os.path.join(outputPath, "doit_all"+count+".sh")
     doitFile = open(doitFileName,"w")
     doitFile.write(runallContent)
-    doitFile.close() 
+    doitFile.close()
 
 def OutputScript(problemMapper, scriptPath, namePart):
 
@@ -362,13 +362,13 @@ def OutputScript(problemMapper, scriptPath, namePart):
                 f.write("%s\n" % line)
 
     generateRunScript(scriptFileNames, scriptPath)
-    
+
 def OutputScript2(problemMapper, scriptPath, namePart):
 
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
-    
+
     for key in keys:
         outputFileName = GetOutputFileName(scriptPath, namePart, key, "sh")
         scriptFileNames.append(outputFileName)
@@ -383,7 +383,7 @@ def OutputScript2(problemMapper, scriptPath, namePart):
                     f.write("ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY} %s\n" % line)
                 else:
                     f.write("%s\n" % line)
-                    
+
     generateRunScript(scriptFileNames, scriptPath,'2')
 
 def OutputProblemDefinitions(problemMapper, sizePath, namePart):
@@ -413,8 +413,8 @@ def RunMain():
     argParser.add_argument("output_path", help="the output path")
     argParser.add_argument("output_file_name", help="the output file name")
     argParser.add_argument("library", help="the library Logic name")
-    argParser.add_argument("tile_aware", help="true/false tile_aware_selection", default="false")    
- 
+    argParser.add_argument("tile_aware", help="true/false tile_aware_selection", default="false")
+
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
     outputName = args.output_file_name
@@ -449,7 +449,7 @@ def RunMain():
         os.makedirs(sizePath)
 
     OutputConfigs(problemMapper, configPath, outputName, library,tileAware)
-    
+
     if len(sys.argv) <= 6:
         OutputScript(problemMapper, scriptPath, namePart)
         OutputScript2(problemMapper, scriptPath2, namePart)

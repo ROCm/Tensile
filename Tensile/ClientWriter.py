@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -171,7 +171,7 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
       with ClientExecutionLock():
         process = subprocess.Popen(runScriptName, cwd=path)
         process.communicate()
- 
+
     if process.returncode:
       printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
     popWorkingPath() # build
@@ -236,8 +236,8 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
   runScriptFile = io.StringIO()
 
   callCreateLibraryCmd = globalParameters["ScriptPath"] + "/bin/TensileCreateLibrary"
- 
-  
+
+
   if globalParameters["MergeFiles"]:
     callCreateLibraryCmd += " --merge-files"
   else:
@@ -260,7 +260,7 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
   callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
 
   callCreateLibraryCmd += " %s" % libraryLogicPath
-  callCreateLibraryCmd += " %s" % buildPath #" ../source" 
+  callCreateLibraryCmd += " %s" % buildPath #" ../source"
   callCreateLibraryCmd += " %s\n" % globalParameters["RuntimeLanguage"]
 
   runScriptFile.write(callCreateLibraryCmd)
@@ -561,7 +561,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
         param("library-file", libraryFile)
 
-        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"] 
+        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"]
         for coFile in codeObjectFiles:
             if (currentGFXName in coFile):
                 param("code-object", os.path.join(sourceDir,coFile))

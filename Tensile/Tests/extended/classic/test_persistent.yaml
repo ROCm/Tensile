@@ -4,7 +4,7 @@ GlobalParameters:
   PrintLevel: 1
   CMakeBuildType: Release
   NumElementsToValidate: 1000
-  ValidationMaxToPrint: 4 
+  ValidationMaxToPrint: 4
   ValidationPrintValids: False
   DataInitTypeA: 3           # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
   DataInitTypeB: 3           # 0=0, 1=1, 2=serial, 3=rand, 4=NaN

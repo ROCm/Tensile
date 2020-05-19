@@ -345,7 +345,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [1024], [1024], [1], [1024] ]
 
-  - # sgemm NT 
+  - # sgemm NT
     - # ProblemType
       OperationType: GEMM
       DataType: s

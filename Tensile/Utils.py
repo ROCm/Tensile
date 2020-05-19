@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ class SpinnyThing:
     def __init__(self):
         self.chars = ['|', '/', '-', '\\']
         self.index = 0;
-    
+
     def increment(self, value=1):
         sys.stdout.write('\b' + self.chars[self.index])
         sys.stdout.flush()
@@ -132,6 +132,6 @@ def ceil_divide(numerator, denominator):
         print("ERROR: Divide by 0")
         return 0
     return div
-    
+
 def roundUpToNearestMultiple(numerator, denominator):
     return ceil_divide(numerator,denominator)*int(denominator)

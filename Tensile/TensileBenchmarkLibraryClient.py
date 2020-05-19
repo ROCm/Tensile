@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@ def BenchmarkProblemSize(cmdPrefix, row):
     ms = float(msString)
     gflopList.append(gflops)
     msList.append(ms)
-    
+
     # next line
     stdout = stdout[newLineIdx+1:]
   return (gflopList, msList)
@@ -88,12 +88,12 @@ def PrintStats(header, row, gflopList, msList):
   line += "%9.2f, %9.4f, " % (medianGFlops, medianMs)
   line += "%9.2f, %9.4f, " % (meanGFlops, meanMs)
   line += "%9.5f, %9.5f" % (stddevGFlops, stddevMs)
-  sys.stdout.write(line) 
-  sys.stdout.write("\n") 
+  sys.stdout.write(line)
+  sys.stdout.write("\n")
   sys.stdout.flush()
-  sys.stderr.write("[STDOUT] %s\n" % header) 
-  sys.stderr.write("[STDOUT] %s\n" % line) 
-  sys.stderr.write("[END]\n\n\n") 
+  sys.stderr.write("[STDOUT] %s\n" % header)
+  sys.stderr.write("[STDOUT] %s\n" % line)
+  sys.stderr.write("[END]\n\n\n")
   sys.stderr.flush()
 
 
@@ -121,10 +121,10 @@ def TensileBenchmarkLibraryClient(userArgs):
   libraryClientCommand = " ".join(libraryClientCommandList)
   line = "LibraryClientCommand: %s\n" % libraryClientCommand
   sys.stdout.write(line)
-  sys.stdout.write("\n") 
+  sys.stdout.write("\n")
   sys.stderr.write(line)
-  sys.stderr.write("\n\n") 
-  
+  sys.stderr.write("\n\n")
+
   # read problem sizes file
   csvFileRaw = open(problemSizesPath, "r")
   csvFile = csv.reader(csvFileRaw)
@@ -142,8 +142,8 @@ def TensileBenchmarkLibraryClient(userArgs):
   header += "%9s, %9s, " % ( "medianGF", "medianMs" )
   header += "%9s, %9s, " % ( "meanGF", "meanMs" )
   header += "%9s, %9s" % ( "rstdGF", "rstdMs" )
-  sys.stdout.write(header) 
-  sys.stdout.write("\n") 
+  sys.stdout.write(header)
+  sys.stdout.write("\n")
 
   # benchmark each problem size
   for row in [firstRow]:

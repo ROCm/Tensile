@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -37,22 +37,21 @@
 
 #include "ResultReporter.hpp"
 
-#define RSMI_CHECK_EXC(expr) \
-    do \
-    { \
-        rsmi_status_t e = (expr); \
-        if(e) \
-        { \
-            const char * errName = nullptr; \
-            rsmi_status_string(e, &errName); \
-            std::ostringstream msg; \
-            msg << "Error " << e << "(" << errName << ") " \
-                          << __FILE__ << ":" << __LINE__ << ": " << std::endl \
-                      << #expr << std::endl; \
-            throw std::runtime_error(msg.str()); \
-        } \
+#define RSMI_CHECK_EXC(expr)                                                                      \
+    do                                                                                            \
+    {                                                                                             \
+        rsmi_status_t e = (expr);                                                                 \
+        if(e)                                                                                     \
+        {                                                                                         \
+            const char* errName = nullptr;                                                        \
+            rsmi_status_string(e, &errName);                                                      \
+            std::ostringstream msg;                                                               \
+            msg << "Error " << e << "(" << errName << ") " << __FILE__ << ":" << __LINE__ << ": " \
+                << std::endl                                                                      \
+                << #expr << std::endl;                                                            \
+            throw std::runtime_error(msg.str());                                                  \
+        }                                                                                         \
     } while(0)
-
 
 namespace Tensile
 {
@@ -91,11 +90,19 @@ namespace Tensile
             }
 
             msg << "]" << std::endl;
-            std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            std::time_t now
+                = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
             msg << std::put_time(gmtime(&now), "%F %T %z");
 
-            throw std::runtime_error(concatenate("RSMI Can't find a device with PCI ID ", hipPCIID , "(",
-                                                 props.pciDomainID, "-", props.pciBusID, "-", props.pciDeviceID, ")\n",
+            throw std::runtime_error(concatenate("RSMI Can't find a device with PCI ID ",
+                                                 hipPCIID,
+                                                 "(",
+                                                 props.pciDomainID,
+                                                 "-",
+                                                 props.pciBusID,
+                                                 "-",
+                                                 props.pciDeviceID,
+                                                 ")\n",
                                                  msg.str()));
         }
 
@@ -106,10 +113,10 @@ namespace Tensile
         }
 
         HardwareMonitor::HardwareMonitor(int hipDeviceIndex, clock::duration minPeriod)
-            : m_minPeriod(minPeriod),
-              m_hipDeviceIndex(hipDeviceIndex),
-              m_smiDeviceIndex(GetROCmSMIIndex(hipDeviceIndex)),
-              m_dataPoints(0)
+            : m_minPeriod(minPeriod)
+            , m_hipDeviceIndex(hipDeviceIndex)
+            , m_smiDeviceIndex(GetROCmSMIIndex(hipDeviceIndex))
+            , m_dataPoints(0)
         {
             InitROCmSMI();
 
@@ -117,10 +124,10 @@ namespace Tensile
         }
 
         HardwareMonitor::HardwareMonitor(int hipDeviceIndex)
-            : m_minPeriod(clock::duration::zero()),
-              m_hipDeviceIndex(hipDeviceIndex),
-              m_smiDeviceIndex(GetROCmSMIIndex(hipDeviceIndex)),
-              m_dataPoints(0)
+            : m_minPeriod(clock::duration::zero())
+            , m_hipDeviceIndex(hipDeviceIndex)
+            , m_smiDeviceIndex(GetROCmSMIIndex(hipDeviceIndex))
+            , m_dataPoints(0)
         {
             InitROCmSMI();
 
@@ -138,12 +145,13 @@ namespace Tensile
 
         void HardwareMonitor::initThread()
         {
-            m_stop = false;
-            m_exit = false;
-            m_thread = std::thread([=](){ this->runLoop(); });
+            m_stop   = false;
+            m_exit   = false;
+            m_thread = std::thread([=]() { this->runLoop(); });
         }
 
-        void HardwareMonitor::addTempMonitor(rsmi_temperature_type_t sensorType, rsmi_temperature_metric_t metric)
+        void HardwareMonitor::addTempMonitor(rsmi_temperature_type_t   sensorType,
+                                             rsmi_temperature_metric_t metric)
         {
             assertNotActive();
 
@@ -167,7 +175,8 @@ namespace Tensile
             m_fanValues.resize(m_fanMetrics.size());
         }
 
-        double HardwareMonitor::getAverageTemp(rsmi_temperature_type_t sensorType, rsmi_temperature_metric_t metric)
+        double HardwareMonitor::getAverageTemp(rsmi_temperature_type_t   sensorType,
+                                               rsmi_temperature_metric_t metric)
         {
             assertNotActive();
 
@@ -186,7 +195,8 @@ namespace Tensile
                 }
             }
 
-            throw std::runtime_error(concatenate("Can't read temp value that wasn't requested: ", sensorType, " - ", metric));
+            throw std::runtime_error(concatenate(
+                "Can't read temp value that wasn't requested: ", sensorType, " - ", metric));
         }
 
         double HardwareMonitor::getAverageClock(rsmi_clk_type_t clockType)
@@ -208,7 +218,8 @@ namespace Tensile
                 }
             }
 
-            throw std::runtime_error(concatenate("Can't read clock value that wasn't requested: ", clockType));
+            throw std::runtime_error(
+                concatenate("Can't read clock value that wasn't requested: ", clockType));
         }
 
         double HardwareMonitor::getAverageFanSpeed(uint32_t sensorIndex)
@@ -230,7 +241,8 @@ namespace Tensile
                 }
             }
 
-            throw std::runtime_error(concatenate("Can't read fan value that wasn't requested: ", sensorIndex));
+            throw std::runtime_error(
+                concatenate("Can't read fan value that wasn't requested: ", sensorIndex));
         }
 
         void HardwareMonitor::start()
@@ -259,7 +271,7 @@ namespace Tensile
 
                 m_hasStopEvent = stopEvent != nullptr;
 
-                m_task = std::move(Task([=](){ this->collect(startEvent, stopEvent); }));
+                m_task   = std::move(Task([=]() { this->collect(startEvent, stopEvent); }));
                 m_future = m_task.get_future();
 
                 m_stop = false;
@@ -272,9 +284,12 @@ namespace Tensile
         {
             m_dataPoints = 0;
 
-            for(auto & v: m_tempValues)  v = 0;
-            for(auto & v: m_clockValues) v = 0;
-            for(auto & v: m_fanValues)   v = 0;
+            for(auto& v : m_tempValues)
+                v = 0;
+            for(auto& v : m_clockValues)
+                v = 0;
+            for(auto& v : m_fanValues)
+                v = 0;
 
             m_lastCollection = clock::time_point();
             m_nextCollection = clock::time_point();
@@ -288,12 +303,13 @@ namespace Tensile
                 if(m_tempValues[i] == std::numeric_limits<int64_t>::max())
                     continue;
 
-                rsmi_temperature_type_t sensorType;
+                rsmi_temperature_type_t   sensorType;
                 rsmi_temperature_metric_t metric;
                 std::tie(sensorType, metric) = m_tempMetrics[i];
 
                 int64_t newValue = 0;
-                auto status = rsmi_dev_temp_metric_get(m_smiDeviceIndex, sensorType, metric, &newValue);
+                auto    status
+                    = rsmi_dev_temp_metric_get(m_smiDeviceIndex, sensorType, metric, &newValue);
                 if(status != RSMI_STATUS_SUCCESS)
                     m_tempValues[i] = std::numeric_limits<int64_t>::max();
                 else
@@ -363,7 +379,8 @@ namespace Tensile
             std::unique_lock<std::mutex> lock(m_mutex);
             while(!m_exit)
             {
-                while(!m_task.valid() && !m_exit) m_cv.wait(lock);
+                while(!m_task.valid() && !m_exit)
+                    m_cv.wait(lock);
 
                 if(m_exit)
                     return;
@@ -387,8 +404,7 @@ namespace Tensile
 
                 if(stopEvent != nullptr && hipEventQuery(stopEvent) == hipSuccess)
                     return;
-            }
-            while(!m_stop && !m_exit);
+            } while(!m_stop && !m_exit);
         }
 
         void HardwareMonitor::wait()
@@ -401,7 +417,6 @@ namespace Tensile
 
             m_future.wait();
             m_future = std::move(std::future<void>());
-
         }
 
         void HardwareMonitor::assertActive()
@@ -416,6 +431,5 @@ namespace Tensile
                 throw std::runtime_error("Monitor is active.");
         }
 
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile
