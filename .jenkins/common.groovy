@@ -10,6 +10,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = jobName.contains('hipclang') ? "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2" : ":"
 
+    // comment
+
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit"
 
