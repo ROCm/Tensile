@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -29,15 +29,17 @@
 namespace Tensile
 {
     StreamRead::StreamRead(std::string const& value, bool except)
-        : m_value(value), m_except(except), m_success(false)
+        : m_value(value)
+        , m_except(except)
+        , m_success(false)
     {
     }
 
     StreamRead::~StreamRead() = default;
 
-    //bool StreamRead::operator bool() const { return m_success; }
+    // bool StreamRead::operator bool() const { return m_success; }
 
-    bool StreamRead::read(std::istream & stream)
+    bool StreamRead::read(std::istream& stream)
     {
         m_success = false;
         char ch;
@@ -46,10 +48,12 @@ namespace Tensile
         {
             if((ch = stream.get()) != m_value[i])
             {
-                for(int j = 0; j <= i; j++) stream.unget();
+                for(int j = 0; j <= i; j++)
+                    stream.unget();
 
                 if(m_except)
-                    throw std::runtime_error(concatenate("Expected '", m_value[i], "', found '", ch, "'."));
+                    throw std::runtime_error(
+                        concatenate("Expected '", m_value[i], "', found '", ch, "'."));
 
                 return false;
             }
@@ -59,5 +63,4 @@ namespace Tensile
         return true;
     }
 
-}
-
+} // namespace Tensile

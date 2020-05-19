@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -40,8 +40,8 @@ namespace Tensile
     namespace Client
     {
         HardwareMonitorListener::HardwareMonitorListener(po::variables_map const& args)
-            : m_useGPUTimer(args["use-gpu-timer"].as<bool>()),
-              m_monitor(std::make_shared<HardwareMonitor>(args["device-idx"].as<int>()))
+            : m_useGPUTimer(args["use-gpu-timer"].as<bool>())
+            , m_monitor(std::make_shared<HardwareMonitor>(args["device-idx"].as<int>()))
         {
             m_monitor->addTempMonitor(0);
 
@@ -52,18 +52,19 @@ namespace Tensile
             m_monitor->addFanSpeedMonitor();
         }
 
-        void   HardwareMonitorListener::preEnqueues()
+        void HardwareMonitorListener::preEnqueues()
         {
             if(!m_useGPUTimer)
                 m_monitor->start();
         }
 
-        void   HardwareMonitorListener::postEnqueues(TimingEvents const& startEvents,
-                                                     TimingEvents const&  stopEvents)
+        void HardwareMonitorListener::postEnqueues(TimingEvents const& startEvents,
+                                                   TimingEvents const& stopEvents)
         {
             if(m_useGPUTimer)
             {
-                m_monitor->runBetweenEvents(startEvents->front().front(), stopEvents->back().back());
+                m_monitor->runBetweenEvents(startEvents->front().front(),
+                                            stopEvents->back().back());
             }
             else
             {
@@ -71,22 +72,24 @@ namespace Tensile
             }
         }
 
-        void   HardwareMonitorListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                                         TimingEvents const& startEvents,
-                                                         TimingEvents const&  stopEvents)
+        void HardwareMonitorListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                                       TimingEvents const& startEvents,
+                                                       TimingEvents const& stopEvents)
         {
             m_monitor->wait();
 
-            m_reporter->report(ResultKey::DeviceIndex,         m_monitor->getDeviceIndex());
-            m_reporter->report(ResultKey::TempEdge,            m_monitor->getAverageTemp(0));
+            m_reporter->report(ResultKey::DeviceIndex, m_monitor->getDeviceIndex());
+            m_reporter->report(ResultKey::TempEdge, m_monitor->getAverageTemp(0));
 
-            m_reporter->report(ResultKey::ClockRateSys,        m_monitor->getAverageClock(RSMI_CLK_TYPE_SYS));
-            m_reporter->report(ResultKey::ClockRateSOC,        m_monitor->getAverageClock(RSMI_CLK_TYPE_SOC));
-            m_reporter->report(ResultKey::ClockRateMem,        m_monitor->getAverageClock(RSMI_CLK_TYPE_MEM));
+            m_reporter->report(ResultKey::ClockRateSys,
+                               m_monitor->getAverageClock(RSMI_CLK_TYPE_SYS));
+            m_reporter->report(ResultKey::ClockRateSOC,
+                               m_monitor->getAverageClock(RSMI_CLK_TYPE_SOC));
+            m_reporter->report(ResultKey::ClockRateMem,
+                               m_monitor->getAverageClock(RSMI_CLK_TYPE_MEM));
 
-            m_reporter->report(ResultKey::FanSpeedRPMs,        m_monitor->getAverageFanSpeed());
+            m_reporter->report(ResultKey::FanSpeedRPMs, m_monitor->getAverageFanSpeed());
             m_reporter->report(ResultKey::HardwareSampleCount, m_monitor->getSamples());
         }
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile

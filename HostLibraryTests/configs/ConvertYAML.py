@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -86,7 +86,7 @@ def convert_one(args):
 
 if __name__ == "__main__":
 
-    for i in Utils.tqdm(itertools.chain([1,2,3], [4,5,6])): time.sleep(1) 
+    for i in Utils.tqdm(itertools.chain([1,2,3], [4,5,6])): time.sleep(1)
 
     merge_libraries(sys.argv[1:])
 

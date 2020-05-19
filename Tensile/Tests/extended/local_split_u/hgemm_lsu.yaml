@@ -47,7 +47,7 @@ BenchmarkProblems:
   ########################################
   # NN - MI workloads (DeepBench, ResNet, etc)
   ########################################
-    - 
+    -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -63,19 +63,19 @@ TEST(Cache, Threaded)
     using namespace Tensile;
     CacheMap<int, int> cache(-1);
 
-    #pragma omp parallel num_threads(32)
+#pragma omp parallel num_threads(32)
     {
         int seed = 0;
 #ifdef _OPENMP
         seed = omp_get_thread_num();
 #endif
-        std::uniform_int_distribution<int> dist(0,10);
-        std::mt19937 rng(seed);
+        std::uniform_int_distribution<int> dist(0, 10);
+        std::mt19937                       rng(seed);
 
         for(int i = 0; i < 10000; i++)
         {
-            int key = dist(rng);
-            int value = key+1;
+            int key   = dist(rng);
+            int value = key + 1;
 
             int lookup = cache.find(key);
             if(lookup != -1)
@@ -93,8 +93,8 @@ TEST(Hashing, TensorDescriptor)
 
     TensorDescriptor a(DataType::Float, {15, 8, 20});
     TensorDescriptor b(DataType::Int32, {15, 8, 20});
-    TensorDescriptor c(DataType::Float, {15, 8, 20}, {1, 15, 15*8});
-    TensorDescriptor d(DataType::Float, {15, 8, 20}, {1, 17, 19*8});
+    TensorDescriptor c(DataType::Float, {15, 8, 20}, {1, 15, 15 * 8});
+    TensorDescriptor d(DataType::Float, {15, 8, 20}, {1, 17, 19 * 8});
 
     EXPECT_NE(std::hash<TensorDescriptor>()(a), std::hash<TensorDescriptor>()(b));
     EXPECT_EQ(std::hash<TensorDescriptor>()(a), std::hash<TensorDescriptor>()(c));
@@ -121,33 +121,34 @@ TEST(Hashing, AMDGPU)
 {
     using namespace Tensile;
 
-    std::vector<AMDGPU::Processor> processors{
-        AMDGPU::Processor::gfx803,
-        AMDGPU::Processor::gfx900,
-        AMDGPU::Processor::gfx906,
-        AMDGPU::Processor::gfx908};
+    std::vector<AMDGPU::Processor> processors{AMDGPU::Processor::gfx803,
+                                              AMDGPU::Processor::gfx900,
+                                              AMDGPU::Processor::gfx906,
+                                              AMDGPU::Processor::gfx908};
 
     std::vector<int> counts{16, 20, 40, 56, 60, 64};
 
     // There aren't that many possible combinations here so it's reasonable to
     // have no hash collisions.
-    for(AMDGPU::Processor p1: processors)
-    for(AMDGPU::Processor p2: processors)
-    for(int c1: counts)
-    for(int c2: counts)
-    {
-        AMDGPU g1(p1, c1, "g1");
-        AMDGPU g2(p2, c2, "g2");
+    for(AMDGPU::Processor p1 : processors)
+        for(AMDGPU::Processor p2 : processors)
+            for(int c1 : counts)
+                for(int c2 : counts)
+                {
+                    AMDGPU g1(p1, c1, "g1");
+                    AMDGPU g2(p2, c2, "g2");
 
-        if(p1 != p2 || c1 != c2)
-        {
-            EXPECT_NE(std::hash<AMDGPU>()(g1), std::hash<AMDGPU>()(g2)) << g1 << "/" << g2;
-        }
-        else
-        {
-            EXPECT_EQ(std::hash<AMDGPU>()(g1), std::hash<AMDGPU>()(g2)) << g1 << "/" << g2;
-        }
-    }
+                    if(p1 != p2 || c1 != c2)
+                    {
+                        EXPECT_NE(std::hash<AMDGPU>()(g1), std::hash<AMDGPU>()(g2))
+                            << g1 << "/" << g2;
+                    }
+                    else
+                    {
+                        EXPECT_EQ(std::hash<AMDGPU>()(g1), std::hash<AMDGPU>()(g2))
+                            << g1 << "/" << g2;
+                    }
+                }
 }
 
 TEST(Hashing, Tuple)
@@ -196,47 +197,58 @@ TEST(CachingLibrary, Simple)
 
     AMDGPU gpu;
 
-    auto Problem0 = ContractionProblem::GEMM(false, false, 4,4,4,  4,4,4, 1.2, false, 1);
-    auto Problem1 = ContractionProblem::GEMM(false, false, 6,6,6,  6,6,6, 1.2, false, 1);
-    auto Problem2 = ContractionProblem::GEMM( true, false, 14,4,4, 4,4,4, 1.2, false, 1);
-    auto Problem3 = ContractionProblem::GEMM( true,  true, 24,4,4, 4,4,4, 1.2, false, 1);
+    auto Problem0 = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.2, false, 1);
+    auto Problem1 = ContractionProblem::GEMM(false, false, 6, 6, 6, 6, 6, 6, 1.2, false, 1);
+    auto Problem2 = ContractionProblem::GEMM(true, false, 14, 4, 4, 4, 4, 4, 1.2, false, 1);
+    auto Problem3 = ContractionProblem::GEMM(true, true, 24, 4, 4, 4, 4, 4, 1.2, false, 1);
 
     using Key = std::array<int64_t, 4>;
-    using Table =
-        Matching::DistanceMatchingTable<
-            Key,
-            ContractionProblem,
-            std::shared_ptr<SolutionLibrary<ContractionProblem>>,
-            std::shared_ptr<ContractionSolution>,
-            Matching::EuclideanDistance<Key>>;
+    using Table
+        = Matching::DistanceMatchingTable<Key,
+                                          ContractionProblem,
+                                          std::shared_ptr<SolutionLibrary<ContractionProblem>>,
+                                          std::shared_ptr<ContractionSolution>,
+                                          Matching::EuclideanDistance<Key>>;
     using Properties = std::vector<std::shared_ptr<Property<ContractionProblem>>>;
 
     Properties properties;
 
     {
-        auto freeSizeA = std::make_shared<Contraction::FreeSizeA>(); freeSizeA->index = 0; properties.push_back(freeSizeA);
-        auto freeSizeB = std::make_shared<Contraction::FreeSizeB>(); freeSizeB->index = 0; properties.push_back(freeSizeB);
-        auto batchSize = std::make_shared<Contraction::BatchSize>(); batchSize->index = 0; properties.push_back(batchSize);
-        auto boundSize = std::make_shared<Contraction::BoundSize>(); boundSize->index = 0; properties.push_back(boundSize);
+        auto freeSizeA   = std::make_shared<Contraction::FreeSizeA>();
+        freeSizeA->index = 0;
+        properties.push_back(freeSizeA);
+        auto freeSizeB   = std::make_shared<Contraction::FreeSizeB>();
+        freeSizeB->index = 0;
+        properties.push_back(freeSizeB);
+        auto batchSize   = std::make_shared<Contraction::BatchSize>();
+        batchSize->index = 0;
+        properties.push_back(batchSize);
+        auto boundSize   = std::make_shared<Contraction::BoundSize>();
+        boundSize->index = 0;
+        properties.push_back(boundSize);
     }
 
     std::shared_ptr<Table> matchingTable = std::make_shared<Table>(properties);
 
-    using Entry = Matching::MatchingTableEntry< Key, std::shared_ptr<SolutionLibrary<ContractionProblem>>>;
+    using Entry
+        = Matching::MatchingTableEntry<Key, std::shared_ptr<SolutionLibrary<ContractionProblem>>>;
 
     std::vector<Entry> table;
 
     {
-        Entry map0{{ 4,4,1,4}, Library0, 1.0}; table.push_back(map0);
-        Entry map1{{ 6,6,1,6}, Library1, 1.0}; table.push_back(map1);
-        Entry map2{{14,4,1,4}, Library2, 1.0}; table.push_back(map2);
-        Entry map3{{24,4,1,4}, Library3, 1.0}; table.push_back(map3);
+        Entry map0{{4, 4, 1, 4}, Library0, 1.0};
+        table.push_back(map0);
+        Entry map1{{6, 6, 1, 6}, Library1, 1.0};
+        table.push_back(map1);
+        Entry map2{{14, 4, 1, 4}, Library2, 1.0};
+        table.push_back(map2);
+        Entry map3{{24, 4, 1, 4}, Library3, 1.0};
+        table.push_back(map3);
     }
 
     matchingTable->table = table;
 
-    auto subLib = std::make_shared<
-        ProblemMatchingLibrary<ContractionProblem>>();
+    auto subLib = std::make_shared<ProblemMatchingLibrary<ContractionProblem>>();
 
     subLib->table = matchingTable;
 

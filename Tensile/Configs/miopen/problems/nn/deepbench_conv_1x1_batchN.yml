@@ -1,4 +1,4 @@
-          # DeepBench batch>1 conv sizes 
+          # DeepBench batch>1 conv sizes
           - Exact: [784, 64, 16, 192]
           - Exact: [196, 192, 16, 512]
           - Exact: [49, 256, 16, 832]

@@ -4,7 +4,7 @@
 def runCompileCommand(platform, project, jobName, boolean debug=false)
 {
     project.paths.construct_build_prefix()
-    
+
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
@@ -12,7 +12,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit"
-    
+
     def command = """#!/usr/bin/env bash
             set -ex
 
@@ -31,7 +31,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             mkdir build
             pushd build
- 
+
             export PATH=/opt/rocm/bin:$PATH
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
@@ -110,7 +110,7 @@ def runTestCommand (platform, project, test_marks)
         {
             junit "${project.paths.project_build_prefix}/python_tests.xml"
         }
-        
+
     }
 }
 

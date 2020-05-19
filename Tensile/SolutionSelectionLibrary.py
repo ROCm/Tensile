@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -112,7 +112,7 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     (_, solutions) = YAMLIO.readSolutions(solutionsFileName)
     if len(solutions) == 0:
       printExit("%s doesn't contains any solutions." % (solutionsFileName) )
-      
+
     csvData = readCSV(dataFileName)
 
     rowIdx = 0
@@ -154,7 +154,7 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
   for key in performanceMap:
     solution, _ = performanceMap[key]
     validSolutionSet.add(solution)
-  
+
   for validSolution in validSolutionSet:
     dataMap = solutionsHash[validSolution]
     validSolutions.append((validSolution,dataMap))
@@ -182,7 +182,7 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
       baseKey = getSolutionBaseKey(solution)
       solutionBaseKeys.append(baseKey)
 
-    selectionfFile = open(selectionFileName, "r") 
+    selectionfFile = open(selectionFileName, "r")
     csvFile = csv.reader(selectionfFile)
 
     firstRow = 0
@@ -218,7 +218,7 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
   for key in performanceMap:
     solution, _ = performanceMap[key]
     validSolutionSet.add(solution)
-  
+
   for validSolution in validSolutionSet:
     dataMap = solutionsHash[validSolution]
     validSolutions.append((validSolution,dataMap))
