@@ -19,18 +19,25 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import sys
-import operator
-from collections import namedtuple,OrderedDict
-from warnings import warn
-from functools import reduce
-from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print2
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
-from copy import deepcopy
-import math
-from .Utils import roundUpToNearestMultiple
+from .Common import assignParameterRequired, assignParameterWithDefault, \
+                    defaultProblemType, defaultSolution, \
+                    globalParameters, \
+                    print2, printExit, \
+                    validActivationFormats, validConvolutionConfig, \
+                    validMFMA, validParameters, validWeightFormats
 from .DataType import DataType
+from .Utils import roundUpToNearestMultiple
+
+from collections import namedtuple,OrderedDict
+from copy import deepcopy
 from enum import Enum
+from functools import reduce
+from warnings import warn
+
+import collections
+import math
+import operator
+import sys
 
 ########################################
 # Print a reject message :
@@ -766,7 +773,7 @@ class Convolution:
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
-class ProblemType:
+class ProblemType(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self.state = {}
