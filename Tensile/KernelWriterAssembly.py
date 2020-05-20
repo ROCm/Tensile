@@ -5462,11 +5462,18 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.staggerU:
       assert (kernel["BufferLoad"])
-      staggerTmp = self.getTmpSgpr(1).idx()
+
+      staggerTmp = self.getTmpSgpr(2).idx()
 
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
 
+      kStr += inst("s_mul_hi_i32", \
+        sgpr(staggerTmp+1),\
+        sgpr("StaggerUIter"),\
+        sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
+        " stagger byte offset")
+      
       kStr += inst("s_mul_i32", \
         sgpr(staggerTmp),\
         sgpr("StaggerUIter"),\
@@ -5484,11 +5491,11 @@ class KernelWriterAssembly(KernelWriter):
                 sgpr("WrapU%s+0"%tc), \
                 "remove one iteration")
       kStr += inst("s_subb_u32", sgpr("WrapU%s+1"%tc), \
-                sgpr("WrapU%s+1"%tc), \
                 0, \
+                sgpr("WrapU%s+1"%tc), \
                 "remove one iteration")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
+      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), sgpr(staggerTmp+1))
 
       if tP["isB"]:
         # Convert passed in S' to S for easy loop comparison.  S=S-(PGR-1)'
