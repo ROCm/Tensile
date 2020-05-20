@@ -161,7 +161,7 @@ globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
 globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
@@ -1253,13 +1253,18 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
   rv = {}
-  rv["SupportedISA"] = tryAssembler(isaVersion, "", "")
-  rv["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"] = tryAssembler(isaVersion, "", "v_add_nc_u32 v0,v0,1")
-  rv["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
+  rv["SupportedISA"]    = tryAssembler(isaVersion, "", "")
+  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "", "v_add_nc_u32 v0,v0,1")
+  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"]      = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasSMulHi"]       = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
   rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
+
+  rv["v_fma_f16"]       = tryAssembler(isaVersion, "", "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "", "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "", "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+
   if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
   elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
@@ -1267,26 +1272,26 @@ def GetAsmCaps(isaVersion):
   else:
     rv["MaxVmcnt"] = 0
 
-  rv["SupportedSource"] = True #(isaVersion != (10,1,0))
+  rv["SupportedSource"] = True
 
   return rv
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]     = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
+  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
   rv["Waitcnt0Disabled"] = isaVersion == (9,0,8)
-  rv["SeparateVscnt"]  = isaVersion == (10,1,0)
-  rv["CMPXWritesSGPR"] = isaVersion != (10,1,0)
-  rv["HasWave32"]      = isaVersion == (10,1,0)
+  rv["SeparateVscnt"]    = isaVersion[0] == 10
+  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
+  rv["HasWave32"]        = isaVersion[0] == 10
 
   return rv
 
-def tryAssembler(isaVersion, options, asmString):
+def tryAssembler(isaVersion, options, asmString, debug=False):
   """
   Try to assemble the asmString for the specified target processor
   Success is defined as assembler returning no error code or stderr/stdout
   """
-  if isaVersion == (10,1,0):
+  if isaVersion[0] == 10:
     options += ' -mwavefrontsize64'
 
   asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
@@ -1296,14 +1301,14 @@ def tryAssembler(isaVersion, options, asmString):
 
   try:
     result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
-    if globalParameters["PrintLevel"] >=2:
+    if debug or globalParameters["PrintLevel"] >=2:
         print("isaVersion: ", isaVersion)
         print("asm_cmd: ", asmCmd)
         print("output :", result)
     if result != "":
       return 0 # stdout and stderr must be empty
   except subprocess.CalledProcessError as e:
-    if globalParameters["PrintLevel"] >=2:
+    if debug or globalParameters["PrintLevel"] >=2:
         print("CalledProcessError", e)
     return 0 # error, not supported
 
