@@ -1388,7 +1388,7 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx = 0
 
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
-    if kernel["MatrixInstruction"]:
+    if kernel["MatrixInstruction"] and not kernel["DisableVgprOverlapping"]:
       # MI kernels can overlap C-tile w/ AB-tile up until writeback. Illustrated below:
       # |<-------------- valuC -------------->|
       # |------------|-----------|xx|---------|
@@ -11453,8 +11453,6 @@ class KernelWriterAssembly(KernelWriter):
       #                             lastValuC ^
       kStr += self.comment("remove the rest of C-tile %u-%u from pool"%(self.startVgprReuse, self.startVgprValuC+self.numVgprValuC))
       self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
-    else:
-      assert(False) # shouldn't be here 
 
     if kernel["MatrixInstM"] == 4:
       for i in range(0, kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]):
