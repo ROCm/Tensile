@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -36,61 +36,73 @@ namespace Tensile
     template <>
     struct Comparison<ContractionProblem::FreeIndex>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::FreeIndex const& lhs, ContractionProblem::FreeIndex const& rhs)
+        enum
         {
-            return LexicographicCompare(lhs.d, rhs.d,
-                                        lhs.c, rhs.c,
-                                        lhs.i,  rhs.i,
-                                        lhs.isA,  rhs.isA);
+            implemented = true
+        };
+
+        static int compare(ContractionProblem::FreeIndex const& lhs,
+                           ContractionProblem::FreeIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.d, rhs.d, lhs.c, rhs.c, lhs.i, rhs.i, lhs.isA, rhs.isA);
         }
     };
 
     template <>
     struct Comparison<ContractionProblem::BatchIndex>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::BatchIndex const& lhs, ContractionProblem::BatchIndex const& rhs)
+        enum
         {
-            return LexicographicCompare(lhs.d, rhs.d,
-                                        lhs.c, rhs.c,
-                                        lhs.a, rhs.a,
-                                        lhs.b, rhs.b);
+            implemented = true
+        };
+
+        static int compare(ContractionProblem::BatchIndex const& lhs,
+                           ContractionProblem::BatchIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.d, rhs.d, lhs.c, rhs.c, lhs.a, rhs.a, lhs.b, rhs.b);
         }
     };
 
     template <>
     struct Comparison<ContractionProblem::BoundIndex>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem::BoundIndex const& lhs, ContractionProblem::BoundIndex const& rhs)
+        enum
         {
-            return LexicographicCompare(lhs.a, rhs.a,
-                                        lhs.b, rhs.b);
+            implemented = true
+        };
+
+        static int compare(ContractionProblem::BoundIndex const& lhs,
+                           ContractionProblem::BoundIndex const& rhs)
+        {
+            return LexicographicCompare(lhs.a, rhs.a, lhs.b, rhs.b);
         }
     };
 
     template <>
     struct Comparison<ContractionProblem>
     {
-        enum { implemented = true };
-
-        static int compare(ContractionProblem const& lhs,
-                           ContractionProblem const& rhs)
+        enum
         {
-            return LexicographicCompare(
-                lhs.operationIdentifier(),     rhs.operationIdentifier(),
-                lhs.highPrecisionAccumulate(), rhs.highPrecisionAccumulate(),
-                lhs.a(), rhs.a(),
-                lhs.b(), rhs.b(),
-                lhs.c(), rhs.c(),
-                lhs.d(), rhs.d());
+            implemented = true
+        };
+
+        static int compare(ContractionProblem const& lhs, ContractionProblem const& rhs)
+        {
+            return LexicographicCompare(lhs.operationIdentifier(),
+                                        rhs.operationIdentifier(),
+                                        lhs.highPrecisionAccumulate(),
+                                        rhs.highPrecisionAccumulate(),
+                                        lhs.a(),
+                                        rhs.a(),
+                                        lhs.b(),
+                                        rhs.b(),
+                                        lhs.c(),
+                                        rhs.c(),
+                                        lhs.d(),
+                                        rhs.d());
         }
     };
-}
+} // namespace Tensile
 
 namespace std
 {
@@ -99,16 +111,13 @@ namespace std
     {
         inline size_t operator()(Tensile::ContractionProblem const& problem) const
         {
-            return Tensile::hash_combine(
-                problem.operationIdentifier(),
-                problem.a(),
-                problem.b(),
-                problem.c(),
-                problem.d(),
-                problem.highPrecisionAccumulate()
-            );
+            return Tensile::hash_combine(problem.operationIdentifier(),
+                                         problem.a(),
+                                         problem.b(),
+                                         problem.c(),
+                                         problem.d(),
+                                         problem.highPrecisionAccumulate());
         }
     };
 
-}
-
+} // namespace std

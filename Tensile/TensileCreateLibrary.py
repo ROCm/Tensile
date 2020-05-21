@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -99,7 +99,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         if globalParameters["PackageLibrary"]:
           newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
         else:
-          newCOFiles = [os.path.join(destDir, k + '.co') for k in assemblyKernelNames]
+          newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
 
         for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
@@ -169,17 +169,25 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
-      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"]
+      hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', soFilepath]
+      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      coFilenames = [soFilename]
+      for arch in archs:
+        infile = os.path.join(buildPath, objectFilename)
+        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa-%s" % arch, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        if globalParameters["PrintCodeCommands"]:
+          print(' '.join(bundlerArgs))
+        subprocess.check_call(bundlerArgs)
+
+      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
@@ -302,12 +310,12 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   codeObjectFiles = []
 
-  
+
   print1("# Writing Kernels...")
   kernelFiles = []
   kernelSourceFile = None
   kernelHeaderFile = None
-  
+
   if not globalParameters["MergeFiles"]:
     if globalParameters["LegacyComponents"]:
       ensurePath(os.path.join(outputPath, "Solutions"))
@@ -526,7 +534,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
     argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
     argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
-    
+
     # tensile initializer
     h += "\nvoid tensileInitialize();\n\n"
 
@@ -750,7 +758,7 @@ def writeTensileInitialize(logicData):
 
   for problemType in logicData:
     s += "  masterSolutionMapper_%s.initialize();\n" % problemType
-    
+
     for scheduleTuple in logicData[problemType]:
       scheduleName  = scheduleTuple[0]
       deviceNames   = scheduleTuple[1]
@@ -760,7 +768,7 @@ def writeTensileInitialize(logicData):
       s += "  solutionMapper_%s.initializeMappers(" % (schedProbName)
       s += "{%s}," % (', '.join('"{0}"'.format(w) for w in deviceNames))
       s += "&masterSolutionMapper_%s);\n" % (problemType)
-      
+
   s += "}"
 
   return s
@@ -815,12 +823,12 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
   s += "// The solution master constructor here adds device to the master solution mapper\n"
   s += "// The entrypoint to find a solution for this problem is through the master solution master\n"
   s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
-  s += "  \"%s\", // schedule+problem name\n" % (schedProbName) 
+  s += "  \"%s\", // schedule+problem name\n" % (schedProbName)
   s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
   s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
   s += "  &problemType_%s);\n" % (problemType)
 
-  s += "} // end anonymous namespace\n" 
+  s += "} // end anonymous namespace\n"
   return s
 
 
@@ -932,7 +940,7 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
-  
+
     # write solution names
   if globalParameters["LegacyComponents"]:
     generatedFile.write("set( TensileClient_SOLUTIONS\n")
@@ -955,7 +963,7 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernel in kernels:
-      kernelName = kernelWriterSource.getKernelFileBase(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelFileBase(kernel) 
+      kernelName = kernelWriterSource.getKernelFileBase(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelFileBase(kernel)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")
@@ -1043,7 +1051,7 @@ def TensileCreateLibrary():
 
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
   print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
-  print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])  
+  print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])
 
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
@@ -1051,10 +1059,10 @@ def TensileCreateLibrary():
   # Translate GPU targets to filter filenames in Tensile_LOGIC directory
   mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
         'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
-  
+
   for key in mapArchitecture:
     if arguments["Architecture"] == key:
-      arguments["Architecture"] = mapArchitecture[key]  
+      arguments["Architecture"] = mapArchitecture[key]
 
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
       if (os.path.isfile(os.path.join(logicPath, f)) \
@@ -1175,8 +1183,8 @@ def TensileCreateLibrary():
   archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
- 
-  if globalParameters["PackageLibrary"]: 
+
+  if globalParameters["PackageLibrary"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if (archName in archs):
         archPath = ensurePath(os.path.join(newLibraryDir, archName))
@@ -1184,7 +1192,7 @@ def TensileCreateLibrary():
         newMasterLibrary.applyNaming(kernelMinNaming)
         YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
   else:
-    masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")   
+    masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
     fullMasterLibrary.applyNaming(kernelMinNaming)
     YAMLIO.write(masterFile, Utils.state(fullMasterLibrary))
 

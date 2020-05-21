@@ -1,7 +1,7 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -10,8 +10,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -33,18 +33,18 @@
 #include <vector>
 
 #include <Tensile/Macros.hpp>
-#include <Tensile/Tensile_fwd.hpp>
 #include <Tensile/SolutionLibrary_fwd.hpp>
+#include <Tensile/Tensile_fwd.hpp>
 
 #include <Tensile/KernelArguments.hpp>
 #include <Tensile/geom.hpp>
 
 /**
- * \mainpage 
- * 
+ * \mainpage
+ *
  * Tensile is a tool for creating a library of tensor contractions, including
  * matrix multiplications in a benchmark-driven manner.
- * 
+ *
  * The host library contains classes and functions for selecting one or more
  * kernels to launch to solve a particular problem, and then launching those
  * kernels.  Kernels are selected based on the performance on a particular GPU
@@ -75,18 +75,18 @@
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \defgroup  Problem Problem Definition
-     * 
-     * @brief Classes for defining problems
-     */
+ * \ingroup Tensile
+ * \defgroup  Problem Problem Definition
+ *
+ * @brief Classes for defining problems
+ */
 
     /**
-     * \ingroup Problem
-     * Base Problem class. A Problem object generically describes a problem to
-     * be solved including the type of problem, all sizes and strides, but not
-     * including actual pointers to data.
-     */
+ * \ingroup Problem
+ * Base Problem class. A Problem object generically describes a problem to
+ * be solved including the type of problem, all sizes and strides, but not
+ * including actual pointers to data.
+ */
     class TENSILE_API Problem
     {
     public:
@@ -95,10 +95,10 @@ namespace Tensile
     };
 
     /**
-     * \ingroup Problem
-     * Base class for problem inputs. This stores the actual pointers to the
-     * data.
-     */
+ * \ingroup Problem
+ * Base class for problem inputs. This stores the actual pointers to the
+ * data.
+ */
     class TENSILE_API ProblemInputs
     {
     public:
@@ -106,67 +106,66 @@ namespace Tensile
     };
 
     /**
-     * \ingroup Tensile
-     * \defgroup Launching Kernel Launching
-     */
+ * \ingroup Tensile
+ * \defgroup Launching Kernel Launching
+ */
 
     /**
-     * \ingroup Launching
-     * Describes a single kernel invocation including kernel name, launch
-     * bounds, and arguments.
-     */
+ * \ingroup Launching
+ * Describes a single kernel invocation including kernel name, launch
+ * bounds, and arguments.
+ */
     struct TENSILE_API KernelInvocation
     {
     public:
         std::string kernelName;
 
-        dim3 workGroupSize;
-        dim3 numWorkGroups;
-        dim3 numWorkItems;
+        dim3   workGroupSize;
+        dim3   numWorkGroups;
+        dim3   numWorkItems;
         size_t sharedMemBytes = 0;
 
         KernelArguments args;
     };
 
     /**
-     * \ingroup Tensile
-     * \defgroup Hardware Hardware Description Classes
-     */
+ * \ingroup Tensile
+ * \defgroup Hardware Hardware Description Classes
+ */
 
     /**
-     * \ingroup Hardware
-     * Abstract base class for describing hardware capabilities and properties.
-     */
+ * \ingroup Hardware
+ * Abstract base class for describing hardware capabilities and properties.
+ */
     class TENSILE_API Hardware
     {
     public:
         Hardware();
         virtual ~Hardware();
 
-        virtual size_t id() const = 0;
+        virtual size_t      id() const          = 0;
         virtual std::string description() const = 0;
     };
 
     /**
-     * \ingroup Solution
-     * Generally encapsulates a single kernel or set of kernels that can be
-     * used to solve a particular problem.
-     */
+ * \ingroup Solution
+ * Generally encapsulates a single kernel or set of kernels that can be
+ * used to solve a particular problem.
+ */
     class TENSILE_API Solution
     {
     public:
         virtual ~Solution();
 
-        virtual std::string name() const = 0;
+        virtual std::string name() const        = 0;
         virtual std::string description() const = 0;
-
     };
 
     /**
-     * \ingroup Launching
-     * Base class for objects capable of launching kernels based on
-     * KernelArguments objects.
-     */
+ * \ingroup Launching
+ * Base class for objects capable of launching kernels based on
+ * KernelArguments objects.
+ */
     class TENSILE_API SolutionAdapter
     {
     public:
@@ -177,11 +176,12 @@ namespace Tensile
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     /**
-     * Interface for deserializing a library file.
-     */
+ * Interface for deserializing a library file.
+ */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename);
+    TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+                LoadLibraryFile(std::string const& filename);
 #endif
-}
+} // namespace Tensile
 
 /** @} */

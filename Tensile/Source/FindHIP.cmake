@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -104,7 +104,7 @@ else()
 
   if( DEFINED HIPCC)
 
-          set( HIP_PLATFORM "hcc" )
+          set( HIP_PLATFORM "hcc" ) #fix this when final container is available
     #export the environment variable, so that HIPCC can find it.
           set(ENV{HIP_PLATFORM} "hcc")
       # set (CMAKE_CXX_COMPILER ${HIPCC})
@@ -117,7 +117,7 @@ else()
     FOUND_VAR HIP_FOUND
     REQUIRED_VARS HIP_PATH HIP_INCLUDE_DIRS HIPCC)
 
-  if( HIP_FOUND )
+  if( HIP_FOUND AND CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
     find_dependency(HCC REQUIRED)
 
     message(STATUS "HCC_FOUND = ${HCC_FOUND}")

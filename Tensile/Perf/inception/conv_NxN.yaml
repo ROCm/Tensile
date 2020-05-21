@@ -53,9 +53,8 @@ BenchmarkProblems:
         #- StaggerUMapping: [0,1]
         #- WorkGroupMapping: [1,8,64]
         - VectorWidth: [1,-1]
-        - FractionalLoad: [0,1]
+        - FractionalLoad: [1]
         - PackBatchDims: [1]
-        - VectorStore: [0,1]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

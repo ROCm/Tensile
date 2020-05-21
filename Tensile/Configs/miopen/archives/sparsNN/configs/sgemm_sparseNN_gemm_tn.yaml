@@ -33,7 +33,7 @@ BenchmarkProblems:
       TransposeB: False
       UseBeta: True
       Batched: True
-    
+
   ########################################
   # Explore large number of ~10K solutions
   ########################################

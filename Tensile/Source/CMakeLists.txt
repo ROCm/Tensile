@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,9 @@
 ################################################################################
 
 cmake_minimum_required(VERSION 3.5)
+
+# Override all paths arguments as they do not work properly
+list(APPEND CMAKE_PREFIX_PATH /opt/rocm)
 
 option(TENSILE_NEW_CLIENT "Build the new client" ON)
 
@@ -48,11 +51,19 @@ if(TENSILE_NEW_CLIENT)
 
     if(TENSILE_USE_OPENMP)
         #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
-        find_package(OpenMP)
+        find_package(OpenMP QUIET)
         if (OPENMP_FOUND)
             set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
             set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
             set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+        else ()
+            if(EXISTS /etc/redhat-release)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
+            else()
+	        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+                set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
+                set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
+            endif()
         endif()
     endif()
 
@@ -108,7 +119,7 @@ else()
         ${TensileClient_SOURCE}
         ${TensileClient_SOLUTIONS}
         ${TensileClient_KERNELS} )
-      target_compile_definitions( ${ClientName} PUBLIC 
+      target_compile_definitions( ${ClientName} PUBLIC
         -DTensile_CLIENT_BENCHMARK=1
         -DTensile_CLIENT_LIBRARY=0 )
       foreach( target ${Tensile_ISA} )
@@ -126,7 +137,7 @@ else()
         MathTemplates.cpp
         DeviceStats.h
         )
-      target_compile_definitions( ${ClientName} PUBLIC 
+      target_compile_definitions( ${ClientName} PUBLIC
         -DTensile_CLIENT_BENCHMARK=0
         -DTensile_CLIENT_LIBRARY=1 )
     endif()
@@ -161,18 +172,18 @@ else()
     if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
       find_package(OpenCL "1.2" REQUIRED)
       target_link_libraries( ${ClientName} PUBLIC ${OPENCL_LIBRARIES} )
-      target_compile_definitions( ${ClientName} PUBLIC 
+      target_compile_definitions( ${ClientName} PUBLIC
         -DTensile_RUNTIME_LANGUAGE_OCL=1
         -DTensile_RUNTIME_LANGUAGE_HIP=0 )
       target_include_directories( ${ClientName} SYSTEM
-        PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
+        PUBLIC  ${OPENCL_INCLUDE_DIRS} )
     elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
       find_package( HIP REQUIRED )
       set (CMAKE_CXX_COMPILER ${HIPCC})
       target_include_directories( ${ClientName} SYSTEM
         PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
       target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
-      target_compile_definitions( ${ClientName} PUBLIC 
+      target_compile_definitions( ${ClientName} PUBLIC
         -DTensile_RUNTIME_LANGUAGE_OCL=0
         -DTensile_RUNTIME_LANGUAGE_HIP=1
         )

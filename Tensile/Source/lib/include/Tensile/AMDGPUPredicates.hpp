@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Predicates.hpp>
 #include <Tensile/AMDGPU.hpp>
+#include <Tensile/Predicates.hpp>
 
 #include <vector>
 
@@ -36,23 +36,33 @@ namespace Tensile
     namespace Predicates
     {
         /**
-         * \addtogroup Predicates
-         * @{
-         */
+ * \addtogroup Predicates
+ * @{
+ */
         /**
-         * @brief GPU Predicates
-         */
+ * @brief GPU Predicates
+ */
         namespace GPU
         {
-            struct ProcessorEqual: public Predicate_CRTP<ProcessorEqual, AMDGPU>
+            struct ProcessorEqual : public Predicate_CRTP<ProcessorEqual, AMDGPU>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 AMDGPU::Processor value;
 
                 ProcessorEqual() = default;
-                ProcessorEqual(AMDGPU::Processor p) : value(p) {}
+                ProcessorEqual(AMDGPU::Processor p)
+                    : value(p)
+                {
+                }
 
-                static std::string Type() { return "Processor"; }
+                static std::string Type()
+                {
+                    return "Processor";
+                }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
@@ -60,26 +70,35 @@ namespace Tensile
                 }
             };
 
-            struct RunsKernelTargeting: public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
+            struct RunsKernelTargeting : public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
             {
-                enum { HasIndex = false, HasValue = true };
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
                 AMDGPU::Processor value;
 
                 RunsKernelTargeting() = default;
-                RunsKernelTargeting(AMDGPU::Processor p) : value(p) {}
+                RunsKernelTargeting(AMDGPU::Processor p)
+                    : value(p)
+                {
+                }
 
-                static std::string Type() { return "TargetProcessor"; }
+                static std::string Type()
+                {
+                    return "TargetProcessor";
+                }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
                     return gpu.runsKernelTargeting(value);
                 }
             };
-        }
+        } // namespace GPU
 
         /**
-         * @}
-         */
-    }
-}
-
+ * @}
+ */
+    } // namespace Predicates
+} // namespace Tensile

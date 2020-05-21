@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -35,9 +35,7 @@ namespace Tensile
 {
     namespace Client
     {
-        ProgressListener::ProgressListener()
-        {
-        }
+        ProgressListener::ProgressListener() {}
 
         bool ProgressListener::needMoreBenchmarkRuns() const
         {
@@ -61,10 +59,10 @@ namespace Tensile
 
             m_reporter->report(ResultKey::TotalFlops, problem.flopCount());
 
-            m_reporter->report(ResultKey::ASizes,   problem.a().sizes());
-            m_reporter->report(ResultKey::BSizes,   problem.b().sizes());
-            m_reporter->report(ResultKey::CSizes,   problem.c().sizes());
-            m_reporter->report(ResultKey::DSizes,   problem.d().sizes());
+            m_reporter->report(ResultKey::ASizes, problem.a().sizes());
+            m_reporter->report(ResultKey::BSizes, problem.b().sizes());
+            m_reporter->report(ResultKey::CSizes, problem.c().sizes());
+            m_reporter->report(ResultKey::DSizes, problem.d().sizes());
 
             m_reporter->report(ResultKey::AStrides, problem.a().strides());
             m_reporter->report(ResultKey::BStrides, problem.b().strides());
@@ -76,13 +74,10 @@ namespace Tensile
             m_reporter->report(ResultKey::LDC, problem.c().strides()[1]);
             m_reporter->report(ResultKey::LDD, problem.d().strides()[1]);
 
-            m_reporter->report(ResultKey::ProblemSizes,   problem.problemSizes());
-
+            m_reporter->report(ResultKey::ProblemSizes, problem.problemSizes());
         }
 
-        void ProgressListener::postProblem()
-        {
-        }
+        void ProgressListener::postProblem() {}
 
         void ProgressListener::preSolution(ContractionSolution const& solution)
         {
@@ -90,9 +85,7 @@ namespace Tensile
             m_reporter->report(ResultKey::SolutionIndex, solution.index);
         }
 
-        void ProgressListener::postSolution()
-        {
-        }
+        void ProgressListener::postSolution() {}
 
         bool ProgressListener::needMoreRunsInSolution() const
         {
@@ -104,21 +97,15 @@ namespace Tensile
             return 0;
         }
 
-        void   ProgressListener::setNumWarmupRuns(size_t count)
-        {
-        }
+        void ProgressListener::setNumWarmupRuns(size_t count) {}
 
-        void   ProgressListener::preWarmup()
-        {
-        }
+        void ProgressListener::preWarmup() {}
 
-        void   ProgressListener::postWarmup()
-        {
-        }
+        void ProgressListener::postWarmup() {}
 
-        void   ProgressListener::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                       TimingEvents const& startEvents,
-                                       TimingEvents const&  stopEvents)
+        void ProgressListener::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                               TimingEvents const&                startEvents,
+                                               TimingEvents const&                stopEvents)
         {
         }
 
@@ -127,68 +114,52 @@ namespace Tensile
             return 0;
         }
 
-        void   ProgressListener::setNumSyncs(size_t count)
-        {
-        }
+        void ProgressListener::setNumSyncs(size_t count) {}
 
-        void   ProgressListener::preSyncs()
-        {
-        }
+        void ProgressListener::preSyncs() {}
 
-        void   ProgressListener::postSyncs()
-        {
-        }
+        void ProgressListener::postSyncs() {}
 
         size_t ProgressListener::numEnqueuesPerSync()
         {
             return 0;
         }
 
-        void   ProgressListener::setNumEnqueuesPerSync(size_t count)
+        void ProgressListener::setNumEnqueuesPerSync(size_t count) {}
+
+        void ProgressListener::preEnqueues() {}
+
+        void ProgressListener::postEnqueues(TimingEvents const& startEvents,
+                                            TimingEvents const& stopEvents)
         {
         }
 
-        void   ProgressListener::preEnqueues()
-        {
-        }
-
-        void   ProgressListener::postEnqueues(TimingEvents const& startEvents,
-                                    TimingEvents const&  stopEvents)
-        {
-        }
-
-        void   ProgressListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                        TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents)
+        void ProgressListener::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                                TimingEvents const&                startEvents,
+                                                TimingEvents const&                stopEvents)
         {
             struct timeval tmnow;
-            struct tm *tm;
+            struct tm*     tm;
             gettimeofday(&tmnow, NULL); // microsecond resolution
-            tm = localtime(&tmnow.tv_sec);
+            tm             = localtime(&tmnow.tv_sec);
             char prev_fill = std::cout.fill('0');
 
             std::ostringstream msg;
             msg.fill('0');
-            msg << (tm->tm_year + 1900) << "-"
-                << std::setw(2) << (tm->tm_mon + 1) << "-"
-                << std::setw(2) << tm->tm_mday << " "
-                << std::setw(2) << tm->tm_hour << ":"
-                << std::setw(2) << tm->tm_min << ":"
-                << std::setw(2) << tm->tm_sec << "."
+            msg << (tm->tm_year + 1900) << "-" << std::setw(2) << (tm->tm_mon + 1) << "-"
+                << std::setw(2) << tm->tm_mday << " " << std::setw(2) << tm->tm_hour << ":"
+                << std::setw(2) << tm->tm_min << ":" << std::setw(2) << tm->tm_sec << "."
                 << std::setw(6) << static_cast<int>(tmnow.tv_usec);
 
             m_reporter->report(ResultKey::EnqueueTime, msg.str());
         }
 
-        void ProgressListener::finalizeReport()
-        {
-        }
+        void ProgressListener::finalizeReport() {}
 
         int ProgressListener::error() const
         {
             return 0;
         }
 
-
-    }
-}
+    } // namespace Client
+} // namespace Tensile

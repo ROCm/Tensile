@@ -1,22 +1,23 @@
 /**
- * Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
- * ies of the Software, and to permit persons to whom the Software is furnished
- * to do so, subject to the following conditions:
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
- * PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
- * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -35,19 +36,19 @@
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \defgroup PropertyMatching Property Matching
-     * 
-     * @brief Distance-based matching of Property values to a table.
-     * 
-     * Generic algorithm for comparing an object to a table of predefined
-     * values based on Property objects and a Distance function. Used for
-     * MatchingLibrary.
-     */
+ * \ingroup Tensile
+ * \defgroup PropertyMatching Property Matching
+ *
+ * @brief Distance-based matching of Property values to a table.
+ *
+ * Generic algorithm for comparing an object to a table of predefined
+ * values based on Property objects and a Distance function. Used for
+ * MatchingLibrary.
+ */
 
     /**
-     * \ingroup PropertyMatching
-     */
+ * \ingroup PropertyMatching
+ */
     namespace Matching
     {
         template <typename Key, typename Value>
@@ -62,7 +63,7 @@ namespace Tensile
         struct MatchingTable
         {
             using Properties = std::vector<std::shared_ptr<Property<Object>>>;
-            using Transform = std::function<ReturnValue(Value)>;
+            using Transform  = std::function<ReturnValue(Value)>;
 
             MatchingTable() = default;
             MatchingTable(Properties const& properties)
@@ -84,9 +85,9 @@ namespace Tensile
         };
 
         /**
-         * This exists to provide an abstraction around the different syntax of creating a vector of a size given 
-         * at runtime vs. creating an array with a fixed size.
-         */
+ * This exists to provide an abstraction around the different syntax of creating
+ * a vector of a size given at runtime vs. creating an array with a fixed size.
+ */
         template <typename Key>
         struct KeyFactory
         {
@@ -110,8 +111,12 @@ namespace Tensile
             }
         };
 
-        template <typename Key, typename Object, typename Value, typename ReturnValue, typename Distance>
-        class DistanceMatchingTable: public MatchingTable<Object, Value, ReturnValue>
+        template <typename Key,
+                  typename Object,
+                  typename Value,
+                  typename ReturnValue,
+                  typename Distance>
+        class DistanceMatchingTable : public MatchingTable<Object, Value, ReturnValue>
         {
         public:
             using Base       = MatchingTable<Object, Value, ReturnValue>;
@@ -125,18 +130,18 @@ namespace Tensile
             }
 
             DistanceMatchingTable(Properties const& properties,
-                                  ReturnValue nullValue = ReturnValue())
-                : Base(properties),
-                  nullValue(nullValue)
+                                  ReturnValue       nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
             {
             }
 
-            DistanceMatchingTable(Distance   const& distance,
+            DistanceMatchingTable(Distance const&   distance,
                                   Properties const& properties,
-                                  ReturnValue nullValue = ReturnValue())
-                : Base(properties),
-                  nullValue(nullValue),
-                  distance(distance)
+                                  ReturnValue       nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
+                , distance(distance)
             {
             }
 
@@ -153,18 +158,17 @@ namespace Tensile
                 if(naive)
                 {
                     if(debug)
-                        return findBestKeyMatch_NaiveSearch<true> (key, transform);
+                        return findBestKeyMatch_NaiveSearch<true>(key, transform);
                     else
                         return findBestKeyMatch_NaiveSearch<false>(key, transform);
                 }
                 else
                 {
                     if(debug)
-                        return findBestKeyMatch_BinSearch<true> (key, transform);
+                        return findBestKeyMatch_BinSearch<true>(key, transform);
                     else
                         return findBestKeyMatch_BinSearch<false>(key, transform);
                 }
-
             }
 
             template <bool T_Debug>
@@ -173,10 +177,7 @@ namespace Tensile
                 if(this->table.empty())
                     return this->nullValue;
 
-                auto comp = [](Entry const& e, Key const& key)
-                {
-                    return e.key < key;
-                };
+                auto comp = [](Entry const& e, Key const& key) { return e.key < key; };
 
                 auto origIter = std::lower_bound(table.begin(), table.end(), key, comp);
 
@@ -194,8 +195,8 @@ namespace Tensile
                 }
 
                 double bestDistance = std::numeric_limits<double>::max();
-                auto bestMatch = this->nullValue;
-                double bestSpeed = 0.0;
+                auto   bestMatch    = this->nullValue;
+                double bestSpeed    = 0.0;
 
                 ptrdiff_t count = 0;
 
@@ -215,18 +216,19 @@ namespace Tensile
                     count++;
 
                     auto myDistance = distance(key, iter->key);
-                    bool thisMatch = false;
+                    bool thisMatch  = false;
 
-                    if(myDistance < bestDistance || (myDistance == bestDistance && iter->speed > bestSpeed))
+                    if(myDistance < bestDistance
+                       || (myDistance == bestDistance && iter->speed > bestSpeed))
                     {
                         auto myMatch = transform(iter->value);
 
                         if(myMatch)
                         {
                             bestDistance = myDistance;
-                            bestMatch = myMatch;
-                            bestSpeed = iter->speed;
-                            thisMatch = true;
+                            bestMatch    = myMatch;
+                            bestSpeed    = iter->speed;
+                            thisMatch    = true;
                         }
                     }
 
@@ -283,18 +285,19 @@ namespace Tensile
                     count++;
 
                     auto myDistance = distance(key, iter->key);
-                    bool thisMatch = false;
+                    bool thisMatch  = false;
 
-                    if(myDistance < bestDistance || (myDistance == bestDistance && iter->speed > bestSpeed))
+                    if(myDistance < bestDistance
+                       || (myDistance == bestDistance && iter->speed > bestSpeed))
                     {
                         auto myMatch = transform(iter->value);
 
                         if(myMatch)
                         {
                             bestDistance = myDistance;
-                            bestMatch = myMatch;
-                            bestSpeed = iter->speed;
-                            thisMatch = true;
+                            bestMatch    = myMatch;
+                            bestSpeed    = iter->speed;
+                            thisMatch    = true;
                         }
                     }
 
@@ -305,7 +308,7 @@ namespace Tensile
 
                         streamJoin(std::cout, iter->key, ", ");
                         std::cout << ": " << myDistance;
-                        
+
                         if(myDistance < bestDistance)
                             std::cout << " < ";
                         else if(myDistance > bestDistance)
@@ -368,7 +371,7 @@ namespace Tensile
                 while(iter != this->table.end())
                 {
                     auto myDistance = distance(key, iter->key);
-                    bool thisMatch = false;
+                    bool thisMatch  = false;
 
                     if(myDistance < bestDistance)
                     {
@@ -377,10 +380,9 @@ namespace Tensile
                         if(myMatch)
                         {
                             bestDistance = myDistance;
-                            bestMatch = myMatch;
-                            thisMatch = true;
+                            bestMatch    = myMatch;
+                            thisMatch    = true;
                         }
-
                     }
 
                     if(T_Debug)
@@ -391,11 +393,10 @@ namespace Tensile
                         {
                             std::cout << " <-- Best so far";
 
-                        if(thisMatch)
-                            std::cout << " (has a matching solution)";
-                        else
-                            std::cout << " (no match)";
-
+                            if(thisMatch)
+                                std::cout << " (has a matching solution)";
+                            else
+                                std::cout << " (no match)";
                         }
 
                         std::cout << std::endl;
@@ -419,7 +420,7 @@ namespace Tensile
                 std::vector<Value> result;
                 result.reserve(this->table.size());
 
-                for(auto const& entry: indices)
+                for(auto const& entry : indices)
                     result.push_back(this->table[entry.second].value);
 
                 return result;
@@ -444,7 +445,8 @@ namespace Tensile
                 return myKey;
             }
 
-            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const override
+            virtual ReturnValue findBestMatch(Object const& object,
+                                              Transform     transform) const override
             {
                 return findBestKeyMatch(keyForProblem(object), transform);
             }
@@ -456,7 +458,8 @@ namespace Tensile
 
             virtual std::string description() const override
             {
-                std::string rv = concatenate("Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
+                std::string rv = concatenate(
+                    "Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
 
                 rv += concatenate("Distance: ", Distance::Type());
 
@@ -464,11 +467,10 @@ namespace Tensile
             }
 
             std::vector<Entry> table;
-            Distance distance;
+            Distance           distance;
 
         protected:
             ReturnValue nullValue;
         };
-    }
-}
-
+    } // namespace Matching
+} // namespace Tensile

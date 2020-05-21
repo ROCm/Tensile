@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -39,9 +39,9 @@ namespace Tensile
         struct MappingTraits<HardwareSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = HardwareSelectionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
                 iot::mapRequired(io, "rows", lib.rows);
             }
@@ -53,9 +53,9 @@ namespace Tensile
         struct MappingTraits<ProblemSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = ProblemSelectionLibrary<MyProblem, MySolution>;
-            using iot = IOTraits<IO>;
+            using iot     = IOTraits<IO>;
 
-            static void mapping(IO & io, Library & lib)
+            static void mapping(IO& io, Library& lib)
             {
                 iot::mapRequired(io, "rows", lib.rows);
             }
@@ -69,7 +69,7 @@ namespace Tensile
             using Row = typename ExactLogicLibrary<MyProblem, MySolution, MyPredicate>::Row;
             using iot = IOTraits<IO>;
 
-            static void mapping(IO & io, Row & row)
+            static void mapping(IO& io, Row& row)
             {
                 iot::mapRequired(io, "predicate", row.first.value);
                 iot::mapRequired(io, "library", row.second);
@@ -77,6 +77,5 @@ namespace Tensile
 
             const static bool flow = false;
         };
-    }
-}
-
+    } // namespace Serialization
+} // namespace Tensile

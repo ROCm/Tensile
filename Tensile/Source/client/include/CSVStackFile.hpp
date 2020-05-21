@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -41,7 +41,7 @@ namespace Tensile
         {
         public:
             CSVStackFile(std::string const& filename);
-            CSVStackFile(std::ostream & stream);
+            CSVStackFile(std::ostream& stream);
             CSVStackFile(std::shared_ptr<std::ostream> stream);
 
             ~CSVStackFile();
@@ -53,7 +53,7 @@ namespace Tensile
 
             template <typename T>
             typename std::enable_if<!std::is_same<T, std::string>::value, void>::type
-            setValueForKey(std::string const& key, T const& value)
+                setValueForKey(std::string const& key, T const& value)
             {
                 setValueForKey(key, boost::lexical_cast<std::string>(value));
             }
@@ -71,14 +71,13 @@ namespace Tensile
 
             std::shared_ptr<std::ostream> m_stream;
 
-            bool m_firstRow = true;
-            std::vector<std::string> m_keyOrder;
+            bool                                         m_firstRow = true;
+            std::vector<std::string>                     m_keyOrder;
             std::unordered_map<std::string, std::string> m_headers;
 
             std::unordered_map<std::string, std::string> m_currentRow;
 
             std::vector<std::unordered_map<std::string, std::string>> m_stack;
         };
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile

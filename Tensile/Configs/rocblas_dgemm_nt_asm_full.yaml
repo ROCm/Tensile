@@ -106,7 +106,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True, False]
         - PersistentKernel: [0]
-        - SuppressNoLoadLoop: [True, False] 
+        - SuppressNoLoadLoop: [True, False]
         - StaggerU: [0]
         - ThreadTile:
           - [ 4, 4 ]

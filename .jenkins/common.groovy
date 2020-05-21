@@ -4,7 +4,7 @@
 def runCompileCommand(platform, project, jobName, boolean debug=false)
 {
     project.paths.construct_build_prefix()
-    
+
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
@@ -12,7 +12,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit"
-    
+
     def command = """#!/usr/bin/env bash
             set -ex
 
@@ -26,11 +26,12 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml
+            #### temporarily enable --no-merge-files until hipclang update is posted
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
 
             mkdir build
             pushd build
- 
+
             export PATH=/opt/rocm/bin:$PATH
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
@@ -81,7 +82,8 @@ def runTestCommand (platform, project, test_marks)
                 export HOME=/home/jenkins
                 ####
                 tox --version
-                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
+                #### temporarily enable --no-merge-files until hipclang update is posted
+                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
                 PY_ERR=\$?
                 date
 
@@ -101,13 +103,14 @@ def runTestCommand (platform, project, test_marks)
     {
         try
         {
+            archiveArtifacts "${project.paths.project_build_prefix}/timing.csv"
             junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
         finally
         {
             junit "${project.paths.project_build_prefix}/python_tests.xml"
         }
-        
+
     }
 }
 

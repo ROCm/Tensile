@@ -1,22 +1,23 @@
 /**
- * Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
- * ies of the Software, and to permit persons to whom the Software is furnished
- * to do so, subject to the following conditions:
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
- * PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
- * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -29,28 +30,29 @@
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \defgroup Properties Properties and Predicates
-     * 
-     * @brief Abstract expression evaluation
-     * 
-     * Property: \copydoc Tensile::Property
-     * 
-     * Predicate: \copydoc Tensile::Predicates::Predicate
-     */
+ * \ingroup Tensile
+ * \defgroup Properties Properties and Predicates
+ *
+ * @brief Abstract expression evaluation
+ *
+ * Property: \copydoc Tensile::Property
+ *
+ * Predicate: \copydoc Tensile::Predicates::Predicate
+ */
 
     /**
-     * \addtogroup Properties
-     * @{
-     */
+ * \addtogroup Properties
+ * @{
+ */
 
     /**
-     * @brief Simplifies implementation of `ToString()` for Property subclasses which
-     * may have `index` and/or `value` members.
-     */
+ * @brief Simplifies implementation of `ToString()` for Property subclasses
+ * which may have `index` and/or `value` members.
+ */
     template <typename Class, bool HasIndex = Class::HasIndex, bool HasValue = Class::HasValue>
     struct PropertyHelper
-    { };
+    {
+    };
 
     template <typename Class>
     struct PropertyHelper<Class, false, false>
@@ -89,30 +91,30 @@ namespace Tensile
     };
 
     /**
-     * Abstract object which retrieves a value from another object.
-     */
-    template<typename Object, typename Value = size_t>
+ * Abstract object which retrieves a value from another object.
+ */
+    template <typename Object, typename Value = size_t>
     class Property
     {
     public:
         /**
-         * Name which uniquely identifies each subclass.
-         */
+   * Name which uniquely identifies each subclass.
+   */
         virtual std::string type() const = 0;
-        virtual ~Property() = default;
+        virtual ~Property()              = default;
 
         /**
-         * Retrieve the value from the specified object.
-         */
+   * Retrieve the value from the specified object.
+   */
         virtual Value operator()(Object const& object) const = 0;
 
         virtual std::string toString() const = 0;
 
         /**
-         * Retrieve the value from the specified object, while printing
-         * relevant debug information to the specified stream.
-         */
-        virtual Value debugEval(Object const& object, std::ostream & stream) const
+   * Retrieve the value from the specified object, while printing
+   * relevant debug information to the specified stream.
+   */
+        virtual Value debugEval(Object const& object, std::ostream& stream) const
         {
             Value rv = (*this)(object);
             stream << *this << ": " << rv;
@@ -121,23 +123,27 @@ namespace Tensile
     };
 
     /**
-     * @brief CRTP helper class which simplifies implementation of Property subclasses.
-     * 
-     * Implements the `type()` and `toString()` methods automatically.
-     * 
-     * The subclass must:
-     *  - Implement a `static std::string Type()` function which returns a
-     *  unique name for the class.
-     *  - Have `HasIndex` and `HasValue` value definitions which match the
-     *  reality of if it has `index` and/or `value` members.
-     * 
-     * \see https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
-     */
-    template<typename Class, typename Object, typename Value = size_t>
-    class Property_CRTP: public Property<Object, Value>
+ * @brief CRTP helper class which simplifies implementation of Property
+ * subclasses.
+ *
+ * Implements the `type()` and `toString()` methods automatically.
+ *
+ * The subclass must:
+ *  - Implement a `static std::string Type()` function which returns a
+ *  unique name for the class.
+ *  - Have `HasIndex` and `HasValue` value definitions which match the
+ *  reality of if it has `index` and/or `value` members.
+ *
+ * \see https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
+ */
+    template <typename Class, typename Object, typename Value = size_t>
+    class Property_CRTP : public Property<Object, Value>
     {
     public:
-        virtual std::string type() const final { return Class::Type(); }
+        virtual std::string type() const final
+        {
+            return Class::Type();
+        }
 
         virtual std::string toString() const
         {
@@ -147,18 +153,20 @@ namespace Tensile
     };
 
     template <typename Object, typename Value>
-    inline std::ostream & operator<<(std::ostream & stream, Property<Object, Value> const& prop)
+    inline std::ostream& operator<<(std::ostream& stream, Property<Object, Value> const& prop)
     {
         return stream << prop.toString();
     }
 
     template <typename Object, typename Value>
-    inline std::ostream & operator<<(std::ostream & stream, std::vector<std::shared_ptr<Property<Object, Value>>> const& props)
+    inline std::ostream&
+        operator<<(std::ostream&                                                stream,
+                   std::vector<std::shared_ptr<Property<Object, Value>>> const& props)
     {
         stream << "(";
 
         bool first = true;
-        for(auto const& v: props)
+        for(auto const& v : props)
         {
             if(!first)
                 stream << ", ";
@@ -166,21 +174,20 @@ namespace Tensile
 
             stream << *v;
         }
-                
+
         stream << ")";
 
         return stream;
     }
 
     /**
-     * @}
-     */
+ * @}
+ */
 
     /**
-     * \ingroup Properties
-     * \defgroup PropertyClasses Property Classes
-     * 
-     * @brief Individual Property classes
-     */
-}
-
+ * \ingroup Properties
+ * \defgroup PropertyClasses Property Classes
+ *
+ * @brief Individual Property classes
+ */
+} // namespace Tensile

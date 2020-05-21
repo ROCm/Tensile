@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -36,7 +36,7 @@ namespace Tensile
 {
     namespace Client
     {
-        class ProgressListener: public RunListener
+        class ProgressListener : public RunListener
         {
         public:
             ProgressListener();
@@ -61,10 +61,10 @@ namespace Tensile
             virtual void   setNumWarmupRuns(size_t count) override;
             virtual void   preWarmup() override;
 
-            virtual void   postWarmup() override;
-            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                           TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents) override;
+            virtual void postWarmup() override;
+            virtual void validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                         TimingEvents const&                startEvents,
+                                         TimingEvents const&                stopEvents) override;
 
             virtual size_t numSyncs() override;
             virtual void   setNumSyncs(size_t count) override;
@@ -75,10 +75,10 @@ namespace Tensile
             virtual void   setNumEnqueuesPerSync(size_t count) override;
             virtual void   preEnqueues() override;
             virtual void   postEnqueues(TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents) override;
+                                        TimingEvents const& stopEvents) override;
             virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                            TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) override;
+                                            TimingEvents const&                startEvents,
+                                            TimingEvents const&                stopEvents) override;
 
             virtual void finalizeReport() override;
 
@@ -87,5 +87,5 @@ namespace Tensile
         private:
             size_t m_benchmarkRun = 0;
         };
-    }
-}
+    } // namespace Client
+} // namespace Tensile

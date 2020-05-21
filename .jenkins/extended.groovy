@@ -14,13 +14,13 @@ def runCI =
     nodeDetails, jobName ->
 
     def prj = new rocProject('Tensile', 'Extended')
-    
+
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = false
 
-    prj.timeout.test = 1440
+    prj.timeout.test = 420
 
     def commonGroovy
 
@@ -31,41 +31,41 @@ def runCI =
         commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
         commonGroovy.runCompileCommand(platform, project, jobName, false)
     }
-    
+
     def testCommand =
     {
         platform, project->
 
         def test_marks = "pre_checkin or extended"
-        commonGroovy.runTestCommand(platform, project, test_marks)   
+        commonGroovy.runTestCommand(platform, project, test_marks)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
 
 }
 
-ci: { 
+ci: {
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
-    def propertyList = ["compute-rocm-dkms-no-npi":[pipelineTriggers([cron('0 6 * * 6')])], 
-                        "compute-rocm-dkms-no-npi-hipclang":[pipelineTriggers([cron('0 6 * * 6')])],
+    def propertyList = ["compute-rocm-dkms-no-npi":[],
+                        "compute-rocm-dkms-no-npi-hipclang":[],
                         "rocm-docker":[]]
     propertyList = auxiliary.appendPropertyList(propertyList)
 
-    def jobNameList = ["compute-rocm-dkms-no-npi":([ubuntu16:['gfx900','gfx906','gfx908']]), 
-                       "compute-rocm-dkms-no-npi-hipclang":([ubuntu16:['gfx900','gfx906','gfx908']]), 
+    def jobNameList = ["compute-rocm-dkms-no-npi":([ubuntu16:['gfx900','gfx906','gfx908']]),
+                       "compute-rocm-dkms-no-npi-hipclang":([ubuntu16:['gfx900','gfx906','gfx908']]),
                        "rocm-docker":([ubuntu16:['gfx900','gfx906','gfx908']])]
-    
-    jobNameList = auxiliary.appendJobNameList(jobNameList)
 
-    propertyList.each 
+    // jobNameList = auxiliary.appendJobNameList(jobNameList)
+
+    propertyList.each
     {
         jobName, property->
         if (urlJobName == jobName)
             properties(auxiliary.addCommonProperties(property))
     }
 
-    jobNameList.each 
+    jobNameList.each
     {
         jobName, nodeDetails->
         if (urlJobName == jobName)
@@ -77,10 +77,10 @@ ci: {
     // For url job names that are outside of the standardJobNameSet i.e. compute-rocm-dkms-no-npi-1901
     if(!jobNameList.keySet().contains(urlJobName))
     {
-        properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 6 * * 6')])]))
+        properties(auxiliary.addCommonProperties([]))
         stage(urlJobName) {
             runCI([ubuntu16:['any']], urlJobName)
         }
     }
-} 
+}
 

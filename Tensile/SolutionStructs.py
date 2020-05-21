@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@ from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
+from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -1364,7 +1364,7 @@ class ExactList(Problem):
 
   @staticmethod
   def convertLeadingDims(problemType, problemSize):
-    # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked 
+    # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked
     # onto the end of the sizes list
     return problemSize[:problemType["NumIndicesC"]+1] + \
            (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]),) + \
@@ -1653,53 +1653,51 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    if state["MatrixInstruction"]:
-      if state["MatrixInstruction"][0] != -1:
-        if len(state["MatrixInstruction"]) == 4:
-          # check for valid instruction with input type
-          itemsPerThread = state["MatrixInstruction"][0] * state["MatrixInstruction"][1] * state["MatrixInstruction"][3] // 64
-          if state["ThreadTile"][1] % itemsPerThread != 0:
-            reject(state, "ThreadTile must be a multiple of MatrixInstruction")
-          state["MatrixInstM"] = state["MatrixInstruction"][0]
-          state["MatrixInstN"] = state["MatrixInstruction"][1]
-          state["MatrixInstK"] = state["MatrixInstruction"][2]
-          state["MatrixInstB"] = state["MatrixInstruction"][3]
-      if not state["ProblemType"]["HighPrecisionAccumulate"] and \
-         not state["ProblemType"]["DataType"].isSingle() :
-        reject(state, "Matrix instructions for half types are natively accumulated" + \
-         " in fp32 precision. Please add the following config:" + \
-         "\n - HighPrecisionAccumulate: True")
-    else:
-      if state["ThreadTile"][0] > 16 or state["ThreadTile"][1] > 16:
-        reject(state, "Invalid value for ThreadTile")
+    EnableMatrixInstruction = state["EnableMatrixInstruction"] if "EnableMatrixInstruction" in state else None
+    if EnableMatrixInstruction == None:
+      if  ("MIBlock" in state and len(state["MIBlock"]) == 6) \
+          and ("MIWaveGroup" in state and len(state["MIWaveGroup"]) == 2) \
+          and ("MIWaveTile" in state and len(state["MIWaveTile"]) == 2):
+        EnableMatrixInstruction = True
+      elif ("WorkGroup" in state and len(state["WorkGroup"]) == 3) \
+          and ("ThreadTile" in state and len(state["ThreadTile"]) == 2) :
+        EnableMatrixInstruction = False
+      else:
+        reject(state, "EnableMatrixInstruction undetermined")
 
-    if state["MatrixInstruction"]:
-      if (globalParameters["WavefrontWidth"] % (state["MatrixInstM"] * state["MatrixInstB"]) != 0):
-        reject(state, "Error calcualting InstSplit")
-      state["InstSplit"] = globalParameters["WavefrontWidth"] // (state["MatrixInstM"] * state["MatrixInstB"]) # BBlocks
-      state["MIWG0"] = state["MatrixInstM"] if state["WorkGroup"][0] < state["MatrixInstM"] else  state["WorkGroup"][0]
-      # raise rejection 
-      if ((state["MIWG0"]%state["MatrixInstM"]) != 0):
-        reject(state, "WorkGroup0 must be mulitple of MatrixInstM")
-      #if (state["WorkGroup"][0] * state["WorkGroup"][1]) % (state["MatrixInstM"] * state["InstSplit"]) != 0: # TODO rejection for ABlocks
-      #  reject(state, "Error calculating MIWG1")
+    if EnableMatrixInstruction == True:
+      state["MatrixInstM"]         = state["MIBlock"][0]
+      state["MatrixInstN"]         = state["MIBlock"][1]
+      state["MatrixInstK"]         = state["MIBlock"][2]
+      state["MatrixInstB"]         = state["MIBlock"][3]
+      state["MatrixInstBM"]        = state["MIBlock"][4]
+      state["MatrixInstBN"]        = state["MIBlock"][5]
 
-      state["MIWG1"] = (state["WorkGroup"][0] * state["WorkGroup"][1]) // (state["MIWG0"] * state["InstSplit"]) # BBlocks - if no prefetchglobalread, multiply denominator by 4
-      state["SubGroup0"] = state["MIWG0"] # TODO calc
-      state["SubGroup1"] = state["MIWG1"]
+      state["LocalSplitU"]         = 1
+      state["MIOutputVectorWidth"] = 4
+
+      if state["MatrixInstM"] == 4:
+        state["ThreadTile0"] = state["MIWaveTile"][0] * state["MIOutputVectorWidth"]
+        state["ThreadTile1"] = state["MIWaveTile"][1]
+        state["SubGroup0"]   = state["MIWaveGroup"][0] * state["MatrixInstM"] * state["MatrixInstBM"] // state["MIOutputVectorWidth"]
+        state["SubGroup1"]   = state["MIWaveGroup"][1] * state["MatrixInstN"] * state["MatrixInstBN"]
+      else:
+        state["ThreadTile0"] = state["MatrixInstBM"] * state["MIWaveTile"][0] * (state["MatrixInstM"] * state["MatrixInstN"] // globalParameters["WavefrontWidth"])
+        state["ThreadTile1"] = state["MatrixInstBN"] * state["MIWaveTile"][1]
+        state["SubGroup0"]   = state["MIWaveGroup"][0] * (globalParameters["WavefrontWidth"] // state["MatrixInstN"])
+        state["SubGroup1"]   = state["MIWaveGroup"][1] * state["MatrixInstN"]
+
+    elif EnableMatrixInstruction == False:
+      state["ThreadTile0"] = state["ThreadTile"][0]
+      state["ThreadTile1"] = state["ThreadTile"][1]
+
+      state["SubGroup0"]   = state["WorkGroup"][0]
+      state["SubGroup1"]   = state["WorkGroup"][1]
       state["LocalSplitU"] = state["WorkGroup"][2]
-      state["NumThreads"] = state["WorkGroup"][0] * state["WorkGroup"][1] * state["LocalSplitU"] # TODO probably fix for LDS
-    else:
-      state["SubGroup0"] = state["WorkGroup"][0]
-      state["SubGroup1"] = state["WorkGroup"][1]
 
-      state["LocalSplitU"] = state["WorkGroup"][2]
-      state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
+    if "SubGroup0" in state and "SubGroup1" in state and "LocalSplitU" in state:
+      state["NumThreads"]  = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
-    state["ThreadTile0"] = state["ThreadTile"][0]
-    state["ThreadTile1"] = state["ThreadTile"][1]
-
-    # TODO MI - SubGroup0 temporarily == MIWG0, revisit later
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
@@ -1724,7 +1722,6 @@ class Solution:
       if state["WorkGroupMappingType"] == "Z":
         if abs(state["WorkGroupMapping"]) > 2:
           reject(state, "WorkGroupMappingType=Z only supports WorkGroupMapping=1, 2")
-
 
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
@@ -1769,8 +1766,6 @@ class Solution:
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
     state["NumLoads%s"%tc] = totalVectors * pv // state["NumThreads"]
-    #if state["MatrixInstruction"] and not state["PrefetchGlobalRead"]:
-    #  state["NumLoads%s"%tc] = totalVectors * pv // (state["NumThreads"] // 4)  # 4 simds/cu
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
@@ -1851,7 +1846,7 @@ class Solution:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
          // state["NumLoadsPerpendicular%s"%tc]
-    
+
     return True
 
 
@@ -2031,10 +2026,55 @@ class Solution:
 
     return True
 
+
+  @staticmethod
+  def parameterWrapper(state):
+    state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"]
+    state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"]
+
+    state["UnrollMajorLDSA"]     = state["TransposeLDS"]
+    state["UnrollMajorLDSB"]     = state["TransposeLDS"]
+
+    if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
+      # set EnableMatrixInstruction
+      state["EnableMatrixInstruction"] = True
+
+      # set MIBlock
+      miwg0      = state["MatrixInstruction"][0] if (state["WorkGroup"][0] < state["MatrixInstruction"][0]) else state["WorkGroup"][0]
+      MIBlock_BM = miwg0 // state["MatrixInstruction"][0]
+      MIBlock_BM = min(MIBlock_BM, state["MatrixInstruction"][3])
+      MIBlock_BN = state["MatrixInstruction"][3] // MIBlock_BM
+
+      state["MIBlock"]    = [32, 32, 2, 1, 1, 1]
+      state["MIBlock"][0] = state["MatrixInstruction"][0]
+      state["MIBlock"][1] = state["MatrixInstruction"][1]
+      state["MIBlock"][2] = state["MatrixInstruction"][2]
+      state["MIBlock"][3] = state["MatrixInstruction"][3]
+      state["MIBlock"][4] = MIBlock_BM
+      state["MIBlock"][5] = MIBlock_BN
+
+      # set MIWaveGroup
+      numOfWave                = (state["WorkGroup"][0] * state["WorkGroup"][1]) // globalParameters["WavefrontWidth"]
+      state['MIWaveGroup']     = [1, 1]
+      state['MIWaveGroup'][0]  = min((miwg0 // state["MatrixInstruction"][0]) // MIBlock_BM, numOfWave)
+      state['MIWaveGroup'][1]  = numOfWave // state['MIWaveGroup'][0]
+
+      # set MIWaveTIle
+      state['MIWaveTile']      = [1, 1]
+      state['MIWaveTile'][0]   = state["ThreadTile"][0]
+      state['MIWaveTile'][1]   = state["ThreadTile"][1] // state["MatrixInstruction"][1]
+
+    else:
+      state["EnableMatrixInstruction"] = False
+
+
   ########################################
   # assign all derived parameters
   @staticmethod
   def assignDerivedParameters(state):
+
+    Solution.parameterWrapper(state)
+
     Solution.assignProblemIndependentDerivedParameters(state)
 
     for s in Solution.InternalKeys:
@@ -2060,10 +2100,41 @@ class Solution:
     if "LoopUnroll" in state:
       state["LoopIters"] = state["LoopUnroll"]
 
-    if state["MatrixInstruction"]:
-      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
-        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
-        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+
+    if state["EnableMatrixInstruction"]:
+      if not (state["ProblemType"]["DataType"].isSingle() \
+              or state["ProblemType"]["DataType"].isBFloat16() \
+              or state["ProblemType"]["DataType"].isHalf()):
+        reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
+      if not state["MIBlock"] or len(state["MIBlock"]) != 6:
+        reject(state, "invalid MIBlock")
+      if not state["MIWaveGroup"] or len(state["MIWaveGroup"]) != 2:
+        reject(state, "invalid MIWaveGroup")
+      if not state["MIWaveTile"] or len(state["MIWaveTile"]) != 2:
+        reject(state, "invalid MIWaveTile")
+      if not state["ProblemType"]["HighPrecisionAccumulate"] \
+         and not state["ProblemType"]["DataType"].isSingle() :
+        reject(state, "Matrix instructions for half types are natively accumulated" + \
+         " in fp32 precision. Please add the following config:" + \
+         "\n - HighPrecisionAccumulate: True")
+      if state["LdsBlockSizePerPadA"] != 0 and state["UnrollMajorLDSA"] == False:
+        reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
+        if state["LdsBlockSizePerPadA"] < state["DepthU"]:
+          reject(state, "reject: DepthU %u > LdsBlockSizePerPadA %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+
+      if state["LdsBlockSizePerPadB"] != 0 and state["UnrollMajorLDSB"] == False:
+        reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
+        if state["LdsBlockSizePerPadB"] < state["DepthU"]:
+          reject(state, "reject: DepthU %u > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+    else:
+      if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
+        reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
+
+      if state["LdsBlockSizePerPadA"] != 0 or state["LdsBlockSizePerPadB"] != 0:
+        reject(state, "didn't support LdsBlockSizePerPad in VALU mode yet")
+
+      if state["ThreadTile0"] > 16 or state["ThreadTile1"] > 16:
+        reject(state, "Invalid value for ThreadTile")
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
@@ -2179,7 +2250,7 @@ class Solution:
     if staggerStrideShift < 0:
       reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
         % (state["StaggerUStride"], state["DepthU"], bpeAB))
-      return 
+      return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
@@ -2187,12 +2258,16 @@ class Solution:
 
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
-      state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
-      while state["ThreadTile0"] % state["VectorWidth"] != 0 \
-          or state["ThreadTile1"] % state["VectorWidth"] != 0:
-        state["VectorWidth"] //= 2
+      if state["EnableMatrixInstruction"]:
+        state["VectorWidth"] = 2 if (state["ProblemType"]["DataType"].numRegisters() == 0.5) else 1
+      else:
+        state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
+        while state["ThreadTile0"] % state["VectorWidth"] != 0 \
+            or state["ThreadTile1"] % state["VectorWidth"] != 0:
+          state["VectorWidth"] //= 2
+
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if not state["MatrixInstruction"]:
+    if not state["EnableMatrixInstruction"]:
       if state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
@@ -2228,7 +2303,7 @@ class Solution:
     if state["StoreVectorWidth"] == -1:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
-      # use wider store for best store optimization 
+      # use wider store for best store optimization
       state["StoreVectorWidth"] = 4
 
 
@@ -2377,8 +2452,8 @@ class Solution:
       # Now convert elements to vectors based on GlobalReadVectorWidth
       totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalReadVectorWidth"]
       totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalReadVectorWidth"]
-      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"] 
-      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"] 
+      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"]
+      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"]
 
       if 0:
         print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
@@ -2532,49 +2607,59 @@ class Solution:
       state["LdsPadB"] = 0 if state["ProblemType"]["TLUB"] else state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
 
-    if state["TransposeLDS"] == 1:
-      if not state["MatrixInstruction"]:
-        reject(state, "TransposeLds Supports only in MatrixInstruction=1")
-    if "MatrixInstruction" in state:
-      if state["TransposeLDS"] == 1:
-        if state["ProblemType"]["TLUA"] and  state["ProblemType"]["TLUB"]:
-          reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
-    if state["TransposeLDS"] == 1:
-      if state["LdsBlockSizePerPad"] == -1:
-        state["LdsBlockSizePerPad"] = 256
+    if (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) and (not state["EnableMatrixInstruction"]):
+        reject(state, "UnrollMajorLDS Supports only in EnableMatrixInstruction=1")
+
+    if state["LdsBlockSizePerPadA"] == -1:
+      if state["EnableMatrixInstruction"] and state["UnrollMajorLDSA"]:
+        state["LdsBlockSizePerPadA"] = 256
+      else:
+        state["LdsBlockSizePerPadA"] = 0
+
+    if state["LdsBlockSizePerPadB"] == -1:
+      if state["EnableMatrixInstruction"] and state["UnrollMajorLDSB"]:
+        state["LdsBlockSizePerPadA"] = 256
+      else:
+        state["LdsBlockSizePerPadB"] = 0
 
     if state["LocalReadVectorWidth"] != -1:
-      if not state["TransposeLDS"] == 1:
-        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
+      if (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False):
+        reject(state, "LocalReadVectorWidth requires UnrollMajorLDS=1")
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
-    if not state["LdsBlockSizePerPad"] == -1:
-        #calculate number of boundaries from MT*depthU
-      LdsPadCntA = (state["DepthU"]*state["MacroTile0"])//(state["LdsBlockSizePerPad"] // state["ProblemType"]["DataType"].numBytes())
-      LdsPadCntB = (state["DepthU"]*state["MacroTile1"])//(state["LdsBlockSizePerPad"] // state["ProblemType"]["DataType"].numBytes())
-      ldsNumElementsA = state["DepthU"]*state["MacroTile0"]+LdsPadCntA*state["LdsPadA"]
-      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
-      ldsNumElementsB = state["DepthU"]*state["MacroTile1"]+LdsPadCntB*state["LdsPadB"]
-      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+
+    if state["UnrollMajorLDSA"]:
+      ldsNumElementsA = (state["DepthU"] + state["LdsPadA"]) * state["MacroTile0"]
+      padInterval = state["LdsBlockSizePerPadA"] // bpeAB
+      if padInterval != 0:
+        ldsNumElementsA = int((state["DepthU"] * state["MacroTile0"]) / padInterval * (padInterval + state["LdsPadA"]))
+      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
     else:
-      ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
-      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA,ldsAlign)
-      ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
-      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB,ldsAlign)
+      ldsNumElementsA = state["DepthU"] * (state["MacroTile0"] + state["LdsPadA"])
+      ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
+
+    if state["UnrollMajorLDSB"]:
+      ldsNumElementsB = (state["DepthU"] + state["LdsPadB"]) * state["MacroTile1"]
+      padInterval = state["LdsBlockSizePerPadB"] // bpeAB
+      if padInterval != 0:
+        ldsNumElementsB = int((state["DepthU"] * state["MacroTile1"]) / padInterval * (padInterval + state["LdsPadB"]))
+      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
+    else:
+      ldsNumElementsB = state["DepthU"] * (state["MacroTile1"] + state["LdsPadB"])
+      ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
+
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
     if state["PrefetchGlobalRead"]:
       state["LdsNumElementsAlignedA"] = ldsNumElementsAlignedA
       state["LdsNumElementsAlignedB"] = ldsNumElementsAlignedB
-      state["LdsOffsetB"] = state["LdsOffsetA"] \
-        + state["LdsNumElementsAlignedA"]
+      state["LdsOffsetB"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + ldsNumElementsAlignedB
       offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
-      state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] \
-        + state["LdsNumElementsAlignedA"]
+      state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
       ldsNumElementsAB = state["LdsOffsetB_Blk"]+ ldsNumElementsB
     else:
       state["LdsOffsetB"] = ldsNumElementsAlignedA
@@ -2642,7 +2727,7 @@ class Solution:
     if state["ScheduleIterAlg"] == 2 and \
     (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
       reject(state, "ScheduleIterAlg 2 only work with EPS1_SGW1, LoopIter=1")
-    
+
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
@@ -2664,16 +2749,15 @@ class Solution:
       # DirectToLds loads return 256 bytes/wave
       # If fractional, ensure we are using all of the bytes that will be delivered
 
-      if elementMultipleOk \
-        and state["NumThreads"] % globalParameters["WavefrontWidth"] == 0:
+      if elementMultipleOk and state["NumThreads"] % globalParameters["WavefrontWidth"] == 0:
 
-        if state["MatrixInstruction"]:
+        if state["EnableMatrixInstruction"]:
           # use with transposeLDS
           if (state["GlobalLoadVectorWidthA"] * numBytes == 4) \
             and (( not state["ProblemType"]["TransposeA"]  \
                    and state["LSCA"] * numBytes == 256 * wavefronts \
                    and state["LSCA"] * numBytes == state["NumThreads"] * 4 ) or \
-                 ( state["ProblemType"]["TransposeA"] and state["TransposeLDS"]  \
+                 ( state["ProblemType"]["TransposeA"] and state["UnrollMajorLDSA"]  \
                    and state["LSCA"] * state["LSPA"] * numBytes == 256 * wavefronts \
                    and state["LSCA"] * state["LSPA"] * numBytes == state["NumThreads"] * 4)) :
             state["DirectToLdsA"] = True
@@ -2683,7 +2767,7 @@ class Solution:
             and (( state["ProblemType"]["TransposeB"]  \
                    and state["LSCB"] * numBytes == 256 * wavefronts \
                    and state["LSCB"] * numBytes == state["NumThreads"] * 4 ) or \
-                 ( not state["ProblemType"]["TransposeB"] and state["TransposeLDS"]  \
+                 ( not state["ProblemType"]["TransposeB"] and state["UnrollMajorLDSB"]  \
                    and state["LSCB"] * state["LSPB"] * numBytes == 256 * wavefronts \
                    and state["LSCB"] * state["LSPB"] * numBytes == state["NumThreads"] * 4)) :
             state["DirectToLdsB"] = True
@@ -2761,19 +2845,32 @@ class Solution:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
 
-    if not bufferLoad or not state["GuaranteeNoPartialA"]:
-      # Restrict GRVW/VW combos so shift-ptr logic will work
-      if state["GlobalLoadVectorWidthA"] > 1 \
-          and state["GlobalLoadVectorWidthA"] != state["VectorWidth"]:
-          reject(state, "GlobalLoadVectorWidthA %u must be == VectorWidth %u or == 1" % \
-                  (state["GlobalLoadVectorWidthA"], state["VectorWidth"]))
+    if state["EnableMatrixInstruction"]:
+      cont1 = not state["GuaranteeNoPartialA"]
+      cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)
+      if cont1 and cont2:
+        reject(state, "GlobalLoadVectorWidthA %u %% MIOutputVectorWidth %u must be 0" % \
+          (state["GlobalLoadVectorWidthA"], state["MIOutputVectorWidth"]))
 
-    if not bufferLoad or not state["GuaranteeNoPartialB"]:
-      # Restrict GRVW/VW combos so shift-ptr logic will work
-      if state["GlobalLoadVectorWidthB"] > 1 \
-          and state["GlobalLoadVectorWidthB"] != state["VectorWidth"]:
-          reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
-                  (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
+      cont1 = not state["GuaranteeNoPartialB"]
+      cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthB"]) != 0)
+      if cont1 and cont2:
+        reject(state, "GlobalLoadVectorWidthB %u %% MIOutputVectorWidth %u must be 0" % \
+          (state["GlobalLoadVectorWidthB"], state["MIOutputVectorWidth"]))
+    else:
+      if not bufferLoad or not state["GuaranteeNoPartialA"]:
+        # Restrict GRVW/VW combos so shift-ptr logic will work
+        if state["GlobalLoadVectorWidthA"] > 1 \
+            and state["GlobalLoadVectorWidthA"] != state["VectorWidth"]:
+            reject(state, "GlobalLoadVectorWidthA %u must be == VectorWidth %u or == 1" % \
+                    (state["GlobalLoadVectorWidthA"], state["VectorWidth"]))
+
+      if not bufferLoad or not state["GuaranteeNoPartialB"]:
+        # Restrict GRVW/VW combos so shift-ptr logic will work
+        if state["GlobalLoadVectorWidthB"] > 1 \
+            and state["GlobalLoadVectorWidthB"] != state["VectorWidth"]:
+            reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
+                    (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
     # these work everywhere, no special restrictions
     state["AssertMinApproxSize"] = 0
@@ -2785,7 +2882,7 @@ class Solution:
     elif state["VectorWidth"] > 1:
       # VW>1 kernels require dims>1
       state["AssertMinApproxSize"] = 2
-    
+
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not
@@ -2912,18 +3009,22 @@ class Solution:
           requiredParameters[key] = True
         else:
           requiredParameters[key] = False
-    requiredParameters["ProblemType"] = False # always prepended
-    requiredParameters["MacroTile0"] = False # always prepended
-    requiredParameters["MacroTile1"] = False # always prepended
-    requiredParameters["DepthU"] = False # always prepended
-    requiredParameters["LdcEqualsLdd"] = False # always prepended
-    requiredParameters["MatrixInstruction"] = False # covered by parameters below
-    requiredParameters["MatrixInstM"] = False # always prepended
-    requiredParameters["MatrixInstN"] = False # always prepended
-    requiredParameters["MatrixInstK"] = False # always prepended
-    requiredParameters["MatrixInstB"] = False # always prepended
-    requiredParameters["Kernel"] = True # distinguish kernels from solutions
-                                        # for single-source compilation
+
+    requiredParameters["ProblemType"]       = False # always prepended
+    requiredParameters["MacroTile0"]        = False # always prepended
+    requiredParameters["MacroTile1"]        = False # always prepended
+    requiredParameters["DepthU"]            = False # always prepended
+    requiredParameters["LdcEqualsLdd"]      = False # always prepended
+    requiredParameters["MatrixInstruction"] = False # always prepended
+    requiredParameters["MatrixInstM"]       = False # always prepended
+    requiredParameters["MatrixInstN"]       = False # always prepended
+    requiredParameters["MatrixInstK"]       = False # always prepended
+    requiredParameters["MatrixInstB"]       = False # always prepended
+    requiredParameters["MatrixInstBM"]      = False # always prepended
+    requiredParameters["MatrixInstBN"]      = False # always prepended
+
+    requiredParameters["Kernel"]       = True  # distinguish kernels from solutions
+                                               # for single-source compilation
     return requiredParameters
 
   ########################################
@@ -2951,9 +3052,9 @@ class Solution:
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     if "MatrixInstM" in state:
-      name += "%s%ux%ux%ux%u_" \
+      name += "%s%ux%ux%ux%u" \
           % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
-          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"] )
+          state["MatrixInstM"], state["MatrixInstN"],  state["MatrixInstK"], state["MatrixInstB"])
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"
