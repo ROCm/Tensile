@@ -25,7 +25,6 @@ from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
 
-from warnings import warn
 from math import log, ceil, trunc, modf
 from copy import deepcopy
 import collections
