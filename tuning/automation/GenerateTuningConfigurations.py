@@ -102,7 +102,17 @@ def GetSize(problemDefinition):
     if "batch_count" or "batch" in problemDefinition:
         b = int(problemDefinition["batch_count"])
 
-    return [m, n, b, k]
+    lda = int(problemDefinition["lda"])
+    ldb = int(problemDefinition["ldb"])
+    ldc = int(problemDefinition["ldc"])
+    ldd = ldc
+
+    if m == 1:
+        m = 4
+    if n == 1:
+        n = 4
+
+    return [m, n, b, k, lda, ldb, ldc, ldd]
 
 def ClassifySize(size,mfma="false"):
     m = size[0]
