@@ -20,8 +20,7 @@ def runCI =
 
     boolean formatCheck = false
 
-    // temporarily increase timeout from 5 hours to 8 hours
-    prj.timeout.test = 480
+    prj.timeout.test = 120
 
     def commonGroovy
 
