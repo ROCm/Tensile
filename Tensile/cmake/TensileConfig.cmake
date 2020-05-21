@@ -140,7 +140,7 @@ function(TensileCreateLibraryFiles
           # Create the manifest file of the output libraries.
           set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit" "--new-client-only")
           set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
-          
+
           execute_process(
             COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
             RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
