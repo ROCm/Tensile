@@ -69,6 +69,8 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
     assemblyKernels = list([k for k in kernels if k['KernelLanguage'] == 'Assembly'])
+    sourceKernels = list([k for k in kernels if k['KernelLanguage'] == 'Source'])
+
     if len(assemblyKernels) == 0:
         return []
 
@@ -85,6 +87,8 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         continue
       if globalParameters["MergeFiles"]:
       #  archName = 'gfx'+''.join(map(str,arch))
+        if len(sourceKernels) == 0:
+            return coFiles
         coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
         if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
           destArchDir = ensurePath(os.path.join(destDir, archName))
