@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -31,17 +31,23 @@
 namespace Tensile
 {
     /**
-     * \ingroup SolutionLibrary
-     * 
-     * Leaf of the tree. Represents a single `Solution` object. Can eliminate
-     * itself from consideration based on restrictions of that particular
-     * `Solution`.
-     */
+ * \ingroup SolutionLibrary
+ *
+ * Leaf of the tree. Represents a single `Solution` object. Can eliminate
+ * itself from consideration based on restrictions of that particular
+ * `Solution`.
+ */
     template <typename MyProblem, typename MySolution>
-    struct SingleSolutionLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct SingleSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        static std::string Type() { return "Single"; }
-        std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "Single";
+        }
+        std::string type() const override
+        {
+            return Type();
+        }
         std::string description() const override
         {
             std::string rv = type();
@@ -67,8 +73,7 @@ namespace Tensile
         }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             bool debug = Debug::Instance().printPredicateEvaluation();
 
@@ -80,7 +85,8 @@ namespace Tensile
                     solution->problemPredicate->debugEval(problem, std::cout);
                 }
 
-                if((*solution->hardwarePredicate)(hardware) && (*solution->problemPredicate)(problem))
+                if((*solution->hardwarePredicate)(hardware)
+                   && (*solution->problemPredicate)(problem))
                     return solution;
             }
             else if(debug)
@@ -91,9 +97,8 @@ namespace Tensile
             return std::shared_ptr<MySolution>();
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
 
             auto result = findBestSolution(problem, hardware);
@@ -107,10 +112,10 @@ namespace Tensile
                     std::cout << " (no match)";
             }
 
-            if(result) return SolutionSet<MySolution>({result});
+            if(result)
+                return SolutionSet<MySolution>({result});
 
             return SolutionSet<MySolution>();
         }
     };
-}
-
+} // namespace Tensile

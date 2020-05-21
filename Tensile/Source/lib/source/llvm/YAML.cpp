@@ -6,5 +6,4 @@ namespace Tensile
     namespace Serialization
     {
     }
-}
-
+} // namespace Tensile

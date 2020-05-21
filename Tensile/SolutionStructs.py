@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1364,7 +1364,7 @@ class ExactList(Problem):
 
   @staticmethod
   def convertLeadingDims(problemType, problemSize):
-    # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked 
+    # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked
     # onto the end of the sizes list
     return problemSize[:problemType["NumIndicesC"]+1] + \
            (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]),) + \
@@ -1846,7 +1846,7 @@ class Solution:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
       state["LSP%s"%tc] = state["MacroTile%s"%tc] \
          // state["NumLoadsPerpendicular%s"%tc]
-    
+
     return True
 
 
@@ -2250,7 +2250,7 @@ class Solution:
     if staggerStrideShift < 0:
       reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
         % (state["StaggerUStride"], state["DepthU"], bpeAB))
-      return 
+      return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
     if state["StaggerU"] == 0:
@@ -2303,7 +2303,7 @@ class Solution:
     if state["StoreVectorWidth"] == -1:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
-      # use wider store for best store optimization 
+      # use wider store for best store optimization
       state["StoreVectorWidth"] = 4
 
 
@@ -2452,8 +2452,8 @@ class Solution:
       # Now convert elements to vectors based on GlobalReadVectorWidth
       totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalReadVectorWidth"]
       totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalReadVectorWidth"]
-      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"] 
-      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"] 
+      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"]
+      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"]
 
       if 0:
         print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
@@ -2727,7 +2727,7 @@ class Solution:
     if state["ScheduleIterAlg"] == 2 and \
     (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
       reject(state, "ScheduleIterAlg 2 only work with EPS1_SGW1, LoopIter=1")
-    
+
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
@@ -2882,7 +2882,7 @@ class Solution:
     elif state["VectorWidth"] > 1:
       # VW>1 kernels require dims>1
       state["AssertMinApproxSize"] = 2
-    
+
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not

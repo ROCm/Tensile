@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -36,21 +36,21 @@
 namespace Tensile
 {
 
-    TENSILE_API Problem::~Problem() = default;
-    TENSILE_API Hardware::Hardware() = default;
-    TENSILE_API Hardware::~Hardware() = default;
-    TENSILE_API Solution::~Solution() = default;
+    TENSILE_API Problem::~Problem()                 = default;
+    TENSILE_API Hardware::Hardware()                = default;
+    TENSILE_API Hardware::~Hardware()               = default;
+    TENSILE_API Solution::~Solution()               = default;
     TENSILE_API SolutionAdapter::~SolutionAdapter() = default;
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> LoadLibraryFile(std::string const& filename)
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LoadLibraryFile(std::string const& filename)
     {
         return LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
     }
 
-    template
-    std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-    LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 #endif
-}
+} // namespace Tensile

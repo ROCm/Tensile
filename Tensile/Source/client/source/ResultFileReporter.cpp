@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -32,7 +32,8 @@ namespace Tensile
 {
     namespace Client
     {
-        std::shared_ptr<ResultFileReporter> ResultFileReporter::Default(po::variables_map const& args)
+        std::shared_ptr<ResultFileReporter>
+            ResultFileReporter::Default(po::variables_map const& args)
         {
             return std::make_shared<ResultFileReporter>(args["results-file"].as<std::string>());
         }
@@ -72,17 +73,18 @@ namespace Tensile
             }
         }
 
-        void ResultFileReporter::reportValue_string(std::string const& key, std::string const& value)
+        void ResultFileReporter::reportValue_string(std::string const& key,
+                                                    std::string const& value)
         {
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_uint(  std::string const& key, uint64_t value)
+        void ResultFileReporter::reportValue_uint(std::string const& key, uint64_t value)
         {
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_int(   std::string const& key, int64_t value)
+        void ResultFileReporter::reportValue_int(std::string const& key, int64_t value)
         {
             reportValue(key, value);
         }
@@ -92,13 +94,14 @@ namespace Tensile
             reportValue(key, value);
         }
 
-        void ResultFileReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value)
+        void ResultFileReporter::reportValue_sizes(std::string const&         key,
+                                                   std::vector<size_t> const& value)
         {
             if(key == ResultKey::ProblemSizes)
             {
                 for(size_t i = 0; i < value.size(); i++)
                 {
-                    std::string key = concatenate("Size", static_cast<char>('I'+i));
+                    std::string key = concatenate("Size", static_cast<char>('I' + i));
                     m_output.setHeaderForKey(key, key);
                     m_output.setValueForKey(key, value[i]);
                 }
@@ -119,12 +122,10 @@ namespace Tensile
 
         void ResultFileReporter::postSolution()
         {
-            m_solutionName = "";
+            m_solutionName    = "";
             m_invalidSolution = false;
         }
 
-        void ResultFileReporter::finalizeReport()
-        {
-        }
-    }
-}
+        void ResultFileReporter::finalizeReport() {}
+    } // namespace Client
+} // namespace Tensile

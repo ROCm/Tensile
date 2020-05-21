@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -49,8 +49,8 @@ namespace Tensile
             }
 
             /**********************************
-             * Benchmark run - Outermost loop.
-             **********************************/
+   * Benchmark run - Outermost loop.
+   **********************************/
 
             /// A benchmark run is a loop over all the problems.
             /// Return true if we need to loop once more.
@@ -64,8 +64,8 @@ namespace Tensile
             virtual void postBenchmarkRun() = 0;
 
             /**********
-             * Problem
-             **********/
+   * Problem
+   **********/
 
             /// Called at the beginning of each problem.
             virtual void preProblem(ContractionProblem const& problem) = 0;
@@ -74,8 +74,8 @@ namespace Tensile
             virtual void postProblem() = 0;
 
             /***********
-             * Solution
-             ***********/
+   * Solution
+   ***********/
 
             /// Called at the beginning of each solution.
             virtual void preSolution(ContractionSolution const& solution) = 0;
@@ -88,33 +88,36 @@ namespace Tensile
             virtual bool needMoreRunsInSolution() const = 0;
 
             /***********************************************************************
-             * Kernel invocation run - Innermost loop.
-             *
-             * Within a solution, we will have zero or more warmup runs followed by
-             * zero or more benchmark runs.
-             ***********************************************************************/
+   * Kernel invocation run - Innermost loop.
+   *
+   * Within a solution, we will have zero or more warmup runs followed by
+   * zero or more benchmark runs.
+   ***********************************************************************/
 
-            virtual size_t numWarmupRuns() = 0;
+            virtual size_t numWarmupRuns()                = 0;
             virtual void   setNumWarmupRuns(size_t count) = 0;
-            virtual void   preWarmup() = 0;
-            virtual void   postWarmup() = 0;
+            virtual void   preWarmup()                    = 0;
+            virtual void   postWarmup()                   = 0;
             virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                           TimingEvents const& startEvents,
-                                           TimingEvents const&  stopEvents) = 0;
+                                           TimingEvents const&                startEvents,
+                                           TimingEvents const&                stopEvents)
+                = 0;
 
-            virtual size_t numSyncs() = 0;
+            virtual size_t numSyncs()                = 0;
             virtual void   setNumSyncs(size_t count) = 0;
-            virtual void   preSyncs() = 0;
-            virtual void   postSyncs() = 0;
+            virtual void   preSyncs()                = 0;
+            virtual void   postSyncs()               = 0;
 
-            virtual size_t numEnqueuesPerSync() = 0;
+            virtual size_t numEnqueuesPerSync()                = 0;
             virtual void   setNumEnqueuesPerSync(size_t count) = 0;
-            virtual void   preEnqueues() = 0;
+            virtual void   preEnqueues()                       = 0;
             virtual void   postEnqueues(TimingEvents const& startEvents,
-                                        TimingEvents const&  stopEvents) = 0;
-            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                            TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents) = 0;
+                                        TimingEvents const& stopEvents)
+                = 0;
+            virtual void validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                          TimingEvents const&                startEvents,
+                                          TimingEvents const&                stopEvents)
+                = 0;
 
             /// Called at end of program execution.  Print out a summary of the runs.
             virtual void finalizeReport() = 0;
@@ -127,6 +130,5 @@ namespace Tensile
             std::shared_ptr<ResultReporter> m_reporter;
         };
 
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile

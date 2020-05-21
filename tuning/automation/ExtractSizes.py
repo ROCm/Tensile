@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -67,7 +67,7 @@ def GetRocBLASParser():
     lineParser.add_argument("--solution_index",dest="solution_index", type=int,default=0)
     lineParser.add_argument("--flags",dest="flags", type=int,default=0)
     lineParser.add_argument("-i",dest="i", type=int,default=10)
-    
+
     return lineParser
 
 
@@ -146,13 +146,13 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
     output_h = max(1, (input_h - (1 + dilation_h * (filter_h - 1)) + 2 * pad_h) / u + 1)
     output_w = max(1, (input_w - (1 + dilation_w * (filter_w - 1)) + 2 * pad_w) / v + 1)
 
-    m = filter_k 
+    m = filter_k
     n = input_c
     k = input_h * input_w
     lda = k
     ldb = k
     ldc = n
-    batch_count = 1 
+    batch_count = 1
     strideA = 0
     strideB = 0
     strideC = 0
@@ -182,7 +182,7 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
 
     return problemDefinition
 
-    
+
 def GenConvolutionBackwardWeights(input,weights,convolution,output):
 
     input_n = input["in_n"]
@@ -207,7 +207,7 @@ def GenConvolutionBackwardWeights(input,weights,convolution,output):
     output_h = max(1, (input_h - (1 + dilation_h * (filter_h - 1)) + 2 * pad_h) / u + 1)
     output_w = max(1, (input_w - (1 + dilation_w * (filter_w - 1)) + 2 * pad_w) / v + 1)
 
-    m = filter_k 
+    m = filter_k
     n = input_c * filter_h * filter_w
     k = output_h * output_w
     lda = k
@@ -288,7 +288,7 @@ def GenConvolutionBackwardDataConv1x1(input,weights,convolution,output):
 
     m = input_c
     n = input_h * input_w
-    k = filter_k 
+    k = filter_k
     lda = m
     ldb = n
     ldc = n
@@ -348,7 +348,7 @@ def GenConvolutionBackwardData(input,weights,convolution,output):
 
 
 # found in MIOpen CreateGemmDescriptorConvBwdData call
-    m = input_c * filter_h * filter_w 
+    m = input_c * filter_h * filter_w
     n =  output_h * output_w
     k = filter_k
     lda = m
@@ -402,7 +402,7 @@ def GenConvolutionBackwardDataDefinition(input,weights,convolution,output):
         problemDefinition = GenConvolutionBackwardData(input,weights,convolution,output)
 
     return problemDefinition
-        
+
 def GenConvolutionForwardCNHWFwd(input,weights,convolution,output):
 
     input_n = input["in_n"]
@@ -549,7 +549,7 @@ def GenConvolutionForward(input,weights,convolution,output):
 
 
 # cound in MIOpen CreateGemmDescriptorConvFwd call
-    m = filter_k 
+    m = filter_k
     n =  output_h * output_w
     k = input_c * filter_h * filter_w
     lda = k
@@ -638,13 +638,13 @@ def ExtractProblemDefinitions(parsedArgs):
     # found in conv_driver.cpp ConvDriver<Tgpu, Tref, Tfile>::GetInputTensorLengthsFromCmdLine()
 
     input = {"in_n":in_n, "in_c":in_c, "in_h":in_h, "in_w":in_w}
-    
+
     # output tensor definition
     # found in convolution.cpp ConvolutionDescriptor::GetForwardOutputTensor
     # wei_k = wei_n or first dimention of weight tensor
     output = {"in_n":in_n, "wei_k":wei_n}
 
-    return input,weights,convolution,output 
+    return input,weights,convolution,output
 
 def mapTypeName(inputName):
     outputName = None
@@ -672,14 +672,14 @@ def getDataTypeDef(problemDefinition):
     return computeType
 
 def UpdateOutputMapping(mapper, problemDefinition):
-    # "f","transposeA","transposeB" 
+    # "f","transposeA","transposeB"
     f = problemDefinition["f"]
     transposeA = problemDefinition["transposeA"]
     transposeB = problemDefinition["transposeB"]
     t = getDataTypeDef(problemDefinition)
-  
-    key = (f,transposeA,transposeB,t) 
-    
+
+    key = (f,transposeA,transposeB,t)
+
     lineDefinition = None
 
     if key in mapper:
@@ -759,20 +759,20 @@ def GetTensileSize(problemDefinition):
     m = problemDefinition["m"]
     n = problemDefinition["n"]
     batch = problemDefinition["batch"]
-    k = problemDefinition["k"] 
+    k = problemDefinition["k"]
 
     size = "          - Exact: [ %s , %s , %s, %s ]" % (m,n,batch,k)
     return size
 
 def BuildRocBLASBenchmarkCall(problemDefinition):
-    
+
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
     rocblas_call = "./rocblas-bench"
     for key in keys:
         param = key.replace("-","")
-        value = problemDefinition[param] 
+        value = problemDefinition[param]
         rocblas_call += " %s %s" % (key,value)
 
     return rocblas_call
@@ -790,7 +790,7 @@ def RunMain():
         argParser.add_argument("network_name", help="neural network name")
 
     argParser.add_argument("output_path", help="the output path")
-    
+
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
 
@@ -813,12 +813,12 @@ def RunMain():
     for key in keys:
         lineDefinitions = problemMapper[key]
         sizePath = os.path.join(outputPath, "sizes")
-        OutputSizes(sizePath, namePart, key, lineDefinitions) 
+        OutputSizes(sizePath, namePart, key, lineDefinitions)
         scriptPath = os.path.join(outputPath, "scripts")
         if len(sys.argv) <= 5:
             OutputScript(scriptPath, namePart, key, lineDefinitions)
             OutputProblemDefinitions(sizePath, namePart, key, lineDefinitions)
-        else: 
+        else:
             OutputScript(scriptPath, networkName, key, lineDefinitions)
             OutputProblemDefinitions(sizePath, networkName, key, lineDefinitions)
 

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -48,15 +48,15 @@ TEST(UtilsTest, RoundUpToMultiple)
 
 TEST(UtilsTest, IsPrime)
 {
-    EXPECT_EQ(IsPrime(1),  false);
-    EXPECT_EQ(IsPrime(2),  true);
-    EXPECT_EQ(IsPrime(3),  true);
-    EXPECT_EQ(IsPrime(4),  false);
-    EXPECT_EQ(IsPrime(5),  true);
-    EXPECT_EQ(IsPrime(6),  false);
-    EXPECT_EQ(IsPrime(7),  true);
-    EXPECT_EQ(IsPrime(8),  false);
-    EXPECT_EQ(IsPrime(9),  false);
+    EXPECT_EQ(IsPrime(1), false);
+    EXPECT_EQ(IsPrime(2), true);
+    EXPECT_EQ(IsPrime(3), true);
+    EXPECT_EQ(IsPrime(4), false);
+    EXPECT_EQ(IsPrime(5), true);
+    EXPECT_EQ(IsPrime(6), false);
+    EXPECT_EQ(IsPrime(7), true);
+    EXPECT_EQ(IsPrime(8), false);
+    EXPECT_EQ(IsPrime(9), false);
     EXPECT_EQ(IsPrime(10), false);
     EXPECT_EQ(IsPrime(11), true);
     EXPECT_EQ(IsPrime(12), false);
@@ -66,15 +66,15 @@ TEST(UtilsTest, IsPrime)
 
 TEST(UtilsTest, NextPrime)
 {
-    EXPECT_EQ(NextPrime(1),  2);
-    EXPECT_EQ(NextPrime(2),  2);
-    EXPECT_EQ(NextPrime(3),  3);
-    EXPECT_EQ(NextPrime(4),  5);
-    EXPECT_EQ(NextPrime(5),  5);
-    EXPECT_EQ(NextPrime(6),  7);
-    EXPECT_EQ(NextPrime(7),  7);
-    EXPECT_EQ(NextPrime(8),  11);
-    EXPECT_EQ(NextPrime(9),  11);
+    EXPECT_EQ(NextPrime(1), 2);
+    EXPECT_EQ(NextPrime(2), 2);
+    EXPECT_EQ(NextPrime(3), 3);
+    EXPECT_EQ(NextPrime(4), 5);
+    EXPECT_EQ(NextPrime(5), 5);
+    EXPECT_EQ(NextPrime(6), 7);
+    EXPECT_EQ(NextPrime(7), 7);
+    EXPECT_EQ(NextPrime(8), 11);
+    EXPECT_EQ(NextPrime(9), 11);
     EXPECT_EQ(NextPrime(10), 11);
     EXPECT_EQ(NextPrime(11), 11);
     EXPECT_EQ(NextPrime(12), 13);
@@ -83,4 +83,3 @@ TEST(UtilsTest, NextPrime)
 
     EXPECT_EQ(NextPrime(200), 211);
 }
-

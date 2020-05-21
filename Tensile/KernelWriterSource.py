@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -518,13 +518,13 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
     else:
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
-        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
+        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)"
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B);"
       else:
-        kStr += "#define MAC(A,B,DST) DST += A*B" 
+        kStr += "#define MAC(A,B,DST) DST += A*B"
     kStr += self.endLine
 
     if kernel["ProblemType"]["DataType"].isReal():
@@ -2696,7 +2696,7 @@ class KernelWriterSource(KernelWriter):
           kStr += " + %s" % base
         kStr += ";" + self.endLine
       else:
-        # later iterations extract dimension from previous using mod, 
+        # later iterations extract dimension from previous using mod,
         # then div to remove the extracted bits for next iteration
         #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
         if kernel["MagicDivAlg"]:
@@ -3144,7 +3144,7 @@ class KernelWriterSource(KernelWriter):
     return self.indent + self.syncStr + " //" + comment + self.endLine
 
   ##############################################################################
-  # MapAcctoArch 
+  # MapAcctoArch
   ##############################################################################
   def MapAcctoArchRegs(self, kernel, option):
     return ""

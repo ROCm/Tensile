@@ -13,7 +13,7 @@ function extract_sizes() {
   ${EXTRACT_EXE}
 
   pushd ${PEFORMANCE_PATH} > /dev/null
-  chmod +x * 
+  chmod +x *
   popd > /dev/null
 }
 
@@ -28,7 +28,7 @@ function extract_network_sizes() {
   ${EXTRACT_EXE}
 
   pushd ${PEFORMANCE_PATH} > /dev/null
-  chmod +x * 
+  chmod +x *
   popd > /dev/null
 }
 
@@ -48,12 +48,12 @@ function provision_tensile() {
   local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"
 
   local TENSILE_PATH=Tensile
-  
+
   if [ -n "${ID}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${ID}"
     PROVISION_TENSILE="${PROVISION_TENSILE} -i ${ID}"
   fi
-  
+
   if [ -n "${TAG}" ]; then
     TENSILE_PATH="${TENSILE_PATH}-${TAG}"
   else
@@ -103,7 +103,7 @@ while true; do
     --rocblas-fork)       ROCBLAS_FORK="$2"; shift 2;;
     -b | --branch  )      TENSILE_BRANCH="$2"; shift 2;;
     -c | --commit )       COMMIT="$2"; shift 2;;
-    -o | --output )       OUTPUT_FILE="$2"; shift 2;; 
+    -o | --output )       OUTPUT_FILE="$2"; shift 2;;
     -y | --type )         CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )      LIBRARY="$2"; shift 2;;
     -a | --tile-aware )   TILE_AWARE=true; shift;;

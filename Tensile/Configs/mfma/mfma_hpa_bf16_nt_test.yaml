@@ -72,7 +72,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 64, 256, 1, 8 ]
-          
+
 ########################################
 LibraryLogic:
     ScheduleName: "arcturus"

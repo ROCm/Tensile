@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -28,45 +28,49 @@
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/Singleton.hpp>
+#include <Tensile/Tensile.hpp>
 
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \ingroup Embedding
-     * 
-     * @brief Interface for retrieving a SolutionLibrary object which as been
-     * stored in the executable via EmbedData/EmbeddedData.
-     */
+ * \ingroup Tensile
+ * \ingroup Embedding
+ *
+ * @brief Interface for retrieving a SolutionLibrary object which as been
+ * stored in the executable via EmbedData/EmbeddedData.
+ */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    class TENSILE_API EmbeddedLibrary: public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
+    class TENSILE_API EmbeddedLibrary : public LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>
     {
     public:
         using Singleton = LazySingleton<EmbeddedLibrary<MyProblem, MySolution>>;
 
         /**
-         * Constructs and returns a new SolutionLibrary instance from the static data.
-         */
+   * Constructs and returns a new SolutionLibrary instance from the static data.
+   */
         static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> NewLibrary();
 
         /**
-         * Constructs and returns a new SolutionLibrary instance from the static data for the specified key.
-         */
-        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> NewLibrary(std::string const& key);
+   * Constructs and returns a new SolutionLibrary instance from the static data
+   * for the specified key.
+   */
+        static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+            NewLibrary(std::string const& key);
 
         /**
-         * Constructs (if necessary) and returns the shared SolutionLibrary for this problem type.
-         */
+   * Constructs (if necessary) and returns the shared SolutionLibrary for this
+   * problem type.
+   */
         static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Get()
         {
             return Get("");
         }
 
         /**
-         * Constructs (if necessary) and returns the shared SolutionLibrary for this problem type and key.
-         */
+   * Constructs (if necessary) and returns the shared SolutionLibrary for this
+   * problem type and key.
+   */
         static std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> Get(std::string const& key)
         {
             return Singleton::Instance().Library(key);
@@ -76,7 +80,7 @@ namespace Tensile
         {
             std::lock_guard<std::mutex> lock(m_mutex);
 
-            auto & ptr = m_libraries[key];
+            auto& ptr = m_libraries[key];
 
             if(!ptr)
                 ptr = NewLibrary(key);
@@ -89,10 +93,10 @@ namespace Tensile
         EmbeddedLibrary() = default;
 
         std::mutex m_mutex;
-        std::unordered_map<std::string,
-                           std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>> m_libraries;
+        std::unordered_map<std::string, std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>>
+            m_libraries;
     };
 
-}
+} // namespace Tensile
 
 #endif
