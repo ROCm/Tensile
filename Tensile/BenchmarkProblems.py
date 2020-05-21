@@ -569,7 +569,6 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
     kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
 
-  clientName = "TensileBenchmark_%s" % stepName
   writeCMake(outputPath, solutionFiles, sourceKernelFiles, filesToCopy)
 
   for fileName in filesToCopy:
