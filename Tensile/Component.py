@@ -19,6 +19,50 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+"""
+A component is a piece of code that is chosen among compatible components based on the current hardware capabilities and/or kernel options.
+
+The class hierarchy is automatically used to detect which type of component a given class belongs to. For example, all the MAC components should inherit from the MAC class.
+
+Most components should be able to get away with defining their requirements via the class properties (e.g.):
+
+```python
+    class FMA_NonPacked(MAC):
+        asmCaps = {"v_fma_f16": True,
+                "v_pk_fma_f16": False}
+        #archCaps = {}
+        kernel = {"ProblemType": {"DataType": DataType(DataType.half),
+                                "HighPrecisionAccumulate": False}}
+```
+
+Values in the dictionaries can be lambdas for more advanced logic:
+
+```python
+    class FMA_HPA_MAD_MIX(MAC):
+        asmCaps = {"v_mad_mix_f32": True}
+        #archCaps = {}
+        kernel = {"ProblemType": {"DataType": DataType(DataType.half),
+                                "HighPrecisionAccumulate": True},
+                "LocalDotLayout": lambda ldl: ldl > 1
+                }
+```
+
+Any more advanced logic should be implemented by overriding the matches() method.
+
+Components are found by calling `Component.<subtype>.find(writer)` where `writer` is a `KernelWriter` object:
+
+```python
+    component = Component.MAC.find(self)
+    if component:
+      return component(self, m, innerUnroll)
+
+    # No component was found, fall back to existing code...
+```
+
+With this fallback mechanism, components can be added one at a time, without disrupting existing code.
+
+Components can be categorized in different files in the `Tensile/Components` directory.  Each file should be listed in the `__all__` member of `Tensile/Components/__init__.py`.
+"""
 
 import abc
 import collections
@@ -127,6 +171,9 @@ class Component(metaclass=ComponentMeta):
         return "// {}\n".format('.'.join(self.componentPath()))
 
 class MAC(Component):
+    """
+    Multiply-accumulate block.
+    """
     pass
 
 # Importing here allows auto-registry of components in the Components directory.
