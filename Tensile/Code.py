@@ -277,12 +277,14 @@ class GlobalReadInst (Inst):
 
 # uniq type that can be used in Module.countType
 class LocalWriteInst (Inst):
-  def __init__(self,*args):
+  def __init__(self,issuelatency,*args):
+    self.IssueLatency = issuelatency
     Inst.__init__(self,*args)
 
 # uniq type that can be used in Module.countType
 class LocalReadInst (Inst):
-  def __init__(self,*args):
+  def __init__(self,issuelatency,*args):
+    self.IssueLatency = issuelatency
     Inst.__init__(self,*args)
 
 ################################################################################

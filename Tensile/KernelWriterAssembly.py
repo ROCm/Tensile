@@ -1945,21 +1945,27 @@ class KernelWriterAssembly(KernelWriter):
     # reads Per Iteration
     ########################################
     if kernel["EnableMatrixInstruction"]:
-      numReadPerVectorA = tPA["bpe"] * self.lrvw // int(tPA["localReadInstruction"].blockWidth * 4)
-      numReadPerVectorB = tPB["bpe"] * self.lrvw // int(tPB["localReadInstruction"].blockWidth * 4)
-      numA = kernel["InnerUnroll"]*(kernel["MIWaveTile"][0] * numReadPerVectorA) // tPA["localReadInstruction"].numOffsets
-      numB = kernel["InnerUnroll"]*(kernel["MIWaveTile"][1] * numReadPerVectorB) // tPB["localReadInstruction"].numOffsets
+      self.numReadPerVectorA = tPA["bpe"] * self.lrvw // int(tPA["localReadInstruction"].blockWidth * 4)
+      self.numReadPerVectorB = tPB["bpe"] * self.lrvw // int(tPB["localReadInstruction"].blockWidth * 4)
+      numA = kernel["InnerUnroll"]*(kernel["MIWaveTile"][0] * self.numReadPerVectorA) // tPA["localReadInstruction"].numOffsets
+      numB = kernel["InnerUnroll"]*(kernel["MIWaveTile"][1] * self.numReadPerVectorB) // tPB["localReadInstruction"].numOffsets
       # wider localread has 2 mode
       # 1. using larger IU to coalesced localread, only half of local reads in 1 iteration
       # 2. using larger PLR to read more iterations, same number local reads in 1 iteration
       if kernel["InnerUnroll"] >= self.numReadsIterCoalesced:
-        numA /= self.numReadsIterCoalesced
-        numB /= self.numReadsIterCoalesced
+        numA //= self.numReadsIterCoalesced
+        numB //= self.numReadsIterCoalesced
     else:
       numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) // tPB["localReadInstruction"].numOffsets
       numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // kernel["VectorWidth"]) // tPA["localReadInstruction"].numOffsets
     self.numReadsPerIterA = numA
     self.numReadsPerIterB = numB
+
+    if kernel["EnableMatrixInstruction"]:
+      self.miLatency = kernel["MatrixInstM"] // 2 - 2
+      # give 1 quad-cycle buffer to prevend bubble from sync
+      miLatencyBuffer = 1
+      self.miLatency -= miLatencyBuffer
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \
@@ -7012,6 +7018,7 @@ class KernelWriterAssembly(KernelWriter):
               if tP["glvw"]==1 and instructionCnt%2==1:
                 highBits = True
             localWriteCode.addCode(Code.LocalWriteInst( \
+                instruction.IssueLatency, \
                 tP["localWriteInstruction"].toCodeInst(paramTuple, \
                 nonTemporal, highBits),comment))
 
@@ -7222,7 +7229,7 @@ class KernelWriterAssembly(KernelWriter):
         paramTuple = tuple(paramList)
         comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
             %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
-        localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple), comment))
+        localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple), comment))
         valuIdx += blockWidth
 
         # TODO - handle vector-load
@@ -7335,7 +7342,7 @@ class KernelWriterAssembly(KernelWriter):
         comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u" \
             % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGropuShape[tIdx], vIdx, rIdx, oIdx, bufferIdx, iui)
 
-        localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple, 0, highBits), comment))
+        localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple, 0, highBits), comment))
 
         # TODO - handle vector-load
         tmpSgpr = self.getTmpSgpr(1).idx()

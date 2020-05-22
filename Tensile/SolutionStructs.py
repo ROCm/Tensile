@@ -2237,6 +2237,11 @@ class Solution:
     if "LoopUnroll" in state:
       state["LoopIters"] = state["LoopUnroll"]
 
+    if state["ScheduleIterAlg"] == 2:
+      state["InnerUnroll"] = state["DepthU"] // state["MatrixInstK"]
+      state["PrefetchLocalRead"] = 1
+      state["ExpandPointerSwap"] = 1
+
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
@@ -2863,7 +2868,8 @@ class Solution:
 
 
     if state["1LDSBuffer"] == -1:
-      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"] or \
+          state["ScheduleIterAlg"] == 2:
         state["1LDSBuffer"] = 1
       else:
         state["1LDSBuffer"] = 0
@@ -2871,8 +2877,8 @@ class Solution:
     if state["1LDSBuffer"]:
       if not state["PrefetchGlobalRead"]:
         reject(state, "PGR=0 already use 1 LDS buffer only")
-      if not state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "(currently) require wider localread to avoid reading and writing same LDS buffer at same time")
+      if not state["ScheduleIterAlg"] == 2 and not state["ScheduleIterAlg"] == 3:
+        reject(state, "1LDSBuffer only support SIA2 or SIA3")
       state["LdsOffsetB"] = ldsNumElementsAlignedA
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
@@ -2980,10 +2986,10 @@ class Solution:
           % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"],\
           (state["PrefetchLocalRead"]%state["LoopIters"]),state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()))
 
-    # reject conditions with lower performance
-    if state["ScheduleIterAlg"] == 2 and \
-    (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
-      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
+    # # reject conditions with lower performance
+    # if state["ScheduleIterAlg"] == 2 and \
+    # (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
+    #   reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
 
     if state["TransposeLDS"] == 1:
       if not state["EnableMatrixInstruction"]:
