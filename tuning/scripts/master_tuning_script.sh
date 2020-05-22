@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 HELP_STR="
-    Pre-Requisites: >=Anaconda 3.6 (or install python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils python3-venv, wheel, setuptools, pyyaml, matplotlib, pandas, and numpy)
+    Pre-Requisites: >=Anaconda 3.6 (or install python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
+                                    python3-venv, wheel, setuptools, pyyaml, matplotlib, pandas, and numpy)
                     >=llvm-6.0-dev, >=cmake3.5, zlib1g-dev
                     <=rocm3.0 stack for hcc, >=rocm3.3 stack for hip-clang
     About
@@ -33,6 +34,8 @@ HELP_STR="
     [-b|--branch]       Optional. Specify which Tensile branch to use (default=master)
     [--rocblas-branch]  Optional. Specify which rocBLAS branch to use (default=develop)
     [-p|--public]       Optional. Specify whether you want to use rocBLAS public repo (default=false)
+    [--one-type]        Optional. Only tune one matrix type (nn, nt, or tn)
+    [--omit-type]       Optional. Ignore one matrix type when tuning (nn, nt, or tn)
 "
 HELP=false
 COUNT=false
@@ -50,7 +53,7 @@ ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=master
 PUBLIC=true
 
-OPTS=`getopt -o hg:z:y:o:f:rmctu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -75,6 +78,8 @@ while true; do
         --rocblas-branch )    ROCBLAS_BRANCH="$2"; shift 2;;
         -p | --public )       PUBLIC=true; shift ;;
         --number )            NUM="$2"; shift 2;;
+        --one-type )          TUNE_TYPE="$2"; shift 2;;
+        --omit-type )         OMIT_TYPE="$2"; shift 2;;
         -- ) shift; break ;;
         * ) break ;;
     esac
@@ -139,26 +144,10 @@ collect_uniques () {
     popd
 }
 
-run_tune_all_scripts () {
+run_tune_nn () {
     NN=build-${LIBRARY}-${DATA_TYPE}-nn-${OUTPUT_DIR}
-    NT=build-${LIBRARY}-${DATA_TYPE}-nt-${OUTPUT_DIR}
-    TN=build-${LIBRARY}-${DATA_TYPE}-tn-${OUTPUT_DIR}
-
     mkdir ${NN}
-    mkdir ${NT}
-    mkdir ${TN}
     cp ../configs/*nn*.yaml ${NN}
-    cp ../configs/*nt*.yaml ${NT}
-    cp ../configs/*tn*.yaml ${TN}
-
-    echo "#!/bin/sh" > tune-all.sh
-    echo "for dir in ${NN} ${NT} ${TN}" >> tune-all.sh
-    echo "do" >> tune-all.sh
-    echo "  cd \${dir}" >> tune-all.sh
-    echo "  ./tune.sh > tune-errs 2>&1" >> tune-all.sh
-    echo "  cd .." >> tune-all.sh
-    echo "done" >> tune-all.sh
-    chmod 755 tune-all.sh
 
     pushd ${NN}
     echo "#!/bin/sh" > tune.sh
@@ -166,7 +155,16 @@ run_tune_all_scripts () {
     echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ 2>&1 | tee make.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
+    ./tune.sh
     popd
+
+    cp ${NN}/3_LibraryLogic/* exact/
+}
+
+run_tune_nt () {
+    NT=build-${LIBRARY}-${DATA_TYPE}-nt-${OUTPUT_DIR}
+    mkdir ${NT}
+    cp ../configs/*nt*.yaml ${NT}
     
     pushd ${NT}
     echo "#!/bin/sh" > tune.sh
@@ -174,7 +172,16 @@ run_tune_all_scripts () {
     echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ 2>&1 | tee make.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
+    ./tune.sh
     popd
+
+    cp ${NT}/3_LibraryLogic/* exact/
+}
+
+run_tune_tn () {
+    TN=build-${LIBRARY}-${DATA_TYPE}-tn-${OUTPUT_DIR}
+    mkdir ${TN}
+    cp ../configs/*tn*.yaml ${TN}
 
     pushd ${TN}
     echo "#!/bin/sh" > tune.sh
@@ -182,14 +189,37 @@ run_tune_all_scripts () {
     echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ 2>&1 | tee make.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
+    ./tune.sh
     popd
 
-    ./tune-all.sh
-    
-    mkdir exact
-    cp ${NN}/3_LibraryLogic/* exact/
-    cp ${NT}/3_LibraryLogic/* exact/
     cp ${TN}/3_LibraryLogic/* exact/
+}
+
+run_tune_all_scripts () {
+    mkdir exact
+    if [[ "${TUNE_TYPE}" == nn ]]; then
+        run_tune_nn
+    elif [[ "${TUNE_TYPE}" == nt ]]; then
+        run_tune_nt
+    elif [[ "${TUNE_TYPE}" == tn ]]; then
+        run_tune_tn
+    elif [[ "${OMIT_TYPE}" == nn ]]; then
+        run_tune_nt
+        run_tune_tn
+    elif [[ "${OMIT_TYPE}" == nn ]]; then
+        run_tune_nt
+        run_tune_tn
+    elif [[ "${OMIT_TYPE}" == nt ]]; then
+        run_tune_nn
+        run_tune_tn
+    elif [[ "${OMIT_TYPE}" == tn ]]; then
+        run_tune_nn
+        run_tune_nt
+    else
+        run_tune_nn
+        run_tune_nt
+        run_tune_tn
+    fi
 }
 
 make_packages()
