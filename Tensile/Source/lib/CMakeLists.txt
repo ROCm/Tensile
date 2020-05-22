@@ -38,6 +38,7 @@ set(tensile_sources  ${tensile_sources}
     source/Debug.cpp
     source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
+    source/MessagePack.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
@@ -68,6 +69,9 @@ add_library (TensileHost STATIC ${tensile_sources})
 
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+find_package(msgpack)
+target_link_libraries(TensileHost PUBLIC msgpackc)
+
 if(TENSILE_USE_LLVM)
     target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
     find_library(LLVMObjectYAML_LIBRARY
@@ -93,6 +97,10 @@ if(TENSILE_USE_HIP)
     #add_subdirectory(client)
     target_link_libraries( TensileHost PUBLIC ${HSA_LIBRARIES} hip::device )
 
+endif()
+
+if(Tensile_YAML)
+    target_compile_definitions(TensileHost PUBLIC TENSILE_YAML)
 endif()
 
 if(false)
