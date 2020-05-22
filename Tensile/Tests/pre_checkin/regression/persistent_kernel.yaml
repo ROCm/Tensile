@@ -1,0 +1,35 @@
+GlobalParameters:
+  NumElementsToValidate: 16384
+  DataInitTypeBeta: 2 # the bug is in the non-OptNLL code path of persitent kernel
+  NewClient: 2
+
+BenchmarkProblems:
+  - # sgemm NN
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Assembly
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - LoopTail: [True]
+        - EdgeType: ["ShiftPtr"]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - GlobalSplitU: [1]
+        - ThreadTile:
+          - [ 4, 4 ] 
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - DepthU: [8]
+        - PersistentKernel: [1,2]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1872, 2000, 1, 128, 2000, 2000, 2000, 2000] # make sure each WG can run at least 2 MTs 

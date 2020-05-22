@@ -602,6 +602,16 @@ validParameters = {
     # If empty, do not use these instructions
     "MatrixInstruction":          validMatrixInstructions,
 
+    # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
+    # Valid only for MatrixInstruction enabled kernels, which by default overlaps
+    # C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
+    # |<----------------------- valuC ----------------------->|
+    # |<--- valuA/B --->|<-- R/W pointers -->|xxx|<- Spares ->|
+    #                                          ^        ^
+    #         (Reserved by persistent kernels) ^        ^
+    #                       (Utilized by register pool) ^
+    "DisableVgprOverlapping":     [False, True],
+
     # If positive, each switch includes switches <= the specified switch.
     # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
     # If negative, setting is precise and will disable only the specified code piece.
@@ -887,6 +897,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"MatrixInstruction":         [ [] ] },
+    {"DisableVgprOverlapping":    [ False ] },
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },

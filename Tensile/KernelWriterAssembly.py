@@ -25,7 +25,6 @@ from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
 
-from warnings import warn
 from math import log, ceil, trunc, modf
 from copy import deepcopy
 import collections
@@ -149,17 +148,18 @@ class RegisterPool:
     oldSize = len(self.pool)
     if newSize > oldSize:
       for i in range(0, newSize-oldSize):
-        self.pool.addInst(self.Register(self.statusUnAvailable,tag))
+        self.pool.append(self.Register(self.statusUnAvailable,tag))
     # mark as available
     for i in range(start, start+size):
       if self.pool[i].status == self.statusUnAvailable:
         self.pool[i].status = self.statusAvailable
+        self.pool[i].tag = tag
       elif self.pool[i].status == self.statusAvailable:
-        warn("RegisterPool::add(%u,%u) pool[%u] already available" % (start, size, i))
+        printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already available" % (start, size, i, self.pool[i].tag))
       elif self.pool[i].status == self.statusInUse:
-        warn("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i))
+        printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already in use" % (start, size, i, self.pool[i].tag))
       else:
-        raise RuntimeError("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
+        raise RuntimeError("RegisterPool::add(%u,%u) pool[%u](%s) = %s" % (start, size, i, self.pool[i].tag, self.pool[i].status))
     if self.printRP:
       print(self.state())
   ########################################
@@ -178,11 +178,11 @@ class RegisterPool:
       if  self.pool[i].status == self.statusAvailable:
         self.pool[i].status = self.statusUnAvailable
       elif self.pool[i].status == self.statusUnAvailable:
-        printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i))
+        printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) already unavailable" % (start, size, i, self.pool[i].tag))
       elif  self.pool[i].status == self.statusInUse:
         printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) still in use" % (start, size, i, self.pool[i].tag))
       else:
-        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
+        printExit("RegisterPool::remove(%u,%u) pool[%u](%s) = %s" % (start, size, i, self.pool[i].tag, self.pool[i].status))
 
   ########################################
   # Check Out
@@ -531,6 +531,7 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
     self.inTailLoop = False
+    self.overlapVgprC = False
 
     self.vgprOccupancy = [0]*(256+1)
     for i in range(0,   24+1): self.vgprOccupancy[i] = 10
@@ -1387,6 +1388,17 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx = 0
 
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
+    if kernel["MatrixInstruction"] and not kernel["DisableVgprOverlapping"]:
+      # MI kernels can overlap C-tile w/ AB-tile up until writeback. Illustrated below:
+      # |<-------------- valuC -------------->|
+      # |------------|-----------|xx|---------|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      # TODO a bit tricky. Better to manage all GPRs solely through RegisterPool
+      self.overlapVgprC = True
+      vgprIdx = 0
 
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
 
@@ -1496,8 +1508,9 @@ class KernelWriterAssembly(KernelWriter):
     #  minVgprTmp += 2
     #vgprIdx += minVgprTmp
     #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
+    self.startVgprReuse = vgprIdx # for register reuse; see flag 'overlapVgprC'
 
-    self.totalVgprs = vgprIdx
+    self.totalVgprs = max(vgprIdx, self.numVgprValuC)
     if self.totalVgprs < kernel["MinVgprNumber"] or self.totalVgprs > kernel["MaxVgprNumber"]:
       raise RuntimeError("Generating asm kernel error: total vgpr: %u not in [%u, %u].\n" % (self.totalVgprs, kernel["MinVgprNumber"], kernel["MaxVgprNumber"]))
 
@@ -1828,10 +1841,23 @@ class KernelWriterAssembly(KernelWriter):
 
     # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
-    self.vgprPool.add(self.startVgprValuC, \
-        self.numVgprValuC, "ValuC-Block") # Add as available
     self.vgprPool.add(self.startVgprValuA, \
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
+
+    if self.overlapVgprC:
+      # |<-------------- valuC -------------->|
+      # |oooooooooooo|xxxxxxxxxxx|xx|ooooooooo|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      # Add to vgprPool the 4th segment of the C-tile shown above.
+      # TODO possible to add 2nd segment (r/w pointers) when prefetching is off.
+      self.vgprPool.add(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), \
+        "unused c-tile vgprs")
+    else:
+      self.vgprPool.add(self.startVgprValuC, \
+        self.numVgprValuC, "ValuC-Block") # Add as available
     #print self.vgprPool.state()
 
     self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, defaultPreventOverflow=False, printRP=0)
@@ -2951,6 +2977,8 @@ class KernelWriterAssembly(KernelWriter):
     # VGPR Macros
     ########################################
     kStr += self.comment3("VGPR Assignments")
+    kStr += self.comment1("ValuC range: %u-%u, %s"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC-1, \
+      "overlapValuC enabled" if self.overlapVgprC else ""))
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
@@ -5333,16 +5361,23 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initC(self, kernel):
     kStr = ""
-    if kernel["EnableMatrixInstruction"]:
-      pass # we can delay initializing them until before the writeback, where
-           # alpha/beta operations and packing are about to be performed
+    if self.overlapVgprC:
+      # |<-------------- valuC -------------->|
+      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|ooooooooo|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      # AB-tiles are removed from the vgprPool in summation loop
+      kStr += self.comment("initC: remove AB-tile %u-%u from pool"%(self.startVgprValuA, self.lastValuAB-self.startVgprValuA))
+      self.vgprPool.remove(self.startVgprValuA, self.lastValuAB-self.startVgprValuA, "remove AB tile")
     else:
       # remove the C regs from the pool since we are about to write them here:
       kStr += self.comment("initC: remove C-tile %u-%u from pool"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC))
       self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
-
-    self.vgprPool.remove(self.startVgprValuA, \
-        self.lastValuAB - self.startVgprValuA, "ValuAB")
+      kStr += self.comment("initC: remove AB-tile %u-%u from pool"%(self.startVgprValuA, self.lastValuAB))
+      self.vgprPool.remove(self.startVgprValuA, \
+          self.lastValuAB - self.startVgprValuA, "ValuAB")
 
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
@@ -6010,11 +6045,32 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += "%s:\n" % self.getNamedLabel("Summation_End")
 
-    kStr += self.comment1("endSummation: add vgpr %u...%u to pool" % \
-            (self.startVgprValuA, self.lastVgprForReads))
+    if self.overlapVgprC:
+      # After summation loop, valuC is due for Acc->Arch read and is thus locked out.
+      # if valuC includes lastVgprForReads, then there's nothing to do here
+      # (Note: the last remaining part in valuC will be removed in MapAcctoArchRegs())
+      # |<-------------- valuC -------------->|
+      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|ooooooooo|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      # if valuC does not include all of lastVgprForReads, we can reuse the 
+      # non-overlapped part of lastVgprForReads
+      # |<-------------- valuC -------------->|
+      # |xxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxx|oooooo|xx|
+      #            lastValuAB ^     lastValuC ^      ^  ^
+      #                             lastVgprForReads ^  ^
+      #                                  startVgprReuse ^
+      vbegin = self.numVgprValuC
+      vsize = max(0, self.lastVgprForReads-self.numVgprValuC)
+    else: 
+      vbegin = self.startVgprValuA
+      vsize = self.lastVgprForReads - self.startVgprValuA
 
-    self.vgprPool.add(self.startVgprValuA, \
-        self.lastVgprForReads - self.startVgprValuA, "endSummation")
+    self.vgprPool.add(vbegin, vsize, "endSummation")
+    kStr += self.comment1("endSummation: add vgpr [%u...%u) to pool" % \
+            (vbegin, vbegin+vsize))
 
     lastRegTag=None
     for i in range(self.lastPostLoopSgpr, self.sgprPool.size()):
@@ -6364,6 +6420,9 @@ class KernelWriterAssembly(KernelWriter):
       # we need these to do the address calcs for the stores, etc
       # save the vgprPool for generating the normal path.
       self.savedVgprPool = deepcopy(self.vgprPool)
+
+      if self.overlapVgprC:
+        return kStr # exit early since they are already in the pool
 
       added = [] # track registers added to pool
       if kernel["PrefetchGlobalRead"]:
@@ -11383,8 +11442,17 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment("Mapping of Acc register -> C Vgpr register")
 
     # remove the C regs from the pool since we are about to write them here:
-    kStr += self.comment("remove C-tile %u-%u from pool"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC))
-    self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
+    # lastValuAB, lastVgprForReads have already been removed prior to hitting this function
+    # we are removing the last remainder (4th segment) of the valuC from register pool
+    if self.overlapVgprC:
+      # |<-------------- valuC -------------->|
+      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|xxxxxxxxx|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      kStr += self.comment("remove the rest of C-tile %u-%u from pool"%(self.startVgprReuse, self.startVgprValuC+self.numVgprValuC))
+      self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
 
     if kernel["MatrixInstM"] == 4:
       for i in range(0, kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]):
