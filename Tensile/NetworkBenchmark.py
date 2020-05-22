@@ -75,10 +75,13 @@ def ParseNetworkConfig(network, problemSizes):
                                 for exact in data[problem]["ProblemSizes"]["Train"]:
                                     for items in exact.values():
                                         count = items[0]["count"]
-                                        size = items[1]["size"]
+                                        size = str(items[1]["size"])
+                                        replaceChars = '[ ]'
+                                        for char in replaceChars:
+                                            size = size.replace(char,'')
                                         problemSizes[size] = count
                                     
-def RunTensileClient(client, kernelTimes, counts, libraryFile, architecture):
+def RunTensileClient(client, kernelTimes, counts, libraryFile, architecture, source="true"):
     fileNum = 1
     splitLibraryFile = libraryFile.split('.')
     splitLibraryFile.append(splitLibraryFile[0].replace('TensileLibrary',''))
@@ -89,21 +92,22 @@ def RunTensileClient(client, kernelTimes, counts, libraryFile, architecture):
             contraction = convertToProblemIdentifier(str(size[1]))
             dataType = convertToDataType(str(size[2]))
             hpa = "True" if dataType == "Half" else "False"
-        elif len(size) == 4:
-            replaceChars = '( )'
-            strSize = str(size)
-            for char in replaceChars:
-                strSize = strSize.replace(char,'')
-            args = [client,"--library-file="+libraryFile,"--code-object="+splitLibraryFile[2]+"Kernels.so-000-"+architecture+".hsaco","--code-object="+splitLibraryFile[0]+"_"+architecture+".co","--results-file="+splitLibraryFile[2]+"../../../Data/00_Final-new.csv","--problem-identifier="+contraction,"--a-type="+dataType,"--b-type="+dataType,"--c-type="+dataType,"--d-type="+dataType,"--alpha-type="+dataType,"--beta-type="+dataType,"--high-precision-accumulate="+hpa,"--best-solution=True","--log-file=bestSolution"+str(fileNum),"--problem-size="+strSize]
+        else:
+            args = [client,"--library-file="+libraryFile,"--code-object="+splitLibraryFile[2]+"Kernels.so-000-"+architecture+".hsaco","--problem-identifier="+contraction,"--a-type="+dataType,"--b-type="+dataType,"--c-type="+dataType,"--d-type="+dataType,"--alpha-type="+dataType,"--beta-type="+dataType,"--high-precision-accumulate="+hpa,"--best-solution=True","--log-file=bestSolution"+str(fileNum),"--problem-size="+size]
+            if source == "true":
+                args.append("--code-object="+splitLibraryFile[0]+"_"+architecture+".co")
             subprocess.check_call(args)
 
 def PrintOutput(counts, kernelTimes):
+    print(counts)
+    print(kernelTimes)
     for size in counts.keys():
         if len(size) == 3:
             print("ProblemType{},".format(counts[size]),end=" ")
             print("Network Name: {0}, ProblemType: {1}, DataType: {2}".format(*size,counts[size]))
         else:
-            print("{}, count: {}, kernel time: {} ms, total time: {} ms\n".format(size, counts[size], kernelTimes[size], counts[size]*kernelTimes[size])) 
+            #print("{}, count: {}, kernel time: {} ms, total time: {} ms\n".format(size, counts[size], kernelTimes[size], counts[size]*kernelTimes[size])) 
+            print("[{}], count: {}, kernel time: {} ms, total time: {} ms\n".format(size, counts[size], 10, counts[size]*10)) 
 
 def NetworkBenchmark():
     userArgs = sys.argv[1:]
@@ -112,18 +116,20 @@ def NetworkBenchmark():
     argParser.add_argument("tensile_library", help="path of TensileLibrary.yaml")
     argParser.add_argument("client_path", help="path of tensile_client", default=os.path.join(globalParameters["WorkingPath"], globalParameters["ClientBuildPath"],"tensile_client"))
     argParser.add_argument("architecture", help="gpu architecture", default="gfx906")
+    argParser.add_argument("source", help="does your library have source kernels?", default="true")
 
     args = argParser.parse_args(userArgs)
     network = args.network_config
     library = args.tensile_library
     client = args.client_path
     gfx = args.architecture
+    src = args.source
     
     counts = dict()
     ParseNetworkConfig(network, counts)
     
     kernelTimes = dict()
-    RunTensileClient(client,kernelTimes,counts,library,gfx)
+    RunTensileClient(client,kernelTimes,counts,library,gfx,src)
 
     PrintOutput(counts,kernelTimes)
 

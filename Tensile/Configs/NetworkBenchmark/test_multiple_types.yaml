@@ -11,10 +11,9 @@ ProblemType:
   Batched: True
   ProblemSizes:
     Train:
-    - Exact: [count: 12, size: !!python/tuple [5504, 5504, 1, 3104]]
-    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+    - Exact: [count: 8, size: [1024, 3072, 1, 3072, 1056, 1056, 3136, 3104]]
     Validate:
-    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+    - Exact: [count: 8, size: [1024, 3072, 1, 3072, 1056, 1056, 3136, 3104]]
 ProblemType2:
   OperationType: GEMM
   DataType: s
@@ -24,10 +23,9 @@ ProblemType2:
   Batched: True
   ProblemSizes:
     Train:
-    - Exact: [count: 16, size: !!python/tuple [5502, 5506, 1, 3100]]
-    - Exact: [count: 4, size: !!python/tuple [2754, 2754, 128, 1554]]
+    - Exact: [count: 16, size: [1024, 1024, 1, 3072, 1056, 1056, 1088, 3072]]
     Validate:
-    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+    - Exact: [count: 16, size: [1024, 1024, 1, 3072, 1056, 1056, 1088, 3072]]
 ProblemType3:
   OperationType: GEMM
   DataType: s
@@ -37,20 +35,19 @@ ProblemType3:
   Batched: True
   ProblemSizes:
     Train:
-    - Exact: [count: 11, size: !!python/tuple [5508, 5508, 1, 3108]]
-    - Exact: [count: 9, size: !!python/tuple [2758, 2758, 256, 1558]]
+    - Exact: [count: 11, size: [30528, 2048, 1, 1024, 30554, 30554, 1088, 1056]]
     Validate:
-    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
-ProblemType4:
-  OperationType: GEMM
-  DataType: h
-  TransposeA: False
-  TransposeB: False
-  UseBeta: True
-  Batched: True
-  ProblemSizes:
-    Train:
-    - Exact: [count: 7, size: !!python/tuple [5518, 5518, 1, 3118]]
-    - Exact: [count: 13, size: !!python/tuple [2768, 2768, 512, 1568]]
-    Validate:
-    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
+    - Exact: [count: 11, size: [30528, 2048, 1, 1024, 30554, 30554, 1088, 1056]]
+#ProblemType4:
+#  OperationType: GEMM
+#  DataType: h
+#  TransposeA: False
+#  TransposeB: False
+#  UseBeta: True
+#  Batched: True
+#  ProblemSizes:
+#    Train:
+#    - Exact: [count: 7, size: !!python/tuple [5518, 5518, 1, 3118]]
+#    - Exact: [count: 13, size: !!python/tuple [2768, 2768, 512, 1568]]
+#    Validate:
+#    - Exact: [count: 8, size: !!python/tuple [2752, 2752, 64, 1552]]
