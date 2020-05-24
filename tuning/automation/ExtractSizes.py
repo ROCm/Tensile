@@ -58,7 +58,7 @@ def GetRocBLASParser():
     lineParser.add_argument("--lda",dest="lda", type=int,default=1)
     lineParser.add_argument("--ldb",dest="ldb", type=int,default=1)
     lineParser.add_argument("--ldc",dest="ldc", type=int,default=1)
-    lineParser.add_argument("--ldd",dest="ldd", type=int,default=1)
+    lineParser.add_argument("--ldd",dest="ldd", type=int,default=0)
     lineParser.add_argument("--stride_a",dest="stride_a", type=int,default=0)
     lineParser.add_argument("--stride_b",dest="stride_b", type=int,default=0)
     lineParser.add_argument("--stride_c",dest="stride_c", type=int,default=0)

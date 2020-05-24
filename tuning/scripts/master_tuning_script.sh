@@ -17,31 +17,33 @@ HELP_STR="
     8) Runs analysis script, providing spreadsheets with performance before and after tuning
 
     usage: $0 
-    [-h|--help]         Display this help message
-    [-o|--output-dir]   Output directory for all tuning-related files
-    [-y|--data-type]    Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
-    [-g|--gpu]          GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
-    [-f|--sclk]         Frequency of sclk in MHz 
-    [-z|--log]          Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
-    [-n|--network]      Optional. String to search for in filenames in log directory
-    [-m|--mfma]         Optional. Use MFMA kernels (default=false)
-    [-r|--rk]           Optional. Use replacement kernels (sgemm only, default=false)
-    [-c|--count]        Optional. Sets all cases where count=1 to count=10 (default=false)
-    [-t|--tile-aware]   Optional. Use tile-aware method. (limited support, default=false) 
-    [--number]          Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
-    [-u|--username]     Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
-    [--rocblas-fork]    Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
-    [-b|--branch]       Optional. Specify which Tensile branch to use (default=master)
-    [--rocblas-branch]  Optional. Specify which rocBLAS branch to use (default=develop)
-    [-p|--public]       Optional. Specify whether you want to use rocBLAS public repo (default=false)
-    [--one-type]        Optional. Only tune one matrix type (nn, nt, or tn)
-    [--omit-type]       Optional. Ignore one matrix type when tuning (nn, nt, or tn)
+    [-h|--help]             Display this help message
+    [-o|--output-dir]       Output directory for all tuning-related files
+    [-y|--data-type]        Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
+    [-g|--gpu]              GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
+    [-f|--sclk]             Frequency of sclk in MHz 
+    [-z|--log]              Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
+    [-n|--network]          Optional. String to search for in filenames in log directory
+    [-m|--mfma]             Optional. Use MFMA kernels (default=false)
+    [-r|--rk]               Optional. Use replacement kernels (sgemm only, default=false)
+    [-c|--count]            Optional. Sets all cases where count=1 to count=10 (default=false)
+    [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false) 
+    [-s|--disable-strides]  Optional. Disable leading dimensions and strides in tuning file (default=false)
+    [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
+    [-u|--username]         Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
+    [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
+    [-b|--branch]           Optional. Specify which Tensile branch to use (default=master)
+    [--rocblas-branch]      Optional. Specify which rocBLAS branch to use (default=develop)
+    [-p|--public]           Optional. Specify whether you want to use rocBLAS public repo (default=false)
+    [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
+    [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
 "
 HELP=false
 COUNT=false
 TILE_AWARE=false
 MFMA=false
 RK=false
+DISABLE_STRIDES=false
 LIBRARY=vega20
 GPU=mi60
 DVAL=2
@@ -53,7 +55,7 @@ ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=master
 PUBLIC=true
 
-OPTS=`getopt -o hg:z:y:o:f:rmctu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -61,25 +63,26 @@ eval set -- "$OPTS"
 
 while true; do
     case "$1" in
-        -h | --help )         HELP=true; shift ;;
-        -g | --gpu )          GPU="$2"; shift 2;;
-        -z | --log )          LOG="$2"; shift 2;;
-        -n | --network )      NETWORK="$2"; shift 2;;
-        -y | --data-type )    DATA_TYPE="$2"; shift 2;;
-        -o | --output-dir )   OUTPUT_DIR="$2"; shift 2;;
-        -f | --sclk )         SCLK="$2"; shift 2;;
-        -r | --rk )           RK=true; shift ;;
-        -m | --mfma )         MFMA=true; shift ;;
-        -c | --count )        COUNT=true; shift ;;
-        -t | --tile-aware )   TILE_AWARE=true; shift ;;
-        -u | --username )     ORGANIZATION="$2"; shift 2;;
-        --rocblas-fork )      ROCBLAS_ORGANIZATION="$2"; shift 2;;
-        -b | --branch )       TENSILE_BRANCH="$2"; shift 2;;
-        --rocblas-branch )    ROCBLAS_BRANCH="$2"; shift 2;;
-        -p | --public )       PUBLIC=true; shift ;;
-        --number )            NUM="$2"; shift 2;;
-        --one-type )          TUNE_TYPE="$2"; shift 2;;
-        --omit-type )         OMIT_TYPE="$2"; shift 2;;
+        -h | --help )               HELP=true; shift ;;
+        -g | --gpu )                GPU="$2"; shift 2;;
+        -z | --log )                LOG="$2"; shift 2;;
+        -n | --network )            NETWORK="$2"; shift 2;;
+        -y | --data-type )          DATA_TYPE="$2"; shift 2;;
+        -o | --output-dir )         OUTPUT_DIR="$2"; shift 2;;
+        -f | --sclk )               SCLK="$2"; shift 2;;
+        -r | --rk )                 RK=true; shift ;;
+        -m | --mfma )               MFMA=true; shift ;;
+        -c | --count )              COUNT=true; shift ;;
+        -t | --tile-aware )         TILE_AWARE=true; shift ;;
+        -s | --disable-strides )    DISABLE_STRIDES=true; shift;;
+        -u | --username )           ORGANIZATION="$2"; shift 2;;
+        --rocblas-fork )            ROCBLAS_ORGANIZATION="$2"; shift 2;;
+        -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
+        --rocblas-branch )          ROCBLAS_BRANCH="$2"; shift 2;;
+        -p | --public )             PUBLIC=true; shift ;;
+        --number )                  NUM="$2"; shift 2;;
+        --one-type )                TUNE_TYPE="$2"; shift 2;;
+        --omit-type )               OMIT_TYPE="$2"; shift 2;;
         -- ) shift; break ;;
         * ) break ;;
     esac
@@ -233,9 +236,9 @@ make_packages()
 mkdir ${OUTPUT_DIR}
 EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
 if [ -z ${NETWORK+foo} ]; then
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES}
 else
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES}
 fi
 
 pushd ${OUTPUT_DIR}
