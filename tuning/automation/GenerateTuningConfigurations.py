@@ -486,7 +486,7 @@ def removeIter(lines):
         noiterlines.append(newline)
     return noiterlines
 
-def OutputScript(problemMapper, scriptPath, namePart):
+def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", problemDef="both"):
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
@@ -494,12 +494,19 @@ def OutputScript(problemMapper, scriptPath, namePart):
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
-    scriptFileNames.append(outputFileName)
-    scriptFileNames.append(outputFileName2)
-    count = 0
+    
+    if problemDef != "gemm": 
+        scriptFileNames.append(outputFileName2)
+    if problemDef != "batch":
+        scriptFileNames.append(outputFileName)
+    count = 0    
 
     for key in keys:
-        lineDefinitions = problemMapper[key]
+        if disableStrides == "true":
+            if "ld" not in key or "stride" not in key: 
+                lineDefinitions = problemMapper[key]
+        else:
+            lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
@@ -550,7 +557,7 @@ def OutputScript(problemMapper, scriptPath, namePart):
 
     generateRunScript(scriptFileNames, scriptPath)
     
-def OutputScript2(problemMapper, scriptPath, namePart):
+def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", problemDef="both"):
 
     keys = list(problemMapper.keys())
 
@@ -559,12 +566,19 @@ def OutputScript2(problemMapper, scriptPath, namePart):
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
-    scriptFileNames.append(outputFileName)
-    scriptFileNames.append(outputFileName2)
+    
+    if problemDef != "gemm": 
+        scriptFileNames.append(outputFileName2)
+    if problemDef != "batch":
+        scriptFileNames.append(outputFileName)
     count = 0    
 
     for key in keys:
-        lineDefinitions = problemMapper[key]
+        if disableStrides == "true":
+            if "ld" not in key or "stride" not in key: 
+                lineDefinitions = problemMapper[key]
+        else:
+            lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
@@ -633,7 +647,7 @@ def RunMain():
 
     argParser = argparse.ArgumentParser()
 
-    if len(sys.argv) <= 9:
+    if len(sys.argv) <= 10:
         argParser.add_argument("input_file_name", help="configuration file path")
     else:
         argParser.add_argument("input_logs", help="the input path for log files")
@@ -646,6 +660,7 @@ def RunMain():
     argParser.add_argument("mfma", help="true/false mfma", default="false")    
     argParser.add_argument("replacement_kernel", help="true/false replacement kernels", default="false")    
     argParser.add_argument("disable_strides", help="true/false disable strides", default="false") 
+    argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both") 
 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
@@ -655,8 +670,9 @@ def RunMain():
     mfma = args.mfma
     rk = args.replacement_kernel
     disableStrides = args.disable_strides
+    problemDefinition = args.problem_definition
 
-    if len(sys.argv) <= 9:
+    if len(sys.argv) <= 10:
         inputFileName = args.input_file_name
         inputFileBaseName = os.path.basename(inputFileName)
         namePart, _ = os.path.splitext(inputFileBaseName)
@@ -665,7 +681,7 @@ def RunMain():
         networkName = args.network_name
         allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    if len(sys.argv) <= 9:
+    if len(sys.argv) <= 10:
         problemMapper = ProcessFile(inputFileName)
     else:
         problemMapper = ProcessFiles(allLogs)
@@ -685,13 +701,13 @@ def RunMain():
 
     OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides)
 
-    if len(sys.argv) <= 9:
-        OutputScript(problemMapper, scriptPath, namePart)
-        OutputScript2(problemMapper, scriptPath2, namePart+'2')
+    if len(sys.argv) <= 10:
+        OutputScript(problemMapper, scriptPath, namePart, disableStrides, problemDefinition)
+        OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, problemDefinition)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
-        OutputScript(problemMapper, scriptPath, networkName)
-        OutputScript2(problemMapper, scriptPath2, networkName+'2')
+        OutputScript(problemMapper, scriptPath, networkName, disableStrides, problemDefinition)
+        OutputScript2(problemMapper, scriptPath2, networkName+'2', disableStrides, problemDefinition)
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":

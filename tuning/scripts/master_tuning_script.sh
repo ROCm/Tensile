@@ -37,6 +37,7 @@ HELP_STR="
     [-p|--public]           Optional. Specify whether you want to use rocBLAS public repo (default=false)
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
     [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
+    [--problem-definition]  Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
 "
 HELP=false
 COUNT=false
@@ -49,13 +50,14 @@ GPU=mi60
 DVAL=2
 NUM=1
 DATA_TYPE=sgemm
+PROBLEM_DEFINITION=both
 ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=master
 PUBLIC=true
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -83,6 +85,7 @@ while true; do
         --number )                  NUM="$2"; shift 2;;
         --one-type )                TUNE_TYPE="$2"; shift 2;;
         --omit-type )               OMIT_TYPE="$2"; shift 2;;
+        --problem-definition )      PROBLEM_DEFINITION="$2"; shift 2;;
         -- ) shift; break ;;
         * ) break ;;
     esac
@@ -236,9 +239,9 @@ make_packages()
 mkdir ${OUTPUT_DIR}
 EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
 if [ -z ${NETWORK+foo} ]; then
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}
 else
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}
 fi
 
 pushd ${OUTPUT_DIR}
