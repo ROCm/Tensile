@@ -37,7 +37,7 @@ def runCI =
         platform, project->
 
         def test_marks = "pre_checkin or extended"
-        commonGroovy.runTestCommand(platform, project, test_marks)
+        commonGroovy.runTestCommand(platform, project, jobName, test_marks)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
