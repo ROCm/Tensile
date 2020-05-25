@@ -1438,7 +1438,7 @@ def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
