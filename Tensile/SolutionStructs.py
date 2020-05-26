@@ -2100,6 +2100,8 @@ class Solution:
     if "LoopUnroll" in state:
       state["LoopIters"] = state["LoopUnroll"]
 
+    if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
+      reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
