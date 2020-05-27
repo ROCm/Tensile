@@ -25,7 +25,7 @@ from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig
+from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -2036,6 +2036,12 @@ class Solution:
     state["UnrollMajorLDSB"]     = state["TransposeLDS"]
 
     if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+      if (state["ThreadTile"][1] % state["MatrixInstruction"][0]) != 0:
+        reject(state, "invalide ThreadTile1 %u for MatrixInstM %u" % (state["ThreadTile"][1], state["MatrixInstruction"][0]))
+
       # set EnableMatrixInstruction
       state["EnableMatrixInstruction"] = True
 
