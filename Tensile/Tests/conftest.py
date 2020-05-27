@@ -49,6 +49,10 @@ def worker_lock_path(worker_id, tmp_path_factory):
     return tmp_path_factory.getbasetemp().parent / "client_execution.lock"
 
 @pytest.fixture
+def tensile_script_path():
+    return os.path.join(moddir, 'bin', 'Tensile')
+
+@pytest.fixture
 def worker_lock_instance(worker_lock_path):
     if not worker_lock_path:
         return open(os.devnull)
