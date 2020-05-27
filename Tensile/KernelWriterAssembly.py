@@ -4844,9 +4844,9 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["UnrollMajorLDS%s" % tc]:
         lds_stride = kernel["DepthU"] + LdsPad
         kStr += inst("v_mul_u32_u24", vgpr(destVgpr), hex(lds_stride), vgpr(tP["gpr"]["lwoT"]), \
-            "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
+            "lw%s%s**(DepthU + PAD)"%(tP["tensorChar"], self.unrollChar))
         kStr += inst("_v_add_lshl_u32", vgpr(destVgpr), vgpr(uReg), vgpr(destVgpr), hex(log2(tP["bpe"])), \
-            "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
+            "lwFO%s = (lw%s%s + lw%s%s*(DepthU+PAD))*bpe" % (tc, tc, tc, tc, self.unrollChar) )
       else:
         lds_stride = kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad
         kStr += inst("v_mul_u32_u24", vgpr(destVgpr), hex(lds_stride), vgpr(uReg), \
@@ -4858,9 +4858,12 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["LdsBlockSizePerPad%s"%tc] != 0 and kernel["LdsPad%s"%tc] != 0:
         tmpVgpr = self.vgprPool.checkOut(2)
         tmpSgpr = self.getTmpSgpr(1).idx()
-        kStr += vectorStaticDivide(uReg, destVgpr, kernel["LdsBlockSizePerPad%s"%tc], tmpVgpr, tmpSgpr)
-        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["LdsPad%s"%tc] * tP["bpe"], sgpr(tmpSgpr))
-        kStr += inst("v_add_u32", vgpr(destVgpr), vgpr(uReg), vgpr(destVgpr), "")
+        kStr += vectorStaticDivide(uReg, destVgpr, kernel["LdsBlockSizePerPad%s"%tc], tmpVgpr, tmpSgpr, \
+          "padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
+        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["LdsPad%s"%tc] * tP["bpe"], sgpr(tmpSgpr), \
+          "padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
+        kStr += inst("v_add_u32", vgpr(destVgpr), vgpr(uReg), vgpr(destVgpr), \
+          "add padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
         self.vgprPool.checkIn(tmpVgpr)
     else:
       ldlOffsetVgpr = self.vgprPool.checkOut(1, "ldlOffsetVgpr", self.preventVgprOverflowDuringNewTile)
@@ -5013,6 +5016,91 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
+  # Local Read Addresses: Tile Assignment A/B
+  ##############################################################################
+  def lraTileAssignmentMFMA(self, kernel, tP):
+    kStr = ""
+
+    # alloc vgpr
+    wReg    = self.vgprPool.checkOut(1,"wReg") # quotient
+    tReg    = self.vgprPool.checkOut(1,"tReg") # remainder
+    kReg    = self.vgprPool.checkOut(1,"kReg") # remainder
+    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
+    dummy   = self.vgprPool.checkOut(1,"dummy")
+
+     # alloc sgpr
+    tmpSgpr = self.getTmpSgpr(1).idx()
+
+    # get constant parameter
+    tc               = tP["tensorChar"]
+    tIdx             = tP["tensorIdx"]
+    waveWidth        = globalParameters["WavefrontWidth"]
+    inputPerThread   = kernel["ProblemType"]["DataType"].numMIInput()
+    LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
+
+    # parameter for get each type index
+    dividendForKId   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
+    num1DBlocks      = kernel["MatrixInstBM"]   if (tc == 'A') else kernel["MatrixInstBN"]
+    num1DWaves       = kernel["MIWaveGroup"][0] if (tc == 'A') else kernel["MIWaveGroup"][1]
+    dividedForBlkId  = kernel["MatrixInstM"]    if (tc == 'A') else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
+    dividedForWaveId = waveWidth                if (tc == 'A') else (waveWidth * kernel["MIWaveGroup"][0])
+
+    # strider for each type of index
+    umlds            = kernel["UnrollMajorLDS%s" % tP["tensorChar"]]
+    mt               = kernel["MacroTile%u" % tIdx]
+    strideTile       = kernel["DepthU"] + LdsPad if umlds else 1
+    strideK          = inputPerThread            if umlds else (mt + LdsPad) * inputPerThread
+    strideBlock      = kernel["MatrixInstM"] * strideTile
+    strideWave       = kernel["MatrixInstM"] * num1DBlocks * strideTile
+
+    # tile offset
+    kStr += vectorStaticRemainder(dummy, kReg, "Serial", waveWidth, tmpVgpr, tmpSgpr, \
+      "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
+    kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
+      "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
+    kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
+      "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
+
+    # block offset
+    kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
+      "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
+    kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
+      "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
+    kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
+      "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
+    kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+      "3. add N and block offset: bnOffset = block and N offset")
+
+    # unroll offset
+    kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
+      "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
+    kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
+      "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
+    kStr += inst("v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+      "5. offset in wave: lrOffset = bnOffset + lrKOffset")
+
+    # wave offset
+    if num1DWaves > 1:
+      kStr += vectorStaticDivide(wReg, "Serial", dividedForWaveId, tmpVgpr, tmpSgpr, \
+        "6. wave offset in N dimen: wtid = tid / dividedForWaveId(%u)" % dividedForWaveId)
+      kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DWaves, tmpVgpr, tmpSgpr, \
+        "6. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
+      kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr), \
+        "6. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
+      kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+        "7. final local read offset: flrOffset = lrOffset + WOffset")
+
+    # release register
+    tP["gpr"]["lro"] = tReg
+    self.vgprPool.checkIn(wReg)
+    self.vgprPool.checkIn(kReg)
+    self.vgprPool.checkIn(tmpVgpr)
+    self.vgprPool.checkIn(dummy)
+
+    return kStr
+
+
+  ##############################################################################
   # Local Read Addresses: Tile Assignment A
   ##############################################################################
   def lraTileAssignmentVALUA(self, kernel, tP):
@@ -5042,65 +5130,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Tile Assignment A
   ##############################################################################
-  def lraTileAssignmentMFMAA(self, kernel, tP):
-    kStr = ""
-
-    # alloc vgpr
-    tReg    = self.vgprPool.checkOut(1,"tReg") # remainder
-    wReg    = self.vgprPool.checkOut(1,"wReg") # quotient
-    kReg    = self.vgprPool.checkOut(1,"kReg") # remainder
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    dummy   = self.vgprPool.checkOut(1,"dummy")
-
-    # alloc sgpr
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # get constant parameter
-    # dividendReg    = "Serial" # local serial
-    LdsPad         = kernel["LdsPadA"] if kernel["LdsBlockSizePerPadA"] == 0 else 0
-    MIBShape0      = kernel["MatrixInstM"] * kernel["MatrixInstBM"] # matrix instruction MN shape for M
-    dividendForK   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
-    inputPerThread = kernel["MatrixInstM"] * kernel["MatrixInstK"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
-    strideM        = 1
-    strideK        = (kernel["MacroTile0"] + LdsPad) * inputPerThread
-    strideWave     = kernel["MatrixInstM"] * kernel["MatrixInstBM"]
-
-    # adjust stride according to lds orientation
-    if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
-      strideM    = kernel["DepthU"] + LdsPad
-      strideK    = inputPerThread
-      strideWave = kernel["MatrixInstM"] * kernel["MatrixInstBM"] * strideM
-
-    # thread offset
-    kStr += vectorStaticRemainder(dummy, kReg, "Serial", globalParameters["WavefrontWidth"], tmpVgpr, tmpSgpr)
-    kStr += vectorStaticRemainder(dummy, tReg, kReg, MIBShape0, tmpVgpr, tmpSgpr)
-    kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideM, sgpr(tmpSgpr))
-
-    kStr += vectorStaticDivide(kReg, kReg, dividendForK, tmpVgpr, tmpSgpr)
-    kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr))
-    kStr += inst("v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), "")
-
-    # wave offset
-    if True:
-    # if kernel["MIWaveGroup"][0] > 1:
-      kStr += vectorStaticDivide(wReg, "Serial", globalParameters["WavefrontWidth"], tmpVgpr, tmpSgpr)
-      kStr += vectorStaticRemainder(dummy, wReg, wReg, kernel["MIWaveGroup"][0], tmpVgpr, tmpSgpr)
-      kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr))
-      kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), "")
-
-    # release register
-    tP["gpr"]["lro"] = tReg
-    self.vgprPool.checkIn(wReg)
-    self.vgprPool.checkIn(kReg)
-    self.vgprPool.checkIn(tmpVgpr)
-    self.vgprPool.checkIn(dummy)
-
-    return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment A
-  ##############################################################################
   def lraTileAssignmentA(self, kernel, tP):
     kStr = ""
 
@@ -5109,7 +5138,7 @@ class KernelWriterAssembly(KernelWriter):
         self.commentSuffix, self.endLine)
 
     if kernel["EnableMatrixInstruction"]:
-      kStr += self.lraTileAssignmentMFMAA(kernel, tP)
+      kStr += self.lraTileAssignmentMFMA(kernel, tP)
     else:
       kStr += self.lraTileAssignmentVALUA(kernel, tP)
 
@@ -5144,70 +5173,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment B
-  ##############################################################################
-  def lraTileAssignmentMFMAB(self, kernel, tP):
-    kStr = ""
-
-    # alloc vgpr
-    wReg    = self.vgprPool.checkOut(1,"wReg") # quotient
-    tReg    = self.vgprPool.checkOut(1,"tReg") # remainder
-    kReg    = self.vgprPool.checkOut(1,"kReg") # remainder
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    dummy   = self.vgprPool.checkOut(1,"dummy")
-
-     # alloc sgpr
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # get constant parameter
-    # dividendReg    = "Serial" # local serial
-    LdsPad         = kernel["LdsPadB"] if kernel["LdsBlockSizePerPadB"] == 0 else 0
-    dividendForK   = kernel["MatrixInstN"] * kernel["MatrixInstB"]
-    inputPerThread = kernel["MatrixInstN"] * kernel["MatrixInstK"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
-    strideN        = 1
-    strideK        = (kernel["MacroTile1"] + LdsPad) * inputPerThread
-    strideBN       =  kernel["MatrixInstN"]
-    strideWave     = kernel["MatrixInstM"] * kernel["MatrixInstBN"]
-
-    # adjust stride according to lds orientation
-    if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
-      strideN    = kernel["DepthU"] + LdsPad
-      strideK    = inputPerThread
-      strideBN   = kernel["MatrixInstN"] * strideN
-      strideWave = kernel["MatrixInstM"] * kernel["MatrixInstBN"] * strideN
-
-    # thread offset
-    kStr += vectorStaticRemainder(dummy, kReg, "Serial", globalParameters["WavefrontWidth"], tmpVgpr, tmpSgpr)
-    kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
-    kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideN, sgpr(tmpSgpr))
-
-    kStr += vectorStaticDivide(wReg, kReg, (kernel["MatrixInstN"] * kernel["MatrixInstBM"]), tmpVgpr, tmpSgpr)
-    kStr += vectorStaticRemainder(dummy, wReg, wReg, kernel["MatrixInstBN"], tmpVgpr, tmpSgpr)
-    kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBN, sgpr(tmpSgpr))
-    kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), "")
-
-    kStr += vectorStaticDivide(kReg, kReg, dividendForK, tmpVgpr, tmpSgpr)
-    kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr))
-    kStr += inst("v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), "")
-
-    # wave offset
-    if True:
-    # if kernel["MIWaveGroup"][0] > 1:
-      kStr += vectorStaticDivide(wReg, "Serial", globalParameters["WavefrontWidth"], tmpVgpr, tmpSgpr)
-      kStr += vectorStaticDivide(wReg, wReg, kernel["MIWaveGroup"][0], tmpVgpr, tmpSgpr)
-      kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr))
-      kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), "")
-
-    # release register
-    tP["gpr"]["lro"] = tReg
-    self.vgprPool.checkIn(wReg)
-    self.vgprPool.checkIn(kReg)
-    self.vgprPool.checkIn(tmpVgpr)
-    self.vgprPool.checkIn(dummy)
-
-    return kStr
-
 
   ##############################################################################
   # Local Read Addresses: Tile Assignment B
@@ -5220,107 +5185,9 @@ class KernelWriterAssembly(KernelWriter):
         tP["tileChar"], self.commentSuffix, self.endLine)
 
     if kernel["EnableMatrixInstruction"]:
-      kStr += self.lraTileAssignmentMFMAB(kernel, tP)
+      kStr += self.lraTileAssignmentMFMA(kernel, tP)
     else:
       kStr += self.lraTileAssignmentVALUB(kernel, tP)
-
-    return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Final Offset A/B
-  ##############################################################################
-  def lraFinalOffsetVALU(self, kernel, tP):
-    kStr = ""
-
-    # allocate resources
-    qReg = self.vgprPool.checkOut(1) # quotient
-    rReg = self.vgprPool.checkOut(1) # remainder, unused here
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # constant
-    sgid        = qReg
-    dividendReg = "Serial"
-    tIdx        = tP["tensorIdx"]
-    tc          = tP["tensorChar"]
-    LdsPad      = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
-    divisor     = kernel["SubGroup0"] * kernel["SubGroup1"]
-
-    # generate instruction
-    kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
-        tmpVgpr, tmpSgpr)
-
-    kStr += inst("s_mov_b32", \
-        sgpr(tmpSgpr), \
-        hex(kernel["MacroTile%u"%tP["tensorIdx"]] + LdsPad), \
-        "MT%u+PAD"%tP["tensorIdx"] )
-
-    kStr += inst("v_mul_lo_u32", \
-        vgpr(sgid), \
-        sgpr(tmpSgpr), \
-        vgpr(sgid), \
-        "sgid=sgid*(MT%u+PAD)"%tIdx )
-
-    if kernel["VectorWidth"] > 1:
-      kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
-          kernel["VectorWidth"], sgpr(tmpSgpr))
-
-    kStr += inst("_v_add_lshl_u32", \
-        vgpr("LocalReadAddr%s"%tc), \
-        vgpr(sgid), \
-        vgpr(tP["gpr"]["lro"]), \
-        hex(log2(tP["bpe"])), \
-        "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tIdx) )
-
-    # release resources
-    self.vgprPool.checkIn(tmpVgpr)
-    self.vgprPool.checkIn(qReg)
-    self.vgprPool.checkIn(rReg)
-    self.vgprPool.checkIn(tP["gpr"]["lro"])
-
-    return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Final Offset A/B
-  ##############################################################################
-  def lraFinalOffsetMFMA(self, kernel, tP):
-    kStr = ""
-
-    # allocate resources
-    sgid    = self.vgprPool.checkOut(1) # quotient
-    rReg    = self.vgprPool.checkOut(1) # remainder, unused here
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # constants
-    dividendReg = "Serial"
-    tc          = tP["tensorChar"]
-    tIdx        = tP["tensorIdx"]
-    LdsPad      = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
-    divisor     = kernel["SubGroup0"] * kernel["SubGroup1"]
-    mtAddPad    = kernel["MacroTile%u"%tP["tensorIdx"]] + LdsPad
-
-    # LSU offset
-    kStr += vectorStaticDivideAndRemainder(sgid, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(mtAddPad), "MT%u+PAD"%tP["tensorIdx"] )
-    kStr += inst("v_mul_lo_u32", vgpr(sgid), sgpr(tmpSgpr), vgpr(sgid), "sgid=sgid*(MT%u+PAD)"%tIdx )
-
-    # final offset
-    kStr += inst("_v_add_lshl_u32", vgpr("LocalReadAddr%s"%tc), vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tIdx) )
-
-    # LdsBlockSizePerPad: add padding
-    if kernel["LdsBlockSizePerPad%s"%tc] != 0 and kernel["LdsPad%s"%tc] !=0:
-      kStr += vectorStaticDivide(rReg, "LocalReadAddr%s"%tc, kernel["LdsBlockSizePerPad%s"%tc], tmpVgpr, tmpSgpr)
-      kStr += staticMultiply(vgpr(rReg), vgpr(rReg), kernel["LdsPad%s"%tc] * tP["bpe"], sgpr(tmpSgpr))
-      kStr += inst("v_add_u32", vgpr("LocalReadAddr%s"%tc), vgpr(rReg), vgpr("LocalReadAddr%s"%tc), "")
-
-    # release resources
-    self.vgprPool.checkIn(tmpVgpr)
-    self.vgprPool.checkIn(sgid)
-    self.vgprPool.checkIn(rReg)
-    self.vgprPool.checkIn(tP["gpr"]["lro"])
 
     return kStr
 
@@ -5331,10 +5198,48 @@ class KernelWriterAssembly(KernelWriter):
   def lraFinalOffset(self, kernel, tP):
     kStr = ""
 
-    if kernel["EnableMatrixInstruction"]:
-      kStr += self.lraFinalOffsetMFMA(kernel, tP)
-    else:
-      kStr += self.lraFinalOffsetVALU(kernel, tP)
+    # allocate resources
+    sgid    = self.vgprPool.checkOut(1) # quotient
+    rReg    = self.vgprPool.checkOut(1) # remainder, unused here
+    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
+    tmpSgpr = self.getTmpSgpr(1).idx()
+
+    # constant
+    tc          = tP["tensorChar"]
+    tIdx        = tP["tensorIdx"]
+    LdsPad      = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
+    divisor     = kernel["SubGroup0"] * kernel["SubGroup1"]
+    mtAddPad    = kernel["MacroTile%u" % tIdx] + LdsPad
+
+    # generate instruction
+    kStr += vectorStaticDivide(sgid, "Serial", divisor, tmpVgpr, tmpSgpr, \
+      "LSU offset: sgid = Serial / subGroup(%u)" % divisor)
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), mtAddPad, \
+      "LSU offset: stirde = MT%u(%u) + PAD%u(%u)" % (tIdx, kernel["MacroTile%u" % tIdx], tIdx, LdsPad))
+    kStr += inst("v_mul_lo_u32", vgpr(sgid), sgpr(tmpSgpr), vgpr(sgid), \
+      "LSU offset: lsuoffset = sgid*(MT%u+PAD)"%tIdx)
+    if not kernel["EnableMatrixInstruction"] and kernel["VectorWidth"] > 1:
+      kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), kernel["VectorWidth"], sgpr(tmpSgpr), \
+      "Final Offset: lr%sOffset * VW" % tc)
+
+    # final offset
+    kStr += inst("_v_add_lshl_u32", vgpr("LocalReadAddr%s"%tc), vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), \
+      "Final Offset: offset = (lro%s*VW+lsuoffset)*bpe" % tIdx )
+
+    # LdsBlockSizePerPad: add padding
+    if kernel["LdsBlockSizePerPad%s"%tc] != 0 and kernel["LdsPad%s"%tc] !=0:
+      kStr += vectorStaticDivide(rReg, "LocalReadAddr%s"%tc, kernel["LdsBlockSizePerPad%s"%tc], tmpVgpr, tmpSgpr, \
+        "Final Offset: padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
+      kStr += staticMultiply(vgpr(rReg), vgpr(rReg), kernel["LdsPad%s"%tc] * tP["bpe"], sgpr(tmpSgpr), \
+        "Final Offset: padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
+      kStr += inst("v_add_u32", vgpr("LocalReadAddr%s"%tc), vgpr(rReg), vgpr("LocalReadAddr%s"%tc), \
+        "Final Offset: add padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
+
+    # release resources
+    self.vgprPool.checkIn(tmpVgpr)
+    self.vgprPool.checkIn(sgid)
+    self.vgprPool.checkIn(rReg)
+    self.vgprPool.checkIn(tP["gpr"]["lro"])
 
     return kStr
 
@@ -6161,7 +6066,6 @@ class KernelWriterAssembly(KernelWriter):
     numMIInput       = kernel["ProblemType"]["DataType"].numMIInput()
     vgprPerInput     = int(numMIInput * numRegisters)
     shiftPerElement  = int(numRegisters * 32)
-    # elementPerVgpr   = int(1 / numRegisters)
     s_nop            = 0
 
     # alloc vgpr
@@ -7813,13 +7717,9 @@ class KernelWriterAssembly(KernelWriter):
     numOffsets        = instruction.numOffsets
     blockWidth        = instruction.blockWidth
     offsetMultiplier  = 1 # instruction.offsetMultiplier
-    #totalReads       = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx           = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
-    # loopIdx           = self.unrollIdx
-    # loopDim           = kernel["ProblemType"]["IndicesSummation"][loopIdx]
-    # loopChar          = self.indexChars[loopDim]
 
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
@@ -7959,7 +7859,7 @@ class KernelWriterAssembly(KernelWriter):
   # uIdx - Unroll Idx
   # epsi = expand pointer swap index. Only used for PAP
   ##############################################################################
-  def localReadDo(self, kernel, bufferIdx, iui, epsi, uIdx, tP):
+  def localReadDo(self, kernel, bufferIdx, iui, epsi, tP):
 
     if not self.do["LocalRead%s" % tP["tensorChar"]]:
       imod = Code.Module("LocalReadDo%s_I%s" % (tP["tensorChar"], iui))
@@ -11913,16 +11813,17 @@ def log2(x):
 # Divide & Remainder
 # quotient register, remainder register, dividend register, divisor, tmpVgprx2, tmpSgpr
 ########################################
-def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, \
-    doRemainder=True):
+def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, doRemainder=True, comment=""):
+
+  dComment = "%s = %s / %s"  % (vgpr(qReg), vgpr(dReg), divisor) if (comment=="") else comment
+  rComment = "%s = %s %% %s" % (vgpr(rReg), vgpr(dReg), divisor) if (comment=="") else comment
+
   kStr = ""
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
-    kStr += inst("v_lshrrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), \
-        "vectorStaticDiv: %s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
+    kStr += inst("v_lshrrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), dComment)
     if doRemainder:
-      kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
-          "vectorStaticDiv: %s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
+      kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), rComment)
   else:
     """
     if divisor == 30:
@@ -11940,27 +11841,29 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     """
     shift = 32+1
     magic = ((2**shift) // divisor) + 1
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), "")
-    kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
-    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
-    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), hex(shift), vgpr(tmpVgpr,2), "")
-    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "vectorStaticDiv: quotient")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), dComment)
+    kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), dComment)
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), dComment)
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), hex(shift), vgpr(tmpVgpr,2), dComment)
+    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), dComment)
     if doRemainder:
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
-      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "vectorStaticDiv: product = quotient * divisor")
-      kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "vectorStaticDiv: remainder = dividend - product")
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), rComment)
+      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), rComment)
+      kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), rComment)
   return kStr
 
-def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
+def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
   rReg = -1 # unused
-  kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False)
+  kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False, comment)
   return kStr
 
-def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
+def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
+  if comment == "":
+    comment = "%s = %s %% %s" % (vgpr(rReg), vgpr(dReg), divisor)
+
   kStr = ""
   if ((divisor & (divisor - 1)) == 0): # pow of 2
-    kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
-        "vectorStaticDiv: %s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
+    kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), comment)
   else:
     """
     if divisor == 30:
@@ -11978,15 +11881,15 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
     """
     shift = 32+1
     magic = ((2**shift) // divisor) + 1
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), "")
-    kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
-    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
-    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
-    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "vectorStaticDiv: quotient")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
-    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "vectorStaticDiv: product = quotient * divisor")
-    kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "vectorStaticDiv: remainder = dividend - product")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), comment)
+    kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), comment)
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), comment)
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), comment)
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), comment)
+    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), comment)
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), comment)
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), comment)
+    kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), comment)
   return kStr
 
 # only used for loop unroll and GlobalSplitU
@@ -12050,26 +11953,24 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
 # Multiply
 # product register, operand register, multiplier
 ########################################
-def staticMultiply(product, operand, multiplier, tmpSgpr=None):
+def staticMultiply(product, operand, multiplier, tmpSgpr=None, comment=""):
+  if comment == "":
+    comment = "%s = %s * %s" % (product, operand, multiplier)
+
   if multiplier == 0:
-      return inst("v_mov_b32", product, hex(multiplier), "staticMultiply: %s = %u" % (product, multiplier) )
+      return inst("v_mov_b32", product, hex(multiplier), comment)
   elif ((multiplier & (multiplier - 1)) == 0): # pow of 2
     multiplier_log2 = log2(multiplier)
     if multiplier_log2==0 and product == operand:
       return ""
     else:
-      return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
-          "staticMultiply: %s = %s * %u"%(product, operand, multiplier) )
+      return inst("v_lshlrev_b32", product, multiplier_log2, operand, comment)
   else:
     kStr = ""
     if product == operand:
-      kStr += inst("s_mov_b32", tmpSgpr, hex(multiplier), \
-          "staticMultiply: %s = %u"%(tmpSgpr, multiplier) )
-      kStr += inst("v_mul_lo_u32", product, tmpSgpr, operand, \
-          "staticMultiply: %s *= %s"%(product, operand) )
+      kStr += inst("s_mov_b32", tmpSgpr, hex(multiplier), comment)
+      kStr += inst("v_mul_lo_u32", product, tmpSgpr, operand, comment)
     else:
-      kStr += inst("v_mov_b32", product, hex(multiplier), \
-          "staticMultiply: %s = %u"%(product, multiplier) )
-      kStr += inst("v_mul_lo_u32", product, product, operand, \
-          "staticMultiply: %s *= %s"%(product, operand) )
+      kStr += inst("v_mov_b32", product, hex(multiplier), comment)
+      kStr += inst("v_mul_lo_u32", product, product, operand, comment)
     return kStr

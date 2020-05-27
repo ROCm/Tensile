@@ -25,7 +25,7 @@ from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
 from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig
+from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -2041,6 +2041,12 @@ class Solution:
     state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSB"] else 0
 
     if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+      if (state["ThreadTile"][1] % state["MatrixInstruction"][0]) != 0:
+        reject(state, "invalide ThreadTile1 %u for MatrixInstM %u" % (state["ThreadTile"][1], state["MatrixInstruction"][0]))
+
       # set EnableMatrixInstruction
       state["EnableMatrixInstruction"] = True
 
@@ -3083,9 +3089,9 @@ class Solution:
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     if "MatrixInstM" in state:
-      name += "%s%ux%ux%ux%u" \
+      name += "%s%ux%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
-          state["MatrixInstM"], state["MatrixInstN"],  state["MatrixInstK"], state["MatrixInstB"])
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"])
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"
