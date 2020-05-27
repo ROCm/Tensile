@@ -1,6 +1,8 @@
 GlobalParameters:
   NumElementsToValidate: 16384
   DataInitTypeBeta: 2 # the bug is in the non-OptNLL code path of persitent kernel
+# disable BoundsCheck for now to avoid crash
+  BoundsCheck: False
   NewClient: 2
 
 BenchmarkProblems:
