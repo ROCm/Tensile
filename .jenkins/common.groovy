@@ -21,13 +21,15 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             cd ${project.paths.project_build_prefix}
             ${parallelJobs}
 
+            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
+
             #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
             #### temporarily enable --no-merge-files until hipclang update is posted
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
             pushd build
@@ -72,7 +74,7 @@ def publishResults(project)
 {
     try
     {
-        archiveArtifacts "${project.paths.project_build_prefix}/timing.csv"
+        archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
     }
     finally
     {
@@ -101,6 +103,8 @@ def runTestCommand (platform, project, jobName, test_marks)
             export PATH=/opt/rocm/bin:\$PATH
             cd ${project.paths.project_build_prefix}
 
+            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
+
             pushd build
             ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
             HOST_ERR=\$?
@@ -111,7 +115,7 @@ def runTestCommand (platform, project, jobName, test_marks)
             ####
             tox --version
             #### temporarily enable --no-merge-files until hipclang update is posted
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
             PY_ERR=\$?
             date
 
