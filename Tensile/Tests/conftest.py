@@ -2,6 +2,13 @@ import pytest
 import os
 import sys
 
+try:
+    import xdist  # noqa
+except ImportError:
+    @pytest.fixture(scope="session")
+    def worker_id():
+        return None
+
 testdir = os.path.dirname(__file__)
 moddir = os.path.dirname(testdir)
 rootdir = os.path.dirname(moddir)
@@ -11,7 +18,7 @@ def pytest_addoption(parser):
     parser.addoption("--tensile-options")
     parser.addoption("--no-common-build", action="store_true")
     parser.addoption("--builddir", "--client-dir")
-    parser.addoption("--timing-file")
+    parser.addoption("--timing-file", default=None)
 
 @pytest.fixture(scope="session")
 def timing_path(pytestconfig, tmpdir_factory):
@@ -42,7 +49,7 @@ def builddir(pytestconfig, tmpdir_factory):
     return str(tmpdir_factory.mktemp("0_Build"))
 
 @pytest.fixture(scope="session")
-def worker_lock_path(worker_id, tmp_path_factory):
+def worker_lock_path(tmp_path_factory, worker_id):
     if not worker_id:
         return None
 
