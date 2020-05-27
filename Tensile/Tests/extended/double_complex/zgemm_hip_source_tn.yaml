@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [xfail] # HCC 3.0 bug
+  marks: [xfail-gfx900] # HCC 3.0 bug
 
 # benchmark assembly and source kernels
 GlobalParameters:
