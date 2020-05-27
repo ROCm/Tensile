@@ -54,8 +54,8 @@ PROBLEM_DEFINITION=both
 ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
-TENSILE_BRANCH=master
-PUBLIC=true
+TENSILE_BRANCH=develop
+PUBLIC=false
 
 OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition: -n 'parse-options' -- "$@"`
 
@@ -264,7 +264,12 @@ git clone https://github.com/${ROCBLAS_ORGANIZATION}/${REPO}.git -b ${ROCBLAS_BR
 mkdir library
 mv Tensile/exact library/
 mkdir library/merge
-python Tensile/Tensile/Utilities/merge_rocblas_yaml_files.py rocBLAS/library/src/blas3/Tensile/Logic/archive library/exact library/merge
+
+DIR=archive
+if [[ "${LIBRARY}" == arcturus ]]; then
+    DIR=asm_full
+fi
+python Tensile/Tensile/Utilities/merge_rocblas_yaml_files.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge
 
 if [[ "${LIBRARY}" != arcturus ]]; then
     python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
@@ -295,12 +300,14 @@ cp ../scripts/*.sh tuned-build/release/clients/staging
 pushd reference-build/release/clients/staging
 ./doit_all1.sh
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
+find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
 ./*verify.sh 2>&1 | tee log-verification-build
 popd
 
 pushd tuned-build/release/clients/staging
 ./doit_all1.sh
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
+find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
 ./*verify.sh 2>&1 | tee log-verification-tuned-build
 popd
 

@@ -55,9 +55,9 @@ def GetRocBLASParser():
     lineParser.add_argument("--compute_type",dest="compute_type", type=str)
     lineParser.add_argument("--alpha",dest="alpha", type=float,default=1.0)
     lineParser.add_argument("--beta",dest="beta", type=float,default=0.0)
-    lineParser.add_argument("--lda",dest="lda", type=int,default=1)
-    lineParser.add_argument("--ldb",dest="ldb", type=int,default=1)
-    lineParser.add_argument("--ldc",dest="ldc", type=int,default=1)
+    lineParser.add_argument("--lda",dest="lda", type=int,default=0)
+    lineParser.add_argument("--ldb",dest="ldb", type=int,default=0)
+    lineParser.add_argument("--ldc",dest="ldc", type=int,default=0)
     lineParser.add_argument("--ldd",dest="ldd", type=int,default=0)
     lineParser.add_argument("--stride_a",dest="stride_a", type=int,default=0)
     lineParser.add_argument("--stride_b",dest="stride_b", type=int,default=0)
@@ -711,7 +711,7 @@ def ConvertToRocBlasBenchCall(line):
     line = str(line.split(','))
     line = line.replace('"','').replace(' ','').replace('\'','').replace('[-{','').replace('}\\n]','').replace(':',',')
     line = line.split(',')
-    sameParams = set(['b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','alpha','beta'])
+    sameParams = set(['b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','stride_d','alpha','beta'])
 
     for item in range(2,len(line)):
         if line[item] in sameParams: 
@@ -819,7 +819,22 @@ def GetTensileSize(problemDefinition):
     size = "          - Exact: [ %s , %s , %s, %s ]" % (m,n,batch,k)
     return size
 
-def BuildRocBLASBenchmarkCall(problemDefinition):
+def GetStride(problemDefinition,param):
+    nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+        "stride_a": problemDefinition["stride_a"], "stride_b": problemDefinition["stride_b"], "stride_c": problemDefinition["stride_c"]}
+    nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"],
+        "stride_a": problemDefinition["stride_a"], "stride_b": problemDefinition["stride_b"], "stride_c": problemDefinition["stride_c"]}
+    tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+        "stride_a": problemDefinition["stride_a"], "stride_b": problemDefinition["stride_b"], "stride_c": problemDefinition["stride_c"]}
+
+    if problemDefinition["transposeB"] == "T":
+        return nt[param]
+    elif problemDefinition["transposeA"] == "N":
+        return nn[param]
+    
+    return tn[param]
+
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
@@ -827,7 +842,10 @@ def BuildRocBLASBenchmarkCall(problemDefinition):
     for key in keys:
         param = key.replace("-","")
         value = problemDefinition[param] 
-        rocblas_call += " %s %s" % (key,value)
+        if ("ld" in param or "stride" in param) and int(value) == 0:
+            value = GetStride(problemDefinition,param)
+        if ("ld" not in param and "stride" not in param) or disableStrides == "false":
+            rocblas_call += " %s %s" % (key,value)
 
     return rocblas_call
 

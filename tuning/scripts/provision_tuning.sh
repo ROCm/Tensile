@@ -8,7 +8,7 @@ function extract_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}"
 
   ${EXTRACT_EXE}
 
@@ -23,7 +23,7 @@ function extract_network_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}"
 
   ${EXTRACT_EXE}
 
@@ -76,7 +76,7 @@ function provision_tensile() {
 
 }
 
-HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-m | --mfma] [-r | --rk] [-n] [[-h|--help]"
+HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-m | --mfma] [-r | --rk] [-s | --disable-strides] [--problem-definition <gemm/batch/both] [-n] [[-h|--help]"
 HELP=false
 SUPPRESS_TENSILE=false
 TENSILE_FORK='ROCmSoftwarePlatform'
@@ -87,8 +87,9 @@ TILE_AWARE=false
 MFMA=false
 RK=false
 DISABLE_STRIDES=false
+PROBLEM_DEFINITION=both
 
-OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:amrsi: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,mfma,rk,disable-strides,no-tensile -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:amrsi: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,mfma,rk,problem-definition:,disable-strides,no-tensile -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -112,6 +113,7 @@ while true; do
     -a | --tile-aware )     TILE_AWARE=true; shift;;
     -m | --mfma )           MFMA=true; shift;;
     -r | --rk )             RK=true; shift;;
+    --problem-definition )  PROBLEM_DEFINITION="$2"; shift;;
     -s | --disable-strides) DISABLE_STRIDES=true; shift;;
     --no-tensile )          SUPPRESS_TENSILE=true; shift;;
     -i )                    ID="$2"; shift 2;;

@@ -93,6 +93,13 @@ def processFile(headerFileName, key, configDefinitionList, configurationPath, wo
     contentFileNames.append(libraryFilePath)
     CopyContent(contentFileNames, configurationFilePath)
 
+def SetDefaultStrides(problemDefinition, m, n, k):
+    if problemDefinition["transposeB"] == "T":
+        return [k, k, n]
+    elif problemDefinition["transposeA"] == "N":
+        return [m, k, m]
+    return [k, k, m]
+
 def GetSize(problemDefinition,disableStrides="false",mfma="false"):
     m = int(problemDefinition["m"])
     n = int(problemDefinition["n"])
@@ -109,31 +116,25 @@ def GetSize(problemDefinition,disableStrides="false",mfma="false"):
     if "batch_count" or "batch" in problemDefinition:
         b = int(problemDefinition["batch_count"])
 
-    if disableStrides == "false" and not "strided" in problemDefinition["f"]:
-        lda = int(problemDefinition["lda"])
-        ldb = int(problemDefinition["ldb"])
-        ldc = int(problemDefinition["ldc"])
-        if int(problemDefinition["ldd"]) != 0:
-            ldd = int(problemDefinition["ldd"])
-        else
-            ldd = ldc
-        return [m, n, b, k, lda, ldb, ldc, ldd]
-    elif disableStrides == "false" and strided in problemDefinition["f"]:
-        stride_a = int(problemDefinition["stride_a"])
-        stride_b = int(problemDefinition["stride_b"])
-        stride_c = int(problemDefinition["stride_c"])
-        if int(problemDefinition["stride_d") != 0:
-            stride_d = int(problemDefinition["ldd"])
-        else
-            if problemDefintiion["transposeA"] == "T":
-                stride_d = k
-            elif problemDefinition["transposeB"] == "T":
-                stride_d = n
+    if disableStrides == "true":
+        return [m, n, b, k]
+    elif disableStrides == "false":
+        if problemDefinition["lda"] != 0 and problemDefinition["ldb"] != 0 and problemDefinition["ldc"] != 0:
+            lda = int(problemDefinition["lda"])
+            ldb = int(problemDefinition["ldb"])
+            ldc = int(problemDefinition["ldc"])
+            if int(problemDefinition["ldd"]) != 0:
+                ldd = int(problemDefinition["ldd"])
             else:
-                stride_d = n
-        return [m, n, b, k, stride_a, stride_b, stride_c, stride_d]
+                ldd = ldc
+        else:
+            ld = SetDefaultStrides(problemDefinition, m, n, k)
+            lda = ld[0]
+            ldb = ld[1]
+            ldc = ld[2]
+            ldd = ldc
 
-    return [m, n, b, k]
+    return [m, n, b, k, lda, ldb, ldc, ldd]
 
 def ClassifySize(size,mfma="false"):
     m = size[0]
@@ -388,7 +389,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
 
         problemGroup.append(benchmarkGroup)
 
-def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk,disableStrides):
+def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk, disableStrides):
 
     keys = list(problemMapper.keys())
 
@@ -486,7 +487,7 @@ def removeIter(lines):
         noiterlines.append(newline)
     return noiterlines
 
-def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", problemDef="both"):
+def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both"):
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
@@ -495,21 +496,21 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
     
-    if problemDef != "gemm": 
+    if probDef != "gemm": 
         scriptFileNames.append(outputFileName2)
-    if problemDef != "batch":
+    if probDef != "batch":
         scriptFileNames.append(outputFileName)
     count = 0    
 
     for key in keys:
         if disableStrides == "true":
-            if "ld" not in key or "stride" not in key: 
+            if  "ld" not in key or "stride" not in key: 
                 lineDefinitions = problemMapper[key]
         else:
             lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
-            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
+            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides)
             lines.append(rocblas_call)
         noiterlines = removeIter(lines)
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
@@ -557,7 +558,7 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
 
     generateRunScript(scriptFileNames, scriptPath)
     
-def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", problemDef="both"):
+def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both"):
 
     keys = list(problemMapper.keys())
 
@@ -567,9 +568,9 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
     
-    if problemDef != "gemm": 
+    if probDef != "gemm": 
         scriptFileNames.append(outputFileName2)
-    if problemDef != "batch":
+    if probDef != "batch":
         scriptFileNames.append(outputFileName)
     count = 0    
 
@@ -581,7 +582,7 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
             lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
-            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition)
+            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides)
             lines.append(rocblas_call)
         noiterlines = removeIter(lines)
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
@@ -670,7 +671,7 @@ def RunMain():
     mfma = args.mfma
     rk = args.replacement_kernel
     disableStrides = args.disable_strides
-    problemDefinition = args.problem_definition
+    probDefinition = args.problem_definition
 
     if len(sys.argv) <= 10:
         inputFileName = args.input_file_name
@@ -702,12 +703,12 @@ def RunMain():
     OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides)
 
     if len(sys.argv) <= 10:
-        OutputScript(problemMapper, scriptPath, namePart, disableStrides, problemDefinition)
-        OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, problemDefinition)
+        OutputScript(problemMapper, scriptPath, namePart, disableStrides, probDefinition)
+        OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, probDefinition)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
-        OutputScript(problemMapper, scriptPath, networkName, disableStrides, problemDefinition)
-        OutputScript2(problemMapper, scriptPath2, networkName+'2', disableStrides, problemDefinition)
+        OutputScript(problemMapper, scriptPath, networkName, disableStrides, probDefinition)
+        OutputScript2(problemMapper, scriptPath2, networkName+'2', disableStrides, probDefinition)
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":
