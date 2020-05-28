@@ -821,11 +821,14 @@ def GetTensileSize(problemDefinition):
 
 def GetStride(problemDefinition,param):
     nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
-        "stride_a": problemDefinition["stride_a"], "stride_b": problemDefinition["stride_b"], "stride_c": problemDefinition["stride_c"]}
+        "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
+        "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
     nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"],
-        "stride_a": problemDefinition["stride_a"], "stride_b": problemDefinition["stride_b"], "stride_c": problemDefinition["stride_c"]}
+        "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
+        "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
     tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
-        "stride_a": problemDefinition["stride_a"], "stride_b": problemDefinition["stride_b"], "stride_c": problemDefinition["stride_c"]}
+        "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
+        "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
 
     if problemDefinition["transposeB"] == "T":
         return nt[param]

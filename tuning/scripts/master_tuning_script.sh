@@ -38,6 +38,7 @@ HELP_STR="
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
     [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
     [--problem-definition]  Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
+    [--hip-clang]	    Optional. Use hip-clang compiler (default=false)
 "
 HELP=false
 COUNT=false
@@ -56,8 +57,9 @@ ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=develop
 PUBLIC=false
+HIP_CLANG=false
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hip-clang -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -86,6 +88,7 @@ while true; do
         --one-type )                TUNE_TYPE="$2"; shift 2;;
         --omit-type )               OMIT_TYPE="$2"; shift 2;;
         --problem-definition )      PROBLEM_DEFINITION="$2"; shift 2;;
+	--hip-clang )		    HIP_CLANG=true; shift ;;
         -- ) shift; break ;;
         * ) break ;;
     esac
@@ -129,6 +132,14 @@ else
     GPU=mi60
 fi
 
+if [[ "${HIP_CLANG}" == true ]]; then
+    TENSILE_COMPILER=hipcc
+    ROCBLAS_COMPILER=hip-clang
+else
+    TENSILE_COMPILER=hcc
+    ROCBLAS_COMPILER=no-hip-clang
+fi
+
 collect_uniques () {
     strided=${LOGNAME}-strided.sh
     regular=${LOGNAME}.sh
@@ -158,7 +169,7 @@ run_tune_nn () {
     pushd ${NN}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ 2>&1 | tee make.out" >> tune.sh
+    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} 2>&1 | tee make.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
@@ -175,7 +186,7 @@ run_tune_nt () {
     pushd ${NT}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ 2>&1 | tee make.out" >> tune.sh
+    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} 2>&1 | tee make.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
@@ -192,7 +203,7 @@ run_tune_tn () {
     pushd ${TN}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ 2>&1 | tee make.out" >> tune.sh
+    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} 2>&1 | tee make.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
@@ -279,7 +290,7 @@ mkdir packages
 mkdir packages/library
 mkdir packages/client
 pushd rocBLAS
-./install.sh -c --build_dir reference-build 2>&1 | tee log-reference-build
+./install.sh -c --build_dir reference-build --${ROCBLAS_COMPILER} 2>&1 | tee log-reference-build
 pushd reference-build/release
 popd
 
@@ -290,7 +301,7 @@ if [[ "${LIBRARY}" != arcturus ]]; then
 else
     cp ../library/merge/* library/src/blas3/Tensile/Logic/asm_full
 fi
-./install.sh -c --build_dir tuned-build 2>&1 | tee log-tuned-build
+./install.sh -c --build_dir tuned-build --${ROCBLAS_COMPILER} 2>&1 | tee log-tuned-build
 pushd tuned-build/release
 make_packages
 popd
