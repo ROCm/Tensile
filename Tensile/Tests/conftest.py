@@ -2,6 +2,13 @@ import pytest
 import os
 import sys
 
+try:
+    import xdist  # noqa
+except ImportError:
+    @pytest.fixture(scope="session")
+    def worker_id():
+        return None
+
 testdir = os.path.dirname(__file__)
 moddir = os.path.dirname(testdir)
 rootdir = os.path.dirname(moddir)
@@ -11,9 +18,9 @@ def pytest_addoption(parser):
     parser.addoption("--tensile-options")
     parser.addoption("--no-common-build", action="store_true")
     parser.addoption("--builddir", "--client-dir")
-    parser.addoption("--timing-file")
+    parser.addoption("--timing-file", default=None)
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def timing_path(pytestconfig, tmpdir_factory):
     userDir = pytestconfig.getoption("--timing-file")
     if userDir is not None:
@@ -42,11 +49,15 @@ def builddir(pytestconfig, tmpdir_factory):
     return str(tmpdir_factory.mktemp("0_Build"))
 
 @pytest.fixture(scope="session")
-def worker_lock_path(worker_id, tmp_path_factory):
+def worker_lock_path(tmp_path_factory, worker_id):
     if not worker_id:
         return None
 
     return tmp_path_factory.getbasetemp().parent / "client_execution.lock"
+
+@pytest.fixture
+def tensile_script_path():
+    return os.path.join(moddir, 'bin', 'Tensile')
 
 @pytest.fixture
 def worker_lock_instance(worker_lock_path):
@@ -77,4 +88,5 @@ def pytest_collection_modifyitems(items):
     for item in items:
         relpath = item.fspath.relto(testdir)
         components = relpath.split(os.path.sep)
-        item.add_marker(getattr(pytest.mark, components[0]))
+        if len(components) > 0 and len(components[0]) > 0:
+            item.add_marker(getattr(pytest.mark, components[0]))
