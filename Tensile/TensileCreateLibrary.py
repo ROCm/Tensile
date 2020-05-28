@@ -310,6 +310,13 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   codeObjectFiles = []
 
+  # Push working path into build_tmp folder because there may be more than
+  # one process running this script. This is to avoid build directory clashing.
+  # NOTE: file paths must not contain the lower case word 'kernel' or the
+  # /opt/rocm/bin/extractkernel will fail.
+  # See buildSourceCodeObjectFile:167 for the call to this binary.
+  Common.pushWorkingPath('build_tmp')
+  Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
   print1("# Writing Kernels...")
   kernelFiles = []
@@ -493,6 +500,9 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
     if globalParameters["ExitAfterKernelGen"]:
       printExit("** Exiting after kernel generation due to ExitAfterKernelGen=1")
+
+  Common.popWorkingPath() # build_tmp
+  Common.popWorkingPath() # workingDir
 
   return codeObjectFiles
 
