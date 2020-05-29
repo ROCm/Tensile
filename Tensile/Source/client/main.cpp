@@ -146,7 +146,13 @@ namespace Tensile
                 ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
-                ("hardware-monitor",         po::value<bool>()->default_value(false), "Use rocm-smi to monitor clock frequencies")
+                ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
+
+                ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
+                ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
+                ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
+                ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
+                ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
 
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
@@ -184,12 +190,18 @@ namespace Tensile
                 ("c-ops",                    vector_default_empty<TensorOp>(), "Operations applied to C.")
                 ("d-ops",                    vector_default_empty<TensorOp>(), "Operations applied to D.")
 
+                ("problem-start-idx",        po::value<int>()->default_value(0),  "First problem to run")
+                ("num-problems",             po::value<int>()->default_value(-1), "Number of problems to run")
+
                 ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
+                ("best-solution",            po::value<bool>()->default_value(false), "Best solution benchmark mode")
 
                 ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
+                ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
+                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ;
             // clang-format on
 
