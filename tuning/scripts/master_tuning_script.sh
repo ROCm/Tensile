@@ -6,7 +6,7 @@ HELP_STR="
                     >=llvm-6.0-dev, >=cmake3.5, zlib1g-dev
                     <=rocm3.0 stack for hcc, >=rocm3.3 stack for hip-clang
     About
-    This is the master tuning script. Here's what it does: 
+    This is the master tuning script. Here's what it does:
     1) Generates an input yaml file (ROCBLAS_LAYER=2 and ROCBLAS_LAYER=4 are supported) for each of the NN/NT/TN configurations.
     2) Runs Tensile for all 3 input yaml files
     3) Merges the tuning results (yaml file in 3_LibraryLogic directory) into the existing rocBLAS
@@ -16,18 +16,18 @@ HELP_STR="
     7) Runs rocblas-bench with untuned sizes and tuned sizes
     8) Runs analysis script, providing spreadsheets with performance before and after tuning
 
-    usage: $0 
+    usage: $0
     [-h|--help]             Display this help message
     [-o|--output-dir]       Output directory for all tuning-related files
     [-y|--data-type]        Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
     [-g|--gpu]              GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
-    [-f|--sclk]             Frequency of sclk in MHz 
+    [-f|--sclk]             Frequency of sclk in MHz
     [-z|--log]              Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
     [-n|--network]          Optional. String to search for in filenames in log directory
     [-m|--mfma]             Optional. Use MFMA kernels (default=false)
     [-r|--rk]               Optional. Use replacement kernels (sgemm only, default=false)
     [-c|--count]            Optional. Sets all cases where count=1 to count=10 (default=false)
-    [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false) 
+    [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false)
     [-s|--disable-strides]  Optional. Disable leading dimensions and strides in tuning file (default=false)
     [-i|--initialization]   Optional. Initialize matrices when benchmarking (random_int, trig_float, hpl, default=random_int)
     [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
@@ -148,7 +148,7 @@ collect_uniques () {
     regular=${LOGNAME}.sh
     strided2=${LOGNAME}2-strided.sh
     regular2=${LOGNAME}2.sh
-    
+
     pushd scripts
     bash ../../tuning/scripts/unique-rocblas-logs.sh ${strided}
     bash ../../tuning/scripts/unique-rocblas-logs.sh ${regular}
@@ -185,7 +185,7 @@ run_tune_nt () {
     NT=build-${LIBRARY}-${DATA_TYPE}-nt-${OUTPUT_DIR}
     mkdir ${NT}
     cp ../configs/*nt*.yaml ${NT}
-    
+
     pushd ${NT}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
