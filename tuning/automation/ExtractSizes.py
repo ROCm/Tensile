@@ -837,7 +837,7 @@ def GetStride(problemDefinition,param):
     
     return tn[param]
 
-def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false"):
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="random_int"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
@@ -849,6 +849,7 @@ def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false"):
             value = GetStride(problemDefinition,param)
         if ("ld" not in param and "stride" not in param) or disableStrides == "false":
             rocblas_call += " %s %s" % (key,value)
+    rocblas_call += " --initialization %s" % (initialization)
 
     return rocblas_call
 

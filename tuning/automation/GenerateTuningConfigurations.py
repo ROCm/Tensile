@@ -487,7 +487,7 @@ def removeIter(lines):
         noiterlines.append(newline)
     return noiterlines
 
-def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both"):
+def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="random_int"):
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
@@ -510,7 +510,7 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
             lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
-            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides)
+            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides,initialization)
             lines.append(rocblas_call)
         noiterlines = removeIter(lines)
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
@@ -558,7 +558,7 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
 
     generateRunScript(scriptFileNames, scriptPath)
     
-def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both"):
+def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="random_int"):
 
     keys = list(problemMapper.keys())
 
@@ -582,7 +582,7 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
             lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
         for problemDefinition in lineDefinitions:
-            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides)
+            rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides,initialization)
             lines.append(rocblas_call)
         noiterlines = removeIter(lines)
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
@@ -648,7 +648,7 @@ def RunMain():
 
     argParser = argparse.ArgumentParser()
 
-    if len(sys.argv) <= 10:
+    if len(sys.argv) <= 11:
         argParser.add_argument("input_file_name", help="configuration file path")
     else:
         argParser.add_argument("input_logs", help="the input path for log files")
@@ -662,6 +662,7 @@ def RunMain():
     argParser.add_argument("replacement_kernel", help="true/false replacement kernels", default="false")    
     argParser.add_argument("disable_strides", help="true/false disable strides", default="false") 
     argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both") 
+    argParser.add_argument("initialization", help="random_int or trig_float", default="random_int") 
 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
@@ -672,8 +673,9 @@ def RunMain():
     rk = args.replacement_kernel
     disableStrides = args.disable_strides
     probDefinition = args.problem_definition
+    initialization = args.initialization
 
-    if len(sys.argv) <= 10:
+    if len(sys.argv) <= 11:
         inputFileName = args.input_file_name
         inputFileBaseName = os.path.basename(inputFileName)
         namePart, _ = os.path.splitext(inputFileBaseName)
@@ -682,7 +684,7 @@ def RunMain():
         networkName = args.network_name
         allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    if len(sys.argv) <= 10:
+    if len(sys.argv) <= 11:
         problemMapper = ProcessFile(inputFileName)
     else:
         problemMapper = ProcessFiles(allLogs)
@@ -702,13 +704,13 @@ def RunMain():
 
     OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides)
 
-    if len(sys.argv) <= 10:
-        OutputScript(problemMapper, scriptPath, namePart, disableStrides, probDefinition)
-        OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, probDefinition)
+    if len(sys.argv) <= 11:
+        OutputScript(problemMapper, scriptPath, namePart, disableStrides, probDefinition, initialization)
+        OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, probDefinition, initialization)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
     else:
-        OutputScript(problemMapper, scriptPath, networkName, disableStrides, probDefinition)
-        OutputScript2(problemMapper, scriptPath2, networkName+'2', disableStrides, probDefinition)
+        OutputScript(problemMapper, scriptPath, networkName, disableStrides, probDefinition, initialization)
+        OutputScript2(problemMapper, scriptPath2, networkName+'2', disableStrides, probDefinition, initialization)
         OutputProblemDefinitions(problemMapper, sizePath, networkName)
 
 if __name__ == "__main__":

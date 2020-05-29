@@ -29,6 +29,7 @@ HELP_STR="
     [-c|--count]            Optional. Sets all cases where count=1 to count=10 (default=false)
     [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false) 
     [-s|--disable-strides]  Optional. Disable leading dimensions and strides in tuning file (default=false)
+    [-i|--initialization]   Optional. Initialize matrices when benchmarking (random_int, trig_float, hpl, default=random_int)
     [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
     [-u|--username]         Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
     [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
@@ -52,6 +53,7 @@ DVAL=2
 NUM=1
 DATA_TYPE=sgemm
 PROBLEM_DEFINITION=both
+INITIALIZATION=random_int
 ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
@@ -59,7 +61,7 @@ TENSILE_BRANCH=develop
 PUBLIC=false
 HIP_CLANG=false
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsu:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hip-clang -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hip-clang -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -79,6 +81,7 @@ while true; do
         -c | --count )              COUNT=true; shift ;;
         -t | --tile-aware )         TILE_AWARE=true; shift ;;
         -s | --disable-strides )    DISABLE_STRIDES=true; shift;;
+	-i | --initialization )	    INITIALIZATION="$2"; shift 2;;
         -u | --username )           ORGANIZATION="$2"; shift 2;;
         --rocblas-fork )            ROCBLAS_ORGANIZATION="$2"; shift 2;;
         -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
@@ -250,9 +253,9 @@ make_packages()
 mkdir ${OUTPUT_DIR}
 EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
 if [ -z ${NETWORK+foo} ]; then
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION}
 else
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION}
 fi
 
 pushd ${OUTPUT_DIR}
