@@ -83,6 +83,7 @@ namespace Tensile
         {
             po::options_description options("Tensile client options");
 
+            // clang-format off
             options.add_options()
                 ("help,h", "Show help message.")
 
@@ -190,6 +191,7 @@ namespace Tensile
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ;
+            // clang-format on
 
             return options;
         }
