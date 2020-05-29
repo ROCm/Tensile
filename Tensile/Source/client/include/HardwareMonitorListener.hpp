@@ -101,9 +101,9 @@ namespace Tensile
             };
 
         private:
-
             bool m_active;
             bool m_useGPUTimer;
+
             std::shared_ptr<HardwareMonitor> m_monitor;
         };
     } // namespace Client
