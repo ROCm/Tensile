@@ -1274,6 +1274,9 @@ def GetAsmCaps(isaVersion):
 
   rv["SupportedSource"] = True
 
+  if globalParameters["CxxCompiler"] == "hcc" and isaVersion[0] == 10:
+    rv["SupportedISA"] = 0
+
   return rv
 
 def GetArchCaps(isaVersion):
@@ -1415,6 +1418,10 @@ def assignGlobalParameters( config ):
 
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
+
+  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
+
+  validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
