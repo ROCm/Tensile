@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ class FMA_NonPacked(MAC):
         beAggressive = kernel["AggressivePerfMode"]
 
         doOnce = False
-        
+
         for blockB in range(0, kernel["ThreadTile1"]//2):
             for blockA in range(0, kernel["ThreadTile0"]//2):
                 for iui in range(0, innerUnroll):
@@ -81,36 +81,36 @@ class FMA_HPA_MAD_MIX(MAC):
                     cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
                     aStr = "v[%s+%u]" % ("vgprValuA_X%u_I0"%m, blockA)
                     bStr = "v[%s+%u]" % ("vgprValuB_X%u_I0"%m, blockB)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
                     if beAggressive and not doOnce:
-                        kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+                        kStr += "s_setprio 1 // Raise priority while processing macs%s" % writer.endLine
                         doOnce = True
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
                     cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                     aStr = "v[%s+%u]" \
                         % ("vgprValuA_X%u_I1"%m, blockA)
                     bStr = "v[%s+%u]" \
                         % ("vgprValuB_X%u_I0"%m, blockB)
                     cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
                     cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
                     aStr = "v[%s+%u]" \
                         % ("vgprValuA_X%u_I0"%m, blockA)
                     bStr = "v[%s+%u]" \
                         % ("vgprValuB_X%u_I1"%m, blockB)
                     cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
                     cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
                     aStr = "v[%s+%u]" \
                         % ("vgprValuA_X%u_I1"%m, blockA)
                     bStr = "v[%s+%u]" \
                         % ("vgprValuB_X%u_I1"%m, blockB)
                     cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                    #kStr += self.bomb(-13)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
+                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
+                    #kStr += writer.bomb(-13)
                     """
                     ignore this, not quite correct for mixed precision
                     D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
@@ -118,3 +118,5 @@ class FMA_HPA_MAD_MIX(MAC):
                     C[0] = A[0]*B[0]+D[0]
                     C[1] = A[1]*B[1]+D[1]
                     """
+
+        return kStr
