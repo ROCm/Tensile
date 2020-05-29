@@ -471,13 +471,13 @@ def problemSizeParams(solution, problem):
         # should just set problem.stride* appropriately when reading the Yaml and not deal with extra fields here
         if astrides[1] == -1:
           astrides[1] = problem.sizes[numIndices+2]
-        elif astrides[1] != problem.sizes[numIndices+2]:
+        else:
           raise RuntimeError("problem-specified lda(%u) conflicts with setConstStrideA(%u)" % \
               (astrides[1], problem.sizes[numIndices+2]))
 
         if bstrides[1] == -1:
           bstrides[1] = problem.sizes[numIndices+3]
-        elif bstrides[1] != problem.sizes[numIndices+3]:
+        else:
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
               (bstrides[1], problem.sizes[numIndices+3]))
 

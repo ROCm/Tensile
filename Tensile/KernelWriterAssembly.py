@@ -20,7 +20,7 @@
 ################################################################################
 
 from . import Code
-from .Common import globalParameters, printExit, printWarning, roundUp, print2
+from .Common import globalParameters, printExit, printWarning, roundUp
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
@@ -10128,20 +10128,20 @@ class KernelWriterAssembly(KernelWriter):
           elif gwvw != gwvwOrig:
             self.ss.gwvw = gwvw # make both representations consistent
             if shrinkDb:
-              print2("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
+              print("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
                   % (self.kernelName, gwvwOrig, gwvw, currentOccupancy))
 
           if numVgprAvailable < minElements*numVgprsPerElement:
-            print2("info: growing pool += %d * %d for GlobalWrite\n" \
+            print("info: growing pool += %d * %d for GlobalWrite\n" \
                 % (minElements,numVgprsPerElement))
-            print2(self.vgprPool.state())
+            print(self.vgprPool.state())
             tl = []
             for i in range(0,minElements):
               tl.append(self.vgprPool.checkOut(numVgprsPerElement, "grow-pool for GlobalWrite"))
             for t in tl:
               self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.available()
-            print2(self.vgprPool.state())
+            print(self.vgprPool.state())
 
         # set atomicW after we potentially resize GWVW
         atomicW = min(gwvw, kernel["VectorAtomicWidth"])

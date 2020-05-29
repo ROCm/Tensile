@@ -77,7 +77,7 @@ def writeSolutions( filename, problemSizes, solutions ):
     stream.write("  - Range: %s\n" % sizeRange)
   for problemExact in problemSizes.exacts:
     #FIXME-problem, this ignores strides:
-    stream.write("  - Exact: %s\n" % str(problemExact))
+    stream.write("  - Exact: %s\n" % list(problemExact.sizes))
   yaml.dump(solutionStates, stream, default_flow_style=None)
   stream.close()
 
