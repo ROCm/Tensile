@@ -8,6 +8,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
+    String parallelJobs = jobName.contains('hipclang') ? "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2" : ":"
 
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit"
@@ -18,13 +19,15 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             hostname
 
             cd ${project.paths.project_build_prefix}
+            ${parallelJobs}
 
             #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml
+            #### temporarily enable --no-merge-files until hipclang update is posted
+            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
 
             mkdir build
             pushd build
@@ -79,7 +82,8 @@ def runTestCommand (platform, project, test_marks)
                 export HOME=/home/jenkins
                 ####
                 tox --version
-                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}"
+                #### temporarily enable --no-merge-files until hipclang update is posted
+                tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --tensile-options=--no-merge-files,--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing.csv
                 PY_ERR=\$?
                 date
 
@@ -99,6 +103,7 @@ def runTestCommand (platform, project, test_marks)
     {
         try
         {
+            archiveArtifacts "${project.paths.project_build_prefix}/timing.csv"
             junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
         finally

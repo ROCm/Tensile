@@ -18,6 +18,7 @@ set(client_sources
     source/ReferenceValidator.cpp
     source/ResultFileReporter.cpp
     source/ResultReporter.cpp
+    source/SolutionIterator.cpp
     source/TimingEvents.cpp
     )
 
@@ -39,6 +40,10 @@ add_executable(tensile_client main.cpp)
 
 target_link_libraries(tensile_client PRIVATE TensileHost TensileClient ${Boost_LIBRARIES})
 if(OpenMP_FOUND)
+    target_link_libraries(tensile_client PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
+else()
+    set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
     target_link_libraries(tensile_client PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 

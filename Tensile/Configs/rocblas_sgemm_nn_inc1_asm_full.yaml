@@ -352,6 +352,53 @@ BenchmarkProblems:
           - Exact: [ 64, 5, 512, 5, 64, 64, 64, 5 ]
           - Exact: [ 64, 9, 512, 9, 64, 64, 64, 9 ]
 
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 64 ]
+        - WorkGroup:
+          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+        - WorkGroupMapping: [1]
+        - DirectToLds: [0]
+        - GlobalSplitU: [1]
+        - DepthU: [ 16 ]
+        - VectorWidth: [4]
+        - GlobalReadVectorWidth: [4]
+        - InnerUnroll: [2]
+        - ScheduleIterAlg: [1]
+        - OptNoLoadLoop: [0]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,4096,1,4096,1056,1056,4128,4160 ]
+          - Exact: [ 4096,4096,1,1024,4128,4128,1088,1056 ]
+          - Exact: [ 1024,2048,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,3072,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,3072,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,2048,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 3072,2048,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 1024,512,1,1024,1056,1056,1088,1056 ]
+          - Exact: [ 1024,512,1,3072,1056,1056,3136,3104 ]
+          - Exact: [ 512,512,1,64,544,544,128,96 ]
+          - Exact: [ 64,512,1,512,92,96,576,544 ]
+          - Exact: [ 3072,512,1,1024,3104,3104,1088,1056 ]
+          - Exact: [ 30528,4096,1,1024,30554,30554,1088,1056 ]
+          - Exact: [ 30528,2048,1,1024,30554,30554,1088,1056 ]
+
 ########################################
 LibraryLogic:
     ScheduleName: "arcturus"
