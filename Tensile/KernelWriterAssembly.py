@@ -457,7 +457,7 @@ class KernelWriterAssembly(KernelWriter):
     self.initSgprValue    = 0x0  # Value to use for Sgpr Init, if enabled
 
     self.db["InitVgpr"]   = 0x0  # init VGPRs
-    self.initVgprValue    = 0xFFFFFFFF  # Value to use for Sgpr Init, if enabled
+    self.initVgprValue    = 0xFFFFFFFF  # Value to use for Vgpr Init, if enabled
 
     # Debug and Check flags:
     # Check A and B values loaded from memory to ensure they are 1
