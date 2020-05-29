@@ -98,7 +98,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeA(index) % value == 0;
+                    return problem.freeSizeB(index) % value == 0;
                 }
             };
 
