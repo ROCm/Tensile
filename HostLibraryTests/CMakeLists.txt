@@ -65,6 +65,9 @@ endif()
 
 set(INSTALL_GTEST OFF CACHE BOOL "Install GTest")
 add_subdirectory(googletest)
+if(NOT gtest_SOURCE_DIR)
+    message(FATAL_ERROR "googletest not found.  Run git submodule update --init")
+endif()
 
 find_package(Boost COMPONENTS filesystem)
 
