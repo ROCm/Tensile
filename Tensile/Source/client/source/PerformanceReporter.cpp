@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -36,18 +36,24 @@ namespace Tensile
 {
     namespace Client
     {
-        std::shared_ptr<PerformanceReporter> PerformanceReporter::Default(po::variables_map const& args)
+        std::shared_ptr<PerformanceReporter>
+            PerformanceReporter::Default(po::variables_map const& args)
         {
-            int     deviceIndex = args["device-idx"].as<int>();
-            double  l2ReadHits = args["perf-l2-read-hits"].as<double>();
-            double  l2WriteHits = args["perf-l2-write-hits"].as<double>();
-            double  l2ReadBwMultiplier = args["perf-l2-read-bw-mul"].as<double>();
-            double  readEff = args["perf-read-efficiency"].as<double>();
+            int    deviceIndex        = args["device-idx"].as<int>();
+            double l2ReadHits         = args["perf-l2-read-hits"].as<double>();
+            double l2WriteHits        = args["perf-l2-write-hits"].as<double>();
+            double l2ReadBwMultiplier = args["perf-l2-read-bw-mul"].as<double>();
+            double readEff            = args["perf-read-efficiency"].as<double>();
 
-            return std::make_shared<PerformanceReporter>(deviceIndex, l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
+            return std::make_shared<PerformanceReporter>(
+                deviceIndex, l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
         }
 
-        PerformanceReporter::PerformanceReporter(int deviceIndex, double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff)
+        PerformanceReporter::PerformanceReporter(int    deviceIndex,
+                                                 double l2ReadHits,
+                                                 double l2WriteHits,
+                                                 double l2ReadBwMultiplier,
+                                                 double readEff)
         {
             hipGetDeviceProperties(&m_props, deviceIndex);
             setNumCUs();
@@ -55,11 +61,11 @@ namespace Tensile
             setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
             m_deviceProps = true;
 
-            perf.l2ReadHitRate = getL2ReadHits();
+            perf.l2ReadHitRate  = getL2ReadHits();
             perf.l2WriteHitRate = getL2WriteHits();
-            perf.l2ReadBwMul = getL2ReadBwMultiplier();
-            perf.readEff = getReadEff();
-            perf.CUs = getNumCUs();
+            perf.l2ReadBwMul    = getL2ReadBwMultiplier();
+            perf.readEff        = getReadEff();
+            perf.CUs            = getNumCUs();
         }
 
         void PerformanceReporter::reportValue_uint(std::string const& key, uint64_t value)
@@ -100,24 +106,27 @@ namespace Tensile
 
         void PerformanceReporter::setMemBandwidthMBps()
         {
-            m_memBandwidthMBps = m_memoryBusWidth*m_memClockMhz;
+            m_memBandwidthMBps    = m_memoryBusWidth * m_memClockMhz;
             perf.memBandwidthMBps = getMemBandwidthMBps();
         }
 
         void PerformanceReporter::postSolution()
         {
-            m_clockMhz = std::numeric_limits<double>::quiet_NaN();
-            m_memClockMhz = std::numeric_limits<double>::quiet_NaN();
-            m_gFlops = std::numeric_limits<double>::quiet_NaN();
+            m_clockMhz         = std::numeric_limits<double>::quiet_NaN();
+            m_memClockMhz      = std::numeric_limits<double>::quiet_NaN();
+            m_gFlops           = std::numeric_limits<double>::quiet_NaN();
             m_memBandwidthMBps = std::numeric_limits<double>::quiet_NaN();
         }
 
-        void PerformanceReporter::setPerfModel(double l2ReadHits, double l2WriteHits, double l2ReadBwMultiplier, double readEff)
+        void PerformanceReporter::setPerfModel(double l2ReadHits,
+                                               double l2WriteHits,
+                                               double l2ReadBwMultiplier,
+                                               double readEff)
         {
-            m_l2ReadHits = l2ReadHits;
+            m_l2ReadHits  = l2ReadHits;
             m_l2WriteHits = l2WriteHits;
             m_l2ReadBwMul = l2ReadBwMultiplier;
-            m_readEff = readEff;
+            m_readEff     = readEff;
         }
 
         void PerformanceReporter::setNumCUs()
@@ -127,24 +136,54 @@ namespace Tensile
 
         void PerformanceReporter::setMemoryBusWidth()
         {
-            m_memoryBusWidth = m_props.memoryBusWidth/1024;
+            m_memoryBusWidth = m_props.memoryBusWidth / 1024;
         }
 
-        int     PerformanceReporter::getNumCUs(){return m_numCUs;}
-        double  PerformanceReporter::getMemClockMhz(){return m_memClockMhz;}
-        double  PerformanceReporter::getClockMhz(){return m_clockMhz;}
-        double  PerformanceReporter::getL2ReadBwMultiplier(){return m_l2ReadBwMul;}
-        double  PerformanceReporter::getL2ReadHits(){return m_l2ReadHits;}
-        double  PerformanceReporter::getL2WriteHits(){return m_l2WriteHits;}
-        double  PerformanceReporter::getReadEff(){return m_readEff;}
-        double  PerformanceReporter::getMemBandwidthMBps(){return m_memBandwidthMBps;}
+        int PerformanceReporter::getNumCUs()
+        {
+            return m_numCUs;
+        }
+        double PerformanceReporter::getMemClockMhz()
+        {
+            return m_memClockMhz;
+        }
+        double PerformanceReporter::getClockMhz()
+        {
+            return m_clockMhz;
+        }
+        double PerformanceReporter::getL2ReadBwMultiplier()
+        {
+            return m_l2ReadBwMul;
+        }
+        double PerformanceReporter::getL2ReadHits()
+        {
+            return m_l2ReadHits;
+        }
+        double PerformanceReporter::getL2WriteHits()
+        {
+            return m_l2WriteHits;
+        }
+        double PerformanceReporter::getReadEff()
+        {
+            return m_readEff;
+        }
+        double PerformanceReporter::getMemBandwidthMBps()
+        {
+            return m_memBandwidthMBps;
+        }
 
-        void    PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
-        void    PerformanceReporter::reportValue_string(std::string const& key, std::string const& value) {}
-        void    PerformanceReporter::reportValue_sizes(std::string const& key, std::vector<size_t> const& value) {}
-        void    PerformanceReporter::preProblem(ContractionProblem const& problem) {}
-        void    PerformanceReporter::preSolution(ContractionSolution const& solution) {}
-        void    PerformanceReporter::finalizeReport() {}
+        void PerformanceReporter::reportValue_int(std::string const& key, int64_t value) {}
+        void PerformanceReporter::reportValue_string(std::string const& key,
+                                                     std::string const& value)
+        {
+        }
+        void PerformanceReporter::reportValue_sizes(std::string const&         key,
+                                                    std::vector<size_t> const& value)
+        {
+        }
+        void PerformanceReporter::preProblem(ContractionProblem const& problem) {}
+        void PerformanceReporter::preSolution(ContractionSolution const& solution) {}
+        void PerformanceReporter::finalizeReport() {}
 
-    }
-}
+    } // namespace Client
+} // namespace Tensile

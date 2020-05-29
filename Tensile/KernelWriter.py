@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # makeSchedule:  Schedule work into interations.
 
   # Tensile uses a two-level scheduler.  This the first-level, which
-  # schedules global reads, global incs, and local writes into iteration.  
+  # schedules global reads, global incs, and local writes into iteration.
   # Then makeSubIterSchedule schedules the instructions within the iteration.
   #
   # Inputs:
@@ -132,7 +132,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
 	# schedule b2b for readCnt > 2 (True for bigger TT)
         firstStep = 1 * numMfmaPerIter
-        
+
 
       # Add all loads from middle as individual schedulable items
       itemsToSched =  list(self.globalReadACode.middle.items()) + \
@@ -149,7 +149,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.globalReadACode.middle.items()[0].items().insert(0,self.dtlsM0UpdateACode)
       if self.globalReadBCode.middle.items():
         self.globalReadBCode.middle.items()[0].items().insert(0,self.dtlsM0UpdateBCode)
-      # append 'n' global load at a time 
+      # append 'n' global load at a time
       # append global load(S) first 'number of global load(s) determined by  firstStep
       for item in itemsToSched[:firstStep]:
         self.perIterGlobalReadCode[0].addCode(item)
@@ -165,7 +165,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           break # no code left to schedule
 
       assert not itemsToSched # should have scheduled everything already
-      
+
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
 
@@ -373,7 +373,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           packCount = packCount + 1
         else:
           break
-      
+
       if packCount == 0:
         tmpVgpr = self.vgprPool.checkOut(1)
         iterCode.addInst("v_mov_b32 ","v%u"%(tmpVgpr),"0x0","valu operation to have different priority")
@@ -397,7 +397,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           else:
             break
         if packCount > 0:
-          iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")  
+          iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")
 
       iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
       iterCode.addCode(localWriteCode)
@@ -512,11 +512,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if i == 0:
             iterCode.addCode(waitCode)
           if packAB.items():
-            if packAB.items(): 
+            if packAB.items():
               iterCode.addCode(packAB.items().pop(0))
             if packAB.items():
               iterCode.addCode(packAB.items().pop(0))
-            iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")  
+            iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")
           iterCode.addCode(macIterItems.pop(0))
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
@@ -907,9 +907,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # prefetch is inside persistent loop
       kl.append(self.openPersistentLoop(kernel))
       kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
-    
+
     pack = [ Code.Module() for i in range (kernel["PrefetchLocalRead"]+1) ]
-    
+
     if kernel["PrefetchGlobalRead"]:
       if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
@@ -988,15 +988,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["GlobalRead"]:
         # unrolled loop: global read A, B
-        # M0 update for directToLds 
+        # M0 update for directToLds
         self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 1, tensorParametersA)
         self.globalReadACode = self.globalReadDo(kernel, 1, tensorParametersA)
         self.dtlsM0UpdateBCode = self.directToLdsM0Update(kernel, 1, tensorParametersB)
         self.globalReadBCode = self.globalReadDo(kernel, 1, tensorParametersB)
       else:
-        self.dtlsM0UpdateACode = Code.StructuredModule() 
+        self.dtlsM0UpdateACode = Code.StructuredModule()
         self.globalReadACode = Code.StructuredModule() # empty
-        self.dtlsM0UpdateBCode = Code.StructuredModule() 
+        self.dtlsM0UpdateBCode = Code.StructuredModule()
         self.globalReadBCode = Code.StructuredModule() # empty
 
       if self.enable["GlobalReadInc"]:
@@ -2557,7 +2557,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
   ##############################################################################
   # MAC Iteration
-  # useMacro : if true, call the MAC* macro. If False, inline the MACs 
+  # useMacro : if true, call the MAC* macro. If False, inline the MACs
   ##############################################################################
   @abc.abstractmethod
   def macIter(self, kernel, bufferIdx, iuiCount, useMacro):
@@ -2782,7 +2782,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return self.indent + self.syncStr + self.endLine
 
   ##############################################################################
-  # MapAcctoArch 
+  # MapAcctoArch
   ##############################################################################
   @abc.abstractmethod
   def MapAcctoArchRegs(self, kernel, option):
@@ -2816,8 +2816,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     """
     Returns the source of the kernel, either C++ or assembly.
     """
-    
-    
+
+
     fileString = ""
     self.tPA = tensorParametersA = {}
     self.tPB = tensorParametersB = {}
@@ -3010,10 +3010,10 @@ for codeObjectFileName in codeObjectFileNames:
   ##############################################################################
   def getSourceFileString(self, kernel):
     """
-    Returns a string suitable for placing in Kernels.cpp.  This means the actual kernel source in the case 
+    Returns a string suitable for placing in Kernels.cpp.  This means the actual kernel source in the case
     of a source kernel, or an assembled code object byte array definition in the case of an assembly kernel,
     or an empty string in the case that CodeFromFiles is true.
-    
+
     In the case of an assembly kernel, this function has the side effect of creating the following files:
      * An assembly source file
      * An object file
@@ -3030,7 +3030,7 @@ for codeObjectFileName in codeObjectFileNames:
         kernelName = self.getKernelName(kernel)
 
         if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
-          # I guess in this case we are making sure that the code object file exists by executing the code 
+          # I guess in this case we are making sure that the code object file exists by executing the code
           # above but we aren't placing it into the source.
           return (0, "")
 
@@ -3038,7 +3038,7 @@ for codeObjectFileName in codeObjectFileNames:
 
       else:
         return (0, self.getKernelSource(kernel))
-      
+
     except subprocess.CalledProcessError as exc:
       print(exc)
       return (-1, "")

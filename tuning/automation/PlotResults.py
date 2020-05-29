@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,7 @@ def RunPlot():
 
     n_series = current_data['N']
     m_series = current_data['M']
-    p_series = current_data['eff'] 
+    p_series = current_data['eff']
 
     fig1, ax1 = plt.subplots()
     ax1.plot(n_series,p_series,'+')
@@ -64,7 +64,7 @@ def RunPlot():
     ax2.set_ylabel("eff")
     plot2Name = plotFileName + "_effm.pdf"
     fig2.savefig(plot2Name, dpi=300, facecolor="#f1f1f1")
-  
+
 
 
 if __name__ == "__main__":

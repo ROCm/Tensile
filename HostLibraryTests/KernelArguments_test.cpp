@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc.
+ * Copyright 2017-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -40,28 +40,29 @@ TEST(KernelArguments, Simple)
 
     struct
     {
-        void * d;
-        const void * c;
-        const void * a;
-        const void * b;
+        void*       d;
+        const void* c;
+        const void* a;
+        const void* b;
 
-        int x;
+        int    x;
         double y;
-        float z;
-        char t;
+        float  z;
+        char   t;
 
         size_t k;
 
     } ref;
 
-    // Padding bytes would be left uninitialized in the struct but will be zero-filled by
-    // the KernelArguments class.  Set them to zero to prevent a test failure. 
+    // Padding bytes would be left uninitialized in the struct but will be
+    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
+    // test failure.
     memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
-    ref.c = array.data()+1;
-    ref.a = array.data()+2;
-    ref.b = array.data()+3;
+    ref.c = array.data() + 1;
+    ref.a = array.data() + 2;
+    ref.b = array.data() + 3;
     ref.x = 23;
     ref.y = 90.2;
     ref.z = 16.0f;
@@ -90,13 +91,11 @@ TEST(KernelArguments, Simple)
     EXPECT_EQ(result.size(), reference.size());
     for(int i = 0; i < std::min(result.size(), reference.size()); i++)
     {
-        EXPECT_EQ(static_cast<uint32_t>(result[i]),
-                  static_cast<uint32_t>(reference[i]))
+        EXPECT_EQ(static_cast<uint32_t>(result[i]), static_cast<uint32_t>(reference[i]))
             << "(" << i << ")";
     }
 
-    //std::cout << args << std::endl;
-
+    // std::cout << args << std::endl;
 }
 
 TEST(KernelArguments, Binding)
@@ -107,28 +106,29 @@ TEST(KernelArguments, Binding)
 
     struct
     {
-        void * d;
-        const void * c;
-        const void * a;
-        const void * b;
+        void*       d;
+        const void* c;
+        const void* a;
+        const void* b;
 
-        int x;
+        int    x;
         double y;
-        float z;
-        char t;
+        float  z;
+        char   t;
 
         size_t k;
 
     } ref;
 
-    // Padding bytes would be left uninitialized in the struct but will be zero-filled by
-    // the KernelArguments class.  Set them to zero to prevent a test failure. 
+    // Padding bytes would be left uninitialized in the struct but will be
+    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
+    // test failure.
     memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
-    ref.c = array.data()+1;
-    ref.a = array.data()+2;
-    ref.b = array.data()+3;
+    ref.c = array.data() + 1;
+    ref.a = array.data() + 2;
+    ref.b = array.data() + 3;
     ref.x = 23;
     ref.y = 90.2;
     ref.z = 16.0f;
@@ -148,7 +148,7 @@ TEST(KernelArguments, Binding)
 
     EXPECT_EQ(args.size(), sizeof(ref));
 
-    //std::cout << args << std::endl;
+    // std::cout << args << std::endl;
 
     EXPECT_THROW(args.data(), std::runtime_error);
 
@@ -163,12 +163,9 @@ TEST(KernelArguments, Binding)
     EXPECT_EQ(result.size(), reference.size());
     for(int i = 0; i < std::min(result.size(), reference.size()); i++)
     {
-        EXPECT_EQ(static_cast<uint32_t>(result[i]),
-                  static_cast<uint32_t>(reference[i]))
+        EXPECT_EQ(static_cast<uint32_t>(result[i]), static_cast<uint32_t>(reference[i]))
             << "(" << i << ")";
     }
 
-    //std::cout << args << std::endl;
-
+    // std::cout << args << std::endl;
 }
-

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -56,12 +56,12 @@ def ProcesDefinitionFile(definitionFileName):
             configDefinitionList = configurationMapper[key]
         else:
             configDefinitionList = []
-            configurationMapper[key] = configDefinitionList 
+            configurationMapper[key] = configDefinitionList
 
         configDefinition = (solutionFileName, fileName)
         configDefinitionList.append(configDefinition)
 
-    definitionFile.close()    
+    definitionFile.close()
 
     return configurationMapper
 
@@ -69,8 +69,8 @@ def ProcesDefinitionFile(definitionFileName):
 
 
 def processFile(headerFileName, key, configDefinitionList, configurationPath, workingDirectoryName, outputFileName, outputPath):
-    
-    libraryName, solutionName, transformatnType = key.split('_') 
+
+    libraryName, solutionName, transformatnType = key.split('_')
 
     typeFileName = "types/%s_%s.yml" % (solutionName, transformatnType)
     typeFilePath = os.path.join(configurationPath, typeFileName)
@@ -82,7 +82,7 @@ def processFile(headerFileName, key, configDefinitionList, configurationPath, wo
 
     for configDefinition in configDefinitionList:
         problemFileName, sizeFileName = configDefinition
-        
+
         problemFilePath = os.path.join(configurationPath, problemFileName)
         contentFileNames.append(problemFilePath)
         contentFileNames.append(sizeFileName)
@@ -193,7 +193,7 @@ def generateBenchmarkGroupFromScheme(scheme,tileAware="false"):
     finalParams = []
 
     if tileAware == "true":
-        finalParams.append({"ProblemSizes":None}) 
+        finalParams.append({"ProblemSizes":None})
         finalParams.append({"SolutionSummationSizes":[30,60,90,120,180,360,720,1440,2880,5000,10000,15000,20000,25000,30000]})
 
     for key in scheme:
@@ -212,7 +212,7 @@ def generateBenchmarkGroupFromScheme(scheme,tileAware="false"):
     benchmarkGroup["ForkParameters"] = forkParams
     benchmarkGroup["BenchmarkCommonParameters"] = commonParams
     benchmarkGroup["BenchmarkFinalParameters"] = finalParams
-    
+
     return benchmarkGroup
 
 def generateDefaultScheme():
@@ -247,22 +247,22 @@ def generateMfmaScheme():
 
 def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware="false",mfma="false",rk="false"):
     _ , transposeA, transposeB, dType = problemKey
-    
+
     transposeType = "%s%s" % (transposeA.lower(),transposeB.lower())
     benchmarkGroup = None
-            
+
     if transposeType == "tn" and rk == "true" and mfma == "false":
         scheme = generateDefaultScheme()
         scheme["GlobalSplitU"] = [1,3]
         scheme["ReplacementKernel"] = [True]
         noExact = True
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendThreadTiles(benchmarkGroup, [[8,2],[8,4],[2,8],[4,8],[16,2],[16,4],[16,8],[2,16],[4,16],[8,16]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[8,8,1]])
         appendSizes(benchmarkGroup,sizeList,tileAware,noExact,rk)
         problemGroup.append(benchmarkGroup)
 
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendThreadTiles(benchmarkGroup, [[4,4]])
         appendWorkGroups(benchmarkGroup, [[16,32,1]])
         appendSizes(benchmarkGroup,sizeList,tileAware,False,rk)
@@ -273,67 +273,67 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
         if dType == "h":
             scheme["AssertSummationElementMultiple"] = [2]
             scheme["AssertFree0ElementMultiple"] = [2]
-        
+
         if transposeType == "tn" and rk == "true" and dType == "s":
             scheme["GlobalSplitU"] = [1,3]
             scheme["ReplacementKernel"] = [True]
             noExact = True
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4],[16, 16, 4, 1]])
             appendThreadTiles(benchmarkGroup, [[4,16],[8,16]])
             appendWorkGroups(benchmarkGroup, [[16,16,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware,noExact,rk)
             problemGroup.append(benchmarkGroup)
 
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4],[16, 16, 4, 1]])
             appendThreadTiles(benchmarkGroup, [[4,16],[8,16]])
             appendWorkGroups(benchmarkGroup, [[16,16,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware,False,rk)
             problemGroup.append(benchmarkGroup)
         else:
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
             appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[4,32],[1,64],[2,64]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-        
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)     
+
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
             appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[4,32],[1,64],[2,64]])
             appendWorkGroups(benchmarkGroup, [[16,16,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-            
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)     
+
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
             appendThreadTiles(benchmarkGroup, [[4,16],[8,16],[2,32],[4,32],[2,64]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-            
-            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)     
+
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[16, 16, 4, 1]])
             appendThreadTiles(benchmarkGroup, [[4,16],[8,16],[2,32],[4,32],[2,64]])
             appendWorkGroups(benchmarkGroup, [[16,16,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-    
+
     else:
         scheme = generateDefaultScheme()
         if dType == "h":
             scheme["AssertSummationElementMultiple"] = [2]
             scheme["AssertFree0ElementMultiple"] = [2]
-    
+
         if sizeKey == "batch":
             if dType == "d":
                 scheme["StaggerU"] = [0,32]
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
             else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
@@ -341,11 +341,11 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             scheme["GlobalSplitU"] = [1,4]
             if dType == "d":
                 scheme["StaggerU"] = [0,32]
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
             else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
@@ -353,11 +353,11 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             scheme["GlobalSplitU"] = [1,4]
             if dType == "d":
                 scheme["StaggerU"] = [0,32]
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
             else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
@@ -367,22 +367,22 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 scheme["DepthU"] = [8,16]
             if dType == "d":
                 scheme["StaggerU"] = [0,32]
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
             else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
         else: #sizeKey == "large"
             if dType == "d":
                 scheme["StaggerU"] = [0,32]
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[32,16,1],[16,32,1]])
             else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware) 
+                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                 appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
                 appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
@@ -421,7 +421,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
         configurationFilePath = os.path.join(configPath, configurationFileName)
 
 
-        newConfig = None 
+        newConfig = None
         problemGroup = None
 
         if configurationFilePath in configDefs:
@@ -456,7 +456,7 @@ def GetOutputFileName(outputPath, namePart, ext):
 
 
 def generateRunScript(fileNames, outputPath,count='1'):
-    
+
     scriptNames = ""
 
     for fileName in fileNames:
@@ -472,12 +472,12 @@ for NAME in%s
 do
 ./${NAME}.sh > results%s/${NAME}.1 2>&1
 done
-""" 
+"""
     runallContent = runallTemplate % (count, scriptNames, count)
     doitFileName = os.path.join(outputPath, "doit_all"+count+".sh")
     doitFile = open(doitFileName,"w")
     doitFile.write(runallContent)
-    doitFile.close() 
+    doitFile.close()
 
 def removeIter(lines):
     noiterlines = []
@@ -495,16 +495,16 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
-    
-    if probDef != "gemm": 
+
+    if probDef != "gemm":
         scriptFileNames.append(outputFileName2)
     if probDef != "batch":
         scriptFileNames.append(outputFileName)
-    count = 0    
+    count = 0
 
     for key in keys:
         if disableStrides == "true":
-            if  "ld" not in key or "stride" not in key: 
+            if  "ld" not in key or "stride" not in key:
                 lineDefinitions = problemMapper[key]
         else:
             lineDefinitions = problemMapper[key]
@@ -553,11 +553,11 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
                                 count = 2
                         else:
                             i.write("%s\n" % line)
-        noiterlines = [] 
+        noiterlines = []
         lines = []
 
     generateRunScript(scriptFileNames, scriptPath)
-    
+
 def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="random_int"):
 
     keys = list(problemMapper.keys())
@@ -567,16 +567,16 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
-    
-    if probDef != "gemm": 
+
+    if probDef != "gemm":
         scriptFileNames.append(outputFileName2)
     if probDef != "batch":
         scriptFileNames.append(outputFileName)
-    count = 0    
+    count = 0
 
     for key in keys:
         if disableStrides == "true":
-            if "ld" not in key or "stride" not in key: 
+            if "ld" not in key or "stride" not in key:
                 lineDefinitions = problemMapper[key]
         else:
             lineDefinitions = problemMapper[key]
@@ -625,9 +625,9 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
                                 count = 2
                         else:
                             i.write("%s\n" % line)
-        noiterlines = [] 
+        noiterlines = []
         lines = []
-                    
+
     generateRunScript(scriptFileNames, scriptPath,'2')
 
 def OutputProblemDefinitions(problemMapper, sizePath, namePart):
@@ -657,12 +657,12 @@ def RunMain():
     argParser.add_argument("output_path", help="the output path")
     argParser.add_argument("output_file_name", help="the output file name")
     argParser.add_argument("library", help="the library Logic name")
-    argParser.add_argument("tile_aware", help="true/false tile_aware_selection", default="false")    
-    argParser.add_argument("mfma", help="true/false mfma", default="false")    
-    argParser.add_argument("replacement_kernel", help="true/false replacement kernels", default="false")    
-    argParser.add_argument("disable_strides", help="true/false disable strides", default="false") 
-    argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both") 
-    argParser.add_argument("initialization", help="random_int or trig_float", default="random_int") 
+    argParser.add_argument("tile_aware", help="true/false tile_aware_selection", default="false")
+    argParser.add_argument("mfma", help="true/false mfma", default="false")
+    argParser.add_argument("replacement_kernel", help="true/false replacement kernels", default="false")
+    argParser.add_argument("disable_strides", help="true/false disable strides", default="false")
+    argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both")
+    argParser.add_argument("initialization", help="random_int or trig_float", default="random_int")
 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path

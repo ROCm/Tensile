@@ -36,7 +36,7 @@ These are the 5 components that are combined into a Tensile YAML file:
     - other configs may be appropriate for powers-of-two or other unusual configs.
 
   - Example: solutions/nn/sgemm_quick.yml
- 
+
 
 
 - Problem(s):

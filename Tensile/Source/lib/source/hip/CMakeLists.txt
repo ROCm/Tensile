@@ -5,7 +5,7 @@ set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
 #set(HIP_INCLUDE_DIRS /opt/rocm/hip/include)
 #set(HIP_LIBRARIES /opt/rocm/hip/lib/libhip_hcc.so)
 
-add_library(TensileHip STATIC 
+add_library(TensileHip STATIC
             HipSolutionAdapter.cpp
             HipHardware.cpp)
 

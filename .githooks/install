@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ln -sf ../../.githooks/pre-commit "$(git rev-parse --git-dir)/hooks/"

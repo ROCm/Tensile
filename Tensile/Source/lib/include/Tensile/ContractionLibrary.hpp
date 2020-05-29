@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -38,14 +38,17 @@
 
 namespace Tensile
 {
-    using ContractionLibrary                  = SolutionLibrary<ContractionProblem>;
-    using MasterContractionLibrary            = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using SingleContractionLibrary            = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionHardwareSelectionLibrary = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemSelectionLibrary  = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMatchingLibrary   = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemMapLibrary        = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionProblemPredicate         = ProblemPredicate<ContractionProblem>;
-    using ContractionGranularitySelectionLibrary   = GranularitySelectionLibrary<ContractionProblem, ContractionSolution>;
-}
-
+    using ContractionLibrary       = SolutionLibrary<ContractionProblem>;
+    using MasterContractionLibrary = MasterSolutionLibrary<ContractionProblem, ContractionSolution>;
+    using SingleContractionLibrary = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionHardwareSelectionLibrary
+        = HardwareSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemSelectionLibrary
+        = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemMatchingLibrary
+        = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemMapLibrary = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionProblemPredicate  = ProblemPredicate<ContractionProblem>;
+    using ContractionGranularitySelectionLibrary
+        = GranularitySelectionLibrary<ContractionProblem, ContractionSolution>;
+} // namespace Tensile

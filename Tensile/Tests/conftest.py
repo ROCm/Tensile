@@ -45,7 +45,7 @@ def builddir(pytestconfig, tmpdir_factory):
 def worker_lock_path(worker_id, tmp_path_factory):
     if not worker_id:
         return None
-    
+
     return tmp_path_factory.getbasetemp().parent / "client_execution.lock"
 
 @pytest.fixture

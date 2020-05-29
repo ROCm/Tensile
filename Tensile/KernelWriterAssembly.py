@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -367,7 +367,7 @@ class RegisterPool:
         stateStr += pvs + "\n"
     for i in range(0, len(self.pool)):
       if self.pool[i].status == self.statusUnAvailable:
-        stateStr += "." # 'removed', this indicates a fixed assignment from "remove", ie a non-tmp allocation 
+        stateStr += "." # 'removed', this indicates a fixed assignment from "remove", ie a non-tmp allocation
       elif self.pool[i].status == self.statusAvailable:
         stateStr += "|" # Can be allocated
       elif self.pool[i].status == self.statusInUse:
@@ -936,7 +936,7 @@ class KernelWriterAssembly(KernelWriter):
       defaultIsa = (9,0,0)
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
-    
+
     if kernel["EnableMatrixInstruction"] and not self.version == (9,0,8):
       printExit("MatrixInstruction not supported for {0}".format(self.version))
 
@@ -1430,7 +1430,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # BufferLoad:
     # Uses a resource descriptor (SRD) which is stored in 4 SGPRs and thus shared by all work-items.
-    # Each work-item also uses  a unique 32-bit offset into vgprGlobalReadOffset.  These offsets are set when 
+    # Each work-item also uses  a unique 32-bit offset into vgprGlobalReadOffset.  These offsets are set when
     # the tile is initialized and stay constant through the execution of the kernel.
     # The base address in the SRD is updated when the algoritm moves to a new tile
     # BufferLoad disables the gptGlobalReadAddr used in flat addressing.
@@ -1568,7 +1568,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # SGPR above are user SGPR which are set by GPU hardware when the kernel is launched
     self.firstInitSgpr = self.sgprPool.size()
-    
+
     # To avoid corrupting tmp sgprs that may be used around the assert,
     # reserve some sgprs to save/restore the execmask
     if self.db["EnableAsserts"]:
@@ -1603,15 +1603,15 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("PackedSize0", 1)
     if len(kernel["PackedC1IndicesX"]) > 1:
       self.defineSgpr("PackedSize1", 1)
-    
+
     if kernel["PackSummationDims"]:
       self.defineSgpr(self.loopCounterName(kernel,self.unrollIdx), 1)
     else:
       # contractions with multiple summations will use multiple LoopCounters, if PSD=0
       for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
         self.defineSgpr(self.loopCounterName(kernel,i), 1)
-        # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop. 
-        # It means in the final iteration of each tail loop, the last N elem along summation dimension 
+        # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop.
+        # It means in the final iteration of each tail loop, the last N elem along summation dimension
         # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
         if kernel["EnableMatrixInstruction"] and \
           kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
@@ -1641,7 +1641,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
-    # fill empty Sgpr slot caused by Sgpr alignment, 
+    # fill empty Sgpr slot caused by Sgpr alignment,
     # because we need following defineSgpr use continous sgpr
     SgprSlot = []
     currentSize = self.sgprPool.size()
@@ -1710,14 +1710,14 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
-    
+
     self.numSgprToLoad = 2 + 2 + numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB + numSgprAlpha + \
       (numSgprBeta if kernel["ProblemType"]["UseBeta"] else 0) + self.numSgprStridesD + self.numSgprStridesC + self.numSgprStridesA + \
       self.numSgprStridesB + self.numSgprSizesFree + self.numSgprSizesSum + len(self.sumMagicParms)*2 + len(kernel["PackedC0IdxChars"][:-1])*2 + \
       len(kernel["PackedC1IdxChars"][:-1])*2 + len(kernel["ProblemType"]["ZeroPadA"])*2 + len(kernel["ProblemType"]["ZeroPadB"])*2 + 1 + 2 + 2 + 3
     # Get kernel argument end here
     ###################################
-    
+
     # put unused Sgpr back to SgprPool
     while SgprSlot:
       tempSgpr = SgprSlot.pop(0)
@@ -1826,7 +1826,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
     self.savedVgprPool = None
 
-    # C regs are not used during initialization so mark them as available - 
+    # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
     self.vgprPool.add(self.startVgprValuC, \
         self.numVgprValuC, "ValuC-Block") # Add as available
@@ -1835,7 +1835,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, defaultPreventOverflow=False, printRP=0)
-    # C regs are not used during initialization so mark them as available - 
+    # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
     self.agprPool.add(0, self.totalAgprs, "ValuC-Block")
 
@@ -2311,7 +2311,7 @@ class KernelWriterAssembly(KernelWriter):
       for b in range(0, kernel["ThreadTile1"]):
         for a in range(0, kernel["ThreadTile0"]):
           for iui in range(0, innerUnroll):
-            # c.real += a.real * b.real 
+            # c.real += a.real * b.real
             cStr = "v[%s+(%u+%u*%u)*4+0:(%s+%u+%u*%u)*4+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
             aStr = "v[%s+%u*4+0:%s+%u*4+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
             bStr = "v[%s+%u*4+0:%s+%u*4+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
@@ -2342,13 +2342,13 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "v_fma_f64 %s, -%s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
             else:
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
-              
+
             if beAggressive and not doOnce:
               kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
               doOnce = True
       if beAggressive:
         kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
-        
+
       # other precision
     else:
       printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
@@ -2585,7 +2585,7 @@ class KernelWriterAssembly(KernelWriter):
         cptByte  = 2
       if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "F16"
       if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f16"
-    
+
     elif kernel["ProblemType"]["DataType"].isInt8x4():
       if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "I8"
       if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "i8"
@@ -2596,7 +2596,7 @@ class KernelWriterAssembly(KernelWriter):
       cptByte  = 4
       if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "I32"
       if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "i32"
-    
+
     elif kernel["ProblemType"]["DataType"].isSingle():
       if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "F32"
       if globalParameters["CodeObjectVersion"] == "V3": srcValueType = "f32"
@@ -2607,7 +2607,7 @@ class KernelWriterAssembly(KernelWriter):
       cptByte  = 4
       if globalParameters["CodeObjectVersion"] == "V2": cptValueType = "F32"
       if globalParameters["CodeObjectVersion"] == "V3": cptValueType = "f32"
-    
+
     elif kernel["ProblemType"]["DataType"].isDouble() or \
          kernel["ProblemType"]["DataType"].isSingleComplex():
       if globalParameters["CodeObjectVersion"] == "V2": srcValueType = "F64"
@@ -3404,7 +3404,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.do["NullKernel"]:
       kStr += inst("s_endpgm", "Skip the whole kernel")
 
-    if self.do["PreLoop"]: 
+    if self.do["PreLoop"]:
       if self.db["InitSgpr"] & 0x1:
         kStr += self.comment("Init SGPRs")
         for i in range(self.firstInitSgpr, self.sgprPool.size()):
@@ -3434,7 +3434,7 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += self.getKernArg("Tensor2dSizeC+0",0)
       kStr += self.getKernArg("Tensor2dSizeC+1",0)
-      
+
       load = self.numSgprToLoad
       sgprStart = self.sgprs["Tensor2dSizeA"]
       while load > 0:
@@ -3471,8 +3471,8 @@ class KernelWriterAssembly(KernelWriter):
       # currently align sgpr to kernel argument memory, and use s_load_dwordxN to load argument as large as possible in one instruction
       # however, in order to match sgpr to kernel argument memory, some unnecessarily sgpr will also be defined, and caused wasting of sgpr.
       # TODO: more efficient way is to organize both sgpr and kernel argument memory in API
-      
-      # comment out original getKernArg, in case we need it back 
+
+      # comment out original getKernArg, in case we need it back
       """
       kStr += self.getKernArg("Tensor2dSizeA+0")
       kStr += self.getKernArg("Tensor2dSizeA+1")
@@ -4095,7 +4095,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Global Read Addresses: Shift A/B
-  # See if the load (including vw) will extend past the 'free' dim of the 
+  # See if the load (including vw) will extend past the 'free' dim of the
   # tensor.  If so clip to the last legal value which is inside the array
 
   ##############################################################################
@@ -6265,7 +6265,7 @@ class KernelWriterAssembly(KernelWriter):
           if beAggressive and not doOnce:
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
-            
+
     else:
       printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
 
@@ -6273,7 +6273,7 @@ class KernelWriterAssembly(KernelWriter):
       imod.addInst("s_setprio ","0","Reset priority after macs")
 
     return imod
- 
+
   ##############################################################################
   # At Least 1 Unroll
   # prefetch means this is in the prefetch code, either before unroll loop
@@ -6334,7 +6334,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "1.0", "Real part of 1.0")
           kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0.0", "Imaginary part of 1.0")
           kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), sgpr(tmpSgpr,2), "Alpha == 1.0 ?")
-          
+
         elif kernel["ProblemType"]["DataType"].isDoubleComplex():
           kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "0x00000000", "lsb of real part of 1.0")
           kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0x3ff00000", "msb of real part of 1.0")
@@ -6406,7 +6406,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.MapAcctoArchRegs(kernel,option=0) # begin locking c-tile vregs from register pool
 
         # perhaps could work with LSU>1 by adding other indices here, but not tested
-        # had to move it below MapAcctoArchRegs(), else computeStoreVgprs() will check out c-tile vregs as  
+        # had to move it below MapAcctoArchRegs(), else computeStoreVgprs() will check out c-tile vregs as
         # temp vregs which soon gets utilized by c-tile and guarantees aliasing troubles
         assert (kernel["LocalSplitU"] == 1)
         kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
@@ -6497,7 +6497,7 @@ class KernelWriterAssembly(KernelWriter):
       if newSize > self.savedVgprPool.size():
         for i in range(oldSize-1,newSize):
           self.savedVgprPool.pool.append(self.savedVgprPool.Register(self.savedVgprPool.statusAvailable,"restore vgprPool"))
-      self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path 
+      self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
       self.savedVgprPool = None
     return kStr
 
@@ -6806,7 +6806,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Read:
   # globalReadGuardK is called for loads in the tail loop
-  # Must ensure each load is in bounds - either using buffer bounds 
+  # Must ensure each load is in bounds - either using buffer bounds
   # or exec-mask checks.
   ##############################################################################
   def globalReadGuardK(self, kernel, tP):
@@ -6901,9 +6901,9 @@ class KernelWriterAssembly(KernelWriter):
                   numElementsPerLoad = 2
                 elif self.archCaps["HasEccHalf"]:
                   # In some cards, loading half types into register will zero out
-                  # the other half. Therefore we need to load into a separate register 
+                  # the other half. Therefore we need to load into a separate register
                   # then pack 2 registers into one
-                  destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi') 
+                  destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi')
                 regIdx = r // 2
               elif kernel["ProblemType"]["DataType"].isInt8x4() or \
                    kernel["ProblemType"]["DataType"].isSingle():
@@ -7102,7 +7102,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return imod
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
       # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
-      # for cases both A&B are DTLS, updating m0 for each GlobalRead requires instruction schedule 
+      # for cases both A&B are DTLS, updating m0 for each GlobalRead requires instruction schedule
       # along with global reads
       assert (kernel["LocalWriteUseSgpr%s"%tc])
       if kernel["ExpandPointerSwap"]:
@@ -7255,7 +7255,7 @@ class KernelWriterAssembly(KernelWriter):
                         extraFields=extraFields, \
                         hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)))
-              #print "IM=", type(imod.instList[-1]), imod.instList[-1], 
+              #print "IM=", type(imod.instList[-1]), imod.instList[-1],
             else: # not buffer load
               # load one element from address
               loadModule.addCode( self.chooseGlobalRead(False, \
@@ -8485,12 +8485,12 @@ class KernelWriterAssembly(KernelWriter):
             if useDwordX2:
               regIdx = regIdx*self.bpeCinternal // 4
               kStr += inst("ds_write_b64", vgpr(addr), vgpr("ValuC+%u"%regIdx,2), \
-                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal), 
+                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal),
                            "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
             else:
               regIdx //= elementStep
               kStr += inst("ds_write_b32", vgpr(addr), vgpr("ValuC+%u"%regIdx), \
-                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal), 
+                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal),
                            "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
             # ds_write value
             #kStr += dump(vgpr(regIdx))
@@ -9288,7 +9288,7 @@ class KernelWriterAssembly(KernelWriter):
       assert (not (self.optSharedColVgpr and not kernel["LdcEqualsLdd"]))
 
       # packed1 not yet supported.  Would need to:
-      # - extract packed dimensions from coord1 into 
+      # - extract packed dimensions from coord1 into
       assert( len(kernel["PackedC1IndicesX"]) == 1)
 
       self.cfg = self.StoreConstConfig(kernelWriter, kernel, self, gwvw, edge, beta, atomic)
@@ -10296,7 +10296,7 @@ class KernelWriterAssembly(KernelWriter):
                         addr0, addr1, offset, extraFields, hi16=0):
     """
     create the store instruction for requested vector width and other parms
-   
+
     rpv = regs per vector
     """
 
@@ -10459,7 +10459,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mul_f32", vgpr("ValuC+%u"%(sumIdxV*2+1)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV*2+1)), "*= alpha ( Ci = Ar * Ci)")
           kStr += inst("v_mac_f32", vgpr("ValuC+%u"%(sumIdxV*2+1)), sgpr("Alpha+1"), vgpr(tmpVgpr), "*= alpha ( Ci += Ai * Cr_backup )")
           self.vgprPool.checkIn(tmpVgpr)
-          
+
         # double precision complex
         elif kernel["ProblemType"]["DataType"].isDoubleComplex():
           vtmp1 = self.vgprPool.checkOut(2)
@@ -10474,7 +10474,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+2),2), sgpr("Alpha+0",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(vtmp2,2), self.endLine)
           self.vgprPool.checkIn(vtmp1)
           self.vgprPool.checkIn(vtmp2)
-          
+
     return kStr
 
   ##############################################################################
@@ -11011,7 +11011,7 @@ class KernelWriterAssembly(KernelWriter):
 
             # double precision complex
             elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-              # c.real += a.real * b.real 
+              # c.real += a.real * b.real
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+0),2), vgpr(dataV+0,2), sgpr("Beta+0",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), self.endLine)
               # c.real -= a.imag * b.imag
               kStr += "v_fma_f64 %s, %s, -%s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+0),2), vgpr(dataV+2,2), sgpr("Beta+2",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), self.endLine)
@@ -11237,7 +11237,7 @@ class KernelWriterAssembly(KernelWriter):
       if skipLocalRead > -1:
         lrvw = kernel["VectorWidth"]
         if kernel["EnableMatrixInstruction"]:
-          #FIXME  lrvw = 1 for all precision cases 
+          #FIXME  lrvw = 1 for all precision cases
           # check fp16  requries 2 src(S) might use lrvw=2
           # Also explore using VW>1 for cases ThreadTile0>1 && ThreadTile1
           lrvw = 1
@@ -11504,7 +11504,7 @@ class KernelWriterAssembly(KernelWriter):
   def bomb(self,cookie=None,scratchVgpr=-1):
       """
       Cause a GPUVM fault.
-      Instruction after the bomb will write the cookie to SGPR0, so you can see the cookie in the 
+      Instruction after the bomb will write the cookie to SGPR0, so you can see the cookie in the
       backtrace. Useful for locating which spot in code generated the bomb
       vgprAddr controls which vgpr to overwrite with the null pointer address
       """

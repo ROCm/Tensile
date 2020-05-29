@@ -76,7 +76,7 @@ N,N,1600,512,1024,-1,1600,1024,1,1600,6641.81,252.6
 #### `provision_tuning.sh`
 
 ```bash
-usage: 
+usage:
 
 ./provision_tuning.sh [-w|--working-path <path>] [-z | --size-log <logfile path>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-n] [[-h|--help]
 

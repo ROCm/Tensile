@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * Copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -38,7 +38,7 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<std::shared_ptr<ContractionSolution>, IO>
         {
-            static void mapping(IO & io, std::shared_ptr<ContractionSolution> & p)
+            static void mapping(IO& io, std::shared_ptr<ContractionSolution>& p)
             {
                 PointerMappingTraits<ContractionSolution, IO>::mapping(io, p);
             }
@@ -50,9 +50,9 @@ namespace Tensile
         struct MappingTraits<ContractionSolution, IO>
         {
             using iot = IOTraits<IO>;
-            static void mapping(IO & io, ContractionSolution & s)
+            static void mapping(IO& io, ContractionSolution& s)
             {
-                iot::mapRequired(io, "name",  s.kernelName);
+                iot::mapRequired(io, "name", s.kernelName);
                 iot::mapRequired(io, "index", s.index);
 
                 iot::mapRequired(io, "hardwarePredicate", s.hardwarePredicate);
@@ -64,7 +64,6 @@ namespace Tensile
 
                 iot::mapRequired(io, "sizeMapping", s.sizeMapping);
                 iot::mapRequired(io, "problemType", s.problemType);
-
             }
 
             const static bool flow = false;
@@ -74,23 +73,23 @@ namespace Tensile
         struct MappingTraits<ContractionSolution::SizeMapping, IO>
         {
             using iot = IOTraits<IO>;
-            static void mapping(IO & io, ContractionSolution::SizeMapping & s)
+            static void mapping(IO& io, ContractionSolution::SizeMapping& s)
             {
-                iot::mapRequired(io, "workGroup",  s.workGroupSize);
+                iot::mapRequired(io, "workGroup", s.workGroupSize);
                 iot::mapRequired(io, "threadTile", s.threadTile);
-                iot::mapRequired(io, "macroTile",  s.macroTile);
+                iot::mapRequired(io, "macroTile", s.macroTile);
 
-                iot::mapRequired(io, "staggerU",            s.staggerU);
-                iot::mapRequired(io, "depthU",              s.depthU);
-                iot::mapRequired(io, "globalSplitU",        s.globalSplitU);
-                iot::mapRequired(io, "staggerStrideShift",  s.staggerStrideShift);
-                iot::mapRequired(io, "workGroupMapping",    s.workGroupMapping);
+                iot::mapRequired(io, "staggerU", s.staggerU);
+                iot::mapRequired(io, "depthU", s.depthU);
+                iot::mapRequired(io, "globalSplitU", s.globalSplitU);
+                iot::mapRequired(io, "staggerStrideShift", s.staggerStrideShift);
+                iot::mapRequired(io, "workGroupMapping", s.workGroupMapping);
 
-                iot::mapOptional(io, "packBatchDims",       s.packBatchDims);
-                iot::mapOptional(io, "packSummationDims",   s.packSummationDims);
-                iot::mapOptional(io, "magicDivAlg",         s.magicDivAlg);
-                iot::mapRequired(io, "persistentKernel",    s.persistentKernel);
-                iot::mapRequired(io, "sourceKernel",        s.sourceKernel);
+                iot::mapOptional(io, "packBatchDims", s.packBatchDims);
+                iot::mapOptional(io, "packSummationDims", s.packSummationDims);
+                iot::mapOptional(io, "magicDivAlg", s.magicDivAlg);
+                iot::mapRequired(io, "persistentKernel", s.persistentKernel);
+                iot::mapRequired(io, "sourceKernel", s.sourceKernel);
             }
 
             const static bool flow = false;
@@ -100,7 +99,7 @@ namespace Tensile
         struct MappingTraits<ContractionSolution::ProblemType, IO>
         {
             using iot = IOTraits<IO>;
-            static void mapping(IO & io, ContractionSolution::ProblemType & s)
+            static void mapping(IO& io, ContractionSolution::ProblemType& s)
             {
                 iot::mapRequired(io, "operationIdentifier", s.operationIdentifier);
 
@@ -116,6 +115,5 @@ namespace Tensile
 
             const static bool flow = false;
         };
-    }
-}
-
+    } // namespace Serialization
+} // namespace Tensile

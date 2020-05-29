@@ -100,7 +100,7 @@ class LibraryLogic:
           self.__set_rangeLogic(data[8])
         else:
           self.__set_rangeLogic(None)
-    
+
       else:
         printExit("Invalid Logic file: %s" % filename)
 
@@ -153,7 +153,7 @@ class LibraryLogic:
 
   deviceNames = property(__get_deviceNames,__set_deviceNames)
 
-  
+
   #problemTypeState
   def __get_problemType(self):
     return self.__problemType
@@ -178,7 +178,7 @@ class LibraryLogic:
 
   def __set_indexOrder(self,value):
     self.__indexOrder = value
-  
+
   indexOrder = property(__get_indexOrder,__set_indexOrder)
 
 
@@ -201,11 +201,11 @@ class LibraryLogic:
   rangeLogic = property(__get_rangeLogic,__set_rangeLogic)
 
   def writeLibraryLogic(self,filename):
-  
+
     data = []
 
     data.append({"MinimumRequiredVersion":self.versionString})
-    data.append(self.scheduleName)     
+    data.append(self.scheduleName)
     data.append(self.architectureName)
     data.append(self.deviceNames)
     data.append(self.problemType)
@@ -226,7 +226,7 @@ class LibraryLogic:
 
 
 def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
-  
+
   mergedLibraryLogic = LibraryLogic()
 
   solutionList = origionalLibraryLogic.solutionStates
@@ -236,7 +236,7 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
   # zero out solution indexes
   for solution in solutionList:
     solution[indexKey] = 0
-  
+
   for solution in solutionListExact:
     solution[indexKey] = 0
 
@@ -275,18 +275,18 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
   exactLogicExact = exactLibraryLogic.exactLogic
 
   filteredExactLogicExact = []
-  
+
   # use the mapping from above to remap the exact logic
   # in the merged file
   for exact in exactLogicExact:
     # example exact entry [[123,124,1,123], [5, 4312.3]]
-    # the first fiedl in [5, 4312.3] is the mapping to the 
+    # the first fiedl in [5, 4312.3] is the mapping to the
     # kernel configuration
     kernelIndex = exact[1][0]
-    
+
     if kernelIndex in replicationMapping:
       exact[1][0] = replicationMapping[kernelIndex]
-    
+
     filteredExactLogicExact.append(exact)
 
   sizeList, _ = zip(*filteredExactLogicExact)
@@ -320,7 +320,7 @@ def MergeTensileLogicFiles(origionalLibraryLogic, exactLibraryLogic):
 
 
 def ProcessMergeLogicFile(exactFileName, origionalFileName, outputFileName):
-  
+
   _, fileName = os.path.split(exactFileName)
 
   print ("processing file: " + fileName)
@@ -339,11 +339,11 @@ def RunMergeTensileLogicFiles():
   print("# Merge Library Logic")
   print(HR)
   print("")
-  
+
   ##############################################################################
   # Parse Command Line Arguments
   ##############################################################################
-  
+
   argParser = argparse.ArgumentParser()
   argParser.add_argument("OrigionalLogicPath", help="Path to the origional LibraryLogic.yaml input files.")
   argParser.add_argument("ExactLogicPath", help="Path to the exact LibraryLogic.yaml input files.")
@@ -369,10 +369,10 @@ def RunMergeTensileLogicFiles():
 
   for exactLogicFilePath in exactLogicFiles:
     _, fileName = os.path.split(exactLogicFilePath)
-    
+
     origionalLogicFilePath = os.path.join(origionalLogicPath, fileName)
     if os.path.isfile(origionalLogicFilePath):
-      
+
       outputLogicFilePath = os.path.join(outputPath, fileName)
 
       try:
@@ -382,7 +382,7 @@ def RunMergeTensileLogicFiles():
 
     else:
       print ("# file does not exist in origional directory " + origionalLogicFilePath)
-    
+
 
 ################################################################################
 # Main

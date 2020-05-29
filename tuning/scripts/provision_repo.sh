@@ -38,7 +38,7 @@ while true; do
   esac
 done
 
-if $HELP; then 
+if $HELP; then
   echo "${HELP_STR}" >&2
   exit 2
 fi
@@ -63,7 +63,7 @@ fi
 if [ -n "${TAG}" ]; then
   PROVISION_PATH="${PROVISION_PATH}-${TAG}"
   cmd="git clone ${GIT_HOST} ${PROVISION_PATH}"
-  ${cmd} 
+  ${cmd}
   pushd ${PROVISION_PATH} > /dev/null
   git checkout tags/${TAG}
   popd > /dev/null

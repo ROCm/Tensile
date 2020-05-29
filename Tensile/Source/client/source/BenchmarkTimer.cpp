@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -42,16 +42,16 @@ namespace Tensile
         static_assert(BenchmarkTimer::clock::is_steady, "Clock must be steady.");
 
         BenchmarkTimer::BenchmarkTimer(po::variables_map const& args, Hardware const& hardware)
-            : m_numWarmups(          args["num-warmups"].as<int>()),
-              m_numBenchmarks(       args["num-benchmarks"].as<int>()),
-              m_numEnqueuesPerSync(  args["num-enqueues-per-sync"].as<int>()),
-              m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>()),
-              m_hardware(hardware),
-              m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark),
-              m_useGPUTimer(         args["use-gpu-timer"].as<bool>()),
-              m_sleepPercent(        args["sleep-percent"].as<int>()),
-              m_timeInSolution(0),
-              m_totalGPUTime(0)
+            : m_numWarmups(args["num-warmups"].as<int>())
+            , m_numBenchmarks(args["num-benchmarks"].as<int>())
+            , m_numEnqueuesPerSync(args["num-enqueues-per-sync"].as<int>())
+            , m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>())
+            , m_hardware(hardware)
+            , m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark)
+            , m_useGPUTimer(args["use-gpu-timer"].as<bool>())
+            , m_sleepPercent(args["sleep-percent"].as<int>())
+            , m_timeInSolution(0)
+            , m_totalGPUTime(0)
         {
         }
 
@@ -60,9 +60,7 @@ namespace Tensile
             return m_numBenchmarksRun < m_numBenchmarks;
         }
 
-        void BenchmarkTimer::preBenchmarkRun()
-        {
-        }
+        void BenchmarkTimer::preBenchmarkRun() {}
 
         void BenchmarkTimer::postBenchmarkRun()
         {
@@ -74,17 +72,15 @@ namespace Tensile
             m_problem = problem;
         }
 
-        void BenchmarkTimer::postProblem()
-        {
-        }
+        void BenchmarkTimer::postProblem() {}
 
         void BenchmarkTimer::preSolution(ContractionSolution const& solution)
         {
             m_numEnqueuesInSolution = 0;
-            m_timeInSolution = double_millis::zero();
+            m_timeInSolution        = double_millis::zero();
 
-            ContractionSolution::ProjectedPerformance pp =
-              solution.projectedPerformance(m_problem, m_hardware);
+            ContractionSolution::ProjectedPerformance pp
+                = solution.projectedPerformance(m_problem, m_hardware);
             m_solution = solution;
 
             m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
@@ -101,21 +97,22 @@ namespace Tensile
 
         void BenchmarkTimer::postSolution()
         {
-            double timePerEnqueue_us = double_micros(m_timeInSolution).count() / m_numEnqueuesInSolution;
+            double timePerEnqueue_us
+                = double_micros(m_timeInSolution).count() / m_numEnqueuesInSolution;
 
-            double gflops = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
-            uint64_t gflopsUint = static_cast<uint64_t> (round(gflops));
+            double   gflops     = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
+            uint64_t gflopsUint = static_cast<uint64_t>(round(gflops));
 
-            ContractionSolution::ProjectedPerformance pp =
-              m_solution.projectedPerformance(m_problem, m_hardware);
+            ContractionSolution::ProjectedPerformance pp
+                = m_solution.projectedPerformance(m_problem, m_hardware);
 
-            m_reporter->report(ResultKey::TimeUS,      timePerEnqueue_us);
-            if (gflopsUint)
+            m_reporter->report(ResultKey::TimeUS, timePerEnqueue_us);
+            if(gflopsUint)
                 m_reporter->report(ResultKey::SpeedGFlops, gflopsUint);
             else
                 m_reporter->report(ResultKey::SpeedGFlops, gflops);
 
-            m_timeInSolution = double_millis::zero();
+            m_timeInSolution        = double_millis::zero();
             m_numEnqueuesInSolution = 0;
         }
 
@@ -132,20 +129,17 @@ namespace Tensile
         void BenchmarkTimer::setNumWarmupRuns(size_t count)
         {
             if(count < m_numWarmups)
-                throw std::runtime_error(concatenate("Expected at least", m_numWarmups, " warmup runs, got ", count, "."));
+                throw std::runtime_error(concatenate(
+                    "Expected at least", m_numWarmups, " warmup runs, got ", count, "."));
         }
 
-        void BenchmarkTimer::preWarmup()
-        {
-        }
+        void BenchmarkTimer::preWarmup() {}
 
-        void BenchmarkTimer::postWarmup()
-        {
-        }
+        void BenchmarkTimer::postWarmup() {}
 
         void BenchmarkTimer::validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                               TimingEvents const& startEvents,
-                                               TimingEvents const&  stopEvents)
+                                             TimingEvents const&                startEvents,
+                                             TimingEvents const&                stopEvents)
         {
         }
 
@@ -154,25 +148,21 @@ namespace Tensile
             return m_numSyncsPerBenchmark;
         }
 
-        void   BenchmarkTimer::setNumSyncs(size_t count)
+        void BenchmarkTimer::setNumSyncs(size_t count)
         {
             m_numSyncsInBenchmark = count;
         }
 
-        void BenchmarkTimer::preSyncs()
-        {
-        }
+        void BenchmarkTimer::preSyncs() {}
 
-        void BenchmarkTimer::postSyncs()
-        {
-        }
+        void BenchmarkTimer::postSyncs() {}
 
         size_t BenchmarkTimer::numEnqueuesPerSync()
         {
             return m_numEnqueuesPerSync;
         }
 
-        void   BenchmarkTimer::setNumEnqueuesPerSync(size_t count)
+        void BenchmarkTimer::setNumEnqueuesPerSync(size_t count)
         {
             m_curNumEnqueuesPerSync = count;
         }
@@ -186,7 +176,7 @@ namespace Tensile
         }
 
         void BenchmarkTimer::postEnqueues(TimingEvents const& startEvents,
-                                            TimingEvents const&  stopEvents)
+                                          TimingEvents const& stopEvents)
         {
             if(!m_useGPUTimer)
             {
@@ -196,8 +186,8 @@ namespace Tensile
         }
 
         void BenchmarkTimer::validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                                TimingEvents const& startEvents,
-                                                TimingEvents const&  stopEvents)
+                                              TimingEvents const&                startEvents,
+                                              TimingEvents const&                stopEvents)
         {
             HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
 
@@ -209,7 +199,8 @@ namespace Tensile
                 {
                     float enqTime = 0.0f;
 
-                    HIP_CHECK_EXC(hipEventElapsedTime(&enqTime, startEvents->at(i).front(), stopEvents->at(i).back()));
+                    HIP_CHECK_EXC(hipEventElapsedTime(
+                        &enqTime, startEvents->at(i).front(), stopEvents->at(i).back()));
 
                     totalTime += double_millis(enqTime);
                 }
@@ -231,14 +222,11 @@ namespace Tensile
             }
         }
 
-        void BenchmarkTimer::finalizeReport()
-        {
-        }
+        void BenchmarkTimer::finalizeReport() {}
 
         int BenchmarkTimer::error() const
         {
             return 0;
         }
-    }
-}
-
+    } // namespace Client
+} // namespace Tensile
