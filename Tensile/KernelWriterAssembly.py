@@ -1063,6 +1063,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
+    self.overlapVgprC = False
 
     # registers per element
     self.bpr = 4 # all registers are 32bit
