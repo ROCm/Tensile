@@ -1,8 +1,9 @@
 GlobalParameters:
-  # NumElementsToValidate: 16384 # FIXME: temporarily disable it since CI silently
-                                 # writes bounds-check=true even when this param != -1
+  NumElementsToValidate: 16384
   KernelTime: True
   NewClient: 2
+  BoundsCheck: False # FIXME: temporarily disable it since CI silently
+                     # writes bounds-check=true even when this param != -1
 
 BenchmarkProblems:
   ########################################
