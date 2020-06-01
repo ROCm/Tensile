@@ -327,6 +327,30 @@ class ProblemPredicate(Properties.Predicate):
                 [ cls("ArithmeticUnit", value = "Any"), \
                   cls("ArithmeticUnit", value = "VALU") ] ) ]
 
+        # if bufferload is performed, we output some predication info for host side,
+        # to prevent from some extremely large problems from launching and causing bufferload offset limit < 2^32
+        # thoses cases will not satisfy the assertion thus won't use the kernel.
+        # TODO - haven't been fully tested for FP16 and BF16, so we consider single and double only so far.
+        if 'BufferLoad' in state and state['BufferLoad'] == True and (problemType.aType.isSingle() or problemType.aType.isDouble()):
+            TLUA = state['ProblemType']['TLUA']
+            TLUB = state['ProblemType']['TLUB']            
+            MayShiftA = TLUA and state['AssertFree0ElementMultiple'] < state['GlobalLoadVectorWidthA']
+            MayShiftB = TLUB and state['AssertFree1ElementMultiple'] < state['GlobalLoadVectorWidthB']
+            # See Common.py for more details, we pack the possible needed info in one value: 
+            # for the later two fields, using DU or MT depends on the TLU value
+            # |-- (ShiftPtrElemB) 4-bit --|--(ShiftPtrElemA) 4-bit--|--(DU/MT0 elem) 11-bit--|--(DU/MT1 elem)11-bit--|
+            encodedValue = ((state['GlobalLoadVectorWidthB'] << 26) if MayShiftB else 0 ) | \
+                           ((state['GlobalLoadVectorWidthA'] << 22) if MayShiftA else 0 ) | \
+                           ((state['DepthU'] if TLUB else state['MacroTile1']) << 11) | \
+                           (state['DepthU'] if TLUA else state['MacroTile0'])            
+            rv += [cls('BufferLoadOffsetLimitCheck', value=encodedValue)]
+
+        # similiar check is applied for bufferstore,
+        # for bufferstore offset, test if the bot-right offset < 2^32, 
+        # it should be StrideA*MT1, so we need to output MT1 and use the StrideA of problem in host-side for predication
+        if 'BufferStore' in state and state['BufferStore'] == True and (problemType.cType.isSingle() or problemType.aType.isDouble()):       
+            rv += [cls('BufferStoreOffsetLimitCheck', value=state['MacroTile1'])]            
+
         return rv
 
     @classmethod

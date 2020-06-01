@@ -768,6 +768,128 @@ namespace Tensile
                     return problem.operationIdentifier() == value;
                 }
             };
+
+            
+            struct BufferLoadOffsetLimitCheck : public Predicate_CRTP<BufferLoadOffsetLimitCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                BufferLoadOffsetLimitCheck() = default;
+                BufferLoadOffsetLimitCheck(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferLoadOffsetLimitCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    const uint64_t TWO_POW_32 = 4294967296;
+
+                    // Decode the value into four information:                    
+                    // |-- (ShiftPtrElemB) 4-bit --|--(ShiftPtrElemA) 4-bit--|--(DU/MT0 elem) 11-bit--|--(DU/MT1 elem)11-bit--|
+                    // See Contraction.py: CompoundPredicates for more details
+                    size_t DU_OR_MT0            =  value        & 0b11111111111;
+                    size_t DU_OR_MT1            = (value >> 11) & 0b11111111111;
+                    size_t ShiftPtrPadElementA  = (value >> 22) & 0b1111;
+                    size_t ShiftPtrPadElementB  = (value >> 26);
+
+                    return ( problem.a().strides()[1] * DU_OR_MT0 + ShiftPtrPadElementA ) * problem.a().elementBytes() < TWO_POW_32 
+                        && ( problem.b().strides()[1] * DU_OR_MT1 + ShiftPtrPadElementB ) * problem.b().elementBytes() < TWO_POW_32;
+                }
+
+                virtual std::string toString() const override
+                {
+                    size_t DU_OR_MT0            =  value        & 0b11111111111;
+                    size_t DU_OR_MT1            = (value >> 11) & 0b11111111111;
+                    size_t ShiftPtrPadElementA  = (value >> 22) & 0b1111;
+                    size_t ShiftPtrPadElementB  = (value >> 26);
+
+                    return concatenate(this->type(),
+                                       "(DU/MT0:",
+                                       DU_OR_MT0,
+                                       ", DU/MT1:",
+                                       DU_OR_MT1,
+                                       ", ShiftPtrPadElementA:",
+                                       ShiftPtrPadElementA,
+                                       ", ShiftPtrPadElementB:",
+                                       ShiftPtrPadElementB,
+                                       ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    size_t DU_OR_MT0            =  value        & 0b11111111111;
+                    size_t DU_OR_MT1            = (value >> 11) & 0b11111111111;
+                    size_t ShiftPtrPadElementA  = (value >> 22) & 0b1111;
+                    size_t ShiftPtrPadElementB  = (value >> 26);
+
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": ("
+                           << " (" << problem.a().strides()[1] << " * " << DU_OR_MT0 << " + " << ShiftPtrPadElementA << ") * " << problem.a().elementBytes()
+                           << " < 4294967296 && "
+                           << " (" << problem.b().strides()[1] << " * " << DU_OR_MT1 << " + " << ShiftPtrPadElementB << ") * " << problem.b().elementBytes()
+                           << " < 4294967296" 
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct BufferStoreOffsetLimitCheck : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                BufferStoreOffsetLimitCheck() = default;
+                BufferStoreOffsetLimitCheck(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferStoreOffsetLimitCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    const uint64_t TWO_POW_32 = 4294967296;
+                    return problem.a().strides()[1] * problem.a().elementBytes() * value < TWO_POW_32;
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(), "(MT1:", value, ")");
+                }
+
+                 virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": ("
+                           << problem.a().strides()[1] << " * " << problem.a().elementBytes() << " * " << value  << " < 4294967296" 
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+            
         } // namespace Contraction
 
         /**
