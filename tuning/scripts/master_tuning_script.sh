@@ -39,7 +39,8 @@ HELP_STR="
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
     [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
     [--problem-definition]  Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
-    [--hip-clang]	    Optional. Use hip-clang compiler (default=false)
+    [--hip-clang]           Optional. Use hip-clang compiler (default=false)
+    [--rocm-path]           Optional. Define ROCM_PATH, the location of the rocm stack (default=/opt/rocm)
 "
 HELP=false
 COUNT=false
@@ -60,8 +61,9 @@ ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=develop
 PUBLIC=false
 HIP_CLANG=false
+ROCM_PATH=/opt/rocm
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output_dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hip-clang -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hip-clang,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -81,7 +83,7 @@ while true; do
         -c | --count )              COUNT=true; shift ;;
         -t | --tile-aware )         TILE_AWARE=true; shift ;;
         -s | --disable-strides )    DISABLE_STRIDES=true; shift;;
-	-i | --initialization )	    INITIALIZATION="$2"; shift 2;;
+        -i | --initialization )     INITIALIZATION="$2"; shift 2;;
         -u | --username )           ORGANIZATION="$2"; shift 2;;
         --rocblas-fork )            ROCBLAS_ORGANIZATION="$2"; shift 2;;
         -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
@@ -91,7 +93,8 @@ while true; do
         --one-type )                TUNE_TYPE="$2"; shift 2;;
         --omit-type )               OMIT_TYPE="$2"; shift 2;;
         --problem-definition )      PROBLEM_DEFINITION="$2"; shift 2;;
-	--hip-clang )		    HIP_CLANG=true; shift ;;
+        --hip-clang )               HIP_CLANG=true; shift ;;
+        --rocm-path )               ROCM_PATH="$2"; shift 2;;
         -- ) shift; break ;;
         * ) break ;;
     esac
@@ -138,9 +141,11 @@ fi
 if [[ "${HIP_CLANG}" == true ]]; then
     TENSILE_COMPILER=hipcc
     ROCBLAS_COMPILER=hip-clang
+    export PATH=${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/llvm/bin:${PATH}
 else
     TENSILE_COMPILER=hcc
     ROCBLAS_COMPILER=no-hip-clang
+    export PATH=${PATH}:${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/hcc/bin
 fi
 
 collect_uniques () {
