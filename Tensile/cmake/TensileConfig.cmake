@@ -124,79 +124,34 @@ function(TensileCreateLibraryFiles
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
-  if(Tensile_EMBED_LIBRARY)
-      set(Tensile_EMBED_LIBRARY_SOURCE "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
-  endif()
-
   if($ENV{TENSILE_SKIP_LIBRARY})
       message(STATUS "Skipping build of ${Tensile_OUTPUT_PATH}")
   else()
-
-      if(NOT Tensile_VAR_PREFIX)
-          set(Tensile_VAR_PREFIX TENSILE)
+      execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
+      if(CommandResult)
+        message(FATAL_ERROR "Error creating Tensile library: ${CommandResult}")
       endif()
-
-      if(TENSILE_NEW_CLIENT)
-          # Create the manifest file of the output libraries.
-          set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit" "--new-client-only")
-          set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
-
-          execute_process(
-            COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
-            RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
-
-          if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
-            message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
-          endif()
-
-          # Defer the actual call of the TensileCreateLibraries to 'make' time as needed
-          file(STRINGS ${Tensile_MANIFEST_FILE_PATH} Tensile_MANIFEST_CONTENTS)
-          add_custom_command(
-            COMMENT "Generating Tensile Libraries"
-            OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
-            COMMAND ${CommandLine}
-          )
-
-          set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
-
-      else() # Old client
-          execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
-          if(CommandResult)
-            message(FATAL_ERROR "Error creating Tensile library: ${CommandResult}")
-          endif()
-
-          file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
-          file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
-          set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
-
-          set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${HSACodeObjects} ${LibraryFile} PARENT_SCOPE)
-
-      endif()
-
   endif()
+
+  if(NOT Tensile_VAR_PREFIX)
+      set(Tensile_VAR_PREFIX TENSILE)
+  endif()
+
+  file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
+  file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
+  set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
+
+  set("${Tensile_VAR_PREFIX}_CODE_OBJECTS" ${CodeObjects} ${HSACodeObjects} PARENT_SCOPE)
+  set("${Tensile_VAR_PREFIX}_LIBRARY_FILE" "${LibraryFile}" PARENT_SCOPE)
+
+  set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${HSACodeObjects} ${LibraryFile} PARENT_SCOPE)
 
   if(Tensile_EMBED_LIBRARY)
 
-    add_library(${Tensile_EMBED_LIBRARY} ${Tensile_EMBED_LIBRARY_SOURCE})
+    add_library(${Tensile_EMBED_LIBRARY} "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
     target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC TensileHost)
 
   endif()
 
 endfunction()
 
-# Target is created for copying dependencies
-function(TensileCreateCopyTarget
-    Target_NAME
-    Tensile_OBJECTS_TO_COPY
-    Dest_PATH
-    )
-
-    file(MAKE_DIRECTORY "${Dest_PATH}")
-    add_custom_target(
-        ${Target_NAME} ALL
-        COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
-        COMMAND_EXPAND_LISTS
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Tensile_OBJECTS_TO_COPY} ${Dest_PATH}
-        DEPENDS ${Tensile_OBJECTS_TO_COPY}
-    )
-endfunction()
