@@ -5433,17 +5433,10 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.staggerU:
       assert (kernel["BufferLoad"])
-
-      staggerTmp = self.getTmpSgpr(2).idx()
+      staggerTmp = self.getTmpSgpr(1).idx()
 
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
-
-      kStr += inst("s_mul_hi_i32", \
-        sgpr(staggerTmp+1),\
-        sgpr("StaggerUIter"),\
-        sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
-        " stagger byte offset")
 
       kStr += inst("s_mul_i32", \
         sgpr(staggerTmp),\
@@ -5462,11 +5455,11 @@ class KernelWriterAssembly(KernelWriter):
                 sgpr("WrapU%s+0"%tc), \
                 "remove one iteration")
       kStr += inst("s_subb_u32", sgpr("WrapU%s+1"%tc), \
-                0, \
                 sgpr("WrapU%s+1"%tc), \
+                0, \
                 "remove one iteration")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), sgpr(staggerTmp+1))
+      kStr += self.incrementSrd(kernel, tP, sgpr(staggerTmp), 0)
 
       if tP["isB"]:
         # Convert passed in S' to S for easy loop comparison.  S=S-(PGR-1)'
@@ -5505,20 +5498,16 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if self.staggerU:
       tc = tP["tensorChar"]
-      tmp = self.getTmpSgpr(2).idx()
+      tmp = self.getTmpSgpr(1).idx()
       # might be able to refactor this to eliminate signed math
       kStr += inst("s_sub_i32", sgpr(tmp), 2+kernel["PrefetchGlobalRead"], \
                   sgpr("StaggerUIter"), "")
-      kStr += inst("s_mul_hi_i32", sgpr(tmp+1), sgpr(tmp),
-                    sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                    "start offset S in bytes")
       kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp),
                     sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                     "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
-      kStr += inst("s_subb_u32", sgpr(tmp+1), sgpr(tmp+1), sgpr("WrapU%s+1"%(tc)), "S - WrapU")
 
-      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), sgpr(tmp+1))
+      kStr += self.incrementSrd(kernel, tP, sgpr(tmp), 0)
 
     return kStr
 
@@ -6002,7 +5991,7 @@ class KernelWriterAssembly(KernelWriter):
       #         lastVgprForReads ^  ^         ^
       #              startVgprReuse ^         ^
       #                             lastValuC ^
-      # if valuC does not include all of lastVgprForReads, we can reuse the
+      # if valuC does not include all of lastVgprForReads, we can reuse the 
       # non-overlapped part of lastVgprForReads
       # |<-------------- valuC -------------->|
       # |xxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxx|oooooo|xx|
@@ -6011,7 +6000,7 @@ class KernelWriterAssembly(KernelWriter):
       #                                  startVgprReuse ^
       vbegin = self.numVgprValuC
       vsize = max(0, self.lastVgprForReads-self.numVgprValuC)
-    else:
+    else: 
       vbegin = self.startVgprValuA
       vsize = self.lastVgprForReads - self.startVgprValuA
 
