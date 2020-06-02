@@ -408,7 +408,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # mfma interleave
       if kernel["EnableMatrixInstruction"]:
         numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
-        writesPerIter = localWriteCode.countType(Code.LocalWriteInst)
+        writesModPerIter = len(localWriteCode.items())
         localWriteEndIter = kernel["LoopIters"] - kernel["PrefetchLocalRead"] - 1
         isBarrier = localWriteEndIter + 1
         writeItems = list(localWriteCode.items())
@@ -489,7 +489,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # let localWrite to be scheduled from last mfma
           # mfma|lw|mfma|lw|mfma|mfma => mfma|mfma|lw|mfma|lw|mfma
           # except for localWriteEndIter, because in that iteration, we only have numMfmaPerIter-1 localWrite
-          if (i >= numMfmaPerIter - writesPerIter) or (iteration == localWriteEndIter):
+          if (i >= numMfmaPerIter - writesModPerIter) or (iteration == localWriteEndIter):
             # in case there are localWrite and globalread in same iteration
             # we need to make sure globalRead before localWrite
             if writeItems and not globalReadCode.countType(Code.GlobalReadInst):
@@ -557,8 +557,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           lgkmcnt += skipLocalWriteWaitcnt
           # first localWrite iteration
           # in this iteration, we only have to skip localwrite schedule at last mfma
-          if kernel["PrefetchLocalRead"]%kernel["LoopIters"]:
-            skipPreIterLW = self.perIterLocalWriteCanSkip[iteration-kernel["PrefetchLocalRead"]%kernel["LoopIters"]]
+          if kernel["PrefetchLocalRead"]:
+            skipPreIterLW = self.perIterLocalWriteCanSkip[iteration-kernel["PrefetchLocalRead"]]
             lgkmcnt += skipPreIterLW
       else:
         for item in list(iterCode.items()):
