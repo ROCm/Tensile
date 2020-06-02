@@ -5503,23 +5503,17 @@ class KernelWriterAssembly(KernelWriter):
       #---
       kStr += self.comment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
 
-      kStr += inst("s_mul_hi_i32", \
-        sgpr(staggerTmp+1),\
-        sgpr("StaggerUIter"),\
-        sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
-        " stagger byte offset")
-
-      kStr += inst("s_mul_i32", \
-        sgpr(staggerTmp),\
-        sgpr("StaggerUIter"),\
-        sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
-        " stagger byte offset")
+      # Calculate the stagger byte offset
+      kStr += self.s_mul_i64_i32(
+                sgpr(staggerTmp), sgpr(staggerTmp+1), \
+                sgpr("StaggerUIter"), sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
+                " stagger byte offset")
 
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
       kStr += self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
-                    self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                    "Number of bytes accessed by the unroll loop")
+                self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                "Number of bytes accessed by the unroll loop")
 
       kStr += inst("s_sub_u32", sgpr("WrapU%s+0"%tc),  \
                 sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
@@ -5573,12 +5567,9 @@ class KernelWriterAssembly(KernelWriter):
       # might be able to refactor this to eliminate signed math
       kStr += inst("s_sub_i32", sgpr(tmp), 2+kernel["PrefetchGlobalRead"], \
                   sgpr("StaggerUIter"), "")
-      kStr += inst("s_mul_hi_i32", sgpr(tmp+1), sgpr(tmp),
-                    sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                    "start offset S in bytes")
-      kStr += inst("s_mul_i32", sgpr(tmp), sgpr(tmp),
-                    sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                    "start offset S in bytes")
+      kStr += self.s_mul_i64_i32(sgpr(tmp), sgpr(tmp+1), \
+                  sgpr(tmp), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                  "start offset S in bytes")
       kStr += inst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
       kStr += inst("s_subb_u32", sgpr(tmp+1), sgpr(tmp+1), sgpr("WrapU%s+1"%(tc)), "S - WrapU")
 
