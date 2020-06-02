@@ -609,6 +609,21 @@ validParameters = {
     # If empty, do not use these instructions
     "MatrixInstruction":          validMatrixInstructions,
 
+    # StoreRemap: Optimize MatrixInstruction store patterns to enhance performance.
+    #             MI output data between each threads are along N dims.
+    #             But global memory is along M dim continous.
+    #             That mean global write between each threads are not continous.
+    #             Therefore, store performance for MI instruction is poor.
+    # How StoreRemap works in final store stage:
+    #             1. Put all thread output data into LDS.
+    #             2. All thread read data from LDS along M dims.
+    #                (match global Memory continous direction)
+    #             3. All thread write out data into global memory.
+    # 0:   Disable StoreRemap (default)
+    # 1~8: Enable StoreRemap and set the global write vector width
+    # Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
+    "StoreRemapVectorWidth":      [0,1,2,4,8],
+
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
     # C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
@@ -919,6 +934,7 @@ defaultBenchmarkCommonParameters = [
     {"ReplacementKernel":         [ False ] },
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
+    {"StoreRemapVectorWidth":     [ 0 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
