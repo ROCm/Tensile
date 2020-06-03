@@ -24,8 +24,8 @@ import operator
 from collections import namedtuple,OrderedDict
 from warnings import warn
 from functools import reduce
-from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig
+from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print2
+from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
 from copy import deepcopy
 import math
 from .Utils import roundUpToNearestMultiple
@@ -1229,9 +1229,16 @@ class Problem:
     self.count = count
 
   def __str__(self):
-    rv= "sizes:" + str(self.sizes)
+    rv= "{ sizes:" + str(list(self.sizes))
     if self.stridesA:
-      rv += "stridesA:" + str(self.stridesA)
+      rv += ", stridesA:" + str(list(self.stridesA))
+    if self.stridesB:
+      rv += ", stridesB:" + str(list(self.stridesB))
+    if self.stridesC:
+      rv += ", stridesC:" + str(list(self.stridesC))
+    if self.stridesD:
+      rv += ", stridesD:" + str(list(self.stridesD))
+    rv += " }"
     return rv
 
 
@@ -1362,17 +1369,24 @@ class ExactList(Problem):
     # TODO- pass strides here, remove calls to convertLeadingDims
     Problem.__init__(self, sizes=sizes, zeroPadA=problemType["ZeroPadA"], zeroPadB=problemType["ZeroPadB"])
 
+  def __str__(self):
+    return str(list(self.sizes))
+
   @staticmethod
-  def convertLeadingDims(problemType, problemSize):
+  def convertLeadingDims(problemType, problemSize, stridesA = None, stridesB = None, stridesC = None, stridesD = None):
     # FIXME-problem: refactor to eliminate max, pass strides in strideB parm rather than hacked
     # onto the end of the sizes list
+    predStridesD = stridesD is not None and stridesD[1] != -1
+    predStridesC = stridesC is not None and stridesC[1] != -1
+    predStridesA = stridesA is not None and stridesA[1] != -1
+    predStridesB = stridesB is not None and stridesB[1] != -1
     return problemSize[:problemType["NumIndicesC"]+1] + \
-           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]),) + \
-           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][1]]),) + \
+           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][0]]) if not predStridesD else stridesD[1], ) + \
+           (max(problemSize[0], problemSize[problemType["IndexAssignmentsLD"][1]]) if not predStridesC else stridesC[1], ) + \
            (max(problemSize[problemType["IndexAssignmentsLD"][2]],
-                problemSize[problemType["IndexAssignmentsA"][0]]),) + \
+                problemSize[problemType["IndexAssignmentsA"][0]]) if not predStridesA else stridesA[1], ) + \
            (max(problemSize[problemType["IndexAssignmentsLD"][3]],
-                problemSize[problemType["IndexAssignmentsB"][0]]),)
+                problemSize[problemType["IndexAssignmentsB"][0]]) if not predStridesB else stridesB[1], )
 
 
 class ExactDict(Problem):
@@ -1389,8 +1403,10 @@ class ExactDict(Problem):
       else:
         raise RuntimeError ("specified field '%s' is not a valid Exact dict field"%f)
 
-
     if problemType:
+      if "OperationType" in problemType and problemType["OperationType"] == "GEMM":
+        sizesTuple = tuple(self.sizes + [-1, -1, -1, -1])
+        self.sizes = ExactList.convertLeadingDims(problemType, sizesTuple, self.stridesA, self.stridesB, self.stridesC, self.stridesD)
       zp={}
       zp['A'] = deepcopy(problemType["ZeroPadA"])
       zp['B'] = deepcopy(problemType["ZeroPadB"])
@@ -1420,11 +1436,14 @@ class ExactDict(Problem):
       self.zeroPadA = self.zeroPadB = []
 
     if problemType:
-      if len(self.sizes) != problemType["TotalIndices"]:
+      if "OperationType" in problemType and problemType["OperationType"] == "GEMM":
+        if len(self.sizes) != (problemType["TotalIndices"] + problemType["NumIndicesLD"]):
+        # FIXME-ExactDict size descriptor still (but preferrably not so) uses 8-tuple for GEMM problems
+          raise RuntimeError ("specified size=%s does not have enough indices for problem (expected %d, got %d)" \
+                % (self.sizes, problemType["TotalIndices"]+problemType["NumIndicesLD"], len(self.sizes)))
+      elif len(self.sizes) != problemType["TotalIndices"]:
         raise RuntimeError ("specified size=%s does not have enough indices for problem (expected %d, got %d)" \
                 % (self.sizes, problemType["TotalIndices"], len(self.sizes)))
-
-
 
 
 ################################################################################
@@ -1750,8 +1769,8 @@ class Solution:
               % (pv, totalVectors, state["NumThreads"]))
           validDepthU = False
         if state["GlobalReadVectorWidth"] % pv != 0:
-          reject(None, "NumThreads %u %% totalVectors %u != 0" \
-              % (state["NumThreads"], totalVectors))
+          reject(None, "GlobalReadVectorWidth %u %% pv %u != 0" \
+              % (state["GlobalReadVectorWidth"], pv))
           validDepthU = False
     else:
       pv = 1 # no partial vector required
@@ -1781,6 +1800,10 @@ class Solution:
   #   state[LSPA]
   @staticmethod
   def setGlobalLoadTileDimClassic(state, tc, numLoads, totalVectorsCoalesced, totalElementsPerp):
+
+    if state["WaveSeparateGlobalRead%s"%tc]:
+      totalElementsPerp = roundupRatio(totalElementsPerp, state["NumThreads"] // globalParameters["WavefrontWidth"])
+
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
@@ -1839,13 +1862,14 @@ class Solution:
         return False
 
     if state["ProblemType"]["TLU%s"%tc]:
-      state["LSC%s"%tc] = state["MacroTile%s"%tc] \
-          // state["NumLoadsCoalesced%s"%tc]
+      state["LSC%s"%tc] = state["MacroTile%s"%tc] // state["NumLoadsCoalesced%s"%tc]
       state["LSP%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsPerpendicular%s"%tc]))
     else:
       state["LSC%s"%tc] = int(math.ceil(float(state["DepthU"]) / state["NumLoadsCoalesced%s"%tc]))
-      state["LSP%s"%tc] = state["MacroTile%s"%tc] \
-         // state["NumLoadsPerpendicular%s"%tc]
+      state["LSP%s"%tc] = state["MacroTile%s"%tc] // state["NumLoadsPerpendicular%s"%tc]
+
+    if state["WaveSeparateGlobalRead%s"%tc]:
+      state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // globalParameters["WavefrontWidth"])
 
     return True
 
@@ -2029,13 +2053,19 @@ class Solution:
 
   @staticmethod
   def parameterWrapper(state):
-    state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"]
-    state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"]
+    state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
+    state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
-    state["UnrollMajorLDSA"]     = state["TransposeLDS"]
-    state["UnrollMajorLDSB"]     = state["TransposeLDS"]
+    state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSA"] else 0
+    state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSB"] else 0
 
     if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
+      if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
+        state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
+        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+      if (state["ThreadTile"][1] % state["MatrixInstruction"][0]) != 0:
+        reject(state, "invalide ThreadTile1 %u for MatrixInstM %u" % (state["ThreadTile"][1], state["MatrixInstruction"][0]))
+
       # set EnableMatrixInstruction
       state["EnableMatrixInstruction"] = True
 
@@ -2068,6 +2098,23 @@ class Solution:
       state["EnableMatrixInstruction"] = False
 
 
+  ##############################################
+  # check and calculate Wave Seperate Global Read
+  @staticmethod
+  def checkAndAssignWaveSeparateGlobalRead(state, tc):
+    # check can we use WaveSeparateGlobalRead
+    numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+    if state["WaveSeparateGlobalRead%s"%tc]:
+      if state["FractionalLoad"] != 0:
+        reject(state, "didn't support WaveSeparateGlobalRead with FractionalLoad(%u) != 0" % state["FractionalLoad"])
+      if state["LocalDotLayout"]>1:
+        reject(state, "didn't support WaveSeparateGlobalRead when LocalDotLayout(%u) > 1" % state["LocalDotLayout"])
+      if state["ProblemType"]["TLU%s"%tc] and (state["DepthU"] > 0) and (state["DepthU"] % numOfWaves != 0):
+        reject(state, "dind't support WaveSeparateGlobalRead when DepthU is not multiple of wave %u in TLU%s" % (state["DepthU"], tc))
+      if not state["ProblemType"]["TLU%s"%tc] and (state["MacroTile%s" % tc] % numOfWaves != 0):
+        reject(state, "dind't support WaveSeparateGlobalRead when MacroTile is not multiple of wave %u in TLU%s" % (state["MacroTile%s"%tc], tc))
+
+
   ########################################
   # assign all derived parameters
   @staticmethod
@@ -2091,7 +2138,7 @@ class Solution:
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
-      print1("in assignDerivedParameters, state['Valid'] = False")
+      print2("in assignDerivedParameters, state['Valid'] = False")
       return
 
     # Init LoopIters parameter in case of early exit
@@ -2152,6 +2199,9 @@ class Solution:
       state["SubGroupA"] = state["SubGroup1"]
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
+
+    Solution.checkAndAssignWaveSeparateGlobalRead(state, 'A')
+    Solution.checkAndAssignWaveSeparateGlobalRead(state, 'B')
 
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False
@@ -2396,8 +2446,13 @@ class Solution:
         return
 
     if userDepthU < 0:
-      depthU = 2
-      maxDepthU = globalParameters["MaxDepthU"]
+      depthU     = 2
+      maxDepthU  = globalParameters["MaxDepthU"]
+      numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      if state["ProblemType"]["TLUA"] and state["WaveSeparateGlobalReadA"]:
+        depthU = max(depthU, numOfWaves)
+      if state["ProblemType"]["TLUB"] and state["WaveSeparateGlobalReadB"]:
+        depthU = max(depthU, numOfWaves)
     else:
       depthU = userDepthU
       maxDepthU = userDepthU
@@ -2428,7 +2483,6 @@ class Solution:
 
       totalElementsA = totalElementsCoalescedA * totalElementsPerpA
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
-
 
       if state["FractionalLoad"]:
         if not Solution.setGlobalLoadTileDimFractional(state, "A", depthU):
@@ -2682,6 +2736,40 @@ class Solution:
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
+
+    #check not support cases and calculate lds resources
+    if state["StoreRemapVectorWidth"]:
+      if not state["EnableMatrixInstruction"]:
+        reject(state, "storeRemap only support MaxtrixInstruction kernel")
+      if state["PersistentKernel"]:
+        reject(state, "storeRemap doesn't support persist kernel yet")
+      if state["GlobalSplitU"] > 1:
+        reject(state, "storeRemap doesn't support GlobalSplitU yet")
+      if packedC0 or packedC1:
+        reject(state, "storeRemap doesn't support packedC0 and packedC1 yet")
+      if state["MIWaveGroup"][0] > 1:
+        reject(state, "storeRemap doesn't support MI wave group in M direction yet")
+      if state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
+        reject(state, "storeRemap doesn't support MI4x4 multi blocks in N direction yet")
+
+      srMinVw = 1
+      srMaxVw = 8
+      if state["ProblemType"]["DataType"].isSingle():
+        srMaxVw = 4
+      elif state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16():
+        srMinVw = 2
+      if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
+        reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
+
+      if state["MacroTile0"]*state["MatrixInstN"] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
+        reject(state, "storeRemap: number of lds elements less than per wave local read elements. Please use smaller StoreRemapVectorWidth")
+      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
+      ldsNumElementsPerWave = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"]
+      ldsNumElementsRemapC = ldsNumElementsPerWave * wavefronts
+      #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
+      ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
+
     state["LdsNumElements"] = ldsNumElements
     ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
     if ldsSize > globalParameters["MaxLDS"]:
@@ -3054,9 +3142,9 @@ class Solution:
           % ( Solution.getParameterNameAbbreviation("MacroTile"), \
           state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     if "MatrixInstM" in state:
-      name += "%s%ux%ux%ux%u" \
+      name += "%s%ux%ux%ux%u_" \
           % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
-          state["MatrixInstM"], state["MatrixInstN"],  state["MatrixInstK"], state["MatrixInstB"])
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"])
     if "LdcEqualsLdd" in state:
       if state["LdcEqualsLdd"]:
         name += "SE_"

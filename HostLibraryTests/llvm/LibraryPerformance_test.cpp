@@ -94,7 +94,8 @@ std::map<std::string, std::shared_ptr<SolutionLibrary<ContractionProblem>>>
 
 TEST_P(LibraryPerformanceTest, PopulateCache)
 {
-    // Empty test.  See comment at top of this file.
+    // Empty test to ensure cache is populated by the SetUp() function.
+    // See comment at top of this file.
 }
 
 TEST_P(LibraryPerformanceTest, LoadLibrary)
@@ -104,7 +105,7 @@ TEST_P(LibraryPerformanceTest, LoadLibrary)
 
 TEST_P(LibraryPerformanceTest, CreateProblem)
 {
-    for(int i = 0; i < 1000; i++)
+    for(int i = 0; i < 1000000; i++)
         RandomGEMM();
 }
 
@@ -113,6 +114,28 @@ TEST_P(LibraryPerformanceTest, FindSolution)
     for(int i = 0; i < 100000; i++)
     {
         auto problem  = RandomGEMM();
+        auto solution = library->findBestSolution(problem, hardware);
+
+        if(solutionRequired)
+            ASSERT_NE(solution, nullptr) << i << problem;
+    }
+}
+
+TEST_P(LibraryPerformanceTest, FindCachedSolution)
+{
+    for(int i = 0; i < 100; i++)
+    {
+        auto problem  = RandomGEMM();
+        auto solution = library->findBestSolution(problem, hardware);
+
+        if(solutionRequired)
+            ASSERT_NE(solution, nullptr) << i << problem;
+    }
+
+    auto problem = RandomGEMM();
+
+    for(int i = 0; i < 1000000; i++)
+    {
         auto solution = library->findBestSolution(problem, hardware);
 
         if(solutionRequired)
@@ -161,6 +184,34 @@ TEST_P(LibraryPerformanceTest, FindAndSolve)
         if(solution != nullptr)
             solution->solve(problem, inputs, hardware);
     }
+}
+
+TEST_P(LibraryPerformanceTest, SpecificSizes)
+{
+    // N	N	256	12	1024	1	256	1024	0	256
+
+    auto problem = ContractionProblem::GEMM_Strides(false,
+                                                    false,
+                                                    DataType::Float,
+                                                    DataType::Float,
+                                                    DataType::Float,
+                                                    DataType::Float,
+                                                    256,
+                                                    12,
+                                                    1024,
+                                                    1,
+                                                    256,
+                                                    1024,
+                                                    1024,
+                                                    12,
+                                                    256,
+                                                    12,
+                                                    256,
+                                                    12,
+                                                    2.0);
+
+    auto solution = library->findBestSolution(problem, hardware);
+    //ASSERT_NE(solution, nullptr) << i << problem;
 }
 
 std::vector<LibraryPerformanceTest::ParamType> GetParams()

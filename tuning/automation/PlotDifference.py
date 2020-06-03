@@ -49,13 +49,13 @@ def RunPlot():
     headers = current_data.columns.values.tolist()
 
     n_series = current_data['N']
-    p_series = current_data['percent gain']
+    p_series = current_data['speedup']
 
     fig, ax = plt.subplots()
 
     ax.plot(n_series,p_series,'+')
     ax.set_xlabel("N")
-    ax.set_ylabel("percent gain")
+    ax.set_ylabel("speedup")
 
     fig.savefig(plotFileName, dpi=300, facecolor="#f1f1f1")
 
