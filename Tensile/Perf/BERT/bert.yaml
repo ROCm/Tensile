@@ -1,0 +1,530 @@
+GlobalParameters:
+  MinimumRequiredVersion: 4.4.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: -1
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  PinClocks: True
+  SleepPercent: 200
+  DataInitTypeBeta : 0
+  PrintSolutionRejectionReason: True
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  #DataInitTypeC: 0
+  #DataInitTypeD: 0
+  DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
+  PrintTensorA: 0x0
+  PrintTensorB: 0x0
+  PrintTensorD: 0x0
+  NewClient: 2
+
+BenchmarkProblems:
+  ########################################
+  # NT - standard
+  ########################################
+  -
+    - # NT
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+
+    - # NT MI32x32
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+          - [32, 32, 2, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 4, 32 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024, 30528, 1, 4096, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 1024, 30528, 1, 2048, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 1024, 4096, 1, 4096, 1024, 1024, 1024, 4096 ]
+          - Exact: [ 3072, 1024, 1, 2048, 3072, 3072, 3072, 1024 ]
+
+    - # NT MI16x16
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        #- LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 1, 4]
+          - [16, 16, 4, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 16 ]
+          - [ 4, 16 ]
+          - [ 8, 16 ]
+          - [ 2, 32 ]
+          - [ 4, 32 ]
+          - [ 2, 64 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024, 30528, 1, 4096, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 1024, 30528, 1, 2048, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 1024, 4096, 1, 4096, 1024, 1024, 1024, 4096 ]
+          - Exact: [ 3072, 1024, 1, 2048, 3072, 3072, 3072, 1024 ]
+    
+    - # NT MI4x4
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        # - LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [4, 4, 1, 16]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 4, 32 ]
+
+          - [ 2, 16 ]
+          - [ 4, 16 ]
+          - [ 8, 16 ]
+          - [ 2, 32 ]
+          - [ 4, 32 ]
+          - [ 2, 64 ]
+
+          - [ 2,  8 ]
+          - [ 2, 16 ]
+          - [ 4,  8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024, 30528, 1, 4096, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 1024, 30528, 1, 2048, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 1024, 4096, 1, 4096, 1024, 1024, 1024, 4096 ]
+          - Exact: [ 3072, 1024, 1, 2048, 3072, 3072, 3072, 1024 ]
+
+  ########################################
+  # NN - standard
+  ########################################
+  -
+    - # NN
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    - # NN MI32x32
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+          - [32, 32, 2, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 4, 32 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 4096, 4096, 1, 1024, 4096, 4096, 4096, 1024 ]
+          - Exact: [ 3072, 3072, 1, 1024, 3072, 3072, 3072, 1024 ]
+          - Exact: [ 3072, 2048, 1, 1024, 3072, 3072, 3072, 1024 ]
+          - Exact: [ 1024, 2048, 1, 30528, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 768, 320, 1, 30522, 768, 768, 768, 30522 ]
+          - Exact: [ 1024, 80, 1, 30522, 1024, 1024, 1024, 30522 ]
+
+    - # NN MI16x16
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        #- LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 1, 4]
+          - [16, 16, 4, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 16 ]
+          - [ 4, 16 ]
+          - [ 8, 16 ]
+          - [ 2, 32 ]
+          - [ 4, 32 ]
+          - [ 2, 64 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 4096, 4096, 1, 1024, 4096, 4096, 4096, 1024 ]
+          - Exact: [ 3072, 3072, 1, 1024, 3072, 3072, 3072, 1024 ]
+          - Exact: [ 3072, 2048, 1, 1024, 3072, 3072, 3072, 1024 ]
+          - Exact: [ 1024, 2048, 1, 30528, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 768, 320, 1, 30522, 768, 768, 768, 30522 ]
+          - Exact: [ 1024, 80, 1, 30522, 1024, 1024, 1024, 30522 ]
+    
+    - # NN MI4x4
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        # - LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [4, 4, 1, 16]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 4, 32 ]
+
+          - [ 2, 16 ]
+          - [ 4, 16 ]
+          - [ 8, 16 ]
+          - [ 2, 32 ]
+          - [ 4, 32 ]
+          - [ 2, 64 ]
+
+          - [ 2,  8 ]
+          - [ 2, 16 ]
+          - [ 4,  8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 4096, 4096, 1, 1024, 4096, 4096, 4096, 1024 ]
+          - Exact: [ 3072, 3072, 1, 1024, 3072, 3072, 3072, 1024 ]
+          - Exact: [ 3072, 2048, 1, 1024, 3072, 3072, 3072, 1024 ]
+          - Exact: [ 1024, 2048, 1, 30528, 1024, 1024, 1024, 30528 ]
+          - Exact: [ 768, 320, 1, 30522, 768, 768, 768, 30522 ]
+          - Exact: [ 1024, 80, 1, 30522, 1024, 1024, 1024, 30522 ]
+
+  ########################################
+  # TN - standard
+  ########################################
+  -
+    - # TN
+      OperationType: GEMM
+      DataType: s
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    - # TN MI32x32
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 1, 2]
+          - [32, 32, 2, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 4, 32 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024, 3072, 1, 1024, 1024, 1024, 1024, 1024 ]
+          - Exact: [ 3072, 512, 1, 1024, 3072, 3072, 1024, 1024 ]
+          - Exact: [ 1024, 2048, 1, 4096, 1024, 1024, 4096, 4096 ]
+          - Exact: [ 768, 1280, 1, 768, 768, 768, 768, 768 ]
+
+    - # TN MI16x16
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        #- LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 1, 4]
+          - [16, 16, 4, 1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 16 ]
+          - [ 4, 16 ]
+          - [ 8, 16 ]
+          - [ 2, 32 ]
+          - [ 4, 32 ]
+          - [ 2, 64 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024, 3072, 1, 1024, 1024, 1024, 1024, 1024 ]
+          - Exact: [ 3072, 512, 1, 1024, 3072, 3072, 1024, 1024 ]
+          - Exact: [ 1024, 2048, 1, 4096, 1024, 1024, 4096, 4096 ]
+          - Exact: [ 768, 1280, 1, 768, 768, 768, 768, 768 ]
+    
+    - # TN MI4x4
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        # - LoopTail: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [4, 4, 1, 16]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 4, 32 ]
+
+          - [ 2, 16 ]
+          - [ 4, 16 ]
+          - [ 8, 16 ]
+          - [ 2, 32 ]
+          - [ 4, 32 ]
+          - [ 2, 64 ]
+
+          - [ 2,  8 ]
+          - [ 2, 16 ]
+          - [ 4,  8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - GlobalSplitU: [1, 2, 4, 8, 16]
+        - DepthU: [ 4, 8, 16, 24, 32 ]
+        - GlobalReadVectorWidth: [1, 2, 4]
+        - VectorWidth: [1, 2, 4]
+        # - TransposeLDS: [0, 1]
+        # - ScheduleIterAlg: [0, 1, 2, 3]
+        - ScheduleIterAlg: [3]
+        # - WaveSeparateGlobalReadA: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        # - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadB: [1]
+        # - StoreRemapVectorWidth: [0, 1, 2, 4, 8]
+      BenchmarkForkParameters:
+      # JoinParameters:
+      #   - MacroTile
+      #   - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024, 3072, 1, 1024, 1024, 1024, 1024, 1024 ]
+          - Exact: [ 3072, 512, 1, 1024, 3072, 3072, 1024, 1024 ]
+          - Exact: [ 1024, 2048, 1, 4096, 1024, 1024, 4096, 4096 ]
+          - Exact: [ 768, 1280, 1, 768, 768, 768, 768, 768 ]
+
+  ########################################
