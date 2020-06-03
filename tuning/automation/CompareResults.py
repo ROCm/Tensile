@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -46,16 +46,17 @@ def RunMain():
 
     keys = headers[0:len(headers)-4]
     new_data = pd.read_csv(newFileName)
-    
+
     result1 = pd.merge(current_data, new_data, on=keys, how='inner')
-    result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current', 'rocblas-Gflops_y':'rocblas-Gflops_new','us_x':'us_current','us_y':'us_new','counts_x':'counts_current','score_x':'score_current','counts_y':'counts_new','score_y':'score_new','wa_x':'wa_current','wa_y':'wa_new'})
+    result = result1.rename(columns={'eff_x':'eff_current','eff_y':'eff_new','rocblas-Gflops_x':'rocblas-Gflops_current', 'rocblas-Gflops_y':'rocblas-Gflops_new','us_x':'us_current','us_y':'us_new','counts_x':'counts_current','score_x':'score_current','counts_y':'counts_new','score_y':'score_new','us_w_x':'us_w_current','us_w_y':'us_w_new'})
 
-    result['percent gain'] = 100.0 * (result['rocblas-Gflops_new'] - result['rocblas-Gflops_current']) /result['rocblas-Gflops_current']
-    result['weighted gain'] = result['percent gain'] * result['wa_new'] / result['rocblas-Gflops_new']
-    result['call count'] = result['weighted gain'] / result['percent gain']
-    result['overall gain'] = sum(result['weighted gain']) / sum(result['call count'])
+    result['us_saved_total'] = result['us_w_current'] - result['us_w_new']
+    result['speedup'] = 100.0 * (result['us_current'] - result['us_new']) /result['us_current']
+    result['call_count'] = result['us_w_new'] / result['us_new']
+    result['overall_us_saved'] = sum(result['us_saved_total'])
+    result['overall_speedup'] = 100.0 - 100.0*(sum(result['us_w_current'])-sum(result['us_saved_total']))/sum(result['us_w_current'])
 
-    result.to_csv(combinedFileName, header=True, index=False)
+    result.sort_values(by='us_w_new',ascending=False).to_csv(combinedFileName, header=True, index=False)
 
     inputFileBaseName = os.path.basename(combinedFileName)
     outputDir = os.path.dirname(combinedFileName)

@@ -8,7 +8,7 @@ GlobalParameters:
 
 BenchmarkProblems:
 
-  - 
+  -
     - # ProblemType
       OperationType: GEMM
       DataType: s

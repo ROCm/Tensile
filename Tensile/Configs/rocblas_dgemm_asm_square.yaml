@@ -82,7 +82,7 @@ BenchmarkProblems:
           - Exact: [ 24576, 24576, 1, 24576 ]
           - Exact: [ 26624, 26624, 1, 26624 ]
 
-    - # BenchmarkProblemSizeGroup - 
+    - # BenchmarkProblemSizeGroup -
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - BufferLoad: [True]

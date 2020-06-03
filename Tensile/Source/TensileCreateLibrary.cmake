@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@ function(TensileCreateLibraryCmake
 
   execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/TensileCreateLibrary)
   execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/Tensile)
-  
+
   set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")

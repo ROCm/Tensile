@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,7 @@ class _Const(object):
   @constant
   def GlobalParameters(self):
     return "GlobalParameters"
-  
+
   @constant
   def BenchmarkProblems(self):
     return "BenchmarkProblems"
@@ -171,10 +171,10 @@ class TuningConfiguration(object):
 
     @libraryClient.setter
     def libraryClient(self, value):
-        self.__libraryClient = value    
+        self.__libraryClient = value
 
     def writeLibraryLogic(self,filename):
-  
+
   # work around to output data in order
         dataGlobal = {}
         dataBenchmark = {}
@@ -189,7 +189,7 @@ class TuningConfiguration(object):
                 stream.flush()
 
             if self.benchmarkProblems:
-                dataBenchmark[CONST.BenchmarkProblems] = self.benchmarkProblems     
+                dataBenchmark[CONST.BenchmarkProblems] = self.benchmarkProblems
                 #yaml.dump(dataBenchmark, stream, default_flow_style=None, default_style='', width=1024)
                 yaml.safe_dump(dataBenchmark, stream, default_flow_style=None)
                 stream.flush()
@@ -202,7 +202,7 @@ class TuningConfiguration(object):
             if self.libraryClient:
                 stream.write("LibraryClient:\n")
                 stream.flush()
-        
+
             stream.close()
         except IOError:
             printExit("Cannot open file: %s" % filename)
@@ -250,7 +250,11 @@ libraryLogicMapper={'arcturus': arcturusLibraryLogic, 'vega20': vega20LibraryLog
 def getLibraryLogic(logicType):
     libraryLogic = libraryLogicMapper[logicType]
     return libraryLogic
-  
+
+def appendMatrixInstructions(benchmarkGroup, matrixInstructions):
+    forkedParams = benchmarkGroup["ForkParameters"]
+    forkedParams.append({"MatrixInstruction": matrixInstructions})
+
 def appendThreadTiles(benchmarkGroup, threadTiles):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"ThreadTile": threadTiles})
@@ -259,11 +263,32 @@ def appendWorkGroups(benchmarkGroup, workGroups):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"WorkGroup": workGroups})
 
-def appendSizes(benchmarkGroup, sizes, tileAware="true"):
+def appendGuardSizes(problemSizes, size, modifiedSize):
+    if size[0] % 64 == 0 and size[1] % 128 == 0 and size[3] % 64 == 0 and size[3] >= 128:
+        problemSizes.append({"Range": modifiedSize})
+
+def appendExactSizes(problemSizes, size):
+    if size[0] % 64 == 0 and size[1] % 128 == 0 and size[3] % 64 == 0 and size[3] >= 128:
+        problemSizes.append({"Exact": size})
+
+def appendSizes(benchmarkGroup, sizes, tileAware="false", noExact=False, rk="false"):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
-    for size in sizes:
-        problemSizes.append({"Exact": size})
+
+    if noExact == True:
+        for size in sizes:
+            modifiedSize = [ [size[0]-1,2,size[0]+1],[size[1]],[size[2]],[size[3]] ]
+            appendGuardSizes(problemSizes,size,modifiedSize)
+            modifiedSize = [ [size[0]],[size[1]-1,2,size[1]+1],[size[2]],[size[3]] ]
+            appendGuardSizes(problemSizes,size,modifiedSize)
+            modifiedSize = [ [size[0]],[size[1]],[size[2]],[size[3]-1,2,size[3]+1] ]
+            appendGuardSizes(problemSizes,size,modifiedSize)
+    else:
+        for size in sizes:
+            if rk == "true":
+                appendExactSizes(problemSizes,size)
+            else:
+                problemSizes.append({"Exact": size})
 
     if not benchmarkFinalParams:
         benchmarkFinalParams = []
@@ -271,7 +296,7 @@ def appendSizes(benchmarkGroup, sizes, tileAware="true"):
 
     if tileAware == "false":
         benchmarkFinalParams.append({"ProblemSizes":problemSizes})
-    
+
 def generateEmptyBenchmarkGroup():
     benchmarkGroup={"InitialSolutionParameters":None,"BenchmarkCommonParameters":None,"ForkParameters":None,"BenchmarkForkParameters":None,"JoinParameters":None,
                     "BenchmarkJoinParameters":None,"BenchmarkFinalParameters":None}

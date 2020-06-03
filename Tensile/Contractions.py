@@ -1,5 +1,5 @@
 #################################################################################
-# Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -296,9 +296,9 @@ class ProblemPredicate(Properties.Predicate):
     def CompoundPredicates(cls, state, problemType):
         rv = []
 
-        if 'VectorWidth' in state and state['VectorWidth'] > 1:
+        if 'GlobalReadVectorWidth' in state and state['GlobalReadVectorWidth'] > 1:
             if not problemType.aType.isInt8x4():
-                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['VectorWidth'])]
+                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['GlobalReadVectorWidth'])]
 
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
             rv += [cls("CDStridesEqual")]

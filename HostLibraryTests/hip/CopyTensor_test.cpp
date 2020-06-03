@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- *******************************************************************************/ 
+ *******************************************************************************/
 
 #include <gtest/gtest.h>
 
@@ -32,7 +32,7 @@
 
 TEST(CopyTensorTest, Simple)
 {
-    Tensile::TensorDescriptor tensor(Tensile::DataType::Float, {3,4,5});
+    Tensile::TensorDescriptor tensor(Tensile::DataType::Float, {3, 4, 5});
 
     std::vector<float> src(tensor.totalAllocatedElements(), 10);
     std::vector<float> dst(tensor.totalAllocatedElements(), -1);
@@ -40,5 +40,4 @@ TEST(CopyTensorTest, Simple)
     Tensile::hip::CopyTensor(dst.data(), src.data(), tensor, hipMemcpyHostToHost);
 
     ASSERT_EQ(src, dst);
-
 }

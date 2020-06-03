@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -27,74 +27,27 @@
 #include <algorithm>
 #include <cstddef>
 #include <numeric>
-#include <string>
 #include <sstream>
+#include <string>
 
+#include <Tensile/Comparison.hpp>
+#include <Tensile/Debug.hpp>
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/Utils.hpp>
-#include <Tensile/Debug.hpp>
-#include <Tensile/Comparison.hpp>
 
-namespace Tensile {
+namespace Tensile
+{
     const size_t TensorDescriptor::UseDefaultStride = static_cast<size_t>(-1);
-
-
-    TensorDescriptor::TensorDescriptor()
-    {
-        this->calculate();
-    }
-
-    void TensorDescriptor::calculate()
-    {
-        if(m_sizes.empty())
-        {
-            m_strides = m_sizes;
-            m_totalLogicalElements = 0;
-            m_totalAllocatedElements = 0;
-            return;
-        }
-
-        for(int i = 0; i < m_sizes.size(); i++)
-        {
-            TENSILE_ASSERT_EXC(m_sizes[i] > 0);
-        }
-
-
-        m_strides.resize(m_sizes.size(), UseDefaultStride);
-        if (m_strides[0] == UseDefaultStride) {
-          m_strides[0] = 1;
-        }
-        m_totalLogicalElements = m_sizes[0];
-
-        for(int i = 1; i < m_sizes.size(); i++)
-        {
-            m_totalLogicalElements *= m_sizes[i];
-
-            if(m_strides[i] == UseDefaultStride)
-            {
-                m_strides[i] = m_strides[i-1] * m_sizes[i-1];
-            }
-        }
-
-        m_totalAllocatedElements = 1;
-        for(int i = 0; i < m_sizes.size(); i++)
-            m_totalAllocatedElements += m_strides[i] * (m_sizes[i]-1);
-
-        if (Debug::Instance().printTensorInfo())
-        {
-            std::cout << "TensorDescriptor:calculate  " << *this << "totalLogicalElements=" << m_totalLogicalElements
-                      << " totalAllocatedElem=" << m_totalAllocatedElements << "\n";
-        }
-    }
 
     bool TensorDescriptor::operator==(const TensorDescriptor& rhs) const
     {
-        return m_dataType == rhs.m_dataType
-            && m_sizes    == rhs.m_sizes
-            && m_strides  == rhs.m_strides;
+        return m_dataType == rhs.m_dataType && m_sizes == rhs.m_sizes && m_strides == rhs.m_strides;
     }
 
-    bool TensorDescriptor::operator!=(const TensorDescriptor& rhs) const { return !(*this == rhs); }
+    bool TensorDescriptor::operator!=(const TensorDescriptor& rhs) const
+    {
+        return !(*this == rhs);
+    }
 
     void TensorDescriptor::appendDim(size_t size)
     {
@@ -116,7 +69,7 @@ namespace Tensile {
         if(dim == 0)
             return m_strides[0] - 1;
 
-        return m_strides[dim] - (m_strides[dim-1] * m_sizes[dim-1]);
+        return m_strides[dim] - (m_strides[dim - 1] * m_sizes[dim - 1]);
     }
 
     void TensorDescriptor::collapseDims(size_t begin, size_t end)
@@ -125,10 +78,10 @@ namespace Tensile {
         TENSILE_ASSERT_EXC(begin < dimensions());
         TENSILE_ASSERT_EXC(end <= dimensions());
 
-        if(end <= (begin+1))
+        if(end <= (begin + 1))
             return;
 
-        for(size_t i = begin+1; i < end; i++)
+        for(size_t i = begin + 1; i < end; i++)
             TENSILE_ASSERT_EXC(dimensionPadding(i) == 0);
 
         size_t newDimensionSize = 1;
@@ -147,8 +100,7 @@ namespace Tensile {
     {
         std::ostringstream result;
 
-        result << dimensions()
-               << "-tensor<" << dataType() << ">"
+        result << dimensions() << "-tensor<" << dataType() << ">"
                << "( sizes(";
         streamJoin(result, m_sizes, ", ");
 
@@ -165,4 +117,4 @@ namespace Tensile {
         return stream << t.ToString();
     }
 
-}
+} // namespace Tensile

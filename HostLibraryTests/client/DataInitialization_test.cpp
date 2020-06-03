@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -36,7 +36,7 @@ using namespace Tensile::Client;
 namespace po = boost::program_options;
 
 template <typename TypedInputs>
-class DataInitializationTest: public ::testing::Test
+class DataInitializationTest : public ::testing::Test
 {
 public:
     using val = po::variable_value;
@@ -49,26 +49,32 @@ public:
     using BetaType  = typename TypedInputs::BetaType;
 
     using TestDataInitialization = TypedDataInitialization<TypedInputs>;
-    
+
     using ManagedInputs = typename TestDataInitialization::ManagedInputs;
 
-    static_assert(std::is_same<AType,     typename TestDataInitialization::AType    >::value, "inconsistent types");
-    static_assert(std::is_same<BType,     typename TestDataInitialization::BType    >::value, "inconsistent types");
-    static_assert(std::is_same<CType,     typename TestDataInitialization::CType    >::value, "inconsistent types");
-    static_assert(std::is_same<DType,     typename TestDataInitialization::DType    >::value, "inconsistent types");
-    static_assert(std::is_same<AlphaType, typename TestDataInitialization::AlphaType>::value, "inconsistent types");
-    static_assert(std::is_same<BetaType,  typename TestDataInitialization::BetaType >::value, "inconsistent types");
+    static_assert(std::is_same<AType, typename TestDataInitialization::AType>::value,
+                  "inconsistent types");
+    static_assert(std::is_same<BType, typename TestDataInitialization::BType>::value,
+                  "inconsistent types");
+    static_assert(std::is_same<CType, typename TestDataInitialization::CType>::value,
+                  "inconsistent types");
+    static_assert(std::is_same<DType, typename TestDataInitialization::DType>::value,
+                  "inconsistent types");
+    static_assert(std::is_same<AlphaType, typename TestDataInitialization::AlphaType>::value,
+                  "inconsistent types");
+    static_assert(std::is_same<BetaType, typename TestDataInitialization::BetaType>::value,
+                  "inconsistent types");
 
     po::variables_map DataTypeArgs()
     {
         po::variables_map rv;
 
-        rv.insert({"a-type",     val(TypeInfo<AType    >::Enum, false)});
-        rv.insert({"b-type",     val(TypeInfo<BType    >::Enum, false)});
-        rv.insert({"c-type",     val(TypeInfo<CType    >::Enum, false)});
-        rv.insert({"d-type",     val(TypeInfo<DType    >::Enum, false)});
+        rv.insert({"a-type", val(TypeInfo<AType>::Enum, false)});
+        rv.insert({"b-type", val(TypeInfo<BType>::Enum, false)});
+        rv.insert({"c-type", val(TypeInfo<CType>::Enum, false)});
+        rv.insert({"d-type", val(TypeInfo<DType>::Enum, false)});
         rv.insert({"alpha-type", val(TypeInfo<AlphaType>::Enum, false)});
-        rv.insert({"beta-type",  val(TypeInfo<BetaType >::Enum, false)});
+        rv.insert({"beta-type", val(TypeInfo<BetaType>::Enum, false)});
 
         return rv;
     }
@@ -79,16 +85,16 @@ public:
 
         po::variables_map args = this->DataTypeArgs();
 
-        args.insert({"init-a",          val(InitMode::Zero, false)});
-        args.insert({"init-b",          val(InitMode::Zero, false)});
-        args.insert({"init-c",          val(InitMode::Zero, false)});
-        args.insert({"init-d",          val(InitMode::Zero, false)});
-        args.insert({"init-alpha",      val(InitMode::Zero, false)});
-        args.insert({"init-beta",       val(InitMode::Zero, false)});
-        args.insert({"c-equal-d",       val(cEqualD, false)});
+        args.insert({"init-a", val(InitMode::Zero, false)});
+        args.insert({"init-b", val(InitMode::Zero, false)});
+        args.insert({"init-c", val(InitMode::Zero, false)});
+        args.insert({"init-d", val(InitMode::Zero, false)});
+        args.insert({"init-alpha", val(InitMode::Zero, false)});
+        args.insert({"init-beta", val(InitMode::Zero, false)});
+        args.insert({"c-equal-d", val(cEqualD, false)});
         args.insert({"pristine-on-gpu", val(pristineGPU, false)});
-        args.insert({"bounds-check",    val(boundsCheck, false)});
-        args.insert({"num-elements-to-validate",    val(1, false)});
+        args.insert({"bounds-check", val(boundsCheck, false)});
+        args.insert({"num-elements-to-validate", val(1, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});
@@ -104,7 +110,7 @@ public:
         auto init = DataInitialization::Get(args, factory);
 
         auto genericInputs = init->prepareCPUInputs(problem);
-        auto cpuInputs = std::dynamic_pointer_cast<TypedInputs>(genericInputs);
+        auto cpuInputs     = std::dynamic_pointer_cast<TypedInputs>(genericInputs);
 
         if(cpuInputs == nullptr)
             ASSERT_NE(cpuInputs, nullptr);
@@ -135,18 +141,16 @@ public:
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             EXPECT_EQ(gpuD[i], zero) << i;
     }
-
 };
 
-using InputTypes = ::testing::Types<
-    TypedContractionInputs<float>,
-    TypedContractionInputs<double>,
-    TypedContractionInputs<Half>,
-    BFloat16ContractionInputs,
-    TypedContractionInputs<std::complex<float>>,
-    TypedContractionInputs<std::complex<double>>,
-    TypedContractionInputs<Int8x4, Int8x4, int32_t>,
-    TypedContractionInputs<int32_t>>; 
+using InputTypes = ::testing::Types<TypedContractionInputs<float>,
+                                    TypedContractionInputs<double>,
+                                    TypedContractionInputs<Half>,
+                                    BFloat16ContractionInputs,
+                                    TypedContractionInputs<std::complex<float>>,
+                                    TypedContractionInputs<std::complex<double>>,
+                                    TypedContractionInputs<Int8x4, Int8x4, int32_t>,
+                                    TypedContractionInputs<int32_t>>;
 
 TYPED_TEST_SUITE(DataInitializationTest, InputTypes);
 
@@ -196,30 +200,28 @@ TYPED_TEST(DataInitializationTest, Contamination_true_true_true)
 }
 
 template <typename T>
-struct DataInitializationTestFloating: public ::testing::Test
+struct DataInitializationTestFloating : public ::testing::Test
 {
-    using TestType = typename std::tuple_element<0, T>::type;
+    using TestType       = typename std::tuple_element<0, T>::type;
     using ComparisonType = TestType;
 };
 
 template <>
-struct DataInitializationTestFloating<std::tuple<Half>>: public ::testing::Test
+struct DataInitializationTestFloating<std::tuple<Half>> : public ::testing::Test
 {
-    using TestType = Half;
+    using TestType       = Half;
     using ComparisonType = float;
 };
 
 // Typeinfo is not present for Half so wrap it in a tuple to avoid a missing
 // symbol.
-using FloatingPointTypes = ::testing::Types<std::tuple<float>,
-                                            std::tuple<double>,
-                                            std::tuple<Half>,
-                                            std::tuple<BFloat16>>;
+using FloatingPointTypes = ::testing::
+    Types<std::tuple<float>, std::tuple<double>, std::tuple<Half>, std::tuple<BFloat16>>;
 TYPED_TEST_SUITE(DataInitializationTestFloating, FloatingPointTypes);
 
 TYPED_TEST(DataInitializationTestFloating, Simple)
 {
-    using Type = typename TestFixture::TestType;
+    using Type       = typename TestFixture::TestType;
     using Comparison = typename TestFixture::ComparisonType;
 
     Type value(1.0);
@@ -238,7 +240,7 @@ TYPED_TEST(DataInitializationTestFloating, Simple)
 }
 
 template <typename T>
-struct DataInitializationTestComplex: public ::testing::Test
+struct DataInitializationTestComplex : public ::testing::Test
 {
 };
 
@@ -249,36 +251,36 @@ TYPED_TEST_SUITE(DataInitializationTestComplex, ComplexTypes);
 TYPED_TEST(DataInitializationTestComplex, Simple)
 {
     TypeParam value(1, 1);
-    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadInput(value), false);
     EXPECT_EQ(DataInitialization::isBadOutput(value), false);
 
     value = DataInitialization::getValue<TypeParam>(InitMode::BadInput);
     EXPECT_EQ(std::isnan(value.real()), true);
     EXPECT_EQ(std::isnan(value.imag()), true);
-    EXPECT_EQ(DataInitialization::isBadInput(value),  true);
+    EXPECT_EQ(DataInitialization::isBadInput(value), true);
     EXPECT_EQ(DataInitialization::isBadOutput(value), false);
 
     value = DataInitialization::getValue<TypeParam>(InitMode::BadOutput);
     EXPECT_EQ(std::isinf(value.real()), true);
     EXPECT_EQ(std::isinf(value.imag()), true);
-    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadInput(value), false);
     EXPECT_EQ(DataInitialization::isBadOutput(value), true);
 }
 
 TEST(DataInitializationTest, BadValues_int32)
 {
     int32_t value = 1;
-    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadInput(value), false);
     EXPECT_EQ(DataInitialization::isBadOutput(value), false);
 
     value = DataInitialization::getValue<int32_t>(InitMode::BadInput);
     EXPECT_EQ(std::numeric_limits<int32_t>::max(), value);
-    EXPECT_EQ(DataInitialization::isBadInput(value),  true);
+    EXPECT_EQ(DataInitialization::isBadInput(value), true);
     EXPECT_EQ(DataInitialization::isBadOutput(value), false);
 
     value = DataInitialization::getValue<int32_t>(InitMode::BadOutput);
     EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
-    EXPECT_EQ(DataInitialization::isBadInput(value),  false);
+    EXPECT_EQ(DataInitialization::isBadInput(value), false);
     EXPECT_EQ(DataInitialization::isBadOutput(value), true);
 }
 
@@ -286,7 +288,8 @@ TEST(DataInitializationTest, BadValues_Int8x4)
 {
     auto maxval = std::numeric_limits<int8_t>::max();
     auto minval = std::numeric_limits<int8_t>::min();
-    EXPECT_EQ(Int8x4(maxval, maxval, maxval, maxval), DataInitialization::getValue<Int8x4>(InitMode::BadInput));
-    EXPECT_EQ(Int8x4(minval, minval, minval, minval), DataInitialization::getValue<Int8x4>(InitMode::BadOutput));
+    EXPECT_EQ(Int8x4(maxval, maxval, maxval, maxval),
+              DataInitialization::getValue<Int8x4>(InitMode::BadInput));
+    EXPECT_EQ(Int8x4(minval, minval, minval, minval),
+              DataInitialization::getValue<Int8x4>(InitMode::BadOutput));
 }
-

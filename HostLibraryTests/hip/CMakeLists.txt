@@ -44,6 +44,7 @@ TensileCreateLibraryFiles(
     EMBED_LIBRARY test_kernels_lite_2
     EMBED_KEY     kernels_lite_2
     VAR_PREFIX LITE_2
+    NO_MERGE_FILES
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
@@ -57,8 +58,9 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_tile_aware_selection
     EMBED_KEY     tile_aware_selection
-    TENSILE_COMPILER ${COMPILER}
-    TENSILE_CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
+    NO_MERGE_FILES
+    COMPILER ${COMPILER}
+    CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}/tile_aware_selection")

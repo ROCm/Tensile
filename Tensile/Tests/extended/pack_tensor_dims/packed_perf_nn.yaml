@@ -69,7 +69,7 @@ BenchmarkProblems:
 
           # Another case, similar to above:
           #- Exact: [196, 256, 64, 1024 ]
-  #./rocblas-bench -f gemm_strided_batched_ex --transposeA N --transposeB N -m 196 -n 256 -k 1024 --alpha 1 --a_type s --lda 196 --stride_a 200704 --b_type s --ldb 1024 --stride_b 0 --beta 0 --c_type s --ldc 196 --stride_c 50176 --d_type s --ldd 196 --stride_d 50176 --batch 64 --compute_type s --algo 0 --solution_index 0 --flags 0 --workspace_size 0x7ffe7b4a2748 
+  #./rocblas-bench -f gemm_strided_batched_ex --transposeA N --transposeB N -m 196 -n 256 -k 1024 --alpha 1 --a_type s --lda 196 --stride_a 200704 --b_type s --ldb 1024 --stride_b 0 --beta 0 --c_type s --ldc 196 --stride_c 50176 --d_type s --ldd 196 --stride_d 50176 --batch 64 --compute_type s --algo 0 --solution_index 0 --flags 0 --workspace_size 0x7ffe7b4a2748
   # Cijk_Ailk_Bljk_SB_MT128x032x16_APM01_AF0EM01_AF1EM01_ASEM01_BL1_DTL0_EPS0_FL00_GRVW01_GSU01_ISA906_K1_KLA_LPA00_LPB04_MGWVW01_NLCA01_NLCB01_PGR0_PLR0_SNLL0_TT04_04_USFGRO01_VAW01_VW02_WG32_08_01_WGM08
 
           # Another case - requires flexible vector support since Free0 is odd

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,13 +26,13 @@ import argparse
 
 import csv
 
-rocblas_parameters = ["f","transposeA","transposeB","m","n","k","alpha","a_type","lda","stride_a","b_type","ldb","stride_b","beta","c_type","ldc","stride_c","d_type","ldd","stride_d","batch","compute_type","algo" ,"solution_index","flags","i"] #,"workspace_size" ]
+rocblas_parameters = ["f","transposeA","transposeB","m","n","k","alpha","a_type","lda","stride_a","b_type","ldb","stride_b","beta","c_type","ldc","stride_c","d_type","ldd","stride_d","batch_count","compute_type","algo" ,"solution_index","flags","i"] #,"workspace_size" ]
 
 gemm_ex_keys = ["-f", "--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--b_type","--ldb","--beta","--c_type","--ldc","--d_type","--ldd","--compute_type","--algo","--solution_index","--flags","-i"] #,"--workspace_size"]
 gemm_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--ldb","--beta","--ldc","-i"]
 
-gemm_strided_batched_ex_keys = ["-f","--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--stride_a","--b_type","--ldb","--stride_b","--beta","--c_type","--ldc","--stride_c","--d_type","--ldd","--stride_d","--batch","--compute_type","--algo","--solution_index","--flags","-i"]#,"--workspace_size"]
-gemm_strided_batched_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--stride_a","--ldb","--stride_b","--beta","--ldc","--stride_c","--batch","-i"]
+gemm_strided_batched_ex_keys = ["-f","--transposeA","--transposeB","-m","-n","-k","--alpha","--a_type","--lda","--stride_a","--b_type","--ldb","--stride_b","--beta","--c_type","--ldc","--stride_c","--d_type","--ldd","--stride_d","--batch_count","--compute_type","--algo","--solution_index","--flags","-i"]#,"--workspace_size"]
+gemm_strided_batched_keys = ["-f","-r","--transposeA","--transposeB","-m","-n","-k","--alpha","--lda","--stride_a","--ldb","--stride_b","--beta","--ldc","--stride_c","--batch_count","-i"]
 
 rocblas_key_mapping = {"gemm_ex":gemm_ex_keys, "gemm":gemm_keys, "gemm_strided_batched_ex":gemm_strided_batched_ex_keys, "gemm_strided_batched":gemm_strided_batched_keys}
 
@@ -47,7 +47,7 @@ def GetRocBLASParser():
     lineParser.add_argument("-m",dest="m", type=str)
     lineParser.add_argument("-n",dest="n", type=str)
     lineParser.add_argument("-k",dest="k", type=str)
-    lineParser.add_argument("--batch",dest="batch", type=int,default=1)
+    lineParser.add_argument("--batch_count","--batch",dest="batch_count", type=int,default=1)
     lineParser.add_argument("--a_type",dest="a_type", type=str)
     lineParser.add_argument("--b_type",dest="b_type", type=str)
     lineParser.add_argument("--c_type",dest="c_type", type=str)
@@ -55,10 +55,10 @@ def GetRocBLASParser():
     lineParser.add_argument("--compute_type",dest="compute_type", type=str)
     lineParser.add_argument("--alpha",dest="alpha", type=float,default=1.0)
     lineParser.add_argument("--beta",dest="beta", type=float,default=0.0)
-    lineParser.add_argument("--lda",dest="lda", type=int,default=1)
-    lineParser.add_argument("--ldb",dest="ldb", type=int,default=1)
-    lineParser.add_argument("--ldc",dest="ldc", type=int,default=1)
-    lineParser.add_argument("--ldd",dest="ldd", type=int,default=1)
+    lineParser.add_argument("--lda",dest="lda", type=int,default=0)
+    lineParser.add_argument("--ldb",dest="ldb", type=int,default=0)
+    lineParser.add_argument("--ldc",dest="ldc", type=int,default=0)
+    lineParser.add_argument("--ldd",dest="ldd", type=int,default=0)
     lineParser.add_argument("--stride_a",dest="stride_a", type=int,default=0)
     lineParser.add_argument("--stride_b",dest="stride_b", type=int,default=0)
     lineParser.add_argument("--stride_c",dest="stride_c", type=int,default=0)
@@ -67,7 +67,7 @@ def GetRocBLASParser():
     lineParser.add_argument("--solution_index",dest="solution_index", type=int,default=0)
     lineParser.add_argument("--flags",dest="flags", type=int,default=0)
     lineParser.add_argument("-i",dest="i", type=int,default=10)
-    
+
     return lineParser
 
 
@@ -146,13 +146,13 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
     output_h = max(1, (input_h - (1 + dilation_h * (filter_h - 1)) + 2 * pad_h) / u + 1)
     output_w = max(1, (input_w - (1 + dilation_w * (filter_w - 1)) + 2 * pad_w) / v + 1)
 
-    m = filter_k 
+    m = filter_k
     n = input_c
     k = input_h * input_w
     lda = k
     ldb = k
     ldc = n
-    batch_count = 1 
+    batch_count = 1
     strideA = 0
     strideB = 0
     strideC = 0
@@ -166,7 +166,7 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -182,7 +182,7 @@ def GenConvolutionBackwardWeightsConv1x1(input,weights,convolution,output):
 
     return problemDefinition
 
-    
+
 def GenConvolutionBackwardWeights(input,weights,convolution,output):
 
     input_n = input["in_n"]
@@ -207,7 +207,7 @@ def GenConvolutionBackwardWeights(input,weights,convolution,output):
     output_h = max(1, (input_h - (1 + dilation_h * (filter_h - 1)) + 2 * pad_h) / u + 1)
     output_w = max(1, (input_w - (1 + dilation_w * (filter_w - 1)) + 2 * pad_w) / v + 1)
 
-    m = filter_k 
+    m = filter_k
     n = input_c * filter_h * filter_w
     k = output_h * output_w
     lda = k
@@ -227,7 +227,7 @@ def GenConvolutionBackwardWeights(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -288,7 +288,7 @@ def GenConvolutionBackwardDataConv1x1(input,weights,convolution,output):
 
     m = input_c
     n = input_h * input_w
-    k = filter_k 
+    k = filter_k
     lda = m
     ldb = n
     ldc = n
@@ -306,7 +306,7 @@ def GenConvolutionBackwardDataConv1x1(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -348,7 +348,7 @@ def GenConvolutionBackwardData(input,weights,convolution,output):
 
 
 # found in MIOpen CreateGemmDescriptorConvBwdData call
-    m = input_c * filter_h * filter_w 
+    m = input_c * filter_h * filter_w
     n =  output_h * output_w
     k = filter_k
     lda = m
@@ -368,7 +368,7 @@ def GenConvolutionBackwardData(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -402,7 +402,7 @@ def GenConvolutionBackwardDataDefinition(input,weights,convolution,output):
         problemDefinition = GenConvolutionBackwardData(input,weights,convolution,output)
 
     return problemDefinition
-        
+
 def GenConvolutionForwardCNHWFwd(input,weights,convolution,output):
 
     input_n = input["in_n"]
@@ -447,7 +447,7 @@ def GenConvolutionForwardCNHWFwd(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -507,7 +507,7 @@ def GenConvolutionForwardConv1x1(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -549,7 +549,7 @@ def GenConvolutionForward(input,weights,convolution,output):
 
 
 # cound in MIOpen CreateGemmDescriptorConvFwd call
-    m = filter_k 
+    m = filter_k
     n =  output_h * output_w
     k = input_c * filter_h * filter_w
     lda = k
@@ -569,7 +569,7 @@ def GenConvolutionForward(input,weights,convolution,output):
     problemDefinition["m"] = n
     problemDefinition["n"] = m
     problemDefinition["k"] = k
-    problemDefinition["batch"] = batch_count
+    problemDefinition["batch_count"] = batch_count
     problemDefinition["lda"] = ldb
     problemDefinition["ldb"] = lda
     problemDefinition["ldc"] = ldc
@@ -638,13 +638,13 @@ def ExtractProblemDefinitions(parsedArgs):
     # found in conv_driver.cpp ConvDriver<Tgpu, Tref, Tfile>::GetInputTensorLengthsFromCmdLine()
 
     input = {"in_n":in_n, "in_c":in_c, "in_h":in_h, "in_w":in_w}
-    
+
     # output tensor definition
     # found in convolution.cpp ConvolutionDescriptor::GetForwardOutputTensor
     # wei_k = wei_n or first dimention of weight tensor
     output = {"in_n":in_n, "wei_k":wei_n}
 
-    return input,weights,convolution,output 
+    return input,weights,convolution,output
 
 def mapTypeName(inputName):
     outputName = None
@@ -672,14 +672,14 @@ def getDataTypeDef(problemDefinition):
     return computeType
 
 def UpdateOutputMapping(mapper, problemDefinition):
-    # "f","transposeA","transposeB" 
+    # "f","transposeA","transposeB"
     f = problemDefinition["f"]
     transposeA = problemDefinition["transposeA"]
     transposeB = problemDefinition["transposeB"]
     t = getDataTypeDef(problemDefinition)
-  
-    key = (f,transposeA,transposeB,t) 
-    
+
+    key = (f,transposeA,transposeB,t)
+
     lineDefinition = None
 
     if key in mapper:
@@ -690,6 +690,54 @@ def UpdateOutputMapping(mapper, problemDefinition):
 
     if problemDefinition not in lineDefinitions:
         lineDefinitions.append(problemDefinition)
+
+def ConvertToRocBlasBenchCall(line):
+    benchLine = './rocblas-bench '
+    if "strided" in line:
+        benchLine += '-f gemm_strided_batched'
+    else:
+        benchLine += '-f gemm'
+    if "_ex" in line:
+        benchLine += '_ex '
+    else:
+        benchLine += ' '
+    if "sgemm" in line:
+        benchLine += '-r s '
+    elif "hgemm" in line:
+        benchLine += '-r h '
+    elif "dgemm" in line:
+        benchLine += '-r d '
+
+    line = str(line.split(','))
+    line = line.replace('"','').replace(' ','').replace('\'','').replace('[-{','').replace('}\\n]','').replace(':',',')
+    line = line.split(',')
+    sameParams = set(['b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','stride_d','alpha','beta'])
+
+    for item in range(2,len(line)):
+        if line[item] in sameParams:
+            benchLine += ('--'+line[item]+' '+line[item+1]+' ')
+        if line[item] == 'transA':
+            benchLine += ('--transposeA '+line[item+1]+' ')
+        if line[item] == 'transB':
+            benchLine += ('--transposeB '+line[item+1]+' ')
+        if line[item] == 'M':
+            benchLine += ('-m '+line[item+1]+' ')
+        if line[item] == 'N' and line[item-1] != 'transA' and line[item-1] != 'transB':
+            benchLine += ('-n '+line[item+1]+' ')
+        if line[item] == 'K':
+            benchLine += ('-k '+line[item+1]+' ')
+        if line[item] == 'call_count':
+            benchLine += ('-i '+line[item+1])
+        if line[item] == 'a_type':
+            if line[item+1] == 'f32_r':
+                benchLine += ('-r s ')
+            elif line[item+1] == 'f16_r':
+                benchLine += ('-r h ')
+            else:
+                benchLine += ('-r d ')
+            benchLine += ('--'+line[item]+' '+line[item+1]+' ')
+
+    return benchLine
 
 def ProcessFile(filename):
 
@@ -717,6 +765,13 @@ def ProcessFile(filename):
             if "rocblas-bench" in line:
                 args=line.split(' ')
                 parsedArgs, otherArgs =  rocblasParser.parse_known_args(args)
+                problemDefinition = vars(parsedArgs)
+                UpdateOutputMapping(problemMapper, problemDefinition)
+
+            if "{" in line:
+                benchLine = ConvertToRocBlasBenchCall(line)
+                args = benchLine.split(' ')
+                parsedArgs, otherArgs = rocblasParser.parse_known_args(args)
                 problemDefinition = vars(parsedArgs)
                 UpdateOutputMapping(problemMapper, problemDefinition)
 
@@ -758,22 +813,43 @@ def GetTensileSize(problemDefinition):
 
     m = problemDefinition["m"]
     n = problemDefinition["n"]
-    batch = problemDefinition["batch"]
-    k = problemDefinition["k"] 
+    batch = problemDefinition["batch_count"]
+    k = problemDefinition["k"]
 
     size = "          - Exact: [ %s , %s , %s, %s ]" % (m,n,batch,k)
     return size
 
-def BuildRocBLASBenchmarkCall(problemDefinition):
-    
+def GetStride(problemDefinition,param):
+    nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+        "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
+        "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
+    nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"],
+        "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
+        "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
+    tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+        "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
+        "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
+
+    if problemDefinition["transposeB"] == "T":
+        return nt[param]
+    elif problemDefinition["transposeA"] == "N":
+        return nn[param]
+
+    return tn[param]
+
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="random_int"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
     rocblas_call = "./rocblas-bench"
     for key in keys:
         param = key.replace("-","")
-        value = problemDefinition[param] 
-        rocblas_call += " %s %s" % (key,value)
+        value = problemDefinition[param]
+        if ("ld" in param or "stride" in param) and int(value) == 0:
+            value = GetStride(problemDefinition,param)
+        if ("ld" not in param and "stride" not in param) or disableStrides == "false":
+            rocblas_call += " %s %s" % (key,value)
+    rocblas_call += " --initialization %s" % (initialization)
 
     return rocblas_call
 
@@ -790,7 +866,7 @@ def RunMain():
         argParser.add_argument("network_name", help="neural network name")
 
     argParser.add_argument("output_path", help="the output path")
-    
+
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
 
@@ -813,12 +889,12 @@ def RunMain():
     for key in keys:
         lineDefinitions = problemMapper[key]
         sizePath = os.path.join(outputPath, "sizes")
-        OutputSizes(sizePath, namePart, key, lineDefinitions) 
+        OutputSizes(sizePath, namePart, key, lineDefinitions)
         scriptPath = os.path.join(outputPath, "scripts")
         if len(sys.argv) <= 5:
             OutputScript(scriptPath, namePart, key, lineDefinitions)
             OutputProblemDefinitions(sizePath, namePart, key, lineDefinitions)
-        else: 
+        else:
             OutputScript(scriptPath, networkName, key, lineDefinitions)
             OutputProblemDefinitions(sizePath, networkName, key, lineDefinitions)
 

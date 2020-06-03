@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -38,15 +38,15 @@ namespace Tensile
 {
 
     /**
-     * \ingroup Tensile
-     * \addtogroup Utilities
-     * @{
-     */
+ * \ingroup Tensile
+ * \addtogroup Utilities
+ * @{
+ */
 
     template <typename T>
     T CeilDivide(T num, T den)
     {
-        return (num + (den-1))/den;
+        return (num + (den - 1)) / den;
     }
 
     template <typename T>
@@ -76,30 +76,32 @@ namespace Tensile
     {
         if(val < 2)
             return 2;
-        while(!IsPrime(val)) val++;
+        while(!IsPrime(val))
+            val++;
         return val;
     }
 
     template <typename Container, typename Joiner>
-    void streamJoin(std::ostream & stream, Container const& c, Joiner const& j)
+    void streamJoin(std::ostream& stream, Container const& c, Joiner const& j)
     {
         bool first = true;
-        for(auto const& item: c)
+        for(auto const& item : c)
         {
-            if(!first) stream << j;
+            if(!first)
+                stream << j;
             stream << item;
             first = false;
         }
     }
 
     template <typename T>
-    inline std::ostream & stream_write(std::ostream & stream, T const& val)
+    inline std::ostream& stream_write(std::ostream& stream, T const& val)
     {
         return stream << val;
     }
 
     template <typename T, typename... Ts>
-    inline std::ostream & stream_write(std::ostream & stream, T const& val, Ts const&... vals)
+    inline std::ostream& stream_write(std::ostream& stream, T const& val, Ts const&... vals)
     {
         return stream_write(stream << val, vals...);
     }
@@ -113,8 +115,17 @@ namespace Tensile
         return msg.str();
     }
 
+    template <bool T_Enable, typename... Ts>
+    inline std::string concatenate_if(Ts const&... vals)
+    {
+        if(!T_Enable)
+            return "";
+
+        return concatenate(vals...);
+    }
+
     template <typename T, size_t N>
-    inline std::ostream & operator<<(std::ostream & stream, std::array<T, N> const& array)
+    inline std::ostream& operator<<(std::ostream& stream, std::array<T, N> const& array)
     {
         streamJoin(stream, array, ", ");
         return stream;
@@ -123,28 +134,28 @@ namespace Tensile
     class StreamRead
     {
     public:
-        StreamRead(std::string const& value, bool except=true);
+        StreamRead(std::string const& value, bool except = true);
         ~StreamRead();
 
-        bool read(std::istream & stream);
+        bool read(std::istream& stream);
 
     private:
         std::string const& m_value;
-        bool m_except;
-        bool m_success = false;
+        bool               m_except;
+        bool               m_success = false;
     };
 
-    //inline std::istream & operator>>(std::istream & stream, StreamRead & value);
-    inline std::istream & operator>>(std::istream & stream, StreamRead & value)
+    // inline std::istream & operator>>(std::istream & stream, StreamRead & value);
+    inline std::istream& operator>>(std::istream& stream, StreamRead& value)
     {
         value.read(stream);
         return stream;
     }
 
     /**
-     * @}
-     */
-}
+ * @}
+ */
+} // namespace Tensile
 
 /*
  * \addtogroup Utilities

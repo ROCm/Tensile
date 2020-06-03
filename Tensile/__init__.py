@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
 from __future__ import print_function
 
 # hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.18.0"
+__version__ = "4.19.0"
 
 def PrintTensileRoot():
     import os.path

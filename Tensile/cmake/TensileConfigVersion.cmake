@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,7 @@
 
 # hardcoded tensile version; also in Tensile/__init__.py
 set(TENSILE_VERSION_MAJOR  4)
-set(TENSILE_VERSION_MINOR 18)
+set(TENSILE_VERSION_MINOR 19)
 set(TENSILE_VERSION_PATCH  0)
 
 # export version

@@ -1,22 +1,23 @@
 /**
- * Copyright (C) 2019 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
- * ies of the Software, and to permit persons to whom the Software is furnished
- * to do so, subject to the following conditions:
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
- * PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
- * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -30,16 +31,23 @@
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \addtogroup Utilities
-     * @{
-     */
+ * \ingroup Tensile
+ * \addtogroup Utilities
+ * @{
+ */
     template <typename T>
     struct TENSILE_API vector2
     {
         vector2() = default;
-        vector2(T _x, T _y) : x(_x), y(_y) {}
-        enum { count = 2 };
+        vector2(T _x, T _y)
+            : x(_x)
+            , y(_y)
+        {
+        }
+        enum
+        {
+            count = 2
+        };
 
         T x;
         T y;
@@ -52,7 +60,7 @@ namespace Tensile
     }
 
     template <typename T>
-    TENSILE_API inline std::ostream & operator<<(std::ostream & stream, vector2<T> const& v)
+    TENSILE_API inline std::ostream& operator<<(std::ostream& stream, vector2<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ")";
     }
@@ -61,9 +69,17 @@ namespace Tensile
     struct TENSILE_API vector3
     {
         vector3() = default;
-        vector3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
+        vector3(T _x, T _y, T _z)
+            : x(_x)
+            , y(_y)
+            , z(_z)
+        {
+        }
 
-        enum { count = 3 };
+        enum
+        {
+            count = 3
+        };
 
         T x;
         T y;
@@ -77,7 +93,7 @@ namespace Tensile
     }
 
     template <typename T>
-    inline TENSILE_API std::ostream & operator<<(std::ostream & stream, vector3<T> const& v)
+    inline TENSILE_API std::ostream& operator<<(std::ostream& stream, vector3<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ", " << v.z << ")";
     }
@@ -86,9 +102,18 @@ namespace Tensile
     struct TENSILE_API vector4
     {
         vector4() = default;
-        vector4(T _x, T _y, T _z, T _w) : x(_x), y(_y), z(_z), w(_w) {}
+        vector4(T _x, T _y, T _z, T _w)
+            : x(_x)
+            , y(_y)
+            , z(_z)
+            , w(_w)
+        {
+        }
 
-        enum { count = 4 };
+        enum
+        {
+            count = 4
+        };
 
         T x;
         T y;
@@ -103,7 +128,7 @@ namespace Tensile
     }
 
     template <typename T>
-    inline TENSILE_API std::ostream & operator<<(std::ostream & stream, vector4<T> const& v)
+    inline TENSILE_API std::ostream& operator<<(std::ostream& stream, vector4<T> const& v)
     {
         return stream << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
     }
@@ -112,7 +137,6 @@ namespace Tensile
     using int3 = vector3<int>;
 
     /**
-     * @}
-     */
-}
-
+ * @}
+ */
+} // namespace Tensile

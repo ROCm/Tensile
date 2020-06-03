@@ -38,7 +38,7 @@ while true; do
   esac
 done
 
-if $HELP; then 
+if $HELP; then
   echo "${HELP_STR}" >&2
   exit 2
 fi
@@ -48,7 +48,7 @@ mkdir -p ${WORKING_PATH}
 pushd ${WORKING_PATH} > /dev/null
 
 TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
-ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS.git"
+ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS-internal.git"
 
 if [[ $PROVISION_PATH == "rocBLAS" ]]; then
   GIT_HOST="${ROCBLAS_HOST}"
@@ -63,7 +63,7 @@ fi
 if [ -n "${TAG}" ]; then
   PROVISION_PATH="${PROVISION_PATH}-${TAG}"
   cmd="git clone ${GIT_HOST} ${PROVISION_PATH}"
-  ${cmd} 
+  ${cmd}
   pushd ${PROVISION_PATH} > /dev/null
   git checkout tags/${TAG}
   popd > /dev/null

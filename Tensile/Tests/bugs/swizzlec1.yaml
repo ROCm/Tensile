@@ -46,7 +46,7 @@ GlobalParameters: {CMakeBuildType: Release, EnqueuesPerSync: 1, ForceRedoBenchma
 # So does interesting transpose in the output space.
 # Bug appears to be in the store path with second work-group, set AB=1 still fails.
 #   Check usage of WorkGroup0/1 and consistency of output space assignment in reads and stores.
-#   store code takes WG1 and 
+#   store code takes WG1 and
 #
 #   Check cstrides0/1 written by host code - seems ok, likely WG-related problem.
 #

@@ -17,7 +17,7 @@ while true; do
     -z | --size-log )     SIZE_LOG="$2"; shift 2;;
     -f | --tensile-fork)  TENSILE_FORK="$2"; shift 2;;
     -b | --branch  )      TENSILE_BRANCH="$2"; shift 2;;
-    -o | --output )       OUTPUT_FILE="$2"; shift 2;; 
+    -o | --output )       OUTPUT_FILE="$2"; shift 2;;
     -y | --type )         CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )      LIBRARY="$2"; shift 2;;
     -f )                  FREQ="$2"; shift 2;;
