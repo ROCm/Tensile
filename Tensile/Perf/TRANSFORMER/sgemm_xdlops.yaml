@@ -70,7 +70,6 @@ BenchmarkProblems:
           - [ 8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - TransposeLDS: [1]
         - LdsBlockSizePerPad: [128,256]
         - LdsPadA: [4]
@@ -108,7 +107,6 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadA: [True,False]
         - LdsBlockSizePerPad: [128,256]
@@ -145,7 +143,6 @@ BenchmarkProblems:
           - [ 8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [0]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
@@ -179,7 +176,6 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [0]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
@@ -212,7 +208,6 @@ BenchmarkProblems:
           - [ 4, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1]
         - TransposeLDS: [1]
         - LdsBlockSizePerPad: [128,256]
         - LdsPadA: [4]
@@ -249,7 +244,6 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [1]
         - LdsBlockSizePerPad: [128,256]
         - LdsPadA: [2,4]
@@ -286,7 +280,6 @@ BenchmarkProblems:
           - [ 4, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [0]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
@@ -319,7 +312,6 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [0]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
@@ -352,7 +344,6 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,11,120]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadA: [True,False]
         - LdsBlockSizePerPad: [128,256]
