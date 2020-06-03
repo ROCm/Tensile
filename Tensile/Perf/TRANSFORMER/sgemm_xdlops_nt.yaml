@@ -71,7 +71,6 @@ BenchmarkProblems:
           - [ 12,16 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 16,8 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
@@ -109,7 +108,6 @@ BenchmarkProblems:
           - [ 4, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -148,7 +146,6 @@ BenchmarkProblems:
           - [ 2, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -194,7 +191,6 @@ BenchmarkProblems:
           - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 16,8 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
@@ -213,8 +209,6 @@ BenchmarkProblems:
           - Exact: [ 1024,42720,1,9520,1056,1056,1088,42752]
           - Exact: [ 4096,1024,1,3968,4128,4128,4128,1088]
           - Exact: [ 4096,1024,1,3840,4128,4128,4128,1088]
-          - Exact: [ 512,512,1,3968,544,544,544,576]
-          - Exact: [ 512,512,1,4005,544,544,544,576]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -233,7 +227,6 @@ BenchmarkProblems:
           - [ 3, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -253,8 +246,6 @@ BenchmarkProblems:
           - Exact: [ 1024,42720,1,9520,1056,1056,1088,42752]
           - Exact: [ 4096,1024,1,3968,4128,4128,4128,1088]
           - Exact: [ 4096,1024,1,3840,4128,4128,4128,1088]
-          - Exact: [ 512,512,1,3968,544,544,544,576]
-          - Exact: [ 512,512,1,4005,544,544,544,576]
 
   ########################################
   # NT - standard 2Blocks/Inst
@@ -277,7 +268,6 @@ BenchmarkProblems:
           - [ 6, 16 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -316,7 +306,6 @@ BenchmarkProblems:
           - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -363,7 +352,6 @@ BenchmarkProblems:
           - [ 2, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -383,8 +371,6 @@ BenchmarkProblems:
           - Exact: [ 1024,42720,1,9520,1056,1056,1088,42752]
           - Exact: [ 4096,1024,1,3968,4128,4128,4128,1088]
           - Exact: [ 4096,1024,1,3840,4128,4128,4128,1088]
-          - Exact: [ 512,512,1,3968,544,544,544,576]
-          - Exact: [ 512,512,1,4005,544,544,544,576]
 
   ########################################
   # NT - standard 2Blocks/Inst
@@ -407,7 +393,6 @@ BenchmarkProblems:
           - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -448,7 +433,6 @@ BenchmarkProblems:
           - [ 6, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -468,8 +452,6 @@ BenchmarkProblems:
           - Exact: [ 1024,42720,1,9520,1056,1056,1088,42752]
           - Exact: [ 4096,1024,1,3968,4128,4128,4128,1088]
           - Exact: [ 4096,1024,1,3840,4128,4128,4128,1088]
-          - Exact: [ 512,512,1,3968,544,544,544,576]
-          - Exact: [ 512,512,1,4005,544,544,544,576]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -486,7 +468,6 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - GlobalSplitU: [1,2,4]
         - VectorWidth: [4,2]

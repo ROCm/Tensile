@@ -71,7 +71,6 @@ BenchmarkProblems:
           - [ 12,16 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 16,8 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
@@ -110,7 +109,6 @@ BenchmarkProblems:
           - [ 4, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -144,7 +142,6 @@ BenchmarkProblems:
           - [ 2, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -190,7 +187,6 @@ BenchmarkProblems:
           - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 16,8 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
@@ -228,7 +224,6 @@ BenchmarkProblems:
           - [ 3, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -272,7 +267,6 @@ BenchmarkProblems:
           - [ 6, 16 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -311,7 +305,6 @@ BenchmarkProblems:
           - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -358,7 +351,6 @@ BenchmarkProblems:
           - [ 2, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -402,7 +394,6 @@ BenchmarkProblems:
           - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -443,7 +434,6 @@ BenchmarkProblems:
           - [ 6, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -480,9 +470,7 @@ BenchmarkProblems:
           - [ 2, 32 ]
           - [ 1, 32 ]
         - WorkGroup:
-          - [ 16, 16, 1 ]
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,120]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -520,7 +508,6 @@ BenchmarkProblems:
           - [ 4, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - WorkGroupMapping: [1,8,16]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
@@ -556,7 +543,6 @@ BenchmarkProblems:
           - [ 2, 80 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - WorkGroupMapping: [1,8,16]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
