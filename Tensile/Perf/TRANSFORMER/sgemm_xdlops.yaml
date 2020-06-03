@@ -78,7 +78,6 @@ BenchmarkProblems:
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
         - WaveSeparateGlobalReadA: [True,False]
-        - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
@@ -89,98 +88,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
-
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [True]
-      ForkParameters:
-        - MatrixInstruction:
-          - [16, 16, 4, 1]
-        - ThreadTile:
-          - [ 1, 16 ]
-          - [ 2, 16 ]
-        - WorkGroup:
-          - [ 32, 8, 1 ]
-        - TransposeLDS: [1]
-        - LdsBlockSizePerPad: [128,256]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
-        - DepthU: [ 16,32 ]
-        - VectorWidth: [4,2]
-        - DisableVgprOverlapping: [True,False]
-        - WaveSeparateGlobalReadA: [True,False]
-        - WaveSeparateGlobalReadB: [True,False]
-        - GlobalReadVectorWidth: [2,4]
-        - InnerUnroll: [1,2]
-        - ScheduleIterAlg: [1,3]
-        - OptNoLoadLoop: [1,2]
-        - StoreVectorWidth: [-1,2,4]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
-
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [True]
-      ForkParameters:
-        - MatrixInstruction:
-          - [16, 16, 4, 1]
-        - ThreadTile:
-          - [ 1, 16 ]
-          - [ 2, 16 ]
-        - WorkGroup:
-          - [ 64, 4, 1 ]
-        - TransposeLDS: [1]
-        - LdsBlockSizePerPad: [128,256]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
-        - DepthU: [ 16,32 ]
-        - VectorWidth: [4,2]
-        - DisableVgprOverlapping: [True,False]
-        - WaveSeparateGlobalReadA: [True,False]
-        - WaveSeparateGlobalReadB: [True,False]
-        - GlobalReadVectorWidth: [2,4]
-        - InnerUnroll: [1,2]
-        - ScheduleIterAlg: [1,3]
-        - OptNoLoadLoop: [1,2]
-        - StoreVectorWidth: [-1,2,4]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -193,7 +102,6 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [16, 16, 1, 4]
         - ThreadTile:
-          - [ 1, 16 ]
           - [ 2, 16 ]
           - [ 1, 32 ]
           - [ 2, 32 ]
@@ -201,14 +109,13 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadA: [True,False]
-        - WaveSeparateGlobalReadB: [True,False]
         - LdsBlockSizePerPad: [128,256]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
+        - LdsPadA: [2,4]
+        - LdsPadB: [2,4]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
@@ -218,16 +125,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -248,7 +147,7 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
@@ -258,16 +157,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -280,7 +171,6 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [16, 16, 1, 4]
         - ThreadTile:
-          - [ 1, 16 ]
           - [ 2, 16 ]
           - [ 1, 32 ]
           - [ 2, 32 ]
@@ -290,7 +180,7 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
@@ -300,16 +190,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -333,7 +215,7 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - WaveSeparateGlobalReadA: [True,False]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
@@ -344,16 +226,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -372,15 +246,14 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - TransposeLDS: [1]
         - LdsBlockSizePerPad: [128,256]
-        - LdsPadA: [4]
-        - LdsPadB: [4]
+        - LdsPadA: [2,4]
+        - LdsPadB: [2,4]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - WaveSeparateGlobalReadA: [True,False]
-        - WaveSeparateGlobalReadB: [True,False]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
         - StoreVectorWidth: [-1,2,4]
@@ -389,16 +262,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -419,7 +284,7 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
@@ -429,16 +294,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -459,7 +316,7 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
@@ -469,16 +326,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,1600,1,1024,1056,1056,1088,1088]
-          - Exact: [ 1024,1600,1,1024,1056,1056,1056,1088]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,592]
-          - Exact: [ 1024,1600,1,560,1056,1056,592,560]
-          - Exact: [ 2048,512,1,100,2080,2080,132,164]
-          - Exact: [ 2048,512,1,100,2080,2080,132,132]
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
-          - Exact: [ 2048,512,1,74,2080,2080,106,106]
-          - Exact: [ 2048,512,1,74,2080,2080,74,106]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -497,14 +346,13 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadA: [True,False]
-        - WaveSeparateGlobalReadB: [True,False]
         - LdsBlockSizePerPad: [128,256]
         - LdsPadA: [4]
         - LdsPadB: [4]
         - DepthU: [ 16 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
-        - GlobalReadVectorWidth: [2,4]
+        - GlobalReadVectorWidth: [4]
         - InnerUnroll: [1,2]
         - ScheduleIterAlg: [1,3]
         - OptNoLoadLoop: [1,2]
@@ -514,8 +362,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1024,200,1,560,1056,1056,592,560]
-          - Exact: [ 1024,200,1,560,1056,1056,592,592]
+          - Exact: [ 4096,9520,1,1024,1056,1056,1088,1088]
+          - Exact: [ 4096,8160,1,1024,1056,1056,1088,1088]
 
 ########################################
 LibraryLogic:
