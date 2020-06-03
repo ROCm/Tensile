@@ -32,10 +32,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# The version of MessagePack supplied in Ubuntu 16.04 is old and won't work
-# We need to add a repository that has a suitable version of MessagePack and download from there
-RUN echo "deb http://ftp.debian.org/debian stable main" >> /etc/apt/sources.list && \
-    apt-get update && apt-get install -y --no-install-recommends libmsgpack-dev libmsgpackc2
+# The version of MessagePack supplied in Ubuntu 16.04 is old and won't work,
+# so we'll manually download and install the DEB files
+RUN curl -O http://ftp.us.debian.org/debian/pool/main/m/msgpack-c/libmsgpack-dev_3.0.1-3_amd64.deb \
+         -O http://ftp.us.debian.org/debian/pool/main/m/msgpack-c/libmsgpackc2_3.0.1-3_amd64.deb
+RUN dpkg -i libmsgpack-dev_3.0.1-3_amd64.deb libmsgpackc2_3.0.1-3_amd64.deb
 
 RUN pip3 install setuptools --upgrade && \
     pip3 install wheel && \
