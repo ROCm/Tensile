@@ -344,7 +344,6 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 1, 32 ]
           - [ 2, 32 ]
-          - [ 3, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -388,7 +387,6 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 1, 32 ]
           - [ 2, 32 ]
-          - [ 3, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
         - DepthU: [ 8,16 ]
@@ -424,10 +422,9 @@ BenchmarkProblems:
           - [32, 32, 2, 1]
         - ThreadTile:
           - [ 2, 32 ]
-          - [ 1, 64 ]
+          - [ 1, 32 ]
           - [ 3, 32 ]
           - [ 4, 32 ]
-          - [ 6, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - DepthU: [ 8,16 ]
@@ -466,6 +463,37 @@ BenchmarkProblems:
           - [ 1, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [4,2]
+        - FractionalLoad: [1,0]
+        - DisableVgprOverlapping: [True,False]
+        - WaveSeparateGlobalReadA: [True,False]
+        - WaveSeparateGlobalReadB: [True,False]
+        - GlobalReadVectorWidth: [4]
+        - InnerUnroll: [1,2]
+        - ScheduleIterAlg: [1,3]
+        - OptNoLoadLoop: [1,2]
+        - StoreVectorWidth: [-1,2,4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 1024,1024,1,200,1056,1056,1088,232]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 2, 1]
+        - ThreadTile:
+          - [ 1, 32 ]
+        - WorkGroup:
           - [ 64, 4, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
@@ -484,6 +512,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 1024,1024,1,200,1056,1056,1088,232]
+
 
 ########################################
 LibraryLogic:
