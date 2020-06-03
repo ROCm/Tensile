@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -77,7 +77,7 @@ def writeSolutions( filename, problemSizes, solutions ):
     stream.write("  - Range: %s\n" % sizeRange)
   for problemExact in problemSizes.exacts:
     #FIXME-problem, this ignores strides:
-    stream.write("  - Exact: %s\n" % list(problemExact.sizes))
+    stream.write("  - Exact: %s\n" % str(problemExact))
   yaml.dump(solutionStates, stream, default_flow_style=None)
   stream.close()
 

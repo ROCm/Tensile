@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -36,26 +36,24 @@ namespace Tensile
 {
 #ifdef TENSILE_USE_HIP
     /**
-     * \ingroup DataTypes
-     */
+ * \ingroup DataTypes
+ */
     using Half = _Float16;
 #define TENSILE_USE_HALF
 #else
     /**
-     * \ingroup DataTypes
-     */
-    struct Half: public DistinctType<uint16_t, Half>
+ * \ingroup DataTypes
+ */
+    struct Half : public DistinctType<uint16_t, Half>
     {
     };
 #endif
-}
+} // namespace Tensile
 
 namespace std
 {
-    inline ostream & operator<<(ostream & stream, const Tensile::Half val)
+    inline ostream& operator<<(ostream& stream, const Tensile::Half val)
     {
         return stream << static_cast<float>(val);
     }
-}
-
-
+} // namespace std

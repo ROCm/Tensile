@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ from Tensile.ReplacementKernels import ReplacementKernels
 def test_DefaultInstance():
     assert ReplacementKernels.Get("asdf") is None
 
-    myReplacement = ReplacementKernels.Get("Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA906_IU1_K1_KLA_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SU0_SNLL0_TT6_4_USFGRO0_VAW1_VS1_VW2_WG8_16_1_WGM4")
+    myReplacement = ReplacementKernels.Get("Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA906_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4")
 
     assert os.path.isfile(myReplacement)
     assert os.path.isabs(myReplacement)

@@ -116,7 +116,7 @@ g_formats = {
 
 parser = argparse.ArgumentParser(description='convert between GEMM formats (Tensile, rocblas-bench, deepbench, CSV')
 
-parser.add_argument('infile', type=argparse.FileType('r'), 
+parser.add_argument('infile', type=argparse.FileType('r'),
         help="Input file to process")
 
 parser.add_argument('-i', '--in-format', action="store",

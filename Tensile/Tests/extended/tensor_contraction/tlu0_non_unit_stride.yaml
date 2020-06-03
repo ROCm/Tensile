@@ -45,7 +45,7 @@ GlobalParameters: {CMakeBuildType: Release, EnqueuesPerSync: 1, ForceRedoBenchma
   ForceRedoLibraryClient: true, ForceRedoLibraryLogic: true, KernelTime: true, LibraryPrintDebug: false,
   MergeFiles: true, MinimumRequiredVersion: 4.2.0, NewClient: 2, NumElementsToValidate: 1000,
   ShortNames: false, SolutionSelectionAlg: 1, SyncsPerBenchmark: 1,
-  ValidationMaxToPrint: 4, ValidationPrintValids: false, 
+  ValidationMaxToPrint: 4, ValidationPrintValids: false,
   PrintIndexAssignments: 1,
   DataInitTypeA: 3,
   DataInitTypeB: 3,

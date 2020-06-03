@@ -1,6 +1,7 @@
 import pytest
-import Tensile.Tensile as Tensile
+import subprocess
 from collections import namedtuple
+
 from YamlBuilder.YamlBuilder import YamlBuilder
 from YamlBuilder.YamlBuilder import Solutions
 
@@ -11,7 +12,6 @@ TensileState=namedtuple("TensileState", ["args"])
 # this control the default solutions used for each test.
 solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu"]
 #solutions = ["asm3_pbd"] # run a smaller set of tests
-
 
 @pytest.fixture(scope="function")
 def file_with_test_name(request, tmp_path):
@@ -41,20 +41,23 @@ def run_generate_yaml(request, file_with_test_name):
     return run
 
 @pytest.fixture
-def run_contraction(tensile_args, tmp_path, run_generate_yaml, request):
+def run_contraction(tensile_args, tmp_path, run_generate_yaml, request, tensile_script_path):
     def run(conv, problemType, solution, problemFunc=None, problemLevel=-1, dataType='s'):
         configFile = run_generate_yaml(conv, problemType, solution, problemFunc, problemLevel, dataType)
-        Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
+        args = [str(configFile), str(tmp_path), *tensile_args]
+        subprocess.check_call([tensile_script_path] + args)
     return run
 
 @pytest.fixture
-def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name):
+def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name, tensile_script_path):
     def run(conv, problemType={}, solution=Solutions.defaultSolution(), dataType='s'):
         config = YamlBuilder.ConvolutionVsContraction(conv, solution, dataType)
         configFile = file_with_test_name(".conv.yaml")
         config.write(configFile)
 
-        Tensile.Tensile([str(configFile), str(tmp_path), *tensile_args])
+        args = [str(configFile), str(tmp_path), *tensile_args]
+
+        subprocess.check_call([tensile_script_path] + args)
     return run
 
 level_params = [pytest.param((0, Solutions.src1), id="Convolution_Class"),

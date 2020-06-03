@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -39,32 +39,31 @@
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \defgroup Embedding Data Embedding 
-     * 
-     * @brief Mechanism which allows binary data to be stored in an executable
-     * or shared library as an array of bytes.
-     */
-
+ * \ingroup Tensile
+ * \defgroup Embedding Data Embedding
+ *
+ * @brief Mechanism which allows binary data to be stored in an executable
+ * or shared library as an array of bytes.
+ */
 
     template <typename Object>
     struct EmbedData;
 
     /**
-     * \ingroup Embedding
-     * 
-     * @brief EmbeddedData is the mechanism for retrieving data which has been
-     * registered with EmbedData.
-     */
+ * \ingroup Embedding
+ *
+ * @brief EmbeddedData is the mechanism for retrieving data which has been
+ * registered with EmbedData.
+ */
     template <typename Object>
-    class TENSILE_API EmbeddedData: public LazySingleton<EmbeddedData<Object>>
+    class TENSILE_API EmbeddedData : public LazySingleton<EmbeddedData<Object>>
     {
     public:
         using Base = LazySingleton<EmbeddedData<Object>>;
 
-        using Item = std::vector<uint8_t>;
+        using Item  = std::vector<uint8_t>;
         using Items = std::vector<Item>;
-        using Map = std::unordered_map<std::string, Items>;
+        using Map   = std::unordered_map<std::string, Items>;
 
         static Items const& Get()
         {
@@ -74,7 +73,7 @@ namespace Tensile
         static Items const& Get(std::string const& key)
         {
             auto const& items = Base::Instance().items;
-            auto iter = items.find(key);
+            auto        iter  = items.find(key);
             if(iter == items.end())
                 return Base::Instance().empty;
 
@@ -85,31 +84,30 @@ namespace Tensile
         friend Base;
         friend struct EmbedData<Object>;
 
-        static Items & GetMutable()
+        static Items& GetMutable()
         {
-
             return GetMutable("");
         }
 
-        static Items & GetMutable(std::string const& key)
+        static Items& GetMutable(std::string const& key)
         {
             if(Debug::Instance().printEmbeddedDataInit())
-                std::cout << "Embedding an object of type " << typeid(Object).name()
-                          << " with key " << key << std::endl;
+                std::cout << "Embedding an object of type " << typeid(Object).name() << " with key "
+                          << key << std::endl;
             return Base::Instance().items[key];
         }
 
         EmbeddedData() = default;
 
-        Map items;
+        Map         items;
         const Items empty = Items{};
     };
 
     /**
-     * \ingroup Embedding
-     * 
-     * @brief Object which registers embedded data when it's instantiated.
-     */
+ * \ingroup Embedding
+ *
+ * @brief Object which registers embedded data when it's instantiated.
+ */
     template <typename Object>
     struct TENSILE_API EmbedData
     {
@@ -134,10 +132,10 @@ namespace Tensile
         }
     };
 
-}
+} // namespace Tensile
 
-#define TENSILE_CONCATENATE_SYMBOLS(a, b) TENSILE_CONCATENATE_SYMBOLS1(a, b) 
-#define TENSILE_CONCATENATE_SYMBOLS1(a, b) TENSILE_CONCATENATE_SYMBOLS2(a, b) 
-#define TENSILE_CONCATENATE_SYMBOLS2(a, b) a ## b
+#define TENSILE_CONCATENATE_SYMBOLS(a, b) TENSILE_CONCATENATE_SYMBOLS1(a, b)
+#define TENSILE_CONCATENATE_SYMBOLS1(a, b) TENSILE_CONCATENATE_SYMBOLS2(a, b)
+#define TENSILE_CONCATENATE_SYMBOLS2(a, b) a##b
 
 #define TENSILE_EMBED_SYMBOL_NAME TENSILE_CONCATENATE_SYMBOLS(TensileEmbeddedData, __LINE__)

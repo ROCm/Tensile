@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -47,15 +47,15 @@ def RunPlot():
 
     current_data = pd.read_csv(currentFileName)
     headers = current_data.columns.values.tolist()
-  
+
     n_series = current_data['N']
-    p_series = current_data['percent gain']
+    p_series = current_data['speedup']
 
     fig, ax = plt.subplots()
 
     ax.plot(n_series,p_series,'+')
     ax.set_xlabel("N")
-    ax.set_ylabel("percent gain")
+    ax.set_ylabel("speedup")
 
     fig.savefig(plotFileName, dpi=300, facecolor="#f1f1f1")
 

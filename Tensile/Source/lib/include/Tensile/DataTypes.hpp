@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <cstdlib>
 #include <complex>
+#include <cstdlib>
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -42,21 +42,21 @@
 namespace Tensile
 {
     /**
-     * \ingroup Tensile
-     * \defgroup DataTypes Data Type Info
-     * 
-     * @brief Definitions and metadata on supported data types.
-     */
+ * \ingroup Tensile
+ * \defgroup DataTypes Data Type Info
+ *
+ * @brief Definitions and metadata on supported data types.
+ */
 
     /**
-     * \ingroup DataTypes
-     * @{
-     */
+ * \ingroup DataTypes
+ * @{
+ */
 
     /**
-     * Data Type
-     */
-    enum class DataType: int
+ * Data Type
+ */
+    enum class DataType : int
     {
         Float,
         Double,
@@ -69,22 +69,22 @@ namespace Tensile
         Count
     };
 
-    std::string ToString(DataType d);
-    std::string TypeAbbrev(DataType d);
+    std::string   ToString(DataType d);
+    std::string   TypeAbbrev(DataType d);
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
-    std::istream& operator>>(std::istream& stream, DataType      & t);
+    std::istream& operator>>(std::istream& stream, DataType& t);
 
     /**
-     * \ingroup DataTypes
-     * \brief Runtime accessible data type metadata
-     */
+ * \ingroup DataTypes
+ * \brief Runtime accessible data type metadata
+ */
     struct DataTypeInfo
     {
         static DataTypeInfo const& Get(int index);
         static DataTypeInfo const& Get(DataType t);
         static DataTypeInfo const& Get(std::string const& str);
 
-        DataType dataType;
+        DataType    dataType;
         std::string name;
         std::string abbrev;
 
@@ -109,12 +109,13 @@ namespace Tensile
     };
 
     /**
-     * \ingroup DataTypes
-     * \brief Compile-time accessible data type metadata.
-     */
+ * \ingroup DataTypes
+ * \brief Compile-time accessible data type metadata.
+ */
     template <typename T>
     struct TypeInfo
-    { };
+    {
+    };
 
     template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
     struct BaseTypeInfo
@@ -128,11 +129,17 @@ namespace Tensile
         /// Bytes per segment.
         constexpr static size_t SegmentSize = ElementSize / Packing;
 
-        constexpr static bool IsComplex = T_IsComplex;
+        constexpr static bool IsComplex  = T_IsComplex;
         constexpr static bool IsIntegral = T_IsIntegral;
 
-        static inline std::string Name()   { return ToString(Enum); }
-        static inline std::string Abbrev() { return TypeAbbrev(Enum); }
+        static inline std::string Name()
+        {
+            return ToString(Enum);
+        }
+        static inline std::string Abbrev()
+        {
+            return TypeAbbrev(Enum);
+        }
     };
 
     template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
@@ -149,20 +156,45 @@ namespace Tensile
     template <typename T, DataType T_Enum, int T_Packing, bool T_IsComplex, bool T_IsIntegral>
     constexpr bool BaseTypeInfo<T, T_Enum, T_Packing, T_IsComplex, T_IsIntegral>::IsIntegral;
 
-    template<> struct TypeInfo<float >: public BaseTypeInfo<float,  DataType::Float,  1, false, false> {};
-    template<> struct TypeInfo<double>: public BaseTypeInfo<double, DataType::Double, 1, false, false> {};
-    template<> struct TypeInfo<std::complex<float >>: public BaseTypeInfo<std::complex<float >, DataType::ComplexFloat,  1, true, false> {};
-    template<> struct TypeInfo<std::complex<double>>: public BaseTypeInfo<std::complex<double>, DataType::ComplexDouble, 1, true, false> {};
+    template <>
+    struct TypeInfo<float> : public BaseTypeInfo<float, DataType::Float, 1, false, false>
+    {
+    };
+    template <>
+    struct TypeInfo<double> : public BaseTypeInfo<double, DataType::Double, 1, false, false>
+    {
+    };
+    template <>
+    struct TypeInfo<std::complex<float>>
+        : public BaseTypeInfo<std::complex<float>, DataType::ComplexFloat, 1, true, false>
+    {
+    };
+    template <>
+    struct TypeInfo<std::complex<double>>
+        : public BaseTypeInfo<std::complex<double>, DataType::ComplexDouble, 1, true, false>
+    {
+    };
 
-    template<> struct TypeInfo<Int8x4>:   public BaseTypeInfo<Int8x4, DataType::Int8x4,  4, false, true>  {};
+    template <>
+    struct TypeInfo<Int8x4> : public BaseTypeInfo<Int8x4, DataType::Int8x4, 4, false, true>
+    {
+    };
 
-    template<> struct TypeInfo<int32_t>:  public BaseTypeInfo<int32_t,  DataType::Int32,    1, false, true>  {};
+    template <>
+    struct TypeInfo<int32_t> : public BaseTypeInfo<int32_t, DataType::Int32, 1, false, true>
+    {
+    };
 
-    template<> struct TypeInfo<Half>:     public BaseTypeInfo<Half, DataType::Half,  1, false, false> {};
-    template<> struct TypeInfo<BFloat16>: public BaseTypeInfo<BFloat16, DataType::BFloat16, 1, false, false>  {};
-
+    template <>
+    struct TypeInfo<Half> : public BaseTypeInfo<Half, DataType::Half, 1, false, false>
+    {
+    };
+    template <>
+    struct TypeInfo<BFloat16> : public BaseTypeInfo<BFloat16, DataType::BFloat16, 1, false, false>
+    {
+    };
 
     /**
-     * @}
-     */
-}
+ * @}
+ */
+} // namespace Tensile

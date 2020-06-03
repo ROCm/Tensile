@@ -11,7 +11,7 @@
 /******************************************/
 
 .hsa_code_object_version 2,0
-.hsa_code_object_isa 9, 0, 8, "AMD", "AMDGPU" 
+.hsa_code_object_isa 9, 0, 8, "AMD", "AMDGPU"
 .text
 .protected Cijk_Alik_Bljk_BBH_MT64x32x64_SE_K1
 .globl Cijk_Alik_Bljk_BBH_MT64x32x64_SE_K1

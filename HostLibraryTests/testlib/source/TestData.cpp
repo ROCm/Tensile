@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -51,7 +51,7 @@ TestData TestData::Invalid()
 
 TestData TestData::Env(std::string const& varName)
 {
-    char * var = getenv(varName.c_str());
+    char* var = getenv(varName.c_str());
 
     if(var == nullptr)
         return Invalid();
@@ -76,7 +76,7 @@ std::vector<boost::filesystem::path> TestData::glob(std::string const& pattern) 
     glob_t result;
     result.gl_pathc = 0;
     result.gl_pathv = nullptr;
-    result.gl_offs = 0;
+    result.gl_offs  = 0;
 
     int err = ::glob(wholePattern.c_str(), 0, nullptr, &result);
 
@@ -101,7 +101,6 @@ boost::filesystem::path TestData::ProgramLocation()
 #else
     return boost::dll::program_location();
 #endif
-
 }
 
 TestData::TestData()
@@ -114,7 +113,4 @@ TestData::TestData(std::string const& dataDir)
 {
 }
 
-TestData::TestData(invalid_data)
-{
-}
-
+TestData::TestData(invalid_data) {}

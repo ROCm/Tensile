@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -28,16 +28,17 @@
 
 namespace Tensile
 {
-    TENSILE_API std::string AMDGPU::type() const { return Type(); }
-
-    TENSILE_API AMDGPU::AMDGPU()
+    TENSILE_API std::string AMDGPU::type() const
     {
+        return Type();
     }
 
+    TENSILE_API AMDGPU::AMDGPU() {}
+
     TENSILE_API AMDGPU::AMDGPU(AMDGPU::Processor p, int cus, std::string const& name)
-        : processor(p),
-          computeUnitCount(cus),
-          deviceName(name)
+        : processor(p)
+        , computeUnitCount(cus)
+        , deviceName(name)
     {
     }
 
@@ -59,15 +60,20 @@ namespace Tensile
         return false;
     }
 
-    std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p)
+    std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p)
     {
         switch(p)
         {
-            case AMDGPU::Processor::gfx803:  return stream << "gfx803";
-            case AMDGPU::Processor::gfx900:  return stream << "gfx900";
-            case AMDGPU::Processor::gfx906:  return stream << "gfx906";
-            case AMDGPU::Processor::gfx908:  return stream << "gfx908";
-            case AMDGPU::Processor::gfx1010: return stream << "gfx1010";
+        case AMDGPU::Processor::gfx803:
+            return stream << "gfx803";
+        case AMDGPU::Processor::gfx900:
+            return stream << "gfx900";
+        case AMDGPU::Processor::gfx906:
+            return stream << "gfx906";
+        case AMDGPU::Processor::gfx908:
+            return stream << "gfx908";
+        case AMDGPU::Processor::gfx1010:
+            return stream << "gfx1010";
         }
         return stream;
     }
@@ -81,8 +87,8 @@ namespace Tensile
         return rv.str();
     }
 
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU g)
+    TENSILE_API std::ostream& operator<<(std::ostream& stream, AMDGPU g)
     {
         return stream << g.description();
     }
-}
+} // namespace Tensile

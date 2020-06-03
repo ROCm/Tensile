@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,54 +26,52 @@
 
 #pragma once
 
-#include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/Predicates.hpp>
 #include <Tensile/Debug.hpp>
+#include <Tensile/Predicates.hpp>
+#include <Tensile/SolutionLibrary.hpp>
 
 namespace Tensile
 {
     /**
-     * \addtogroup SolutionLibrary
-     * @{
-     */
+ * \addtogroup SolutionLibrary
+ * @{
+ */
     template <typename MyProblem, typename MySolution>
     using LibraryEntry = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
     template <typename MyProblem, typename MySolution, typename MyPredicate>
     using LibraryRow = std::pair<MyPredicate, LibraryEntry<MyProblem, MySolution>>;
 
-
-    /** 
-     * Represents a set of sub-libraries, each with associated predicates. It
-     * should be placed in order of best to worst solutions. We assume the best
-     * solution is the first one where we match the predicates.
-     * 
-     * Examples: Picking solutions written for a particular GPU, solutions that
-     * assume that a particular size is a multiple of something, etc.
-     */
+    /**
+ * Represents a set of sub-libraries, each with associated predicates. It
+ * should be placed in order of best to worst solutions. We assume the best
+ * solution is the first one where we match the predicates.
+ *
+ * Examples: Picking solutions written for a particular GPU, solutions that
+ * assume that a particular size is a multiple of something, etc.
+ */
     template <typename MyProblem, typename MySolution, typename MyPredicate>
-    struct ExactLogicLibrary: public SolutionLibrary<MyProblem, MySolution>
+    struct ExactLogicLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         using Row = LibraryRow<MyProblem, MySolution, MyPredicate>;
         std::vector<Row> rows;
 
         ExactLogicLibrary() = default;
         ExactLogicLibrary(std::initializer_list<Row> init)
-            :rows(init)
+            : rows(init)
         {
         }
 
         ExactLogicLibrary(std::vector<Row> const& init)
-            :rows(init)
+            : rows(init)
         {
         }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             std::shared_ptr<MySolution> rv;
 
-            for(auto const& row: rows)
+            for(auto const& row : rows)
             {
                 if(row.first(problem, hardware))
                 {
@@ -86,13 +84,12 @@ namespace Tensile
             return rv;
         }
 
-        virtual SolutionSet<MySolution>
-            findAllSolutions(MyProblem const& problem,
-                             Hardware  const& hardware) const override
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
         {
             SolutionSet<MySolution> rv;
 
-            for(auto const& row: rows)
+            for(auto const& row : rows)
             {
                 if(row.first(problem, hardware))
                 {
@@ -121,8 +118,7 @@ namespace Tensile
         }
 
         template <typename Any>
-        bool operator()(Any const& problem,
-                        Hardware const& hardware) const
+        bool operator()(Any const& problem, Hardware const& hardware) const
         {
             bool debug = Debug::Instance().printDeviceSelection();
 
@@ -136,26 +132,31 @@ namespace Tensile
         }
     };
 
-    template <typename MyProblem,
-              typename MySolution>
-    struct HardwareSelectionLibrary:
-        public ExactLogicLibrary<MyProblem, MySolution, HardwarePredicate>
+    template <typename MyProblem, typename MySolution>
+    struct HardwareSelectionLibrary
+        : public ExactLogicLibrary<MyProblem, MySolution, HardwarePredicate>
     {
         using Base = ExactLogicLibrary<MyProblem, MySolution, HardwarePredicate>;
 
         HardwareSelectionLibrary() = default;
         HardwareSelectionLibrary(std::initializer_list<typename Base::Row> init)
-            :Base(init)
+            : Base(init)
         {
         }
 
         HardwareSelectionLibrary(std::vector<typename Base::Row> const& init)
-            :Base(init)
+            : Base(init)
         {
         }
 
-        static std::string Type() { return "Hardware"; }
-        virtual std::string type() const override { return Type(); }
+        static std::string Type()
+        {
+            return "Hardware";
+        }
+        virtual std::string type() const override
+        {
+            return Type();
+        }
     };
 
     template <typename MyProblem>
@@ -169,8 +170,7 @@ namespace Tensile
         {
         }
 
-        bool operator()(MyProblem const& problem,
-                        Hardware  const& hardware) const
+        bool operator()(MyProblem const& problem, Hardware const& hardware) const
         {
             bool debug = Debug::Instance().printPredicateEvaluation();
 
@@ -184,33 +184,35 @@ namespace Tensile
         }
     };
 
-    template <typename MyProblem,
-              typename MySolution>
-    struct ProblemSelectionLibrary:
-        public ExactLogicLibrary<MyProblem,
-                                 MySolution,
-                                 ProblemPredicate<MyProblem>>
+    template <typename MyProblem, typename MySolution>
+    struct ProblemSelectionLibrary
+        : public ExactLogicLibrary<MyProblem, MySolution, ProblemPredicate<MyProblem>>
     {
         using Base = ExactLogicLibrary<MyProblem, MySolution, ProblemPredicate<MyProblem>>;
 
         ProblemSelectionLibrary() = default;
         ProblemSelectionLibrary(std::initializer_list<typename Base::Row> init)
-            :Base(init)
+            : Base(init)
         {
         }
 
         ProblemSelectionLibrary(std::vector<typename Base::Row> const& init)
-            :Base(init)
+            : Base(init)
         {
         }
 
-        static std::string Type() { return "Problem"; }
-        virtual std::string type() const { return Type(); }
+        static std::string Type()
+        {
+            return "Problem";
+        }
+        virtual std::string type() const
+        {
+            return Type();
+        }
     };
 
     /**
-     * @}
-     */
+ * @}
+ */
 
-}
-
+} // namespace Tensile

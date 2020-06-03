@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -11,8 +11,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -30,25 +30,28 @@
 
 namespace Tensile
 {
-    /** 
-     * \ingroup Hardware
-     * Represents a particular AMD GPU in terms of processor model and number of
-     * compute units.
-     * 
-     * See subclass in `hip` directory which can create an instance
-     * automatically.
-     */
-    struct TENSILE_API AMDGPU: public Hardware
+    /**
+ * \ingroup Hardware
+ * Represents a particular AMD GPU in terms of processor model and number of
+ * compute units.
+ *
+ * See subclass in `hip` directory which can create an instance
+ * automatically.
+ */
+    struct TENSILE_API AMDGPU : public Hardware
     {
-        static std::string Type() { return "AMDGPU"; }
+        static std::string Type()
+        {
+            return "AMDGPU";
+        }
         virtual std::string type() const;
 
-        enum class Processor: int
+        enum class Processor : int
         {
-            gfx803  =  803,
-            gfx900  =  900,
-            gfx906  =  906,
-            gfx908  =  908,
+            gfx803  = 803,
+            gfx900  = 900,
+            gfx906  = 906,
+            gfx908  = 908,
             gfx1010 = 1010
         };
 
@@ -56,16 +59,16 @@ namespace Tensile
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
         ~AMDGPU();
 
-        Processor   processor = Processor::gfx900;
-        int         wavefrontSize = 64;
-        int         simdPerCu = 4;
+        Processor   processor        = Processor::gfx900;
+        int         wavefrontSize    = 64;
+        int         simdPerCu        = 4;
         int         computeUnitCount = 0;
         std::string deviceName;
 
-        virtual bool runsKernelTargeting(Processor p) const;
+        virtual bool   runsKernelTargeting(Processor p) const;
         virtual size_t id() const
         {
-            return (size_t) processor;
+            return (size_t)processor;
         }
         virtual std::string description() const;
 
@@ -95,6 +98,6 @@ namespace Tensile
         return static_cast<int>(l) >= static_cast<int>(r);
     }
 
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU::Processor p);
-    TENSILE_API std::ostream & operator<<(std::ostream & stream, AMDGPU g);
-}
+    TENSILE_API std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p);
+    TENSILE_API std::ostream& operator<<(std::ostream& stream, AMDGPU g);
+} // namespace Tensile
