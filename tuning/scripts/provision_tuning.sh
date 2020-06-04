@@ -88,7 +88,7 @@ MFMA=false
 RK=false
 DISABLE_STRIDES=false
 PROBLEM_DEFINITION=both
-INITIALIZATION=random_int
+INITIALIZATION=rand_int
 
 OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:amrsi: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,no-tensile,id: -n 'parse-options' -- "$@"`
 

@@ -93,7 +93,9 @@ def processFile(headerFileName, key, configDefinitionList, configurationPath, wo
     contentFileNames.append(libraryFilePath)
     CopyContent(contentFileNames, configurationFilePath)
 
+
 def SetDefaultStrides(problemDefinition, m, n, k):
+    #assuming we don't encounter TT sizes, else this should be k,n,m
     if problemDefinition["transposeB"] == "T":
         return [m, n, m]
     elif problemDefinition["transposeA"] == "N":
@@ -487,7 +489,7 @@ def removeIter(lines):
         noiterlines.append(newline)
     return noiterlines
 
-def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="random_int"):
+def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="rand_int"):
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
@@ -558,7 +560,7 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
 
     generateRunScript(scriptFileNames, scriptPath)
 
-def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="random_int"):
+def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", probDef="both", initialization="rand_int"):
 
     keys = list(problemMapper.keys())
 
@@ -662,7 +664,7 @@ def RunMain():
     argParser.add_argument("replacement_kernel", help="true/false replacement kernels", default="false")
     argParser.add_argument("disable_strides", help="true/false disable strides", default="false")
     argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both")
-    argParser.add_argument("initialization", help="random_int or trig_float", default="random_int")
+    argParser.add_argument("initialization", help="rand_int or trig_float", default="rand_int")
 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
