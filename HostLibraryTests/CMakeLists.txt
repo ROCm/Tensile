@@ -49,7 +49,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.19.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.20.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -65,6 +65,9 @@ endif()
 
 set(INSTALL_GTEST OFF CACHE BOOL "Install GTest")
 add_subdirectory(googletest)
+if(NOT gtest_SOURCE_DIR)
+    message(FATAL_ERROR "googletest not found.  Run git submodule update --init")
+endif()
 
 find_package(Boost COMPONENTS filesystem)
 
@@ -161,10 +164,6 @@ if(TENSILE_USE_LLVM)
 endif()
 
 if(TENSILE_USE_HIP)
-
-    # Make sure the testing libraries get copied to avoid segfaults in test runs.
-    add_dependencies(TensileTests ${HIP_TEST_COPY_TARGET_DEPS})
-
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
     foreach(arch IN LISTS TENSILE_GPU_ARCHS)
         target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")

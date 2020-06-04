@@ -19,18 +19,25 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import sys
-import operator
-from collections import namedtuple,OrderedDict
-from warnings import warn
-from functools import reduce
-from .Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print2
-from .Common import validActivationFormats, validWeightFormats, validConvolutionConfig, validMFMA
-from copy import deepcopy
-import math
-from .Utils import roundUpToNearestMultiple
+from .Common import assignParameterRequired, assignParameterWithDefault, \
+                    defaultProblemType, defaultSolution, \
+                    globalParameters, \
+                    print2, printExit, \
+                    validActivationFormats, validConvolutionConfig, \
+                    validMFMA, validParameters, validWeightFormats
 from .DataType import DataType
+from .Utils import roundUpToNearestMultiple
+
+from collections import namedtuple,OrderedDict
+from copy import deepcopy
 from enum import Enum
+from functools import reduce
+from warnings import warn
+
+import collections
+import math
+import operator
+import sys
 
 ########################################
 # Print a reject message :
@@ -766,7 +773,7 @@ class Convolution:
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
-class ProblemType:
+class ProblemType(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self.state = {}
@@ -2736,6 +2743,40 @@ class Solution:
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
+
+    #check not support cases and calculate lds resources
+    if state["StoreRemapVectorWidth"]:
+      if not state["EnableMatrixInstruction"]:
+        reject(state, "storeRemap only support MaxtrixInstruction kernel")
+      if state["PersistentKernel"]:
+        reject(state, "storeRemap doesn't support persist kernel yet")
+      if state["GlobalSplitU"] > 1:
+        reject(state, "storeRemap doesn't support GlobalSplitU yet")
+      if packedC0 or packedC1:
+        reject(state, "storeRemap doesn't support packedC0 and packedC1 yet")
+      if state["MIWaveGroup"][0] > 1:
+        reject(state, "storeRemap doesn't support MI wave group in M direction yet")
+      if state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
+        reject(state, "storeRemap doesn't support MI4x4 multi blocks in N direction yet")
+
+      srMinVw = 1
+      srMaxVw = 8
+      if state["ProblemType"]["DataType"].isSingle():
+        srMaxVw = 4
+      elif state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16():
+        srMinVw = 2
+      if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
+        reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
+
+      if state["MacroTile0"]*state["MatrixInstN"] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
+        reject(state, "storeRemap: number of lds elements less than per wave local read elements. Please use smaller StoreRemapVectorWidth")
+      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
+      ldsNumElementsPerWave = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"]
+      ldsNumElementsRemapC = ldsNumElementsPerWave * wavefronts
+      #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
+      ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
+
     state["LdsNumElements"] = ldsNumElements
     ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
     if ldsSize > globalParameters["MaxLDS"]:

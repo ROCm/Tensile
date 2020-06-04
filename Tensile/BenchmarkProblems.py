@@ -41,7 +41,7 @@ from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
-from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
+from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 
 ################################################################################
 # Benchmark Problem Type
@@ -556,24 +556,13 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   if len(solutions) == 0:
     printExit("write solutions and kernels results 0 valid soultion.")
-
   ##############################################################################
   # Write CMake
   ##############################################################################
-  outputPath = globalParameters["WorkingPath"]
 
-  (solutionFiles,
-   sourceKernelFiles,
-   asmKernelFiles,
-   sourceLibFiles,
-   asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
-    kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
-
-  writeCMake(outputPath, solutionFiles, sourceKernelFiles, filesToCopy)
-
-  for fileName in filesToCopy:
-    shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
-      outputPath )
+  clientName = "TensileBenchmark_%s" % stepName
+  writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
+      clientName)
 
   if globalParameters["NewClient"] != 2:
       forBenchmark = True

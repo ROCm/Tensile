@@ -21,6 +21,7 @@
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
+from . import Common
 from . import YAMLIO
 
 import os
@@ -254,10 +255,6 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
     callCreateLibraryCmd += " --library-print-debug"
   else:
     callCreateLibraryCmd += " --no-library-print-debug"
-
-  # Function won't get called if NewClient !=2, but don't want to make assumption
-  if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
-      callCreateLibraryCmd += " --new-client-only"
 
   callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
   callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
@@ -565,9 +562,9 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
         param("library-file", libraryFile)
 
-        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"]
+        currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
         for coFile in codeObjectFiles:
-            if (currentGFXName in coFile):
+            if 'gfx' not in coFile or currentGFXName in coFile:
                 param("code-object", os.path.join(sourceDir,coFile))
 
         if tileAwareSelection:
@@ -624,6 +621,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if globalParameters["ConvolutionVsContraction"]:
             assert(newSolution.problemType.convolution)
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])

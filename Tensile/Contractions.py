@@ -229,7 +229,7 @@ class ProblemType:
         if includeOperation:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
             if not self.useBeta:
-                predicates.append(ProblemPredicate("BetaZero"))
+                predicates.append(ProblemPredicate("BetaZero"));
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
@@ -296,9 +296,9 @@ class ProblemPredicate(Properties.Predicate):
     def CompoundPredicates(cls, state, problemType):
         rv = []
 
-        if 'VectorWidth' in state and state['VectorWidth'] > 1:
+        if 'GlobalReadVectorWidth' in state and state['GlobalReadVectorWidth'] > 1:
             if not problemType.aType.isInt8x4():
-                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['VectorWidth'])]
+                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['GlobalReadVectorWidth'])]
 
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
             rv += [cls("CDStridesEqual")]
