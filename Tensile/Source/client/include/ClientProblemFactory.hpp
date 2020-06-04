@@ -75,6 +75,7 @@ namespace Tensile
             DataType m_alphaType;
             DataType m_betaType;
             bool     m_highPrecisionAccumulate;
+            bool     m_disableMatrixInstructions;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

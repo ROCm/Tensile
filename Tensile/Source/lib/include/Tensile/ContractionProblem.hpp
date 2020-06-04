@@ -338,6 +338,15 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
+        void setDisableMatrixInstructions(bool value)
+        {
+            m_disableMatrixInstructions = value;
+        }
+        bool disableMatrixInstructions() const
+        {
+            return m_disableMatrixInstructions;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -495,7 +504,8 @@ namespace Tensile
 
         bool m_transA;
         bool m_transB;
-        bool m_highPrecisionAccumulate = false;
+        bool m_highPrecisionAccumulate   = false;
+        bool m_disableMatrixInstructions = false;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
