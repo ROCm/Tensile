@@ -111,7 +111,10 @@ namespace Tensile
     public:
         static const size_t UseDefaultStride;
 
-        TensorDescriptor();
+        TensorDescriptor()
+        {
+            this->calculate();
+        }
 
         template <typename IterA, typename IterB>
         TensorDescriptor(
@@ -149,7 +152,49 @@ namespace Tensile
             this->calculate();
         }
 
-        void calculate();
+        inline void calculate()
+        {
+            if(m_sizes.empty())
+            {
+                m_strides                = m_sizes;
+                m_totalLogicalElements   = 0;
+                m_totalAllocatedElements = 0;
+                return;
+            }
+
+            for(int i = 0; i < m_sizes.size(); i++)
+            {
+                TENSILE_ASSERT_EXC(m_sizes[i] > 0);
+            }
+
+            m_strides.resize(m_sizes.size(), UseDefaultStride);
+            if(m_strides[0] == UseDefaultStride)
+            {
+                m_strides[0] = 1;
+            }
+            m_totalLogicalElements = m_sizes[0];
+
+            for(int i = 1; i < m_sizes.size(); i++)
+            {
+                m_totalLogicalElements *= m_sizes[i];
+
+                if(m_strides[i] == UseDefaultStride)
+                {
+                    m_strides[i] = m_strides[i - 1] * m_sizes[i - 1];
+                }
+            }
+
+            m_totalAllocatedElements = 1;
+            for(int i = 0; i < m_sizes.size(); i++)
+                m_totalAllocatedElements += m_strides[i] * (m_sizes[i] - 1);
+
+            if(Debug::Instance().printTensorInfo())
+            {
+                std::cout << "TensorDescriptor:calculate  " << *this
+                          << "totalLogicalElements=" << m_totalLogicalElements
+                          << " totalAllocatedElem=" << m_totalAllocatedElements << "\n";
+            }
+        }
 
         const std::vector<size_t>& sizes() const
         {

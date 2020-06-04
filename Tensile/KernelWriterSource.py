@@ -2468,7 +2468,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   ##############################################################################
-  def localReadDo(self, kernel, black, iui, epsi, uIdx, tP):
+  def localReadDo(self, kernel, black, iui, epsi, tP):
     tc   = tP["tensorChar"]
     imod = Code.Module("LocalReadDo%s_I%s"%(tc,iui))
     pack = Code.Module("pack%s_I%s"%(tc,iui))

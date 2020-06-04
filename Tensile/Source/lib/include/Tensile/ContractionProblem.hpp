@@ -459,11 +459,11 @@ namespace Tensile
 
         bool transA() const
         {
-            return m_transA;
+            return m_aNames == "lik";
         }
         bool transB() const
         {
-            return m_transB;
+            return m_bNames == "jlk";
         }
 
         std::string        operationName() const;

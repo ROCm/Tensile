@@ -251,6 +251,10 @@ def getLibraryLogic(logicType):
     libraryLogic = libraryLogicMapper[logicType]
     return libraryLogic
 
+def appendMatrixInstructions(benchmarkGroup, matrixInstructions):
+    forkedParams = benchmarkGroup["ForkParameters"]
+    forkedParams.append({"MatrixInstruction": matrixInstructions})
+
 def appendThreadTiles(benchmarkGroup, threadTiles):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"ThreadTile": threadTiles})
@@ -259,11 +263,32 @@ def appendWorkGroups(benchmarkGroup, workGroups):
     forkedParams = benchmarkGroup["ForkParameters"]
     forkedParams.append({"WorkGroup": workGroups})
 
-def appendSizes(benchmarkGroup, sizes, tileAware="true"):
+def appendGuardSizes(problemSizes, size, modifiedSize):
+    if size[0] % 64 == 0 and size[1] % 128 == 0 and size[3] % 64 == 0 and size[3] >= 128:
+        problemSizes.append({"Range": modifiedSize})
+
+def appendExactSizes(problemSizes, size):
+    if size[0] % 64 == 0 and size[1] % 128 == 0 and size[3] % 64 == 0 and size[3] >= 128:
+        problemSizes.append({"Exact": size})
+
+def appendSizes(benchmarkGroup, sizes, tileAware="false", noExact=False, rk="false"):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
-    for size in sizes:
-        problemSizes.append({"Exact": size})
+
+    if noExact == True:
+        for size in sizes:
+            modifiedSize = [ [size[0]-1,2,size[0]+1],[size[1]],[size[2]],[size[3]] ]
+            appendGuardSizes(problemSizes,size,modifiedSize)
+            modifiedSize = [ [size[0]],[size[1]-1,2,size[1]+1],[size[2]],[size[3]] ]
+            appendGuardSizes(problemSizes,size,modifiedSize)
+            modifiedSize = [ [size[0]],[size[1]],[size[2]],[size[3]-1,2,size[3]+1] ]
+            appendGuardSizes(problemSizes,size,modifiedSize)
+    else:
+        for size in sizes:
+            if rk == "true":
+                appendExactSizes(problemSizes,size)
+            else:
+                problemSizes.append({"Exact": size})
 
     if not benchmarkFinalParams:
         benchmarkFinalParams = []
