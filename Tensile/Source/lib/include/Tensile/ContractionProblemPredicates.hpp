@@ -609,6 +609,60 @@ namespace Tensile
                 }
             };
 
+            struct AsmKernelsOnlyEqual
+                : public Predicate_CRTP<AsmKernelsOnlyEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                bool value;
+
+                AsmKernelsOnlyEqual() = default;
+                AsmKernelsOnlyEqual(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "AsmKernelsOnly";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.asmKernelsOnly() == value;
+                }
+            };
+
+            struct SourceKernelsOnlyEqual
+                : public Predicate_CRTP<SourceKernelsOnlyEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                bool value;
+
+                SourceKernelsOnlyEqual() = default;
+                SourceKernelsOnlyEqual(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SourceKernelsOnly";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.sourceKernelsOnly() == value;
+                }
+            };
+
             struct TypesEqual : public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
                 enum

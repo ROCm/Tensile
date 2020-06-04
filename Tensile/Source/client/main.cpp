@@ -132,384 +132,447 @@ namespace Tensile
                                 po::value<DataType>()->default_value(DataType::Count),
                                 "beta data type")("high-precision-accumulate",
                                                   po::value<bool>()->default_value(false),
-                                                  "Use high-precision accumulate.")
+                                                  "Use high-precision accumulate.")(
+                                "asm-kernels-only",
+                                po::value<bool>()->default_value(false),
+                                "Select assembly kernels only.")(
+                                "source-kernels-only",
+                                po::value<bool>()->default_value(false),
+                                "Select source kernels only.")(
+                                "init-a",
+                                po::value<InitMode>()->default_value(InitMode::Random),
+                                "Initialization for A")(
+                                "init-b",
+                                po::value<InitMode>()->default_value(InitMode::Random),
+                                "Initialization for B")(
+                                "init-c",
+                                po::value<InitMode>()->default_value(InitMode::Random),
+                                "Initialization for C")(
+                                "init-d",
+                                po::value<InitMode>()->default_value(InitMode::Zero),
+                                "Initialization for D")(
+                                "init-alpha",
+                                po::value<InitMode>()->default_value(InitMode::Two),
+                                "Initialization for alpha")(
+                                "init-beta",
+                                po::value<InitMode>()->default_value(InitMode::Two),
+                                "Initialization for beta")(
+                                "pristine-on-gpu",
+                                po::value<bool>()->default_value(false),
+                                "Keep a pristine copy of inputs on GPU for "
+                                "performance")(
+                                "c-equal-d", po::value<bool>()->default_value(false), "C equals D")
 
-                                ("init-a",
-                                 po::value<InitMode>()->default_value(InitMode::Random),
-                                 "Initialization for A")(
-                                    "init-b",
-                                    po::value<InitMode>()->default_value(InitMode::Random),
-                                    "Initialization for B")(
-                                    "init-c",
-                                    po::value<InitMode>()->default_value(InitMode::Random),
-                                    "Initialization for C")(
-                                    "init-d",
-                                    po::value<InitMode>()->default_value(InitMode::Zero),
-                                    "Initialization for D")(
-                                    "init-alpha",
-                                    po::value<InitMode>()->default_value(InitMode::Two),
-                                    "Initialization for alpha")(
-                                    "init-beta",
-                                    po::value<InitMode>()->default_value(InitMode::Two),
-                                    "Initialization for beta")(
-                                    "pristine-on-gpu",
+                                ("print-valids",
+                                 po::value<bool>()->default_value(false),
+                                 "Print values that pass validation")(
+                                    "print-max",
+                                    po::value<int>()->default_value(-1),
+                                    "Max number of values to print")(
+                                    "num-elements-to-validate",
+                                    po::value<int>()->default_value(0),
+                                    "Number of elements to validate")(
+                                    "bounds-check",
                                     po::value<bool>()->default_value(false),
-                                    "Keep a pristine copy of inputs on GPU for "
-                                    "performance")("c-equal-d",
-                                                   po::value<bool>()->default_value(false),
-                                                   "C equals D")
+                                    "Use sentinel values to check memory boundaries.")
 
-                                    ("print-valids",
+                                    ("print-tensor-a",
                                      po::value<bool>()->default_value(false),
-                                     "Print values that pass validation")(
-                                        "print-max",
-                                        po::value<int>()->default_value(-1),
-                                        "Max number of values to print")(
-                                        "num-elements-to-validate",
-                                        po::value<int>()->default_value(0),
-                                        "Number of elements to validate")(
-                                        "bounds-check",
-                                        po::value<bool>()->default_value(false),
-                                        "Use sentinel values to check memory boundaries.")
-
-                                        ("print-tensor-a",
-                                         po::value<bool>()->default_value(false),
-                                         "Print tensor A.")("print-tensor-b",
-                                                            po::value<bool>()->default_value(false),
-                                                            "Print tensor B.")(
-                                            "print-tensor-c",
-                                            po::value<bool>()->default_value(false),
-                                            "Print tensor C.")(
-                                            "print-tensor-d",
-                                            po::value<bool>()->default_value(false),
-                                            "Print tensor D.")(
-                                            "print-tensor-ref",
-                                            po::value<bool>()->default_value(false),
-                                            "Print reference tensor D.")
-
-                                            ("dump-tensors",
-                                             po::value<bool>()->default_value(false),
-                                             "Binary dump tensors instead of printing.")
-
-                                                ("convolution-identifier",
-                                                 po::value<std::string>(),
-                                                 "Convolution problem identifer:  "
-                                                 "ConvolutionType_ActFormat_FilterFormat_"
-                                                 "Filter_Stride_Dilation_Groups.  "
-                                                 "Example: "
-                                                 "ConvolutionBackwardWeights_NCHW_filter:"
-                                                 "3x3_stride:1x1_dilation:1x1_groups:1.  "
-                                                 "Batch count, spacial dimensions "
-                                                 "(H,W,D), Cin and Cout filters are "
-                                                 "determined by the problem dimensions.")(
-                                                    "convolution-vs-contraction",
-                                                    po::value<bool>()->default_value(false),
-                                                    "Compare reference convolution "
-                                                    "against contraction.")
-
-                                                    ("device-idx",
-                                                     po::value<int>()->default_value(0),
-                                                     "Device index")(
-                                                        "use-default-stream",
+                                     "Print tensor A.")("print-tensor-b",
                                                         po::value<bool>()->default_value(false),
-                                                        "Use default Hip stream to run "
-                                                        "kernels.")(
-                                                        "platform-idx",
+                                                        "Print tensor B.")(
+                                        "print-tensor-c",
+                                        po::value<bool>()->default_value(false),
+                                        "Print tensor C.")("print-tensor-d",
+                                                           po::value<bool>()->default_value(false),
+                                                           "Print tensor D.")(
+                                        "print-tensor-ref",
+                                        po::value<bool>()->default_value(false),
+                                        "Print reference tensor D.")
+
+                                        ("dump-tensors",
+                                         po::value<bool>()->default_value(false),
+                                         "Binary dump tensors instead of printing.")
+
+                                            ("convolution-identifier",
+                                             po::value<std::string>(),
+                                             "Convolution problem identifer:  "
+                                             "ConvolutionType_ActFormat_FilterFormat_"
+                                             "Filter_Stride_Dilation_Groups.  "
+                                             "Example: "
+                                             "ConvolutionBackwardWeights_NCHW_filter:"
+                                             "3x3_stride:1x1_dilation:1x1_groups:1.  "
+                                             "Batch count, spacial dimensions "
+                                             "(H,W,D), Cin and Cout filters are "
+                                             "determined by the problem dimensions.")(
+                                                "convolution-vs-contraction",
+                                                po::value<bool>()->default_value(false),
+                                                "Compare reference convolution "
+                                                "against contraction.")
+
+                                                ("device-idx",
+                                                 po::value<int>()->default_value(0),
+                                                 "Device index")(
+                                                    "use-default-stream",
+                                                    po::value<bool>()->default_value(false),
+                                                    "Use default Hip stream to run "
+                                                    "kernels.")("platform-idx",
+                                                                po::value<int>()->default_value(0),
+                                                                "OpenCL Platform Index")
+
+                                                    ("num-warmups",
+                                                     po::value<int>()->default_value(0),
+                                                     "Number of warmups to run")(
+                                                        "num-benchmarks",
+                                                        po::value<int>()->default_value(1),
+                                                        "Number of benchmarks to "
+                                                        "run")("num-enqueues-per-sync",
+                                                               po::value<int>()->default_value(1),
+                                                               "Enqueues per sync")(
+                                                        "num-syncs-per-benchmark",
+                                                        po::value<int>()->default_value(1),
+                                                        "Syncs per benchmark")(
+                                                        "use-gpu-timer",
+                                                        po::value<bool>()->default_value(true),
+                                                        "Use GPU timer")(
+                                                        "sleep-percent",
                                                         po::value<int>()->default_value(0),
-                                                        "OpenCL Platform Index")
+                                                        "Sleep percentage")
 
-                                                        ("num-warmups",
-                                                         po::value<int>()->default_value(0),
-                                                         "Number of warmups to run")(
-                                                            "num-benchmarks",
-                                                            po::value<int>()->default_value(1),
-                                                            "Number of benchmarks to "
-                                                            "run")(
-                                                            "num-enqueues-per-sync",
-                                                            po::value<int>()->default_value(1),
-                                                            "Enqueues per sync")(
-                                                            "num-syncs-per-benchmark",
-                                                            po::value<int>()->default_value(1),
-                                                            "Syncs per benchmark")(
-                                                            "use-gpu-timer",
-                                                            po::value<bool>()->default_value(true),
-                                                            "Use GPU timer")(
-                                                            "sleep-percent",
-                                                            po::value<int>()->default_value(0),
-                                                            "Sleep percentage")
+                                                        ("perf-l2-read-hits",
+                                                         po::value<double>()->default_value(0.0),
+                                                         "L2 read hits")(
+                                                            "perf-l2-write-hits",
+                                                            po::value<double>()->default_value(0.5),
+                                                            "L2 write hits")(
+                                                            "perf-l2-read-bw-mul",
+                                                            po::value<double>()->default_value(2.0),
+                                                            "L2 read bandwidth "
+                                                            "multiplier")(
+                                                            "perf-read-efficiency",
+                                                            po::value<double>()->default_value(
+                                                                0.85),
+                                                            "Read efficiency")(
+                                                            "perf-ops-per-cycle",
+                                                            po::value<int>()->default_value(64),
+                                                            "Ops per cycle")
 
-                                                            ("perf-l2-read-hits",
-                                                             po::value<double>()->default_value(
-                                                                 0.0),
-                                                             "L2 read hits")(
-                                                                "perf-l2-write-hits",
-                                                                po::value<double>()->default_value(
-                                                                    0.5),
-                                                                "L2 write hits")(
-                                                                "perf-l2-read-bw-mul",
-                                                                po::value<double>()->default_value(
-                                                                    2.0),
-                                                                "L2 read bandwidth "
-                                                                "multiplier")(
-                                                                "perf-read-efficiency",
-                                                                po::value<double>()->default_value(
-                                                                    0.85),
-                                                                "Read efficiency")(
-                                                                "perf-ops-per-cycle",
-                                                                po::value<int>()->default_value(64),
-                                                                "Ops per cycle")
+                                                            ("problem-size,p",
+                                                             vector_default_empty<std::string>(),
+                                                             "Specify a problem "
+                                                             "size.  Comma-separated "
+                                                             "list of "
+                                                             "sizes, in the order of "
+                                                             "the Einstein notation.")
 
-                                                                ("problem-size,p",
+                                                                ("a-strides",
                                                                  vector_default_empty<
                                                                      std::string>(),
-                                                                 "Specify a problem "
-                                                                 "size.  Comma-separated "
-                                                                 "list of "
-                                                                 "sizes, in the order of "
-                                                                 "the Einstein notation.")
+                                                                 "Unspecified means "
+                                                                 "default stride "
+                                                                 "(prev_dim_stride*"
+                                                                 "prev_dim_size)"
+                                                                 "specifying once "
+                                                                 "applies to all "
+                                                                 "problem sizes, "
+                                                                 "otherwise specify "
+                                                                 "once per problem "
+                                                                 "size.")
 
-                                                                    ("a-strides",
+                                                                    ("b-strides",
                                                                      vector_default_empty<
                                                                          std::string>(),
-                                                                     "Unspecified means "
-                                                                     "default stride "
-                                                                     "(prev_dim_stride*"
-                                                                     "prev_dim_size)"
-                                                                     "specifying once "
-                                                                     "applies to all "
-                                                                     "problem sizes, "
-                                                                     "otherwise specify "
-                                                                     "once per problem "
+                                                                     "Unspecified "
+                                                                     "means default "
+                                                                     "stride "
+                                                                     "(prev_dim_"
+                                                                     "stride*prev_"
+                                                                     "dim_size)"
+                                                                     "specifying "
+                                                                     "once applies "
+                                                                     "to all problem "
+                                                                     "sizes, "
+                                                                     "otherwise "
+                                                                     "specify once "
+                                                                     "per problem "
                                                                      "size.")
 
-                                                                        ("b-strides",
+                                                                        ("c-strides",
                                                                          vector_default_empty<
                                                                              std::string>(),
-                                                                         "Unspecified "
-                                                                         "means default "
+                                                                         "Unspecified"
+                                                                         " means "
+                                                                         "default "
                                                                          "stride "
                                                                          "(prev_dim_"
-                                                                         "stride*prev_"
-                                                                         "dim_size)"
+                                                                         "stride*"
+                                                                         "prev_dim_"
+                                                                         "size)"
                                                                          "specifying "
-                                                                         "once applies "
-                                                                         "to all problem "
+                                                                         "once "
+                                                                         "applies to "
+                                                                         "all "
+                                                                         "problem "
                                                                          "sizes, "
                                                                          "otherwise "
-                                                                         "specify once "
-                                                                         "per problem "
+                                                                         "specify "
+                                                                         "once per "
+                                                                         "problem "
                                                                          "size.")
 
-                                                                            ("c-strides",
+                                                                            ("d-"
+                                                                             "stride"
+                                                                             "s",
                                                                              vector_default_empty<
                                                                                  std::string>(),
-                                                                             "Unspecified"
-                                                                             " means "
-                                                                             "default "
-                                                                             "stride "
-                                                                             "(prev_dim_"
+                                                                             "Unspeci"
+                                                                             "fied "
+                                                                             "means "
+                                                                             "default"
+                                                                             " stride"
+                                                                             " "
+                                                                             "(prev_"
+                                                                             "dim_"
                                                                              "stride*"
-                                                                             "prev_dim_"
+                                                                             "prev_"
+                                                                             "dim_"
                                                                              "size)"
-                                                                             "specifying "
+                                                                             "specify"
+                                                                             "ing "
                                                                              "once "
-                                                                             "applies to "
+                                                                             "applies"
+                                                                             " to "
                                                                              "all "
-                                                                             "problem "
-                                                                             "sizes, "
-                                                                             "otherwise "
-                                                                             "specify "
-                                                                             "once per "
-                                                                             "problem "
-                                                                             "size.")
+                                                                             "problem"
+                                                                             " sizes,"
+                                                                             " "
+                                                                             "otherwi"
+                                                                             "se "
+                                                                             "specify"
+                                                                             " once "
+                                                                             "per "
+                                                                             "problem"
+                                                                             " size.")
 
-                                                                                ("d-"
-                                                                                 "stride"
+                                                                                ("a-"
+                                                                                 "zer"
+                                                                                 "o-"
+                                                                                 "pad"
                                                                                  "s",
                                                                                  vector_default_empty<
                                                                                      std::string>(),
-                                                                                 "Unspeci"
-                                                                                 "fied "
-                                                                                 "means "
-                                                                                 "default"
-                                                                                 " stride"
-                                                                                 " "
-                                                                                 "(prev_"
-                                                                                 "dim_"
-                                                                                 "stride*"
-                                                                                 "prev_"
-                                                                                 "dim_"
-                                                                                 "size)"
-                                                                                 "specify"
-                                                                                 "ing "
-                                                                                 "once "
-                                                                                 "applies"
-                                                                                 " to "
-                                                                                 "all "
-                                                                                 "problem"
-                                                                                 " sizes,"
-                                                                                 " "
-                                                                                 "otherwi"
-                                                                                 "se "
-                                                                                 "specify"
-                                                                                 " once "
-                                                                                 "per "
-                                                                                 "problem"
-                                                                                 " size.")
+                                                                                 "Com"
+                                                                                 "ma-"
+                                                                                 "sep"
+                                                                                 "ara"
+                                                                                 "ted"
+                                                                                 " tu"
+                                                                                 "ple"
+                                                                                 "(s)"
+                                                                                 " of"
+                                                                                 " an"
+                                                                                 "cho"
+                                                                                 "r "
+                                                                                 "dim"
+                                                                                 ","
+                                                                                 "sum"
+                                                                                 "mat"
+                                                                                 "ion"
+                                                                                 " di"
+                                                                                 "m, "
+                                                                                 "lea"
+                                                                                 "din"
+                                                                                 "g "
+                                                                                 "pad"
+                                                                                 ", "
+                                                                                 "tra"
+                                                                                 "ili"
+                                                                                 "ng "
+                                                                                 "pad"
+                                                                                 "."
+                                                                                 "Eac"
+                                                                                 "h "
+                                                                                 "tup"
+                                                                                 "le "
+                                                                                 "mus"
+                                                                                 "t "
+                                                                                 "be "
+                                                                                 "sep"
+                                                                                 "ara"
+                                                                                 "ted"
+                                                                                 " wi"
+                                                                                 "th "
+                                                                                 "a "
+                                                                                 "sem"
+                                                                                 "i-"
+                                                                                 "col"
+                                                                                 "on"
+                                                                                 ".")
 
-                                                                                    ("a-"
-                                                                                     "zer"
-                                                                                     "o-"
-                                                                                     "pad"
-                                                                                     "s",
+                                                                                    ("b-zero-"
+                                                                                     "pads",
                                                                                      vector_default_empty<
                                                                                          std::
                                                                                              string>(),
-                                                                                     "Com"
-                                                                                     "ma-"
-                                                                                     "sep"
-                                                                                     "ara"
-                                                                                     "ted"
-                                                                                     " tu"
-                                                                                     "ple"
-                                                                                     "(s)"
-                                                                                     " of"
-                                                                                     " an"
-                                                                                     "cho"
-                                                                                     "r "
-                                                                                     "dim"
-                                                                                     ","
-                                                                                     "sum"
-                                                                                     "mat"
-                                                                                     "ion"
-                                                                                     " di"
-                                                                                     "m, "
-                                                                                     "lea"
-                                                                                     "din"
-                                                                                     "g "
-                                                                                     "pad"
-                                                                                     ", "
-                                                                                     "tra"
-                                                                                     "ili"
-                                                                                     "ng "
-                                                                                     "pad"
-                                                                                     "."
-                                                                                     "Eac"
-                                                                                     "h "
-                                                                                     "tup"
-                                                                                     "le "
-                                                                                     "mus"
-                                                                                     "t "
-                                                                                     "be "
-                                                                                     "sep"
-                                                                                     "ara"
-                                                                                     "ted"
-                                                                                     " wi"
-                                                                                     "th "
-                                                                                     "a "
-                                                                                     "sem"
-                                                                                     "i-"
-                                                                                     "col"
-                                                                                     "on"
-                                                                                     ".")
+                                                                                     "Comma-"
+                                                                                     "separated"
+                                                                                     " tuple(s)"
+                                                                                     " of "
+                                                                                     "anchor "
+                                                                                     "dim,"
+                                                                                     "summation"
+                                                                                     " dim, "
+                                                                                     "leading "
+                                                                                     "pad, "
+                                                                                     "trailing "
+                                                                                     "pad."
+                                                                                     "Each "
+                                                                                     "tuple "
+                                                                                     "must be "
+                                                                                     "separated"
+                                                                                     " with a "
+                                                                                     "semi-"
+                                                                                     "colon.")
 
-                                                                                        ("b-zero-"
-                                                                                         "pads",
+                                                                                        ("a-"
+                                                                                         "ops",
                                                                                          vector_default_empty<
-                                                                                             std::
-                                                                                                 string>(),
-                                                                                         "Comma-"
-                                                                                         "separated"
-                                                                                         " tuple(s)"
-                                                                                         " of "
-                                                                                         "anchor "
-                                                                                         "dim,"
-                                                                                         "summation"
-                                                                                         " dim, "
-                                                                                         "leading "
-                                                                                         "pad, "
-                                                                                         "trailing "
-                                                                                         "pad."
-                                                                                         "Each "
-                                                                                         "tuple "
-                                                                                         "must be "
-                                                                                         "separated"
-                                                                                         " with a "
-                                                                                         "semi-"
-                                                                                         "colon.")
+                                                                                             TensorOp>(),
+                                                                                         "Opera"
+                                                                                         "tions"
+                                                                                         " appl"
+                                                                                         "ied "
+                                                                                         "to "
+                                                                                         "A.")(
+                                                                                            "b-"
+                                                                                            "op"
+                                                                                            "s",
+                                                                                            vector_default_empty<
+                                                                                                TensorOp>(),
+                                                                                            "Op"
+                                                                                            "er"
+                                                                                            "at"
+                                                                                            "io"
+                                                                                            "ns"
+                                                                                            " a"
+                                                                                            "pp"
+                                                                                            "li"
+                                                                                            "ed"
+                                                                                            " t"
+                                                                                            "o "
+                                                                                            "B"
+                                                                                            ".")(
+                                                                                            "c-"
+                                                                                            "op"
+                                                                                            "s",
+                                                                                            vector_default_empty<
+                                                                                                TensorOp>(),
+                                                                                            "Op"
+                                                                                            "er"
+                                                                                            "at"
+                                                                                            "io"
+                                                                                            "ns"
+                                                                                            " a"
+                                                                                            "pp"
+                                                                                            "li"
+                                                                                            "ed"
+                                                                                            " t"
+                                                                                            "o "
+                                                                                            "C"
+                                                                                            ".")(
+                                                                                            "d-"
+                                                                                            "op"
+                                                                                            "s",
+                                                                                            vector_default_empty<
+                                                                                                TensorOp>(),
+                                                                                            "Op"
+                                                                                            "er"
+                                                                                            "at"
+                                                                                            "io"
+                                                                                            "ns"
+                                                                                            " a"
+                                                                                            "pp"
+                                                                                            "li"
+                                                                                            "ed"
+                                                                                            " t"
+                                                                                            "o "
+                                                                                            "D"
+                                                                                            ".")
 
-                                                                                            ("a-"
-                                                                                             "ops",
-                                                                                             vector_default_empty<
-                                                                                                 TensorOp>(),
-                                                                                             "Opera"
-                                                                                             "tions"
-                                                                                             " appl"
-                                                                                             "ied "
-                                                                                             "to "
-                                                                                             "A.")(
-                                                                                                "b-"
-                                                                                                "op"
+                                                                                            ("p"
+                                                                                             "r"
+                                                                                             "o"
+                                                                                             "b"
+                                                                                             "l"
+                                                                                             "e"
+                                                                                             "m"
+                                                                                             "-"
+                                                                                             "s"
+                                                                                             "t"
+                                                                                             "a"
+                                                                                             "r"
+                                                                                             "t"
+                                                                                             "-"
+                                                                                             "i"
+                                                                                             "d"
+                                                                                             "x",
+                                                                                             po::value<
+                                                                                                 int>()
+                                                                                                 ->default_value(
+                                                                                                     0),
+                                                                                             "F"
+                                                                                             "i"
+                                                                                             "r"
+                                                                                             "s"
+                                                                                             "t"
+                                                                                             " "
+                                                                                             "p"
+                                                                                             "r"
+                                                                                             "o"
+                                                                                             "b"
+                                                                                             "l"
+                                                                                             "e"
+                                                                                             "m"
+                                                                                             " "
+                                                                                             "t"
+                                                                                             "o"
+                                                                                             " "
+                                                                                             "r"
+                                                                                             "u"
+                                                                                             "n")(
+                                                                                                "nu"
+                                                                                                "m-"
+                                                                                                "pr"
+                                                                                                "ob"
+                                                                                                "le"
+                                                                                                "m"
                                                                                                 "s",
-                                                                                                vector_default_empty<
-                                                                                                    TensorOp>(),
-                                                                                                "Op"
+                                                                                                po::value<
+                                                                                                    int>()
+                                                                                                    ->default_value(
+                                                                                                        -1),
+                                                                                                "Nu"
+                                                                                                "mb"
                                                                                                 "er"
-                                                                                                "at"
-                                                                                                "io"
-                                                                                                "ns"
-                                                                                                " a"
-                                                                                                "pp"
-                                                                                                "li"
-                                                                                                "ed"
+                                                                                                " o"
+                                                                                                "f "
+                                                                                                "pr"
+                                                                                                "ob"
+                                                                                                "le"
+                                                                                                "ms"
                                                                                                 " t"
                                                                                                 "o "
-                                                                                                "B"
-                                                                                                ".")(
-                                                                                                "c-"
-                                                                                                "op"
-                                                                                                "s",
-                                                                                                vector_default_empty<
-                                                                                                    TensorOp>(),
-                                                                                                "Op"
-                                                                                                "er"
-                                                                                                "at"
-                                                                                                "io"
-                                                                                                "ns"
-                                                                                                " a"
-                                                                                                "pp"
-                                                                                                "li"
-                                                                                                "ed"
-                                                                                                " t"
-                                                                                                "o "
-                                                                                                "C"
-                                                                                                ".")(
-                                                                                                "d-"
-                                                                                                "op"
-                                                                                                "s",
-                                                                                                vector_default_empty<
-                                                                                                    TensorOp>(),
-                                                                                                "Op"
-                                                                                                "er"
-                                                                                                "at"
-                                                                                                "io"
-                                                                                                "ns"
-                                                                                                " a"
-                                                                                                "pp"
-                                                                                                "li"
-                                                                                                "ed"
-                                                                                                " t"
-                                                                                                "o "
-                                                                                                "D"
-                                                                                                ".")
+                                                                                                "ru"
+                                                                                                "n")
 
-                                                                                                ("p"
-                                                                                                 "r"
+                                                                                                ("s"
                                                                                                  "o"
-                                                                                                 "b"
                                                                                                  "l"
-                                                                                                 "e"
-                                                                                                 "m"
+                                                                                                 "u"
+                                                                                                 "t"
+                                                                                                 "i"
+                                                                                                 "o"
+                                                                                                 "n"
                                                                                                  "-"
                                                                                                  "s"
                                                                                                  "t"
@@ -523,20 +586,21 @@ namespace Tensile
                                                                                                  po::value<
                                                                                                      int>()
                                                                                                      ->default_value(
-                                                                                                         0),
+                                                                                                         -1),
                                                                                                  "F"
                                                                                                  "i"
                                                                                                  "r"
                                                                                                  "s"
                                                                                                  "t"
                                                                                                  " "
-                                                                                                 "p"
-                                                                                                 "r"
+                                                                                                 "s"
                                                                                                  "o"
-                                                                                                 "b"
                                                                                                  "l"
-                                                                                                 "e"
-                                                                                                 "m"
+                                                                                                 "u"
+                                                                                                 "t"
+                                                                                                 "i"
+                                                                                                 "o"
+                                                                                                 "n"
                                                                                                  " "
                                                                                                  "t"
                                                                                                  "o"
@@ -544,63 +608,50 @@ namespace Tensile
                                                                                                  "r"
                                                                                                  "u"
                                                                                                  "n")(
-                                                                                                    "num-problems",
+                                                                                                    "num-solutions",
                                                                                                     po::value<
                                                                                                         int>()
                                                                                                         ->default_value(
                                                                                                             -1),
-                                                                                                    "Number of problems to run")
+                                                                                                    "Number of solutions to run")(
+                                                                                                    "best-solution",
+                                                                                                    po::value<
+                                                                                                        bool>()
+                                                                                                        ->default_value(
+                                                                                                            false),
+                                                                                                    "Best solution benchmark mode")
 
-                                                                                                    ("solution-start-idx",
+                                                                                                    ("results-file",
                                                                                                      po::value<
-                                                                                                         int>()
+                                                                                                         std::
+                                                                                                             string>()
                                                                                                          ->default_value(
-                                                                                                             -1),
-                                                                                                     "First solution to run")(
-                                                                                                        "num-solutions",
+                                                                                                             "results.csv"),
+                                                                                                     "File name to write results.")(
+                                                                                                        "log-file",
                                                                                                         po::value<
-                                                                                                            int>()
-                                                                                                            ->default_value(
-                                                                                                                -1),
-                                                                                                        "Number of solutions to run")(
-                                                                                                        "best-solution",
+                                                                                                            std::
+                                                                                                                string>(),
+                                                                                                        "File name for output log.")(
+                                                                                                        "log-file-append",
                                                                                                         po::value<
                                                                                                             bool>()
                                                                                                             ->default_value(
                                                                                                                 false),
-                                                                                                        "Best solution benchmark mode")
-
-                                                                                                        ("results-file",
-                                                                                                         po::value<
-                                                                                                             std::
-                                                                                                                 string>()
-                                                                                                             ->default_value(
-                                                                                                                 "results.csv"),
-                                                                                                         "File name to write results.")(
-                                                                                                            "log-file",
-                                                                                                            po::value<
-                                                                                                                std::
-                                                                                                                    string>(),
-                                                                                                            "File name for output log.")(
-                                                                                                            "log-file-append",
-                                                                                                            po::value<
-                                                                                                                bool>()
-                                                                                                                ->default_value(
-                                                                                                                    false),
-                                                                                                            "Append to log file.")(
-                                                                                                            "log-level",
-                                                                                                            po::value<
-                                                                                                                LogLevel>()
-                                                                                                                ->default_value(
-                                                                                                                    LogLevel::
-                                                                                                                        Debug),
-                                                                                                            "Log level")(
-                                                                                                            "exit-on-failure",
-                                                                                                            po::value<
-                                                                                                                bool>()
-                                                                                                                ->default_value(
-                                                                                                                    false),
-                                                                                                            "Exit run early on failed kernels.");
+                                                                                                        "Append to log file.")(
+                                                                                                        "log-level",
+                                                                                                        po::value<
+                                                                                                            LogLevel>()
+                                                                                                            ->default_value(
+                                                                                                                LogLevel::
+                                                                                                                    Debug),
+                                                                                                        "Log level")(
+                                                                                                        "exit-on-failure",
+                                                                                                        po::value<
+                                                                                                            bool>()
+                                                                                                            ->default_value(
+                                                                                                                false),
+                                                                                                        "Exit run early on failed kernels.");
 
             return options;
         }

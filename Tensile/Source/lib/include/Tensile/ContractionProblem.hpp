@@ -338,6 +338,24 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
+        void setAsmKernelsOnly(bool value)
+        {
+            m_asmKernelsOnly = value;
+        }
+        bool asmKernelsOnly() const
+        {
+            return m_asmKernelsOnly;
+        }
+
+        void setSourceKernelsOnly(bool value)
+        {
+            m_sourceKernelsOnly = value;
+        }
+        bool sourceKernelsOnly() const
+        {
+            return m_sourceKernelsOnly;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -496,6 +514,8 @@ namespace Tensile
         bool m_transA;
         bool m_transB;
         bool m_highPrecisionAccumulate = false;
+        bool m_asmKernelsOnly          = false;
+        bool m_sourceKernelsOnly       = false;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

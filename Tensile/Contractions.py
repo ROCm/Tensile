@@ -303,6 +303,12 @@ class ProblemPredicate(Properties.Predicate):
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
             rv += [cls("CDStridesEqual")]
 
+        if "KernelLanguage" in state and state["KernelLanguage"] == "Assembly":
+            rv += [cls("SourceKernelsOnly", value = False)]
+
+        if "KernelLanguage" in state and state["KernelLanguage"] == "Source":
+            rv += [cls("AssemblyKernelsOnly", value = False)]
+
         return rv
 
     @classmethod
