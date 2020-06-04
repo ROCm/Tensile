@@ -45,66 +45,42 @@ namespace Tensile
         class SolutionIterator : public RunListener
         {
         public:
-            static std::shared_ptr<SolutionIterator>
-                Default(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
-                        std::shared_ptr<Hardware>                                  hardware,
-                        po::variables_map const&                                   args);
+            static std::shared_ptr<SolutionIterator> Default(
+                std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+                std::shared_ptr<Hardware> hardware,
+                po::variables_map const& args);
 
-            virtual bool needMoreBenchmarkRuns() const
-            {
-                return false;
-            }
-            virtual void preBenchmarkRun() {}
-            virtual void postBenchmarkRun() {}
+            virtual bool needMoreBenchmarkRuns() const override { return false; }
+            virtual void preBenchmarkRun() override { }
+            virtual void postBenchmarkRun() override { }
 
-            virtual bool needMoreRunsInSolution() const
-            {
-                return false;
-            }
+            virtual bool needMoreRunsInSolution() const override { return false; }
 
-            virtual size_t numWarmupRuns()
-            {
-                return 0;
-            }
-            virtual void setNumWarmupRuns(size_t count) {}
-            virtual void preWarmup() {}
-            virtual void postWarmup() {}
-            virtual void validateWarmups(std::shared_ptr<ContractionInputs> inputs,
-                                         TimingEvents const&                startEvents,
-                                         TimingEvents const&                stopEvents)
-            {
-            }
+            virtual size_t numWarmupRuns() override { return 0; }
+            virtual void   setNumWarmupRuns(size_t count) override {}
+            virtual void   preWarmup() override {}
+            virtual void   postWarmup() override {}
+            virtual void   validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                           TimingEvents const& startEvents,
+                                           TimingEvents const&  stopEvents) override {}
 
-            virtual size_t numSyncs()
-            {
-                return 0;
-            }
-            virtual void setNumSyncs(size_t count) {}
-            virtual void preSyncs() {}
-            virtual void postSyncs() {}
+            virtual size_t numSyncs() override { return 0; }
+            virtual void   setNumSyncs(size_t count) override {}
+            virtual void   preSyncs() override {}
+            virtual void   postSyncs() override{}
 
-            virtual size_t numEnqueuesPerSync()
-            {
-                return 0;
-            }
-            virtual void setNumEnqueuesPerSync(size_t count) {}
-            virtual void preEnqueues() {}
-            virtual void postEnqueues(TimingEvents const& startEvents,
-                                      TimingEvents const& stopEvents)
-            {
-            }
-            virtual void validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
-                                          TimingEvents const&                startEvents,
-                                          TimingEvents const&                stopEvents)
-            {
-            }
+            virtual size_t numEnqueuesPerSync() override { return 0; }
+            virtual void   setNumEnqueuesPerSync(size_t count) override {}
+            virtual void   preEnqueues() override {}
+            virtual void   postEnqueues(TimingEvents const& startEvents,
+                                        TimingEvents const&  stopEvents) override {}
+            virtual void   validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                            TimingEvents const& startEvents,
+                                            TimingEvents const&  stopEvents) override {}
 
-            virtual void finalizeReport() {}
+            virtual void finalizeReport() override {}
 
-            virtual int error() const
-            {
-                return 0;
-            }
+            virtual int error() const override { return 0; }
 
             virtual bool                                 moreSolutionsInProblem() const = 0;
             virtual std::shared_ptr<ContractionSolution> getSolution()                  = 0;

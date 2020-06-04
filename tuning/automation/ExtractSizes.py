@@ -830,6 +830,7 @@ def GetStride(problemDefinition,param):
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
 
+    #assuming we don't encounter TT sizes
     if problemDefinition["transposeB"] == "T":
         return nt[param]
     elif problemDefinition["transposeA"] == "N":
@@ -837,7 +838,7 @@ def GetStride(problemDefinition,param):
 
     return tn[param]
 
-def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="random_int"):
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="rand_int"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
