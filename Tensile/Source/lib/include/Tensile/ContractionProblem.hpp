@@ -338,6 +338,15 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
+        void setDeterministicMode(bool value)
+        {
+            m_deterministicMode = value;
+        }
+        bool deterministicMode() const
+        {
+            return m_deterministicMode;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -496,6 +505,7 @@ namespace Tensile
         bool m_transA;
         bool m_transB;
         bool m_highPrecisionAccumulate = false;
+        bool m_deterministicMode       = false;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

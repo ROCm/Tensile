@@ -47,6 +47,7 @@ namespace Tensile
             , m_alphaType(DataType::Float)
             , m_betaType(DataType::Float)
             , m_highPrecisionAccumulate(args["high-precision-accumulate"].as<bool>())
+            , m_deterministicMode(args["deterministic-mode"].as<bool>())
             , m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>())
             , m_bStrides(args["b-strides"].as<std::vector<std::vector<size_t>>>())
             , m_cStrides(args["c-strides"].as<std::vector<std::vector<size_t>>>())
@@ -172,6 +173,7 @@ namespace Tensile
                     }
                 }
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
+                rv.back().setDeterministicMode(m_deterministicMode);
             }
 
             return rv;

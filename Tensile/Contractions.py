@@ -303,6 +303,10 @@ class ProblemPredicate(Properties.Predicate):
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
             rv += [cls("CDStridesEqual")]
 
+        if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
+            rv += [cls("DeterministicMode", value = False)]
+
+
         return rv
 
     @classmethod
