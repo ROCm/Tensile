@@ -1,11 +1,12 @@
 TestParameters:
-  marks: [xfail] # HCC 3.0 bug
+  marks: [xfail-gfx900] # HCC 3.0 bug
 
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
   KernelTime: True
+  NewClient: 2
 
 BenchmarkProblems:
   - # zgemm NC

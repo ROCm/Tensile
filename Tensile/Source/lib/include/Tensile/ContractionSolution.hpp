@@ -148,12 +148,12 @@ namespace Tensile
                                                  TypedInputs const& inputs,
                                                  Hardware const&    hardware) const;
 
-        template <typename TypedInputs>
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateSingleCall(Problem const&     problem,
                                             TypedInputs const& inputs,
                                             Hardware const&    hardware) const;
 
-        template <typename TypedInputs>
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateBetaOnlyCall(Problem const&     problem,
                                               TypedInputs const& inputs,
                                               Hardware const&    hardware) const;

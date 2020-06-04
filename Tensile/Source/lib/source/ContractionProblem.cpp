@@ -594,31 +594,27 @@ namespace Tensile
         m_batchSizes.resize(m_batchIndices.size());
         m_boundSizes.resize(m_boundIndices.size());
 
+        m_freeSizesA.reserve(m_freeIndices.size());
+        m_freeSizesB.reserve(m_freeIndices.size());
+
+        m_freeIndicesA.reserve(m_freeIndices.size());
+        m_freeIndicesB.reserve(m_freeIndices.size());
+
         for(int i = 0; i < m_freeIndices.size(); i++)
         {
-            size_t maxSize = 0; // TODO - aren't these all the same?
+            size_t mySize = m_d.sizes()[m_freeIndices[i].d];
             if(m_freeIndices[i].isA)
             {
                 m_freeIndicesA.push_back(m_freeIndices[i]);
-                maxSize = std::max({m_a.sizes()[m_freeIndices[i].i],
-                                    m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].c],
-                                    m_d.sizes()[m_freeIndices[i].d]});
-                m_freeSizesA.push_back(maxSize);
-                assert(m_a.sizes()[m_freeIndices[i].i] == m_d.sizes()[m_freeIndices[i].d]);
-                assert(maxSize == m_a.sizes()[m_freeIndices[i].i]);
+                m_freeSizesA.push_back(mySize);
             }
             else
             {
                 m_freeIndicesB.push_back(m_freeIndices[i]);
-                maxSize = std::max({m_b.sizes()[m_freeIndices[i].i],
-                                    m_c.empty() ? 0 : m_c.sizes()[m_freeIndices[i].c],
-                                    m_d.sizes()[m_freeIndices[i].d]});
-                m_freeSizesB.push_back(maxSize);
-                assert(m_b.sizes()[m_freeIndices[i].i] == m_d.sizes()[m_freeIndices[i].d]);
-                assert(maxSize == m_b.sizes()[m_freeIndices[i].i]);
+                m_freeSizesB.push_back(mySize);
             }
 
-            m_maxProblemSize = std::max(m_maxProblemSize, maxSize);
+            m_maxProblemSize = std::max(m_maxProblemSize, mySize);
         }
 
         for(int i = 0; i < m_batchIndices.size(); i++)
@@ -646,15 +642,14 @@ namespace Tensile
 
         m_operationIdentifier = getOperationIdentifier();
 
-        m_transA = m_aNames == "lik";
-        m_transB = m_bNames == "jlk";
-
         m_problemSizes.resize(0);
         m_problemSizes.reserve(m_c.dimensions() + m_boundSizes.size());
 
         m_problemSizes.insert(m_problemSizes.end(), m_c.sizes().begin(), m_c.sizes().end());
         m_problemSizes.insert(m_problemSizes.end(), m_boundSizes.begin(), m_boundSizes.end());
 
+        m_problemStrides.reserve(m_a.dimensions() + m_b.dimensions() + m_c.dimensions()
+                                 + m_d.dimensions());
         m_problemStrides.insert(m_problemStrides.end(), m_a.strides().begin(), m_a.strides().end());
         m_problemStrides.insert(m_problemStrides.end(), m_b.strides().begin(), m_b.strides().end());
         m_problemStrides.insert(m_problemStrides.end(), m_c.strides().begin(), m_c.strides().end());
@@ -663,27 +658,27 @@ namespace Tensile
         m_allocatedElementsNonBatchA = 1;
         for(int idx = 0; idx < a().dimensions(); idx++)
         {
-            bool isBatch = batchIndices().end()
-                           != std::find_if(batchIndices().begin(),
-                                           batchIndices().end(),
+            bool isBatch = m_batchIndices.end()
+                           != std::find_if(m_batchIndices.begin(),
+                                           m_batchIndices.end(),
                                            [idx](const ContractionProblem::BatchIndex& bi) {
                                                return bi.a == idx;
                                            });
             if(!isBatch)
-                m_allocatedElementsNonBatchA += a().strides()[idx] * (a().sizes()[idx] - 1);
+                m_allocatedElementsNonBatchA += m_a.strides()[idx] * (m_a.sizes()[idx] - 1);
         }
 
         m_allocatedElementsNonBatchB = 1;
         for(int idx = 0; idx < b().dimensions(); idx++)
         {
-            bool isBatch = batchIndices().end()
-                           != std::find_if(batchIndices().begin(),
-                                           batchIndices().end(),
+            bool isBatch = m_batchIndices.end()
+                           != std::find_if(m_batchIndices.begin(),
+                                           m_batchIndices.end(),
                                            [idx](const ContractionProblem::BatchIndex& bi) {
                                                return bi.b == idx;
                                            });
             if(!isBatch)
-                m_allocatedElementsNonBatchB += b().strides()[idx] * (b().sizes()[idx] - 1);
+                m_allocatedElementsNonBatchB += m_b.strides()[idx] * (m_b.sizes()[idx] - 1);
         }
 
         // CD always contain index0.  if this is in the B free indices, then need to
@@ -900,7 +895,7 @@ namespace Tensile
                 cNames[batch.c] = dNames[batch.d];
         }
 
-        for(size_t i = 0; i < sumNames.size(); i++)
+        for(ptrdiff_t i = 0; i < sumNames.size(); i++)
         {
             aNames[m_boundIndices[i].a] = sumNames[i];
             bNames[m_boundIndices[i].b] = sumNames[i];
@@ -934,28 +929,29 @@ namespace Tensile
 
     std::string ContractionProblem::getOperationIdentifier() const
     {
-        std::ostringstream rv;
-
-        rv << "Contraction";
-
-        rv << "_" << m_sumNames;
-        rv << "_A" << m_aNames;
+        std::string rv = "Contraction_";
+        rv += m_sumNames;
+        rv += "_A";
+        rv += m_aNames;
         for(auto const& op : m_aOps)
-            rv << op.suffix();
+            rv += op.suffix();
 
-        rv << "_B" << m_bNames;
+        rv += "_B";
+        rv += m_bNames;
         for(auto const& op : m_bOps)
-            rv << op.suffix();
+            rv += op.suffix();
 
-        rv << "_C" << m_cNames;
+        rv += "_C";
+        rv += m_cNames;
         for(auto const& op : m_cOps)
-            rv << op.suffix();
+            rv += op.suffix();
 
-        rv << "_D" << m_dNames;
+        rv += "_D";
+        rv += m_dNames;
         for(auto const& op : m_dOps)
-            rv << op.suffix();
+            rv += op.suffix();
 
-        return rv.str();
+        return rv;
     }
 
     std::string ContractionProblem::description() const

@@ -1,10 +1,12 @@
 #!/bin/sh
 
-HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r|--reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-h|--help]"
+HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r|--reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-c|--count] [-h|--help]"
 HELP=false
 PLOT=true
+MFMA=false
+COUNT=false
 
-OPTS=`getopt -o hf:s:b:o:r:z:g:m:n --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma:,no-plot -n '
+OPTS=`getopt -o hf:s:b:o:r:z:g:mcn --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma,count,no-plot -n '
 parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
@@ -21,8 +23,9 @@ while true; do
     -f )                       FREQ="$2"; shift 2;;
     -s )                       SZ="$2"; shift 2;;
     -g | --gpu ) 	           GPU="$2"; shift 2;;
-    -m | --mfma )	           MFMA="$2"; shift 2;;
-    -n | --no-plot )           PLOT=false; shift;;
+    -m | --mfma )	           MFMA=true; shift ;;
+    -c | --count )	           COUNT=true; shift ;;
+    -n | --no-plot )           PLOT=false; shift ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -68,10 +71,6 @@ if [ -z ${GPU+foo} ]; then
    GPU=vega20
 fi
 
-if [ -z ${MFMA+foo} ]; then
-   MFMA=disabled
-fi
-
 CASE_REFERENCE=${OUTPUT_PATH}/reference
 CASE_NEW=${OUTPUT_PATH}/new
 CASE_FINAL=${OUTPUT_PATH}/final
@@ -104,8 +103,8 @@ PLOT_DIFF=${AUTOMATION_ROOT}/PlotDifference.py
 PLOT_RESULTS=${AUTOMATION_ROOT}/PlotResults.py
 
 
-python ${ANALYSIS} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA}
-python ${ANALYSIS} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA}
+python ${ANALYSIS} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA} ${COUNT}
+python ${ANALYSIS} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA} ${COUNT}
 
 ls ${NEW_AGGREGATED}/*aggregated* | xargs -n1 basename | xargs -I{} python ${COMPARE} ${REFERENCE_AGGREGATED}/{} ${NEW_AGGREGATED}/{} ${CASE_FINAL}/{}
 

@@ -237,6 +237,7 @@ namespace Tensile
                         if(myDistance <= bestDistance)
                             std::cout << std::endl;
 
+                        std::cout << "speed: " << iter->speed << " | ";
                         streamJoin(std::cout, iter->key, ", ");
                         std::cout << ": " << myDistance;
 
