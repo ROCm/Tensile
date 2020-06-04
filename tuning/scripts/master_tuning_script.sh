@@ -29,7 +29,7 @@ HELP_STR="
     [-c|--count]            Optional. Sets all cases where count=1 to count=10 (default=false)
     [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false)
     [-s|--disable-strides]  Optional. Disable leading dimensions and strides in tuning file (default=false)
-    [-i|--initialization]   Optional. Initialize matrices when benchmarking (random_int, trig_float, hpl, default=random_int)
+    [-i|--initialization]   Optional. Initialize matrices when benchmarking (rand_int, trig_float, hpl, default=rand_int)
     [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
     [-u|--username]         Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
     [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
@@ -54,7 +54,7 @@ DVAL=2
 NUM=1
 DATA_TYPE=sgemm
 PROBLEM_DEFINITION=both
-INITIALIZATION=random_int
+INITIALIZATION=rand_int
 ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
