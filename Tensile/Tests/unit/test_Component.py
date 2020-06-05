@@ -19,6 +19,8 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+import pytest
+
 import Tensile.Component  as Component
 import Tensile.Components as Components
 from Tensile.DataType import DataType
@@ -46,29 +48,94 @@ def test_PartialMatch():
 
 class MockWriter:
     def __init__(self, **kwargs):
-        for k,v in kwargs.items():
+        defaultArgs = {'endLine': '\n'}
+
+        args = {}
+        args.update(defaultArgs)
+        args.update(kwargs)
+
+        for k,v in args.items():
             setattr(self, k, v)
 
-navi = MockWriter(asmCaps = {'v_fma_f16': True,
-                             'v_pk_fma_f16': False},
-                  kernel = {"ProblemType": {"DataType": DataType(DataType.half),
-                                            "HighPrecisionAccumulate": False},
-                            "AggressivePerfMode": True,
-                            "ThreadTile0": 4,
-                            "ThreadTile1": 4},
-                  endLine = '\n')
+@pytest.fixture
+def vega10():
+    return {
+        'asmCaps': {'v_fma_f16': False,
+                   'v_pk_fma_f16': True,
+                   'v_dot2c_f32_f16': False,
+                   "v_mad_mix_f32": True}
+    }
 
-def test_find():
-    found = Component.MAC.find(navi)
+@pytest.fixture
+def navi10():
+    return {
+        'asmCaps': {'v_fma_f16': True,
+                   'v_pk_fma_f16': False,
+                   'v_dot2c_f32_f16': False,
+                   "v_mad_mix_f32": False}
+    }
+
+@pytest.fixture
+def navi12():
+    return {
+        'asmCaps': {'v_fma_f16': False,
+                   'v_pk_fma_f16': False,
+                   'v_dot2c_f32_f16': True,
+                   "v_mad_mix_f32": False}
+    }
+
+@pytest.fixture
+def f16():
+    return {
+        'kernel': {"ProblemType": {"DataType": DataType(DataType.half),
+                                   "HighPrecisionAccumulate": False},
+                   "AggressivePerfMode": True,
+                   "ThreadTile0": 4,
+                   "ThreadTile1": 4}
+    }
+
+@pytest.fixture
+def f16_hpa():
+    return {
+        'kernel': {"ProblemType": {"DataType": DataType(DataType.half),
+                                   "HighPrecisionAccumulate": True},
+                   "AggressivePerfMode": True,
+                   "LocalDotLayout": 2,
+                   "ThreadTile0": 4,
+                   "ThreadTile1": 4}
+    }
+
+#navi = MockWriter(asmCaps = {'v_fma_f16': True,
+#                             'v_pk_fma_f16': False},
+#                  kernel = {"ProblemType": {"DataType": DataType(DataType.half),
+#                                            "HighPrecisionAccumulate": False},
+#                            "AggressivePerfMode": True,
+#                            "ThreadTile0": 4,
+#                            "ThreadTile1": 4},
+#                  endLine = '\n')
+
+def test_find(navi10, f16):
+    writer = MockWriter(**navi10, **f16)
+
+    found = Component.MAC.find(writer)
     assert isinstance(found, Components.MAC_F16.FMA_NonPacked)
 
-def test_find2():
-    found = Component.Component.find(navi)
+    found = Component.Component.find(writer)
     assert isinstance(found, Components.MAC_F16.FMA_NonPacked)
 
-def test_MAC_F16_FMA_NonPacked():
-    found = Component.MAC.find(navi)
-    kernelText = found(navi, 2, 4)
+# Currently being worked on.
+@pytest.mark.xfail
+def test_find2(vega10, f16_hpa):
+    writer = MockWriter(**vega10, **f16_hpa)
+
+    found = Component.MAC.find(writer)
+    assert isinstance(found, Components.MAC_F16_HPA.FMA_HPA_MAD_MIX)
+
+def test_MAC_F16_FMA_NonPacked(navi10, f16):
+    writer = MockWriter(**navi10, **f16)
+
+    found = Component.MAC.find(writer)
+    kernelText = found(writer, 2, 4)
     print(kernelText)
 
 def test_componentPath():
