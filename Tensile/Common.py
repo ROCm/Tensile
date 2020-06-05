@@ -1305,9 +1305,6 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if isaVersion[0] == 10:
     options += ['-mwavefrontsize64']
 
-  if globalParameters["AssemblerPath"] is None:
-    import pdb; pdb.set_trace()
-
   args = [globalParameters["AssemblerPath"], '-x', 'assembler',
           '-target', 'amdgcn-amdhsa',
           '-mcpu='+gfxName(isaVersion),
