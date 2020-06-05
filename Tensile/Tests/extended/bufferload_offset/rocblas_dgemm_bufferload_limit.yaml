@@ -158,7 +158,6 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [32], [32], [1], [33554432] ]  # strideA = 33554432, should fail on MT0 >= 16 (For tensorA-T)
-          - Range: [ [32], [32], [1], [16777216] ]  # strideA = 16777216, should fail on MT0 >= 32 (For tensorA-T)
           - Range: [ [32], [33554432], [1], [32] ]  # strideB = 33554432, should fail on DU >= 16 (For tensorB-T)
           - Range: [ [32], [16777216], [1], [32] ]  # strideB = 16777216, should fail on DU >= 32 (For tensorB-T)
 
