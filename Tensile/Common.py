@@ -1253,21 +1253,25 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
   rv = {}
-  rv["SupportedISA"]    = tryAssembler(isaVersion, "", "")
-  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "", "v_add_nc_u32 v0,v0,1")
-  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasAddLshl"]      = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasSMulHi"]       = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
+  rv["SupportedISA"]    = tryAssembler(isaVersion, "")
+  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
 
-  rv["v_fma_f16"]       = tryAssembler(isaVersion, "", "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
-  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "", "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
-  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "", "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mno-code-object-v3")
 
-  if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
+  rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+
+  rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+
+  if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
-  elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
+  elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
     rv["MaxVmcnt"] = 15
   else:
     rv["MaxVmcnt"] = 0
@@ -1289,33 +1293,39 @@ def GetArchCaps(isaVersion):
 
   return rv
 
-def tryAssembler(isaVersion, options, asmString, debug=False):
+def tryAssembler(isaVersion, asmString, debug=False, *options):
   """
   Try to assemble the asmString for the specified target processor
   Success is defined as assembler returning no error code or stderr/stdout
   """
+  options = list(options)
+  if globalParameters["PrintLevel"] >= 2:
+    debug = True
+
   if isaVersion[0] == 10:
-    options += ' -mwavefrontsize64'
+    options += ['-mwavefrontsize64']
 
-  asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
-             % (globalParameters["AssemblerPath"], gfxName(isaVersion), options)
+  if globalParameters["AssemblerPath"] is None:
+    import pdb; pdb.set_trace()
 
-  sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
+  args = [globalParameters["AssemblerPath"], '-x', 'assembler',
+          '-target', 'amdgcn-amdhsa',
+          '-mcpu='+gfxName(isaVersion),
+          *options,
+          '-']
 
-  try:
-    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
-    if debug or globalParameters["PrintLevel"] >=2:
-        print("isaVersion: ", isaVersion)
-        print("asm_cmd: ", asmCmd)
-        print("output :", result)
-    if result != "":
-      return 0 # stdout and stderr must be empty
-  except subprocess.CalledProcessError as e:
-    if debug or globalParameters["PrintLevel"] >=2:
-        print("CalledProcessError", e)
-    return 0 # error, not supported
+  result = subprocess.run(args, input=asmString.encode(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  output = result.stdout.decode()
 
-  return 1 # syntax works
+  if debug:
+    print("isaVersion: ", isaVersion)
+    print("asm_cmd:", ' '.join(args))
+    print("output: ", output)
+    print("return code: ", result.returncode)
+
+  if output != "" or result.returncode != 0:
+    return False
+  return True
 
 def gfxArch(name):
     import re
@@ -1339,12 +1349,56 @@ def gfxArch(name):
 def gfxName(arch):
     return 'gfx' + ''.join(map(str,arch))
 
+def restoreDefaultGlobalParameters():
+  """
+  Restores `globalParameters` back to defaults.
+  """
+  global globalParameters
+  global defaultGlobalParameters
+  # Can't just assign globalParameters = deepcopy(defaultGlobalParameters) because that would
+  # result in dangling references, specifically in Tensile.Tensile().
+  globalParameters.clear()
+  for key, value in deepcopy(defaultGlobalParameters).items():
+    globalParameters[key] = value
+
+def printTable(rows):
+  rows = list([[str(cell) for cell in row] for row in rows])
+  colWidths = list([max([len(cell) for cell in col]) for col in zip(*rows)])
+
+  for row in rows:
+    for (width, cell) in zip(colWidths, row):
+      pad = ' ' * (width - len(cell))
+      print(pad, cell, sep='', end=' ')
+    print()
+
+def printCapTable(parameters):
+  import itertools
+  archs = [(0,0,0)] + parameters["SupportedISA"]
+  gfxNames = list(map(gfxName, archs))
+
+  headerRow = ['cap'] + gfxNames
+
+  def capRow(caps, cap):
+    return [cap] + [('1' if cap in caps[arch] and caps[arch][cap] else '0') for arch in archs]
+
+  allAsmCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["AsmCaps"].items()]))
+  allAsmCaps = sorted(allAsmCaps)
+  asmCapRows = [capRow(parameters["AsmCaps"], cap) for cap in allAsmCaps]
+
+  allArchCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["ArchCaps"].items()]))
+  allArchCaps = sorted(allArchCaps)
+  archCapRows = [capRow(parameters["ArchCaps"], cap) for cap in allArchCaps]
+
+  printTable([headerRow] + asmCapRows + archCapRows)
+
 ################################################################################
-# Assign Global Parameters
-# each global parameter has a default parameter, and the user
-# can override them, those overridings happen here
 ################################################################################
 def assignGlobalParameters( config ):
+  """
+  Assign Global Parameters
+  Each global parameter has a default parameter, and the user
+  can override them, those overridings happen here
+  """
 
   global globalParameters
 
@@ -1407,17 +1461,13 @@ def assignGlobalParameters( config ):
 
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
+
   for v in globalParameters["SupportedISA"] + [(0,0,0)]:
     globalParameters["AsmCaps"][v] = GetAsmCaps(v)
     globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
-    asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
-    archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
-
-    #print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
-
-    print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
-    print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
+  if globalParameters["PrintLevel"] >= 1:
+    printCapTable(globalParameters)
 
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
