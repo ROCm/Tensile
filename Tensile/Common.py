@@ -1120,7 +1120,7 @@ defaultBatchedBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, [1], 0 ]}]
 
 
-defaultSolutionSummationSizes = [32,64,96,128,256,512,1024,2048,3072,4096,5760]
+defaultSolutionSummationSizes = [32,64,96,128,256,512,1024,2048]
 
 
 ################################################################################
