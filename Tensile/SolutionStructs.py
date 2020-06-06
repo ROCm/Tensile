@@ -1216,7 +1216,7 @@ class ProblemSizeRange:
 
 class Problem:
   """ Problem sizes, strides, padding and other info"""
-  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None, count=None):
+  def __init__(self, sizes=None, stridesA=None, stridesB=None, stridesC=None, stridesD=None, zeroPadA=None, zeroPadB=None, count=None, name=None):
     self.sizes = tuple(sizes) if sizes else None
     self.stridesA = tuple(stridesA) if stridesA else None
     self.stridesB = tuple(stridesB) if stridesB else None
@@ -1227,6 +1227,7 @@ class Problem:
     self.zeroPadB = zeroPadB
     self.convConfig = None
     self.count = count
+    self.name = name
 
   def __str__(self):
     rv= "sizes:" + str(self.sizes)
@@ -1331,6 +1332,8 @@ class ConvProblem(Problem):
     padEndA = [zp[3] for zp in self.zeroPadA]
     exactFields = OrderedDict()
 
+    if self.name:
+        exactFields['name'] = self.name
     exactFields['count'] = self.count
     exactFields['sizes'] = list(self.sizes)
     exactFields['stridesA'] = list(self.stridesA)
@@ -1378,7 +1381,7 @@ class ExactList(Problem):
 class ExactDict(Problem):
   # padStartA is list of pad starts for A dimension in order of ZeroPadA list.
   # padEndA is list of pad ends for A dimension in order of ZeroPadA list.
-  AllowedFields = [ 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padStartA', 'padEndA', 'padStartB', 'padEndB']
+  AllowedFields = [ 'name', 'count', 'sizes', 'stridesA', 'stridesB', 'stridesC', 'stridesD', 'padStartA', 'padEndA', 'padStartB', 'padEndB']
 
   def __init__(self, e, problemType):
     Problem.__init__(self)

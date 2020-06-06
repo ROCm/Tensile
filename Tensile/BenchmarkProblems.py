@@ -469,25 +469,38 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
-TasConfig = collections.namedtuple ("TasConfig", ["name", "mtScale", "ksweep", "padBytes", "minLeadingStride", "stridePwrOfTwo"])
 
-def calculateStrides(sizes, stridePadding, indexAssignments, elementSize, tasConfig):
+tasConfigFields= ["name", "mtScale", "ksweep", "padBytes",
+                  "minLeadingStride", "maxStride", "stridePwrOfTwo", "maxMacroTileOnly"]
+# minLeadingStride applies to 'leading' stride only.  Specified in bytes.
+# maxStride is a max before padding is applied.  Specified in bytes.
+TasConfig = collections.namedtuple ("TasConfig", tasConfigFields)
+TasConfig.__new__.__defaults__ = (None,) * len(TasConfig._fields)
+
+def calculateStrides(sizes, stridePadding, indexAssignments, bpe, tasConfig):
+    """
+    bpe = bytesPerElement
+    stridePadding specified in elements
+    """
     strides = [1]*len(indexAssignments)
     lastStride = strides[0] = int(1+stridePadding[0])
     for i in range(1,len(strides)):
         strides[i] = lastStride * sizes[indexAssignments[i-1]]
-        if strides[i]*elementSize>256:
-            strides[i] += stridePadding[i]
-
         strides[i] = int(strides[i])
 
         if tasConfig.stridePwrOfTwo:
+            # round up to next power-of-two
             strides[i] = 2 ** (strides[i]-1).bit_length()
 
-        if i==1 and tasConfig.minLeadingStride>=0:
-            strides[i] = max(strides[i], tasConfig.minLeadingStride)
-        lastStride = strides[i] = int(strides[i])
+        if tasConfig.maxStride != None:
+            strides[i] = min(strides[i], tasConfig.maxStride//bpe)
 
+        if strides[i]*bpe>256:
+            strides[i] += stridePadding[i]
+
+        if i==1 and tasConfig.minLeadingStride != None:
+            strides[i] = max(strides[i], tasConfig.minLeadingStride//bpe)
+        lastStride = strides[i] = int(strides[i])
 
     return strides
 
@@ -504,6 +517,7 @@ def calculateTasSize(problemType, idealM, idealN, idealK, tasConfig):
   padAB = tasConfig.padBytes / problemType["DataType"].numBytes()
   padCD = tasConfig.padBytes / problemType["DestDataType"].numBytes()
   idealProblem = collections.OrderedDict()
+  idealProblem['name']=tasConfig.name
   idealProblem['sizes']=idealSize
 
   padsAB = [0] + [padAB] * (problemType["TotalIndices"] - 1)
@@ -594,18 +608,45 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
     assert(baseShape[0]*baseShape[1])==numCus
     largeShape=[4*baseShape[0], 2*baseShape[1]]
 
-    tasConfigs = [ \
-          TasConfig(name="ideal", mtScale=largeShape, ksweep=solutionSummationSizes, \
-                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1, stridePwrOfTwo=False),
-          TasConfig(name="channel_hotspot", mtScale=largeShape, ksweep=solutionSummationSizes, \
-                          padBytes=0, minLeadingStride=-1, stridePwrOfTwo=True),
-          TasConfig(name="onetilepercu", mtScale=baseShape, ksweep=solutionSummationSizes, \
-                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1, stridePwrOfTwo=False),
-          TasConfig(name="twotilepercu", mtScale=[2*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
-                          padBytes=globalParameters["TileAwareDimPadBytes"], minLeadingStride=-1, stridePwrOfTwo=False),
-          #TasConfig(name="tlb_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
-          #                padBytes=0, minLeadingStride=32768+256),
-          ]
+
+    tasIdeal= TasConfig(name="ideal", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"],
+                          maxStride=2048,
+                          stridePwrOfTwo=True, maxMacroTileOnly=True)
+    tasIdealNoMax = TasConfig(name="ideal_nomax", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"],
+                          stridePwrOfTwo=False, maxMacroTileOnly=True)
+    tasChanHotspot= TasConfig(name="chan_hotspot", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          padBytes=0,
+                          stridePwrOfTwo=True, maxMacroTileOnly=True)
+
+    tasOneTilePerCu = TasConfig(name="onetilepercu", mtScale=baseShape, ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"],
+                          stridePwrOfTwo=False, maxMacroTileOnly=False)
+    tasTwoTilePerCu = TasConfig(name="twotilepercu", mtScale=[2*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"],
+                          stridePwrOfTwo=False, maxMacroTileOnly=False)
+    tasThreeTilePerCu = TasConfig(name="threetilepercu", mtScale=[3*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"],
+                          stridePwrOfTwo=False, maxMacroTileOnly=False)
+    tasFourTilePerCu  = TasConfig(name="fourTilepercu", mtScale=[2*baseShape[0],2*baseShape[1]], ksweep=solutionSummationSizes, \
+                          padBytes=globalParameters["TileAwareDimPadBytes"],
+                          stridePwrOfTwo=False, maxMacroTileOnly=False)
+
+    tasTlbHotSpot= TasConfig(name="tlb_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
+                          padBytes=0, minLeadingStride=32768+256,
+                          stridePwrOfTwo=False, maxMacroTileOnly=True)
+
+    tasConfigs = [ ]
+    tasConfigs = [tasThreeTilePerCu, tasFourTilePerCu ]
+    if 0:
+        tasConfigs += [tasIdeal]
+        tasConfigs += [tasChanHotspot]
+    #elif 0:
+    #    tasConfigs += [tasIdealNoMax]
+
+    #tasConfigs += tasConfigsOneTwo
+    #tasConfigs += tasTlbHotspot
 
     for solution in solutions:
         solution.filter_problems=[]
@@ -614,8 +655,10 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
         for solution in solutions:
             (tileScale0,tileScale1) = tasConfig.mtScale
             for k in tasConfig.ksweep:
-              #problem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, k, tasConfig)
-              problem = calculateTasSize(problemType, tileScale0*solution["MacroTile0"], tileScale1*solution["MacroTile1"], k, tasConfig)
+              if tasConfig.maxMacroTileOnly:
+                  problem = calculateTasSize(problemType, tileScale0*maxMacroTile1, tileScale1*maxMacroTile1, k, tasConfig)
+              else:
+                  problem = calculateTasSize(problemType, tileScale0*solution["MacroTile0"], tileScale1*solution["MacroTile1"], k, tasConfig)
               solution.filter_problems.append(problem)
               s= " ".join(["%s:%s"%(k,v) for k,v in problem.items()])
               problemsSet[hash(s)]=problem
