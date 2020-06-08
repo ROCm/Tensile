@@ -471,7 +471,8 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
 
 
 tasConfigFields= ["name", "mtScale", "ksweep", "padBytes",
-                  "minLeadingStride", "maxStride", "stridePwrOfTwo", "maxMacroTileOnly"]
+                  "minLeadingStride", 'setLeadingStride',
+                  "maxStride", "stridePwrOfTwo", "maxMacroTileOnly"]
 # minLeadingStride applies to 'leading' stride only.  Specified in bytes.
 # maxStride is a max before padding is applied.  Specified in bytes.
 TasConfig = collections.namedtuple ("TasConfig", tasConfigFields)
@@ -498,8 +499,11 @@ def calculateStrides(sizes, stridePadding, indexAssignments, bpe, tasConfig):
         if strides[i]*bpe>256:
             strides[i] += stridePadding[i]
 
-        if i==1 and tasConfig.minLeadingStride != None:
-            strides[i] = max(strides[i], tasConfig.minLeadingStride//bpe)
+        if i==1:
+            if tasConfig.minLeadingStride != None:
+                strides[i] = max(strides[i], tasConfig.minLeadingStride//bpe)
+            if tasConfig.setLeadingStride != None:
+                strides[i] = tasConfig.setLeadingStride//bpe
         lastStride = strides[i] = int(strides[i])
 
     return strides
@@ -608,50 +612,48 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
     assert(baseShape[0]*baseShape[1])==numCus
     largeShape=[4*baseShape[0], 2*baseShape[1]]
 
-
-    tasIdeal= TasConfig(name="ideal", mtScale=largeShape, ksweep=solutionSummationSizes, \
+    tasConfigs = {
+            'ideal' :
+                TasConfig(name="ideal", mtScale=largeShape, ksweep=solutionSummationSizes, \
                           padBytes=globalParameters["TileAwareDimPadBytes"],
                           maxStride=2048,
-                          stridePwrOfTwo=True, maxMacroTileOnly=True)
-    tasIdealNoMax = TasConfig(name="ideal_nomax", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=True, maxMacroTileOnly=True),
+            'ideal_nomax' :
+                TasConfig(name="ideal_nomax", mtScale=largeShape, ksweep=solutionSummationSizes, \
                           padBytes=globalParameters["TileAwareDimPadBytes"],
-                          stridePwrOfTwo=False, maxMacroTileOnly=True)
-    tasChanHotspot= TasConfig(name="chan_hotspot", mtScale=largeShape, ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=False, maxMacroTileOnly=True),
+            'ch_spot' :
+                TasConfig(name="ch_spot", mtScale=largeShape, ksweep=solutionSummationSizes, \
                           padBytes=0,
-                          stridePwrOfTwo=True, maxMacroTileOnly=True)
-
-    tasOneTilePerCu = TasConfig(name="onetilepercu", mtScale=baseShape, ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=True, setLeadingStride=4096, maxMacroTileOnly=True),
+            'onetilepercu' :
+                TasConfig(name="onetilepercu", mtScale=baseShape, ksweep=solutionSummationSizes, \
                           padBytes=globalParameters["TileAwareDimPadBytes"],
-                          stridePwrOfTwo=False, maxMacroTileOnly=False)
-    tasTwoTilePerCu = TasConfig(name="twotilepercu", mtScale=[2*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=False, maxMacroTileOnly=False),
+            'twoTilePerCu' :
+                TasConfig(name="twotilepercu", mtScale=[2*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
                           padBytes=globalParameters["TileAwareDimPadBytes"],
-                          stridePwrOfTwo=False, maxMacroTileOnly=False)
-    tasThreeTilePerCu = TasConfig(name="threetilepercu", mtScale=[3*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=False, maxMacroTileOnly=False),
+            'threeTilePerCu':
+                TasConfig(name="threetilepercu", mtScale=[3*baseShape[0],baseShape[1]], ksweep=solutionSummationSizes, \
                           padBytes=globalParameters["TileAwareDimPadBytes"],
-                          stridePwrOfTwo=False, maxMacroTileOnly=False)
-    tasFourTilePerCu  = TasConfig(name="fourTilepercu", mtScale=[2*baseShape[0],2*baseShape[1]], ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=False, maxMacroTileOnly=False),
+            'fourTilePerCu':
+                TasConfig(name="fourTilepercu", mtScale=[2*baseShape[0],2*baseShape[1]], ksweep=solutionSummationSizes, \
                           padBytes=globalParameters["TileAwareDimPadBytes"],
-                          stridePwrOfTwo=False, maxMacroTileOnly=False)
-
-    tasTlbHotSpot= TasConfig(name="tlb_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
+                          stridePwrOfTwo=False, maxMacroTileOnly=False),
+            'tlbHotSpot':
+                TasConfig(name="tlb_hotspot", mtScale=[32,16], ksweep=solutionSummationSizes, \
                           padBytes=0, minLeadingStride=32768+256,
                           stridePwrOfTwo=False, maxMacroTileOnly=True)
+    }
 
-    tasConfigs = [ ]
-    tasConfigs = [tasThreeTilePerCu, tasFourTilePerCu ]
-    if 0:
-        tasConfigs += [tasIdeal]
-        tasConfigs += [tasChanHotspot]
-    #elif 0:
-    #    tasConfigs += [tasIdealNoMax]
-
-    #tasConfigs += tasConfigsOneTwo
-    #tasConfigs += tasTlbHotspot
+    tasConfigsToRun = [tasConfigs[tasConfig] for tasConfig in globalParameters['TileAwareConfigs']]
 
     for solution in solutions:
         solution.filter_problems=[]
 
-    for tasConfig in tasConfigs:
+    for tasConfig in tasConfigsToRun:
         for solution in solutions:
             (tileScale0,tileScale1) = tasConfig.mtScale
             for k in tasConfig.ksweep:
