@@ -32,6 +32,7 @@ endif()
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
+    source/ArithmeticUnitTypes.cpp
     source/ContractionProblem.cpp
     source/ContractionSolution.cpp
     source/DataTypes.cpp

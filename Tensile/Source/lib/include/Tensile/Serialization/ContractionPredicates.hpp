@@ -73,7 +73,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::BetaZero>(),
                     Base::template Pair<Predicates::Contraction::BetaOne>(),
                     Base::template Pair<Predicates::Contraction::HighPrecisionAccumulateEqual>(),
-                    Base::template Pair<Predicates::Contraction::DisableMatrixInstructionsEqual>(),
+                    Base::template Pair<Predicates::Contraction::ArithmeticUnitEqual>(),
                     Base::template Pair<Predicates::Contraction::TypesEqual>(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                 });
@@ -197,8 +197,8 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::DisableMatrixInstructionsEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::DisableMatrixInstructionsEqual, IO>
+        struct MappingTraits<Predicates::Contraction::ArithmeticUnitEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::ArithmeticUnitEqual, IO>
         {
         };
 

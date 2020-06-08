@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/Tensile.hpp>
 
@@ -68,14 +69,14 @@ namespace Tensile
             ContractionProblem::BatchIndices m_batchIndices;
             ContractionProblem::BoundIndices m_boundIndices;
 
-            DataType m_aType;
-            DataType m_bType;
-            DataType m_cType;
-            DataType m_dType;
-            DataType m_alphaType;
-            DataType m_betaType;
-            bool     m_highPrecisionAccumulate;
-            bool     m_disableMatrixInstructions;
+            DataType       m_aType;
+            DataType       m_bType;
+            DataType       m_cType;
+            DataType       m_dType;
+            DataType       m_alphaType;
+            DataType       m_betaType;
+            bool           m_highPrecisionAccumulate;
+            ArithmeticUnit m_arithmeticUnit;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/Predicates.hpp>
 
@@ -609,30 +610,27 @@ namespace Tensile
                 }
             };
 
-            struct DisableMatrixInstructionsEqual
-                : public Predicate_CRTP<DisableMatrixInstructionsEqual, ContractionProblem>
+            struct ArithmeticUnitEqual
+                : public Predicate_CRTP<ArithmeticUnitEqual, ContractionProblem>
             {
                 enum
                 {
                     HasIndex = false,
                     HasValue = true
                 };
-                bool value;
 
-                DisableMatrixInstructionsEqual() = default;
-                DisableMatrixInstructionsEqual(bool value)
-                    : value(value)
-                {
-                }
+                ArithmeticUnit value;
+
+                ArithmeticUnitEqual() = default;
 
                 static std::string Type()
                 {
-                    return "DisableMatrixInstructions";
+                    return "ArithmeticUnit";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.disableMatrixInstructions() == value;
+                    return problem.arithmeticUnit() == value;
                 }
             };
 

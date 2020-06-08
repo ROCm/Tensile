@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <Tensile/ContractionProblem_fwd.hpp>
@@ -338,13 +339,13 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
-        void setDisableMatrixInstructions(bool value)
+        void setArithmeticUnit(ArithmeticUnit value)
         {
-            m_disableMatrixInstructions = value;
+            m_arithmeticUnit = value;
         }
-        bool disableMatrixInstructions() const
+        ArithmeticUnit arithmeticUnit() const
         {
-            return m_disableMatrixInstructions;
+            return m_arithmeticUnit;
         }
 
         /// Largest of the free and bound indices.  Does not include batch size.
@@ -502,10 +503,10 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool m_transA;
-        bool m_transB;
-        bool m_highPrecisionAccumulate   = false;
-        bool m_disableMatrixInstructions = false;
+        bool           m_transA;
+        bool           m_transB;
+        bool           m_highPrecisionAccumulate = false;
+        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

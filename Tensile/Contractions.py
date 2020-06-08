@@ -303,9 +303,15 @@ class ProblemPredicate(Properties.Predicate):
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
             rv += [cls("CDStridesEqual")]
 
-        if ("MatrixInstruction" in state and state["MatrixInstruction"] is not []) or \
+        if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
-            rv += [cls("DisableMatrixInstructions", value = False)]
+            rv += [ super().Or( \
+                [ cls("ArithmeticUnit", value = "Any"), \
+                  cls("ArithmeticUnit", value = "MFMA") ] ) ]
+        else:
+            rv += [ super().Or( \
+                [ cls("ArithmeticUnit", value = "Any"), \
+                  cls("ArithmeticUnit", value = "VALU") ] ) ]
 
         return rv
 
