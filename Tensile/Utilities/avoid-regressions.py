@@ -19,6 +19,35 @@ def allFiles(startDir):
             files.append(fullPath)
     return files
 
+def fixSolutionIndexBug(kernels):
+    for i in range(0,len(kernels)):
+        kernels[i]["SolutionIndex"] = i
+    return kernels
+
+def fixSizeInconsistencies(sizes, fileType):
+    duplicates = list()
+    for i in range(0,len(sizes)):
+        currSize = sizes[i][0]
+        if len(currSize) == 8:
+            currSize = currSize[:-4]
+            if currSize in (item for index in sizes for item in index):
+                duplicates.append(i-len(duplicates))
+            else:
+                sizes[i][0] = currSize
+    if len(duplicates) > 0:
+        isFirst = True
+        for i in duplicates:
+            sizes.pop(i)
+        print(len(duplicates), "duplicate size(s) removed from ", fileType, " logic file")
+    return [sizes,len(sizes)]    
+
+def addKernel(incData, origData, improvedKernels, incIndex, currIndex):
+    tempData = incData[5][incIndex]
+    tempData["SolutionIndex"] = currIndex
+    currIndex = currIndex + 1
+    improvedKernels[incIndex] = tempData
+    origData[5].append(improvedKernels[incIndex])
+    return [incData, origData, improvedKernels, incIndex, currIndex]
 
 def avoidRegressions():
 
@@ -50,19 +79,20 @@ def avoidRegressions():
                         incNumSizes = len(incData[7])
                         print(numSizes, " sizes in original logic file")
                         print(incNumSizes, " sizes in tuned logic file")
+                        [origData[7], numSizes] = fixSizeInconsistencies(origData[7], "original")
+                        origData[5] = fixSolutionIndexBug(origData[5])
+                        [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
+                        incData[5] = fixSolutionIndexBug(incData[5])
                         for i in range(0,len(incData[7])):
                             incSize = incData[7][i][0]
                             incIndex = incData[7][i][1][0]
                             incEff = incData[7][i][1][1]
                             isOld = False
-                            if len(incSize) == 8:
-                                incSize = incSize[:-4]
                             for j in range(0,numSizes):
                                 origSize = origData[7][j][0]
                                 origIndex = origData[7][j][1][0]
                                 origEff = origData[7][j][1][1]
                                 if incSize == origSize:
-                                    print(origData[7][j])
                                     isOld = True
                                     if incEff < origEff:
                                         print(origSize, " already exists but has regressed in performance. Kernel is unchanged")
@@ -72,11 +102,7 @@ def avoidRegressions():
                                         if incIndex not in improvedKernels.keys():
                                             print(origSize, " already exists and has improved in performance. A new kernel has been added.")
                                             print("Old Efficiency: ", origEff, ", New Efficiency: ", incEff)
-                                            tempData = incData[5][incIndex]
-                                            tempData["SolutionIndex"] = currIndex
-                                            currIndex = currIndex + 1
-                                            improvedKernels[incIndex] = tempData
-                                            origData[5].append(improvedKernels[incIndex])
+                                            [incData, origData, improvedKernels, incIndex, currIndex] = addKernel(incData, origData, improvedKernels, incIndex, currIndex)
                                         origData[7][j][1][0] = improvedKernels[incIndex]["SolutionIndex"]
                                         origData[7][j][1][1] = incEff
                             if isOld == False:
@@ -84,11 +110,7 @@ def avoidRegressions():
                                     print(incSize, " has been added to solution table, and uses a previously known kernel. Efficiency: ", incEff)
                                 else:
                                     print(incSize, " has been added to solution table. A new kernel has been added. Efficiency: ", incEff)
-                                    tempData = incData[5][incIndex]
-                                    tempData["SolutionIndex"] = currIndex
-                                    currIndex = currIndex + 1
-                                    improvedKernels[incIndex] = tempData
-                                    origData[5].append(improvedKernels[incIndex])
+                                    [incData, origData, improvedKernels, incIndex, currIndex] = addKernel(incData, origData, improvedKernels, incIndex, currIndex)
                                 origData[7].append([incSize,[improvedKernels[incIndex]["SolutionIndex"], incEff]])
                         print(len(origData[7])-numSizes, " sizes and ", len(improvedKernels.keys())," kernels have been added to ", logicFile)
                     with open(outputPath+'/'+logicFile, "w") as outFile:
