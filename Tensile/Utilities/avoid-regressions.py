@@ -37,34 +37,62 @@ def avoidRegressions():
     for f in incrementalFiles:
         with open(f) as incFile:
             incData = yaml.safe_load(incFile)
-            currIndex = len(incData[5])
-            regressedKernels = dict()
-            for i in range(0,len(incData[7])):
-                currSize = incData[7][i][0]
-                if len(currSize) == 8:
-                    currSize = currSize[:-4]
-                for g in originalFiles:
-                    fileSplit = g.split('/')
-                    if fileSplit[len(fileSplit)-1] in f:
-                        with open(g) as largeFile:
-                            origData = yaml.safe_load(largeFile)
-                            for j in range(0,len(origData[7])):
-                                if currSize == origData[7][j][0]:
-                                    print("Size: ",origData[7][j][0])
-                                    index = origData[7][j][1][0]
-                                    eff = origData[7][j][1][1]
-                                    if index in regressedKernels.keys():
-                                        incData[7][i][1][0] = regressedKernels[index]["SolutionIndex"]
+            improvedKernels = dict()
+            for g in originalFiles:
+                fileSplit = g.split('/')
+                logicFile = fileSplit[len(fileSplit)-1]
+                if logicFile in f:
+                    print("Logic file: ", logicFile)
+                    with open(g) as origFile:
+                        origData = yaml.safe_load(origFile)
+                        currIndex = len(origData[5])
+                        numSizes = len(origData[7])
+                        incNumSizes = len(incData[7])
+                        print(numSizes, " sizes in original logic file")
+                        print(incNumSizes, " sizes in tuned logic file")
+                        for i in range(0,len(incData[7])):
+                            incSize = incData[7][i][0]
+                            incIndex = incData[7][i][1][0]
+                            incEff = incData[7][i][1][1]
+                            isOld = False
+                            if len(incSize) == 8:
+                                incSize = incSize[:-4]
+                            for j in range(0,numSizes):
+                                origSize = origData[7][j][0]
+                                origIndex = origData[7][j][1][0]
+                                origEff = origData[7][j][1][1]
+                                if incSize == origSize:
+                                    print(origData[7][j])
+                                    isOld = True
+                                    if incEff < origEff:
+                                        print(origSize, " already exists but has regressed in performance. Kernel is unchanged")
                                     else:
-                                        tempData = origData[5][index]
-                                        tempData["SolutionIndex"] = currIndex
-                                        currIndex = currIndex + 1
-                                        regressedKernels[index] = tempData
-                                        incData[5].append(regressedKernels[index])
-                                        incData[7][i][1][0] = regressedKernels[index]["SolutionIndex"]
-                                    incData[7][i][1][1] = eff
-                        with open(outputPath+'/'+fileSplit[len(fileSplit)-1], "w") as outFile:
-                            yaml.safe_dump(incData,outFile,default_flow_style=None)
+                                        if incIndex in improvedKernels.keys():
+                                            print(origSize, " already exists and has improved in performance, and uses a previously known kernel.")
+                                        if incIndex not in improvedKernels.keys():
+                                            print(origSize, " already exists and has improved in performance. A new kernel has been added.")
+                                            print("Old Efficiency: ", origEff, ", New Efficiency: ", incEff)
+                                            tempData = incData[5][incIndex]
+                                            tempData["SolutionIndex"] = currIndex
+                                            currIndex = currIndex + 1
+                                            improvedKernels[incIndex] = tempData
+                                            origData[5].append(improvedKernels[incIndex])
+                                        origData[7][j][1][0] = improvedKernels[incIndex]["SolutionIndex"]
+                                        origData[7][j][1][1] = incEff
+                            if isOld == False:
+                                if incIndex in improvedKernels.keys():
+                                    print(incSize, " has been added to solution table, and uses a previously known kernel. Efficiency: ", incEff)
+                                else:
+                                    print(incSize, " has been added to solution table. A new kernel has been added. Efficiency: ", incEff)
+                                    tempData = incData[5][incIndex]
+                                    tempData["SolutionIndex"] = currIndex
+                                    currIndex = currIndex + 1
+                                    improvedKernels[incIndex] = tempData
+                                    origData[5].append(improvedKernels[incIndex])
+                                origData[7].append([incSize,[improvedKernels[incIndex]["SolutionIndex"], incEff]])
+                        print(len(origData[7])-numSizes, " sizes and ", len(improvedKernels.keys())," kernels have been added to ", logicFile)
+                    with open(outputPath+'/'+logicFile, "w") as outFile:
+                        yaml.safe_dump(origData,outFile,default_flow_style=None)
 
 if __name__ == "__main__":
     avoidRegressions()
