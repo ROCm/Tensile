@@ -73,8 +73,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::BetaZero>(),
                     Base::template Pair<Predicates::Contraction::BetaOne>(),
                     Base::template Pair<Predicates::Contraction::HighPrecisionAccumulateEqual>(),
-                    Base::template Pair<Predicates::Contraction::AsmKernelsOnlyEqual>(),
-                    Base::template Pair<Predicates::Contraction::SourceKernelsOnlyEqual>(),
+                    Base::template Pair<Predicates::Contraction::KernelLanguageEqual>(),
                     Base::template Pair<Predicates::Contraction::TypesEqual>(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                 });
@@ -198,14 +197,8 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::AsmKernelsOnlyEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::AsmKernelsOnlyEqual, IO>
-        {
-        };
-
-        template <typename IO>
-        struct MappingTraits<Predicates::Contraction::SourceKernelsOnlyEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::SourceKernelsOnlyEqual, IO>
+        struct MappingTraits<Predicates::Contraction::KernelLanguageEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::KernelLanguageEqual, IO>
         {
         };
 

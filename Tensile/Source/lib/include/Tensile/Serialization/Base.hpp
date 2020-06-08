@@ -34,6 +34,7 @@
 #include <vector>
 
 #include <Tensile/DataTypes.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/geom.hpp>
 
 namespace Tensile
@@ -359,6 +360,21 @@ namespace Tensile
                 {
                     auto const& info = DataTypeInfo::Get(i);
                     iot::enumCase(io, value, info.name.c_str(), info.dataType);
+                }
+            }
+        };
+
+        template <typename IO>
+        struct EnumTraits<KernelLanguage, IO>
+        {
+            using iot = IOTraits<IO>;
+
+            static void enumeration(IO& io, KernelLanguage& value)
+            {
+                for(int i = 0; i < static_cast<int>(KernelLanguage::Count); i++)
+                {
+                    auto const& info = KernelLanguageTypeInfo::Get(i);
+                    iot::enumCase(io, value, info.name.c_str(), info.m_kernelLanguage);
                 }
             }
         };

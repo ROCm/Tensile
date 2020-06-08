@@ -27,6 +27,7 @@
 #pragma once
 
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <boost/program_options.hpp>
@@ -75,8 +76,8 @@ namespace Tensile
             DataType m_alphaType;
             DataType m_betaType;
             bool     m_highPrecisionAccumulate;
-            bool     m_asmKernelsOnly;
-            bool     m_sourceKernelsOnly;
+
+            KernelLanguage m_kernelLanguage;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

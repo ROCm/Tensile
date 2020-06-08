@@ -26,10 +26,8 @@
 
 #include <Tensile/Contractions.hpp>
 #include <Tensile/EmbeddedLibrary.hpp>
-#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/Tensile.hpp>
-
 #include <Tensile/hip/HipHardware.hpp>
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
@@ -111,6 +109,7 @@ namespace Tensile
                 ("alpha-type",               po::value<DataType>()->default_value(DataType::Count), "alpha data type")
                 ("beta-type",                po::value<DataType>()->default_value(DataType::Count), "beta data type")
                 ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
+                ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
 
                 ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
                 ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")
@@ -312,13 +311,6 @@ namespace Tensile
                 args.at("d-type").value()     = boost::any(type);
                 args.at("alpha-type").value() = boost::any(type);
                 args.at("beta-type").value()  = boost::any(type);
-            }
-
-            auto kernelType = args["kernelType"].as<KernelLanguageType>();
-            if(kernelType == KernelLanguageType::Any || kernelType == KernelLanguageType::Assembly
-               || kernelType == KernelLanguageType::Source)
-            {
-                args.at("kernel-language").value() = boost::any(kernelType);
             }
         }
 

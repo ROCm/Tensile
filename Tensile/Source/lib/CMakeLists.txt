@@ -38,6 +38,7 @@ set(tensile_sources  ${tensile_sources}
     source/Debug.cpp
     source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
+    source/KernelLanguageTypes.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp

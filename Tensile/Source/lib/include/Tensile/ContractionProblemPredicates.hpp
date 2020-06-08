@@ -27,6 +27,7 @@
 #pragma once
 
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Predicates.hpp>
 
 #include <array>
@@ -609,57 +610,26 @@ namespace Tensile
                 }
             };
 
-            struct AsmKernelsOnlyEqual
-                : public Predicate_CRTP<AsmKernelsOnlyEqual, ContractionProblem>
+            struct KernelLanguageEqual
+                : public Predicate_CRTP<KernelLanguageEqual, ContractionProblem>
             {
                 enum
                 {
                     HasIndex = false,
                     HasValue = true
                 };
-                bool value;
+                KernelLanguage value;
 
-                AsmKernelsOnlyEqual() = default;
-                AsmKernelsOnlyEqual(bool value)
-                    : value(value)
-                {
-                }
+                KernelLanguageEqual() = default;
 
                 static std::string Type()
                 {
-                    return "AsmKernelsOnly";
+                    return "KernelLanguage";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.asmKernelsOnly() == value;
-                }
-            };
-
-            struct SourceKernelsOnlyEqual
-                : public Predicate_CRTP<SourceKernelsOnlyEqual, ContractionProblem>
-            {
-                enum
-                {
-                    HasIndex = false,
-                    HasValue = true
-                };
-                bool value;
-
-                SourceKernelsOnlyEqual() = default;
-                SourceKernelsOnlyEqual(bool value)
-                    : value(value)
-                {
-                }
-
-                static std::string Type()
-                {
-                    return "SourceKernelsOnly";
-                }
-
-                virtual bool operator()(ContractionProblem const& problem) const override
-                {
-                    return problem.sourceKernelsOnly() == value;
+                    return problem.kernelLanguage() == value;
                 }
             };
 

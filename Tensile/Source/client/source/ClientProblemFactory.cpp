@@ -47,8 +47,7 @@ namespace Tensile
             , m_alphaType(DataType::Float)
             , m_betaType(DataType::Float)
             , m_highPrecisionAccumulate(args["high-precision-accumulate"].as<bool>())
-            , m_asmKernelsOnly(args["asm-kernels-only"].as<bool>())
-            , m_sourceKernelsOnly(args["source-kernels-only"].as<bool>())
+            , m_kernelLanguage(args["kernel-language"].as<Tensile::KernelLanguage>())
             , m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>())
             , m_bStrides(args["b-strides"].as<std::vector<std::vector<size_t>>>())
             , m_cStrides(args["c-strides"].as<std::vector<std::vector<size_t>>>())
@@ -58,11 +57,6 @@ namespace Tensile
             , m_cOps(args["c-ops"].as<TensorOps>())
             , m_dOps(args["d-ops"].as<TensorOps>())
         {
-            if(m_asmKernelsOnly && m_sourceKernelsOnly)
-            {
-                m_sourceKernelsOnly = m_sourceKernelsOnly = false;
-            }
-
             if(args.count("problem-identifier"))
                 ContractionProblem::IdentifierToIndices(
                     args["problem-identifier"].as<std::string>(),
@@ -179,8 +173,7 @@ namespace Tensile
                     }
                 }
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
-                rv.back().setAsmKernelsOnly(m_asmKernelsOnly);
-                rv.back().setSourceKernelsOnly(m_sourceKernelsOnly);
+                rv.back().setKernelLanguage(m_kernelLanguage);
             }
 
             return rv;

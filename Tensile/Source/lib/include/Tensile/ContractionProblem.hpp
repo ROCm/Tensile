@@ -24,10 +24,10 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
-
 #include <Tensile/ContractionProblem_fwd.hpp>
 #include <Tensile/ContractionSolution_fwd.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
+#include <Tensile/Tensile.hpp>
 
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/TensorOps.hpp>
@@ -338,22 +338,13 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
-        void setAsmKernelsOnly(bool value)
+        void setKernelLanguage(KernelLanguage value)
         {
-            m_asmKernelsOnly = value;
+            m_kernelLanguage = value;
         }
-        bool asmKernelsOnly() const
+        KernelLanguage kernelLanguage() const
         {
-            return m_asmKernelsOnly;
-        }
-
-        void setSourceKernelsOnly(bool value)
-        {
-            m_sourceKernelsOnly = value;
-        }
-        bool sourceKernelsOnly() const
-        {
-            return m_sourceKernelsOnly;
+            return m_kernelLanguage;
         }
 
         /// Largest of the free and bound indices.  Does not include batch size.
@@ -511,11 +502,10 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool m_transA;
-        bool m_transB;
-        bool m_highPrecisionAccumulate = false;
-        bool m_asmKernelsOnly          = false;
-        bool m_sourceKernelsOnly       = false;
+        bool           m_transA;
+        bool           m_transB;
+        bool           m_highPrecisionAccumulate = false;
+        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

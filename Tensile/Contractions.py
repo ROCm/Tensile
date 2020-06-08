@@ -304,10 +304,14 @@ class ProblemPredicate(Properties.Predicate):
             rv += [cls("CDStridesEqual")]
 
         if "KernelLanguage" in state and state["KernelLanguage"] == "Assembly":
-            rv += [cls("SourceKernelsOnly", value = False)]
+            rv += [ super().Or( \
+                [ cls("KernelLanguage", value = "Any"), \
+                  cls("KernelLanguage", value = "Assembly") ] ) ]
 
-        if "KernelLanguage" in state and state["KernelLanguage"] == "Source":
-            rv += [cls("AssemblyKernelsOnly", value = False)]
+        elif "KernelLanguage" in state and state["KernelLanguage"] == "Source":
+            rv += [ super().Or( \
+                [ cls("KernelLanguage", value = "Any"), \
+                  cls("KernelLanguage", value = "Source") ] ) ]
 
         return rv
 
