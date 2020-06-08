@@ -3171,12 +3171,14 @@ class KernelWriterSource(KernelWriter):
     restrictStr = "restrict"
     if self.language == "HIP":
       restrictStr = "__restrict__"
-    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  " + globalStr + ptrStr \
-        + " *D,"
+    if kernel["_GlobalAccumulation"]:
+      ptrStr = "float"
+    else:
+      ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    kStr += "  " + globalStr + ptrStr + " *D,"
     kStr += self.endLine
-    kStr += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " C,"
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    kStr += "  " + globalStr + ptrStr + " const * " + restrictStr + " C,"
     kStr += self.endLine
 
     # strides
@@ -3319,12 +3321,15 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # zero
-    kStr += "#define SCALAR_ZERO %s%s" % ( problemType[\
-        "DataType"].zeroString(self.language, 1), \
-        self.endLine )
+    if kernel["_GlobalAccumulation"]:
+      ptrStr = "float"
+    else:
+      ptrStr = problemType["DataType"].toDevice(self.language)
+    kStr += "#define SCALAR_ZERO ((%s)(0))%s" % (ptrStr, self.endLine )
 
     ########################################
     # zero
+    computeType = problemType["ComputeDataType"].toDevice(self.language)
     if problemType["UseBeta"]:
       if problemType["DataType"].isComplex():
         kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
@@ -3332,7 +3337,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
       kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
       kStr += "  } else {%s" % self.endLine
-      kStr += "    D[idxD] = C[idxC]*beta;%s" % self.endLine
+      kStr += "    D[idxD] = ((%s)(C[idxC])) * beta;%s" % (computeType, self.endLine)
       kStr += "  }%s" % self.endLine
     else:
       kStr += "  D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
@@ -3343,5 +3348,157 @@ class KernelWriterSource(KernelWriter):
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
     kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
-    kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
+    return kStr
+
+
+
+  ##############################################################################
+  #
+  #   Kernel for Global Accumulation Buffer
+  #
+  ##############################################################################
+
+  ##############################################################################
+  # Function Signature
+  ##############################################################################
+  def functionSignatureGlobalAccum(self, kernel):
+    kernelName = self.getKernelNameGlobalAccum(kernel)
+    # determine chars for fast access
+    self.indexChars = []
+    for i in range(0, len(globalParameters["IndexChars"])):
+      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
+    self.tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
+
+    kStr = ""
+    # kernel name
+    if self.language == "OCL":
+      kStr += "__attribute__((reqd_work_group_size(8,8,1)))"
+      kStr += self.endLine
+      kStr += "__kernel "
+    else:
+      kStr += self.endLine
+      kStr += "extern \"C\"\n"
+      kStr += "__global__ "
+    kStr += "void %s" % ( kernelName )
+    kStr += "(" + self.endLine
+    # pointers
+    globalStr = "__global "
+    if self.language == "HIP":
+      #kStr += "  hipLaunchParm lp," + self.endLine
+      globalStr = ""
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    kStr += "  " + globalStr + ptrStr + " * dst," + self.endLine
+    kStr += "  " + globalStr + "float * src," + self.endLine
+
+    # strides
+    firstStrideCD = 1
+    if kernel["ProblemType"]["UseInitialStridesCD"]:
+      firstStrideCD = 0
+    lastStrideC = kernel["ProblemType"]["NumIndicesC"]
+    for i in range(firstStrideCD, lastStrideC):
+      kStr += "  unsigned int const stride%s,%s" \
+          % (self.indexChars[i], self.endLine)
+
+    # sizes
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += "  unsigned int const size%s" % self.indexChars[i]
+      if i < kernel["ProblemType"]["NumIndicesC"]-1:
+        kStr += ","
+      else:
+        kStr += ")"
+      kStr += self.endLine
+
+    return kStr
+
+  ##############################################################################
+  # Kernel Body Global Accumultation Buffer
+  ##############################################################################
+  def kernelBodyGlobalAccum(self, kernel):
+    kStr = ""
+    kStr += "{%s" % self.endLine
+    problemType = kernel["ProblemType"]
+
+    ########################################
+    # defined initial strides
+    firstStride = 0
+    if problemType["UseInitialStridesCD"]:
+      # no strides #defined
+      lastStrideC = 0
+      assert 0  # need to fix beta-clear routine to pass initial stride parms
+    else:
+      # #define initial stride
+      kStr += "/* hard-coded initial strides */%s" \
+          % self.endLine
+      lastStrideC = 1
+    for i in range(firstStride, lastStrideC):
+      kStr += "#define stride" + self.indexChars[i] + " 1" + self.endLine
+
+    ########################################
+    # GLOBAL_D()
+    kStr += "#define GLOBAL(IDX%s" % self.indexChars[0]
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") (( (IDX%s)*stride%s" % (indexChar, indexChar)
+    for i in range(1, problemType["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (IDX%s)*stride%s" % (indexChar, indexChar)
+    kStr += " ))" + self.endLine
+
+    ########################################
+    # wg d0, d1
+    #kStr += "  unsigned int wg" + self.tileChar0 + " = " \
+    #    + self.getGroupIdStr + "(0);" + self.endLine
+    #kStr += "  unsigned int wg" + self.tileChar1 + " = " \
+    #    + self.getGroupIdStr + "(1);" + self.endLine
+    ########################################
+    # wg other : batch dims
+    freeIdxC0 = [idx for idx in range(problemType["NumIndicesC"]) \
+                        if idx in problemType["IndexAssignmentsA"] and idx in problemType["IndicesFree"]]
+    freeIdxC1 = [idx for idx in range(problemType["NumIndicesC"]) \
+                        if idx in problemType["IndexAssignmentsB"] and idx in problemType["IndicesFree"]]
+
+    batchSizes = "*".join(["size%s"%self.indexChars[idx] for idx in problemType["IndicesBatch"]])
+    freeSizesC0 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC0])
+    freeSizesC1 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC1])
+
+    t = []
+    if freeSizesC0:
+      t.append("(%s(0) >=  %s)" % (self.getGlobalIdStr, freeSizesC0))
+    if freeSizesC1:
+      t.append("(%s(1) >=  %s)" % (self.getGlobalIdStr, freeSizesC1))
+    if batchSizes:
+      t.append("(%s(2) >=  %s)" % (self.getGlobalIdStr, batchSizes))
+    kStr += "  if ("
+    kStr += "\n   || ".join(t) + ")\n"
+    kStr += "    return;\n"
+
+    kStr += self.extractIndices(self.getGroupIdStr+"(2)", "wg", problemType["IndicesBatch"])
+    kStr += self.extractIndices(self.getGlobalIdStr+"(0)", "global", freeIdxC0)
+    kStr += self.extractIndices(self.getGlobalIdStr+"(1)", "global", freeIdxC1)
+
+    ########################################
+    # D index
+    kStr += "  %s idx = GLOBAL( (%s)" % (self.uint64Str, self.uint64Str)
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
+    kStr += ");%s" % (self.endLine)
+
+
+    ########################################
+    # zero
+    typeStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    kStr += "    dst[idx] = ((%s)(src[idx]));%s" % (typeStr, self.endLine)
+
+    ########################################
+    # end
+    kStr += "}%s" % self.endLine
+    kStr += "#undef GLOBAL_D%s" % (self.endLine)
+    kStr += "#undef GLOBAL_C%s" % (self.endLine)
+    kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
     return kStr

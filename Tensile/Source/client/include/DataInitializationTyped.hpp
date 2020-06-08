@@ -54,22 +54,24 @@ namespace Tensile
             using AlphaType = Alpha;
             using BetaType  = Beta;
 
-            ManagedContractionInputs(std::shared_ptr<A> _a,
-                                     std::shared_ptr<B> _b,
-                                     std::shared_ptr<C> _c,
-                                     std::shared_ptr<D> _d,
-                                     size_t             _aElements,
-                                     size_t             _bElements,
-                                     size_t             _cElements,
-                                     size_t             _dElements,
-                                     Alpha              _alpha,
-                                     Beta               _beta,
-                                     bool               _gpu)
-                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta)
+            ManagedContractionInputs(std::shared_ptr<A>     _a,
+                                     std::shared_ptr<B>     _b,
+                                     std::shared_ptr<C>     _c,
+                                     std::shared_ptr<D>     _d,
+                                     std::shared_ptr<float> _g,
+                                     size_t                 _aElements,
+                                     size_t                 _bElements,
+                                     size_t                 _cElements,
+                                     size_t                 _dElements,
+                                     Alpha                  _alpha,
+                                     Beta                   _beta,
+                                     bool                   _gpu)
+                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _g.get(), _alpha, _beta)
                 , managedA(_a)
                 , managedB(_b)
                 , managedC(_c)
                 , managedD(_d)
+                , managedG(_g)
                 , aElements(_aElements)
                 , bElements(_bElements)
                 , cElements(_cElements)
@@ -80,10 +82,11 @@ namespace Tensile
 
             ~ManagedContractionInputs() = default;
 
-            std::shared_ptr<A> managedA;
-            std::shared_ptr<B> managedB;
-            std::shared_ptr<C> managedC;
-            std::shared_ptr<D> managedD;
+            std::shared_ptr<A>     managedA;
+            std::shared_ptr<B>     managedB;
+            std::shared_ptr<C>     managedC;
+            std::shared_ptr<D>     managedD;
+            std::shared_ptr<float> managedG;
 
             size_t aElements;
             size_t bElements;
@@ -325,6 +328,7 @@ namespace Tensile
                                                           b,
                                                           c,
                                                           d,
+                                                          nullptr,
                                                           m_aMaxElements,
                                                           m_bMaxElements,
                                                           m_cMaxElements,
@@ -346,6 +350,7 @@ namespace Tensile
                 std::shared_ptr<BType> b;
                 std::shared_ptr<CType> c;
                 std::shared_ptr<DType> d;
+                std::shared_ptr<float> g;
                 static const int       sizew = 10;
 
                 if(pristine)
@@ -406,6 +411,21 @@ namespace Tensile
                                   << dPtr << "\n";
                 }
 
+                if(pristine)
+                {
+                    g = pristine->managedG;
+                }
+                else
+                {
+                    float* gPtr = nullptr;
+                    HIP_CHECK_EXC(hipMalloc(&gPtr, TypeInfo<float>::ElementSize * m_dMaxElements));
+                    g = std::shared_ptr<float>(gPtr, hipFree);
+                    if(Debug::Instance().printTensorInfo())
+                        std::cout << "info: allocate g for high precision GSU " << std::setw(sizew)
+                                  << TypeInfo<CType>::ElementSize * m_cMaxElements << " bytes at "
+                                  << gPtr << "\n";
+                }
+
                 auto alpha = static_cast<AlphaType>(0);
                 auto beta  = static_cast<BetaType>(0);
 
@@ -413,6 +433,7 @@ namespace Tensile
                                                           b,
                                                           c,
                                                           d,
+                                                          g,
                                                           m_aMaxElements,
                                                           m_bMaxElements,
                                                           m_cMaxElements,

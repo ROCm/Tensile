@@ -1739,7 +1739,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
-
     self.staggerU = kernel["StaggerU"] and (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
     self.tPA = tensorParametersA
     self.tPB = tensorParametersB
@@ -3094,6 +3093,7 @@ for codeObjectFileName in codeObjectFileNames:
     name += "_"
     name += kernel["ProblemType"]["DestDataType"].toChar()
     if kernel["ProblemType"]["UseBeta"]: name += "B"
+    if kernel["_GlobalAccumulation"]: name += "_GA"
 
     return name
 
@@ -3138,6 +3138,75 @@ for codeObjectFileName in codeObjectFileNames:
       fileString += "extern const char * const %s_src;\n" % kernelName
     else:
       fileString += self.functionSignatureBetaOnly(kernel)
+      fileString += ";\n"
+
+    return fileString
+
+
+  ##############################################################################
+  #
+  #   Kernels for Global Accumulation
+  #
+  # kernel dictionary has ProblemType for indices and Beta=True/False
+  ##############################################################################
+
+  ##############################################################################
+  # Get Name
+  ##############################################################################
+  @staticmethod
+  def getKernelNameGlobalAccum(kernel):
+    indexChars = globalParameters["IndexChars"]
+    # C dimensions
+    name = "C"
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      name += indexChars[i].lower()
+    name += "_"
+    name += kernel["ProblemType"]["DestDataType"].toChar()
+    name += "_Convert"
+
+    return name
+
+  @abc.abstractmethod
+  def functionSignatureGlobalAccum(kernel):
+    return ""
+
+  @abc.abstractmethod
+  def kernelBodyGlobalAccum( self, kernel ):
+    return ""
+
+  def getSourceFileStringGlobalAccum(self, kernel):
+    fileString = ""
+    kernelName = self.getKernelNameGlobalAccum(kernel)
+    if not globalParameters["MergeFiles"]:
+      fileString += "\n"
+      fileString += "#include \"%s.h\"\n" % kernelName
+      fileString += "\n"
+    if self.language == "OCL":
+      fileString += "const char * const %s_src = \"\"\n\"" % kernelName
+    fileString += self.functionSignatureGlobalAccum( kernel )
+    fileString += self.kernelBodyGlobalAccum( kernel )
+    if self.language == "OCL":
+      fileString += "\";"
+    return (0,fileString)
+
+  def getHeaderFileStringGlobalAccum(self, kernel):
+    kernelName = self.getKernelNameGlobalAccum(kernel)
+    fileString = "" # CHeader
+    if not globalParameters["MergeFiles"]:
+      fileString += CHeader
+      fileString += "#pragma once\n\n"
+      fileString += "\n"
+      fileString += "#include <KernelHeader.h>\n\n"
+      if self.language == "HIP":
+        fileString += "#include <hip/hip_runtime.h>\n"
+        fileString += "#include <hip/hip_fp16.h>\n"
+        fileString += "\n"
+      else:
+        fileString += "#include <string>\n"
+    if self.language == "OCL":
+      fileString += "extern const char * const %s_src;\n" % kernelName
+    else:
+      fileString += self.functionSignatureGlobalAccum(kernel)
       fileString += ";\n"
 
     return fileString

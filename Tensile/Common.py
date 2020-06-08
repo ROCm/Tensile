@@ -1281,11 +1281,12 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
-  rv["Waitcnt0Disabled"] = isaVersion == (9,0,8)
-  rv["SeparateVscnt"]    = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
-  rv["HasWave32"]        = isaVersion[0] == 10
+  rv["HasEccHalf"]       = (isaVersion    == (9,0,6) or isaVersion==(9,0,8))
+  rv["Waitcnt0Disabled"] = (isaVersion    == (9,0,8))
+  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
+  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
+  rv["HasWave32"]        = (isaVersion[0] == 10)
+  rv["HasAtomicAdd"]     = (isaVersion    == ( 9,0,8))
 
   return rv
 

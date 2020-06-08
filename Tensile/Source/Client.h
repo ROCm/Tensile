@@ -2706,6 +2706,10 @@ void initData(DestDataType**   initialD,
         context, CL_MEM_READ_ONLY, maxSizeB * bytesPerElement[dataTypeIdx], NULL, &status);
     tensileStatusCheck(status);
     std::cout << ".";
+
+    deviceT = clCreateBuffer(
+        context, CL_MEM_READ_WRITE, maxSizeC * bytesPerElement[dataTypeIdx] * 2, NULL, &status);
+    tensileStatusCheck(status);
 #else
     status = hipMalloc(&deviceC, maxSizeC * bytesPerElement[dataTypeIdx]);
     tensileStatusCheck(status);
@@ -2724,6 +2728,9 @@ void initData(DestDataType**   initialD,
     status = hipMalloc(&deviceB, maxSizeB * bytesPerElement[dataTypeIdx]);
     tensileStatusCheck(status);
     std::cout << ".";
+
+    status = hipMalloc(&deviceT, maxSizeC * bytesPerElement[dataTypeIdx] * 2);
+    tensileStatusCheck(status);
 #endif
 
     if(!specializeAB)
@@ -2762,12 +2769,14 @@ void destroyData(DestDataType* initialD,
         delete[] deviceOnHostD;
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
+    clReleaseMemObject(static_cast<cl_mem>(deviceT));
     clReleaseMemObject(static_cast<cl_mem>(deviceC));
     if(!cEqualD)
         clReleaseMemObject(static_cast<cl_mem>(deviceD));
     clReleaseMemObject(static_cast<cl_mem>(deviceA));
     clReleaseMemObject(static_cast<cl_mem>(deviceB));
 #else
+    hipFree(deviceT);
     hipFree(deviceC);
     if(!cEqualD)
         hipFree(deviceD);

@@ -1022,11 +1022,12 @@ namespace Tensile
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
-        A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta)
+        A const* _a, B const* _b, C const* _c, D* _d, float* _g, Alpha _alpha, Beta _beta)
         : a(_a)
         , b(_b)
         , c(_c)
         , d(_d)
+        , g(_g)
         , alpha(_alpha)
         , beta(_beta)
     {

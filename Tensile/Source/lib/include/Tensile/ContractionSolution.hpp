@@ -163,6 +163,17 @@ namespace Tensile
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
 
+        template <typename TypedInputs>
+        KernelInvocation generateHightoLowPrecisionCall(Problem const&     problem,
+                                              TypedInputs const& inputs,
+                                              Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string HightoLowPrecisionKernelName(Problem const&     problem,
+                                       TypedInputs const& inputs,
+                                       Hardware const&    hardware) const;
+
+
         struct SizeMapping
         {
             dim3 workGroupSize;
@@ -172,6 +183,7 @@ namespace Tensile
             size_t staggerU;
             size_t depthU;
             size_t globalSplitU;
+            bool   globalAccumulation;
             size_t staggerStrideShift;
             int    workGroupMapping;
 
@@ -179,8 +191,7 @@ namespace Tensile
             int    packSummationDims = 0;
             int    magicDivAlg       = 1;
             size_t persistentKernel;
-
-            bool sourceKernel;
+            bool   sourceKernel;
         };
 
         struct ProblemType

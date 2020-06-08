@@ -557,13 +557,14 @@ namespace Tensile
 
         TypedContractionInputs();
         TypedContractionInputs(
-            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
+            A const* _a, B const* _b, C const* _c, D* _d, float* _g, Alpha _alpha, Beta _beta);
         ~TypedContractionInputs();
 
         A const* a = nullptr;
         B const* b = nullptr;
         C const* c = nullptr;
         D*       d = nullptr;
+        float*   g = nullptr;
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);

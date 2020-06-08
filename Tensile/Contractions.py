@@ -327,6 +327,7 @@ class SizeMapping:
                  'magicDivAlg',
                  'persistentKernel',
                  'sourceKernel',
+                 'globalAccumulation',
                  ]
 
     @classmethod
@@ -344,6 +345,7 @@ class SizeMapping:
                    persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
                    magicDivAlg        = d.get('MagicDivAlg', 1),
                    sourceKernel       = d['KernelLanguage'] == 'Source',
+                   globalAccumulation = d['_GlobalAccumulation'],
                    )
 
     @classmethod

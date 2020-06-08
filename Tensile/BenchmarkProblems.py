@@ -39,6 +39,7 @@ from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
+from .KernelWriter import KernelWriter
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
@@ -484,10 +485,14 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   # Min Naming
   ##############################################################################
 
-  kernels = []
-  kernelsBetaOnly = []
-  kernelNames = set()
-  kernelNamesBetaOnly = set()
+  kernels            = []
+  kernelsBetaOnly    = []
+  kernelsGlobalAccum = []
+
+  kernelNames            = set()
+  kernelNamesBetaOnly    = set()
+  kernelNamesGlobalAccum = set()
+
   for solution in Utils.tqdm(solutions, "Finding unique solutions"):
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
@@ -497,10 +502,16 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
         kernelNames.add(kName)
     solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
     for kernel in solutionKernelsBetaOnly:
-      kName = Solution.getNameFull(kernel)
+      kName = KernelWriter.getKernelNameBetaOnly(kernel)
       if kName not in kernelNamesBetaOnly:
         kernelsBetaOnly.append(kernel)
         kernelNamesBetaOnly.add(kName)
+    solutionKernelsGlobalAccum = solution.getKernelsGlobalAccum()
+    for kernel in solutionKernelsGlobalAccum:
+      kName = KernelWriter.getKernelNameGlobalAccum(kernel)
+      if kName not in kernelNamesGlobalAccum:
+        kernelsGlobalAccum.append(kernel)
+        kernelNamesGlobalAccum.add(kName)
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -517,7 +528,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
+      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, kernelsGlobalAccum, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
@@ -561,8 +572,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
 
   clientName = "TensileBenchmark_%s" % stepName
-  writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
-      clientName)
+  writeCMake(globalParameters["WorkingPath"], solutions, kernels, kernelsBetaOnly, kernelsGlobalAccum, \
+      filesToCopy, clientName)
 
   if globalParameters["NewClient"] != 2:
       forBenchmark = True

@@ -304,12 +304,11 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelsBetaOnly, \
+def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelsBetaOnly, KernelsGlobalAccum, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
   start = time.time()
 
   codeObjectFiles = []
-
 
   print1("# Writing Kernels...")
   kernelFiles = []
@@ -406,14 +405,42 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
 
+  kernelsToBuild += kernelsBetaOnly
+
+  ##### Kernel for Global Accumulation #####
+  for kernel in KernelsGlobalAccum:
+    kernelWriter = kernelWriterSource
+    kernelName = kernelWriter.getKernelNameGlobalAccum(kernel)
+
+    # write kernel.cpp
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFilename = os.path.join(outputPath, "Kernels", kernelName + ".cpp")
+      kernelSourceFile = open(kernelSourceFilename, "w")
+      kernelSourceFile.write(CHeader)
+      kernelFiles.append(kernelSourceFilename)
+
+    (err, src) = kernelWriter.getSourceFileStringGlobalAccum(kernel)
+    kernelSourceFile.write(src)
+    if err:
+      print("*** warning: invalid kernel#%u"%kernelName)
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
+    # write kernel.h
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName + ".h"), "w")
+      kernelHeaderFile.write(CHeader)
+    kernelHeaderFile.write( kernelWriter.getHeaderFileStringGlobalAccum(kernel))
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
+
+  kernelsToBuild += KernelsGlobalAccum
+
   # close merged
   if globalParameters["MergeFiles"]:
     if kernelSourceFile:
       kernelSourceFile.close()
     if kernelHeaderFile:
       kernelHeaderFile.close()
-
-  kernelsToBuild += kernelsBetaOnly
 
   codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
   codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
@@ -452,7 +479,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     h = ""
     for problemType in problemTypes:
       #print "p=", problemType
-      argListAll = solutionWriter.getArgList(problemType, True, True, True, True)
+      argListAll = solutionWriter.getArgList(problemType, True, True, True, True, True)
       # declare TensileSolutionPointer_ProblemType
       h += "\n// solution pointer\n"
       h += "typedef TensileStatus (*TensileSolutionPointer_%s)(\n" % problemType
@@ -531,9 +558,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   for problemType in Utils.tqdm(logicData):
 
     # function argument list
-    argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
-    argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
-    argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
+    argListSizes = solutionWriter.getArgList(problemType, False, False, False, False, True)
+    argListData  = solutionWriter.getArgList(problemType, False, True, True, True, True)
+    argListAll   = solutionWriter.getArgList(problemType, True, True, True, True, True)
 
     # tensile initializer
     h += "\nvoid tensileInitialize();\n\n"
@@ -917,7 +944,7 @@ def writeSolutionCall(solutionName, problemType):
 ################################################################################
 # Write CMake
 ################################################################################
-def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
+def writeCMake(outputPath, solutions, kernels, kernelsBetaOnly, kernelsGlobalAccum, libraryStaticFiles, clientName ):
   print1("# Writing Custom CMake")
   ##############################################################################
   # Min Naming
@@ -966,6 +993,15 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
       kernelName = kernelWriterSource.getKernelFileBase(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelFileBase(kernel)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
+    for kernel in kernelsBetaOnly:
+      kernelName = kernelWriterSource.getKernelNameBetaOnly(kernel)
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
+    for kernel in kernelsGlobalAccum:
+      kernelName = kernelWriterSource.getKernelNameGlobalAccum(kernel)
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
+
   generatedFile.write("  )\n")
 
   generatedFile.write("set( TensileClient_SOURCE\n")
@@ -1117,18 +1153,32 @@ def TensileCreateLibrary():
         masterLibraries[architectureName].version = args.version
 
   # create solution writer and kernel writer
-  kernels = []
-  kernelsBetaOnly = []
+  kernels            = []
+  kernelsBetaOnly    = []
+  kernelsGlobalAccum = []
+
+  kernelNamesBetaOnly    = set()
+  kernelNamesGlobalAccum = set()
+
   for solution in solutions:
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
+
     solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
     for kernel in solutionKernelsBetaOnly:
-      if KernelWriter.getKernelNameBetaOnly(kernel) not in \
-          [KernelWriter.getKernelNameBetaOnly(k) for k in kernelsBetaOnly]:
+      kernelName = KernelWriter.getKernelNameBetaOnly(kernel)
+      if kernelName not in kernelNamesBetaOnly:
         kernelsBetaOnly.append(kernel)
+        kernelNamesBetaOnly.add(kernelName)
+
+    solutionKernelsGlobalAccum = solution.getKernelsGlobalAccum()
+    for kernel in solutionKernelsGlobalAccum:
+      kernelName = KernelWriter.getKernelNameGlobalAccum(kernel)
+      if kernelName not in kernelNamesGlobalAccum:
+        kernelsGlobalAccum.append(kernel)
+        kernelNamesGlobalAccum.add(kernelName)
 
   # if any kernels are assembly, append every ISA supported
 
@@ -1167,14 +1217,13 @@ def TensileCreateLibrary():
 
   # write cmake
   clientName = "LibraryClient"
-  writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName )
+  writeCMake(outputPath, solutions, kernels, kernelsBetaOnly, kernelsGlobalAccum, libraryStaticFiles, clientName )
 
   # write solutions and kernels
   problemTypes = list(logicData.keys())
   codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
-                                             kernels, kernelsBetaOnly,
-                                             solutionWriter,
-                                             kernelWriterSource, kernelWriterAssembly)
+                                             kernels, kernelsBetaOnly, kernelsGlobalAccum,
+                                             solutionWriter, kernelWriterSource, kernelWriterAssembly)
 
   if globalParameters["LegacyComponents"]:
     # write logic

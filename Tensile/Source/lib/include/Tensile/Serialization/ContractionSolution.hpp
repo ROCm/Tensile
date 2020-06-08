@@ -82,6 +82,7 @@ namespace Tensile
                 iot::mapRequired(io, "staggerU", s.staggerU);
                 iot::mapRequired(io, "depthU", s.depthU);
                 iot::mapRequired(io, "globalSplitU", s.globalSplitU);
+                iot::mapRequired(io, "globalAccumulation", s.globalAccumulation);
                 iot::mapRequired(io, "staggerStrideShift", s.staggerStrideShift);
                 iot::mapRequired(io, "workGroupMapping", s.workGroupMapping);
 
