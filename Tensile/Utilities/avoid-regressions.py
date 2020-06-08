@@ -56,11 +56,13 @@ def avoidRegressions():
     argParser.add_argument("original_dir", help="the library logic directory without tuned sizes")
     argParser.add_argument("incremental_dir", help="the incremental logic directory")
     argParser.add_argument("output_dir", help="the output logic directory")
+    argParser.add_argument("force_merge", help="merge previously known sizes unconditionally", nargs='?', default="false")
 
     args = argParser.parse_args(userArgs)
     originalFiles = allFiles(args.original_dir)
     incrementalFiles = allFiles(args.incremental_dir)
     outputPath = args.output_dir
+    forceMerge = args.force_merge
     ensurePath(outputPath)
 
     for f in incrementalFiles:
@@ -94,7 +96,7 @@ def avoidRegressions():
                                 origEff = origData[7][j][1][1]
                                 if incSize == origSize:
                                     isOld = True
-                                    if incEff < origEff:
+                                    if incEff < origEff and forceMerge == "false":
                                         print(origSize, " already exists but has regressed in performance. Kernel is unchanged")
                                     else:
                                         if incIndex in improvedKernels.keys():
