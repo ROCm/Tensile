@@ -1,7 +1,7 @@
 import yaml
 import os
 import sys
-import argparse 
+import argparse
 
 def ensurePath(path):
   if not os.path.exists(path):
@@ -39,7 +39,7 @@ def fixSizeInconsistencies(sizes, fileType):
         for i in duplicates:
             sizes.pop(i)
         print(len(duplicates), "duplicate size(s) removed from ", fileType, " logic file")
-    return [sizes,len(sizes)]    
+    return [sizes,len(sizes)]
 
 def addKernel(incData, origData, improvedKernels, incIndex, currIndex):
     tempData = incData[5][incIndex]
@@ -101,6 +101,7 @@ def avoidRegressions():
                                     else:
                                         if incIndex in improvedKernels.keys():
                                             print(origSize, " already exists and has improved in performance, and uses a previously known kernel.")
+                                            print("Old Efficiency: ", origEff, "New efficiency: ", incEff)
                                         if incIndex not in improvedKernels.keys():
                                             print(origSize, " already exists and has improved in performance. A new kernel has been added.")
                                             print("Old Efficiency: ", origEff, ", New Efficiency: ", incEff)
