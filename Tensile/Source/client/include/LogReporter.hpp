@@ -231,6 +231,10 @@ namespace Tensile
                                        reinterpret_cast<float const*>(data),
                                        tensor,
                                        reinterpret_cast<float const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Half)
+                        logTensorTyped(level, name,
+                                       reinterpret_cast<Half const*>(data), tensor,
+                                       reinterpret_cast<Half const*>(ptrVal));
                     else
                         throw std::runtime_error(
                             concatenate("Can't log tensor of type ", tensor.dataType()));

@@ -121,6 +121,10 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
   endif()
 
+  if(Tensile_YAML)
+    set(Options ${Options} "--yaml")
+  endif()
+
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
@@ -139,7 +143,12 @@ function(TensileCreateLibraryFiles
 
   file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
   file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
-  set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
+
+  if(Tensile_YAML)
+    set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
+  else()
+    set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.dat")
+  endif()
 
   set("${Tensile_VAR_PREFIX}_CODE_OBJECTS" ${CodeObjects} ${HSACodeObjects} PARENT_SCOPE)
   set("${Tensile_VAR_PREFIX}_LIBRARY_FILE" "${LibraryFile}" PARENT_SCOPE)
