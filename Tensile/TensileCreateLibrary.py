@@ -1324,8 +1324,10 @@ def TensileCreateLibrary():
     ensurePath(libraryPath)
     generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
 
+    libraryFilename = "TensileLibrary.yaml" if globalParameters["YAML"] else "TensileLibrary.dat"
+
     # Manifest file contains YAML file, output library paths and cpp source for embedding.
-    for filePath in [os.path.join(libraryPath, "TensileLibrary.yaml")] + sourceLibPaths + asmLibPaths:
+    for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
       generatedFile.write("%s\n" %(filePath) )
     generatedFile.close()
 
