@@ -102,11 +102,11 @@ add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
     test.cpp
-
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     DataTypes_test.cpp
+    DeterministicModePredicate_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     ProjectedPerformance_test.cpp
