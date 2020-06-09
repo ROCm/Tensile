@@ -37,16 +37,16 @@ using namespace Tensile;
 /**
  * LibraryPerformanceTest:
  *
- * This suite contains micro-benchmarks for pieces of the runtime library.  It
- * does not exercise any of the Hip-specific code.
+ * This suite contains micro-benchmarks for pieces of the runtime library.  It does not
+ * exercise any of the Hip-specific code.
  *
- * There are no performance-based assertions or checks.  The timing results are
- * provided by googletest.
+ * There are no performance-based assertions or checks.  The timing results are provided by
+ * googletest.
  *
- * Most of these tests depend on a library being loaded from a YAML file.  The
- * library objects are cached so that the deserialization time is not a part of
- * the actual test (outside of the LoadLibrary test). PopulateCache is an empty
- * test whose purpose is to ensure the cache is populated for the actual tests.
+ * Most of these tests depend on a library being loaded from a DAT/YAML file.  The library objects
+ * are cached so that the deserialization time is not a part of the actual test (outside of the
+ * LoadLibrary test). PopulateCache is an empty test whose purpose is to ensure the cache is
+ * populated for the actual tests.
  */
 struct LibraryPerformanceTest
     : public ::testing::TestWithParam<std::tuple<AMDGPU, std::string, bool, bool>>
@@ -223,17 +223,17 @@ std::vector<LibraryPerformanceTest::ParamType> GetParams()
 
     for(auto const& gpu : gpus)
     {
-        rv.push_back(std::make_tuple(gpu, "KernelsLite.yaml", false, false));
-        rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed.yaml", false, true));
-        rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi.yaml", true, false));
-        rv.push_back(std::make_tuple(gpu, "KernelsTileLite.yaml", false, false));
-        rv.push_back(std::make_tuple(gpu, "rocBLAS_Full.yaml", false, true));
+        rv.push_back(std::make_tuple(gpu, "KernelsLite", false, false));
+        rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed", false, true));
+        rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi", true, false));
+        rv.push_back(std::make_tuple(gpu, "KernelsTileLite", false, false));
+        rv.push_back(std::make_tuple(gpu, "rocBLAS_Full", false, true));
     }
 
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full.yaml", false, true));
+        AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full", false, true));
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi.yaml", true, true));
+        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi", true, true));
 
     return rv;
 }

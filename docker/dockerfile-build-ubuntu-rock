@@ -32,9 +32,15 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# The version of MessagePack supplied in Ubuntu 16.04 is old and won't work,
+# so we'll manually download and install the DEB files
+RUN curl -O http://ftp.us.debian.org/debian/pool/main/m/msgpack-c/libmsgpack-dev_3.0.1-3_amd64.deb \
+         -O http://ftp.us.debian.org/debian/pool/main/m/msgpack-c/libmsgpackc2_3.0.1-3_amd64.deb
+RUN dpkg -i libmsgpack-dev_3.0.1-3_amd64.deb libmsgpackc2_3.0.1-3_amd64.deb
+
 RUN pip3 install setuptools --upgrade && \
     pip3 install wheel && \
-    pip3 install tox pyyaml
+    pip3 install tox pyyaml msgpack
 
 # Patch hcc-config.cmake in /opt/rocm
 #ADD docker/scripts/fix_hcc_config /tmp
