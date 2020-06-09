@@ -20,7 +20,8 @@
 ################################################################################
 
 from . import Code
-from .Common import globalParameters, printExit, printWarning, roundUp, print2
+from .Common import globalParameters, print2, printExit, printWarning, roundUp
+from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
@@ -98,7 +99,7 @@ class MemoryInstruction:
 ################################################################################
 # RegisterPool
 # Debugging register performance problems:
-# - Enable self.db["PrintRP" to see messages as vgprPool state changes.
+# - Enable self.db["PrintRP"] to see messages as vgprPool state changes.
 # - Search for 'overlow' to see when pool grows dynamically - typically this
 #   indicates growth for temps or other cases.
 # - checkIn, checkout take optional tag but this is not widely used in tensile.
@@ -106,9 +107,10 @@ class MemoryInstruction:
 #   this vgpr is used.
 ################################################################################
 class RegisterPool:
-  statusUnAvailable = 0
-  statusAvailable = 1
-  statusInUse = 2
+  class Status(Enum):
+    Unavailable = 0
+    Available = 1
+    InUse = 2
 
   class Register:
     def __init__(self, status, tag):
@@ -124,7 +126,7 @@ class RegisterPool:
     self.type = type
     self.reservedAtEnd = reservedAtEnd
     self.defaultPreventOverflow = defaultPreventOverflow
-    self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
+    self.pool = [self.Register(RegisterPool.Status.Unavailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
 
   ########################################
@@ -148,15 +150,15 @@ class RegisterPool:
     oldSize = len(self.pool)
     if newSize > oldSize:
       for i in range(0, newSize-oldSize):
-        self.pool.append(self.Register(self.statusUnAvailable,tag))
+        self.pool.append(self.Register(RegisterPool.Status.Unavailable,tag))
     # mark as available
     for i in range(start, start+size):
-      if self.pool[i].status == self.statusUnAvailable:
-        self.pool[i].status = self.statusAvailable
+      if self.pool[i].status == RegisterPool.Status.Unavailable:
+        self.pool[i].status = RegisterPool.Status.Available
         self.pool[i].tag = tag
-      elif self.pool[i].status == self.statusAvailable:
+      elif self.pool[i].status == RegisterPool.Status.Available:
         printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already available" % (start, size, i, self.pool[i].tag))
-      elif self.pool[i].status == self.statusInUse:
+      elif self.pool[i].status == RegisterPool.Status.InUse:
         printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already in use" % (start, size, i, self.pool[i].tag))
       else:
         raise RuntimeError("RegisterPool::add(%u,%u) pool[%u](%s) = %s" % (start, size, i, self.pool[i].tag, self.pool[i].status))
@@ -175,11 +177,11 @@ class RegisterPool:
       printWarning("RegisterPool::remove(%u,%u) but poolSize=%u" % (start, size, oldSize))
     # mark as unavailable
     for i in range(start, start+size):
-      if  self.pool[i].status == self.statusAvailable:
-        self.pool[i].status = self.statusUnAvailable
-      elif self.pool[i].status == self.statusUnAvailable:
+      if  self.pool[i].status == RegisterPool.Status.Available:
+        self.pool[i].status = RegisterPool.Status.Unavailable
+      elif self.pool[i].status == RegisterPool.Status.Unavailable:
         printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) already unavailable" % (start, size, i, self.pool[i].tag))
-      elif  self.pool[i].status == self.statusInUse:
+      elif  self.pool[i].status == RegisterPool.Status.InUse:
         printWarning("RegisterPool::remove(%u,%u) pool[%u](%s) still in use" % (start, size, i, self.pool[i].tag))
       else:
         printExit("RegisterPool::remove(%u,%u) pool[%u](%s) = %s" % (start, size, i, self.pool[i].tag, self.pool[i].status))
@@ -204,7 +206,7 @@ class RegisterPool:
       # all available
       allAvailable = True
       for j in range(0, size):
-        if self.pool[i+j].status != self.statusAvailable:
+        if self.pool[i+j].status != RegisterPool.Status.Available:
           allAvailable = False
           i = j+1
           break
@@ -218,7 +220,7 @@ class RegisterPool:
     if found > -1:
       #print "Found: %u" % found
       for i in range(found, found+size):
-        self.pool[i].status = self.statusInUse
+        self.pool[i].status = RegisterPool.Status.InUse
         self.pool[i].tag = tag
       self.checkOutSize[found] = size
       if self.printRP:
@@ -232,7 +234,7 @@ class RegisterPool:
       assert (not preventOverflow)
       start = len(self.pool)
       for i in range(len(self.pool)-1, 0, -1):
-        if self.pool[i].status == self.statusAvailable:
+        if self.pool[i].status == RegisterPool.Status.Available:
           self.pool[i].tag = tag
           start = i
           continue
@@ -249,14 +251,14 @@ class RegisterPool:
       overflow = newSize - oldSize
       #print "Overflow: ", overflow
       for i in range(start, len(self.pool)):
-        self.pool[i].status = self.statusInUse
+        self.pool[i].status = RegisterPool.Status.InUse
         self.pool[i].tag = tag
       for i in range(0, overflow):
         if len(self.pool) < start:
           # this is padding to meet alignment requirements
-          self.pool.append(self.Register(self.statusAvailable,tag))
+          self.pool.append(self.Register(RegisterPool.Status.Available,tag))
         else:
-          self.pool.append(self.Register(self.statusInUse,tag))
+          self.pool.append(self.Register(RegisterPool.Status.InUse,tag))
       self.checkOutSize[start] = size
       if self.printRP:
         print(self.state())
@@ -269,7 +271,7 @@ class RegisterPool:
     for i in range(start, stop):
       #if self.type == 's':
       #  print i, self.pool[i].status
-      if self.pool[i].status==self.statusAvailable:
+      if self.pool[i].status==RegisterPool.Status.Available:
         if self.type == 's':
           kStr += inst("s_mov_b32", sgpr(i), hex(initValue), "init tmp in pool")
         elif self.type == 'v':
@@ -285,7 +287,7 @@ class RegisterPool:
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
-        self.pool[i].status = self.statusAvailable
+        self.pool[i].status = RegisterPool.Status.Available
       self.checkOutSize.pop(start)
       if self.printRP:
         print("RP::checkIn('%s') @ %u +%u"%(self.pool[i].tag, start,size))
@@ -307,7 +309,7 @@ class RegisterPool:
   def available(self):
     numAvailable = 0
     for s in self.pool:
-      if s.status == self.statusAvailable:
+      if s.status == RegisterPool.Status.Available:
         numAvailable += 1
     return numAvailable
 
@@ -319,7 +321,7 @@ class RegisterPool:
     blocksAvail = 0
     consecAvailable = 0
     for s in self.pool:
-      if s.status == self.statusAvailable:
+      if s.status == RegisterPool.Status.Available:
         consecAvailable += 1
       else:
         blocksAvail += consecAvailable // blockSize
@@ -332,7 +334,7 @@ class RegisterPool:
   def availableBlockAtEnd(self):
     availCnt = 0
     for s in reversed(self.pool):
-      if s.status == self.statusAvailable:
+      if s.status == RegisterPool.Status.Available:
         availCnt += 1
       else:
         break
@@ -343,7 +345,7 @@ class RegisterPool:
   ########################################
   def checkFinalState(self):
     for si in range(0,len(self.pool)):
-      if self.pool[si].status == self.statusInUse:
+      if self.pool[si].status == RegisterPool.Status.InUse:
         if self.printRP:
           print(self.state())
         raise RuntimeError("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
@@ -366,11 +368,11 @@ class RegisterPool:
             pvs += " "
         stateStr += pvs + "\n"
     for i in range(0, len(self.pool)):
-      if self.pool[i].status == self.statusUnAvailable:
+      if self.pool[i].status == RegisterPool.Status.Unavailable:
         stateStr += "." # 'removed', this indicates a fixed assignment from "remove", ie a non-tmp allocation
-      elif self.pool[i].status == self.statusAvailable:
+      elif self.pool[i].status == RegisterPool.Status.Available:
         stateStr += "|" # Can be allocated
-      elif self.pool[i].status == self.statusInUse:
+      elif self.pool[i].status == RegisterPool.Status.InUse:
         stateStr += "#" # Checked out
     return stateStr
 
@@ -1954,6 +1956,10 @@ class KernelWriterAssembly(KernelWriter):
 
   def defineMACs(self, kernel, m, innerUnroll):
 
+    component = Component.MAC.find(self)
+    if component:
+      return component(self, m, innerUnroll)
+
     kStr = ""
     beAggressive = kernel["AggressivePerfMode"]
 
@@ -2054,7 +2060,7 @@ class KernelWriterAssembly(KernelWriter):
                   C[0] = A[0]*B[0]+D[0]
                   C[1] = A[1]*B[1]+D[1]
                   """
-            else:
+            else: # 900 Non-HPA
               b = blockB*2
               a = blockA*2
               for iui in range(0, innerUnroll):
@@ -2149,7 +2155,7 @@ class KernelWriterAssembly(KernelWriter):
                   C[1] = A[1]*B[1]+D[1]
                   """
                 #kStr += self.bomb(-13)
-            else:
+            else: # 906, 908 Non-HPA
               b = blockB*2
               a = blockA*2
               for iui in range(0, innerUnroll):
@@ -2170,6 +2176,37 @@ class KernelWriterAssembly(KernelWriter):
                 C[0] = A[0]*B[0]+D[0]
                 C[1] = A[1]*B[1]+D[1]
                 """
+          elif self.version == (10,1,0):
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              for iui in range(0, innerUnroll):
+                cStr1 = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+                cStr2 = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
+                aStr = "v[%s+%u]" \
+                    % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+                bStr = "v[%s+%u]" \
+                    % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,0,0,0] %s" % (cStr1, aStr, bStr, cStr1, self.endLine)
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,1,0,0] %s" % (cStr2, aStr, bStr, cStr2, self.endLine)
+                if beAggressive and not doOnce:
+                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+                  doOnce = True
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,0,1,1] %s" % (cStr1, aStr, bStr, cStr1, self.endLine)
+                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,1,1,1] %s" % (cStr2, aStr, bStr, cStr2, self.endLine)
+              #for b in range(blockB*2, (blockB+1)*2):
+              #  for a in range(blockA*2, (blockA+1)*2):
+              #    for iui in range(0, innerUnroll):
+              #      # v_mac_f16 or v_fma_f16
+              #      cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
+              #      aStr = "v[%s+%u]" \
+              #          % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+              #      bStr = "v[%s+%u]" \
+              #          % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+              #      kStr += "v_fma_f16 %s, %s, %s, %s%s" % (cStr, cStr, aStr, bStr, self.endLine) # FIXME op_sel
+              #      if beAggressive and not doOnce:
+              #        kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
+              #        doOnce = True
+            else: # 1010 Non-HPA
+              raise NotImplementedError("Half-precision not supported without HPA for 1010")
           else:
             printExit("Half-precision not supported for arch=%u" % self.version )
       if beAggressive:
@@ -2953,8 +2990,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     kStr += self.defineCMPXMacros(kernel)
-
-
+    #kStr += self.defineF16PackedMathMacros(kernel)
 
     # Performs a division using 'magic number' computed on host
     # Argument requirements:
@@ -2964,16 +3000,16 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("Magic div and mod functions")
     if kernel["MagicDivAlg"]==1: # TODO: remove me
         kStr += ".macro V_MAGIC_DIV dstIdx:req, dividend:req, magicNumber:req, magicShift:req, magicA:req" + self.endLine
-        kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
-        kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
-        kStr += "    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
+        kStr += r"    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+        kStr += r"    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicNumber" + self.endLine
+        kStr += r"    v_lshrrev_b64 v[\dstIdx:\dstIdx+1], \magicShift, v[\dstIdx:\dstIdx+1]" + self.endLine
         kStr += ".endm" + self.endLine
     elif kernel["MagicDivAlg"]==2:
         kStr += ".macro V_MAGIC_DIV dstIdx:req, dividend:req, magicNumber:req, magicShift:req, magicA:req" + self.endLine
-        kStr += "    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
-        kStr += "    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicA" + self.endLine
-        kStr += "    v_add_u32 v[\dstIdx+0], v[\dstIdx+0], v[\dstIdx+1]" + self.endLine
-        kStr += "    v_lshrrev_b32 v[\dstIdx+0], \magicShift, v[\dstIdx+0]" + self.endLine
+        kStr += r"    v_mul_hi_u32 v[\dstIdx+1], \dividend, \magicNumber" + self.endLine
+        kStr += r"    v_mul_lo_u32 v[\dstIdx+0], \dividend, \magicA" + self.endLine
+        kStr += r"    v_add_u32 v[\dstIdx+0], v[\dstIdx+0], v[\dstIdx+1]" + self.endLine
+        kStr += r"    v_lshrrev_b32 v[\dstIdx+0], \magicShift, v[\dstIdx+0]" + self.endLine
         kStr += ".endm" + self.endLine
 
     ########################################
@@ -5776,7 +5812,7 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(dummy)
         #kStr += dump(vgpr(sgId))
         #kStr += dump(vgpr(numIter))
-        kStr += inst("v_cmpx_lt_u32", "vcc", \
+        kStr += inst("_v_cmpx_lt_u32", "vcc", \
             vgpr(sgId), vgpr(numIter), "sgId < numIter")
         self.vgprPool.checkIn(tmpVgpr)
         #self.tailNumIter = numIter
@@ -5788,7 +5824,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # LSU mask for this iteration
       if kernel["LocalSplitU"] > 1:
-        kStr += inst("v_cmpx_lt_u32", "vcc", \
+        kStr += inst("_v_cmpx_lt_u32", "vcc", \
             vgpr(sgId), vgpr(numIter), "sgId < numIter")
         kStr += inst("_v_add_co_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
             vgpr(sgId), "sgId+=LSU")
@@ -5991,7 +6027,7 @@ class KernelWriterAssembly(KernelWriter):
       #         lastVgprForReads ^  ^         ^
       #              startVgprReuse ^         ^
       #                             lastValuC ^
-      # if valuC does not include all of lastVgprForReads, we can reuse the 
+      # if valuC does not include all of lastVgprForReads, we can reuse the
       # non-overlapped part of lastVgprForReads
       # |<-------------- valuC -------------->|
       # |xxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxx|oooooo|xx|
@@ -6000,7 +6036,7 @@ class KernelWriterAssembly(KernelWriter):
       #                                  startVgprReuse ^
       vbegin = self.numVgprValuC
       vsize = max(0, self.lastVgprForReads-self.numVgprValuC)
-    else: 
+    else:
       vbegin = self.startVgprValuA
       vsize = self.lastVgprForReads - self.startVgprValuA
 
@@ -6013,7 +6049,7 @@ class KernelWriterAssembly(KernelWriter):
       regTag = self.sgprPool.pool[i].tag
       if regTag != lastRegTag:
         lastRegTag = regTag
-        if self.sgprPool.pool[i].status == RegisterPool.statusInUse:
+        if self.sgprPool.pool[i].status == RegisterPool.Status.InUse:
           kStr += self.undefineSgpr(regTag)
 
     if self.db["InitVgpr"] & 0x2:
@@ -6514,7 +6550,7 @@ class KernelWriterAssembly(KernelWriter):
       newSize = self.vgprPool.size()
       if newSize > self.savedVgprPool.size():
         for i in range(oldSize-1,newSize):
-          self.savedVgprPool.pool.append(self.savedVgprPool.Register(self.savedVgprPool.statusAvailable,"restore vgprPool"))
+          self.savedVgprPool.pool.append(self.savedVgprPool.Register(RegisterPool.Status.Available,"restore vgprPool"))
       self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
       self.savedVgprPool = None
     return kStr
@@ -8561,8 +8597,10 @@ class KernelWriterAssembly(KernelWriter):
           if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
             cIdx //= elementStep
             regIdx //= elementStep
+
             kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), \
                 vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+
           elif kernel["ProblemType"]["DataType"].isInt8x4():
             cIdx //= elementStep
             regIdx //= elementStep
@@ -11915,7 +11953,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
           "assert: saved execmask")
 
-      kStr += inst("v_cmpx_%s"%cond, "vcc", val0, val1, "v_cmp" )
+      kStr += inst("_v_cmpx_%s"%cond, "vcc", val0, val1, "v_cmp" )
 
       kStr += self.assertCommon(cookie)
 

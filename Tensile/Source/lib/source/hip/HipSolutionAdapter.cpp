@@ -93,7 +93,8 @@ namespace Tensile
                     HIP_CHECK_EXC_MESSAGE(error, path);
                 }
 
-                std::cout << "loaded code object." << std::endl;
+                if(m_debug)
+                    std::cout << "loaded code object" << path << std::endl;
             }
             catch(std::runtime_error const& exc)
             {
@@ -129,7 +130,8 @@ namespace Tensile
                     HIP_CHECK_EXC(error);
                 }
 
-                std::cout << "loaded code object." << std::endl;
+                if(m_debug)
+                    std::cout << "loaded code object data." << std::endl;
             }
             catch(std::runtime_error const& exc)
             {
@@ -180,7 +182,9 @@ namespace Tensile
                         continue;
                     newModules.push_back(nextModule);
                     HIP_CHECK_EXC(error);
-                    std::cout << "Loaded code object." << std::endl;
+
+                    if(m_debug)
+                        std::cout << "Loaded code object for key " << key << std::endl;
                 }
                 catch(std::runtime_error const& exc)
                 {

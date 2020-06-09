@@ -21,7 +21,8 @@
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
-from . import YAMLIO
+from . import Common
+from . import LibraryIO
 
 import os
 import subprocess
@@ -97,7 +98,7 @@ def main( config ):
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
         indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
-        = YAMLIO.readLibraryLogicForSchedule(logicFileName)
+        = LibraryIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
@@ -562,12 +563,13 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
             f.write("{}={}\n".format(key, value))
 
         sourceDir = os.path.join(stepBaseDir, "source")
-        libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
+        libraryFilename = "TensileLibrary.yaml" if globalParameters["YAML"] else "TensileLibrary.dat"
+        libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
 
-        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"]
+        currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
         for coFile in codeObjectFiles:
-            if (currentGFXName in coFile):
+            if 'gfx' not in coFile or currentGFXName in coFile:
                 param("code-object", os.path.join(sourceDir,coFile))
 
         if tileAwareSelection:
@@ -624,6 +626,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if globalParameters["ConvolutionVsContraction"]:
             assert(newSolution.problemType.convolution)
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
