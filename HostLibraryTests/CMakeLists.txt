@@ -109,6 +109,7 @@ set(test_sources ${test_sources}
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     DataTypes_test.cpp
+    DeterministicModePredicate_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     KernelLanguagePredicate_test.cpp

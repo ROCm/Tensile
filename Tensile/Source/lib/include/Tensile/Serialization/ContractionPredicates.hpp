@@ -74,6 +74,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::BetaOne>(),
                     Base::template Pair<Predicates::Contraction::HighPrecisionAccumulateEqual>(),
                     Base::template Pair<Predicates::Contraction::KernelLanguageEqual>(),
+                    Base::template Pair<Predicates::Contraction::DeterministicModeEqual>(),
                     Base::template Pair<Predicates::Contraction::TypesEqual>(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                 });
@@ -198,7 +199,10 @@ namespace Tensile
 
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::KernelLanguageEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::KernelLanguageEqual, IO>
+            : public AutoMappingTraits<
+                  Predicates::Contraction::KernelLanguageEqual,
+                  IO> struct MappingTraits<Predicates::Contraction::DeterministicModeEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::DeterministicModeEqual, IO>
         {
         };
 

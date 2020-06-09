@@ -312,6 +312,9 @@ class ProblemPredicate(Properties.Predicate):
             rv += [ super().Or( \
                 [ cls("KernelLanguage", value = "Any"), \
                   cls("KernelLanguage", value = "Source") ] ) ]
+        if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
+            rv += [cls("DeterministicMode", value = False)]
+
 
         return rv
 

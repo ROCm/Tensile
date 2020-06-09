@@ -633,6 +633,33 @@ namespace Tensile
                 }
             };
 
+            struct DeterministicModeEqual
+                : public Predicate_CRTP<DeterministicModeEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                bool value;
+
+                DeterministicModeEqual() = default;
+                DeterministicModeEqual(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "DeterministicMode";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.deterministicMode() == value;
+                }
+            };
+
             struct TypesEqual : public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
                 enum

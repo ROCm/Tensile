@@ -110,6 +110,8 @@ namespace Tensile
                 ("beta-type",                po::value<DataType>()->default_value(DataType::Count), "beta data type")
                 ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
                 ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
+                ("deterministic-mode",       po::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
+                                                                                      "by not splitting U among workgroups")
 
                 ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
                 ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")
