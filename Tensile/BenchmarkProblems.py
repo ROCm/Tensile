@@ -32,7 +32,7 @@ from copy import deepcopy
 
 from . import ClientExecutable
 from . import SolutionLibrary
-from . import YAMLIO
+from . import LibraryIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess
 from .ClientWriter import runClient, writeClientParameters, writeClientConfig
@@ -362,7 +362,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Write Solutions YAML
     ############################################################################
-    YAMLIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
+    LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
         solutions )
 
     # End Iteration
@@ -520,11 +520,12 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
+  newLibraryFilename = "TensileLibrary.yaml" if globalParameters["YAML"] else "TensileLibrary.dat"
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
-  newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
+  newLibraryFile = os.path.join(newLibraryDir, newLibraryFilename)
   newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
-  YAMLIO.write(newLibraryFile, Utils.state(newLibrary))
+  LibraryIO.configWriter(globalParameters["YAML"]).write(newLibraryFile, Utils.state(newLibrary))
 
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 
