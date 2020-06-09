@@ -75,11 +75,11 @@
 namespace Tensile
 {
     /**
- * \ingroup Tensile
- * \defgroup  Problem Problem Definition
- *
- * @brief Classes for defining problems
- */
+     * \ingroup Tensile
+     * \defgroup  Problem Problem Definition
+     *
+     * @brief Classes for defining problems
+     */
 
     /**
  * \ingroup Problem
@@ -181,6 +181,10 @@ namespace Tensile
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
                 LoadLibraryFile(std::string const& filename);
+
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LoadLibraryData(std::vector<uint8_t> const& data);
 #endif
 } // namespace Tensile
 
